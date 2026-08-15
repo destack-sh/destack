@@ -2,18 +2,18 @@ use std::collections::HashMap;
 
 use crate as mir;
 
-use super::{Analysis, ModuleAnalyses, Mutation, OpenCallSite, ValueTypes};
+use super::{Analysis, AnalysisCache, Mutation, OpenCallSite, ValueTypeTable};
 
 /// Static dispatch target analysis for MIR callsites.
 #[derive(Debug, Default)]
-pub struct DispatchAnalysis {
+pub struct ResolutionTable {
     /// Resolved targets keyed by callsite.
     targets: HashMap<mir::CallSite, mir::FunctionId>,
     /// Calls whose target set is still open.
     open_callsites: Vec<OpenCallSite>,
 }
 
-impl DispatchAnalysis {
+impl ResolutionTable {
     /// Return the resolved target for one callsite.
     pub fn target(&self, callsite: mir::CallSite) -> Option<mir::FunctionId> {
         self.targets.get(&callsite).copied()
@@ -27,7 +27,7 @@ impl DispatchAnalysis {
     /// Build dispatch analysis for one MIR tree.
     fn build(
         tree: &mir::Tree,
-        analyses: &mut ModuleAnalyses,
+        analyses: &mut AnalysisCache,
         dispatch_table: &mir::DispatchTable,
     ) -> Self {
         let mut analysis = Self::default();
@@ -35,7 +35,7 @@ impl DispatchAnalysis {
         // scan each function body
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
             if function.entry().is_some() {
-                let value_types = analyses.value_types(function_id, tree);
+                let value_types = analyses.value_type(function_id, tree);
                 let mut resolver = DispatchResolver {
                     tree,
                     dispatch: dispatch_table,
@@ -62,15 +62,15 @@ impl DispatchAnalysis {
     }
 }
 
-impl Analysis for DispatchAnalysis {
+impl Analysis for ResolutionTable {
     const INVALIDATED_BY: Mutation = Mutation::VALUE;
 }
 
-impl DispatchAnalysis {
+impl ResolutionTable {
     /// Compute static dispatch targets for the module.
     pub(crate) fn compute(
         tree: &mir::Tree,
-        analyses: &mut ModuleAnalyses,
+        analyses: &mut AnalysisCache,
         dispatch_table: &mir::DispatchTable,
     ) -> Self {
         Self::build(tree, analyses, dispatch_table)
@@ -86,9 +86,9 @@ struct DispatchResolver<'a, 'b> {
     /// The function being scanned.
     function: &'a mir::Function,
     /// Value types for the function.
-    value_types: &'b ValueTypes,
+    value_types: &'b ValueTypeTable,
     /// Analysis being populated.
-    analysis: &'b mut DispatchAnalysis,
+    analysis: &'b mut ResolutionTable,
 }
 
 impl<'a, 'b> DispatchResolver<'a, 'b> {
@@ -298,7 +298,7 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
+        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
 
         assert_eq!(dispatch.target(callsite), Some(callee));
         assert!(dispatch.open_callsites().is_empty());
@@ -333,7 +333,7 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
+        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
 
         assert_eq!(dispatch.target(callsite), None);
         assert_eq!(dispatch.open_callsites().len(), 1);
@@ -370,7 +370,7 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
+        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
 
         assert_eq!(dispatch.target(callsite), Some(callee));
         assert!(dispatch.open_callsites().is_empty());
@@ -401,7 +401,7 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
+        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
 
         assert_eq!(dispatch.target(callsite), None);
         assert_eq!(dispatch.open_callsites().len(), 1);
@@ -421,7 +421,7 @@ entry(v0: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
+        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
 
         assert!(
             dispatch

@@ -178,6 +178,13 @@ pub struct FunctionProfile {
     pub values: HashMap<SamplerId, ValueProfile>,
 }
 
+impl FunctionProfile {
+    /// Return one edge count, or zero when the edge has no profile.
+    pub fn edge(&self, edge: Edge) -> u64 {
+        self.edges.get(&edge).map_or(0, |count| count.get())
+    }
+}
+
 /// Profile data for one global, addressed by its persistent symbol.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct GlobalProfile {

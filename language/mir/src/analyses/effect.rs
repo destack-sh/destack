@@ -2,36 +2,17 @@ use std::collections::{HashMap, VecDeque};
 
 use crate as mir;
 
-use super::{Analysis, ModuleAnalyses, Mutation};
+use super::{Analysis, AnalysisCache, Mutation};
 
-/// Module table of function effects.
-#[derive(Debug, Default)]
-pub struct FunctionEffectAnalysis {
-    /// Function effects keyed by function id.
-    effects: HashMap<mir::FunctionId, mir::FunctionEffect>,
-}
-
-impl FunctionEffectAnalysis {
-    /// Return a function effect when present.
-    pub fn function(&self, function: mir::FunctionId) -> Option<&mir::FunctionEffect> {
-        self.effects.get(&function)
-    }
-
-    /// Iterate over function effects.
-    pub fn iter(&self) -> impl Iterator<Item = (mir::FunctionId, &mir::FunctionEffect)> {
-        self.effects
-            .iter()
-            .map(|(&function, effect)| (function, effect))
-    }
-
-    /// Build effects for all functions with bodies.
+impl mir::EffectTable {
+    /// Build complete effects for all functions with bodies.
     fn build(
         tree: &mir::Tree,
-        analyses: &mut ModuleAnalyses,
-        memory: &mir::MemoryTable,
+        analyses: &mut AnalysisCache,
+        accesses: &mir::AccessTable,
         effect_table: &mir::EffectTable,
     ) -> Self {
-        let callgraph = analyses.call_graph(tree, effect_table);
+        let calls = analyses.call(tree, effect_table);
         let function_ids = Self::function_body_ids(tree);
         let mut effects = effect_table.functions.clone();
         let mut worklist: VecDeque<_> = function_ids.iter().copied().collect();
@@ -39,7 +20,7 @@ impl FunctionEffectAnalysis {
         // propagate direct-call effects to a fixpoint
         while let Some(function_id) = worklist.pop_front() {
             let effect =
-                FunctionEffectBuilder::compute(tree, function_id, memory, effect_table, &effects);
+                FunctionEffectBuilder::compute(tree, function_id, accesses, effect_table, &effects);
             let changed = effects
                 .get(&function_id)
                 .map(|existing| existing != &effect)
@@ -48,7 +29,7 @@ impl FunctionEffectAnalysis {
             if changed {
                 effects.insert(function_id, effect);
 
-                for edge in callgraph.incoming(function_id) {
+                for edge in calls.incoming(function_id) {
                     if edge.is_direct() {
                         worklist.push_back(edge.caller);
                     }
@@ -56,7 +37,10 @@ impl FunctionEffectAnalysis {
             }
         }
 
-        Self { effects }
+        Self {
+            functions: effects,
+            calls: effect_table.calls.clone(),
+        }
     }
 
     /// Return ids for all functions with bodies.
@@ -67,19 +51,19 @@ impl FunctionEffectAnalysis {
     }
 }
 
-impl Analysis for FunctionEffectAnalysis {
+impl Analysis for mir::EffectTable {
     const INVALIDATED_BY: Mutation = Mutation::VALUE;
 }
 
-impl FunctionEffectAnalysis {
-    /// Compute module function effects.
+impl mir::EffectTable {
+    /// Compute complete module effects.
     pub(crate) fn compute(
         tree: &mir::Tree,
-        analyses: &mut ModuleAnalyses,
-        memory: &mir::MemoryTable,
+        analyses: &mut AnalysisCache,
+        accesses: &mir::AccessTable,
         effects: &mir::EffectTable,
     ) -> Self {
-        Self::build(tree, analyses, memory, effects)
+        Self::build(tree, analyses, accesses, effects)
     }
 }
 
@@ -90,7 +74,7 @@ struct FunctionEffectBuilder<'a> {
     /// The function being analyzed.
     function: &'a mir::Function,
     /// Explicit memory access table.
-    memory_table: &'a mir::MemoryTable,
+    accesses: &'a mir::AccessTable,
     /// Explicit effect table.
     effect_table: &'a mir::EffectTable,
     /// Effects available from previous fixpoint iterations.
@@ -108,7 +92,7 @@ impl<'a> FunctionEffectBuilder<'a> {
     fn compute(
         tree: &'a mir::Tree,
         function_id: mir::FunctionId,
-        memory_table: &'a mir::MemoryTable,
+        accesses: &'a mir::AccessTable,
         effect_table: &'a mir::EffectTable,
         effects: &'a HashMap<mir::FunctionId, mir::FunctionEffect>,
     ) -> mir::FunctionEffect {
@@ -116,7 +100,7 @@ impl<'a> FunctionEffectBuilder<'a> {
         let mut builder = Self {
             tree,
             function,
-            memory_table,
+            accesses,
             effect_table,
             effects,
             memory: MemoryAccumulator::new(),
@@ -194,7 +178,7 @@ impl<'a> FunctionEffectBuilder<'a> {
         instruction: &mir::Instruction,
     ) -> mir::FunctionEffect {
         // prefer precise memory access entries when present
-        if let Some(accesses) = self.memory_table.memory_accesses(instruction_id) {
+        if let Some(accesses) = self.accesses.get(instruction_id) {
             let memory = MemoryAccumulator::from_accesses(accesses).finish();
             return mir::FunctionEffect {
                 memory,
@@ -202,7 +186,7 @@ impl<'a> FunctionEffectBuilder<'a> {
             };
         }
 
-        // map MIR semantics to local effects
+        // map MIR operations to local effects
         match instruction {
             mir::Instruction::Load { .. } | mir::Instruction::AtomicLoad { .. } => {
                 mir::FunctionEffect::memory(mir::MemoryEffect::read_only(mir::StorageSet::ANY))
@@ -519,7 +503,7 @@ entry(v0: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
         let function = program.function_id_by_name("pure");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -542,7 +526,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
         let function = program.function_id_by_name("allocate");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -564,7 +548,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
         let function = program.function_id_by_name("backoff");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -585,7 +569,7 @@ entry(v0: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
         let function = program.function_id_by_name("conceal");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -606,7 +590,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
         let function = program.function_id_by_name("inspect");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -633,7 +617,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
         let function = program.function_id_by_name("root");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -664,7 +648,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
         let root = program.function_id_by_name("root");
         let effect = effects.function(root).expect("missing function effect");
 
@@ -685,7 +669,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
         let function = program.function_id_by_name("test");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -706,7 +690,7 @@ entry(v0: ref<int32, managed, readonly>):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
         let function = program.function_id_by_name("fail");
         let effect = effects.function(function).expect("missing function effect");
 

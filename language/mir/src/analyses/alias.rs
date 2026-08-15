@@ -1,23 +1,23 @@
 use crate as mir;
 
 use crate::{
-    Analysis, FunctionAnalyses, MemoryLocation, MemoryRegion, MemoryRegionBuilder, StorageRoot,
-    TargetLayout, ValueDefinitions, ValueTypes,
+    Analysis, DefinitionTable, FunctionCache, MemoryLocation, MemoryRegion, MemoryRegionBuilder,
+    StorageRoot, TargetLayout, ValueTypeTable,
 };
 
 /// Alias analysis for one MIR function.
 #[derive(Debug)]
-pub struct AliasAnalysis {
+pub struct AliasTable {
     /// Memory region indexed by SSA value id.
     regions: Vec<Option<MemoryRegion>>,
 }
 
-impl AliasAnalysis {
+impl AliasTable {
     /// Build alias analysis for one function.
     pub fn build(
         function: &mir::Function,
-        definitions: &ValueDefinitions,
-        value_types: &ValueTypes,
+        definitions: &DefinitionTable,
+        value_types: &ValueTypeTable,
         target_layout: TargetLayout,
         tree: &mir::Tree,
     ) -> Self {
@@ -102,8 +102,8 @@ impl AliasAnalysis {
     /// Build all memory regions for one function.
     fn build_regions(
         function: &mir::Function,
-        definitions: &ValueDefinitions,
-        value_types: &ValueTypes,
+        definitions: &DefinitionTable,
+        value_types: &ValueTypeTable,
         target_layout: TargetLayout,
         tree: &mir::Tree,
     ) -> Vec<Option<MemoryRegion>> {
@@ -126,18 +126,19 @@ impl AliasAnalysis {
     }
 }
 
-impl Analysis for AliasAnalysis {
+impl Analysis for AliasTable {
     const INVALIDATED_BY: mir::Mutation = mir::Mutation::VALUE.union(mir::Mutation::MEMORY);
 }
 
-impl AliasAnalysis {
+impl AliasTable {
+    /// Compute aliases for one function.
     pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        analyses: &mut FunctionAnalyses,
+        analyses: &mut FunctionCache,
     ) -> Self {
-        let definitions = analyses.value_definitions(function, tree);
-        let value_types = analyses.value_types(function, tree);
+        let definitions = analyses.definition(function, tree);
+        let value_types = analyses.value_type(function, tree);
 
         Self::build(
             function,

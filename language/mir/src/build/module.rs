@@ -2,7 +2,7 @@ use destack_core::{StringId, StringPool};
 
 use crate::build::FunctionHeaderBuilder;
 use crate::{
-    DispatchTable, DropTable, EffectTable, Layout, LayoutId, LayoutTable, LocalNodeId, MemoryTable,
+    AccessTable, DispatchTable, DropTable, EffectTable, Layout, LayoutId, LayoutTable, LocalNodeId,
     ProfileTable, TargetLayout, Tree, Type, TypeTable,
 };
 
@@ -22,7 +22,7 @@ pub struct ModuleBuilder {
     /// Canonical MIR drop table.
     pub(super) drops: DropTable,
     /// Explicit MIR memory access table.
-    pub(super) memory: MemoryTable,
+    pub(super) accesses: AccessTable,
     /// Function and call effect table.
     pub(super) effects: EffectTable,
     /// Static profile counter table.
@@ -41,7 +41,7 @@ impl ModuleBuilder {
             layouts: LayoutTable::default(),
             dispatch: DispatchTable::default(),
             drops: DropTable::default(),
-            memory: MemoryTable::default(),
+            accesses: AccessTable::default(),
             effects: EffectTable::default(),
             profile: ProfileTable::default(),
             strings: StringPool::new(),
@@ -98,14 +98,14 @@ impl ModuleBuilder {
         &mut self.drops
     }
 
-    /// Get a reference to the memory table.
-    pub fn memory(&self) -> &MemoryTable {
-        &self.memory
+    /// Get the explicit memory accesses.
+    pub fn accesses(&self) -> &AccessTable {
+        &self.accesses
     }
 
-    /// Get a mutable reference to the memory table.
-    pub fn memory_mut(&mut self) -> &mut MemoryTable {
-        &mut self.memory
+    /// Get the mutable explicit memory accesses.
+    pub fn accesses_mut(&mut self) -> &mut AccessTable {
+        &mut self.accesses
     }
 
     /// Get a reference to the effect table.
@@ -186,7 +186,7 @@ impl ModuleBuilder {
         LayoutTable,
         DispatchTable,
         DropTable,
-        MemoryTable,
+        AccessTable,
         EffectTable,
         ProfileTable,
         StringPool,
@@ -200,7 +200,7 @@ impl ModuleBuilder {
             self.layouts,
             self.dispatch,
             self.drops,
-            self.memory,
+            self.accesses,
             self.effects,
             self.profile,
             self.strings,

@@ -2,56 +2,24 @@ use destack_core::StringPool;
 use destack_source::DiagnosticSeverity;
 
 use crate as mir;
-use crate::analyses::{FunctionAnalyses, ModuleAnalyses};
+use crate::analyses::{AnalysisCache, FunctionCache};
 use crate::parse::{ParseOptions, Parser, test_file};
-use crate::{DispatchTable, EffectTable, Function, LocalNodeId, MemoryTable, Tree};
+use crate::{AccessTable, DispatchTable, EffectTable, Function, LocalNodeId, Tree};
 
-/// Parse one MIR test module and return its single function.
-pub(crate) fn parse_test_function(source: &str) -> (Tree, LocalNodeId<Function>) {
-    let file = test_file(source);
-    let (tree, _) = Parser::parse(&file, ParseOptions::default())
-        .expect("MIR parser requires text content")
-        .finish()
-        .expect("parse failed");
-
-    let function_id = tree
-        .iter_nodes::<Function>()
-        .next()
-        .map(|(function_id, _)| function_id)
-        .expect("missing function");
-
-    (tree, function_id)
-}
-
-/// Create empty function analyses with empty MIR tables.
-pub(crate) fn empty_function_analyses() -> FunctionAnalyses {
-    FunctionAnalyses::new()
-}
-
-/// Create empty function analyses with empty MIR tables and custom options.
-pub(crate) fn empty_function_analyses_with_options(
-    options: mir::AnalysisOptions,
-) -> FunctionAnalyses {
-    FunctionAnalyses::with_options(options)
-}
-
-/// Test program for analysis tests.
-///
-/// Parses MIR from text and exposes lookup helpers over the parsed tree.
+/// Parsed MIR used by analysis tests.
 pub(crate) struct TestProgram {
     /// The MIR tree.
     pub(crate) tree: Tree,
     /// Canonical MIR dispatch table.
     pub(crate) dispatch: DispatchTable,
     /// Explicit MIR memory access table.
-    pub(crate) memory: MemoryTable,
+    pub(crate) accesses: AccessTable,
     /// Function and call effect table.
     pub(crate) effects: EffectTable,
     /// String pool for identifiers (immutable, from parser).
     strings: StringPool,
 }
 
-#[allow(dead_code)]
 impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
@@ -65,7 +33,7 @@ impl TestProgram {
             _layouts,
             dispatch,
             _drops,
-            memory,
+            accesses,
             effects,
             _profile,
             strings,
@@ -79,20 +47,33 @@ impl TestProgram {
         Self {
             tree,
             dispatch,
-            memory,
+            accesses,
             effects,
             strings,
         }
     }
 
+    /// Parse one MIR test module and return its first function.
+    pub(crate) fn parse_function(source: &str) -> (Tree, LocalNodeId<Function>) {
+        let test = Self::new(source);
+        let function = test
+            .tree
+            .iter_nodes::<Function>()
+            .next()
+            .map(|(function, _)| function)
+            .expect("missing function");
+
+        (test.tree, function)
+    }
+
     /// Create function analyses for this program.
-    pub(crate) fn function_analyses(&self) -> FunctionAnalyses {
-        FunctionAnalyses::new()
+    pub(crate) fn function_analyses(&self) -> FunctionCache {
+        FunctionCache::new()
     }
 
     /// Create module analyses for this program.
-    pub(crate) fn module_analyses(&self) -> ModuleAnalyses {
-        ModuleAnalyses::new()
+    pub(crate) fn module_analyses(&self) -> AnalysisCache {
+        AnalysisCache::new()
     }
 
     /// Return the entry function id, preferring a function named `test`.
@@ -233,13 +214,13 @@ impl TestProgram {
     }
 
     /// Attach memory access entries to an instruction.
-    pub(crate) fn insert_memory_accesses(
+    pub(crate) fn insert_accesses(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
         accesses: Vec<mir::MemoryAccess>,
     ) {
         // insert the access entries
-        self.memory.insert_memory_accesses(instruction, accesses);
+        self.accesses.insert(instruction, accesses);
     }
 
     /// Attach addressed memory accesses to an instruction.
@@ -282,7 +263,6 @@ impl TestProgram {
         };
 
         // insert the access
-        self.memory
-            .insert_memory_accesses(instruction, vec![access]);
+        self.accesses.insert(instruction, vec![access]);
     }
 }

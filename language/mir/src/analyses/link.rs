@@ -4,11 +4,20 @@ use std::collections::HashMap;
 use destack_core::{BitSet, DenseGraph};
 use serde::{Deserialize, Serialize};
 
-use super::{Analysis, ModuleAnalyses};
+use super::{Analysis, AnalysisCache};
 use crate::{
     EffectTable, Function, FunctionBehavior, Global, GlobalInitializer, Instruction, Linkage,
     MemoryEffect, Symbol, Tree,
 };
+
+/// Symbol references for one module.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct LinkTable {
+    /// Defined symbols, by identity.
+    nodes: HashMap<Symbol, LinkNode>,
+    /// Outgoing references, by source symbol.
+    edges: HashMap<Symbol, Vec<LinkEdge>>,
+}
 
 /// How one symbol references another.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -62,16 +71,7 @@ impl LinkNode {
     }
 }
 
-/// Symbol-scoped reference graph for a module's linkable surface.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct LinkGraph {
-    /// Defined symbols, by identity.
-    nodes: HashMap<Symbol, LinkNode>,
-    /// Outgoing references, by source symbol.
-    edges: HashMap<Symbol, Vec<LinkEdge>>,
-}
-
-impl LinkGraph {
+impl LinkTable {
     /// Create an empty link graph.
     pub fn new() -> Self {
         Self::default()
@@ -212,8 +212,8 @@ pub struct LinkSupergraph {
 
 impl LinkSupergraph {
     /// Stitch the dense cross-module graph from per-module link graphs.
-    pub fn build<'a>(members: impl IntoIterator<Item = &'a LinkGraph>) -> Self {
-        let members: Vec<&LinkGraph> = members.into_iter().collect();
+    pub fn build<'a>(members: impl IntoIterator<Item = &'a LinkTable>) -> Self {
+        let members: Vec<&LinkTable> = members.into_iter().collect();
 
         // collect every defined symbol, sorted to assign dense ids
         let mut symbols: Vec<Symbol> = members
@@ -342,7 +342,7 @@ impl LinkSupergraph {
             }
         }
 
-        // every symbol the external surface does not name is internal
+        // classify unexported symbols as internal
         let mut internal = BitSet::new(self.symbols.len());
         for dense in 0..self.symbols.len() {
             if !is_root.contains(dense) {
@@ -438,17 +438,17 @@ impl LinkSupergraph {
     }
 }
 
-impl Analysis for LinkGraph {}
+impl Analysis for LinkTable {}
 
-impl LinkGraph {
+impl LinkTable {
     /// Build the link graph for one module from its call graph and tree.
     pub(crate) fn compute(
         tree: &Tree,
-        analyses: &mut ModuleAnalyses,
+        analyses: &mut AnalysisCache,
         effects: &EffectTable,
     ) -> Self {
-        let call_graph = analyses.call_graph(tree, effects);
-        let mut graph = LinkGraph::new();
+        let call_table = analyses.call(tree, effects);
+        let mut graph = LinkTable::new();
 
         // record each defined function with its attributes and outgoing references
         for (function_id, function) in tree.iter_nodes::<Function>() {
@@ -468,12 +468,12 @@ impl LinkGraph {
                     memory,
                     behavior,
                     inline_cost: Self::function_inline_cost(function, tree),
-                    indirect: !call_graph.open_callsites(function_id).is_empty(),
+                    indirect: !call_table.open_callsites(function_id).is_empty(),
                 },
             );
 
             // call edges, lowered from tree-local callees to persistent symbols
-            for edge in call_graph.outgoing(function_id) {
+            for edge in call_table.outgoing(function_id) {
                 let target = tree.get(edge.callee).symbol;
                 graph.add_edge(
                     symbol,
@@ -488,7 +488,7 @@ impl LinkGraph {
             for &block_id in function.blocks() {
                 let block = tree.get(block_id);
                 for &instruction_id in &block.instructions {
-                    if let Some(edge) = LinkGraph::instruction_edge(tree.get(instruction_id), tree)
+                    if let Some(edge) = LinkTable::instruction_edge(tree.get(instruction_id), tree)
                     {
                         graph.add_edge(symbol, edge);
                     }

@@ -2,8 +2,6 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::intern::intern_hash;
-
 use crate::{Tree, TypeId};
 
 /// Compact identity of one interned compile-time value.
@@ -97,7 +95,7 @@ impl Tree {
             }
             value => value,
         };
-        let hash = intern_hash(&value);
+        let hash = Self::intern_hash(&value);
         if let Some(ids) = self.static_index.get(&hash) {
             for id in ids {
                 if self.static_value(*id) == &value {

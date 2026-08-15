@@ -143,7 +143,7 @@ pub fn apply_constant_parameters(
     function_id: mir::LocalNodeId<mir::Function>,
     constants: &[Option<mir::Constant>],
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
 ) -> bool {
     // prepare the substitution map and new instructions
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
@@ -208,7 +208,7 @@ pub fn apply_constant_parameters(
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if instruction != updated {
                 *tree.get_mut(instruction_id) = updated;
-                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
             }
         }
 
@@ -370,7 +370,7 @@ pub fn constant_from_global(
     }
 }
 
-/// mir::Constant value tree for aggregate data.
+/// Aggregate constant tree.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstantTree {
     /// Scalar constant value.

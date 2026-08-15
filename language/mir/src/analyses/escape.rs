@@ -1,18 +1,18 @@
 use crate as mir;
 use destack_core::BitSet;
 
-use super::{Analysis, FunctionAnalyses, Mutation};
+use super::{Analysis, FunctionCache, Mutation};
 
 /// Escape analysis for allocation roots in one function.
 #[derive(Debug, Clone)]
-pub struct EscapeAnalysis {
+pub struct EscapeTable {
     /// Allocation root by SSA value id.
     roots: Vec<Option<mir::Value>>,
     /// Allocation roots that escape the function.
     escaped: BitSet,
 }
 
-impl EscapeAnalysis {
+impl EscapeTable {
     /// Return the allocation root for a value when known.
     pub fn allocation(&self, value: impl Into<mir::Value>) -> Option<mir::Value> {
         let value = value.into();
@@ -55,16 +55,16 @@ impl EscapeAnalysis {
     }
 }
 
-impl Analysis for EscapeAnalysis {
+impl Analysis for EscapeTable {
     const INVALIDATED_BY: Mutation = Mutation::ALL;
 }
 
-impl EscapeAnalysis {
+impl EscapeTable {
     /// Compute escape analysis for one function.
     pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        _analyses: &mut FunctionAnalyses,
+        _analyses: &mut FunctionCache,
     ) -> Self {
         Self::build(function, tree)
     }
@@ -122,10 +122,10 @@ impl<'a, 'b> EscapePropagation<'a, 'b> {
             changed |= self.propagate_instruction(instruction);
         }
 
-        // propagate successor argument roots into block parameters
+        // propagate each exact edge into its matching block parameters
         let terminator = self.tree.get(block.terminator);
-        for successor in terminator.successors(self.tree) {
-            changed |= self.propagate_successor(terminator, successor);
+        for (edge, target) in terminator.targets(self.tree, block_id) {
+            changed |= self.propagate_target(terminator, edge.successor, target);
         }
 
         changed
@@ -179,15 +179,25 @@ impl<'a, 'b> EscapePropagation<'a, 'b> {
         }
     }
 
-    /// Propagate roots through successor arguments.
-    fn propagate_successor(
+    /// Propagate roots through one control-flow target.
+    fn propagate_target(
         &mut self,
         terminator: &mir::Terminator,
-        successor: mir::BlockId,
+        successor: mir::Successor,
+        target: &mir::BlockTarget,
     ) -> bool {
-        let arguments = terminator.successor_arguments(self.tree, successor);
-        let parameters = &self.tree.get(successor).parameters;
+        let result_count = terminator.target_result_count(self.tree, successor);
+        let block = self.tree.get(target.block);
+        let parameters = terminator
+            .target_parameters(self.tree, successor, target)
+            .unwrap_or_else(|| unreachable!("verified block target has invalid argument count"));
+        let arguments = target.arguments(self.tree);
         let mut changed = false;
+
+        // root values produced directly by this edge
+        for parameter in block.parameters.iter().take(result_count) {
+            changed |= self.set_root(parameter.value, parameter.value);
+        }
 
         // copy each argument root to its matching block parameter
         for (parameter, argument) in parameters.iter().zip(arguments.iter()) {
@@ -443,7 +453,37 @@ b2(v3: ref<int32, unique, mutable>):
         assert!(escape.escapes(mir::Value::new(1)));
     }
 
-    /// Call arguments escape across the function boundary.
+    /// Fallible allocation results begin distinct allocation roots.
+    #[test]
+    fn test_escape_tracks_fallible_allocation_result() {
+        let program = TestProgram::new(
+            r#"
+function test(v0: int64): uninit<slice<int32, managed, mutable>> {
+entry(v0: int64):
+    new.slice.uninit.try int32, v0 => b1 | b2
+
+b1(v1: uninit<slice<int32, managed, mutable>>):
+    return v1
+
+b2:
+    unreachable
+}
+"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let function = program.tree.get(function_id);
+        let mut analyses = program.function_analyses();
+        let escape = analyses.escape(function, &program.tree);
+
+        assert_eq!(
+            escape.allocation(mir::Value::new(1)),
+            Some(mir::Value::new(1))
+        );
+        assert!(escape.escapes(mir::Value::new(1)));
+    }
+
+    /// Call arguments escape their function.
     #[test]
     fn test_escape_marks_call_arguments() {
         let program = TestProgram::new(

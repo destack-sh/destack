@@ -1,31 +1,25 @@
 use std::collections::{HashMap, HashSet};
 
-use super::{Analysis, ExecutionFrequencyOptions, FunctionAnalyses, LoopAnalysis, Mutation};
+use super::{Analysis, ExecutionFrequencyOptions, FunctionCache, LoopTable, Mutation};
 use crate::{
     Block, Edge, Function, FunctionProfile, LocalNodeId, NodeTable, Profile, Terminator, Tree,
 };
 
-/// Relative execution frequency for blocks and edges.
-///
-/// Frequencies follow LLVM's `block-frequency` loop-nest mass model: branch
-/// weights give per-edge probabilities, mass flows from the entry, and each loop
-/// scales by its back-edge geometric series. The model stays empty when no
-/// branch weights are present, so consumers can distinguish missing profile
-/// data from a static estimate.
+/// Relative execution frequencies for blocks and edges.
 #[derive(Debug, Clone)]
-pub struct ExecutionFrequency {
+pub struct FrequencyTable {
     /// Frequency of each block relative to the function entry.
     blocks: NodeTable<Block, f64>,
     /// Frequency of each control-flow edge relative to the function entry.
     edges: HashMap<Edge, f64>,
 }
 
-impl ExecutionFrequency {
+impl FrequencyTable {
     /// Compute execution frequency with an explicit function profile.
     pub fn compute_profiled(
         function: &Function,
         tree: &Tree,
-        analyses: &mut FunctionAnalyses,
+        analyses: &mut FunctionCache,
         profile: Option<&FunctionProfile>,
     ) -> Self {
         let loops = analyses.loops(function, tree);
@@ -80,7 +74,7 @@ impl ExecutionFrequency {
         // sum profiled edge counts to normalize against
         let counts = targets
             .iter()
-            .map(|(edge, _)| edge_count(profile, *edge))
+            .map(|(edge, _)| profile.map_or(0, |profile| profile.edge(*edge)))
             .collect::<Vec<_>>();
         let total: u64 = counts.iter().copied().sum();
         let count = targets.len() as f64;
@@ -101,7 +95,7 @@ impl ExecutionFrequency {
     }
 }
 
-/// Absolute execution counts derived from profile data.
+/// Absolute execution counts derived from a profile.
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionCounts {
     /// Block execution counts.
@@ -116,7 +110,7 @@ impl ExecutionCounts {
         function: &Function,
         tree: &Tree,
         profile: Option<&Profile>,
-        analyses: &mut FunctionAnalyses,
+        analyses: &mut FunctionCache,
     ) -> Self {
         let Some(profile) = profile else {
             return Self::default();
@@ -127,7 +121,7 @@ impl ExecutionCounts {
         };
 
         let frequency =
-            ExecutionFrequency::compute_profiled(function, tree, analyses, Some(function_profile));
+            FrequencyTable::compute_profiled(function, tree, analyses, Some(function_profile));
         let blocks = frequency.block_counts(function_profile.entry.get());
         let edges = Self::edge_counts(function, tree, Some(function_profile), &blocks);
 
@@ -177,7 +171,7 @@ impl ExecutionCounts {
 
             let terminator = tree.get(tree.get(block).terminator);
             for (edge, probability) in
-                ExecutionFrequency::successor_edge_probabilities(tree, block, terminator, profile)
+                FrequencyTable::successor_edge_probabilities(tree, block, terminator, profile)
             {
                 let count = (source_count as f64 * probability).round() as u64;
                 if count > 0 {
@@ -190,16 +184,13 @@ impl ExecutionCounts {
     }
 }
 
-impl Analysis for ExecutionFrequency {
+impl Analysis for FrequencyTable {
     const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
-impl ExecutionFrequency {
-    pub(crate) fn compute(
-        function: &Function,
-        tree: &Tree,
-        analyses: &mut FunctionAnalyses,
-    ) -> Self {
+impl FrequencyTable {
+    /// Compute execution frequencies for one function.
+    pub(crate) fn compute(function: &Function, tree: &Tree, analyses: &mut FunctionCache) -> Self {
         Self::compute_profiled(function, tree, analyses, None)
     }
 }
@@ -224,14 +215,14 @@ struct LoopMass {
     exits: Vec<(Edge, f64)>,
 }
 
-/// Working state for one function's block-frequency computation.
+/// Working state for one function's frequency analysis.
 struct Frequencies<'a> {
     /// The function being analyzed.
     function: &'a Function,
     /// The tree the function belongs to.
     tree: &'a Tree,
     /// Loop nesting forest for the function.
-    loops: &'a LoopAnalysis,
+    loops: &'a LoopTable,
     /// Innermost containing loop index for each block.
     innermost: NodeTable<Block, Option<usize>>,
     /// Successor probability for each control-flow edge.
@@ -243,11 +234,11 @@ struct Frequencies<'a> {
 }
 
 impl<'a> Frequencies<'a> {
-    /// Seed the computation with branch probabilities and loop membership.
+    /// Seed branch probabilities and loop membership.
     fn new(
         function: &'a Function,
         tree: &'a Tree,
-        loops: &'a LoopAnalysis,
+        loops: &'a LoopTable,
         profile: Option<&'a FunctionProfile>,
         options: ExecutionFrequencyOptions,
     ) -> Self {
@@ -274,8 +265,8 @@ impl<'a> Frequencies<'a> {
     }
 
     /// Compute block and edge frequencies for the function.
-    fn run(&self) -> ExecutionFrequency {
-        let empty = ExecutionFrequency {
+    fn run(&self) -> FrequencyTable {
+        let empty = FrequencyTable {
             blocks: NodeTable::new(),
             edges: HashMap::new(),
         };
@@ -300,7 +291,7 @@ impl<'a> Frequencies<'a> {
                 .unwrap_or_else(|| panic!("missing loop for frequency index: {index}"))
                 .header;
             let (local, backedge, exits) = self.distribute(Some(index), header, &masses);
-            let scale = loop_scale(backedge, self.options.max_loop_scale);
+            let scale = Self::loop_scale(backedge, self.options.max_loop_scale);
             masses[index] = LoopMass {
                 local,
                 scale,
@@ -369,7 +360,7 @@ impl<'a> Frequencies<'a> {
             }
         }
 
-        ExecutionFrequency { blocks, edges }
+        FrequencyTable { blocks, edges }
     }
 
     /// Distribute one header entry's mass across one nesting level.
@@ -554,36 +545,30 @@ impl<'a> Frequencies<'a> {
             let targets = terminator.targets(tree, block);
             if targets
                 .iter()
-                .any(|(edge, _)| edge_count(profile, *edge) > 0)
+                .any(|(edge, _)| profile.is_some_and(|profile| profile.edge(*edge) > 0))
             {
                 weighted = true;
             }
 
-            probabilities.extend(ExecutionFrequency::successor_edge_probabilities(
+            probabilities.extend(FrequencyTable::successor_edge_probabilities(
                 tree, block, terminator, profile,
             ));
         }
 
         (probabilities, weighted)
     }
-}
 
-/// Return one profiled edge count, or zero when absent.
-fn edge_count(profile: Option<&FunctionProfile>, edge: Edge) -> u64 {
-    profile
-        .and_then(|profile| profile.edges.get(&edge))
-        .map_or(0, |count| count.get())
-}
+    /// Return the geometric series sum for one loop's back-edge mass.
+    fn loop_scale(backedge_mass: f64, maximum: f64) -> f64 {
+        if backedge_mass <= 0.0 {
+            return 1.0;
+        }
+        if backedge_mass >= 1.0 - 1.0 / maximum {
+            return maximum;
+        }
 
-/// Return the geometric series sum for one loop's back-edge mass.
-fn loop_scale(backedge_mass: f64, max_loop_scale: f64) -> f64 {
-    if backedge_mass <= 0.0 {
-        return 1.0;
+        1.0 / (1.0 - backedge_mass)
     }
-    if backedge_mass >= 1.0 - 1.0 / max_loop_scale {
-        return max_loop_scale;
-    }
-    1.0 / (1.0 - backedge_mass)
 }
 
 impl LevelTarget {
@@ -599,7 +584,7 @@ impl LevelTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::{empty_function_analyses, parse_test_function};
+    use crate::analyses::tests::TestProgram;
     use crate::{Count, FunctionHash, FunctionProfile, SamplerId, Successor, ValueProfile};
 
     /// Build a function profile with branch edge counts.
@@ -639,16 +624,16 @@ mod tests {
         tree: &Tree,
         function_id: LocalNodeId<Function>,
         profile: Option<&FunctionProfile>,
-    ) -> ExecutionFrequency {
+    ) -> FrequencyTable {
         let function = tree.get(function_id);
-        let mut analyses = empty_function_analyses();
+        let mut analyses = FunctionCache::new();
 
-        ExecutionFrequency::compute_profiled(function, tree, &mut analyses, profile)
+        FrequencyTable::compute_profiled(function, tree, &mut analyses, profile)
     }
 
     #[test]
     fn test_no_weights_is_empty() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function diamond(v0: boolean): void {
 b0(v0: boolean):
@@ -667,7 +652,7 @@ b3:
 
     #[test]
     fn test_diamond_splits_by_weight() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function diamond(v0: boolean): void {
 entry(v0: boolean):
@@ -699,7 +684,7 @@ b3:
     /// Absolute execution counts scale normalized frequencies by entry count.
     #[test]
     fn test_execution_counts_scale_frequency_by_entry_count() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function diamond(v0: boolean): void {
 entry(v0: boolean):
@@ -726,7 +711,7 @@ b3:
             functions: HashMap::from([(function.symbol, function_profile)]),
             globals: HashMap::new(),
         };
-        let mut analyses = empty_function_analyses();
+        let mut analyses = FunctionCache::new();
         let counts = ExecutionCounts::new(function, &tree, Some(&profile), &mut analyses);
 
         assert_eq!(counts.block(blocks[0]), 100);
@@ -747,7 +732,7 @@ b3:
 
     #[test]
     fn test_loop_scales_by_back_edge() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function counted(v0: boolean): void {
 entry:

@@ -3,24 +3,11 @@ use std::collections::{HashSet, VecDeque};
 use crate as mir;
 use crate::NodeTable;
 
-use super::ControlFlowGraph;
+use super::ControlTable;
 
-/// Trait for types that form a lattice for dataflow analysis.
-///
-/// A lattice provides a partial order with a meet (greatest lower bound) operation.
-/// Dataflow analyses use lattices to merge states at control flow join points.
-///
-/// # Laws
-///
-/// Implementations must satisfy:
-/// - Commutativity: `a.meet(b) == b.meet(a)`
-/// - Associativity: `a.meet(b.meet(c)) == a.meet(b).meet(c)`
-/// - Idempotency: `a.meet(a) == a`
+/// Lattice for merging dataflow states.
 pub trait Lattice: Clone + PartialEq {
-    /// Compute the meet (greatest lower bound) of two lattice elements.
-    ///
-    /// The meet represents the most precise state that is valid for both inputs.
-    /// At control flow join points, states from all predecessors are merged using meet.
+    /// Return the greatest lower bound of two states.
     fn meet(&self, other: &Self) -> Self;
 }
 
@@ -95,7 +82,7 @@ where
     pub fn forward<F>(
         function: &mir::Function,
         tree: &mir::Tree,
-        cfg: &ControlFlowGraph,
+        cfg: &ControlTable,
         entry_state: S,
         mut transfer: F,
     ) -> Self
@@ -192,7 +179,7 @@ where
     pub fn backward<F>(
         function: &mir::Function,
         tree: &mir::Tree,
-        cfg: &ControlFlowGraph,
+        cfg: &ControlTable,
         exit_state: S,
         mut transfer: F,
     ) -> Self
@@ -305,19 +292,14 @@ where
     }
 }
 
-/// A set lattice where meet is union.
-///
-/// Useful for analyses that collect local state, such as reaching definitions.
+/// Set lattice whose meet operation is union.
 impl<T: Clone + Eq + std::hash::Hash> Lattice for HashSet<T> {
     fn meet(&self, other: &Self) -> Self {
         self.union(other).cloned().collect()
     }
 }
 
-/// Option as a lattice where None is top (unknown) and Some is a known value.
-///
-/// Meet of two different Some values could be handled differently depending
-/// on the inner type; this implementation takes the first value.
+/// Optional lattice where `None` is unknown and meet retains the first known value.
 impl<T: Clone + PartialEq> Lattice for Option<T> {
     fn meet(&self, other: &Self) -> Self {
         match (self, other) {
@@ -370,7 +352,7 @@ b2:
         };
 
         let function = program.tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &program.tree);
+        let cfg = ControlTable::build(function, &program.tree);
         let entry_state: HashSet<mir::LocalNodeId<mir::Block>> = [block0].into_iter().collect();
         let result = DataflowResult::forward(
             function,
@@ -407,7 +389,7 @@ entry(v0: int32):
 
         let function_id = program.function_id_by_name("test");
         let function = program.tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &program.tree);
+        let cfg = ControlTable::build(function, &program.tree);
         let entry = function.entry().expect("missing entry");
 
         let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
@@ -440,7 +422,7 @@ entry(v0: ref<void, managed, readonly>):
 
         let function_id = program.function_id_by_name("test");
         let function = program.tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &program.tree);
+        let cfg = ControlTable::build(function, &program.tree);
         let entry = function.entry().expect("missing entry");
 
         let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();

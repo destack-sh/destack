@@ -8,59 +8,35 @@ use crate::{AtomicAccess, Global, Instruction, Local, LocalNodeId, Tree, Value};
 
 /// Table of explicit memory accesses.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
-pub struct MemoryTable {
+pub struct AccessTable {
     /// Memory accesses keyed by instruction id.
-    pub memory_accesses_by_instruction_id: HashMap<LocalNodeId<Instruction>, Vec<MemoryAccess>>,
+    accesses: HashMap<LocalNodeId<Instruction>, Vec<MemoryAccess>>,
 }
 
-impl MemoryTable {
-    /// Create a new empty memory table.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
+impl AccessTable {
     /// Return memory accesses for an instruction id.
-    pub fn memory_accesses(
-        &self,
-        instruction: LocalNodeId<Instruction>,
-    ) -> Option<&[MemoryAccess]> {
-        self.memory_accesses_by_instruction_id
+    pub fn get(&self, instruction: LocalNodeId<Instruction>) -> Option<&[MemoryAccess]> {
+        self.accesses
             .get(&instruction)
             .map(|accesses| accesses.as_slice())
     }
 
-    /// Return mutable memory accesses for an instruction id.
-    pub fn memory_accesses_mut(
-        &mut self,
-        instruction: LocalNodeId<Instruction>,
-    ) -> Option<&mut Vec<MemoryAccess>> {
-        self.memory_accesses_by_instruction_id.get_mut(&instruction)
-    }
-
     /// Insert memory accesses for an instruction id.
-    pub fn insert_memory_accesses(
+    pub fn insert(
         &mut self,
         instruction: LocalNodeId<Instruction>,
         accesses: Vec<MemoryAccess>,
     ) -> Option<Vec<MemoryAccess>> {
-        self.memory_accesses_by_instruction_id
-            .insert(instruction, accesses)
+        self.accesses.insert(instruction, accesses)
     }
 
     /// Remove memory accesses for an instruction id.
-    pub fn remove_memory_accesses(
-        &mut self,
-        instruction: LocalNodeId<Instruction>,
-    ) -> Option<Vec<MemoryAccess>> {
-        self.memory_accesses_by_instruction_id.remove(&instruction)
+    pub fn remove(&mut self, instruction: LocalNodeId<Instruction>) -> Option<Vec<MemoryAccess>> {
+        self.accesses.remove(&instruction)
     }
 
     /// Return whether one instruction has ordered memory behavior.
-    pub fn instruction_has_atomic_ordering(
-        &self,
-        tree: &Tree,
-        instruction: LocalNodeId<Instruction>,
-    ) -> bool {
+    pub fn is_ordered(&self, instruction: LocalNodeId<Instruction>, tree: &Tree) -> bool {
         if matches!(
             tree.get(instruction),
             Instruction::AtomicLoad { .. }
@@ -72,7 +48,7 @@ impl MemoryTable {
             return true;
         }
 
-        let Some(accesses) = self.memory_accesses(instruction) else {
+        let Some(accesses) = self.get(instruction) else {
             return false;
         };
 
@@ -80,16 +56,16 @@ impl MemoryTable {
     }
 
     /// Return whether one instruction must keep exact memory position.
-    pub fn instruction_requires_exact_access(
+    pub fn requires_exact_position(
         &self,
-        tree: &Tree,
         instruction: LocalNodeId<Instruction>,
+        tree: &Tree,
     ) -> bool {
-        if self.instruction_has_atomic_ordering(tree, instruction) {
+        if self.is_ordered(instruction, tree) {
             return true;
         }
 
-        let Some(accesses) = self.memory_accesses(instruction) else {
+        let Some(accesses) = self.get(instruction) else {
             return false;
         };
 
@@ -192,39 +168,4 @@ pub enum MemoryTarget {
     Local(LocalNodeId<Local>),
     /// Access through a global.
     Global(LocalNodeId<Global>),
-}
-
-/// Summary behavior for one argument passed to a bodyless call.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
-pub struct CallArgumentEffect {
-    /// Access mode for this argument.
-    pub access: ArgumentAccess,
-    /// Escape behavior for this argument.
-    pub escape: ArgumentEscape,
-}
-
-/// Access mode for a bodyless call pointer argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
-pub enum ArgumentAccess {
-    /// The argument is not accessed.
-    None,
-    /// The argument is only read.
-    Read,
-    /// The argument is only written.
-    Write,
-    /// The argument is read and written.
-    #[default]
-    ReadWrite,
-}
-
-/// Escape behavior for a bodyless call argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
-pub enum ArgumentEscape {
-    /// The argument does not escape the callee.
-    None,
-    /// The argument only escapes through the return value.
-    Return,
-    /// The argument may escape in an unknown way.
-    #[default]
-    Escape,
 }

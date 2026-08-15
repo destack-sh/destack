@@ -1,16 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate as mir;
-use crate::{MemoryNode, MemorySSA, terminator_substitute_uses};
+use crate::{MemoryNode, MemoryTable, terminator_substitute_uses};
 
-/// Check if an instruction is pure (result depends only on operands).
-///
-/// A pure instruction has no side effects AND does not read mutable state.
-/// This is stricter than `!instruction_has_side_effects`.
-/// `Load` and `LocalGet` have no side effects so they can be removed if unused.
-/// They still read mutable state, so they cannot be hoisted out of a loop.
-///
-/// Use this for LICM, code motion, and speculation optimizations.
+/// Return whether an instruction depends only on its operands.
 pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
     // classify instructions by purity
     match instruction {
@@ -135,9 +128,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
     }
 }
 
-/// Check if an instruction can be speculated without trapping.
-///
-/// This is a stricter predicate than purity: some pure operations may trap.
+/// Return whether an instruction can execute speculatively without trapping.
 pub fn instruction_is_speculatable(
     instruction: &mir::Instruction,
     function: &mir::Function,
@@ -191,9 +182,7 @@ pub fn instruction_is_speculatable(
     }
 }
 
-/// Check if an instruction computes an address value.
-///
-/// The result may be borrowed or raw depending on its reference type.
+/// Return whether an instruction computes an address.
 pub fn instruction_is_borrow_address(instruction: &mir::Instruction) -> bool {
     matches!(
         instruction,
@@ -204,10 +193,7 @@ pub fn instruction_is_borrow_address(instruction: &mir::Instruction) -> bool {
     )
 }
 
-/// Check if an instruction has side effects and cannot be removed even if unused.
-///
-/// Instructions with side effects must be preserved regardless of whether their
-/// result is used. This includes stores, calls, allocations, and drops.
+/// Return whether an instruction must remain when its result is unused.
 pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
     // classify instructions by side effects
     match instruction {
@@ -327,11 +313,7 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
     }
 }
 
-/// Check if an instruction reads from memory.
-///
-/// Memory reads include loads from pointers and gets from locals. These
-/// instructions don't have side effects but read mutable state, so they
-/// cannot be freely reordered past memory writes.
+/// Return whether an instruction reads memory.
 pub fn instruction_is_memory_read(instruction: &mir::Instruction) -> bool {
     // identify instructions that read mutable memory
     matches!(
@@ -347,11 +329,7 @@ pub fn instruction_is_memory_read(instruction: &mir::Instruction) -> bool {
     )
 }
 
-/// Check if an instruction may write memory or have other side effects that could affect memory.
-///
-/// This is used to determine if it's safe to sink loads past an instruction.
-/// Any instruction that writes memory, calls functions (which might write memory),
-/// or performs allocations/deallocations is considered to affect memory.
+/// Return whether an instruction may change observable memory state.
 pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
     // identify instructions that can modify memory state
     matches!(
@@ -382,13 +360,13 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
     )
 }
 
-/// Check if an instruction is a read only memory access under MemorySSA.
+/// Check if an instruction is a read only memory access under MemoryTable.
 pub fn instruction_is_read_only_access(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
 ) -> bool {
     // load memory accesses for this instruction
-    let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
+    let Some(accesses) = memory.instruction_accesses(instruction_id) else {
         return false;
     };
 
@@ -396,7 +374,7 @@ pub fn instruction_is_read_only_access(
     let mut reads = false;
     for access_id in accesses {
         // read the access effect
-        let effect = match memory_ssa.access(*access_id) {
+        let effect = match memory.access(*access_id) {
             MemoryNode::Use(use_access) => &use_access.effect,
             MemoryNode::Def(def_access) => &def_access.effect,
             MemoryNode::Phi(_) | MemoryNode::LiveOnEntry => continue,
@@ -442,10 +420,7 @@ pub fn instruction_allows_read_only_motion(
     true
 }
 
-/// Collect all values that are used by instructions or terminators in a function.
-///
-/// This is useful for dead code elimination and other analyses that need to know
-/// which values are live.
+/// Collect values read by one function.
 pub fn instruction_collect_used_values(
     function: &mir::Function,
     tree: &mir::Tree,
@@ -489,10 +464,7 @@ pub fn instruction_collect_used_values(
     used
 }
 
-/// Substitute values in an instruction according to the given map.
-///
-/// Creates a new instruction with value references replaced according to the substitution map.
-/// Values not in the map are left unchanged.
+/// Substitute mapped operands in one instruction.
 pub fn instruction_substitute_uses(
     instruction: &mir::Instruction,
     substitutions: &HashMap<mir::Value, mir::Value>,
@@ -1247,10 +1219,7 @@ pub fn instruction_substitute_uses(
     }
 }
 
-/// Substitute values in an instruction, including externalized arguments.
-///
-/// Creates a new instruction with value references replaced according to the substitution map.
-/// Values not in the map are left unchanged.
+/// Substitute mapped operands and externalized arguments in one instruction.
 pub fn instruction_substitute_uses_in_tree(
     instruction: &mir::Instruction,
     substitutions: &HashMap<mir::Value, mir::Value>,
@@ -1702,13 +1671,32 @@ pub fn substitute_values(
         .collect()
 }
 
-/// Apply substitutions and optional removals across a function.
-///
-/// Returns true when any instruction or terminator is updated or removed.
+/// Resolve transitive value substitutions.
+pub fn resolve_substitution_chains(
+    mut substitutions: HashMap<mir::Value, mir::Value>,
+) -> HashMap<mir::Value, mir::Value> {
+    for value in substitutions.keys().copied().collect::<Vec<_>>() {
+        let mut replacement = substitutions[&value];
+
+        // follow substitutions to their terminal value
+        while let Some(&next) = substitutions.get(&replacement) {
+            if next == replacement {
+                break;
+            }
+            replacement = next;
+        }
+
+        substitutions.insert(value, replacement);
+    }
+
+    substitutions
+}
+
+/// Apply substitutions and removals across one function.
 pub fn apply_substitutions_in_function(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     substitutions: &HashMap<mir::Value, mir::Value>,
     to_remove: Option<&HashSet<mir::LocalNodeId<mir::Instruction>>>,
 ) -> bool {
@@ -1748,7 +1736,7 @@ pub fn apply_substitutions_in_function(
                     instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
                 if updated != instruction {
                     tree.set(instruction_id, updated);
-                    remap_instruction_memory_accesses(memory, instruction_id, substitutions);
+                    remap_instruction_memory_accesses(accesses, instruction_id, substitutions);
                     changed = true;
                 }
             }
@@ -1783,10 +1771,7 @@ pub struct UseDefMaps {
     pub def_block: HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
 }
 
-/// Build maps from values to their use locations and definition blocks.
-///
-/// This is useful for sinking, code motion, and liveness analysis.
-/// Function parameters are not included in `def_block` (they have no defining block).
+/// Build value use and definition maps for one function.
 pub fn build_use_def_maps(function: &mir::Function, tree: &mir::Tree) -> UseDefMaps {
     // initialize use and definition maps
     let mut use_blocks: HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>> = HashMap::new();
@@ -1859,7 +1844,7 @@ pub fn build_value_use_counts(
 /// Clone instruction tables while remapping value references.
 pub fn clone_instruction_tables(
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     original: mir::LocalNodeId<mir::Instruction>,
     cloned: mir::LocalNodeId<mir::Instruction>,
     value_map: &HashMap<mir::Value, mir::Value>,
@@ -1870,8 +1855,8 @@ pub fn clone_instruction_tables(
     }
 
     // clone memory access entries
-    if let Some(accesses) = memory.memory_accesses(original) {
-        let mut cloned_accesses = accesses.to_vec();
+    if let Some(original_accesses) = accesses.get(original) {
+        let mut cloned_accesses = original_accesses.to_vec();
         for access in &mut cloned_accesses {
             if let mir::MemoryTarget::Address(value) = access.target
                 && let Some(&remapped) = value_map.get(&value)
@@ -1880,13 +1865,13 @@ pub fn clone_instruction_tables(
             }
         }
 
-        memory.insert_memory_accesses(cloned, cloned_accesses);
+        accesses.insert(cloned, cloned_accesses);
     }
 }
 
 /// Remap instruction memory access entries in place using a substitution map.
 pub fn remap_instruction_memory_accesses(
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
     instruction: mir::LocalNodeId<mir::Instruction>,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) {
@@ -1896,11 +1881,11 @@ pub fn remap_instruction_memory_accesses(
     }
 
     // read existing memory access entries
-    let Some(accesses) = memory.memory_accesses(instruction) else {
+    let Some(original_accesses) = accesses.get(instruction) else {
         return;
     };
 
-    let mut updated = accesses.to_vec();
+    let mut updated = original_accesses.to_vec();
     for access in &mut updated {
         if let mir::MemoryTarget::Address(value) = access.target
             && let Some(&remapped) = substitutions.get(&value)
@@ -1909,7 +1894,7 @@ pub fn remap_instruction_memory_accesses(
         }
     }
 
-    memory.insert_memory_accesses(instruction, updated);
+    accesses.insert(instruction, updated);
 }
 
 /// Definition tables for instructions.
@@ -2007,11 +1992,7 @@ pub fn build_value_instruction_refs(
     map
 }
 
-/// Remap all values in an instruction according to the given map.
-///
-/// Unlike `instruction_substitute_uses`, this also remaps the destination and
-/// handles externalized arguments (Call, Intrinsic, etc.) by creating new
-/// argument slices in the tree.
+/// Remap every value in one instruction.
 pub fn instruction_map(
     instruction: &mir::Instruction,
     value_map: &HashMap<mir::Value, mir::Value>,
@@ -2835,9 +2816,7 @@ pub fn instruction_map(
     }
 }
 
-/// Remap values and locals in an instruction.
-///
-/// This is similar to `instruction_map` but also remaps local ids.
+/// Remap values and locals in one instruction.
 pub fn instruction_map_with_locals(
     instruction: &mir::Instruction,
     value_map: &HashMap<mir::Value, mir::Value>,
@@ -3664,10 +3643,7 @@ pub fn instruction_map_with_locals(
     }
 }
 
-/// Remap block targets and values in a terminator.
-///
-/// Block targets are remapped according to `block_map`, and values are remapped
-/// according to `value_map`. Values/blocks not in the maps are left unchanged.
+/// Remap block targets and values in one terminator.
 pub fn terminator_remap(
     tree: &mut mir::Tree,
     terminator: &mut mir::Terminator,

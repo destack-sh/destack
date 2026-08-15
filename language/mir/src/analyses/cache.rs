@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate as mir;
+use crate::EffectTable;
 
 use super::{
-    AliasAnalysis, CallGraph, ConstantPropagation, ControlFlowGraph, CostModel, CostWeights,
-    DispatchAnalysis, DominatorTree, EscapeAnalysis, ExecutionFrequency, FunctionEffectAnalysis,
-    FunctionLiveness, LifetimeAnalysis, LinkGraph, LoopAnalysis, MemorySSA, Mutation,
-    RangeAnalysis, ScalarEvolution, ValueDefinitions, ValueTypes, ValueUses,
+    AliasTable, CallTable, ConstantTable, ControlTable, CostTable, CostWeights, DefinitionTable,
+    DominatorTable, EscapeTable, EvolutionTable, ExpressionTable, FrequencyTable, LifetimeTable,
+    LinkTable, LivenessTable, LoopTable, MemoryTable, MoveTable, Mutation, PlaceTable,
+    PostdominatorTable, RangeTable, ResolutionTable, UseTable, ValueTypeTable,
 };
 
 /// Largest loop scale for profile frequency analysis.
@@ -27,6 +28,70 @@ const DEFAULT_COLD_RATIO: f64 = 0.01;
 
 /// Range refinement iterations before widening.
 const DEFAULT_RANGE_WIDEN_THRESHOLD: u32 = 32;
+
+/// Cached analyses for one MIR module.
+#[derive(Debug)]
+pub struct AnalysisCache {
+    /// The cached call table.
+    call: Option<Arc<CallTable>>,
+    /// The cached dispatch resolutions.
+    resolution: Option<Arc<ResolutionTable>>,
+    /// The cached function effects.
+    effect: Option<Arc<EffectTable>>,
+    /// The cached lifetime table.
+    lifetime: Option<Arc<LifetimeTable>>,
+    /// The cached symbol links.
+    link: Option<Arc<LinkTable>>,
+    /// The function caches keyed by function id.
+    functions: HashMap<mir::FunctionId, FunctionCache>,
+    /// The analysis options.
+    options: AnalysisOptions,
+}
+
+/// Cached analyses for one MIR function.
+#[derive(Debug)]
+pub struct FunctionCache {
+    /// The cached alias table.
+    alias: Option<Arc<AliasTable>>,
+    /// The cached constants.
+    constant: Option<Arc<ConstantTable>>,
+    /// The cached control flow.
+    control: Option<Arc<ControlTable>>,
+    /// The cached operation costs.
+    cost: Option<Arc<CostTable>>,
+    /// The cached value definitions.
+    definition: Option<Arc<DefinitionTable>>,
+    /// The cached dominators.
+    dominator: Option<Arc<DominatorTable>>,
+    /// The cached escapes.
+    escape: Option<Arc<EscapeTable>>,
+    /// The cached available expressions.
+    expression: Option<Arc<ExpressionTable>>,
+    /// The cached execution frequencies.
+    frequency: Option<Arc<FrequencyTable>>,
+    /// The cached liveness table.
+    liveness: Option<Arc<LivenessTable>>,
+    /// The cached loops.
+    loops: Option<Arc<LoopTable>>,
+    /// The cached memory versions.
+    memory: Option<Arc<MemoryTable>>,
+    /// The cached move paths.
+    moves: Option<Arc<MoveTable>>,
+    /// The cached canonical places.
+    place: Option<Arc<PlaceTable>>,
+    /// The cached postdominators.
+    postdominator: Option<Arc<PostdominatorTable>>,
+    /// The cached value ranges.
+    range: Option<Arc<RangeTable>>,
+    /// The cached scalar evolution.
+    evolution: Option<Arc<EvolutionTable>>,
+    /// The cached value types.
+    value_type: Option<Arc<ValueTypeTable>>,
+    /// The cached value uses.
+    uses: Option<Arc<UseTable>>,
+    /// The analysis options.
+    options: AnalysisOptions,
+}
 
 /// Options for MIR execution frequency analysis.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -220,7 +285,7 @@ macro_rules! function_analysis_through_module {
             $($parameter: $parameter_type,)*
         ) -> Arc<$analysis> {
             let analyses = self.functions.entry(function_id).or_insert_with(|| {
-                FunctionAnalyses::with_options(self.options)
+                FunctionCache::with_options(self.options)
             });
             let function = tree.get(function_id);
 
@@ -229,28 +294,7 @@ macro_rules! function_analysis_through_module {
     };
 }
 
-/// Function analyses across one MIR pass sequence.
-#[derive(Debug)]
-pub struct FunctionAnalyses {
-    alias: Option<Arc<AliasAnalysis>>,
-    constants: Option<Arc<ConstantPropagation>>,
-    control_flow: Option<Arc<ControlFlowGraph>>,
-    cost: Option<Arc<CostModel>>,
-    dominators: Option<Arc<DominatorTree>>,
-    escape: Option<Arc<EscapeAnalysis>>,
-    frequency: Option<Arc<ExecutionFrequency>>,
-    liveness: Option<Arc<FunctionLiveness>>,
-    loops: Option<Arc<LoopAnalysis>>,
-    memory_ssa: Option<Arc<MemorySSA>>,
-    ranges: Option<Arc<RangeAnalysis>>,
-    scalar_evolution: Option<Arc<ScalarEvolution>>,
-    value_definitions: Option<Arc<ValueDefinitions>>,
-    value_types: Option<Arc<ValueTypes>>,
-    value_uses: Option<Arc<ValueUses>>,
-    options: AnalysisOptions,
-}
-
-impl FunctionAnalyses {
+impl FunctionCache {
     /// Create empty function analyses.
     pub fn new() -> Self {
         Self::with_options(AnalysisOptions::default())
@@ -260,20 +304,24 @@ impl FunctionAnalyses {
     pub fn with_options(options: AnalysisOptions) -> Self {
         Self {
             alias: None,
-            constants: None,
-            control_flow: None,
+            constant: None,
+            control: None,
             cost: None,
-            dominators: None,
+            definition: None,
+            dominator: None,
             escape: None,
+            expression: None,
             frequency: None,
             liveness: None,
             loops: None,
-            memory_ssa: None,
-            ranges: None,
-            scalar_evolution: None,
-            value_definitions: None,
-            value_types: None,
-            value_uses: None,
+            memory: None,
+            moves: None,
+            place: None,
+            postdominator: None,
+            range: None,
+            evolution: None,
+            value_type: None,
+            uses: None,
             options,
         }
     }
@@ -288,133 +336,147 @@ impl FunctionAnalyses {
         self.options.target_layout
     }
 
-    function_analysis!(alias, alias, AliasAnalysis, "Return alias analysis.");
+    function_analysis!(alias, alias, AliasTable, "Return alias analysis.");
     function_analysis!(
-        constants,
-        constants,
-        ConstantPropagation,
+        constant,
+        constant,
+        ConstantTable,
         "Return constant propagation."
     );
     function_analysis!(
-        control_flow,
-        control_flow,
-        ControlFlowGraph,
+        control,
+        control,
+        ControlTable,
         "Return the control-flow graph."
     );
-    function_analysis!(cost, cost, CostModel, "Return the cost model.");
+    function_analysis!(cost, cost, CostTable, "Return the cost model.");
     function_analysis!(
-        dominators,
-        dominators,
-        DominatorTree,
+        definition,
+        definition,
+        DefinitionTable,
+        "Return value definitions."
+    );
+    function_analysis!(
+        dominator,
+        dominator,
+        DominatorTable,
         "Return the dominator tree."
     );
-    function_analysis!(escape, escape, EscapeAnalysis, "Return escape analysis.");
+    function_analysis!(escape, escape, EscapeTable, "Return escape analysis.");
+    function_analysis!(
+        expression,
+        expression,
+        ExpressionTable,
+        "Return available expressions."
+    );
     function_analysis!(
         frequency,
         frequency,
-        ExecutionFrequency,
+        FrequencyTable,
         "Return execution frequencies."
     );
+    function_analysis!(liveness, liveness, LivenessTable, "Return value liveness.");
+    function_analysis!(loops, loops, LoopTable, "Return loop analysis.");
     function_analysis!(
-        liveness,
-        liveness,
-        FunctionLiveness,
-        "Return value liveness."
-    );
-    function_analysis!(loops, loops, LoopAnalysis, "Return loop analysis.");
-    function_analysis!(
-        memory_ssa,
-        memory_ssa,
-        MemorySSA,
-        "Return memory SSA.",
-        memory: &mir::MemoryTable,
+        memory,
+        memory,
+        MemoryTable,
+        "Return memory versions.",
+        accesses: &mir::AccessTable,
         effects: &mir::EffectTable
     );
-    function_analysis!(ranges, ranges, RangeAnalysis, "Return value ranges.");
+    function_analysis!(moves, moves, MoveTable, "Return move paths.");
+    function_analysis!(place, place, PlaceTable, "Return canonical places.");
     function_analysis!(
-        scalar_evolution,
-        scalar_evolution,
-        ScalarEvolution,
+        postdominator,
+        postdominator,
+        PostdominatorTable,
+        "Return postdominators."
+    );
+    function_analysis!(range, range, RangeTable, "Return value range.");
+    function_analysis!(
+        evolution,
+        evolution,
+        EvolutionTable,
         "Return scalar evolution."
     );
     function_analysis!(
-        value_definitions,
-        value_definitions,
-        ValueDefinitions,
-        "Return value definitions."
+        value_type,
+        value_type,
+        ValueTypeTable,
+        "Return value types."
     );
-    function_analysis!(value_types, value_types, ValueTypes, "Return value types.");
-    function_analysis!(value_uses, value_uses, ValueUses, "Return value uses.");
+    function_analysis!(uses, uses, UseTable, "Return value uses.");
 
     /// Drop every analysis the given mutation invalidates.
     pub fn invalidate(&mut self, mutation: Mutation) {
-        if AliasAnalysis::INVALIDATED_BY.intersects(mutation) {
+        if AliasTable::INVALIDATED_BY.intersects(mutation) {
             self.alias = None;
         }
-        if ConstantPropagation::INVALIDATED_BY.intersects(mutation) {
-            self.constants = None;
+        if ConstantTable::INVALIDATED_BY.intersects(mutation) {
+            self.constant = None;
         }
-        if ControlFlowGraph::INVALIDATED_BY.intersects(mutation) {
-            self.control_flow = None;
+        if ControlTable::INVALIDATED_BY.intersects(mutation) {
+            self.control = None;
         }
-        if CostModel::INVALIDATED_BY.intersects(mutation) {
+        if CostTable::INVALIDATED_BY.intersects(mutation) {
             self.cost = None;
         }
-        if DominatorTree::INVALIDATED_BY.intersects(mutation) {
-            self.dominators = None;
+        if DefinitionTable::INVALIDATED_BY.intersects(mutation) {
+            self.definition = None;
         }
-        if EscapeAnalysis::INVALIDATED_BY.intersects(mutation) {
+        if DominatorTable::INVALIDATED_BY.intersects(mutation) {
+            self.dominator = None;
+        }
+        if EscapeTable::INVALIDATED_BY.intersects(mutation) {
             self.escape = None;
         }
-        if ExecutionFrequency::INVALIDATED_BY.intersects(mutation) {
+        if ExpressionTable::INVALIDATED_BY.intersects(mutation) {
+            self.expression = None;
+        }
+        if FrequencyTable::INVALIDATED_BY.intersects(mutation) {
             self.frequency = None;
         }
-        if FunctionLiveness::INVALIDATED_BY.intersects(mutation) {
+        if LivenessTable::INVALIDATED_BY.intersects(mutation) {
             self.liveness = None;
         }
-        if LoopAnalysis::INVALIDATED_BY.intersects(mutation) {
+        if LoopTable::INVALIDATED_BY.intersects(mutation) {
             self.loops = None;
         }
-        if MemorySSA::INVALIDATED_BY.intersects(mutation) {
-            self.memory_ssa = None;
+        if MemoryTable::INVALIDATED_BY.intersects(mutation) {
+            self.memory = None;
         }
-        if RangeAnalysis::INVALIDATED_BY.intersects(mutation) {
-            self.ranges = None;
+        if MoveTable::INVALIDATED_BY.intersects(mutation) {
+            self.moves = None;
         }
-        if ScalarEvolution::INVALIDATED_BY.intersects(mutation) {
-            self.scalar_evolution = None;
+        if PlaceTable::INVALIDATED_BY.intersects(mutation) {
+            self.place = None;
         }
-        if ValueDefinitions::INVALIDATED_BY.intersects(mutation) {
-            self.value_definitions = None;
+        if PostdominatorTable::INVALIDATED_BY.intersects(mutation) {
+            self.postdominator = None;
         }
-        if ValueTypes::INVALIDATED_BY.intersects(mutation) {
-            self.value_types = None;
+        if RangeTable::INVALIDATED_BY.intersects(mutation) {
+            self.range = None;
         }
-        if ValueUses::INVALIDATED_BY.intersects(mutation) {
-            self.value_uses = None;
+        if EvolutionTable::INVALIDATED_BY.intersects(mutation) {
+            self.evolution = None;
+        }
+        if ValueTypeTable::INVALIDATED_BY.intersects(mutation) {
+            self.value_type = None;
+        }
+        if UseTable::INVALIDATED_BY.intersects(mutation) {
+            self.uses = None;
         }
     }
 }
 
-impl Default for FunctionAnalyses {
+impl Default for FunctionCache {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Module analyses across one MIR pass sequence.
-#[derive(Debug)]
-pub struct ModuleAnalyses {
-    call_graph: Option<Arc<CallGraph>>,
-    dispatch: Option<Arc<DispatchAnalysis>>,
-    function_effects: Option<Arc<FunctionEffectAnalysis>>,
-    lifetimes: Option<Arc<LifetimeAnalysis>>,
-    link_graph: Option<Arc<LinkGraph>>,
-    functions: HashMap<mir::FunctionId, FunctionAnalyses>,
-    options: AnalysisOptions,
-}
-
-impl ModuleAnalyses {
+impl AnalysisCache {
     /// Create empty module analyses.
     pub fn new() -> Self {
         Self::with_options(AnalysisOptions::default())
@@ -423,11 +485,11 @@ impl ModuleAnalyses {
     /// Create empty module analyses with the given options.
     pub fn with_options(options: AnalysisOptions) -> Self {
         Self {
-            call_graph: None,
-            dispatch: None,
-            function_effects: None,
-            lifetimes: None,
-            link_graph: None,
+            call: None,
+            resolution: None,
+            effect: None,
+            lifetime: None,
+            link: None,
             functions: HashMap::new(),
             options,
         }
@@ -439,102 +501,110 @@ impl ModuleAnalyses {
     }
 
     module_analysis!(
-        call_graph,
-        call_graph,
-        CallGraph,
+        call,
+        call,
+        CallTable,
         "Return the call graph.",
         effects: &mir::EffectTable
     );
     module_analysis!(
-        dispatch,
-        dispatch,
-        DispatchAnalysis,
-        "Return dispatch analysis.",
+        resolution,
+        resolution,
+        ResolutionTable,
+        "Return resolution analysis.",
         dispatch_table: &mir::DispatchTable
     );
     module_analysis!(
-        function_effects,
-        function_effects,
-        FunctionEffectAnalysis,
+        effect,
+        effect,
+        EffectTable,
         "Return function effects.",
-        memory: &mir::MemoryTable,
+        accesses: &mir::AccessTable,
         effects: &mir::EffectTable
     );
-    module_analysis!(lifetimes, lifetimes, LifetimeAnalysis, "Return lifetimes.");
+    module_analysis!(lifetime, lifetime, LifetimeTable, "Return lifetime.");
     module_analysis!(
-        link_graph,
-        link_graph,
-        LinkGraph,
+        link,
+        link,
+        LinkTable,
         "Return the link graph.",
         effects: &mir::EffectTable
     );
 
-    function_analysis_through_module!(alias, AliasAnalysis, "Return function alias analysis.");
+    function_analysis_through_module!(alias, AliasTable, "Return function alias analysis.");
     function_analysis_through_module!(
-        constants,
-        ConstantPropagation,
+        constant,
+        ConstantTable,
         "Return function constant propagation."
     );
     function_analysis_through_module!(
-        control_flow,
-        ControlFlowGraph,
+        control,
+        ControlTable,
         "Return the function control-flow graph."
     );
-    function_analysis_through_module!(cost, CostModel, "Return the function cost model.");
+    function_analysis_through_module!(cost, CostTable, "Return the function cost model.");
     function_analysis_through_module!(
-        dominators,
-        DominatorTree,
-        "Return the function dominator tree."
-    );
-    function_analysis_through_module!(escape, EscapeAnalysis, "Return function escape analysis.");
-    function_analysis_through_module!(
-        frequency,
-        ExecutionFrequency,
-        "Return function execution frequencies."
-    );
-    function_analysis_through_module!(
-        liveness,
-        FunctionLiveness,
-        "Return function value liveness."
-    );
-    function_analysis_through_module!(loops, LoopAnalysis, "Return function loop analysis.");
-    function_analysis_through_module!(
-        memory_ssa,
-        MemorySSA,
-        "Return function memory SSA.",
-        memory: &mir::MemoryTable,
-        effects: &mir::EffectTable
-    );
-    function_analysis_through_module!(ranges, RangeAnalysis, "Return function value ranges.");
-    function_analysis_through_module!(
-        scalar_evolution,
-        ScalarEvolution,
-        "Return function scalar evolution."
-    );
-    function_analysis_through_module!(
-        value_definitions,
-        ValueDefinitions,
+        definition,
+        DefinitionTable,
         "Return function value definitions."
     );
-    function_analysis_through_module!(value_types, ValueTypes, "Return function value types.");
-    function_analysis_through_module!(value_uses, ValueUses, "Return function value uses.");
+    function_analysis_through_module!(
+        dominator,
+        DominatorTable,
+        "Return the function dominator tree."
+    );
+    function_analysis_through_module!(escape, EscapeTable, "Return function escape analysis.");
+    function_analysis_through_module!(
+        expression,
+        ExpressionTable,
+        "Return function available expressions."
+    );
+    function_analysis_through_module!(
+        frequency,
+        FrequencyTable,
+        "Return function execution frequencies."
+    );
+    function_analysis_through_module!(liveness, LivenessTable, "Return function value liveness.");
+    function_analysis_through_module!(loops, LoopTable, "Return function loop analysis.");
+    function_analysis_through_module!(
+        memory,
+        MemoryTable,
+        "Return function memory versions.",
+        accesses: &mir::AccessTable,
+        effects: &mir::EffectTable
+    );
+    function_analysis_through_module!(moves, MoveTable, "Return function move paths.");
+    function_analysis_through_module!(place, PlaceTable, "Return function canonical places.");
+    function_analysis_through_module!(
+        postdominator,
+        PostdominatorTable,
+        "Return function postdominators."
+    );
+    function_analysis_through_module!(range, RangeTable, "Return function value range.");
+    function_analysis_through_module!(
+        evolution,
+        EvolutionTable,
+        "Return function scalar evolution."
+    );
+    function_analysis_through_module!(value_type, ValueTypeTable, "Return function value types.");
+    function_analysis_through_module!(uses, UseTable, "Return function value uses.");
 
     /// Drop every analysis the given mutation invalidates.
     pub fn invalidate(&mut self, mutation: Mutation) {
-        if CallGraph::INVALIDATED_BY.intersects(mutation) {
-            self.call_graph = None;
+        if CallTable::INVALIDATED_BY.intersects(mutation) {
+            self.call = None;
         }
-        if DispatchAnalysis::INVALIDATED_BY.intersects(mutation) {
-            self.dispatch = None;
+        if ResolutionTable::INVALIDATED_BY.intersects(mutation) {
+            self.resolution = None;
         }
-        if FunctionEffectAnalysis::INVALIDATED_BY.intersects(mutation) {
-            self.function_effects = None;
+        if EffectTable::INVALIDATED_BY.intersects(mutation) {
+            self.effect = None;
         }
-        if LifetimeAnalysis::INVALIDATED_BY.intersects(mutation) {
-            self.lifetimes = None;
+        if LifetimeTable::INVALIDATED_BY.intersects(mutation) {
+            self.lifetime = None;
         }
-        if LinkGraph::INVALIDATED_BY.intersects(mutation) {
-            self.link_graph = None;
+        if LinkTable::INVALIDATED_BY.intersects(mutation) {
+            self.link = None;
         }
 
         for analyses in self.functions.values_mut() {
@@ -543,7 +613,7 @@ impl ModuleAnalyses {
     }
 }
 
-impl Default for ModuleAnalyses {
+impl Default for AnalysisCache {
     fn default() -> Self {
         Self::new()
     }

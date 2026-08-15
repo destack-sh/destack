@@ -1,7 +1,20 @@
 use std::collections::HashSet;
 
-use super::{Analysis, FunctionAnalyses};
+use super::{Analysis, FunctionCache};
 use crate::{Block, Function, Instruction, Local, LocalNodeId, NodeTable, Tree, Value};
+
+/// Liveness for one MIR function.
+#[derive(Debug, Clone, Default)]
+pub struct LivenessTable {
+    /// Values live at entry indexed by block id.
+    value_live_in: NodeTable<Block, HashSet<Value>>,
+    /// Values live at exit indexed by block id.
+    value_live_out: NodeTable<Block, HashSet<Value>>,
+    /// Locals live at entry indexed by block id.
+    local_live_in: NodeTable<Block, HashSet<LocalNodeId<Local>>>,
+    /// Locals live at exit indexed by block id.
+    local_live_out: NodeTable<Block, HashSet<LocalNodeId<Local>>>,
+}
 
 /// Per-block local use and definition sets for liveness.
 #[derive(Debug, Default)]
@@ -16,20 +29,7 @@ struct BlockLiveness {
     local_def: HashSet<LocalNodeId<Local>>,
 }
 
-/// Liveness analysis for one MIR function.
-#[derive(Debug, Clone, Default)]
-pub struct FunctionLiveness {
-    /// Values live at entry indexed by block id.
-    value_live_in: NodeTable<Block, HashSet<Value>>,
-    /// Values live at exit indexed by block id.
-    value_live_out: NodeTable<Block, HashSet<Value>>,
-    /// Locals live at entry indexed by block id.
-    local_live_in: NodeTable<Block, HashSet<LocalNodeId<Local>>>,
-    /// Locals live at exit indexed by block id.
-    local_live_out: NodeTable<Block, HashSet<LocalNodeId<Local>>>,
-}
-
-impl FunctionLiveness {
+impl LivenessTable {
     /// Build liveness for one MIR function.
     pub fn build(function: &Function, tree: &Tree) -> Self {
         // collect local block liveness
@@ -273,6 +273,36 @@ impl FunctionLiveness {
         self.value_live_in(block).contains(&value)
     }
 
+    /// Return whether one available value is live after entering a block.
+    pub fn is_value_live_after_entry(
+        &self,
+        block_id: LocalNodeId<Block>,
+        value: Value,
+        tree: &Tree,
+    ) -> bool {
+        if self.is_value_live_in(block_id, value) {
+            return true;
+        }
+
+        let block = tree.get(block_id);
+        if !block
+            .parameters
+            .iter()
+            .any(|parameter| parameter.value == value)
+        {
+            return false;
+        }
+
+        // include block parameters used by the physical block body
+        let is_used = block
+            .instructions
+            .iter()
+            .any(|instruction| tree.get(*instruction).reads(tree).contains(&value));
+        let terminator = tree.get(block.terminator);
+
+        is_used || terminator.uses(tree).contains(&value)
+    }
+
     /// Return whether one value is live at block exit.
     pub fn is_value_live_out(&self, block: LocalNodeId<Block>, value: Value) -> bool {
         self.value_live_out(block).contains(&value)
@@ -429,14 +459,11 @@ impl FunctionLiveness {
     }
 }
 
-impl Analysis for FunctionLiveness {}
+impl Analysis for LivenessTable {}
 
-impl FunctionLiveness {
-    pub(crate) fn compute(
-        function: &Function,
-        tree: &Tree,
-        _analyses: &mut FunctionAnalyses,
-    ) -> Self {
+impl LivenessTable {
+    /// Compute liveness for one function.
+    pub(crate) fn compute(function: &Function, tree: &Tree, _analyses: &mut FunctionCache) -> Self {
         Self::build(function, tree)
     }
 }
@@ -444,11 +471,11 @@ impl FunctionLiveness {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::parse_test_function;
+    use crate::analyses::tests::TestProgram;
 
     #[test]
     fn test_build_liveness_for_simple_block() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function test(): int32 {
 entry:
@@ -461,7 +488,7 @@ entry:
         );
 
         let function = tree.get(function_id);
-        let liveness = FunctionLiveness::build(function, &tree);
+        let liveness = LivenessTable::build(function, &tree);
 
         let entry = function.entry().expect("missing entry");
 
@@ -475,7 +502,7 @@ entry:
 
     #[test]
     fn test_build_liveness_across_blocks() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -493,7 +520,7 @@ b2:
         );
 
         let function = tree.get(function_id);
-        let liveness = FunctionLiveness::build(function, &tree);
+        let liveness = LivenessTable::build(function, &tree);
 
         let block1 = function.block(1);
         let block2 = function.block(2);
@@ -504,7 +531,7 @@ b2:
 
     #[test]
     fn test_build_liveness_for_loop() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -523,7 +550,7 @@ b2:
         );
 
         let function = tree.get(function_id);
-        let liveness = FunctionLiveness::build(function, &tree);
+        let liveness = LivenessTable::build(function, &tree);
 
         let block1 = function.block(1);
         let block2 = function.block(2);
@@ -536,7 +563,7 @@ b2:
 
     #[test]
     fn test_ignore_dead_values() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function test(): int32 {
 entry:
@@ -548,7 +575,7 @@ entry:
         );
 
         let function = tree.get(function_id);
-        let liveness = FunctionLiveness::build(function, &tree);
+        let liveness = LivenessTable::build(function, &tree);
 
         let entry = function.entry().expect("missing entry");
 
@@ -557,7 +584,7 @@ entry:
 
     #[test]
     fn test_query_liveness_before_operations() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function test(v0: int32): int32 {
     local l0: int32
@@ -572,7 +599,7 @@ entry(v0: int32):
         );
 
         let function = tree.get(function_id);
-        let liveness = FunctionLiveness::build(function, &tree);
+        let liveness = LivenessTable::build(function, &tree);
         let entry = function.entry().expect("missing entry");
         let local = function.local(0);
 

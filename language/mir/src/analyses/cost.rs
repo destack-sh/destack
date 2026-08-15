@@ -1,7 +1,18 @@
 use crate as mir;
 
-use super::{Analysis, FunctionAnalyses, Mutation};
+use super::{Analysis, FunctionCache, Mutation};
 use crate::{Block, NodeTable};
+
+/// MIR cost model for one function.
+#[derive(Debug, Clone)]
+pub struct CostTable {
+    /// Cost weights used by this model.
+    weights: CostWeights,
+    /// Function operation inventory.
+    function: OperationCost,
+    /// Score per block.
+    blocks: NodeTable<Block, u64>,
+}
 
 /// MIR operation inventory and weighted score for one function.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -16,7 +27,7 @@ pub struct OperationCost {
     pub arithmetic: usize,
     /// Aggregate construction, projection, vector, and tensor value operations.
     pub aggregate: usize,
-    /// Address computation operations.
+    /// Address operations.
     pub address: usize,
     /// Non-atomic memory loads.
     pub load: usize,
@@ -167,7 +178,7 @@ pub struct CostWeights {
     pub arithmetic: u64,
     /// Cost of one aggregate-like operation.
     pub aggregate: u64,
-    /// Cost of one address computation.
+    /// Cost of one address operation.
     pub address: u64,
     /// Cost of one load.
     pub load: u64,
@@ -223,18 +234,7 @@ impl Default for CostWeights {
     }
 }
 
-/// MIR cost model for one function.
-#[derive(Debug, Clone)]
-pub struct CostModel {
-    /// Cost weights used by this model.
-    weights: CostWeights,
-    /// Function operation inventory.
-    function: OperationCost,
-    /// Score per block.
-    blocks: NodeTable<Block, u64>,
-}
-
-impl CostModel {
+impl CostTable {
     /// Return the cost weights.
     pub fn weights(&self) -> CostWeights {
         self.weights
@@ -442,16 +442,16 @@ impl CostModel {
     }
 }
 
-impl Analysis for CostModel {
+impl Analysis for CostTable {
     const INVALIDATED_BY: Mutation = Mutation::ALL;
 }
 
-impl CostModel {
+impl CostTable {
     /// Compute the MIR cost model for one function.
     pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        analyses: &mut FunctionAnalyses,
+        analyses: &mut FunctionCache,
     ) -> Self {
         Self::build(function, tree, analyses.options().cost_weights)
     }
@@ -462,7 +462,7 @@ mod tests {
     use super::*;
 
     use crate::AnalysisOptions;
-    use crate::analyses::tests::{TestProgram, empty_function_analyses_with_options};
+    use crate::analyses::tests::TestProgram;
 
     /// Cost model counts factual operations separately from weighted score.
     #[test]
@@ -594,7 +594,7 @@ entry(v0: ref<int32, borrowed, mutable>):
             branch: 61,
         };
         let analysis_options = AnalysisOptions::default().with_cost_weights(weights);
-        let mut analyses = empty_function_analyses_with_options(analysis_options);
+        let mut analyses = FunctionCache::with_options(analysis_options);
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);

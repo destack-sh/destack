@@ -3,20 +3,29 @@ use std::collections::{HashMap, VecDeque};
 use crate as mir;
 
 use crate::{
-    Analysis, ConstantLookup, EdgeArguments, FunctionAnalyses, NodeTable, TargetLayout,
-    fold_binary, fold_cast, fold_unary,
+    Analysis, ConstantLookup, FunctionCache, NodeTable, TargetLayout, fold_binary, fold_cast,
+    fold_unary,
 };
 
-use super::{ControlFlowGraph, Lattice};
+use super::{ControlTable, Lattice};
+
+/// Constant propagation for one function.
+#[derive(Debug)]
+pub struct ConstantTable {
+    /// Constants available at block entry indexed by block id.
+    block_entry: NodeTable<mir::Block, Option<ConstantState>>,
+    /// Constants available at block exit indexed by block id.
+    block_exit: NodeTable<mir::Block, Option<ConstantState>>,
+}
 
 /// Mapping from SSA values to known constants.
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ConstantMap {
+pub struct ConstantState {
     /// Known constant values.
     constants: HashMap<mir::Value, mir::Constant>,
 }
 
-impl ConstantMap {
+impl ConstantState {
     /// Create an empty constant map.
     pub fn new() -> Self {
         Self {
@@ -52,14 +61,14 @@ impl ConstantMap {
     }
 }
 
-impl ConstantLookup for ConstantMap {
+impl ConstantLookup for ConstantState {
     /// Return the constant value for a MIR value when known.
     fn get_constant(&self, value: mir::Value) -> Option<&mir::Constant> {
         self.get(value)
     }
 }
 
-impl Lattice for ConstantMap {
+impl Lattice for ConstantState {
     /// Intersect constants that agree on both inputs.
     fn meet(&self, other: &Self) -> Self {
         let mut constants = HashMap::new();
@@ -76,36 +85,24 @@ impl Lattice for ConstantMap {
     }
 }
 
-/// Constant propagation analysis.
-///
-/// Tracks constant values at block entry and exit using a forward dataflow
-/// analysis with SSA aware handling of block parameters.
-#[derive(Debug)]
-pub struct ConstantPropagation {
-    /// Constants available at block entry indexed by block id.
-    block_entry: NodeTable<mir::Block, Option<ConstantMap>>,
-    /// Constants available at block exit indexed by block id.
-    block_exit: NodeTable<mir::Block, Option<ConstantMap>>,
-}
-
-impl ConstantPropagation {
+impl ConstantTable {
     /// Build constant propagation for a function.
     fn build(
         function: &mir::Function,
         tree: &mir::Tree,
-        cfg: &ControlFlowGraph,
+        cfg: &ControlTable,
         target_layout: TargetLayout,
     ) -> Self {
-        Self::build_with_entry_constants(function, tree, cfg, target_layout, ConstantMap::new())
+        Self::build_with_entry_constants(function, tree, cfg, target_layout, ConstantState::new())
     }
 
     /// Build constant propagation with seeded entry constants.
     fn build_with_entry_constants(
         function: &mir::Function,
         tree: &mir::Tree,
-        cfg: &ControlFlowGraph,
+        cfg: &ControlTable,
         target_layout: TargetLayout,
-        entry_constants: ConstantMap,
+        entry_constants: ConstantState,
     ) -> Self {
         // entry block selection
         let entry = match function.entry() {
@@ -143,7 +140,7 @@ impl ConstantPropagation {
                 })
             } else {
                 // merge predecessor exits
-                let mut merged: Option<ConstantMap> = None;
+                let mut merged: Option<ConstantState> = None;
                 for &pred in cfg.predecessors(block_id) {
                     let Some(pred_exit) = block_exit.get(pred).as_ref() else {
                         continue;
@@ -161,7 +158,7 @@ impl ConstantPropagation {
                 };
 
                 // apply block parameter constants
-                apply_block_param_constants(block_id, tree, cfg, &block_exit, &mut merged_state);
+                Self::apply_parameters(block_id, tree, cfg, &block_exit, &mut merged_state);
                 merged_state
             };
 
@@ -178,7 +175,7 @@ impl ConstantPropagation {
 
                 // compute exit state
                 let exit_state =
-                    transfer_block(block_id, &entry_state, tree, target_layout.pointer_bits());
+                    Self::transfer(block_id, &entry_state, tree, target_layout.pointer_bits());
                 let exit_changed = block_exit
                     .get(block_id)
                     .as_ref()
@@ -209,22 +206,22 @@ impl ConstantPropagation {
     }
 
     /// Get the constants at block entry.
-    pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantMap {
+    pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantState {
         let constants = self.block_entry.get(block);
 
         match constants {
             Some(constants) => constants,
-            None => empty_map(),
+            None => ConstantState::empty(),
         }
     }
 
     /// Get the constants at block exit.
-    pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantMap {
+    pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantState {
         let constants = self.block_exit.get(block);
 
         match constants {
             Some(constants) => constants,
-            None => empty_map(),
+            None => ConstantState::empty(),
         }
     }
 
@@ -254,10 +251,10 @@ impl ConstantPropagation {
         param_constants: &HashMap<mir::Value, mir::Constant>,
     ) -> Self {
         // build a control flow graph for the function
-        let cfg = ControlFlowGraph::build(function, tree);
+        let cfg = ControlTable::build(function, tree);
 
         // seed entry constants from the provided parameter map
-        let mut entry_constants = ConstantMap::new();
+        let mut entry_constants = ConstantState::new();
         for (value, constant) in param_constants {
             entry_constants.insert(*value, constant.clone());
         }
@@ -266,15 +263,16 @@ impl ConstantPropagation {
     }
 }
 
-impl Analysis for ConstantPropagation {}
+impl Analysis for ConstantTable {}
 
-impl ConstantPropagation {
+impl ConstantTable {
+    /// Compute constants for one function.
     pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        analyses: &mut FunctionAnalyses,
+        analyses: &mut FunctionCache,
     ) -> Self {
-        let cfg = analyses.control_flow(function, tree);
+        let cfg = analyses.control(function, tree);
         Self::build(function, tree, &cfg, analyses.target_layout())
     }
 }
@@ -290,204 +288,208 @@ enum ParamState {
     Overdefined,
 }
 
-/// Apply block parameter constants derived from predecessor arguments.
-fn apply_block_param_constants(
-    block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::Tree,
-    cfg: &ControlFlowGraph,
-    block_exit: &NodeTable<mir::Block, Option<ConstantMap>>,
-    entry_state: &mut ConstantMap,
-) {
-    // resolve constants for block parameters
-    let constants = resolve_block_param_constants(block_id, tree, cfg, block_exit);
-    let block = tree.get(block_id);
+impl ConstantTable {
+    /// Apply block parameter constants derived from predecessor arguments.
+    fn apply_parameters(
+        block_id: mir::LocalNodeId<mir::Block>,
+        tree: &mir::Tree,
+        cfg: &ControlTable,
+        block_exit: &NodeTable<mir::Block, Option<ConstantState>>,
+        entry_state: &mut ConstantState,
+    ) {
+        // resolve constants for block parameters
+        let constants = Self::resolve_parameters(block_id, tree, cfg, block_exit);
+        let block = tree.get(block_id);
 
-    // apply constants to entry state
-    for param in &block.parameters {
-        let param_value = param.value;
+        // apply constants to entry state
+        for param in &block.parameters {
+            let param_value = param.value;
 
-        if let Some(constant) = constants.get(&param_value) {
-            entry_state.insert(param_value, constant.clone());
-            continue;
-        }
-
-        entry_state.remove(param_value);
-    }
-}
-
-/// Resolve constant values for block parameters from predecessor arguments.
-fn resolve_block_param_constants(
-    block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::Tree,
-    cfg: &ControlFlowGraph,
-    block_exit: &NodeTable<mir::Block, Option<ConstantMap>>,
-) -> HashMap<mir::Value, mir::Constant> {
-    // early exit for blocks without parameters
-    let block = tree.get(block_id);
-    if block.parameters.is_empty() {
-        return HashMap::new();
-    }
-
-    // track parameter states across predecessors
-    let mut states = vec![ParamState::Unseen; block.parameters.len()];
-    let mut is_seen = false;
-
-    // scan predecessors
-    for &pred in cfg.predecessors(block_id) {
-        let Some(pred_exit) = block_exit.get(pred).as_ref() else {
-            continue;
-        };
-
-        // collect arguments for this edge
-        let pred_block = tree.get(pred);
-        let pred_terminator = tree.get(pred_block.terminator);
-        let args = match pred_terminator.edge_arguments(tree, block_id) {
-            EdgeArguments::Missing => continue,
-            EdgeArguments::Conflict => {
-                states.fill(ParamState::Overdefined);
-                is_seen = true;
+            if let Some(constant) = constants.get(&param_value) {
+                entry_state.insert(param_value, constant.clone());
                 continue;
             }
-            EdgeArguments::Found(args) => args,
-        };
 
-        // collect successor parameters for explicit edge arguments
-        let parameters = pred_terminator.successor_parameters(tree, block_id);
+            entry_state.remove(param_value);
+        }
+    }
 
-        // mark that we saw a predecessor
-        is_seen = true;
-
-        // reject mismatched argument counts
-        if args.len() != parameters.len() {
-            states.fill(ParamState::Overdefined);
-            continue;
+    /// Resolve constant values for block parameters from predecessor arguments.
+    fn resolve_parameters(
+        block_id: mir::LocalNodeId<mir::Block>,
+        tree: &mir::Tree,
+        cfg: &ControlTable,
+        block_exit: &NodeTable<mir::Block, Option<ConstantState>>,
+    ) -> HashMap<mir::Value, mir::Constant> {
+        // early exit for blocks without parameters
+        let block = tree.get(block_id);
+        if block.parameters.is_empty() {
+            return HashMap::new();
         }
 
-        // update parameter states from arguments
-        for (parameter, arg) in parameters.iter().zip(args) {
-            let Some(index) = block
-                .parameters
-                .iter()
-                .position(|candidate| candidate.value == parameter.value)
-            else {
-                states.fill(ParamState::Overdefined);
-                break;
+        // track parameter states across predecessors
+        let mut states = vec![ParamState::Unseen; block.parameters.len()];
+        let mut is_seen = false;
+
+        // scan predecessors
+        for &pred in cfg.predecessors(block_id) {
+            let Some(pred_exit) = block_exit.get(pred).as_ref() else {
+                continue;
             };
-            let arg_constant = pred_exit.get(*arg);
-            states[index] = match (&states[index], arg_constant) {
-                (ParamState::Unseen, Some(constant)) => ParamState::Constant(constant.clone()),
-                (ParamState::Unseen, None) => ParamState::Overdefined,
-                (ParamState::Constant(existing), Some(constant)) if existing == constant => {
-                    ParamState::Constant(existing.clone())
+
+            // process every exact edge from this predecessor
+            let pred_block = tree.get(pred);
+            let pred_terminator = tree.get(pred_block.terminator);
+            for (edge, target) in pred_terminator
+                .targets(tree, pred)
+                .into_iter()
+                .filter(|(_, target)| target.block == block_id)
+            {
+                is_seen = true;
+
+                // require the verified target shape
+                let Some(parameters) =
+                    pred_terminator.target_parameters(tree, edge.successor, target)
+                else {
+                    states.fill(ParamState::Overdefined);
+                    continue;
+                };
+                let arguments = target.arguments(tree);
+
+                // update parameter states from arguments
+                for (parameter, argument) in parameters.iter().zip(arguments) {
+                    let Some(index) = block
+                        .parameters
+                        .iter()
+                        .position(|candidate| candidate.value == parameter.value)
+                    else {
+                        states.fill(ParamState::Overdefined);
+                        break;
+                    };
+                    let argument_constant = pred_exit.get(*argument);
+                    states[index] = match (&states[index], argument_constant) {
+                        (ParamState::Unseen, Some(constant)) => {
+                            ParamState::Constant(constant.clone())
+                        }
+                        (ParamState::Unseen, None) => ParamState::Overdefined,
+                        (ParamState::Constant(existing), Some(constant))
+                            if existing == constant =>
+                        {
+                            ParamState::Constant(existing.clone())
+                        }
+                        (ParamState::Constant(_), Some(_)) => ParamState::Overdefined,
+                        (ParamState::Constant(_), None) => ParamState::Overdefined,
+                        (ParamState::Overdefined, _) => ParamState::Overdefined,
+                    };
                 }
-                (ParamState::Constant(_), Some(_)) => ParamState::Overdefined,
-                (ParamState::Constant(_), None) => ParamState::Overdefined,
-                (ParamState::Overdefined, _) => ParamState::Overdefined,
+            }
+        }
+
+        // return empty if no predecessors were processed
+        if !is_seen {
+            return HashMap::new();
+        }
+
+        // collect constants for parameters
+        let mut constants = HashMap::new();
+        for (param, state) in block.parameters.iter().zip(states) {
+            let param_value = param.value;
+
+            if let ParamState::Constant(constant) = state {
+                constants.insert(param_value, constant);
+            }
+        }
+
+        constants
+    }
+
+    /// Transfer constants through a block's instructions.
+    fn transfer(
+        block_id: mir::LocalNodeId<mir::Block>,
+        entry_state: &ConstantState,
+        tree: &mir::Tree,
+        pointer_width_bits: u16,
+    ) -> ConstantState {
+        // clone entry state for updates
+        let block = tree.get(block_id);
+        let mut state = entry_state.clone();
+
+        // update state per instruction
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            let Some(destination) = instruction.destination() else {
+                continue;
             };
+
+            if let Some(constant) =
+                Self::instruction_constant(instruction, tree, &state, pointer_width_bits)
+            {
+                state.insert(destination, constant);
+            } else {
+                state.remove(destination);
+            }
         }
+
+        state
     }
 
-    // return empty if no predecessors were processed
-    if !is_seen {
-        return HashMap::new();
-    }
-
-    // collect constants for parameters
-    let mut constants = HashMap::new();
-    for (param, state) in block.parameters.iter().zip(states) {
-        let param_value = param.value;
-
-        if let ParamState::Constant(constant) = state {
-            constants.insert(param_value, constant);
+    /// Evaluate a constant for an instruction when possible.
+    fn instruction_constant(
+        instruction: &mir::Instruction,
+        tree: &mir::Tree,
+        state: &ConstantState,
+        pointer_width_bits: u16,
+    ) -> Option<mir::Constant> {
+        // evaluate known constant producing instructions
+        match instruction {
+            mir::Instruction::Const { value, .. } => Some(value.clone()),
+            mir::Instruction::Binary {
+                operator,
+                left,
+                right,
+                ..
+            } => {
+                // fold binary ops with constant operands
+                let left_constant = state.get(*left)?;
+                let right_constant = state.get(*right)?;
+                fold_binary(*operator, left_constant.clone(), right_constant.clone())
+            }
+            mir::Instruction::Unary {
+                operator, argument, ..
+            } => {
+                // fold unary ops with constant operands
+                let arg_constant = state.get(*argument)?;
+                fold_unary(*operator, arg_constant.clone())
+            }
+            mir::Instruction::Cast {
+                operator,
+                argument,
+                to_type,
+                ..
+            } => {
+                // fold casts with constant operands
+                let arg_constant = state.get(*argument)?;
+                fold_cast(
+                    *operator,
+                    arg_constant.clone(),
+                    *to_type,
+                    pointer_width_bits,
+                    tree,
+                )
+            }
+            _ => None,
         }
-    }
-
-    constants
-}
-
-/// Transfer constants through a block's instructions.
-fn transfer_block(
-    block_id: mir::LocalNodeId<mir::Block>,
-    entry_state: &ConstantMap,
-    tree: &mir::Tree,
-    pointer_width_bits: u16,
-) -> ConstantMap {
-    // clone entry state for updates
-    let block = tree.get(block_id);
-    let mut state = entry_state.clone();
-
-    // update state per instruction
-    for &instruction_id in &block.instructions {
-        let instruction = tree.get(instruction_id);
-        let Some(destination) = instruction.destination() else {
-            continue;
-        };
-
-        if let Some(constant) =
-            constant_for_instruction(instruction, tree, &state, pointer_width_bits)
-        {
-            state.insert(destination, constant);
-        } else {
-            state.remove(destination);
-        }
-    }
-
-    state
-}
-
-/// Evaluate a constant for an instruction when possible.
-fn constant_for_instruction(
-    instruction: &mir::Instruction,
-    tree: &mir::Tree,
-    state: &ConstantMap,
-    pointer_width_bits: u16,
-) -> Option<mir::Constant> {
-    // evaluate known constant producing instructions
-    match instruction {
-        mir::Instruction::Const { value, .. } => Some(value.clone()),
-        mir::Instruction::Binary {
-            operator,
-            left,
-            right,
-            ..
-        } => {
-            // fold binary ops with constant operands
-            let left_constant = state.get(*left)?;
-            let right_constant = state.get(*right)?;
-            fold_binary(*operator, left_constant.clone(), right_constant.clone())
-        }
-        mir::Instruction::Unary {
-            operator, argument, ..
-        } => {
-            // fold unary ops with constant operands
-            let arg_constant = state.get(*argument)?;
-            fold_unary(*operator, arg_constant.clone())
-        }
-        mir::Instruction::Cast {
-            operator,
-            argument,
-            to_type,
-            ..
-        } => {
-            // fold casts with constant operands
-            let arg_constant = state.get(*argument)?;
-            fold_cast(
-                *operator,
-                arg_constant.clone(),
-                *to_type,
-                pointer_width_bits,
-                tree,
-            )
-        }
-        _ => None,
     }
 }
 
-/// Return a shared empty constant map.
-fn empty_map() -> &'static ConstantMap {
-    // init shared empty map
-    static EMPTY: std::sync::OnceLock<ConstantMap> = std::sync::OnceLock::new();
-    EMPTY.get_or_init(ConstantMap::new)
+impl ConstantState {
+    /// Return a shared empty constant map.
+    fn empty() -> &'static Self {
+        // initialize the shared empty map
+        static EMPTY: std::sync::OnceLock<ConstantState> = std::sync::OnceLock::new();
+
+        EMPTY.get_or_init(Self::new)
+    }
 }
 
 #[cfg(test)]
@@ -514,7 +516,7 @@ entry:
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constants(function, &test.tree);
+        let analysis = analyses.constant(function, &test.tree);
 
         let block0 = function.block(0);
         let constant = analysis
@@ -542,7 +544,7 @@ entry:
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constants(function, &test.tree);
+        let analysis = analyses.constant(function, &test.tree);
 
         let block0 = function.block(0);
         let constant = analysis
@@ -570,7 +572,7 @@ entry:
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constants(function, &test.tree);
+        let analysis = analyses.constant(function, &test.tree);
 
         let block0 = function.block(0);
         let constant = analysis
@@ -597,7 +599,7 @@ entry:
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constants(function, &test.tree);
+        let analysis = analyses.constant(function, &test.tree);
 
         let block0 = function.block(0);
         let constant = analysis
@@ -638,7 +640,7 @@ b3(v4: boolean):
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constants(function, &test.tree);
+        let analysis = analyses.constant(function, &test.tree);
 
         let block3 = function.block(3);
         let constant = analysis
@@ -670,7 +672,7 @@ b2:
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constants(function, &test.tree);
+        let analysis = analyses.constant(function, &test.tree);
 
         let success = function.block(1);
         let success_block = test.tree.get(success);
@@ -706,7 +708,7 @@ b3(v5: boolean):
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constants(function, &test.tree);
+        let analysis = analyses.constant(function, &test.tree);
 
         let block3 = function.block(3);
         let constant = analysis
@@ -735,7 +737,7 @@ b1(v3: boolean):
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constants(function, &test.tree);
+        let analysis = analyses.constant(function, &test.tree);
 
         let block1 = function.block(1);
         let constant = analysis

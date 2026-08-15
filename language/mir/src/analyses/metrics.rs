@@ -2,7 +2,7 @@ use crate as mir;
 
 /// MIR size metrics for a module.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct MirStats {
+pub struct Metrics {
     /// Number of functions.
     pub functions: usize,
     /// Total number of instructions across all functions.
@@ -11,7 +11,7 @@ pub struct MirStats {
     pub blocks: usize,
 }
 
-impl MirStats {
+impl Metrics {
     /// Count MIR size metrics for all functions in a tree.
     pub fn count(tree: &mir::Tree) -> Self {
         let mut metrics = Self::default();

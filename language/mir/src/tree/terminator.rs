@@ -4,7 +4,7 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     BinaryOperator, Block, BlockId, BlockParameter, Call, CallDispatch, Edge, FunctionId,
-    LocalNodeId, Node, NodeType, Successor, Tree, TypeId, Value, ValueSlice,
+    LocalNodeId, Node, NodeType, Successor, Tree, Type, TypeId, Value, ValueSlice,
 };
 
 /// One control-flow edge target.
@@ -228,12 +228,25 @@ impl SwitchCaseSlice {
 
         is_changed
     }
+
+    /// Replace one switch case target.
+    fn replace_target(&mut self, value: i128, target: BlockTarget, tree: &mut Tree) -> bool {
+        let mut cases = tree.get_switch_cases(*self).to_vec();
+        let Some(case) = cases.iter_mut().find(|case| case.value == value) else {
+            return false;
+        };
+
+        case.target = target;
+        *self = tree.add_switch_cases(&cases);
+
+        true
+    }
 }
 
 /// Block terminator node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Terminator {
-    /// Recovered invalid terminator syntax.
+    /// Recovered invalid terminator.
     Error,
     /// Return from the function.
     Return {
@@ -449,6 +462,158 @@ impl Terminator {
             | Terminator::Abort { .. }
             | Terminator::Unreachable
             | Terminator::TailCall { .. } => Vec::new(),
+        }
+    }
+
+    /// Return successor parameters bound by one exact target.
+    pub fn target_parameters<'a>(
+        &self,
+        tree: &'a Tree,
+        successor: Successor,
+        target: &BlockTarget,
+    ) -> Option<&'a [BlockParameter]> {
+        let parameters = tree.get(target.block).parameters.as_slice();
+        let result_count = self.target_result_count(tree, successor);
+        let arguments = target.arguments(tree);
+
+        (parameters.len() == arguments.len() + result_count).then(|| &parameters[result_count..])
+    }
+
+    /// Return the number of values produced directly on one exact edge.
+    pub fn target_result_count(&self, tree: &Tree, successor: Successor) -> usize {
+        match (self, successor) {
+            (Self::Invoke { call, .. }, Successor::InvokeNormal) => tree
+                .get(call.signature)
+                .function_signature_parts()
+                .is_some_and(|(_, _, result)| !matches!(tree.get(result), Type::Void))
+                .into(),
+            (
+                Self::NewZeroedTry { .. }
+                | Self::NewUninitTry { .. }
+                | Self::NewSliceZeroedTry { .. }
+                | Self::NewSliceUninitTry { .. },
+                Successor::NewSuccess,
+            ) => 1,
+            _ => 0,
+        }
+    }
+
+    /// Replace one exact control-flow edge target.
+    pub fn replace_edge(
+        &mut self,
+        successor: Successor,
+        target: BlockTarget,
+        tree: &mut Tree,
+    ) -> bool {
+        match (self, successor) {
+            (Self::Jump { target: current }, Successor::Jump)
+            | (
+                Self::Branch {
+                    then_target: current,
+                    ..
+                },
+                Successor::BranchThen,
+            )
+            | (
+                Self::Branch {
+                    else_target: current,
+                    ..
+                },
+                Successor::BranchElse,
+            )
+            | (
+                Self::Check {
+                    success: current, ..
+                },
+                Successor::CheckSuccess,
+            )
+            | (
+                Self::Check {
+                    failure: current, ..
+                },
+                Successor::CheckFailure,
+            )
+            | (
+                Self::Invoke {
+                    target: current, ..
+                },
+                Successor::InvokeNormal,
+            )
+            | (
+                Self::Invoke {
+                    unwind: current, ..
+                },
+                Successor::InvokeUnwind,
+            )
+            | (
+                Self::NewZeroedTry {
+                    success: current, ..
+                },
+                Successor::NewSuccess,
+            )
+            | (
+                Self::NewZeroedTry {
+                    failure: current, ..
+                },
+                Successor::NewFailure,
+            )
+            | (
+                Self::NewUninitTry {
+                    success: current, ..
+                },
+                Successor::NewSuccess,
+            )
+            | (
+                Self::NewUninitTry {
+                    failure: current, ..
+                },
+                Successor::NewFailure,
+            )
+            | (
+                Self::NewSliceZeroedTry {
+                    success: current, ..
+                },
+                Successor::NewSuccess,
+            )
+            | (
+                Self::NewSliceZeroedTry {
+                    failure: current, ..
+                },
+                Successor::NewFailure,
+            )
+            | (
+                Self::NewSliceUninitTry {
+                    success: current, ..
+                },
+                Successor::NewSuccess,
+            )
+            | (
+                Self::NewSliceUninitTry {
+                    failure: current, ..
+                },
+                Successor::NewFailure,
+            ) => {
+                *current = target;
+
+                true
+            }
+            (Self::Switch { default, .. }, Successor::SwitchDefault)
+            | (
+                Self::VariantSwitch {
+                    default: Some(default),
+                    ..
+                },
+                Successor::SwitchDefault,
+            ) => {
+                *default = target;
+
+                true
+            }
+            (
+                Self::Switch { cases, .. } | Self::VariantSwitch { cases, .. },
+                Successor::SwitchCase { value },
+            ) => cases.replace_target(value, target, tree),
+            _ => false,
         }
     }
 
@@ -694,114 +859,49 @@ impl Terminator {
         }
     }
 
+    /// Return values read by this terminator instead of forwarded through an edge.
+    pub fn reads(&self, tree: &Tree) -> SmallVec<[Value; 8]> {
+        match self {
+            Terminator::Error
+            | Terminator::Jump { .. }
+            | Terminator::NewZeroedTry { .. }
+            | Terminator::NewUninitTry { .. }
+            | Terminator::UnwindResume
+            | Terminator::Unreachable => smallvec![],
+            Terminator::Return { value }
+            | Terminator::Panic { payload: value }
+            | Terminator::Abort { payload: value } => value.iter().copied().collect(),
+            Terminator::Branch { condition, .. } => smallvec![*condition],
+            Terminator::Check { constraint, .. } => constraint
+                .uses()
+                .into_iter()
+                .collect::<SmallVec<[Value; 8]>>(),
+            Terminator::Switch { value, .. } | Terminator::VariantSwitch { value, .. } => {
+                smallvec![*value]
+            }
+            Terminator::Invoke { call, .. } | Terminator::TailCall { call } => call.uses(tree),
+            Terminator::NewSliceZeroedTry { length, .. }
+            | Terminator::NewSliceUninitTry { length, .. } => smallvec![*length],
+        }
+    }
+
     /// Return values consumed by this terminator.
     pub fn consumes(&self, tree: &Tree) -> SmallVec<[Value; 8]> {
         match self {
-            Terminator::Return { value: Some(value) } => smallvec![*value],
+            Terminator::Return { value: Some(value) }
+            | Terminator::Panic {
+                payload: Some(value),
+            }
+            | Terminator::Abort {
+                payload: Some(value),
+            } => smallvec![*value],
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => call.uses(tree),
             _ => smallvec![],
         }
     }
 
-    /// Return the arguments passed to one successor block.
-    pub fn successor_arguments<'a>(
-        &self,
-        tree: &'a Tree,
-        successor: LocalNodeId<Block>,
-    ) -> &'a [Value] {
-        match self {
-            Terminator::Jump { target } if target.block == successor => target.arguments(tree),
-
-            Terminator::Branch {
-                then_target,
-                else_target,
-                ..
-            } => {
-                if then_target.block == successor {
-                    then_target.arguments(tree)
-                } else if else_target.block == successor {
-                    else_target.arguments(tree)
-                } else {
-                    &[]
-                }
-            }
-            Terminator::Check {
-                success, failure, ..
-            } => {
-                if success.block == successor {
-                    success.arguments(tree)
-                } else if failure.block == successor {
-                    failure.arguments(tree)
-                } else {
-                    &[]
-                }
-            }
-            Terminator::NewZeroedTry {
-                success, failure, ..
-            }
-            | Terminator::NewUninitTry {
-                success, failure, ..
-            }
-            | Terminator::NewSliceZeroedTry {
-                success, failure, ..
-            }
-            | Terminator::NewSliceUninitTry {
-                success, failure, ..
-            } => {
-                if success.block == successor {
-                    success.arguments(tree)
-                } else if failure.block == successor {
-                    failure.arguments(tree)
-                } else {
-                    &[]
-                }
-            }
-
-            Terminator::Switch { default, cases, .. } => {
-                if default.block == successor {
-                    return default.arguments(tree);
-                }
-
-                for case in tree.get_switch_cases(*cases) {
-                    if case.target.block == successor {
-                        return case.target.arguments(tree);
-                    }
-                }
-
-                &[]
-            }
-            Terminator::VariantSwitch { default, cases, .. } => {
-                if let Some(default) = default
-                    && default.block == successor
-                {
-                    return default.arguments(tree);
-                }
-
-                for case in tree.get_switch_cases(*cases) {
-                    if case.target.block == successor {
-                        return case.target.arguments(tree);
-                    }
-                }
-
-                &[]
-            }
-
-            Terminator::Invoke { target, unwind, .. } => {
-                if target.block == successor {
-                    target.arguments(tree)
-                } else if unwind.block == successor {
-                    unwind.arguments(tree)
-                } else {
-                    &[]
-                }
-            }
-
-            _ => &[],
-        }
-    }
-
     /// Return the arguments passed to one successor, reporting conflicts.
-    pub fn edge_arguments<'a>(
+    pub fn successor_arguments<'a>(
         &self,
         tree: &'a Tree,
         successor: LocalNodeId<Block>,
@@ -866,39 +966,6 @@ impl Terminator {
         arguments
     }
 
-    /// Return successor parameters bound by explicit terminator arguments.
-    pub fn successor_parameters<'a>(
-        &self,
-        tree: &'a Tree,
-        successor: LocalNodeId<Block>,
-    ) -> &'a [BlockParameter] {
-        let arguments = self.successor_arguments(tree, successor);
-        let block = tree.get(successor);
-        let parameters = block.parameters.as_slice();
-
-        // skip values produced directly by the terminator
-        let result_count = self.successor_result_count(successor);
-        if parameters.len() == arguments.len() + result_count {
-            &parameters[result_count..]
-        } else {
-            parameters
-        }
-    }
-
-    /// Return the number of values produced directly for one successor.
-    pub fn successor_result_count(&self, successor: LocalNodeId<Block>) -> usize {
-        match self {
-            Terminator::Invoke { target, .. } => usize::from(target.block == successor),
-            Terminator::NewZeroedTry { success, .. }
-            | Terminator::NewUninitTry { success, .. }
-            | Terminator::NewSliceZeroedTry { success, .. }
-            | Terminator::NewSliceUninitTry { success, .. } => {
-                usize::from(success.block == successor)
-            }
-            _ => 0,
-        }
-    }
-
     /// Return the dispatch when this terminator performs a call.
     pub fn call_dispatch(&self) -> Option<CallDispatch> {
         match self {
@@ -930,8 +997,10 @@ impl Terminator {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::parse::{ParseOptions, Parser, test_file};
-    use crate::{BlockId, Function, Terminator, Tree, Type};
+    use crate::{BlockId, Edge, Function, Successor, Terminator, Tree, Type};
 
     /// Parse one MIR tree for terminator owner-method tests.
     fn parse_tree(source: &str) -> Tree {
@@ -992,10 +1061,14 @@ b2(v3: int32):
     fn test_successor_arguments_include_fallible_allocation_edges() {
         let tree = parse_fallible_allocation_tree();
         let terminator = terminator(&tree, 0);
-        let success = block(&tree, 1);
-        let failure = block(&tree, 2);
-        let success_arguments = terminator.successor_arguments(&tree, success);
-        let failure_arguments = terminator.successor_arguments(&tree, failure);
+        let Terminator::NewSliceUninitTry {
+            success, failure, ..
+        } = terminator
+        else {
+            panic!("entry should end with a fallible allocation");
+        };
+        let success_arguments = success.arguments(&tree);
+        let failure_arguments = failure.arguments(&tree);
 
         // success and failure edges carry the explicit payload
         assert_eq!(success_arguments.len(), 1);
@@ -1004,32 +1077,99 @@ b2(v3: int32):
 
     /// Fallible allocation success parameters skip the implicit result.
     #[test]
-    fn test_successor_parameters_skip_fallible_allocation_result() {
+    fn test_target_parameters_skip_fallible_allocation_result() {
         let tree = parse_fallible_allocation_tree();
         let terminator = terminator(&tree, 0);
         let success = block(&tree, 1);
         let failure = block(&tree, 2);
+        let Terminator::NewSliceUninitTry {
+            success: success_target,
+            failure: failure_target,
+            ..
+        } = terminator
+        else {
+            panic!("entry should end with a fallible allocation");
+        };
 
         // success receives an implicit allocation result before explicit payloads
         assert!(matches!(
             block_parameter_type(&tree, success, 0),
             Type::Uninit { .. }
         ));
-        assert_eq!(terminator.successor_parameters(&tree, success).len(), 1);
+        assert_eq!(
+            terminator
+                .target_parameters(&tree, Successor::NewSuccess, success_target)
+                .expect("success target should bind its explicit payload")
+                .len(),
+            1
+        );
 
         // failure has no implicit result and binds every explicit payload
-        assert_eq!(terminator.successor_parameters(&tree, failure).len(), 1);
+        assert_eq!(
+            terminator
+                .target_parameters(&tree, Successor::NewFailure, failure_target)
+                .expect("failure target should bind its explicit payload")
+                .len(),
+            1
+        );
+        assert_eq!(failure_target.block, failure);
     }
 
     /// Fallible allocation results only apply to success edges.
     #[test]
-    fn test_successor_result_count_marks_only_fallible_allocation_success() {
+    fn test_target_result_count_marks_only_fallible_allocation_success() {
         let tree = parse_fallible_allocation_tree();
         let terminator = terminator(&tree, 0);
-        let success = block(&tree, 1);
-        let failure = block(&tree, 2);
 
-        assert_eq!(terminator.successor_result_count(success), 1);
-        assert_eq!(terminator.successor_result_count(failure), 0);
+        assert_eq!(
+            terminator.target_result_count(&tree, Successor::NewSuccess),
+            1
+        );
+        assert_eq!(
+            terminator.target_result_count(&tree, Successor::NewFailure),
+            0
+        );
+    }
+
+    /// Splitting an allocation success edge preserves its result and explicit payload.
+    #[test]
+    fn test_split_fallible_allocation_success() {
+        let mut tree = parse_fallible_allocation_tree();
+        let (function_id, function) = tree
+            .iter_nodes::<Function>()
+            .next()
+            .expect("missing function");
+        let mut function = function.clone();
+        let source = function.block(0);
+        let destination = function.block(1);
+        let edge = Edge::new(source, Successor::NewSuccess, destination);
+
+        // split the exact success edge
+        let mut edge_blocks = HashMap::new();
+        let mut is_changed = false;
+        let split = edge.split(&mut function, &mut tree, &mut edge_blocks, &mut is_changed);
+        tree.set(function_id, function);
+
+        // retain the allocation result and explicit payload as split block parameters
+        let split_block = tree.get(split);
+        let split_parameters = split_block
+            .parameters
+            .iter()
+            .map(|parameter| parameter.value)
+            .collect::<Vec<_>>();
+        assert!(is_changed);
+        assert_eq!(split_parameters.len(), 2);
+
+        // bind the original payload on entry and forward the complete edge state
+        let Terminator::NewSliceUninitTry { success, .. } = terminator(&tree, 0) else {
+            panic!("entry should end with a fallible allocation");
+        };
+        let Terminator::Jump { target } = tree.get(split_block.terminator) else {
+            panic!("split edge should forward into the original destination");
+        };
+        assert_eq!(success.block, split);
+        assert_eq!(success.arguments(&tree).len(), 1);
+        assert_eq!(target.block, destination);
+        assert_eq!(target.arguments(&tree), split_parameters);
     }
 }

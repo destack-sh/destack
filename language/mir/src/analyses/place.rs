@@ -1,31 +1,31 @@
-use crate::{GlobalId, Instruction, LocalId, Path, Projection, Value};
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    Analysis, Block, ControlTable, Function, FunctionCache, GlobalId, Instruction, LocalId,
+    LocalNodeId, Mutation, Path, Projection, Tree, Value,
+};
+
+/// Canonical places for one MIR function.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct PlaceTable {
+    /// The canonical place for each SSA value.
+    values: Vec<Place>,
+}
 
 /// Root storage for one analyzed MIR place.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum PlaceOrigin {
     /// A function-local stack slot.
     Local(LocalId),
     /// A module global.
     Global(GlobalId),
-    /// Storage reached through an opaque reference value.
+    /// Storage rooted in an SSA value.
     Value(Value),
 }
 
-impl PlaceOrigin {
-    /// Replace one SSA value.
-    fn replace_value(&mut self, from: Value, to: Value) {
-        let Self::Value(value) = self else {
-            return;
-        };
-
-        if *value == from {
-            *value = to;
-        }
-    }
-}
-
 /// One storage location derived from MIR address values.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Place {
     /// The root storage.
     pub origin: PlaceOrigin,
@@ -52,7 +52,7 @@ impl Place {
         Self::new(PlaceOrigin::Global(global))
     }
 
-    /// Create a place rooted in one opaque reference value.
+    /// Create a place rooted in one SSA value.
     pub fn value(value: Value) -> Self {
         Self::new(PlaceOrigin::Value(value))
     }
@@ -64,6 +64,13 @@ impl Place {
         self
     }
 
+    /// Return this place with another path appended.
+    pub fn with_path(mut self, path: &Path) -> Self {
+        self.path = self.path.with_path(path);
+
+        self
+    }
+
     /// Append one projection.
     pub fn push(&mut self, projection: Projection) {
         self.path.push(projection);
@@ -71,214 +78,259 @@ impl Place {
 
     /// Return whether this place contains another place.
     pub fn contains(&self, other: &Self) -> bool {
-        self.origin == other.origin
-            && self.path.projections.len() <= other.path.projections.len()
-            && self
-                .path
-                .projections
-                .iter()
-                .zip(&other.path.projections)
-                .all(|(left, right)| left == right)
-    }
-
-    /// Replace one SSA value throughout the place.
-    pub fn replace_value(&mut self, from: Value, to: Value) {
-        self.origin.replace_value(from, to);
-        self.path.replace_value(from, to);
+        self.origin == other.origin && self.path.contains(&other.path)
     }
 }
 
-/// Dense analyzed places keyed by SSA value.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct PlaceMap {
-    /// The known place for each SSA value.
-    places: Vec<Option<Place>>,
-}
+impl PlaceTable {
+    /// Build canonical places for one function.
+    pub fn build(function: &Function, tree: &Tree) -> Self {
+        let graph = ControlTable::build(function, tree);
+        let mut resolutions = vec![Resolution::Unknown; function.value_types().len()];
 
-impl PlaceMap {
-    /// Create an empty map sized for one function.
-    pub fn new(value_count: usize) -> Self {
-        Self {
-            places: vec![None; value_count],
-        }
-    }
-
-    /// Return the known place for one value.
-    pub fn get(&self, value: Value) -> Option<&Place> {
-        self.places
-            .get(value.id() as usize)
-            .and_then(Option::as_ref)
-    }
-
-    /// Return the known place or an opaque value root.
-    pub fn resolve(&self, value: Value) -> Place {
-        self.get(value)
-            .cloned()
-            .unwrap_or_else(|| Place::value(value))
-    }
-
-    /// Return values derived from one opaque root.
-    pub fn derived_from(&self, owner: Value) -> impl Iterator<Item = Value> + '_ {
-        self.places
-            .iter()
-            .enumerate()
-            .filter_map(move |(index, place)| {
-                let place = place.as_ref()?;
-                matches!(place.origin, PlaceOrigin::Value(value) if value == owner)
-                    .then_some(Value::new(index as u32))
-            })
-    }
-
-    /// Bind a successor parameter to one predecessor argument.
-    pub fn bind(&mut self, argument: Value, parameter: Value) {
-        let Some(place) = self.get(argument).cloned() else {
-            self.clear(parameter);
-            return;
-        };
-        if place == Place::value(argument) {
-            self.clear(parameter);
-            return;
+        // root function parameters in their incoming values
+        for parameter in &function.parameters {
+            Self::set(
+                &mut resolutions,
+                parameter.value,
+                Resolution::Known(Place::value(parameter.value)),
+            );
         }
 
-        self.set(parameter, place);
-    }
+        // solve block parameters and address derivations together
+        let mut is_changed = true;
+        while is_changed {
+            is_changed = false;
 
-    /// Apply one instruction's address derivation.
-    pub fn apply(&mut self, instruction: &Instruction) {
-        match instruction {
-            Instruction::LocalAddr {
-                destination, local, ..
-            } => self.set(*destination, Place::local(*local)),
-            Instruction::GlobalAddr {
-                destination,
-                global,
-                ..
-            } => self.set(*destination, Place::global(*global)),
-            Instruction::NewZeroed { destination, .. }
-            | Instruction::NewUninit { destination, .. }
-            | Instruction::NewComplete { destination, .. }
-            | Instruction::NewSliceZeroed { destination, .. }
-            | Instruction::NewSliceUninit { destination, .. }
-            | Instruction::FunctionEnvironment { destination, .. }
-            | Instruction::FunctionEnvironmentCurrent { destination } => {
-                self.set(*destination, Place::value(*destination));
+            for &block_id in function.blocks() {
+                let block = tree.get(block_id);
+
+                // merge every block parameter from its incoming arguments
+                if Some(block_id) != function.entry() {
+                    for (index, parameter) in block.parameters.iter().enumerate() {
+                        let resolution =
+                            Self::parameter(block_id, index, &graph, &resolutions, tree);
+                        is_changed |= Self::set(&mut resolutions, parameter.value, resolution);
+                    }
+                }
+
+                // derive instruction destinations from their storage operands
+                for &instruction_id in &block.instructions {
+                    let instruction = tree.get(instruction_id);
+                    let Some(destination) = instruction.destination() else {
+                        continue;
+                    };
+                    let resolution = Self::instruction(destination, instruction, &resolutions);
+                    is_changed |= Self::set(&mut resolutions, destination, resolution);
+                }
             }
+        }
+
+        // preserve an opaque root for unresolved or conflicting values
+        let values = resolutions
+            .into_iter()
+            .enumerate()
+            .map(|(index, resolution)| match resolution {
+                Resolution::Known(place) => place,
+                Resolution::Unknown | Resolution::Opaque => Place::value(Value::new(index as u32)),
+            })
+            .collect();
+
+        Self { values }
+    }
+
+    /// Return the canonical place for one value.
+    pub fn get(&self, value: Value) -> &Place {
+        self.values
+            .get(value.id() as usize)
+            .unwrap_or_else(|| unreachable!("missing place for value {value:?}"))
+    }
+
+    /// Return one projected canonical place.
+    pub fn project(&self, value: Value, projection: Projection) -> Place {
+        self.get(value).clone().with_projection(projection)
+    }
+
+    /// Resolve one instruction destination.
+    fn instruction(
+        destination: Value,
+        instruction: &Instruction,
+        resolutions: &[Resolution],
+    ) -> Resolution {
+        match instruction {
+            Instruction::LocalAddr { local, .. } => Resolution::Known(Place::local(*local)),
+            Instruction::GlobalAddr { global, .. } => Resolution::Known(Place::global(*global)),
             Instruction::FieldAddr {
-                destination,
-                aggregate,
-                field,
-                ..
-            } => self.project(
-                *destination,
+                aggregate, field, ..
+            } => Self::resolve_projection(
                 *aggregate,
                 Projection::Field { index: *field },
+                resolutions,
             ),
-            Instruction::ElementAddr {
-                destination,
-                base,
-                index,
-                ..
-            } => self.project(*destination, *base, Projection::Index { index: *index }),
-            Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                case,
-                ..
-            } => self.project(*destination, *variant, Projection::Variant { case: *case }),
+            Instruction::ElementAddr { base, index, .. } => {
+                Self::resolve_projection(*base, Projection::Index { index: *index }, resolutions)
+            }
+            Instruction::VariantPayloadAddr { variant, case, .. } => {
+                Self::resolve_projection(*variant, Projection::Variant { case: *case }, resolutions)
+            }
             Instruction::SliceView {
-                destination,
                 source,
                 start,
                 length,
                 ..
-            } => self.project(
-                *destination,
+            } => Self::resolve_projection(
                 *source,
                 Projection::Slice {
                     start: *start,
                     length: *length,
                 },
+                resolutions,
             ),
-            Instruction::Cast {
-                destination,
-                argument,
-                ..
+            Instruction::TensorCast {
+                tensor: argument, ..
             }
-            | Instruction::TensorCast {
-                destination,
-                tensor: argument,
-            }
-            | Instruction::TensorView {
-                destination,
-                view: argument,
-                ..
-            }
+            | Instruction::TensorView { view: argument, .. }
             | Instruction::Pin {
-                destination,
-                value: argument,
-                ..
-            } => self.copy(*destination, *argument),
-            _ => {}
+                value: argument, ..
+            } => Self::copy(*argument, resolutions),
+            _ => Resolution::Known(Place::value(destination)),
         }
     }
 
-    /// Retain only places also known by another control-flow state.
-    pub fn intersect(&mut self, other: &Self) {
-        for index in 0..self.places.len() {
-            let is_stable = self.places[index]
-                .as_ref()
-                .is_some_and(|place| other.at(index) == Some(place));
-            if !is_stable {
-                self.places[index] = None;
+    /// Resolve one block parameter from incoming arguments.
+    fn parameter(
+        block: LocalNodeId<Block>,
+        index: usize,
+        graph: &ControlTable,
+        resolutions: &[Resolution],
+        tree: &Tree,
+    ) -> Resolution {
+        let mut place = None;
+        let mut visited = Vec::new();
+
+        // merge the matching argument from every incoming edge
+        for &predecessor in graph.predecessors(block) {
+            if visited.contains(&predecessor) {
+                continue;
+            }
+            visited.push(predecessor);
+
+            let predecessor_id = predecessor;
+            let predecessor = tree.get(predecessor_id);
+            let terminator = tree.get(predecessor.terminator);
+            for (edge, target) in terminator
+                .targets(tree, predecessor_id)
+                .into_iter()
+                .filter(|(_, target)| target.block == block)
+            {
+                let Some(parameters) = terminator.target_parameters(tree, edge.successor, target)
+                else {
+                    return Resolution::Opaque;
+                };
+                let parameter = tree.get(block).parameters[index].value;
+                let Some(argument_index) = parameters
+                    .iter()
+                    .position(|candidate| candidate.value == parameter)
+                else {
+                    let argument = Place::value(parameter);
+                    if place.as_ref().is_none_or(|place| place == &argument) {
+                        place = Some(argument);
+                        continue;
+                    }
+
+                    return Resolution::Opaque;
+                };
+                let Some(&argument) = target.arguments(tree).get(argument_index) else {
+                    return Resolution::Opaque;
+                };
+
+                match resolutions.get(argument.id() as usize) {
+                    Some(Resolution::Known(argument))
+                        if place.as_ref().is_none_or(|place| place == argument) =>
+                    {
+                        place = Some(argument.clone());
+                    }
+                    Some(Resolution::Unknown) => {}
+                    Some(Resolution::Known(_) | Resolution::Opaque) | None => {
+                        return Resolution::Opaque;
+                    }
+                }
             }
         }
+
+        place.map(Resolution::Known).unwrap_or(Resolution::Unknown)
     }
 
-    /// Return one place by dense value index.
-    fn at(&self, index: usize) -> Option<&Place> {
-        self.places.get(index).and_then(Option::as_ref)
+    /// Resolve one projected place.
+    fn resolve_projection(
+        value: Value,
+        projection: Projection,
+        resolutions: &[Resolution],
+    ) -> Resolution {
+        match resolutions.get(value.id() as usize) {
+            Some(Resolution::Known(place)) => {
+                Resolution::Known(place.clone().with_projection(projection))
+            }
+            Some(Resolution::Opaque) => {
+                Resolution::Known(Place::value(value).with_projection(projection))
+            }
+            Some(Resolution::Unknown) | None => Resolution::Unknown,
+        }
     }
 
-    /// Clear one value's place.
-    fn clear(&mut self, value: Value) {
-        let index = self.resize(value);
-
-        self.places[index] = None;
+    /// Copy one place resolution.
+    fn copy(value: Value, resolutions: &[Resolution]) -> Resolution {
+        match resolutions.get(value.id() as usize) {
+            Some(Resolution::Known(place)) => Resolution::Known(place.clone()),
+            Some(Resolution::Opaque) => Resolution::Known(Place::value(value)),
+            Some(Resolution::Unknown) | None => Resolution::Unknown,
+        }
     }
 
-    /// Set one value's place.
-    fn set(&mut self, value: Value, place: Place) {
-        let index = self.resize(value);
+    /// Replace one value resolution.
+    fn set(resolutions: &mut Vec<Resolution>, value: Value, resolution: Resolution) -> bool {
+        let index = value.id() as usize;
+        if index >= resolutions.len() {
+            resolutions.resize(index + 1, Resolution::Unknown);
+        }
+        let current = &resolutions[index];
+        if current == &resolution || matches!(current, Resolution::Opaque) {
+            return false;
+        }
 
-        self.places[index] = Some(place);
-    }
-
-    /// Derive one projected place.
-    fn project(&mut self, value: Value, base: Value, projection: Projection) {
-        let place = self.resolve(base).with_projection(projection);
-
-        self.set(value, place);
-    }
-
-    /// Copy one known place.
-    fn copy(&mut self, value: Value, source: Value) {
-        let Some(place) = self.get(source).cloned() else {
-            self.clear(value);
-            return;
+        // collapse conflicting places into an opaque root
+        let resolution = match (current, resolution) {
+            (Resolution::Known(current), Resolution::Known(next)) if current != &next => {
+                Resolution::Opaque
+            }
+            (Resolution::Known(_), Resolution::Unknown) => return false,
+            (_, resolution) => resolution,
         };
 
-        self.set(value, place);
+        resolutions[index] = resolution;
+
+        true
     }
+}
 
-    /// Resize storage for one value.
-    fn resize(&mut self, value: Value) -> usize {
-        let index = value.id() as usize;
-        let value_count = index + 1;
+impl Analysis for PlaceTable {
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
+}
 
-        if self.places.len() < value_count {
-            self.places.resize(value_count, None);
-        }
-
-        index
+impl PlaceTable {
+    /// Compute canonical places for one function.
+    pub(crate) fn compute(function: &Function, tree: &Tree, _analyses: &mut FunctionCache) -> Self {
+        Self::build(function, tree)
     }
+}
+
+/// Place resolution while building one function table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Resolution {
+    /// The value's place still depends on unresolved control flow.
+    Unknown,
+    /// The value has one canonical place.
+    Known(Place),
+    /// Incoming control flow carries different places.
+    Opaque,
 }

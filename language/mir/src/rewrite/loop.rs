@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate as mir;
 
 use crate::{
-    ControlFlowGraph, DominatorTree, MemoryAccessEffect, MemoryNode, MemoryRegion, MemorySSA,
+    ControlTable, DominatorTable, MemoryAccessEffect, MemoryNode, MemoryRegion, MemoryTable,
     clone_instruction_tables, instruction_is_borrow_address, instruction_is_read_only_access,
     instruction_is_speculatable, instruction_map,
 };
@@ -99,7 +99,7 @@ pub fn block_is_speculatable_no_reads(
     block: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     tree: &mir::Tree,
-    memory_ssa: &MemorySSA,
+    memory: &MemoryTable,
 ) -> bool {
     // scan instructions in the block
     let block = tree.get(block);
@@ -112,7 +112,7 @@ pub fn block_is_speculatable_no_reads(
         }
 
         // reject read only memory accesses
-        if instruction_is_read_only_access(instruction_id, memory_ssa) {
+        if instruction_is_read_only_access(instruction_id, memory) {
             return false;
         }
     }
@@ -124,8 +124,8 @@ pub fn block_is_speculatable_no_reads(
 pub fn loop_preheader(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    dominator: &DominatorTable,
     tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // collect outside predecessors
@@ -145,7 +145,7 @@ pub fn loop_preheader(
     let preheader = outside_preds.pop()?;
 
     // ensure the preheader dominates the header
-    if !domtree.dominates(preheader, header) {
+    if !dominator.dominates(preheader, header) {
         return None;
     }
 
@@ -214,8 +214,8 @@ pub fn collect_loop_effects(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mir::Function,
     tree: &mir::Tree,
-    memory: &mir::MemoryTable,
-    memory_ssa: &MemorySSA,
+    accesses: &mir::AccessTable,
+    memory: &MemoryTable,
     policy: LoopEffectPolicy,
 ) -> Option<Vec<MemoryAccessEffect>> {
     // gather memory effects
@@ -225,7 +225,7 @@ pub fn collect_loop_effects(
         let block = tree.get(*block_id);
         for instruction_id in &block.instructions {
             // reject ordered accesses
-            if memory.instruction_has_atomic_ordering(tree, *instruction_id) {
+            if accesses.is_ordered(*instruction_id, tree) {
                 return None;
             }
 
@@ -244,13 +244,13 @@ pub fn collect_loop_effects(
             }
 
             // resolve memory accesses for the instruction
-            let Some(accesses) = memory_ssa.instruction_accesses(*instruction_id) else {
+            let Some(instruction_accesses) = memory.instruction_accesses(*instruction_id) else {
                 continue;
             };
 
             // record each valid memory effect
-            for access_id in accesses {
-                let effect = match memory_ssa.access(*access_id) {
+            for access_id in instruction_accesses {
+                let effect = match memory.access(*access_id) {
                     MemoryNode::Def(def_access) => def_access.effect.clone(),
                     MemoryNode::Use(use_access) => use_access.effect.clone(),
                     _ => continue,
@@ -286,13 +286,14 @@ pub fn clone_loop_blocks(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
 ) {
     // clone loop blocks and values
-    let (block_map, value_map, _) = clone_loop_blocks_internal(loop_blocks, function, tree, memory);
+    let (block_map, value_map, _) =
+        clone_loop_blocks_internal(loop_blocks, function, tree, accesses);
     (block_map, value_map)
 }
 
@@ -302,14 +303,14 @@ pub fn clone_loop_blocks_with_instructions(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
     HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>,
 ) {
     // clone loop blocks and values
-    clone_loop_blocks_internal(loop_blocks, function, tree, memory)
+    clone_loop_blocks_internal(loop_blocks, function, tree, accesses)
 }
 
 /// Clone loop blocks and return block, value, and instruction maps.
@@ -318,7 +319,7 @@ fn clone_loop_blocks_internal(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
+    accesses: &mut mir::AccessTable,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
@@ -388,7 +389,13 @@ fn clone_loop_blocks_internal(
             let original_instruction = tree.get(instruction_id).clone();
             let new_instruction = instruction_map(&original_instruction, &value_map, tree);
             let new_instruction_id = tree.insert(new_instruction);
-            clone_instruction_tables(tree, memory, instruction_id, new_instruction_id, &value_map);
+            clone_instruction_tables(
+                tree,
+                accesses,
+                instruction_id,
+                new_instruction_id,
+                &value_map,
+            );
             instruction_id_map.insert(instruction_id, new_instruction_id);
             new_instructions.push(new_instruction_id);
         }

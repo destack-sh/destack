@@ -2,45 +2,37 @@ use std::collections::{HashMap, HashSet};
 
 use crate as mir;
 
-use crate::{Analysis, FunctionAnalyses, Mutation, NodeTable};
+use crate::{Analysis, FunctionCache, Mutation, NodeTable};
 
-use super::{ControlFlowGraph, DominatorTree};
+use super::{ControlTable, DominatorTable};
 
-/// A natural loop in the control flow graph.
-///
-/// A natural loop has a single entry point (the header) and is defined by one or
-/// more back edges. A back edge is an edge from a block to one of its dominators.
-/// The loop body consists of all blocks that can reach a back edge source (latch)
-/// without going through the header.
-///
-/// This analysis only identifies natural (reducible) loops. Irreducible control
-/// flow (multiple entry points) is not represented as a loop.
+/// Natural loops for one function.
+#[derive(Debug)]
+pub struct LoopTable {
+    /// All loops, indexed by loop ID.
+    loops: Vec<Loop>,
+    /// Loop index for each header block.
+    header_to_loop: NodeTable<mir::Block, Option<usize>>,
+    /// Innermost loop index for each block.
+    block_to_loop: NodeTable<mir::Block, Option<usize>>,
+}
+
+/// One natural loop in a MIR function.
 #[derive(Debug, Clone)]
 pub struct Loop {
-    /// The loop header block.
-    ///
-    /// The single entry point to the loop. All back edges target this block.
-    /// The header dominates all blocks in the loop body.
+    /// The loop header.
     pub header: mir::LocalNodeId<mir::Block>,
 
-    /// Latch blocks (back edge sources).
-    ///
-    /// These are the blocks that branch back to the header. A loop with a single
-    /// latch is in canonical form and easier to optimize.
+    /// The back edge sources.
     pub latches: Vec<mir::LocalNodeId<mir::Block>>,
 
     /// All blocks in the loop body, including the header.
     pub blocks: HashSet<mir::LocalNodeId<mir::Block>>,
 
-    /// Exiting blocks (blocks with edges leaving the loop).
-    ///
-    /// A loop with a single exiting block is easier to transform. The exiting
-    /// block is not necessarily the same as the latch.
+    /// The blocks with outgoing loop exits.
     pub exiting_blocks: Vec<mir::LocalNodeId<mir::Block>>,
 
-    /// Exit blocks (blocks outside the loop that are targets of exiting edges).
-    ///
-    /// A loop with a single exit block has simpler control flow for LCSSA form.
+    /// The blocks reached by loop exits.
     pub exit_blocks: Vec<mir::LocalNodeId<mir::Block>>,
 
     /// Parent loop index, if this is a nested loop.
@@ -67,37 +59,13 @@ impl Loop {
     }
 }
 
-/// Natural loop analysis for a function.
-///
-/// Identifies loops using dominator-based back edge detection. A back edge is an
-/// edge A → B where B dominates A. Each unique header (back edge target) defines
-/// one natural loop.
-///
-/// Multiple back edges to the same header are merged into a single loop with
-/// multiple latches. Nested loops are detected and organized into a forest.
-///
-/// This analysis assumes reducible control flow. Irreducible loops (with multiple
-/// entry points) are not detected. Most structured source languages produce only
-/// reducible control flow.
-#[derive(Debug)]
-pub struct LoopAnalysis {
-    /// All loops, indexed by loop ID.
-    loops: Vec<Loop>,
-
-    /// Map from header block to loop index.
-    header_to_loop: NodeTable<mir::Block, Option<usize>>,
-
-    /// Map from block to its innermost containing loop.
-    block_to_loop: NodeTable<mir::Block, Option<usize>>,
-}
-
-impl LoopAnalysis {
+impl LoopTable {
     /// Build loop analysis from dominator information.
     fn build(
         function: &mir::Function,
         tree: &mir::Tree,
-        cfg: &ControlFlowGraph,
-        domtree: &DominatorTree,
+        cfg: &ControlTable,
+        dominator: &DominatorTable,
     ) -> Self {
         // handle functions without bodies (imports)
         if function.entry().is_none() {
@@ -109,14 +77,14 @@ impl LoopAnalysis {
         }
 
         // collect back edges grouped by header
-        let back_edges_by_header = Self::find_back_edges(function, tree, domtree);
+        let back_edges_by_header = Self::find_back_edges(function, tree, dominator);
 
         // build loop structures from back edges
         let (mut loops, header_to_loop) =
-            Self::build_loops(function, back_edges_by_header, tree, cfg, domtree);
+            Self::build_loops(function, back_edges_by_header, tree, cfg, dominator);
 
         // establish parent/child relationships and compute depths
-        Self::compute_nesting(&mut loops, &header_to_loop, domtree);
+        Self::compute_nesting(&mut loops, &header_to_loop, dominator);
 
         // map each block to its innermost containing loop
         let block_to_loop = Self::build_block_map(function.blocks(), &loops);
@@ -132,7 +100,7 @@ impl LoopAnalysis {
     fn find_back_edges(
         function: &mir::Function,
         tree: &mir::Tree,
-        domtree: &DominatorTree,
+        dominator: &DominatorTable,
     ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
         let mut back_edges: HashMap<
             mir::LocalNodeId<mir::Block>,
@@ -146,7 +114,7 @@ impl LoopAnalysis {
             // check each outgoing edge
             for successor in terminator.successors(tree) {
                 // back edge: successor dominates the current block
-                if domtree.dominates(successor, block_id) {
+                if dominator.dominates(successor, block_id) {
                     back_edges.entry(successor).or_default().push(block_id);
                 }
             }
@@ -163,8 +131,8 @@ impl LoopAnalysis {
             Vec<mir::LocalNodeId<mir::Block>>,
         >,
         tree: &mir::Tree,
-        cfg: &ControlFlowGraph,
-        domtree: &DominatorTree,
+        cfg: &ControlTable,
+        dominator: &DominatorTable,
     ) -> (Vec<Loop>, NodeTable<mir::Block, Option<usize>>) {
         let mut loops = Vec::new();
         let mut header_to_loop = NodeTable::from_nodes(function.blocks(), || None);
@@ -175,7 +143,7 @@ impl LoopAnalysis {
 
         for (header, latches) in sorted_entries {
             // compute loop body via reverse reachability from latches
-            let blocks = Self::compute_loop_body(header, &latches, cfg, domtree);
+            let blocks = Self::compute_loop_body(header, &latches, cfg, dominator);
 
             // find exiting blocks and exit blocks
             let (exiting_blocks, exit_blocks) = Self::compute_exits(&blocks, tree);
@@ -196,15 +164,12 @@ impl LoopAnalysis {
         (loops, header_to_loop)
     }
 
-    /// Compute loop body using reverse DFS from latches.
-    ///
-    /// The body includes all blocks that can reach any latch without passing
-    /// through the header, plus the header itself.
+    /// Compute a loop body from its latches.
     fn compute_loop_body(
         header: mir::LocalNodeId<mir::Block>,
         latches: &[mir::LocalNodeId<mir::Block>],
-        cfg: &ControlFlowGraph,
-        domtree: &DominatorTree,
+        cfg: &ControlTable,
+        dominator: &DominatorTable,
     ) -> HashSet<mir::LocalNodeId<mir::Block>> {
         let mut body = HashSet::new();
         body.insert(header);
@@ -221,7 +186,7 @@ impl LoopAnalysis {
         // reverse DFS: add predecessors that aren't the header
         while let Some(block) = worklist.pop() {
             for &predecessor in cfg.predecessors(block) {
-                if !domtree.dominates(header, predecessor) {
+                if !dominator.dominates(header, predecessor) {
                     continue;
                 }
 
@@ -274,7 +239,7 @@ impl LoopAnalysis {
     fn compute_nesting(
         loops: &mut [Loop],
         header_to_loop: &NodeTable<mir::Block, Option<usize>>,
-        domtree: &DominatorTree,
+        dominator: &DominatorTable,
     ) {
         let loop_count = loops.len();
 
@@ -283,16 +248,16 @@ impl LoopAnalysis {
             let header = loops[i].header;
 
             // walk up immediate dominators to find containing loop
-            let mut current = domtree.immediate_dominator(header);
-            while let Some(dominator) = current {
-                if let Some(parent_index) = *header_to_loop.get(dominator) {
+            let mut current = dominator.immediate_dominator(header);
+            while let Some(block) = current {
+                if let Some(parent_index) = *header_to_loop.get(block) {
                     // verify the header is actually in the parent's body
                     if loops[parent_index].blocks.contains(&header) {
                         loops[i].parent = Some(parent_index);
                         break;
                     }
                 }
-                current = domtree.immediate_dominator(dominator);
+                current = dominator.immediate_dominator(block);
             }
         }
 
@@ -404,19 +369,20 @@ impl LoopAnalysis {
     }
 }
 
-impl Analysis for LoopAnalysis {
+impl Analysis for LoopTable {
     const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
-impl LoopAnalysis {
+impl LoopTable {
+    /// Compute natural loops for one function.
     pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        analyses: &mut FunctionAnalyses,
+        analyses: &mut FunctionCache,
     ) -> Self {
-        let cfg = analyses.control_flow(function, tree);
-        let domtree = analyses.dominators(function, tree);
-        Self::build(function, tree, &cfg, &domtree)
+        let cfg = analyses.control(function, tree);
+        let dominator = analyses.dominator(function, tree);
+        Self::build(function, tree, &cfg, &dominator)
     }
 }
 

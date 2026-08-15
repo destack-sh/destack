@@ -4,7 +4,22 @@ use destack_core::{BitSet, DenseGraph};
 
 use crate as mir;
 
-use super::{Analysis, ModuleAnalyses};
+use super::{Analysis, AnalysisCache};
+
+/// Module scoped call graph.
+#[derive(Debug)]
+pub struct CallTable {
+    /// Outgoing edges by caller.
+    outgoing: HashMap<mir::LocalNodeId<mir::Function>, Vec<CallEdge>>,
+    /// Incoming edges by callee.
+    incoming: HashMap<mir::LocalNodeId<mir::Function>, Vec<CallEdge>>,
+    /// Open callsites by caller.
+    open_callsites: HashMap<mir::LocalNodeId<mir::Function>, Vec<OpenCallSite>>,
+    /// Component id by dense function id.
+    function_component: Vec<u32>,
+    /// Components that are recursive.
+    recursive_components: BitSet,
+}
 
 /// Directed edge in the call graph.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -39,22 +54,7 @@ pub struct OpenCallSite {
     pub known_target: Option<mir::LocalNodeId<mir::Function>>,
 }
 
-/// Module scoped call graph.
-#[derive(Debug)]
-pub struct CallGraph {
-    /// Outgoing edges by caller.
-    outgoing: HashMap<mir::LocalNodeId<mir::Function>, Vec<CallEdge>>,
-    /// Incoming edges by callee.
-    incoming: HashMap<mir::LocalNodeId<mir::Function>, Vec<CallEdge>>,
-    /// Open callsites by caller.
-    open_callsites: HashMap<mir::LocalNodeId<mir::Function>, Vec<OpenCallSite>>,
-    /// Component id by dense function id.
-    function_component: Vec<u32>,
-    /// Components that are recursive.
-    recursive_components: BitSet,
-}
-
-impl CallGraph {
+impl CallTable {
     /// Get outgoing call edges for a function.
     pub fn outgoing(&self, caller: mir::LocalNodeId<mir::Function>) -> &[CallEdge] {
         const EMPTY: [CallEdge; 0] = [];
@@ -259,13 +259,13 @@ impl CallGraph {
     }
 }
 
-impl Analysis for CallGraph {}
+impl Analysis for CallTable {}
 
-impl CallGraph {
+impl CallTable {
     /// Compute the module call graph.
     pub(crate) fn compute(
         tree: &mir::Tree,
-        _analyses: &mut ModuleAnalyses,
+        _analyses: &mut AnalysisCache,
         effects: &mir::EffectTable,
     ) -> Self {
         Self::build(tree, effects)
@@ -383,17 +383,17 @@ entry:
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let callgraph = analyses.call_graph(&test.tree, &test.effects);
+        let calls = analyses.call(&test.tree, &test.effects);
 
-        let outgoing = callgraph.outgoing(test_id);
-        let incoming = callgraph.incoming(callee_id);
+        let outgoing = calls.outgoing(test_id);
+        let incoming = calls.incoming(callee_id);
 
         assert_eq!(outgoing.len(), 1);
         assert_eq!(incoming.len(), 1);
         assert!(outgoing[0].is_direct());
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(incoming[0].caller, test_id);
-        assert!(callgraph.open_callsites(test_id).is_empty());
+        assert!(calls.open_callsites(test_id).is_empty());
     }
 
     /// Call graph components detect recursive functions.
@@ -432,12 +432,12 @@ entry:
         let d_id = test.function_id_by_name("delta");
 
         let mut analyses = test.module_analyses();
-        let callgraph = analyses.call_graph(&test.tree, &test.effects);
+        let calls = analyses.call(&test.tree, &test.effects);
 
-        assert!(callgraph.is_recursive_function(a_id));
-        assert!(callgraph.is_recursive_function(b_id));
-        assert!(callgraph.is_recursive_function(c_id));
-        assert!(!callgraph.is_recursive_function(d_id));
+        assert!(calls.is_recursive_function(a_id));
+        assert!(calls.is_recursive_function(b_id));
+        assert!(calls.is_recursive_function(c_id));
+        assert!(!calls.is_recursive_function(d_id));
     }
 
     /// Indirect calls without tables stay open.
@@ -456,12 +456,12 @@ entry(v0: fn(int32) => int32, v1: int32):
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let callgraph = analyses.call_graph(&test.tree, &test.effects);
+        let calls = analyses.call(&test.tree, &test.effects);
 
-        assert!(callgraph.outgoing(test_id).is_empty());
-        assert_eq!(callgraph.open_callsites(test_id).len(), 1);
+        assert!(calls.outgoing(test_id).is_empty());
+        assert_eq!(calls.open_callsites(test_id).len(), 1);
         assert_eq!(
-            callgraph.open_callsites(test_id)[0].dispatch,
+            calls.open_callsites(test_id)[0].dispatch,
             mir::CallDispatch::Indirect
         );
     }
@@ -487,9 +487,9 @@ entry(v0: int32):
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let callgraph = analyses.call_graph(&test.tree, &test.effects);
+        let calls = analyses.call(&test.tree, &test.effects);
 
-        let outgoing = callgraph.outgoing(test_id);
+        let outgoing = calls.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
         assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
@@ -510,9 +510,9 @@ entry(v0: fn(int32) => int32, v1: int32):
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let callgraph = analyses.call_graph(&test.tree, &test.effects);
+        let calls = analyses.call(&test.tree, &test.effects);
 
-        let open_callsite = callgraph.open_callsites(test_id);
+        let open_callsite = calls.open_callsites(test_id);
         assert_eq!(open_callsite.len(), 1);
         assert_eq!(open_callsite[0].dispatch, mir::CallDispatch::Indirect);
         assert!(matches!(
@@ -542,9 +542,9 @@ entry(v0: fn(int32) => int32, v1: int32):
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let callgraph = analyses.call_graph(&test.tree, &test.effects);
+        let calls = analyses.call(&test.tree, &test.effects);
 
-        let open_callsite = callgraph.open_callsites(test_id);
+        let open_callsite = calls.open_callsites(test_id);
         assert_eq!(open_callsite.len(), 1);
         assert_eq!(open_callsite[0].dispatch, mir::CallDispatch::Indirect);
     }
@@ -576,14 +576,14 @@ b2:
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let callgraph = analyses.call_graph(&test.tree, &test.effects);
+        let calls = analyses.call(&test.tree, &test.effects);
 
-        let outgoing = callgraph.outgoing(test_id);
+        let outgoing = calls.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(outgoing[0].dispatch, mir::CallDispatch::Direct);
         assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
-        assert!(callgraph.open_callsites(test_id).is_empty());
+        assert!(calls.open_callsites(test_id).is_empty());
     }
 
     /// Class dispatch keeps a call edge and records an open target.
@@ -637,19 +637,19 @@ entry(v0: int32):
             .target = Some(callee_id);
 
         let mut analyses = test.module_analyses();
-        let callgraph = analyses.call_graph(&test.tree, &test.effects);
+        let calls = analyses.call(&test.tree, &test.effects);
 
-        assert_eq!(callgraph.outgoing(test_id).len(), 1);
-        assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
+        assert_eq!(calls.outgoing(test_id).len(), 1);
+        assert_eq!(calls.outgoing(test_id)[0].callee, callee_id);
         assert_eq!(
-            callgraph.outgoing(test_id)[0].dispatch,
+            calls.outgoing(test_id)[0].dispatch,
             mir::CallDispatch::Virtual {
                 slot: mir::DispatchSlot::new(0),
             }
         );
-        assert_eq!(callgraph.open_callsites(test_id).len(), 1);
+        assert_eq!(calls.open_callsites(test_id).len(), 1);
         assert_eq!(
-            callgraph.open_callsites(test_id)[0].known_target,
+            calls.open_callsites(test_id)[0].known_target,
             Some(callee_id)
         );
     }
@@ -687,9 +687,9 @@ b2:
             .target = Some(callee_id);
 
         let mut analyses = test.module_analyses();
-        let callgraph = analyses.call_graph(&test.tree, &test.effects);
+        let calls = analyses.call(&test.tree, &test.effects);
 
-        let outgoing = callgraph.outgoing(test_id);
+        let outgoing = calls.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(
@@ -699,9 +699,9 @@ b2:
             }
         );
         assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
-        assert_eq!(callgraph.open_callsites(test_id).len(), 1);
+        assert_eq!(calls.open_callsites(test_id).len(), 1);
         assert_eq!(
-            callgraph.open_callsites(test_id)[0].known_target,
+            calls.open_callsites(test_id)[0].known_target,
             Some(callee_id)
         );
     }

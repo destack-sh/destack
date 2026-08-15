@@ -1,7 +1,18 @@
-use super::{Analysis, FunctionAnalyses, Mutation};
-use crate::{Block, ControlFlowGraph, Function, LocalNodeId, NodeTable, Tree};
+use super::{Analysis, FunctionCache, Mutation};
+use crate::{Block, ControlTable, Function, LocalNodeId, NodeTable, Tree};
 
-/// Dense control flow graph used by dominance computation.
+/// Dominators for one function.
+#[derive(Debug, Clone)]
+pub struct DominatorTable {
+    /// Immediate dominator indexed by block id.
+    immediate_dominators: NodeTable<Block, Option<LocalNodeId<Block>>>,
+    /// Preorder numbers indexed by block id.
+    preorder: NodeTable<Block, Option<u32>>,
+    /// Maximum preorder number in each subtree indexed by block id.
+    preorder_max: NodeTable<Block, Option<u32>>,
+}
+
+/// Dense control flow graph used by dominance analysis.
 #[derive(Debug)]
 struct DenseControlFlow {
     /// The dense index for each block.
@@ -14,7 +25,7 @@ struct DenseControlFlow {
 
 impl DenseControlFlow {
     /// Build one dense control flow graph for one function.
-    fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
+    fn build(function: &Function, tree: &Tree, cfg: &ControlTable) -> Self {
         let mut block_index = NodeTable::from_nodes(function.blocks(), || None);
 
         // block indices
@@ -66,20 +77,9 @@ struct DepthFirstFrame {
     next_successor: usize,
 }
 
-/// Dominator tree for one function.
-#[derive(Debug, Clone)]
-pub struct DominatorTree {
-    /// Immediate dominator indexed by block id.
-    immediate_dominators: NodeTable<Block, Option<LocalNodeId<Block>>>,
-    /// Preorder numbers indexed by block id.
-    preorder: NodeTable<Block, Option<u32>>,
-    /// Maximum preorder number in each subtree indexed by block id.
-    preorder_max: NodeTable<Block, Option<u32>>,
-}
-
-impl DominatorTree {
+impl DominatorTable {
     /// Build the dominator tree for one function.
-    pub fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
+    pub fn build(function: &Function, tree: &Tree, cfg: &ControlTable) -> Self {
         let Some(entry) = function.entry() else {
             return Self {
                 immediate_dominators: NodeTable::new(),
@@ -91,8 +91,7 @@ impl DominatorTree {
         // dense graph
         let dense = DenseControlFlow::build(function, tree, cfg);
         let entry_index = dense.index_of(entry);
-        let result =
-            DominatorComputation::compute(&dense.successors, &dense.predecessors, entry_index);
+        let result = DominatorBuilder::compute(&dense.successors, &dense.predecessors, entry_index);
 
         let mut immediate_dominators = NodeTable::from_nodes(function.blocks(), || None);
 
@@ -203,9 +202,9 @@ pub(super) struct DominatorResult {
     pub(super) immediate_dominators: Vec<Option<usize>>,
 }
 
-/// Lengauer Tarjan dominator computation over one dense graph.
+/// Lengauer Tarjan dominator analysis over one dense graph.
 #[derive(Debug)]
-pub(super) struct DominatorComputation {
+pub(super) struct DominatorBuilder {
     /// DFS index by dense node.
     dfs_index: Vec<usize>,
     /// Dense node by DFS index.
@@ -224,7 +223,7 @@ pub(super) struct DominatorComputation {
     bucket: Vec<Vec<usize>>,
 }
 
-impl DominatorComputation {
+impl DominatorBuilder {
     /// Compute immediate dominators with the Lengauer Tarjan algorithm.
     pub(super) fn compute(
         successors: &[Vec<usize>],
@@ -241,7 +240,7 @@ impl DominatorComputation {
             panic!("dominator root is outside dense graph: {root}");
         }
 
-        let mut computation = Self {
+        let mut builder = Self {
             dfs_index: vec![0; node_count],
             vertex: vec![0; node_count + 1],
             parent: vec![0; node_count + 1],
@@ -252,10 +251,10 @@ impl DominatorComputation {
             bucket: vec![Vec::new(); node_count + 1],
         };
 
-        computation.run(successors, predecessors, root)
+        builder.run(successors, predecessors, root)
     }
 
-    /// Run the dominator computation for one root.
+    /// Compute dominators from one root.
     fn run(
         &mut self,
         successors: &[Vec<usize>],
@@ -409,17 +408,14 @@ impl DominatorComputation {
     }
 }
 
-impl Analysis for DominatorTree {
+impl Analysis for DominatorTable {
     const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
-impl DominatorTree {
-    pub(crate) fn compute(
-        function: &Function,
-        tree: &Tree,
-        analyses: &mut FunctionAnalyses,
-    ) -> Self {
-        let cfg = analyses.control_flow(function, tree);
+impl DominatorTable {
+    /// Compute dominators for one function.
+    pub(crate) fn compute(function: &Function, tree: &Tree, analyses: &mut FunctionCache) -> Self {
+        let cfg = analyses.control(function, tree);
 
         Self::build(function, tree, &cfg)
     }
@@ -428,11 +424,11 @@ impl DominatorTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::parse_test_function;
+    use crate::analyses::tests::TestProgram;
 
     #[test]
     fn test_build_dominators_for_linear_flow() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function linear(): void {
 entry:
@@ -448,26 +444,26 @@ b2:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
-        let domtree = DominatorTree::build(function, &tree, &cfg);
+        let cfg = ControlTable::build(function, &tree);
+        let dominator = DominatorTable::build(function, &tree, &cfg);
 
         let block0 = function.block(0);
         let block1 = function.block(1);
         let block2 = function.block(2);
 
-        assert!(domtree.dominates(block0, block0));
-        assert!(domtree.dominates(block0, block1));
-        assert!(domtree.dominates(block0, block2));
-        assert!(domtree.dominates(block1, block2));
-        assert!(!domtree.dominates(block2, block0));
-        assert!(!domtree.dominates(block2, block1));
-        assert_eq!(domtree.immediate_dominator(block1), Some(block0));
-        assert_eq!(domtree.immediate_dominator(block2), Some(block1));
+        assert!(dominator.dominates(block0, block0));
+        assert!(dominator.dominates(block0, block1));
+        assert!(dominator.dominates(block0, block2));
+        assert!(dominator.dominates(block1, block2));
+        assert!(!dominator.dominates(block2, block0));
+        assert!(!dominator.dominates(block2, block1));
+        assert_eq!(dominator.immediate_dominator(block1), Some(block0));
+        assert_eq!(dominator.immediate_dominator(block2), Some(block1));
     }
 
     #[test]
     fn test_build_dominators_for_diamond() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function diamond(v0: boolean): void {
 entry(v0: boolean):
@@ -486,26 +482,26 @@ b3:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
-        let domtree = DominatorTree::build(function, &tree, &cfg);
+        let cfg = ControlTable::build(function, &tree);
+        let dominator = DominatorTable::build(function, &tree, &cfg);
 
         let block0 = function.block(0);
         let block1 = function.block(1);
         let block2 = function.block(2);
         let block3 = function.block(3);
 
-        assert!(domtree.dominates(block0, block0));
-        assert!(domtree.dominates(block0, block1));
-        assert!(domtree.dominates(block0, block2));
-        assert!(domtree.dominates(block0, block3));
-        assert!(!domtree.dominates(block1, block3));
-        assert!(!domtree.dominates(block2, block3));
-        assert_eq!(domtree.immediate_dominator(block3), Some(block0));
+        assert!(dominator.dominates(block0, block0));
+        assert!(dominator.dominates(block0, block1));
+        assert!(dominator.dominates(block0, block2));
+        assert!(dominator.dominates(block0, block3));
+        assert!(!dominator.dominates(block1, block3));
+        assert!(!dominator.dominates(block2, block3));
+        assert_eq!(dominator.immediate_dominator(block3), Some(block0));
     }
 
     #[test]
     fn test_build_dominators_for_unreachable_block() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function unreachableBlock(v0: boolean): void {
 entry(v0: boolean):
@@ -524,19 +520,19 @@ b3:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
-        let domtree = DominatorTree::build(function, &tree, &cfg);
+        let cfg = ControlTable::build(function, &tree);
+        let dominator = DominatorTable::build(function, &tree, &cfg);
 
         let block0 = function.block(0);
         let block3 = function.block(3);
 
-        assert_eq!(domtree.immediate_dominator(block3), None);
-        assert!(!domtree.dominates(block0, block3));
+        assert_eq!(dominator.immediate_dominator(block3), None);
+        assert!(!dominator.dominates(block0, block3));
     }
 
     #[test]
     fn test_check_strict_dominance() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function simple(): void {
 entry:
@@ -549,14 +545,14 @@ b1:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
-        let domtree = DominatorTree::build(function, &tree, &cfg);
+        let cfg = ControlTable::build(function, &tree);
+        let dominator = DominatorTable::build(function, &tree, &cfg);
 
         let block0 = function.block(0);
         let block1 = function.block(1);
 
-        assert!(domtree.dominates(block0, block0));
-        assert!(!domtree.strictly_dominates(block0, block0));
-        assert!(domtree.strictly_dominates(block0, block1));
+        assert!(dominator.dominates(block0, block0));
+        assert!(!dominator.strictly_dominates(block0, block0));
+        assert!(dominator.strictly_dominates(block0, block1));
     }
 }

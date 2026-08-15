@@ -1,711 +1,471 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
+use std::sync::OnceLock;
 
 use crate as mir;
 
-use crate::ConstantPropagation;
+use crate::{Analysis, ControlTable, FunctionCache, Mutation, NodeTable, PureExpression};
 
-/// Canonical pure expression for value numbering.
-///
-/// Two instructions with the same expression compute the same value, assuming no
-/// intervening side effects. Used by local CSE and global value numbering to
-/// detect redundant computations.
-///
-/// Pure expressions are designed for use in hash maps: they implement `Hash` and `Eq`
-/// based on structural equivalence rather than identity. For example, two casts to
-/// structurally identical types will have equal expressions even if the types have
-/// different node IDs in the tree.
-///
-/// Commutative operations are canonicalized so operand order doesn't matter.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum PureExpression {
-    /// Binary operation with operator and operands.
-    Binary {
-        operator: mir::BinaryOperator,
-        left: mir::Value,
-        right: mir::Value,
-    },
-    /// Unary operation with operator and operand.
-    Unary {
-        operator: mir::UnaryOperator,
-        argument: mir::Value,
-    },
-    /// Cast to a target type.
-    Cast {
-        operator: mir::CastOperator,
-        argument: mir::Value,
-        to_type: mir::TypeId,
-    },
-    /// Conditional select (pure, can be CSE'd).
-    Select {
-        condition: mir::Value,
-        then_value: mir::Value,
-        else_value: mir::Value,
-    },
-    /// Static field access from an aggregate.
-    FieldGet { aggregate: mir::Value, field: u32 },
-    /// Static element access from a fixed array.
-    ElementGet { aggregate: mir::Value, index: u32 },
-    /// Discriminant read from a variant value.
-    VariantTag { variant: mir::Value },
-    /// Static payload access from a variant value.
-    VariantPayload { variant: mir::Value, case: u32 },
-}
+use super::{DataflowResult, Lattice};
 
-impl PureExpression {
-    /// Try to create a pure expression for an instruction.
-    ///
-    /// Returns `None` for instructions with side effects such as calls and stores.
-    /// Returns `None` for instructions that are not pure computations like loads.
-    /// Returns `None` for instructions that cannot be safely deduplicated.
-    pub fn from_instruction(instruction: &mir::Instruction) -> Option<Self> {
-        match instruction {
-            mir::Instruction::Error => {
-                panic!("invalid MIR instruction reached optimizer");
-            }
-
-            // canonicalize commutative binary operations
-            mir::Instruction::Binary {
-                operator,
-                left,
-                right,
-                ..
-            } => {
-                let left = *left;
-                let right = *right;
-                let (left, right) = if operator.is_commutative() && right.0 < left.0 {
-                    (right, left)
-                } else {
-                    (left, right)
-                };
-
-                Some(Self::Binary {
-                    operator: *operator,
-                    left,
-                    right,
-                })
-            }
-
-            // pure unary operation
-            mir::Instruction::Unary {
-                operator, argument, ..
-            } => Some(Self::Unary {
-                operator: *operator,
-                argument: *argument,
-            }),
-
-            // pure cast operation
-            mir::Instruction::Cast {
-                operator,
-                argument,
-                to_type,
-                ..
-            } => Some(Self::Cast {
-                operator: *operator,
-                argument: *argument,
-                to_type: *to_type,
-            }),
-
-            // pure value selection operations
-            mir::Instruction::Select {
-                condition,
-                then_value,
-                else_value,
-                ..
-            } => Some(Self::Select {
-                condition: *condition,
-                then_value: *then_value,
-                else_value: *else_value,
-            }),
-            mir::Instruction::VectorSelect {
-                mask,
-                then_value,
-                else_value,
-                ..
-            } => Some(Self::Select {
-                condition: *mask,
-                then_value: *then_value,
-                else_value: *else_value,
-            }),
-            mir::Instruction::TensorSelect {
-                mask,
-                then_value,
-                else_value,
-                ..
-            } => Some(Self::Select {
-                condition: *mask,
-                then_value: *then_value,
-                else_value: *else_value,
-            }),
-
-            // pure field access
-            mir::Instruction::FieldGet {
-                aggregate, field, ..
-            } => Some(Self::FieldGet {
-                aggregate: *aggregate,
-                field: *field,
-            }),
-            mir::Instruction::ElementGet {
-                aggregate, index, ..
-            } => Some(Self::ElementGet {
-                aggregate: *aggregate,
-                index: *index,
-            }),
-
-            // pure variant projection
-            mir::Instruction::VariantTag { variant, .. } => {
-                Some(Self::VariantTag { variant: *variant })
-            }
-            mir::Instruction::VariantPayload { variant, case, .. } => Some(Self::VariantPayload {
-                variant: *variant,
-                case: *case,
-            }),
-
-            // construction is not deduplicated
-            mir::Instruction::VariantNew { .. } => None,
-
-            // side effects and unstable reads are not pure expressions
-            mir::Instruction::Const { .. }
-            | mir::Instruction::Call { .. }
-            | mir::Instruction::Drop { .. }
-            | mir::Instruction::Intrinsic { .. }
-            | mir::Instruction::Load { .. }
-            | mir::Instruction::VariantTagLoad { .. }
-            | mir::Instruction::Store { .. }
-            | mir::Instruction::LocalGet { .. }
-            | mir::Instruction::LocalSet { .. }
-            | mir::Instruction::NewZeroed { .. }
-            | mir::Instruction::NewUninit { .. }
-            | mir::Instruction::NewComplete { .. }
-            | mir::Instruction::NewSliceZeroed { .. }
-            | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::Free { .. }
-            | mir::Instruction::Pin { .. }
-            | mir::Instruction::Unpin { .. }
-            | mir::Instruction::Aggregate { .. }
-            | mir::Instruction::VectorSplat { .. }
-            | mir::Instruction::VectorExtract { .. }
-            | mir::Instruction::VectorInsert { .. }
-            | mir::Instruction::VectorShuffle { .. }
-            | mir::Instruction::VectorReduce { .. }
-            | mir::Instruction::VectorCompare { .. }
-            | mir::Instruction::VectorConvert { .. }
-            | mir::Instruction::TensorSplat { .. }
-            | mir::Instruction::TensorExtract { .. }
-            | mir::Instruction::TensorLoad { .. }
-            | mir::Instruction::TensorStore { .. }
-            | mir::Instruction::TensorFill { .. }
-            | mir::Instruction::TensorCopy { .. }
-            | mir::Instruction::TensorReshape { .. }
-            | mir::Instruction::TensorBroadcast { .. }
-            | mir::Instruction::TensorTranspose { .. }
-            | mir::Instruction::TensorCast { .. }
-            | mir::Instruction::TensorView { .. }
-            | mir::Instruction::TensorSlice { .. }
-            | mir::Instruction::TensorPad { .. }
-            | mir::Instruction::TensorConcat { .. }
-            | mir::Instruction::TensorReduce { .. }
-            | mir::Instruction::TensorIndexReduce { .. }
-            | mir::Instruction::TensorDot { .. }
-            | mir::Instruction::TensorConvolution { .. }
-            | mir::Instruction::TensorGather { .. }
-            | mir::Instruction::TensorScatter { .. }
-            | mir::Instruction::TensorCompare { .. }
-            | mir::Instruction::TensorConvert { .. }
-            | mir::Instruction::AtomicLoad { .. }
-            | mir::Instruction::AtomicStore { .. }
-            | mir::Instruction::AtomicCompareExchange { .. }
-            | mir::Instruction::AtomicRmw { .. }
-            | mir::Instruction::AtomicFence { .. }
-            | mir::Instruction::BarrierWrite { .. }
-            | mir::Instruction::FieldSet { .. }
-            | mir::Instruction::ElementSet { .. }
-            | mir::Instruction::SliceView { .. }
-            | mir::Instruction::GlobalAddr { .. }
-            | mir::Instruction::FunctionAddr { .. }
-            | mir::Instruction::FunctionBind { .. }
-            | mir::Instruction::FunctionEnvironment { .. }
-            | mir::Instruction::FunctionEnvironmentCurrent { .. }
-            | mir::Instruction::ContextCurrent { .. }
-            | mir::Instruction::CallDetach { .. }
-            | mir::Instruction::ContextReplace { .. }
-            | mir::Instruction::ContextBind { .. }
-            | mir::Instruction::ContextGet { .. }
-            | mir::Instruction::LocalAddr { .. }
-            | mir::Instruction::FieldAddr { .. }
-            | mir::Instruction::ElementAddr { .. }
-            | mir::Instruction::VariantPayloadAddr { .. }
-            | mir::Instruction::Assume { .. }
-            | mir::Instruction::SliceLength { .. }
-            | mir::Instruction::DynamicBind { .. }
-            | mir::Instruction::DynamicPayload { .. }
-            | mir::Instruction::DynamicType { .. }
-            | mir::Instruction::DynamicRead { .. }
-            | mir::Instruction::DynamicFind { .. }
-            | mir::Instruction::ProfileIncrement { .. }
-            | mir::Instruction::ProfileSample { .. }
-            | mir::Instruction::Poll
-            | mir::Instruction::Breakpoint => None,
-        }
-    }
-
-    /// Apply value substitutions to this pure expression.
-    pub fn substitute(self, substitutions: &HashMap<mir::Value, mir::Value>) -> Self {
-        match self {
-            Self::Binary {
-                operator,
-                left,
-                right,
-            } => {
-                let left = *substitutions.get(&left).unwrap_or(&left);
-                let right = *substitutions.get(&right).unwrap_or(&right);
-                let (left, right) = if operator.is_commutative() && right.0 < left.0 {
-                    (right, left)
-                } else {
-                    (left, right)
-                };
-
-                Self::Binary {
-                    operator,
-                    left,
-                    right,
-                }
-            }
-            Self::Unary { operator, argument } => {
-                let argument = *substitutions.get(&argument).unwrap_or(&argument);
-
-                Self::Unary { operator, argument }
-            }
-            Self::Cast {
-                operator,
-                argument,
-                to_type,
-            } => {
-                let argument = *substitutions.get(&argument).unwrap_or(&argument);
-
-                Self::Cast {
-                    operator,
-                    argument,
-                    to_type,
-                }
-            }
-            Self::Select {
-                condition,
-                then_value,
-                else_value,
-            } => {
-                let condition = *substitutions.get(&condition).unwrap_or(&condition);
-                let then_value = *substitutions.get(&then_value).unwrap_or(&then_value);
-                let else_value = *substitutions.get(&else_value).unwrap_or(&else_value);
-
-                Self::Select {
-                    condition,
-                    then_value,
-                    else_value,
-                }
-            }
-            Self::FieldGet { aggregate, field } => {
-                let aggregate = *substitutions.get(&aggregate).unwrap_or(&aggregate);
-
-                Self::FieldGet { aggregate, field }
-            }
-            Self::VariantTag { variant } => {
-                let variant = *substitutions.get(&variant).unwrap_or(&variant);
-
-                Self::VariantTag { variant }
-            }
-            Self::VariantPayload { variant, case } => {
-                let variant = *substitutions.get(&variant).unwrap_or(&variant);
-
-                Self::VariantPayload { variant, case }
-            }
-            Self::ElementGet { aggregate, index } => {
-                let aggregate = *substitutions.get(&aggregate).unwrap_or(&aggregate);
-
-                Self::ElementGet { aggregate, index }
-            }
-        }
-    }
-}
-
-/// Cached value equivalence for pure expressions.
+/// Available pure expressions for one function.
 #[derive(Debug)]
-pub struct ValueEquivalence<'a> {
-    /// MIR function when block ownership is needed.
-    function: Option<&'a mir::Function>,
-    /// MIR tree.
-    tree: &'a mir::Tree,
-    /// Map from values to their defining instructions.
-    definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    /// Constant propagation results when available.
-    constants: Option<&'a ConstantPropagation>,
-    /// Cache of pairwise equivalence results.
-    cache: HashMap<(mir::Value, mir::Value), bool>,
+pub struct ExpressionTable {
+    /// Available expressions at entry indexed by block id.
+    block_entry: NodeTable<mir::Block, Option<ExpressionState>>,
+    /// Available expressions at exit indexed by block id.
+    block_exit: NodeTable<mir::Block, Option<ExpressionState>>,
 }
 
-impl<'a> ValueEquivalence<'a> {
-    /// Create a new value equivalence cache.
-    pub fn new(
-        tree: &'a mir::Tree,
-        definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    ) -> Self {
+/// Set of expressions available at a test point.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ExpressionState {
+    /// Pure expressions available on all paths.
+    expressions: HashSet<PureExpression>,
+}
+
+impl ExpressionState {
+    /// Create an empty available expression set.
+    pub fn new() -> Self {
+        // create empty expression storage
+        let expressions = HashSet::new();
+
+        Self { expressions }
+    }
+
+    /// Insert an available pure expression.
+    pub fn insert(&mut self, key: PureExpression) {
+        // record the available expression
+        self.expressions.insert(key);
+    }
+
+    /// Check whether a pure expression is available.
+    pub fn contains(&self, key: &PureExpression) -> bool {
+        self.expressions.contains(key)
+    }
+
+    /// Iterate over available pure expressions.
+    pub fn iter(&self) -> impl Iterator<Item = &PureExpression> {
+        self.expressions.iter()
+    }
+
+    /// Check if the set is empty.
+    pub fn is_empty(&self) -> bool {
+        self.expressions.is_empty()
+    }
+}
+
+impl Lattice for ExpressionState {
+    /// Intersect expressions that are available on all paths.
+    fn meet(&self, other: &Self) -> Self {
+        let expressions = self
+            .expressions
+            .intersection(&other.expressions)
+            .cloned()
+            .collect();
+
+        Self { expressions }
+    }
+}
+
+impl ExpressionTable {
+    /// Build available expressions for a function.
+    pub fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlTable) -> Self {
+        let entry_state = ExpressionState::new();
+        let result = DataflowResult::forward(function, tree, cfg, entry_state, Self::transfer);
+        let (block_entry, block_exit) = result.into_parts();
+
         Self {
-            function: None,
-            tree,
-            definitions,
-            constants: None,
-            cache: HashMap::new(),
+            block_entry,
+            block_exit,
         }
     }
 
-    /// Create a new value equivalence cache with constant propagation support.
-    pub fn new_with_constants(
-        function: &'a mir::Function,
-        tree: &'a mir::Tree,
-        definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-        constants: &'a ConstantPropagation,
-    ) -> Self {
-        Self {
-            function: Some(function),
-            tree,
-            definitions,
-            constants: Some(constants),
-            cache: HashMap::new(),
+    /// Get available expressions at block entry.
+    pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &ExpressionState {
+        let expressions = self.block_entry.get(block);
+        match expressions {
+            Some(expressions) => expressions,
+            None => ExpressionState::empty(),
         }
     }
 
-    /// Return true when two values are provably equivalent.
-    pub fn equivalent(
-        &mut self,
-        left: impl Into<mir::Value>,
-        right: impl Into<mir::Value>,
-    ) -> bool {
-        let left = left.into();
-        let right = right.into();
-
-        // handle direct identity
-        if left == right {
-            return true;
-        }
-
-        // canonicalize the cache key
-        let (a, b) = if left < right {
-            (left, right)
-        } else {
-            (right, left)
-        };
-        if let Some(result) = self.cache.get(&(a, b)) {
-            return *result;
-        }
-
-        // compute and store the result
-        let result = self.equivalent_impl(left, right);
-        self.cache.insert((a, b), result);
-        result
-    }
-
-    fn equivalent_impl(&mut self, left: mir::Value, right: mir::Value) -> bool {
-        if let Some((left_constant, right_constant)) = self.constant_pair(left, right) {
-            return left_constant == right_constant;
-        }
-
-        let Some(left_inst_id) = self.definitions.get(&left) else {
-            return false;
-        };
-        let Some(right_inst_id) = self.definitions.get(&right) else {
-            return false;
-        };
-
-        let left_inst = self.tree.get(*left_inst_id);
-        let right_inst = self.tree.get(*right_inst_id);
-
-        match (left_inst, right_inst) {
-            (
-                mir::Instruction::Const {
-                    value: left_value, ..
-                },
-                mir::Instruction::Const {
-                    value: right_value, ..
-                },
-            ) => left_value == right_value,
-            (
-                mir::Instruction::GlobalAddr {
-                    global: left_global,
-                    ..
-                },
-                mir::Instruction::GlobalAddr {
-                    global: right_global,
-                    ..
-                },
-            ) => left_global == right_global,
-            (
-                mir::Instruction::LocalAddr {
-                    local: left_local, ..
-                },
-                mir::Instruction::LocalAddr {
-                    local: right_local, ..
-                },
-            ) => left_local == right_local,
-            (
-                mir::Instruction::Binary {
-                    operator: left_op,
-                    left: left_arg,
-                    right: right_arg,
-                    ..
-                },
-                mir::Instruction::Binary {
-                    operator: right_op,
-                    left: right_left,
-                    right: right_right,
-                    ..
-                },
-            ) => {
-                let left_arg = *left_arg;
-                let right_arg = *right_arg;
-                let right_left = *right_left;
-                let right_right = *right_right;
-
-                if left_op != right_op {
-                    return false;
-                }
-
-                if !left_op.is_commutative() {
-                    return self.equivalent(left_arg, right_left)
-                        && self.equivalent(right_arg, right_right);
-                }
-
-                (self.equivalent(left_arg, right_left) && self.equivalent(right_arg, right_right))
-                    || (self.equivalent(left_arg, right_right)
-                        && self.equivalent(right_arg, right_left))
-            }
-            (
-                mir::Instruction::Unary {
-                    operator: left_op,
-                    argument: left_arg,
-                    ..
-                },
-                mir::Instruction::Unary {
-                    operator: right_op,
-                    argument: right_arg,
-                    ..
-                },
-            ) => {
-                let left_arg = *left_arg;
-                let right_arg = *right_arg;
-
-                left_op == right_op && self.equivalent(left_arg, right_arg)
-            }
-            (
-                mir::Instruction::Cast {
-                    operator: left_op,
-                    argument: left_arg,
-                    to_type: left_type,
-                    ..
-                },
-                mir::Instruction::Cast {
-                    operator: right_op,
-                    argument: right_arg,
-                    to_type: right_type,
-                    ..
-                },
-            ) => {
-                if left_op != right_op {
-                    return false;
-                }
-
-                let left_arg = *left_arg;
-                let right_arg = *right_arg;
-
-                left_type == right_type && self.equivalent(left_arg, right_arg)
-            }
-            (
-                mir::Instruction::Select {
-                    condition: left_cond,
-                    then_value: left_then,
-                    else_value: left_else,
-                    ..
-                },
-                mir::Instruction::Select {
-                    condition: right_cond,
-                    then_value: right_then,
-                    else_value: right_else,
-                    ..
-                },
-            ) => {
-                let left_cond = *left_cond;
-                let right_cond = *right_cond;
-                let left_then = *left_then;
-                let right_then = *right_then;
-                let left_else = *left_else;
-                let right_else = *right_else;
-
-                self.equivalent(left_cond, right_cond)
-                    && self.equivalent(left_then, right_then)
-                    && self.equivalent(left_else, right_else)
-            }
-            (
-                mir::Instruction::Aggregate {
-                    destination: left_destination,
-                    values: left_values,
-                    ..
-                },
-                mir::Instruction::Aggregate {
-                    destination: right_destination,
-                    values: right_values,
-                    ..
-                },
-            ) => {
-                let Some(function) = self.function else {
-                    return false;
-                };
-                let Some(left_type) = function.value_type(*left_destination) else {
-                    return false;
-                };
-                let Some(right_type) = function.value_type(*right_destination) else {
-                    return false;
-                };
-                left_type == right_type && self.arguments_equivalent(*left_values, *right_values)
-            }
-            (
-                mir::Instruction::FieldGet {
-                    aggregate: left_aggregate,
-                    field: left_field,
-                    ..
-                },
-                mir::Instruction::FieldGet {
-                    aggregate: right_aggregate,
-                    field: right_field,
-                    ..
-                },
-            )
-            | (
-                mir::Instruction::FieldAddr {
-                    aggregate: left_aggregate,
-                    field: left_field,
-                    ..
-                },
-                mir::Instruction::FieldAddr {
-                    aggregate: right_aggregate,
-                    field: right_field,
-                    ..
-                },
-            ) => {
-                let left_aggregate = *left_aggregate;
-                let right_aggregate = *right_aggregate;
-
-                left_field == right_field && self.equivalent(left_aggregate, right_aggregate)
-            }
-            (
-                mir::Instruction::ElementGet {
-                    aggregate: left_aggregate,
-                    index: left_index,
-                    ..
-                },
-                mir::Instruction::ElementGet {
-                    aggregate: right_aggregate,
-                    index: right_index,
-                    ..
-                },
-            ) => {
-                let left_aggregate = *left_aggregate;
-                let right_aggregate = *right_aggregate;
-
-                left_index == right_index && self.equivalent(left_aggregate, right_aggregate)
-            }
-            (
-                mir::Instruction::ElementAddr {
-                    base: left_base,
-                    index: left_index,
-                    ..
-                },
-                mir::Instruction::ElementAddr {
-                    base: right_base,
-                    index: right_index,
-                    ..
-                },
-            ) => {
-                let left_base = *left_base;
-                let right_base = *right_base;
-                let left_index = *left_index;
-                let right_index = *right_index;
-
-                self.equivalent(left_base, right_base) && self.equivalent(left_index, right_index)
-            }
-            _ => false,
+    /// Get available expressions at block exit.
+    pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &ExpressionState {
+        let expressions = self.block_exit.get(block);
+        match expressions {
+            Some(expressions) => expressions,
+            None => ExpressionState::empty(),
         }
     }
 
-    fn arguments_equivalent(&mut self, left: mir::ValueSlice, right: mir::ValueSlice) -> bool {
-        let left_args = self.tree.get_values(left);
-        let right_args = self.tree.get_values(right);
-        if left_args.len() != right_args.len() {
-            return false;
-        }
-
-        left_args
-            .iter()
-            .zip(right_args.iter())
-            .all(|(left, right)| self.equivalent(*left, *right))
-    }
-
-    fn constant_pair(
+    /// Compute available expressions before an instruction index.
+    pub fn expressions_before_instruction(
         &self,
-        left: mir::Value,
-        right: mir::Value,
-    ) -> Option<(&mir::Constant, &mir::Constant)> {
-        let function = self.function?;
-        let constants = self.constants?;
-        let left_inst_id = self.definitions.get(&left)?;
-        let right_inst_id = self.definitions.get(&right)?;
-        let left_block = function.instruction_block(*left_inst_id)?;
-        let right_block = function.instruction_block(*right_inst_id)?;
-        let left_constant = constants
-            .constant_at_exit(left_block, left)
-            .or_else(|| constants.constant_at_entry(left_block, left))?;
-        let right_constant = constants
-            .constant_at_exit(right_block, right)
-            .or_else(|| constants.constant_at_entry(right_block, right))?;
-        Some((left_constant, right_constant))
+        block: mir::LocalNodeId<mir::Block>,
+        instruction_index: usize,
+        tree: &mir::Tree,
+    ) -> ExpressionState {
+        // read the block and entry state
+        let block_data = tree.get(block);
+        let mut state = self.entry(block).clone();
+
+        // extend the set with expressions in the block prefix
+        for &instruction_id in block_data.instructions.iter().take(instruction_index) {
+            let instruction = tree.get(instruction_id);
+            if let Some(key) = PureExpression::from_instruction(instruction) {
+                state.insert(key);
+            }
+        }
+
+        state
+    }
+
+    /// Return available expressions after one instruction index.
+    pub fn expressions_after_instruction(
+        &self,
+        block: mir::LocalNodeId<mir::Block>,
+        instruction_index: usize,
+        tree: &mir::Tree,
+    ) -> ExpressionState {
+        // compute availability before the instruction
+        let mut state = self.expressions_before_instruction(block, instruction_index, tree);
+
+        // extend with the expression at the index
+        if let Some(&instruction_id) = tree.get(block).instructions.get(instruction_index) {
+            let instruction = tree.get(instruction_id);
+
+            if let Some(key) = PureExpression::from_instruction(instruction) {
+                state.insert(key);
+            }
+        }
+
+        state
     }
 }
 
-/// Resolve transitive substitution chains.
-///
-/// If we have `v4` mapping to `v2` and `v2` mapping to `v0`, this produces `v4` to `v0` and `v2` to `v0`.
-/// Handles cycles by stopping when a value maps to itself.
-pub fn resolve_substitution_chains(
-    mut substitutions: HashMap<mir::Value, mir::Value>,
-) -> HashMap<mir::Value, mir::Value> {
-    let keys: Vec<_> = substitutions.keys().copied().collect();
-    for key in keys {
-        let mut current = substitutions[&key];
+impl Analysis for ExpressionTable {
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
+}
 
-        // follow the chain until we hit a fixed point
-        while let Some(&next) = substitutions.get(&current) {
-            if next == current {
-                break;
-            }
-            current = next;
-        }
+impl ExpressionTable {
+    /// Compute available expressions for one function.
+    pub(crate) fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        analyses: &mut FunctionCache,
+    ) -> Self {
+        let control = analyses.control(function, tree);
 
-        substitutions.insert(key, current);
+        Self::build(function, tree, &control)
     }
 
-    substitutions
+    /// Apply available expression transfer over a block.
+    fn transfer(
+        block: mir::LocalNodeId<mir::Block>,
+        entry_state: ExpressionState,
+        tree: &mir::Tree,
+    ) -> ExpressionState {
+        let block_data = tree.get(block);
+        let mut state = entry_state;
+
+        // extend the available set with block expressions
+        for &instruction_id in &block_data.instructions {
+            let instruction = tree.get(instruction_id);
+            if let Some(key) = PureExpression::from_instruction(instruction) {
+                state.insert(key);
+            }
+        }
+
+        state
+    }
+}
+
+impl ExpressionState {
+    /// Return a shared empty expression set.
+    fn empty() -> &'static Self {
+        // initialize the shared empty set
+        static EMPTY: OnceLock<ExpressionState> = OnceLock::new();
+
+        EMPTY.get_or_init(Self::new)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::analyses::tests::TestProgram;
 
-    /// Substitution chains are resolved transitively.
+    /// Return the first expression key in a block.
+    fn first_expression_key(
+        block: mir::LocalNodeId<mir::Block>,
+        tree: &mir::Tree,
+    ) -> PureExpression {
+        // read the block
+        let block_data = tree.get(block);
+
+        // scan instructions for the first expression
+        for &instruction_id in &block_data.instructions {
+            let instruction = tree.get(instruction_id);
+
+            if let Some(key) = PureExpression::from_instruction(instruction) {
+                return key;
+            }
+        }
+
+        panic!("missing expression key")
+    }
+
+    /// Single predecessor makes expressions available to successors.
     #[test]
-    fn test_resolve_substitution_chains() {
-        let mut subs = HashMap::new();
-        subs.insert(mir::Value(4), mir::Value(2));
-        subs.insert(mir::Value(2), mir::Value(0));
+    fn test_available_expressions_linear_flow() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = add v0, v1
+    jump b1
 
-        let resolved = resolve_substitution_chains(subs);
-        assert_eq!(resolved.get(&mir::Value(4)), Some(&mir::Value(0)));
-        assert_eq!(resolved.get(&mir::Value(2)), Some(&mir::Value(0)));
+b1:
+    v3: int32 = add v0, v1
+    return v3
+}
+"#,
+        );
+
+        // fetch the function and analysis
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let cfg = ControlTable::build(function, &test.tree);
+        let available = ExpressionTable::build(function, &test.tree, &cfg);
+
+        // capture the expression key and successor block
+        let block0 = function.block(0);
+        let block1 = function.block(1);
+        let expression_key = first_expression_key(block0, &test.tree);
+
+        // confirm entry block starts empty
+        assert!(available.entry(block0).is_empty());
+
+        // confirm the expression is available at the successor entry
+        assert!(available.entry(block1).contains(&expression_key));
+    }
+
+    /// Missing expression on one branch prevents availability at merge.
+    #[test]
+    fn test_available_expressions_branch_missing() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    branch v0 => b1 | b2
+
+b1:
+    v3: int32 = add v1, v2
+    jump b3
+
+b2:
+    jump b3
+
+b3:
+    v4: int32 = add v1, v2
+    return v4
+}
+"#,
+        );
+
+        // fetch the function and analysis
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let cfg = ControlTable::build(function, &test.tree);
+        let available = ExpressionTable::build(function, &test.tree, &cfg);
+
+        // capture the expression key and merge block
+        let block1 = function.block(1);
+        let merge_block = function.block(3);
+        let expression_key = first_expression_key(block1, &test.tree);
+
+        // confirm the expression is not available at the merge
+        assert!(!available.entry(merge_block).contains(&expression_key));
+    }
+
+    /// Matching expressions on both branches are available at merge.
+    #[test]
+    fn test_available_expressions_branch_merge() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    branch v0 => b1 | b2
+
+b1:
+    v3: int32 = add v1, v2
+    jump b3
+
+b2:
+    v4: int32 = add v1, v2
+    jump b3
+
+b3:
+    v5: int32 = add v1, v2
+    return v5
+}
+"#,
+        );
+
+        // fetch the function and analysis
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let cfg = ControlTable::build(function, &test.tree);
+        let available = ExpressionTable::build(function, &test.tree, &cfg);
+
+        // capture the expression key and merge block
+        let block1 = function.block(1);
+        let merge_block = function.block(3);
+        let expression_key = first_expression_key(block1, &test.tree);
+
+        // confirm the expression is available at the merge
+        assert!(available.entry(merge_block).contains(&expression_key));
+    }
+
+    /// Non expression instructions do not populate the available set.
+    #[test]
+    fn test_available_expressions_non_expression() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: int32): int32 {
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: int32 = local.get l0
+    return v1
+}
+"#,
+        );
+
+        // fetch the function and analysis
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let cfg = ControlTable::build(function, &test.tree);
+        let available = ExpressionTable::build(function, &test.tree, &cfg);
+
+        // confirm the exit set is empty
+        let entry_block = function.entry().expect("missing entry block");
+        assert!(available.exit(entry_block).is_empty());
+    }
+
+    /// Commutative expressions are treated as the same key across branches.
+    #[test]
+    fn test_available_expressions_commutative_merge() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    branch v0 => b1 | b2
+
+b1:
+    v3: int32 = add v1, v2
+    jump b3
+
+b2:
+    v4: int32 = add v2, v1
+    jump b3
+
+b3:
+    v5: int32 = add v1, v2
+    return v5
+}
+"#,
+        );
+
+        // fetch the function and analysis
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let cfg = ControlTable::build(function, &test.tree);
+        let available = ExpressionTable::build(function, &test.tree, &cfg);
+
+        // capture the expression key and merge block
+        let block1 = function.block(1);
+        let merge_block = function.block(3);
+        let expression_key = first_expression_key(block1, &test.tree);
+
+        // confirm the commutative expression is available at the merge
+        assert!(available.entry(merge_block).contains(&expression_key));
+    }
+
+    /// Prefix queries expose only the expressions computed so far.
+    #[test]
+    fn test_available_expressions_prefix_query() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: int32 = add v0, v1
+    v4: int32 = add v3, v2
+    return v4
+}
+"#,
+        );
+
+        // fetch the function and analysis
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let cfg = ControlTable::build(function, &test.tree);
+        let available = ExpressionTable::build(function, &test.tree, &cfg);
+
+        // capture the expression keys
+        let entry_block = function.entry().expect("missing entry block");
+        let block_data = test.tree.get(entry_block);
+        let first_key = PureExpression::from_instruction(test.tree.get(block_data.instructions[0]))
+            .expect("missing first expression");
+        let second_key =
+            PureExpression::from_instruction(test.tree.get(block_data.instructions[1]))
+                .expect("missing second expression");
+
+        // confirm no expressions are available before the first instruction
+        let before_first = available.expressions_before_instruction(entry_block, 0, &test.tree);
+        assert!(before_first.is_empty());
+
+        // confirm only the first expression is available after the first instruction
+        let after_first = available.expressions_after_instruction(entry_block, 0, &test.tree);
+        assert!(after_first.contains(&first_key));
+        assert!(!after_first.contains(&second_key));
+
+        // confirm both expressions are available at block exit
+        let exit = available.exit(entry_block);
+        assert!(exit.contains(&first_key));
+        assert!(exit.contains(&second_key));
+    }
+
+    /// Unreachable blocks report no available expressions.
+    #[test]
+    fn test_available_expressions_unreachable_block() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = add v0, v1
+    jump b1
+
+b1:
+    v3: int32 = add v0, v1
+    return v3
+
+b2:
+    v4: int32 = add v0, v1
+    return v4
+}
+"#,
+        );
+
+        // fetch the function and analysis
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let cfg = ControlTable::build(function, &test.tree);
+        let available = ExpressionTable::build(function, &test.tree, &cfg);
+
+        // confirm unreachable block has empty entry
+        let unreachable_block = function.block(2);
+        assert!(available.entry(unreachable_block).is_empty());
     }
 }

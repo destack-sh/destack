@@ -45,7 +45,7 @@ pub(crate) enum TypeIndexKey {
 impl Tree {
     /// Find one type equal by structure.
     pub fn find_type(&self, ty: &Type) -> Option<TypeId> {
-        let hash = intern_hash(ty);
+        let hash = Self::intern_hash(ty);
         let key = TypeIndexKey::Structural(hash);
         let ids = self.type_index.get(&key)?;
 
@@ -55,7 +55,7 @@ impl Tree {
     /// Intern one type by structure.
     pub fn intern_type(&mut self, ty: Type) -> TypeId {
         // reuse an equal structural type
-        let hash = intern_hash(&ty);
+        let hash = Self::intern_hash(&ty);
         let key = TypeIndexKey::Structural(hash);
         if let Some(ids) = self.type_index.get(&key) {
             for id in ids {
@@ -123,7 +123,7 @@ impl Tree {
         let TypeEntry::Reserved { symbol } = entry else {
             panic!("defined MIR type {id:?} twice or without reserving it");
         };
-        let structural = TypeIndexKey::Structural(intern_hash(&ty));
+        let structural = TypeIndexKey::Structural(Self::intern_hash(&ty));
         *entry = TypeEntry::Identified {
             ty,
             symbol: *symbol,
@@ -210,7 +210,7 @@ impl Tree {
     /// Intern one field and its attributes.
     pub fn intern_field(&mut self, field: Field, attributes: Vec<Attribute>) -> LocalNodeId<Field> {
         // reuse an equal field declaration
-        let hash = intern_hash(&(&field, &attributes));
+        let hash = Self::intern_hash(&(&field, &attributes));
         if let Some(ids) = self.field_index.get(&hash) {
             for id in ids {
                 if self.get(*id) == &field && self.attributes(*id) == attributes {
@@ -710,11 +710,11 @@ impl Tree {
 
         self.intern_field(field, attributes)
     }
-}
 
-/// Compute one in-memory interning hash.
-pub(crate) fn intern_hash(value: &impl Hash) -> u64 {
-    stable_hash_value(value)
+    /// Compute one in-memory interning hash.
+    pub(crate) fn intern_hash(value: &impl Hash) -> u64 {
+        stable_hash_value(value)
+    }
 }
 
 #[cfg(test)]

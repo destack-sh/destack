@@ -1,10 +1,13 @@
 use std::collections::HashSet;
 
-use crate::{Block, ControlFlowGraph, Function, LocalNodeId, NodeTable, Tree};
+use super::DominatorBuilder;
+use crate::{
+    Analysis, Block, ControlTable, Function, FunctionCache, LocalNodeId, Mutation, NodeTable, Tree,
+};
 
 /// Postdominator tree for one function.
 #[derive(Debug, Clone)]
-pub struct PostDominatorTree {
+pub struct PostdominatorTable {
     /// Immediate postdominator indexed by block id.
     immediate_postdominators: NodeTable<Block, Option<LocalNodeId<Block>>>,
     /// Preorder numbers indexed by block id.
@@ -13,9 +16,9 @@ pub struct PostDominatorTree {
     preorder_max: NodeTable<Block, Option<u32>>,
 }
 
-impl PostDominatorTree {
+impl PostdominatorTable {
     /// Build the postdominator tree for one function.
-    pub fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
+    pub fn build(function: &Function, tree: &Tree, cfg: &ControlTable) -> Self {
         let Some(entry) = function.entry() else {
             return Self {
                 immediate_postdominators: NodeTable::new(),
@@ -65,11 +68,7 @@ impl PostDominatorTree {
 
         // postdominator edges
         if has_exits {
-            let result = super::dominator_tree::DominatorComputation::compute(
-                &successors,
-                &predecessors,
-                virtual_root,
-            );
+            let result = DominatorBuilder::compute(&successors, &predecessors, virtual_root);
 
             for &block in function.blocks() {
                 let index = block_index.expect(block);
@@ -209,14 +208,27 @@ impl PostDominatorTree {
     }
 }
 
+impl Analysis for PostdominatorTable {
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL;
+}
+
+impl PostdominatorTable {
+    /// Compute postdominators for one function.
+    pub(crate) fn compute(function: &Function, tree: &Tree, analyses: &mut FunctionCache) -> Self {
+        let control = analyses.control(function, tree);
+
+        Self::build(function, tree, &control)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::parse_test_function;
+    use crate::analyses::tests::TestProgram;
 
     #[test]
     fn test_build_postdominators_for_linear_flow() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function linear(): void {
 entry:
@@ -232,8 +244,8 @@ b2:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
-        let postdom = PostDominatorTree::build(function, &tree, &cfg);
+        let cfg = ControlTable::build(function, &tree);
+        let postdom = PostdominatorTable::build(function, &tree, &cfg);
 
         let block0 = function.block(0);
         let block1 = function.block(1);

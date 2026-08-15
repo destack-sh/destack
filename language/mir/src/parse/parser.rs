@@ -8,9 +8,9 @@ use destack_source::{
 
 use crate::source::{Lexer, TokenType};
 use crate::{
-    Block, DispatchTable, DropTable, EffectTable, Function, Global, LayoutTable, LifetimeParameter,
-    LifetimeSlot, Local, LocalNodeId, MemoryTable, Node, ProfileTable, StaticId, TargetLayout,
-    Tree, Type, TypeTable, Value,
+    AccessTable, Block, DispatchTable, DropTable, EffectTable, Function, Global, LayoutTable,
+    LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node, ProfileTable, StaticId,
+    TargetLayout, Tree, Type, TypeTable, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -31,7 +31,7 @@ pub struct ParsedMir {
     /// Canonical MIR drop table.
     pub drops: DropTable,
     /// Explicit MIR memory access table.
-    pub memory: MemoryTable,
+    pub accesses: AccessTable,
     /// Function and call effect table.
     pub effects: EffectTable,
     /// Static profile counter table.
@@ -53,7 +53,7 @@ impl ParsedMir {
         LayoutTable,
         DispatchTable,
         DropTable,
-        MemoryTable,
+        AccessTable,
         EffectTable,
         ProfileTable,
         StringPool,
@@ -66,7 +66,7 @@ impl ParsedMir {
             self.layouts,
             self.dispatch,
             self.drops,
-            self.memory,
+            self.accesses,
             self.effects,
             self.profile,
             self.strings,
@@ -83,7 +83,7 @@ impl ParsedMir {
             layouts: _,
             dispatch: _,
             drops: _,
-            memory: _,
+            accesses: _,
             effects: _,
             profile: _,
             strings,
@@ -102,8 +102,7 @@ impl ParsedMir {
 /// Options for the MIR parser.
 #[derive(Debug, Clone)]
 pub struct ParseOptions {
-    /// Pointer size in bytes (4 for 32-bit, 8 for 64-bit).
-    /// Used for pointer-sized MIR types and constants.
+    /// Pointer size in bytes.
     pub pointer_bytes: u8,
 }
 
@@ -131,7 +130,7 @@ pub struct Parser {
     /// Canonical MIR drop table.
     pub(super) drops: DropTable,
     /// Explicit MIR memory access table.
-    pub(super) memory: MemoryTable,
+    pub(super) accesses: AccessTable,
     /// Function and call effect table.
     pub(super) effects: EffectTable,
     /// Static profile counter table.
@@ -192,7 +191,7 @@ impl Parser {
             layouts: LayoutTable::default(),
             dispatch: DispatchTable::default(),
             drops: DropTable::default(),
-            memory: MemoryTable::default(),
+            accesses: AccessTable::default(),
             effects: EffectTable::default(),
             profile: ProfileTable::default(),
             strings: StringPool::new(),
@@ -235,7 +234,7 @@ impl Parser {
             layouts: parser.layouts,
             dispatch: parser.dispatch,
             drops: parser.drops,
-            memory: parser.memory,
+            accesses: parser.accesses,
             effects: parser.effects,
             profile: parser.profile,
             strings: parser.strings,
@@ -252,7 +251,7 @@ impl Parser {
     where
         T: Node,
     {
-        // ordered source parts
+        // preserve source order
         for (index, span) in segment_spans.iter().copied().enumerate() {
             let segment_index = u16::try_from(index).map_err(|_| {
                 ParseError::new(

@@ -1,14 +1,14 @@
-use super::{Analysis, FunctionAnalyses, Mutation};
+use super::{Analysis, FunctionCache, Mutation};
 use crate::{Block, Function, LocalNodeId, NodeTable, Tree};
 
 /// Control flow graph for one function.
 #[derive(Debug, Clone)]
-pub struct ControlFlowGraph {
+pub struct ControlTable {
     /// Predecessors indexed by block id.
     predecessors: NodeTable<Block, Vec<LocalNodeId<Block>>>,
 }
 
-impl ControlFlowGraph {
+impl ControlTable {
     /// Build the control flow graph for one function.
     pub fn build(function: &Function, tree: &Tree) -> Self {
         let mut predecessors = NodeTable::from_nodes(function.blocks(), Vec::new);
@@ -67,16 +67,13 @@ impl ControlFlowGraph {
     }
 }
 
-impl Analysis for ControlFlowGraph {
+impl Analysis for ControlTable {
     const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
-impl ControlFlowGraph {
-    pub(crate) fn compute(
-        function: &Function,
-        tree: &Tree,
-        _analyses: &mut FunctionAnalyses,
-    ) -> Self {
+impl ControlTable {
+    /// Compute control flow for one function.
+    pub(crate) fn compute(function: &Function, tree: &Tree, _analyses: &mut FunctionCache) -> Self {
         Self::build(function, tree)
     }
 }
@@ -84,11 +81,11 @@ impl ControlFlowGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::parse_test_function;
+    use crate::analyses::tests::TestProgram;
 
     #[test]
     fn test_build_predecessors_for_linear_flow() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function linear(): void {
 entry:
@@ -104,7 +101,7 @@ b2:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
+        let cfg = ControlTable::build(function, &tree);
 
         let block0 = function.entry().expect("missing entry");
         let block1 = function.block(1);
@@ -117,7 +114,7 @@ b2:
 
     #[test]
     fn test_build_predecessors_for_branch() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function testBranch(v0: boolean): void {
 entry(v0: boolean):
@@ -133,7 +130,7 @@ b2:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
+        let cfg = ControlTable::build(function, &tree);
 
         let block1 = function.block(1);
         let block2 = function.block(2);
@@ -144,7 +141,7 @@ b2:
 
     #[test]
     fn test_build_predecessors_for_diamond() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function diamond(v0: boolean): void {
 entry(v0: boolean):
@@ -163,7 +160,7 @@ b3:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
+        let cfg = ControlTable::build(function, &tree);
 
         let block3 = function.block(3);
 
@@ -172,7 +169,7 @@ b3:
 
     #[test]
     fn test_build_predecessors_for_loop() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function loop(v0: boolean): void {
 entry(v0: boolean):
@@ -188,7 +185,7 @@ b2:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
+        let cfg = ControlTable::build(function, &tree);
 
         let block1 = function.block(1);
 
@@ -197,7 +194,7 @@ b2:
 
     #[test]
     fn test_check_reachability() {
-        let (tree, function_id) = parse_test_function(
+        let (tree, function_id) = TestProgram::parse_function(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -218,7 +215,7 @@ b3:
         );
 
         let function = tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &tree);
+        let cfg = ControlTable::build(function, &tree);
         let entry = function.entry().expect("missing entry");
 
         let reachable_block = function.block(1);

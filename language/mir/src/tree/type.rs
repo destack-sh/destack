@@ -193,6 +193,14 @@ impl Storage {
         }
     }
 
+    /// Return whether this storage is shared across workers.
+    pub const fn is_shared(self) -> bool {
+        matches!(
+            self,
+            Self::Heap(Space::Shared) | Self::Global(GlobalStorage::Shared)
+        )
+    }
+
     /// Return the canonical MIR name for this storage.
     pub const fn label(self) -> &'static str {
         match self {
@@ -723,13 +731,22 @@ impl VariantCase {
     /// Return the logical discriminant bits when this case uses a scalar constant.
     pub fn discriminant(&self) -> Option<Discriminant> {
         let bits = match &self.discriminant {
-            Constant::Int { value, width, .. } => (*value as u128) & integer_mask(*width),
-            Constant::UInt { value, width } => *value & integer_mask(*width),
+            Constant::Int { value, width, .. } => (*value as u128) & Self::integer_mask(*width),
+            Constant::UInt { value, width } => *value & Self::integer_mask(*width),
             Constant::Boolean { value } => *value as u128,
             _ => return None,
         };
 
         Some(Discriminant::from_bits(bits))
+    }
+
+    /// Return the low-bit mask for one integer width.
+    const fn integer_mask(width: u16) -> u128 {
+        if width >= u128::BITS as u16 {
+            u128::MAX
+        } else {
+            (1u128 << width) - 1
+        }
     }
 }
 
@@ -870,9 +887,11 @@ impl Type {
     /// Return the byte size when it follows directly from the type.
     pub fn byte_size(&self, tree: &Tree, pointer_width_bits: u16) -> Option<u64> {
         match self {
-            Type::Int { width, .. } => byte_width(*width),
-            Type::Isize | Type::Usize | Type::Pointer { .. } => byte_width(pointer_width_bits),
-            Type::Float(format) => byte_width(format.width()),
+            Type::Int { width, .. } => Self::byte_width(*width),
+            Type::Isize | Type::Usize | Type::Pointer { .. } => {
+                Self::byte_width(pointer_width_bits)
+            }
+            Type::Float(format) => Self::byte_width(format.width()),
             Type::Uninit { value } | Type::ManuallyDrop { value } => {
                 tree.get(*value).byte_size(tree, pointer_width_bits)
             }
@@ -1046,7 +1065,7 @@ impl Type {
         access: Access,
         storage: Storage,
     ) -> (Type, Type) {
-        let data = Type::Reference {
+        let reference = Type::Reference {
             kind,
             lifetime: Lifetime::empty(),
             storage,
@@ -1056,7 +1075,7 @@ impl Type {
         };
         let length = Type::Usize;
 
-        (data, length)
+        (reference, length)
     }
 
     /// Return the signature reference carried by this callable type.
@@ -1085,12 +1104,6 @@ impl Type {
     }
 
     /// Return the copy property of this type.
-    ///
-    /// - Primitives are always copyable
-    /// - Non-owning references are always copyable
-    /// - Affine references are move only
-    /// - Aggregates store their copy property explicitly
-    /// - Function pointers are always copyable
     pub fn copy(&self, tree: &Tree) -> Copy {
         match self {
             // parse recovery nodes are never copyable semantic values
@@ -1144,25 +1157,14 @@ impl Type {
             // signatures and thin function pointers contain no captured storage
             Type::FunctionSignature { .. } | Type::FunctionPointer { .. } => Copy::Yes,
 
-            // execution handles uniquely own suspended execution
-
             // lifetime application preserves the represented type's copy property
             Type::Application { base, .. } => tree.get(*base).copy(tree),
         }
     }
-}
 
-/// Convert one bit width to bytes when byte aligned.
-fn byte_width(width: u16) -> Option<u64> {
-    width.is_multiple_of(8).then_some(u64::from(width / 8))
-}
-
-/// Return the low-bit mask for one integer width.
-const fn integer_mask(width: u16) -> u128 {
-    if width >= u128::BITS as u16 {
-        u128::MAX
-    } else {
-        (1u128 << width) - 1
+    /// Convert one bit width to bytes when byte aligned.
+    fn byte_width(width: u16) -> Option<u64> {
+        width.is_multiple_of(8).then_some(u64::from(width / 8))
     }
 }
 

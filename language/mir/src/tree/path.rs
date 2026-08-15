@@ -26,8 +26,6 @@ pub enum Projection {
         /// The zero-based case index.
         case: u32,
     },
-    /// Any element of an indexed container.
-    AnyElement,
     /// A runtime slice projection.
     Slice {
         /// The runtime start index value.
@@ -41,12 +39,19 @@ impl Projection {
     /// Replace value references inside this projection.
     fn replace_value(&mut self, from: Value, to: Value) {
         match self {
-            Self::Field { .. } | Self::Element { .. } | Self::Variant { .. } | Self::AnyElement => {
+            Self::Field { .. } | Self::Element { .. } | Self::Variant { .. } => {}
+            Self::Index { index } => {
+                if *index == from {
+                    *index = to;
+                }
             }
-            Self::Index { index } => replace_value(index, from, to),
             Self::Slice { start, length } => {
-                replace_value(start, from, to);
-                replace_value(length, from, to);
+                if *start == from {
+                    *start = to;
+                }
+                if *length == from {
+                    *length = to;
+                }
             }
         }
     }
@@ -94,6 +99,16 @@ impl Path {
         self.projections.is_empty()
     }
 
+    /// Return whether this path contains another path.
+    pub fn contains(&self, other: &Self) -> bool {
+        self.projections.len() <= other.projections.len()
+            && self
+                .projections
+                .iter()
+                .zip(&other.projections)
+                .all(|(left, right)| left == right)
+    }
+
     /// Replace value references inside this path.
     pub fn replace_value(&mut self, from: Value, to: Value) {
         for projection in &mut self.projections {
@@ -109,11 +124,4 @@ pub struct BorrowedPath {
     pub path: Path,
     /// The lifetime carried by the borrowed component.
     pub lifetime: Lifetime,
-}
-
-/// Replace one value id.
-fn replace_value(value: &mut Value, from: Value, to: Value) {
-    if *value == from {
-        *value = to;
-    }
 }

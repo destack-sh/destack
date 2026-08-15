@@ -174,7 +174,7 @@ impl Tree {
         }
     }
 
-    /// Create a new tree with parsed source data.
+    /// Create a tree with parsed source metadata.
     pub(crate) fn with_parsed_source(source_text: String, tokens: Vec<Token>) -> Self {
         let mut tree = Self::new();
         tree.source_text = Some(source_text);
@@ -527,21 +527,29 @@ impl Tree {
                     );
                 }
             }
-            // collapse indexed containers to any-element paths
+            // summarize repeated element lifetimes at the container path
             Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
             | Type::Vector { element, .. }
             | Type::Tensor { element, .. }
             | Type::TensorView { element, .. } => {
-                let path = path.with_projection(Projection::AnyElement);
-
+                let mut element_paths = Vec::new();
                 self.collect_type_borrowed_paths(
                     *element,
                     lifetimes,
                     is_empty_included,
-                    path,
-                    borrowed_paths,
+                    Path::root(),
+                    &mut element_paths,
                 );
+
+                if !element_paths.is_empty() {
+                    let lifetime = Lifetime::new(
+                        element_paths
+                            .into_iter()
+                            .flat_map(|borrowed| borrowed.lifetime.terms),
+                    );
+                    borrowed_paths.push(BorrowedPath { path, lifetime });
+                }
             }
             // substitute outer lifetime arguments
             Type::Application { base, lifetimes } => {
@@ -569,8 +577,7 @@ impl Tree {
         self.next_global_id
     }
 
-    /// Insert a mutable node into the tree and return its id.
-    /// The node will have no source DIR node associated (synthesized).
+    /// Insert a synthesized mutable node.
     pub fn insert<T>(&mut self, node: T) -> LocalNodeId<T>
     where
         T: Node,
@@ -602,7 +609,7 @@ impl Tree {
             .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_id_by_node_id.push(None);
         self.origin_by_node_id.append();
-        self.source_index.append(empty_source_span());
+        self.source_index.append(Span::empty(FileId::new(0)));
 
         LocalNodeId::new(global_id)
     }
@@ -923,8 +930,7 @@ impl Tree {
             && ((node_id - self.first_global_id) as usize) < self.node_index_by_node_id.len()
     }
 
-    /// Get the source DIR node id for a MIR node, if available.
-    /// Returns None for synthesized nodes that don't correspond to source.
+    /// Return the source DIR node for one MIR node.
     #[inline]
     pub fn get_source(&self, id: u32) -> Option<u32> {
         self.source_id_by_node_id[self.node_index(id)]
@@ -1529,9 +1535,7 @@ impl Tree {
         *self.get_mut(id) = replacement;
     }
 
-    /// Derive a replacement node from its previous contents.
-    ///
-    /// Returns the ID of the preserved original node.
+    /// Derive a replacement while preserving the original node.
     pub fn derive<T>(
         &mut self,
         id: LocalNodeId<T>,
@@ -1632,9 +1636,4 @@ impl TreeImpl<Field> for Tree {
     fn get(tree: &Tree, idx: u32) -> &Field {
         tree.fields.get(idx)
     }
-}
-
-/// Return one empty source span for generated nodes.
-fn empty_source_span() -> Span {
-    Span::empty(FileId::new(0))
 }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{CallArgumentEffect, CallSite, Function, LocalNodeId, StorageSet};
+use crate::{CallSite, Function, LocalNodeId, StorageSet};
 
 /// Function and call effect tables for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -83,6 +83,41 @@ pub struct CallEffect {
     pub target: Option<LocalNodeId<Function>>,
     /// Argument memory behavior when known.
     pub arguments: Vec<CallArgumentEffect>,
+}
+
+/// Behavior of one argument passed to a bodyless call.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
+pub struct CallArgumentEffect {
+    /// Access mode for this argument.
+    pub access: ArgumentAccess,
+    /// Escape behavior for this argument.
+    pub escape: ArgumentEscape,
+}
+
+/// Access mode for a bodyless call pointer argument.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+pub enum ArgumentAccess {
+    /// The argument is not accessed.
+    None,
+    /// The argument is only read.
+    Read,
+    /// The argument is only written.
+    Write,
+    /// The argument is read and written.
+    #[default]
+    ReadWrite,
+}
+
+/// Escape behavior for a bodyless call argument.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+pub enum ArgumentEscape {
+    /// The argument does not escape the callee.
+    None,
+    /// The argument only escapes through the return value.
+    Return,
+    /// The argument may escape in an unknown way.
+    #[default]
+    Escape,
 }
 
 /// Memory access effect for a call or operation.

@@ -1,1046 +1,2922 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate as mir;
+use smallvec::SmallVec;
 
-use crate::{AliasResult, TargetLayout};
+use crate::{
+    AliasTable, Analysis, ControlTable, DefinitionTable, DominatorTable, FunctionCache,
+    MemoryLocation, MemoryRegion, NodeTable, StorageRoot, TargetLayout, ValueTypeTable,
+    collect_reachable_blocks, compute_dominance_frontiers,
+};
 
-use super::{ValueDefinitions, ValueTypes};
-
-/// One memory location reached through an address-bearing value.
-///
-/// Alias queries compare these locations to decide whether accesses overlap.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct MemoryLocation {
-    /// The address-bearing value being dereferenced.
-    pub address: mir::Value,
-    /// Size of the access in bytes, if known.
-    pub size: Option<u64>,
-    /// The value type being accessed, when known.
-    pub value_type: Option<mir::TypeId>,
-    /// Reference kind for the address, when known.
-    pub reference_kind: Option<mir::ReferenceKind>,
-    /// Storage for the address, when known.
-    pub reference_storage: Option<mir::Storage>,
+/// Memory versions for one function.
+#[derive(Debug)]
+pub struct MemoryTable {
+    /// All memory accesses indexed by id.
+    accesses: Vec<MemoryNode>,
+    /// Memory phi nodes indexed by block id.
+    block_phis: NodeTable<mir::Block, Option<MemoryAccessId>>,
+    /// Memory accesses indexed by instruction id.
+    instruction_access: NodeTable<mir::Instruction, Vec<MemoryAccessId>>,
+    /// Memory accesses indexed by terminator block id.
+    terminator_access: NodeTable<mir::Block, Vec<MemoryAccessId>>,
+    /// Memory accesses indexed by block id.
+    block_accesses: NodeTable<mir::Block, Vec<MemoryAccessId>>,
+    /// Live on entry access id.
+    live_on_entry: MemoryAccessId,
 }
 
-impl MemoryLocation {
-    /// Create a location from an address with unknown size.
-    pub fn from_address(address: mir::Value) -> Self {
+/// Identifier for a memory access in MemoryTable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MemoryAccessId(u32);
+
+impl MemoryAccessId {
+    /// Create an access id from an index.
+    fn from_index(index: usize) -> Self {
+        Self(index as u32)
+    }
+
+    /// Return the vector index for this access id.
+    fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// Source operation for one MemoryTable access.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MemoryAccessSource {
+    /// Access produced by a MIR instruction.
+    Instruction(mir::LocalNodeId<mir::Instruction>),
+    /// Access produced by a block terminator.
+    Terminator(mir::LocalNodeId<mir::Block>),
+}
+
+impl MemoryAccessSource {
+    /// Return the instruction source when this access has one.
+    pub fn instruction(self) -> Option<mir::LocalNodeId<mir::Instruction>> {
+        match self {
+            Self::Instruction(instruction) => Some(instruction),
+            Self::Terminator(_) => None,
+        }
+    }
+
+    /// Return the terminator block when this access has one.
+    pub fn terminator(self) -> Option<mir::LocalNodeId<mir::Block>> {
+        match self {
+            Self::Instruction(_) => None,
+            Self::Terminator(block) => Some(block),
+        }
+    }
+}
+
+/// Memory access effects for an instruction.
+#[derive(Debug, Clone)]
+pub struct MemoryAccessEffect {
+    /// Whether the instruction reads memory.
+    pub reads: bool,
+    /// Whether the instruction writes memory.
+    pub writes: bool,
+    /// Whether the instruction is volatile.
+    pub is_volatile: bool,
+    /// Whether the instruction acts as a memory barrier.
+    pub is_barrier: bool,
+    /// The memory region being accessed.
+    pub region: MemoryRegion,
+}
+
+/// Query information for clobbering access lookups.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct MemoryAccessQuery {
+    /// The memory region being accessed.
+    region: MemoryRegion,
+}
+
+impl MemoryAccessQuery {
+    /// Create a query from a full access effect.
+    fn from_effect(effect: &MemoryAccessEffect) -> Self {
         Self {
-            address,
-            size: None,
-            value_type: None,
-            reference_kind: None,
-            reference_storage: None,
+            region: effect.region.clone(),
         }
     }
 
-    /// Create a location with known size.
-    pub fn with_size(address: mir::Value, size: u64) -> Self {
+    /// Create a query from a region with no alias tables.
+    fn from_region(region: &MemoryRegion) -> Self {
         Self {
-            address,
-            size: Some(size),
-            value_type: None,
-            reference_kind: None,
-            reference_storage: None,
+            region: region.clone(),
         }
     }
+}
 
-    /// Create a fully specified location.
-    pub fn new(
-        address: mir::Value,
-        size: Option<u64>,
-        value_type: Option<mir::TypeId>,
-        reference_kind: Option<mir::ReferenceKind>,
-        reference_storage: Option<mir::Storage>,
-    ) -> Self {
-        Self {
-            address,
-            size,
-            value_type,
-            reference_kind,
-            reference_storage,
+impl MemoryAccessEffect {
+    /// Return whether this effect may clobber one memory location.
+    pub fn clobbers_location(&self, location: &MemoryLocation, alias: &AliasTable) -> bool {
+        if self.is_barrier {
+            return true;
         }
+
+        self.writes && self.may_touch_location(location, alias)
     }
 
-    /// Return the memory spaces this location can touch.
-    pub fn spaces(&self) -> mir::StorageSet {
-        self.reference_storage
-            .as_ref()
-            .map(|storage| storage.storage_set())
-            .unwrap_or(mir::StorageSet::ANY)
-    }
-
-    /// Return aliasing for another location with the same address value.
-    pub fn alias_same_address(&self, other: &MemoryLocation) -> AliasResult {
-        match (self.size, other.size) {
-            (Some(left), Some(right)) if left == right => AliasResult::MustAlias,
-            (Some(_), Some(_)) => AliasResult::PartialAlias,
-            _ => AliasResult::PartialAlias,
-        }
-    }
-
-    /// Return whether both locations are compatible for value forwarding.
-    pub fn is_compatible_with(&self, other: &MemoryLocation) -> bool {
-        // compare byte sizes when both sides know them
-        if let (Some(left_size), Some(right_size)) = (self.size, other.size)
-            && left_size != right_size
-        {
+    /// Return whether this effect may touch one memory location.
+    pub fn may_touch_location(&self, location: &MemoryLocation, alias: &AliasTable) -> bool {
+        // reject disjoint memory spaces
+        if !self.region.spaces().may_alias(location.spaces()) {
             return false;
         }
 
-        // compare value types when both sides know them
-        if let (Some(left_type), Some(right_type)) = (&self.value_type, &other.value_type)
-            && left_type != right_type
-        {
-            return false;
+        // compare local access roots
+        if let MemoryRegion::Local(local) = self.region {
+            let storage = StorageRoot::LocalSlot(local);
+
+            return alias.may_touch_root(location, &storage);
         }
 
+        // compare addressed accesses through alias analysis
+        if let MemoryRegion::Address {
+            location: effect_location,
+            ..
+        } = &self.region
+        {
+            return alias.alias(effect_location, location).may_alias();
+        }
+
+        // treat imprecise accesses as touching compatible locations
         true
     }
-}
 
-/// Memory region touched by one address-bearing value or direct access.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum MemoryRegion {
-    /// Memory access through an address-bearing value.
-    Address {
-        /// The addressed location.
-        location: MemoryLocation,
-        /// The memory spaces the address may touch.
-        spaces: mir::StorageSet,
-    },
-    /// A precise memory place.
-    Place(MemoryPlace),
-    /// Local slot access.
-    Local(mir::LocalNodeId<mir::Local>),
-    /// Any memory in the given spaces.
-    Any {
-        /// The memory spaces that may be touched.
-        spaces: mir::StorageSet,
-    },
-}
+    /// Return whether this effect is trackable by memory optimizations.
+    pub fn is_trackable(&self) -> bool {
+        !self.is_volatile && !self.is_barrier && !matches!(self.region, MemoryRegion::Any { .. })
+    }
 
-impl MemoryRegion {
-    /// Create an imprecise region for all memory spaces.
-    pub fn any() -> Self {
-        Self::Any {
-            spaces: mir::StorageSet::ANY,
+    /// Return whether this effect describes the same region as another effect.
+    pub fn matches_region(&self, alias: &AliasTable, other: &MemoryAccessEffect) -> bool {
+        // reject disjoint memory spaces
+        if !self.region.spaces().may_alias(other.region.spaces()) {
+            return false;
         }
-    }
 
-    /// Create an imprecise region for a set of memory spaces.
-    pub fn any_spaces(spaces: mir::StorageSet) -> Self {
-        Self::Any { spaces }
-    }
-
-    /// Create an imprecise region for one storage region.
-    pub fn any_storage(storage: mir::Storage) -> Self {
-        Self::Any {
-            spaces: storage.storage_set(),
-        }
-    }
-
-    /// Return whether this region is owned by the current activation frame.
-    pub fn is_frame_storage(&self) -> bool {
-        matches!(self, Self::Local(_))
-            || matches!(self, Self::Place(place) if matches!(place.root, StorageRoot::LocalSlot(_)))
-    }
-
-    /// Create an address access with an optional value type and inferred size.
-    pub fn from_address(
-        address: mir::Value,
-        value_type: Option<mir::TypeId>,
-        reference_kind: Option<mir::ReferenceKind>,
-        reference_storage: Option<mir::Storage>,
-        pointer_width_bits: u16,
-        tree: &mir::Tree,
-    ) -> Self {
-        Self::from_address_with_size(
-            address,
-            value_type,
-            reference_kind,
-            reference_storage,
-            None,
-            pointer_width_bits,
-            tree,
-        )
-    }
-
-    /// Create an address access with an explicit size override.
-    pub fn from_address_with_size(
-        address: mir::Value,
-        value_type: Option<mir::TypeId>,
-        reference_kind: Option<mir::ReferenceKind>,
-        reference_storage: Option<mir::Storage>,
-        size: Option<u64>,
-        pointer_width_bits: u16,
-        tree: &mir::Tree,
-    ) -> Self {
-        let inferred_size = size.or_else(|| {
-            value_type
-                .as_ref()
-                .and_then(|value_type| tree.get(*value_type).byte_size(tree, pointer_width_bits))
-        });
-
-        Self::Address {
-            location: MemoryLocation::new(
-                address,
-                inferred_size,
-                value_type,
-                reference_kind,
-                reference_storage,
-            ),
-            spaces: mir::StorageSet::ANY,
-        }
-    }
-
-    /// Return the addressed location when this region has one.
-    pub fn location(&self) -> Option<&MemoryLocation> {
-        match self {
-            Self::Address { location, .. } => Some(location),
-            _ => None,
-        }
-    }
-
-    /// Return the memory spaces covered by this region.
-    pub fn spaces(&self) -> mir::StorageSet {
-        match self {
-            MemoryRegion::Address { spaces, .. } => *spaces,
-            MemoryRegion::Place(place) => place.root.spaces(),
-            MemoryRegion::Local(_) => mir::StorageSet::FRAME,
-            MemoryRegion::Any { spaces } => *spaces,
-        }
-    }
-
-    /// Set spaces on imprecise or addressed regions.
-    pub fn set_spaces(&mut self, new_spaces: mir::StorageSet) {
-        match self {
-            Self::Address { spaces, .. } | Self::Any { spaces } => {
-                *spaces = new_spaces;
-            }
-            Self::Place(_) | Self::Local(_) => {}
-        }
-    }
-
-    /// Return whether this region may touch one storage root.
-    pub fn may_touch_root(&self, storage: &StorageRoot) -> bool {
-        match self {
-            MemoryRegion::Place(place) => !place.root.is_disjoint_from(storage),
-            MemoryRegion::Local(local) => {
-                !storage.is_disjoint_from(&StorageRoot::LocalSlot(*local))
-            }
-            MemoryRegion::Any { spaces } => !spaces.is_disjoint(storage.spaces()),
-            MemoryRegion::Address { spaces, .. } => !spaces.is_disjoint(storage.spaces()),
-        }
-    }
-}
-
-/// Identified storage root for one memory place.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum StorageRoot {
-    /// Local slot address.
-    LocalSlot(mir::LocalNodeId<mir::Local>),
-    /// Global storage address.
-    Global {
-        /// The global declaration.
-        global: mir::LocalNodeId<mir::Global>,
-        /// The global storage class.
-        storage: mir::GlobalStorage,
-    },
-    /// Heap allocation instruction.
-    Allocation {
-        /// The allocation instruction.
-        instruction: mir::LocalNodeId<mir::Instruction>,
-        /// The allocation storage space.
-        space: mir::Space,
-        /// The reference kind produced by the allocation.
-        kind: mir::ReferenceKind,
-    },
-    /// Function parameter.
-    Parameter {
-        /// Parameter index.
-        index: u32,
-        /// The parameter storage.
-        storage: mir::Storage,
-        /// The parameter reference kind.
-        kind: mir::ReferenceKind,
-        /// The parameter access.
-        access: mir::Access,
-    },
-}
-
-impl StorageRoot {
-    /// Return true if this parameter is exclusive.
-    pub fn is_exclusive_parameter(&self) -> bool {
-        matches!(
-            self,
-            StorageRoot::Parameter {
-                access: mir::Access::Exclusive,
-                ..
-            }
-        )
-    }
-
-    /// Return whether two identified storage roots are disjoint.
-    pub fn is_disjoint_from(&self, other: &StorageRoot) -> bool {
-        match (self, other) {
-            (StorageRoot::LocalSlot(left), StorageRoot::LocalSlot(right)) => left != right,
+        // compare concrete locations
+        match (&self.region, &other.region) {
+            (MemoryRegion::Local(local), MemoryRegion::Local(other_local)) => local == other_local,
             (
-                StorageRoot::Global { global: left, .. },
-                StorageRoot::Global { global: right, .. },
-            ) => left != right,
-            (
-                StorageRoot::Allocation {
-                    instruction: left, ..
-                },
-                StorageRoot::Allocation {
-                    instruction: right, ..
-                },
-            ) => left != right,
-            (StorageRoot::Parameter { .. }, _) | (_, StorageRoot::Parameter { .. }) => false,
-            _ => true,
-        }
-    }
-
-    /// Return whether exclusive parameter constraints prove disjointness.
-    pub fn exclusive_parameters_are_disjoint(&self, other: &StorageRoot) -> bool {
-        match (self, other) {
-            (
-                StorageRoot::Parameter {
-                    access: mir::Access::Exclusive,
+                MemoryRegion::Address { location, .. },
+                MemoryRegion::Address {
+                    location: other_location,
                     ..
                 },
-                StorageRoot::Parameter {
-                    access: mir::Access::Exclusive,
-                    ..
-                },
-            ) => self != other,
+            ) => {
+                if !location.is_compatible_with(other_location) {
+                    return false;
+                }
+
+                alias.alias(location, other_location).is_must_alias()
+            }
             _ => false,
         }
     }
 
-    /// Return the memory spaces covered by this storage root.
-    pub fn spaces(&self) -> mir::StorageSet {
-        match self {
-            StorageRoot::LocalSlot(_) => mir::StorageSet::FRAME,
-            StorageRoot::Global { storage, .. } => storage.storage_set(),
-            StorageRoot::Allocation { space, .. } => space.space_set(),
-            StorageRoot::Parameter { storage, .. } => storage.storage_set(),
+    /// Return whether this effect may alias another effect.
+    pub fn may_alias(&self, alias: &AliasTable, other: &MemoryAccessEffect) -> bool {
+        // reject disjoint memory spaces
+        if !self.region.spaces().may_alias(other.region.spaces()) {
+            return false;
+        }
+
+        // compare concrete locations
+        match (&self.region, &other.region) {
+            (MemoryRegion::Any { .. }, _) | (_, MemoryRegion::Any { .. }) => true,
+            (MemoryRegion::Local(local), MemoryRegion::Local(other)) => local == other,
+            (
+                MemoryRegion::Address { location, .. },
+                MemoryRegion::Address {
+                    location: other_location,
+                    ..
+                },
+            ) => {
+                if !location.is_compatible_with(other_location) {
+                    return false;
+                }
+
+                alias.alias(location, other_location).may_alias()
+            }
+            _ => false,
         }
     }
-}
 
-/// Indexed byte offset component in address arithmetic.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct IndexedOffset {
-    /// The index value.
-    pub index: mir::Value,
-    /// Scale factor (element size in bytes).
-    pub scale: u64,
-}
-
-/// Precise memory place representation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct MemoryPlace {
-    /// The identified storage root.
-    pub root: StorageRoot,
-    /// Constant byte offset from storage root.
-    pub const_offset: i64,
-    /// Indexed offsets with their scales.
-    pub indexed_offsets: Vec<IndexedOffset>,
-    /// Field path from storage root.
-    pub fields: Vec<u32>,
-}
-
-impl MemoryPlace {
-    /// Create a memory place from one storage root.
-    pub fn from_root(root: StorageRoot) -> Self {
+    /// Create an access effect for reads.
+    fn read(region: MemoryRegion, is_volatile: bool) -> Self {
         Self {
-            root,
-            const_offset: 0,
-            fields: Vec::new(),
-            indexed_offsets: Vec::new(),
+            reads: true,
+            writes: false,
+            is_volatile,
+            is_barrier: false,
+            region,
         }
     }
 
-    /// Check if this place has only constant offsets.
-    pub fn is_constant_offset(&self) -> bool {
-        self.indexed_offsets.is_empty()
+    /// Create an access effect for writes.
+    fn write(region: MemoryRegion, is_volatile: bool) -> Self {
+        Self {
+            reads: false,
+            writes: true,
+            is_volatile,
+            is_barrier: false,
+            region,
+        }
     }
 
-    /// Add a constant offset.
-    pub fn add_const_offset(&mut self, offset: i64) {
-        self.const_offset = self.const_offset.saturating_add(offset);
+    /// Create an access effect for read/write.
+    fn read_write(region: MemoryRegion, is_volatile: bool) -> Self {
+        Self {
+            reads: true,
+            writes: true,
+            is_volatile,
+            is_barrier: false,
+            region,
+        }
     }
 
-    /// Add a field index to the path.
-    pub fn add_field(&mut self, field_index: u32) {
-        self.fields.push(field_index);
+    /// Create a barrier access effect.
+    fn barrier() -> Self {
+        Self {
+            reads: false,
+            writes: true,
+            is_volatile: false,
+            is_barrier: true,
+            region: MemoryRegion::Any {
+                spaces: mir::StorageSet::ANY,
+            },
+        }
+    }
+}
+
+/// MemoryTable access node.
+#[derive(Debug, Clone)]
+pub enum MemoryNode {
+    /// Pseudo access that dominates all memory operations.
+    LiveOnEntry,
+    /// Phi node merging memory states.
+    Phi(MemoryPhi),
+    /// Memory definition (writes memory).
+    Def(MemoryDef),
+    /// Memory use (reads memory).
+    Use(MemoryUse),
+}
+
+impl MemoryNode {
+    /// Return the memory effect payload for this access if available.
+    pub fn effect(&self) -> Option<&MemoryAccessEffect> {
+        match self {
+            Self::Def(def) => Some(&def.effect),
+            Self::Use(use_access) => Some(&use_access.effect),
+            Self::LiveOnEntry | Self::Phi(_) => None,
+        }
     }
 
-    /// Add an indexed offset.
-    pub fn add_indexed_offset(&mut self, index: mir::Value, scale: u64) {
-        self.indexed_offsets.push(IndexedOffset { index, scale });
+    /// Return the instruction id for this access if available.
+    pub fn instruction(&self) -> Option<mir::LocalNodeId<mir::Instruction>> {
+        // map instruction sourced accesses
+        self.source().and_then(MemoryAccessSource::instruction)
     }
 
-    /// Return aliasing with another place under known access locations.
-    pub fn alias_with(
-        &self,
-        location: &MemoryLocation,
-        other: &MemoryPlace,
-        other_location: &MemoryLocation,
-    ) -> AliasResult {
-        // disjoint field paths cannot alias
-        if self.fields_are_disjoint_from(other) {
-            return AliasResult::NoAlias;
+    /// Return the source operation for this access if available.
+    pub fn source(&self) -> Option<MemoryAccessSource> {
+        match self {
+            MemoryNode::Def(def) => Some(def.source),
+            MemoryNode::Use(use_access) => Some(use_access.source),
+            _ => None,
+        }
+    }
+}
+
+/// Memory phi node.
+#[derive(Debug, Clone)]
+pub struct MemoryPhi {
+    /// Block that owns this phi.
+    pub block: mir::LocalNodeId<mir::Block>,
+    /// Incoming values keyed by predecessor block.
+    pub incoming: Vec<(mir::LocalNodeId<mir::Block>, MemoryAccessId)>,
+}
+
+/// Memory definition access.
+#[derive(Debug, Clone)]
+pub struct MemoryDef {
+    /// Operation that defines memory.
+    pub source: MemoryAccessSource,
+    /// Immediate defining access in MemoryTable.
+    pub defining_access: Option<MemoryAccessId>,
+    /// Memory effects for this operation.
+    pub effect: MemoryAccessEffect,
+}
+
+impl MemoryDef {
+    /// Return whether this definition clobbers a query.
+    fn clobbers_query(&self, query: &MemoryAccessQuery, alias: &AliasTable) -> bool {
+        // treat barriers as clobbering all memory
+        if self.effect.is_barrier {
+            return true;
         }
 
-        // constant byte ranges can be compared exactly
-        if self.is_constant_offset()
-            && other.is_constant_offset()
-            && let (Some(size), Some(other_size)) = (location.size, other_location.size)
+        // ignore non writing accesses
+        if !self.effect.writes {
+            return false;
+        }
+
+        // disambiguate by region sets
+        if !self.effect.region.spaces().may_alias(query.region.spaces()) {
+            return false;
+        }
+
+        // check for local memory
+        if let MemoryRegion::Local(local) = &query.region {
+            if let MemoryRegion::Local(def_local) = &self.effect.region {
+                return def_local == local;
+            }
+
+            return false;
+        }
+
+        // handle unknown memory spaces
+        if matches!(query.region, MemoryRegion::Any { .. }) {
+            return self.effect.writes;
+        }
+
+        // resolve addressed queries
+        let Some(location) = query.region.location() else {
+            return self.effect.writes;
+        };
+
+        // ignore local defs for addressed queries
+        if let MemoryRegion::Local(_) = self.effect.region {
+            return false;
+        }
+
+        // compare memory locations when available
+        if let MemoryRegion::Address {
+            location: definition,
+            ..
+        } = &self.effect.region
         {
-            let range = ByteRange::new(self.const_offset, size);
-            let other_range = ByteRange::new(other.const_offset, other_size);
-
-            return match range.relation(other_range) {
-                RangeRelation::Disjoint => AliasResult::NoAlias,
-                RangeRelation::Equal => AliasResult::MustAlias,
-                _ => AliasResult::PartialAlias,
-            };
+            return alias.alias(definition, location).may_alias();
         }
 
-        // identical indexed offset values can still prove disjoint byte ranges
-        if self.indexed_offsets_are_disjoint_from(other, location.size, other_location.size) {
-            return AliasResult::NoAlias;
-        }
-
-        AliasResult::MayAlias
+        // treat imprecise definitions as clobbering compatible locations
+        matches!(self.effect.region, MemoryRegion::Any { .. })
     }
 
-    /// Return whether two field paths are statically disjoint.
-    fn fields_are_disjoint_from(&self, other: &MemoryPlace) -> bool {
-        if self.fields.is_empty() || other.fields.is_empty() {
+    /// Return whether this definition clobbers a memory region.
+    fn clobbers_region(&self, region: &MemoryRegion, alias: &AliasTable) -> bool {
+        // treat barriers as clobbering all memory
+        if self.effect.is_barrier {
+            return true;
+        }
+
+        // ignore non writing accesses
+        if !self.effect.writes {
             return false;
         }
 
-        self.fields
+        // disambiguate by region sets
+        if !self.effect.region.spaces().may_alias(region.spaces()) {
+            return false;
+        }
+
+        // check for local memory
+        if let MemoryRegion::Local(local) = region {
+            if let MemoryRegion::Local(def_local) = &self.effect.region {
+                return def_local == local;
+            }
+
+            return false;
+        }
+
+        // handle unknown memory spaces
+        if matches!(region, MemoryRegion::Any { .. }) {
+            return self.effect.writes;
+        }
+
+        // check address based aliasing
+        let Some(location) = region.location() else {
+            return self.effect.writes;
+        };
+
+        if let MemoryRegion::Local(_) = self.effect.region {
+            return false;
+        }
+
+        // compare memory locations when available
+        if let MemoryRegion::Address {
+            location: definition,
+            ..
+        } = &self.effect.region
+        {
+            return alias.alias(definition, location).may_alias();
+        }
+
+        // treat imprecise definitions as clobbering compatible locations
+        matches!(self.effect.region, MemoryRegion::Any { .. })
+    }
+
+    /// Return the source instruction when this def has one.
+    pub fn instruction(&self) -> Option<mir::LocalNodeId<mir::Instruction>> {
+        self.source.instruction()
+    }
+}
+
+/// Memory use access.
+#[derive(Debug, Clone)]
+pub struct MemoryUse {
+    /// Operation that reads memory.
+    pub source: MemoryAccessSource,
+    /// Immediate defining access in MemoryTable.
+    pub defining_access: Option<MemoryAccessId>,
+    /// Memory effects for this operation.
+    pub effect: MemoryAccessEffect,
+}
+
+impl MemoryUse {
+    /// Return the source instruction when this use has one.
+    pub fn instruction(&self) -> Option<mir::LocalNodeId<mir::Instruction>> {
+        self.source.instruction()
+    }
+}
+
+impl MemoryTable {
+    /// Build MemoryTable for a function.
+    fn build(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        cfg: &ControlTable,
+        dominator: &DominatorTable,
+        definitions: &DefinitionTable,
+        value_types: &ValueTypeTable,
+        accesses: &mir::AccessTable,
+        effect_table: &mir::EffectTable,
+        target_layout: TargetLayout,
+    ) -> Self {
+        // handle imported functions
+        let entry = match function.entry() {
+            Some(entry) => entry,
+            None => {
+                let live_on_entry = MemoryAccessId::from_index(0);
+                return Self {
+                    accesses: vec![MemoryNode::LiveOnEntry],
+                    block_phis: NodeTable::new(),
+                    instruction_access: NodeTable::new(),
+                    terminator_access: NodeTable::new(),
+                    block_accesses: NodeTable::new(),
+                    live_on_entry,
+                };
+            }
+        };
+
+        // collect memory accesses and definition blocks
+        let mut access_collector = MemoryAccessCollector::new(
+            function,
+            tree,
+            definitions,
+            value_types,
+            accesses,
+            effect_table,
+            target_layout,
+        );
+        let collected = access_collector.collect(entry);
+
+        // compute dominance frontier for memory defs
+        let dominance_frontier =
+            compute_dominance_frontiers(&collected.reachable_blocks, cfg, dominator);
+
+        // insert memory phis for join points
+        let phi_blocks = Self::phi_blocks(
+            &collected.def_blocks,
+            &dominance_frontier,
+            &collected.reachable,
+        );
+
+        // create memory access table with live on entry
+        let mut accesses = Vec::new();
+        accesses.push(MemoryNode::LiveOnEntry);
+        let live_on_entry = MemoryAccessId::from_index(0);
+
+        // create block phis
+        let mut block_phis = NodeTable::from_nodes(function.blocks(), || None);
+        for block in &phi_blocks {
+            let phi_id = MemoryAccessId::from_index(accesses.len());
+            accesses.push(MemoryNode::Phi(MemoryPhi {
+                block: *block,
+                incoming: Vec::new(),
+            }));
+            *block_phis.get_mut(*block) = Some(phi_id);
+        }
+
+        // create instruction memory accesses
+        let instructions = function
+            .blocks()
             .iter()
-            .zip(other.fields.iter())
-            .any(|(left, right)| left != right)
+            .flat_map(|block| tree.get(*block).instructions.iter().copied())
+            .collect::<Vec<_>>();
+        let mut instruction_access = NodeTable::from_nodes(&instructions, Vec::new);
+        let mut terminator_access = NodeTable::from_nodes(function.blocks(), Vec::new);
+        let mut block_accesses = NodeTable::from_nodes(function.blocks(), Vec::new);
+
+        for &block in &collected.reachable_blocks {
+            let access_list = collected.block_accesses.get(block);
+            if access_list.is_empty() {
+                continue;
+            };
+            let mut block_list = Vec::new();
+
+            for access in access_list {
+                let access_id = MemoryAccessId::from_index(accesses.len());
+                match access {
+                    CollectedAccess::Use { source, effect } => {
+                        accesses.push(MemoryNode::Use(MemoryUse {
+                            source: *source,
+                            defining_access: None,
+                            effect: effect.clone(),
+                        }));
+                        match source {
+                            MemoryAccessSource::Instruction(instruction) => {
+                                instruction_access.get_mut(*instruction).push(access_id);
+                            }
+                            MemoryAccessSource::Terminator(block) => {
+                                terminator_access.get_mut(*block).push(access_id);
+                            }
+                        }
+                    }
+                    CollectedAccess::Def { source, effect } => {
+                        accesses.push(MemoryNode::Def(MemoryDef {
+                            source: *source,
+                            defining_access: None,
+                            effect: effect.clone(),
+                        }));
+                        match source {
+                            MemoryAccessSource::Instruction(instruction) => {
+                                instruction_access.get_mut(*instruction).push(access_id);
+                            }
+                            MemoryAccessSource::Terminator(block) => {
+                                terminator_access.get_mut(*block).push(access_id);
+                            }
+                        }
+                    }
+                }
+                block_list.push(access_id);
+            }
+
+            *block_accesses.get_mut(block) = block_list;
+        }
+
+        // assemble the memory table
+        let mut ssa = Self {
+            accesses,
+            block_phis,
+            instruction_access,
+            terminator_access,
+            block_accesses,
+            live_on_entry,
+        };
+
+        // rename memory accesses
+        let mut renamer = MemoryRenamer::new(tree, dominator, entry, &collected.reachable_blocks);
+        renamer.rename(&mut ssa);
+
+        // return the memory table
+        ssa
     }
 
-    /// Return whether two indexed ranges are statically disjoint.
-    fn indexed_offsets_are_disjoint_from(
+    /// Compute the blocks that require memory phi nodes.
+    fn phi_blocks(
+        definitions: &HashSet<mir::LocalNodeId<mir::Block>>,
+        frontiers: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
+        reachable: &HashSet<mir::LocalNodeId<mir::Block>>,
+    ) -> Vec<mir::LocalNodeId<mir::Block>> {
+        let mut worklist: VecDeque<_> = definitions.iter().copied().collect();
+        let mut queued: HashSet<_> = definitions.iter().copied().collect();
+        let mut blocks = HashSet::new();
+
+        // close definition blocks over their iterated dominance frontier
+        while let Some(block) = worklist.pop_front() {
+            queued.remove(&block);
+
+            let Some(frontier) = frontiers.get(&block) else {
+                continue;
+            };
+
+            for &candidate in frontier {
+                if !reachable.contains(&candidate) {
+                    continue;
+                }
+
+                if blocks.insert(candidate)
+                    && !definitions.contains(&candidate)
+                    && queued.insert(candidate)
+                {
+                    worklist.push_back(candidate);
+                }
+            }
+        }
+
+        let mut blocks = blocks.into_iter().collect::<Vec<_>>();
+        blocks.sort();
+
+        blocks
+    }
+
+    /// Return the live on entry access id.
+    pub fn live_on_entry(&self) -> MemoryAccessId {
+        self.live_on_entry
+    }
+
+    /// Return the access node for an id.
+    pub fn access(&self, id: MemoryAccessId) -> &MemoryNode {
+        &self.accesses[id.index()]
+    }
+
+    /// Return the first memory access for an instruction if present.
+    pub fn instruction_access(
         &self,
-        other: &MemoryPlace,
-        size: Option<u64>,
-        other_size: Option<u64>,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+    ) -> Option<MemoryAccessId> {
+        self.instruction_accesses(instruction)
+            .and_then(|accesses| accesses.first().copied())
+    }
+
+    /// Return all memory accesses for an instruction if present.
+    pub fn instruction_accesses(
+        &self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+    ) -> Option<&[MemoryAccessId]> {
+        let accesses = self.instruction_access.get(instruction);
+        (!accesses.is_empty()).then_some(accesses.as_slice())
+    }
+
+    /// Iterate memory effects for one instruction.
+    pub fn instruction_effects(
+        &self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+    ) -> impl Iterator<Item = &MemoryAccessEffect> {
+        self.instruction_accesses(instruction)
+            .into_iter()
+            .flatten()
+            .filter_map(|access| self.access(*access).effect())
+    }
+
+    /// Return the first memory use access for an instruction.
+    pub fn first_use_access(
+        &self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+    ) -> Option<MemoryAccessId> {
+        let accesses = self.instruction_accesses(instruction)?;
+        accesses
+            .iter()
+            .copied()
+            .find(|access_id| matches!(self.access(*access_id), MemoryNode::Use(_)))
+    }
+
+    /// Return all memory accesses for a block terminator if present.
+    pub fn terminator_accesses(
+        &self,
+        block: mir::LocalNodeId<mir::Block>,
+    ) -> Option<&[MemoryAccessId]> {
+        let accesses = self.terminator_access.get(block);
+        (!accesses.is_empty()).then_some(accesses.as_slice())
+    }
+
+    /// Return the memory phi for a block if present.
+    pub fn block_phi(&self, block: mir::LocalNodeId<mir::Block>) -> Option<MemoryAccessId> {
+        *self.block_phis.get(block)
+    }
+
+    /// Return the immediate defining access for a use or def.
+    pub fn defining_access(&self, id: MemoryAccessId) -> Option<MemoryAccessId> {
+        // read the defining access for uses and defs
+        match self.access(id) {
+            MemoryNode::Def(def) => def.defining_access,
+            MemoryNode::Use(use_access) => use_access.defining_access,
+            _ => None,
+        }
+    }
+
+    /// Compute the clobbering access for a memory use.
+    pub fn clobbering_use(&self, use_access: MemoryAccessId, alias: &AliasTable) -> MemoryAccessId {
+        // read the memory use location
+        let MemoryNode::Use(use_access_data) = self.access(use_access) else {
+            panic!("expected memory use access");
+        };
+
+        // resolve the defining access
+        let defining_access = use_access_data
+            .defining_access
+            .expect("memory use missing defining access");
+
+        // build the query for this use
+        let query = MemoryAccessQuery::from_effect(&use_access_data.effect);
+
+        // compute the clobbering access
+        let mut cache = HashMap::new();
+        let mut visiting = HashSet::new();
+        self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
+    }
+
+    /// Compute the clobbering access for a memory def.
+    pub fn clobbering_def(&self, def_access: MemoryAccessId, alias: &AliasTable) -> MemoryAccessId {
+        // read the memory def location
+        let MemoryNode::Def(def_access_data) = self.access(def_access) else {
+            panic!("expected memory def access");
+        };
+
+        // resolve the defining access
+        let defining_access = def_access_data
+            .defining_access
+            .unwrap_or(self.live_on_entry);
+
+        // build the query for this def
+        let query = MemoryAccessQuery::from_effect(&def_access_data.effect);
+
+        // compute the clobbering access
+        let mut cache = HashMap::new();
+        let mut visiting = HashSet::new();
+        self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
+    }
+
+    /// Compute the clobbering access for a read at the given region.
+    pub fn clobbering_read(
+        &self,
+        access_id: MemoryAccessId,
+        region: &MemoryRegion,
+        alias: &AliasTable,
+    ) -> MemoryAccessId {
+        // resolve the defining access for this read
+        let defining_access = self
+            .defining_access(access_id)
+            .unwrap_or(self.live_on_entry);
+
+        // build the query for this read
+        let query = MemoryAccessQuery::from_region(region);
+
+        // compute the clobbering access
+        let mut cache = HashMap::new();
+        let mut visiting = HashSet::new();
+        self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
+    }
+
+    /// Check if a def access clobbers the given region.
+    pub fn def_clobbers_region(
+        &self,
+        def_access: MemoryAccessId,
+        region: &MemoryRegion,
+        alias: &AliasTable,
     ) -> bool {
-        if self.indexed_offsets.len() != 1 || other.indexed_offsets.len() != 1 {
-            return false;
-        }
-
-        let offset = &self.indexed_offsets[0];
-        let other_offset = &other.indexed_offsets[0];
-        if offset.scale != other_offset.scale {
-            return false;
-        }
-
-        let (Some(size), Some(other_size)) = (
-            size.or(Some(offset.scale)),
-            other_size.or(Some(other_offset.scale)),
-        ) else {
+        // only defs can clobber spaces
+        let MemoryNode::Def(def_access) = self.access(def_access) else {
             return false;
         };
 
-        if offset.index != other_offset.index {
+        def_access.clobbers_region(region, alias)
+    }
+
+    /// Check if a def access clobbers another access.
+    pub fn def_clobbers_access(
+        &self,
+        def_access: MemoryAccessId,
+        target_access: MemoryAccessId,
+        alias: &AliasTable,
+    ) -> bool {
+        // only defs can clobber accesses
+        let MemoryNode::Def(def_access) = self.access(def_access) else {
             return false;
+        };
+
+        // fetch the target access effect
+        let target_effect = match self.access(target_access) {
+            MemoryNode::Use(use_access) => &use_access.effect,
+            MemoryNode::Def(def_access) => &def_access.effect,
+            _ => return false,
+        };
+
+        // build a query for the target effect
+        let query = MemoryAccessQuery::from_effect(target_effect);
+
+        def_access.clobbers_query(&query, alias)
+    }
+
+    /// Compute the clobbering access for a memory location.
+    fn clobbering_access(
+        &self,
+        access_id: MemoryAccessId,
+        query: &MemoryAccessQuery,
+        alias: &AliasTable,
+        cache: &mut HashMap<(MemoryAccessId, MemoryAccessQuery), MemoryAccessId>,
+        visiting: &mut HashSet<MemoryAccessId>,
+    ) -> MemoryAccessId {
+        // consult the cache
+        if let Some(cached) = cache.get(&(access_id, query.clone())) {
+            return *cached;
         }
 
-        let range = ByteRange::new(self.const_offset, size);
-        let other_range = ByteRange::new(other.const_offset, other_size);
-        let relation = range.relation(other_range);
+        // break cycles in phi recursion
+        if visiting.contains(&access_id) {
+            return access_id;
+        }
 
-        matches!(relation, RangeRelation::Disjoint)
+        visiting.insert(access_id);
+
+        // resolve clobber based on access kind
+        let result = match self.access(access_id) {
+            MemoryNode::LiveOnEntry => access_id,
+
+            MemoryNode::Use(use_access) => {
+                let defining_access = use_access
+                    .defining_access
+                    .expect("memory use missing defining access");
+                self.clobbering_access(defining_access, query, alias, cache, visiting)
+            }
+
+            MemoryNode::Def(def_access) => {
+                if def_access.clobbers_query(query, alias) {
+                    access_id
+                } else {
+                    let defining_access = def_access
+                        .defining_access
+                        .expect("memory def missing defining access");
+                    self.clobbering_access(defining_access, query, alias, cache, visiting)
+                }
+            }
+
+            MemoryNode::Phi(phi) => {
+                let mut incoming_clobber: Option<MemoryAccessId> = None;
+
+                for (_, incoming) in &phi.incoming {
+                    let clobber = self.clobbering_access(*incoming, query, alias, cache, visiting);
+                    match incoming_clobber {
+                        Some(existing) if existing != clobber => {
+                            incoming_clobber = Some(access_id);
+                            break;
+                        }
+                        Some(_) => {}
+                        None => incoming_clobber = Some(clobber),
+                    }
+                }
+
+                incoming_clobber.unwrap_or(access_id)
+            }
+        };
+
+        // store and return
+        visiting.remove(&access_id);
+        cache.insert((access_id, query.clone()), result);
+        result
     }
 }
 
-/// Builder for resolving memory regions by walking the def chain.
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct MemoryRegionBuilder<'a> {
-    /// Cached region results.
-    cache: HashMap<mir::Value, MemoryRegion>,
-    /// Value definitions for address provenance.
-    definitions: &'a ValueDefinitions,
-    /// The MIR tree.
+impl Analysis for MemoryTable {}
+
+impl MemoryTable {
+    /// Compute memory versions for one function.
+    pub(crate) fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        analyses: &mut FunctionCache,
+        accesses: &mir::AccessTable,
+        effects: &mir::EffectTable,
+    ) -> Self {
+        // read dependencies
+        let cfg = analyses.control(function, tree);
+        let dominator = analyses.dominator(function, tree);
+        let definitions = analyses.definition(function, tree);
+        let value_types = analyses.value_type(function, tree);
+
+        Self::build(
+            function,
+            tree,
+            &cfg,
+            &dominator,
+            &definitions,
+            &value_types,
+            accesses,
+            effects,
+            analyses.target_layout(),
+        )
+    }
+}
+
+/// Collected memory access before SSA renaming.
+#[derive(Debug, Clone)]
+enum CollectedAccess {
+    /// Memory use (read).
+    Use {
+        source: MemoryAccessSource,
+        effect: MemoryAccessEffect,
+    },
+    /// Memory def (write).
+    Def {
+        source: MemoryAccessSource,
+        effect: MemoryAccessEffect,
+    },
+}
+
+/// Memory access collection results.
+struct MemoryAccessCollection {
+    /// Memory accesses indexed by block id.
+    block_accesses: NodeTable<mir::Block, Vec<CollectedAccess>>,
+    /// Blocks that contain memory definitions.
+    def_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    /// Blocks reachable from entry.
+    reachable_blocks: Vec<mir::LocalNodeId<mir::Block>>,
+    /// Reachable block set.
+    reachable: HashSet<mir::LocalNodeId<mir::Block>>,
+}
+
+/// Collector for memory accesses.
+struct MemoryAccessCollector<'a> {
+    /// MIR function under analysis.
+    function: &'a mir::Function,
+    /// MIR tree.
     tree: &'a mir::Tree,
-    /// Function parameters for parameter regions.
-    parameters: &'a [mir::FunctionParameter],
-    /// Value type map for element sizing.
-    value_types: &'a ValueTypes,
+    /// Value type lookup for address resolution.
+    value_types: &'a ValueTypeTable,
+    /// Value definitions for address provenance.
+    definitions: DefinitionTable,
+    /// Explicit memory access table.
+    accesses: &'a mir::AccessTable,
+    /// Explicit effect table.
+    effect_table: &'a mir::EffectTable,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
 
-impl<'a> MemoryRegionBuilder<'a> {
-    /// Create a new region builder.
-    pub fn new(
-        definitions: &'a ValueDefinitions,
+impl<'a> MemoryAccessCollector<'a> {
+    /// Create a new collector.
+    fn new(
+        function: &'a mir::Function,
         tree: &'a mir::Tree,
-        parameters: &'a [mir::FunctionParameter],
-        value_types: &'a ValueTypes,
+        definitions: &DefinitionTable,
+        value_types: &'a ValueTypeTable,
+        accesses: &'a mir::AccessTable,
+        effect_table: &'a mir::EffectTable,
         target_layout: TargetLayout,
     ) -> Self {
+        // build collector state
         Self {
-            cache: HashMap::new(),
-            definitions,
+            function,
             tree,
-            parameters,
             value_types,
+            definitions: definitions.clone(),
+            accesses,
+            effect_table,
             target_layout,
         }
     }
 
-    /// Resolve an address-bearing value to a memory region.
-    pub fn region(&mut self, address: mir::Value) -> MemoryRegion {
-        // check cache
-        if let Some(cached) = self.cache.get(&address) {
-            return cached.clone();
+    /// Collect memory accesses for all reachable blocks.
+    fn collect(&mut self, entry: mir::LocalNodeId<mir::Block>) -> MemoryAccessCollection {
+        // collect reachable blocks
+        let reachable_blocks = collect_reachable_blocks(self.function, self.tree, entry);
+        let reachable: HashSet<_> = reachable_blocks.iter().copied().collect();
+
+        // collect memory accesses per block
+        let mut block_accesses = NodeTable::from_nodes(self.function.blocks(), Vec::new);
+        let mut def_blocks = HashSet::new();
+
+        // scan reachable blocks
+        for &block_id in &reachable_blocks {
+            let block = self.tree.get(block_id);
+            let mut accesses = Vec::new();
+
+            // scan instructions for memory effects
+            for &instruction_id in &block.instructions {
+                let instruction = self.tree.get(instruction_id);
+                let effects = self.instruction_effects(instruction_id, instruction);
+                if effects.is_empty() {
+                    continue;
+                }
+
+                for effect in effects {
+                    if effect.writes || effect.is_barrier {
+                        accesses.push(CollectedAccess::Def {
+                            source: MemoryAccessSource::Instruction(instruction_id),
+                            effect,
+                        });
+                        def_blocks.insert(block_id);
+                    } else if effect.reads {
+                        accesses.push(CollectedAccess::Use {
+                            source: MemoryAccessSource::Instruction(instruction_id),
+                            effect,
+                        });
+                    }
+                }
+            }
+
+            // scan the terminator for call and allocation effects
+            let terminator = self.tree.get(block.terminator);
+            let effects = self.terminator_effects(block_id, terminator);
+            for effect in effects {
+                if effect.writes || effect.is_barrier {
+                    accesses.push(CollectedAccess::Def {
+                        source: MemoryAccessSource::Terminator(block_id),
+                        effect,
+                    });
+                    def_blocks.insert(block_id);
+                } else if effect.reads {
+                    accesses.push(CollectedAccess::Use {
+                        source: MemoryAccessSource::Terminator(block_id),
+                        effect,
+                    });
+                }
+            }
+
+            // store collected accesses when present
+            *block_accesses.get_mut(block_id) = accesses;
         }
 
-        let result = self.region_impl(address);
-        self.cache.insert(address, result.clone());
-        result
+        MemoryAccessCollection {
+            block_accesses,
+            def_blocks,
+            reachable_blocks,
+            reachable,
+        }
     }
 
-    /// Resolve address provenance in a memory region.
-    pub fn resolve(&mut self, region: &MemoryRegion) -> MemoryRegion {
-        // resolve addressed regions through their defining value
-        if let Some(location) = region.location() {
-            self.region(location.address)
+    /// Determine memory effects for an instruction.
+    fn instruction_effects(
+        &mut self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        // use explicit tables when present
+        if let Some(effects) = self.table_effects(instruction_id) {
+            return effects;
         }
-        // preserve already resolved regions
-        else {
-            region.clone()
+
+        // classify instruction memory effects
+        match instruction {
+            mir::Instruction::Error => {
+                panic!("invalid MIR instruction reached optimizer");
+            }
+
+            // pure instructions
+            mir::Instruction::Const { .. }
+            | mir::Instruction::Binary { .. }
+            | mir::Instruction::Unary { .. }
+            | mir::Instruction::Cast { .. }
+            | mir::Instruction::Select { .. }
+            | mir::Instruction::GlobalAddr { .. }
+            | mir::Instruction::FunctionAddr { .. }
+            | mir::Instruction::FunctionBind { .. }
+            | mir::Instruction::FunctionEnvironment { .. }
+            | mir::Instruction::FunctionEnvironmentCurrent { .. }
+            | mir::Instruction::ContextGet { .. }
+            | mir::Instruction::LocalAddr { .. }
+            | mir::Instruction::Aggregate { .. }
+            | mir::Instruction::FieldGet { .. }
+            | mir::Instruction::FieldSet { .. }
+            | mir::Instruction::ElementGet { .. }
+            | mir::Instruction::ElementSet { .. }
+            | mir::Instruction::FieldAddr { .. }
+            | mir::Instruction::ElementAddr { .. }
+            | mir::Instruction::VariantNew { .. }
+            | mir::Instruction::VariantTag { .. }
+            | mir::Instruction::VariantPayload { .. }
+            | mir::Instruction::VariantPayloadAddr { .. }
+            | mir::Instruction::SliceView { .. }
+            | mir::Instruction::SliceLength { .. }
+            | mir::Instruction::DynamicBind { .. }
+            | mir::Instruction::DynamicPayload { .. }
+            | mir::Instruction::DynamicType { .. }
+            | mir::Instruction::DynamicRead { .. }
+            | mir::Instruction::DynamicFind { .. }
+            | mir::Instruction::VectorSplat { .. }
+            | mir::Instruction::VectorExtract { .. }
+            | mir::Instruction::VectorInsert { .. }
+            | mir::Instruction::VectorShuffle { .. }
+            | mir::Instruction::VectorSelect { .. }
+            | mir::Instruction::VectorReduce { .. }
+            | mir::Instruction::VectorCompare { .. }
+            | mir::Instruction::VectorConvert { .. }
+            | mir::Instruction::TensorSplat { .. }
+            | mir::Instruction::TensorExtract { .. }
+            | mir::Instruction::TensorReshape { .. }
+            | mir::Instruction::TensorBroadcast { .. }
+            | mir::Instruction::TensorTranspose { .. }
+            | mir::Instruction::TensorCast { .. }
+            | mir::Instruction::TensorView { .. }
+            | mir::Instruction::TensorSlice { .. }
+            | mir::Instruction::TensorPad { .. }
+            | mir::Instruction::TensorConcat { .. }
+            | mir::Instruction::TensorReduce { .. }
+            | mir::Instruction::TensorIndexReduce { .. }
+            | mir::Instruction::TensorDot { .. }
+            | mir::Instruction::TensorConvolution { .. }
+            | mir::Instruction::TensorGather { .. }
+            | mir::Instruction::TensorScatter { .. }
+            | mir::Instruction::TensorCompare { .. }
+            | mir::Instruction::TensorSelect { .. }
+            | mir::Instruction::TensorConvert { .. }
+            | mir::Instruction::NewComplete { .. }
+            | mir::Instruction::Assume { .. }
+            | mir::Instruction::ProfileIncrement { .. }
+            | mir::Instruction::ProfileSample { .. }
+            | mir::Instruction::Breakpoint => SmallVec::new(),
+            mir::Instruction::TensorLoad { view, .. } => {
+                let view = *view;
+
+                let value_type = self.address_value_type(view);
+                let reference_kind = self.reference_kind(view);
+                let reference_storage = self.reference_storage(view);
+                let mut effect = MemoryAccessEffect::read(
+                    MemoryRegion::from_address(
+                        view,
+                        value_type,
+                        reference_kind,
+                        reference_storage,
+                        self.target_layout.pointer_bits(),
+                        self.tree,
+                    ),
+                    false,
+                );
+                self.apply_address_region(&mut effect, view);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::TensorStore { view, .. }
+            | mir::Instruction::TensorFill { view, .. } => {
+                let view = *view;
+
+                let value_type = self.address_value_type(view);
+                let reference_kind = self.reference_kind(view);
+                let reference_storage = self.reference_storage(view);
+                let mut effect = MemoryAccessEffect::write(
+                    MemoryRegion::from_address(
+                        view,
+                        value_type,
+                        reference_kind,
+                        reference_storage,
+                        self.target_layout.pointer_bits(),
+                        self.tree,
+                    ),
+                    false,
+                );
+                self.apply_address_region(&mut effect, view);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::TensorCopy { target, source } => {
+                let target = *target;
+                let source = *source;
+
+                let mut effects = SmallVec::new();
+                let target_access = self.address_value_type(target);
+                let target_kind = self.reference_kind(target);
+                let target_storage = self.reference_storage(target);
+                let mut target_effect = MemoryAccessEffect::write(
+                    MemoryRegion::from_address(
+                        target,
+                        target_access,
+                        target_kind,
+                        target_storage,
+                        self.target_layout.pointer_bits(),
+                        self.tree,
+                    ),
+                    false,
+                );
+                self.apply_address_region(&mut target_effect, target);
+                effects.push(target_effect);
+
+                let source_access = self.address_value_type(source);
+                let source_kind = self.reference_kind(source);
+                let source_storage = self.reference_storage(source);
+                let mut source_effect = MemoryAccessEffect::read(
+                    MemoryRegion::from_address(
+                        source,
+                        source_access,
+                        source_kind,
+                        source_storage,
+                        self.target_layout.pointer_bits(),
+                        self.tree,
+                    ),
+                    false,
+                );
+                self.apply_address_region(&mut source_effect, source);
+                effects.push(source_effect);
+
+                effects
+            }
+            mir::Instruction::Load { pointer, .. }
+            | mir::Instruction::VariantTagLoad {
+                variant: pointer, ..
+            } => {
+                let pointer = *pointer;
+
+                let value_type = self.address_value_type(pointer);
+                let reference_kind = self.reference_kind(pointer);
+                let reference_storage = self.reference_storage(pointer);
+                let mut effect = MemoryAccessEffect::read(
+                    MemoryRegion::from_address(
+                        pointer,
+                        value_type,
+                        reference_kind,
+                        reference_storage,
+                        self.target_layout.pointer_bits(),
+                        self.tree,
+                    ),
+                    false,
+                );
+                self.apply_address_region(&mut effect, pointer);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::Store { pointer, .. } => {
+                let pointer = *pointer;
+
+                let value_type = self.address_value_type(pointer);
+                let reference_kind = self.reference_kind(pointer);
+                let reference_storage = self.reference_storage(pointer);
+                let mut effect = MemoryAccessEffect::write(
+                    MemoryRegion::from_address(
+                        pointer,
+                        value_type,
+                        reference_kind,
+                        reference_storage,
+                        self.target_layout.pointer_bits(),
+                        self.tree,
+                    ),
+                    false,
+                );
+                self.apply_address_region(&mut effect, pointer);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::AtomicLoad { pointer, .. } => {
+                let pointer = *pointer;
+
+                let value_type = self.address_value_type(pointer);
+                let reference_kind = self.reference_kind(pointer);
+                let reference_storage = self.reference_storage(pointer);
+                let mut effect = MemoryAccessEffect::read(
+                    MemoryRegion::from_address(
+                        pointer,
+                        value_type,
+                        reference_kind,
+                        reference_storage,
+                        self.target_layout.pointer_bits(),
+                        self.tree,
+                    ),
+                    true,
+                );
+                self.apply_address_region(&mut effect, pointer);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::AtomicStore { pointer, .. } => {
+                let pointer = *pointer;
+
+                let value_type = self.address_value_type(pointer);
+                let reference_kind = self.reference_kind(pointer);
+                let reference_storage = self.reference_storage(pointer);
+                let mut effect = MemoryAccessEffect::write(
+                    MemoryRegion::from_address(
+                        pointer,
+                        value_type,
+                        reference_kind,
+                        reference_storage,
+                        self.target_layout.pointer_bits(),
+                        self.tree,
+                    ),
+                    true,
+                );
+                self.apply_address_region(&mut effect, pointer);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::AtomicCompareExchange { pointer, .. }
+            | mir::Instruction::AtomicRmw { pointer, .. } => {
+                let pointer = *pointer;
+
+                let value_type = self.address_value_type(pointer);
+                let reference_kind = self.reference_kind(pointer);
+                let reference_storage = self.reference_storage(pointer);
+                let mut effect = MemoryAccessEffect::read_write(
+                    MemoryRegion::from_address(
+                        pointer,
+                        value_type,
+                        reference_kind,
+                        reference_storage,
+                        self.target_layout.pointer_bits(),
+                        self.tree,
+                    ),
+                    true,
+                );
+                self.apply_address_region(&mut effect, pointer);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::AtomicFence { .. } => {
+                Self::single_effect(MemoryAccessEffect::barrier())
+            }
+            mir::Instruction::BarrierWrite { .. } => {
+                Self::single_effect(MemoryAccessEffect::read_write(
+                    MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                    false,
+                ))
+            }
+            mir::Instruction::LocalGet { local, .. } => {
+                let mut effect = MemoryAccessEffect::read(MemoryRegion::Local(*local), false);
+                self.apply_local_region(&mut effect);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::LocalSet { local, .. } => {
+                let mut effect = MemoryAccessEffect::write(MemoryRegion::Local(*local), false);
+                self.apply_local_region(&mut effect);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::Call { .. } => self.call_effects(instruction_id, instruction),
+            mir::Instruction::CallDetach { .. }
+            | mir::Instruction::ContextCurrent { .. }
+            | mir::Instruction::ContextReplace { .. }
+            | mir::Instruction::ContextBind { .. }
+            | mir::Instruction::Free { .. }
+            | mir::Instruction::Drop { .. }
+            | mir::Instruction::Pin { .. }
+            | mir::Instruction::Unpin { .. }
+            | mir::Instruction::NewZeroed { .. }
+            | mir::Instruction::NewUninit { .. }
+            | mir::Instruction::NewSliceZeroed { .. }
+            | mir::Instruction::NewSliceUninit { .. }
+            | mir::Instruction::Poll => Self::single_effect(MemoryAccessEffect::read_write(
+                MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                false,
+            )),
+            mir::Instruction::Intrinsic {
+                intrinsic,
+                arguments,
+                ..
+            } => self.intrinsic_effects(*intrinsic, *arguments),
         }
     }
 
-    /// Resolve an address-bearing value to a memory region.
-    fn region_impl(&mut self, address: mir::Value) -> MemoryRegion {
-        // check if it's a parameter
-        for (index, parameter) in self.parameters.iter().enumerate() {
-            if parameter.value == address {
-                return self.parameter_region(index, parameter);
+    /// Determine memory effects for a block terminator.
+    fn terminator_effects(
+        &mut self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        terminator: &mir::Terminator,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        match terminator {
+            mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. } => self
+                .callsite_effects(
+                    mir::CallSite::Terminator(block_id),
+                    terminator.call_direct_target(),
+                ),
+
+            mir::Terminator::NewZeroedTry { .. }
+            | mir::Terminator::NewUninitTry { .. }
+            | mir::Terminator::NewSliceZeroedTry { .. }
+            | mir::Terminator::NewSliceUninitTry { .. } => {
+                Self::single_effect(MemoryAccessEffect::read_write(
+                    MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                    false,
+                ))
+            }
+
+            mir::Terminator::Error => {
+                panic!("invalid MIR terminator reached MemoryTable");
+            }
+
+            mir::Terminator::Return { .. }
+            | mir::Terminator::Jump { .. }
+            | mir::Terminator::Branch { .. }
+            | mir::Terminator::Check { .. }
+            | mir::Terminator::Switch { .. }
+            | mir::Terminator::VariantSwitch { .. }
+            | mir::Terminator::Panic { .. }
+            | mir::Terminator::UnwindResume
+            | mir::Terminator::Abort { .. }
+            | mir::Terminator::Unreachable => SmallVec::new(),
+        }
+    }
+
+    /// Convert explicit memory tables into access effects.
+    fn table_effects(
+        &mut self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+    ) -> Option<SmallVec<[MemoryAccessEffect; 2]>> {
+        // read tables when present
+        let accesses = self.accesses.get(instruction_id)?;
+
+        // build effect list from tables
+        let mut effects = SmallVec::new();
+        for access in accesses {
+            effects.push(self.effect_from_entry(access));
+        }
+
+        Some(effects)
+    }
+
+    /// Map one memory access to a MemoryTable effect.
+    fn effect_from_entry(&mut self, access: &mir::MemoryAccess) -> MemoryAccessEffect {
+        // resolve the target region
+        let region = match access.target {
+            mir::MemoryTarget::Address(pointer) => {
+                let value_type = self.address_value_type(pointer);
+                let reference_kind = self.reference_kind(pointer);
+                let reference_storage = self.reference_storage(pointer);
+                MemoryRegion::from_address_with_size(
+                    pointer,
+                    value_type,
+                    reference_kind,
+                    reference_storage,
+                    access.byte_len,
+                    self.target_layout.pointer_bits(),
+                    self.tree,
+                )
+            }
+            mir::MemoryTarget::Local(local) => MemoryRegion::Local(local),
+            mir::MemoryTarget::Global(global) => {
+                MemoryRegion::any_spaces(self.tree.get(global).storage.storage_set())
+            }
+        };
+
+        // map the access operation to an effect
+        let is_volatile = access.requires_exact_position();
+        let mut effect = match access.operation {
+            mir::MemoryOperation::Read => MemoryAccessEffect::read(region, is_volatile),
+            mir::MemoryOperation::Write => MemoryAccessEffect::write(region, is_volatile),
+            mir::MemoryOperation::ReadWrite => MemoryAccessEffect::read_write(region, is_volatile),
+        };
+
+        // apply target storage
+        let spaces = self.entry_storage_set(access);
+        effect.region.set_spaces(spaces);
+        effect
+    }
+
+    /// Apply address region tables to an effect.
+    fn apply_address_region(&mut self, effect: &mut MemoryAccessEffect, address: mir::Value) {
+        let spaces = self.address_storage_set(address);
+        effect.region.set_spaces(spaces);
+    }
+
+    /// Apply local region tables to an effect.
+    fn apply_local_region(&mut self, effect: &mut MemoryAccessEffect) {
+        effect.region.set_spaces(mir::StorageSet::FRAME);
+    }
+
+    /// Resolve storage from an access target.
+    fn entry_storage_set(&mut self, access: &mir::MemoryAccess) -> mir::StorageSet {
+        match access.target {
+            mir::MemoryTarget::Local(_) => mir::StorageSet::FRAME,
+            mir::MemoryTarget::Global(global) => self.tree.get(global).storage.storage_set(),
+            mir::MemoryTarget::Address(pointer) => self.address_storage_set(pointer),
+        }
+    }
+
+    /// Resolve the memory spaces for an address-bearing value.
+    fn address_storage_set(&mut self, address: mir::Value) -> mir::StorageSet {
+        let Some(storage) = self.value_types.reference_storage(address, self.tree) else {
+            return mir::StorageSet::ANY;
+        };
+
+        storage.storage_set()
+    }
+
+    /// Determine memory effects for a call instruction using tables.
+    fn call_effects(
+        &mut self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        self.callsite_effects(
+            mir::CallSite::Instruction(instruction_id),
+            instruction.call_direct_target(),
+        )
+    }
+
+    /// Determine memory effects for a callsite using tables.
+    fn callsite_effects(
+        &self,
+        callsite: mir::CallSite,
+        direct_target: Option<mir::LocalNodeId<mir::Function>>,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        // use callsite or callee tables for memory effects
+        let call_entries = self.effect_table.call(callsite);
+        let mut memory_effects = call_entries
+            .map(|tables| tables.memory.clone())
+            .or_else(|| self.callee_memory_effects(direct_target));
+
+        // treat missing tables as fully unknown
+        let Some(effects) = memory_effects.take() else {
+            return Self::single_effect(MemoryAccessEffect::read_write(
+                MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                false,
+            ));
+        };
+
+        // skip calls with no memory effects
+        if !effects.reads() && !effects.writes() {
+            return SmallVec::new();
+        }
+
+        // skip empty storage
+        if effects.storage().is_empty() {
+            return SmallVec::new();
+        }
+
+        self.effects_from_call_effect(&effects)
+    }
+
+    /// Convert call memory effects to MemoryTable effects.
+    fn effects_from_call_effect(
+        &self,
+        effects: &mir::MemoryEffect,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        let mut accesses = SmallVec::new();
+
+        // keep shared read/write spaces precise when possible
+        if effects.read == effects.write {
+            accesses.push(MemoryAccessEffect::read_write(
+                MemoryRegion::any_spaces(effects.read),
+                false,
+            ));
+        } else {
+            if !effects.read.is_empty() {
+                accesses.push(MemoryAccessEffect::read(
+                    MemoryRegion::any_spaces(effects.read),
+                    false,
+                ));
+            }
+
+            if !effects.write.is_empty() {
+                accesses.push(MemoryAccessEffect::write(
+                    MemoryRegion::any_spaces(effects.write),
+                    false,
+                ));
             }
         }
 
-        // check if it's defined by an instruction
-        let Some(instruction_id) = self.definitions.instruction(address) else {
-            return self.any_region(address);
-        };
+        accesses
+    }
 
+    /// Read memory effects from a direct callee when available.
+    fn callee_memory_effects(
+        &self,
+        function: Option<mir::LocalNodeId<mir::Function>>,
+    ) -> Option<mir::MemoryEffect> {
+        // only direct calls have callee tables
+        let function = function?;
+        self.effect_table
+            .function(function)
+            .map(|tables| tables.memory.clone())
+    }
+
+    /// Determine memory effects for an intrinsic.
+    fn intrinsic_effects(
+        &mut self,
+        intrinsic: mir::Intrinsic,
+        arguments: mir::ValueSlice,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        // load intrinsic arguments
+        let args = self.tree.get_values(arguments);
+
+        // classify intrinsic memory effects
+        match intrinsic {
+            // bit manipulation
+            mir::Intrinsic::LeadingZeroCount
+            | mir::Intrinsic::TrailingZeroCount
+            | mir::Intrinsic::PopulationCount
+            | mir::Intrinsic::ByteSwap
+            | mir::Intrinsic::BitReverse
+            | mir::Intrinsic::RotateLeft
+            | mir::Intrinsic::RotateRight
+            | mir::Intrinsic::IsolateLowestOne => SmallVec::new(),
+
+            // numeric operations
+            mir::Intrinsic::Midpoint
+            | mir::Intrinsic::Clamp
+            | mir::Intrinsic::DivideCeil
+            | mir::Intrinsic::RemainderEuclidean
+            | mir::Intrinsic::IsMultipleOf
+            | mir::Intrinsic::AbsDiff => SmallVec::new(),
+
+            // overflowing arithmetic
+            mir::Intrinsic::AddOverflow
+            | mir::Intrinsic::SubOverflow
+            | mir::Intrinsic::MulOverflow => SmallVec::new(),
+
+            // unchecked arithmetic
+            mir::Intrinsic::AddUnchecked
+            | mir::Intrinsic::SubUnchecked
+            | mir::Intrinsic::MulUnchecked
+            | mir::Intrinsic::DivUnchecked
+            | mir::Intrinsic::RemUnchecked
+            | mir::Intrinsic::ShlUnchecked
+            | mir::Intrinsic::ShrUnchecked => SmallVec::new(),
+
+            // saturating arithmetic
+            mir::Intrinsic::SatAdd | mir::Intrinsic::SatSub => SmallVec::new(),
+
+            // memory operations
+            mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
+                // collect the memory operands
+                let mut effects = SmallVec::new();
+                let dst = args.first();
+                let src = args.get(1);
+                let size = args.get(2).and_then(|len| self.constant_u64(*len));
+
+                // emit read and write effects when operands are present
+                match (dst, src) {
+                    (Some(dst), Some(src)) => {
+                        let dst_type = self.address_value_type(*dst);
+                        let src_type = self.address_value_type(*src);
+                        let dst_kind = self.reference_kind(*dst);
+                        let src_kind = self.reference_kind(*src);
+                        let dst_storage = self.reference_storage(*dst);
+                        let src_storage = self.reference_storage(*src);
+                        let mut read_effect = MemoryAccessEffect::read(
+                            MemoryRegion::from_address_with_size(
+                                *src,
+                                src_type,
+                                src_kind,
+                                src_storage,
+                                size,
+                                self.target_layout.pointer_bits(),
+                                self.tree,
+                            ),
+                            false,
+                        );
+                        self.apply_address_region(&mut read_effect, *src);
+                        effects.push(read_effect);
+
+                        let mut write_effect = MemoryAccessEffect::write(
+                            MemoryRegion::from_address_with_size(
+                                *dst,
+                                dst_type,
+                                dst_kind,
+                                dst_storage,
+                                size,
+                                self.target_layout.pointer_bits(),
+                                self.tree,
+                            ),
+                            false,
+                        );
+                        self.apply_address_region(&mut write_effect, *dst);
+                        effects.push(write_effect);
+                    }
+                    _ => effects.push(MemoryAccessEffect::read_write(
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                        false,
+                    )),
+                }
+
+                // return the effects
+                effects
+            }
+            mir::Intrinsic::Memset => {
+                // collect the memory operands
+                let mut effects = SmallVec::new();
+                let dst = args.first();
+                let size = args.get(2).and_then(|len| self.constant_u64(*len));
+
+                // emit write effects when operands are present
+                match dst {
+                    Some(dst) => {
+                        let dst_type = self.address_value_type(*dst);
+                        let dst_kind = self.reference_kind(*dst);
+                        let dst_storage = self.reference_storage(*dst);
+                        let mut effect = MemoryAccessEffect::write(
+                            MemoryRegion::from_address_with_size(
+                                *dst,
+                                dst_type,
+                                dst_kind,
+                                dst_storage,
+                                size,
+                                self.target_layout.pointer_bits(),
+                                self.tree,
+                            ),
+                            false,
+                        );
+                        self.apply_address_region(&mut effect, *dst);
+                        effects.push(effect);
+                    }
+                    None => effects.push(MemoryAccessEffect::write(
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                        false,
+                    )),
+                }
+
+                // return the effects
+                effects
+            }
+            mir::Intrinsic::Memcmp => {
+                // collect the memory operands
+                let mut effects = SmallVec::new();
+                let left = args.first();
+                let right = args.get(1);
+                let size = args.get(2).and_then(|len| self.constant_u64(*len));
+
+                // emit read effects when operands are present
+                match (left, right) {
+                    (Some(left), Some(right)) => {
+                        let left_type = self.address_value_type(*left);
+                        let right_type = self.address_value_type(*right);
+                        let left_kind = self.reference_kind(*left);
+                        let right_kind = self.reference_kind(*right);
+                        let left_storage = self.reference_storage(*left);
+                        let right_storage = self.reference_storage(*right);
+                        let mut left_effect = MemoryAccessEffect::read(
+                            MemoryRegion::from_address_with_size(
+                                *left,
+                                left_type,
+                                left_kind,
+                                left_storage,
+                                size,
+                                self.target_layout.pointer_bits(),
+                                self.tree,
+                            ),
+                            false,
+                        );
+                        self.apply_address_region(&mut left_effect, *left);
+                        effects.push(left_effect);
+
+                        let mut right_effect = MemoryAccessEffect::read(
+                            MemoryRegion::from_address_with_size(
+                                *right,
+                                right_type,
+                                right_kind,
+                                right_storage,
+                                size,
+                                self.target_layout.pointer_bits(),
+                                self.tree,
+                            ),
+                            false,
+                        );
+                        self.apply_address_region(&mut right_effect, *right);
+                        effects.push(right_effect);
+                    }
+                    _ => effects.push(MemoryAccessEffect::read(
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                        false,
+                    )),
+                }
+
+                // return the effects
+                effects
+            }
+            mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => {
+                // collect the memory operands
+                let mut effects = SmallVec::new();
+                let pointer = args.first().copied();
+
+                // emit read effects when operands are present
+                match pointer {
+                    Some(pointer) => {
+                        let value_type = self.address_value_type(pointer);
+                        let reference_kind = self.reference_kind(pointer);
+                        let reference_storage = self.reference_storage(pointer);
+                        let mut effect = MemoryAccessEffect::read(
+                            MemoryRegion::from_address(
+                                pointer,
+                                value_type,
+                                reference_kind,
+                                reference_storage,
+                                self.target_layout.pointer_bits(),
+                                self.tree,
+                            ),
+                            false,
+                        );
+                        self.apply_address_region(&mut effect, pointer);
+                        effects.push(effect);
+                    }
+                    None => effects.push(MemoryAccessEffect::read(
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                        false,
+                    )),
+                }
+
+                // return the effects
+                effects
+            }
+
+            // preserve volatile pointer position
+            mir::Intrinsic::VolatileLoad | mir::Intrinsic::VolatileStore => {
+                let mut effects = SmallVec::new();
+                let pointer = args.first().copied();
+                let is_load = intrinsic == mir::Intrinsic::VolatileLoad;
+
+                // emit a volatile effect on the accessed location
+                match pointer {
+                    Some(pointer) => {
+                        let value_type = self.address_value_type(pointer);
+                        let reference_kind = self.reference_kind(pointer);
+                        let reference_storage = self.reference_storage(pointer);
+                        let region = MemoryRegion::from_address(
+                            pointer,
+                            value_type,
+                            reference_kind,
+                            reference_storage,
+                            self.target_layout.pointer_bits(),
+                            self.tree,
+                        );
+                        let mut effect = match is_load {
+                            true => MemoryAccessEffect::read(region, true),
+                            false => MemoryAccessEffect::write(region, true),
+                        };
+                        self.apply_address_region(&mut effect, pointer);
+                        effects.push(effect);
+                    }
+                    None => effects.push(MemoryAccessEffect::read_write(
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                        true,
+                    )),
+                }
+
+                effects
+            }
+
+            // representation-only intrinsics
+            mir::Intrinsic::Transmute
+            | mir::Intrinsic::SpaceCast
+            | mir::Intrinsic::PointerByteOffsetFrom
+            | mir::Intrinsic::RawEq => SmallVec::new(),
+
+            // tensor operations
+
+            // float math
+            mir::Intrinsic::Sqrt
+            | mir::Intrinsic::Abs
+            | mir::Intrinsic::IsFinite
+            | mir::Intrinsic::IsInfinite
+            | mir::Intrinsic::Fma
+            | mir::Intrinsic::CopySign
+            | mir::Intrinsic::Min
+            | mir::Intrinsic::Max
+            | mir::Intrinsic::Sin
+            | mir::Intrinsic::Cos
+            | mir::Intrinsic::Tan
+            | mir::Intrinsic::Asin
+            | mir::Intrinsic::Acos
+            | mir::Intrinsic::Atan
+            | mir::Intrinsic::Atan2
+            | mir::Intrinsic::Exp
+            | mir::Intrinsic::Exp2
+            | mir::Intrinsic::Log
+            | mir::Intrinsic::Log2
+            | mir::Intrinsic::Log10
+            | mir::Intrinsic::Pow
+            | mir::Intrinsic::Floor
+            | mir::Intrinsic::Ceil
+            | mir::Intrinsic::Trunc
+            | mir::Intrinsic::Round
+            | mir::Intrinsic::RoundTiesEven
+            | mir::Intrinsic::RoundTiesAway => SmallVec::new(),
+
+            // compiler hints
+            mir::Intrinsic::SpinLoop | mir::Intrinsic::Expect | mir::Intrinsic::BlackBox => {
+                SmallVec::new()
+            }
+        }
+    }
+
+    /// Resolve a constant byte size from a value when possible.
+    fn constant_u64(&self, value: mir::Value) -> Option<u64> {
+        // look up the defining instruction
+        let instruction_id = self.definitions.instruction(value)?;
         let instruction = self.tree.get(instruction_id);
 
-        match instruction {
-            mir::Instruction::NewZeroed { destination, .. }
-            | mir::Instruction::NewUninit { destination, .. }
-                if *destination == address =>
-            {
-                self.allocation_region(instruction_id, address)
-            }
-            mir::Instruction::NewSliceZeroed { destination, .. }
-            | mir::Instruction::NewSliceUninit { destination, .. }
-                if *destination == address =>
-            {
-                self.allocation_region(instruction_id, address)
-            }
-            mir::Instruction::NewComplete {
-                destination, value, ..
-            } if *destination == address => {
-                let value = *value;
-
-                self.region(value)
-            }
-
-            // identify global storage
-            mir::Instruction::GlobalAddr {
-                destination,
-                global,
-                ..
-            } if *destination == address => {
-                let global_id = *global;
-                let global = self.tree.get(global_id);
-
-                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Global {
-                    global: global_id,
-                    storage: global.storage,
-                }))
-            }
-            mir::Instruction::LocalAddr {
-                destination, local, ..
-            } if *destination == address => {
-                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::LocalSlot(*local)))
-            }
-
-            // extend precise region with a field path
-            mir::Instruction::FieldAddr {
-                destination,
-                aggregate,
-                field,
-                ..
-            } if *destination == address => {
-                let aggregate = *aggregate;
-
-                let mut region = self.region(aggregate);
-                if let MemoryRegion::Place(place) = &mut region {
-                    place.add_field(*field);
-                }
-
-                region
-            }
-
-            // extend precise region with an indexed offset
-            mir::Instruction::ElementAddr {
-                destination,
-                base,
-                index,
-                ..
-            } if *destination == address => {
-                let base = *base;
-                let index = *index;
-
-                let mut region = self.region(base);
-
-                let scale = self.expect_element_size(base);
-                if let MemoryRegion::Place(place) = &mut region {
-                    place.add_indexed_offset(index, scale);
-                }
-
-                region
-            }
-
-            // preserve variant storage provenance without claiming disjoint payloads
-            mir::Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                ..
-            } if *destination == address => self.region(*variant),
-
-            // casts preserve provenance
-            mir::Instruction::Cast {
-                destination,
-                argument,
-                ..
-            } if *destination == address => {
-                let argument = *argument;
-
-                self.region(argument)
-            }
-
-            // anything else is imprecise
-            _ => self.any_region(address),
-        }
-    }
-
-    /// Return a region for a parameter address.
-    fn parameter_region(&self, index: usize, parameter: &mir::FunctionParameter) -> MemoryRegion {
-        let ty = self.tree.get(parameter.ty);
-
-        match (
-            ty.reference_kind(),
-            ty.reference_storage(),
-            ty.reference_access(),
-        ) {
-            (Some(kind), Some(storage), Some(access)) => {
-                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Parameter {
-                    index: index as u32,
-                    storage,
-                    kind,
-                    access,
-                }))
-            }
-            _ => MemoryRegion::any(),
-        }
-    }
-
-    /// Return a region for a heap allocation.
-    fn allocation_region(
-        &self,
-        instruction: mir::LocalNodeId<mir::Instruction>,
-        address: mir::Value,
-    ) -> MemoryRegion {
-        let ty_id = self.value_type(address);
-        let ty = self.tree.get(ty_id);
-
-        match (ty.reference_kind(), ty.reference_storage()) {
-            (Some(kind), Some(storage)) => {
-                let mir::Storage::Heap(space) = storage else {
-                    return MemoryRegion::any_storage(storage);
-                };
-
-                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Allocation {
-                    instruction,
-                    space,
-                    kind,
-                }))
-            }
-            _ => MemoryRegion::any(),
-        }
-    }
-
-    /// Return an imprecise region bounded by an address type when possible.
-    fn any_region(&self, address: mir::Value) -> MemoryRegion {
-        let ty_id = self.value_type(address);
-        let ty = self.tree.get(ty_id);
-
-        ty.reference_storage()
-            .map_or_else(MemoryRegion::any, MemoryRegion::any_storage)
-    }
-
-    /// Return the value type for an SSA value.
-    fn value_type(&self, value: mir::Value) -> mir::LocalNodeId<mir::Type> {
-        self.value_types.expect_value_type(value)
-    }
-
-    /// Return the byte stride for one indexed value.
-    fn expect_element_size(&self, array: mir::Value) -> u64 {
-        let ty_id = self.value_type(array);
-        let element_id = match self.tree.get(ty_id) {
-            mir::Type::FixedArray { element, .. }
-            | mir::Type::Slice { element, .. }
-            | mir::Type::Tensor { element, .. }
-            | mir::Type::TensorView { element, .. } => *element,
-            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
-                self.expect_pointee_element(*pointee)
-            }
-            _ => panic!("element.address requires an indexed value, got {ty_id:?}"),
+        // extract integer constants only
+        let mir::Instruction::Const { value, .. } = instruction else {
+            return None;
         };
 
-        match self
-            .tree
-            .get(element_id)
-            .byte_size(self.tree, self.target_layout.pointer_bits())
-        {
-            Some(size) if size > 0 => size,
-            _ => panic!("element.address requires a byte-sized element, got {element_id:?}"),
+        match value {
+            mir::Constant::UInt { value, .. } => u64::try_from(*value).ok(),
+            mir::Constant::Int { value, .. } => {
+                if *value >= 0 {
+                    u64::try_from(*value).ok()
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 
-    /// Return the element type for an indexed pointee.
-    fn expect_pointee_element(&self, pointee: mir::TypeId) -> mir::TypeId {
-        match self.tree.get(pointee) {
-            mir::Type::FixedArray { element, .. }
-            | mir::Type::Slice { element, .. }
-            | mir::Type::Tensor { element, .. }
-            | mir::Type::TensorView { element, .. } => *element,
-            _ => panic!("element.address requires an indexed pointee, got {pointee:?}"),
-        }
+    /// Wrap a single access effect in a small vector.
+    fn single_effect(effect: MemoryAccessEffect) -> SmallVec<[MemoryAccessEffect; 2]> {
+        let mut effects = SmallVec::new();
+        effects.push(effect);
+        effects
+    }
+
+    /// Resolve the pointee type for an address-bearing value.
+    fn address_value_type(&self, address: mir::Value) -> Option<mir::TypeId> {
+        self.value_types.pointee_type(address, self.tree)
+    }
+
+    /// Return the reference kind carried by an address, when applicable.
+    fn reference_kind(&self, address: mir::Value) -> Option<mir::ReferenceKind> {
+        self.value_types.reference_kind(address, self.tree)
+    }
+
+    /// Return the reference storage carried by an address, when applicable.
+    fn reference_storage(&self, address: mir::Value) -> Option<mir::Storage> {
+        self.value_types.reference_storage(address, self.tree)
     }
 }
 
-/// One half-open byte range.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ByteRange {
-    /// Start offset in bytes.
-    pub offset: i64,
-    /// Size in bytes.
-    pub size: u64,
+/// MemoryTable renamer for def use chains.
+struct MemoryRenamer<'a> {
+    /// MIR tree.
+    tree: &'a mir::Tree,
+    /// Entry block id.
+    entry: mir::LocalNodeId<mir::Block>,
+    /// Reachable block set.
+    reachable: HashSet<mir::LocalNodeId<mir::Block>>,
+    /// Dominator tree children.
+    children: NodeTable<mir::Block, Vec<mir::LocalNodeId<mir::Block>>>,
 }
 
-impl ByteRange {
-    /// Create a byte range.
-    pub fn new(offset: i64, size: u64) -> Self {
-        Self { offset, size }
-    }
+impl<'a> MemoryRenamer<'a> {
+    /// Create a new renamer.
+    fn new(
+        tree: &'a mir::Tree,
+        dominator: &'a DominatorTable,
+        entry: mir::LocalNodeId<mir::Block>,
+        reachable_blocks: &[mir::LocalNodeId<mir::Block>],
+    ) -> Self {
+        // build reachable set
+        let reachable: HashSet<_> = reachable_blocks.iter().copied().collect();
 
-    /// Return the exclusive end offset.
-    pub fn end(self) -> i64 {
-        self.offset.saturating_add(self.size as i64)
-    }
-
-    /// Return whether this range overlaps another range.
-    pub fn overlaps(self, other: ByteRange) -> bool {
-        let end = self.end();
-        let other_end = other.end();
-
-        !(end <= other.offset || other_end <= self.offset)
-    }
-
-    /// Return whether this range exactly equals another range.
-    pub fn equals(self, other: ByteRange) -> bool {
-        self.offset == other.offset && self.size == other.size
-    }
-
-    /// Return the relationship between this range and another range.
-    pub fn relation(self, other: ByteRange) -> RangeRelation {
-        let end = self.end();
-        let other_end = other.end();
-
-        // disjoint
-        if end <= other.offset || other_end <= self.offset {
-            return RangeRelation::Disjoint;
+        // build dominator tree children map
+        let mut children = NodeTable::from_nodes(reachable_blocks, Vec::new);
+        for &block in reachable_blocks {
+            if let Some(idom) = dominator.immediate_dominator(block) {
+                children.get_mut(idom).push(block);
+            }
         }
 
-        // equal
-        if self.equals(other) {
-            return RangeRelation::Equal;
+        Self {
+            tree,
+            entry,
+            reachable,
+            children,
         }
-
-        // containment
-        if self.offset <= other.offset && end >= other_end {
-            return RangeRelation::Contains;
-        }
-        if other.offset <= self.offset && other_end >= end {
-            return RangeRelation::ContainedBy;
-        }
-
-        RangeRelation::Overlaps
     }
-}
 
-/// Relationship between two byte ranges.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RangeRelation {
-    /// Ranges are disjoint.
-    Disjoint,
-    /// Ranges are exactly equal.
-    Equal,
-    /// First range contains second.
-    Contains,
-    /// Second range contains first.
-    ContainedBy,
-    /// Ranges partially overlap.
-    Overlaps,
+    /// Rename memory accesses to build SSA form.
+    fn rename(&mut self, ssa: &mut MemoryTable) {
+        // initialize stack with live on entry
+        let mut stack = Vec::new();
+        stack.push(ssa.live_on_entry);
+
+        // walk dominator tree
+        self.rename_block(ssa, self.entry, &mut stack);
+    }
+
+    /// Rename a block and its dominator children.
+    fn rename_block(
+        &self,
+        ssa: &mut MemoryTable,
+        block: mir::LocalNodeId<mir::Block>,
+        stack: &mut Vec<MemoryAccessId>,
+    ) {
+        // skip unreachable blocks
+        if !self.reachable.contains(&block) {
+            return;
+        }
+
+        // push block phi if present
+        let mut pushed = 0usize;
+        if let Some(phi_id) = *ssa.block_phis.get(block) {
+            stack.push(phi_id);
+            pushed += 1;
+        }
+
+        // process block accesses
+        for access_id in ssa.block_accesses.get(block).clone() {
+            let current = *stack.last().expect("missing memory definition");
+
+            match ssa.accesses.get_mut(access_id.index()) {
+                Some(MemoryNode::Use(use_access)) => {
+                    use_access.defining_access = Some(current);
+                }
+                Some(MemoryNode::Def(def_access)) => {
+                    def_access.defining_access = Some(current);
+                    stack.push(access_id);
+                    pushed += 1;
+                }
+                _ => {}
+            }
+        }
+
+        // wire phi incoming edges for successors
+        let block_data = self.tree.get(block);
+        let terminator = self.tree.get(block_data.terminator);
+        for successor in terminator.successors(self.tree) {
+            if let Some(phi_id) = *ssa.block_phis.get(successor)
+                && let Some(MemoryNode::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
+            {
+                let incoming = *stack.last().expect("missing memory definition");
+                phi.incoming.push((block, incoming));
+            }
+        }
+
+        // rename children
+        for &child in self.children.get(block) {
+            self.rename_block(ssa, child, stack);
+        }
+
+        // pop access stack for this block
+        for _ in 0..pushed {
+            stack.pop();
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
+    use crate::analyses::tests::TestProgram;
 
-    /// Ranges that overlap are detected as overlapping.
-    #[test]
-    fn test_ranges_overlap() {
-        assert!(!ByteRange::new(0, 4).overlaps(ByteRange::new(10, 4)));
-        assert!(!ByteRange::new(10, 4).overlaps(ByteRange::new(0, 4)));
-
-        assert!(!ByteRange::new(0, 4).overlaps(ByteRange::new(4, 4)));
-
-        assert!(ByteRange::new(0, 8).overlaps(ByteRange::new(4, 8)));
-        assert!(ByteRange::new(4, 8).overlaps(ByteRange::new(0, 8)));
-
-        assert!(ByteRange::new(0, 16).overlaps(ByteRange::new(4, 4)));
-        assert!(ByteRange::new(4, 4).overlaps(ByteRange::new(0, 16)));
-
-        assert!(ByteRange::new(0, 8).overlaps(ByteRange::new(0, 8)));
+    /// Extract the effect payload for a memory access.
+    fn access_effect(memory: &MemoryTable, access_id: MemoryAccessId) -> MemoryAccessEffect {
+        // unwrap use or def payloads
+        match memory.access(access_id) {
+            MemoryNode::Use(use_access) => use_access.effect.clone(),
+            MemoryNode::Def(def_access) => def_access.effect.clone(),
+            MemoryNode::Phi(_) | MemoryNode::LiveOnEntry => {
+                panic!("expected effectful access")
+            }
+        }
     }
 
-    /// Range relationships return the expected classification.
+    /// Extract the address value from a location when available.
+    fn address_from_region(location: &MemoryRegion) -> Option<mir::Value> {
+        // unwrap address-backed regions
+        match location {
+            MemoryRegion::Address { location, .. } => Some(location.address),
+            _ => None,
+        }
+    }
+
+    /// Extract the byte size from a location when available.
+    fn size_from_region(location: &MemoryRegion) -> Option<u64> {
+        // unwrap address-backed regions
+        match location {
+            MemoryRegion::Address { location, .. } => location.size,
+            _ => None,
+        }
+    }
+
+    /// Collect the memory accesses for an instruction.
+    fn instruction_accesses(
+        memory: &MemoryTable,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+    ) -> Vec<MemoryAccessId> {
+        // clone the access list when present
+        memory
+            .instruction_accesses(instruction)
+            .map(|accesses| accesses.to_vec())
+            .unwrap_or_default()
+    }
+
+    /// Collect the memory accesses for a terminator.
+    fn terminator_accesses(
+        memory: &MemoryTable,
+        block: mir::LocalNodeId<mir::Block>,
+    ) -> Vec<MemoryAccessId> {
+        // clone the access list when present
+        memory
+            .terminator_accesses(block)
+            .map(|accesses| accesses.to_vec())
+            .unwrap_or_default()
+    }
+
+    /// MemoryTable links uses to the latest defining access in a straight line.
     #[test]
-    fn test_range_relation() {
-        assert_eq!(
-            ByteRange::new(0, 4).relation(ByteRange::new(10, 4)),
-            RangeRelation::Disjoint
+    fn test_memory_linear_def_use() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
+    v1: int32 = 1
+    store v0, v1
+    v2: int32 = load v0
+    return v2
+}
+"#,
         );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        // find memory accesses
+        let block = test.tree.get(function.block(0));
+        let store_id = block.instructions[1];
+        let load_id = block.instructions[2];
+
+        let store_access = memory
+            .instruction_access(store_id)
+            .expect("missing store access");
+        let load_access = memory
+            .instruction_access(load_id)
+            .expect("missing load access");
+
+        // load should depend on store
+        assert_eq!(memory.defining_access(load_access), Some(store_access));
+
+        // store should depend on live on entry
         assert_eq!(
-            ByteRange::new(0, 8).relation(ByteRange::new(0, 8)),
-            RangeRelation::Equal
-        );
-        assert_eq!(
-            ByteRange::new(0, 16).relation(ByteRange::new(4, 4)),
-            RangeRelation::Contains
-        );
-        assert_eq!(
-            ByteRange::new(4, 4).relation(ByteRange::new(0, 16)),
-            RangeRelation::ContainedBy
-        );
-        assert_eq!(
-            ByteRange::new(0, 8).relation(ByteRange::new(4, 8)),
-            RangeRelation::Overlaps
+            memory.defining_access(store_access),
+            Some(memory.live_on_entry())
         );
     }
 
-    /// Storage roots expose their memory spaces.
+    /// MemoryTable inserts phis at join points with multiple incoming defs.
     #[test]
-    fn test_storage_spaces() {
-        let local = StorageRoot::LocalSlot(mir::LocalNodeId::new(0));
-        let allocation = StorageRoot::Allocation {
-            instruction: mir::LocalNodeId::new(1),
-            space: mir::Space::Shared,
-            kind: mir::ReferenceKind::Managed,
+    fn test_memory_phi_at_join() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: ref<int32, borrowed, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: boolean):
+    branch v1 => b1 | b2
+
+b1:
+    v2: int32 = 1
+    store v0, v2
+    jump b3
+
+b2:
+    v3: int32 = 2
+    store v0, v3
+    jump b3
+
+b3:
+    v4: int32 = load v0
+    return v4
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        // fetch join block phi
+        let join_block = function.block(3);
+        let phi_id = memory
+            .block_phi(join_block)
+            .expect("missing memory phi at join");
+
+        // load should depend on the phi
+        let load_inst = test.tree.get(join_block).instructions[0];
+        let load_access = memory
+            .instruction_access(load_inst)
+            .expect("missing load access");
+        assert_eq!(memory.defining_access(load_access), Some(phi_id));
+
+        // phi should have incoming for both predecessors
+        let MemoryNode::Phi(phi) = memory.access(phi_id) else {
+            panic!("expected memory phi");
         };
-        let parameter = StorageRoot::Parameter {
-            index: 0,
-            storage: mir::Storage::Heap(mir::Space::Local),
-            kind: mir::ReferenceKind::Borrowed,
-            access: mir::Access::Mutable,
+
+        assert_eq!(phi.incoming.len(), 2);
+    }
+
+    /// MemoryTable uses alias analysis to skip non aliasing defs.
+    #[test]
+    fn test_memory_clobber_skips_exclusive_def() {
+        let test = TestProgram::new(
+            r#"
+function test(): int32 {
+    local l0: int32
+    local l1: int32
+
+entry:
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v2: int32 = 1
+    store v0, v2
+    v3: int32 = 2
+    store v1, v3
+    v4: int32 = load v0
+    return v4
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let alias = analyses.alias(function, &test.tree);
+
+        // locate accesses
+        let block = test.tree.get(function.block(0));
+        let store_v0 = block.instructions[3];
+        let load_v0 = block.instructions[6];
+
+        let store_access = memory
+            .instruction_access(store_v0)
+            .expect("missing store access");
+        let load_access = memory
+            .instruction_access(load_v0)
+            .expect("missing load access");
+
+        // clobbering access should be the store to v0
+        let clobber = memory.clobbering_use(load_access, &alias);
+        assert_eq!(clobber, store_access);
+    }
+
+    /// MemoryTable prefers explicit access records.
+    #[test]
+    fn test_memory_entries_overrides_instruction() {
+        // input test
+        let mut test = TestProgram::new(
+            r#"
+function test(): int32 {
+    local l0: int32
+    local l1: int32
+
+entry:
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v2: int32 = 1
+    store v0, v2
+    v3: int32 = 2
+    store v1, v3
+    v4: int32 = load v0
+    return v4
+}
+"#,
+        );
+
+        // locate store and load instructions
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
+        let store_v1 = instructions[5];
+        let load_v0 = instructions[6];
+
+        // attach tables that retargets the load to v1
+        test.insert_address_location(
+            load_v0,
+            mir::MemoryOperation::Read,
+            mir::Value::new(1),
+            Some(4),
+        );
+
+        // build analyses
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let alias = analyses.alias(function, &test.tree);
+
+        // locate memory accesses
+        let load_access = memory
+            .instruction_access(load_v0)
+            .expect("missing load access");
+        let store_access = memory
+            .instruction_access(store_v1)
+            .expect("missing store access");
+
+        // clobber should follow the tables target
+        let clobber = memory.clobbering_use(load_access, &alias);
+        assert_eq!(clobber, store_access);
+    }
+
+    /// Local accesses are tracked independently of address memory.
+    #[test]
+    fn test_memory_local_access() {
+        let test = TestProgram::new(
+            r#"
+function test(): int32 {
+    local l0: int32
+
+entry:
+    v0: int32 = 7
+    local.set l0, v0
+    v1: int32 = local.get l0
+    return v1
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+
+        // locate local access
+        let block = test.tree.get(function.block(0));
+        let store_inst = block.instructions[1];
+        let load_inst = block.instructions[2];
+
+        let store_access = memory
+            .instruction_access(store_inst)
+            .expect("missing local store access");
+        let load_access = memory
+            .instruction_access(load_inst)
+            .expect("missing local load access");
+
+        // local load should see the local set
+        assert_eq!(memory.defining_access(load_access), Some(store_access));
+    }
+
+    /// Local effects touch addresses built from local addresses.
+    #[test]
+    fn test_memory_local_effect_clobbers_local_address() {
+        let test = TestProgram::new(
+            r#"
+function test(): int32 {
+    local l0: int32
+
+entry:
+    v0: int32 = 7
+    local.set l0, v0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v2: int32 = load v1
+    return v2
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let alias = analyses.alias(function, &test.tree);
+
+        // locate the local write and local-address load
+        let instructions = test.entry_instructions(function_id);
+        let local_set = instructions[1];
+        let location = MemoryLocation::from_address(mir::Value::new(1));
+
+        // local write must clobber the equivalent local-address address
+        let is_clobbered = memory
+            .instruction_effects(local_set)
+            .any(|effect| effect.clobbers_location(&location, &alias));
+        assert!(is_clobbered);
+    }
+
+    /// Free effects are modeled as read and write effects over any memory.
+    #[test]
+    fn test_memory_free_effect_any() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: ref<int32, unique, mutable>): int32 {
+entry(v0: ref<int32, unique, mutable>):
+    free v0
+    v1: int32 = 0
+    return v1
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
+        let free_inst = instructions[0];
+
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        let free_access = memory
+            .instruction_access(free_inst)
+            .expect("missing free access");
+        let effect = access_effect(memory, free_access);
+
+        assert!(effect.reads);
+        assert!(effect.writes);
+        assert!(matches!(effect.region, MemoryRegion::Any { .. }));
+    }
+
+    /// Allocation effects are modeled as read and write effects over any memory.
+    #[test]
+    fn test_memory_alloc_effect_any() {
+        let test = TestProgram::new(
+            r#"
+type Point {
+    int32;
+}
+
+function test(): ref<Point, managed, mutable> {
+entry:
+    v0: ref<Point, managed, mutable> = new.zeroed Point
+    return v0
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
+        let alloc_inst = instructions[0];
+
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        let alloc_access = memory
+            .instruction_access(alloc_inst)
+            .expect("missing alloc access");
+        let effect = access_effect(memory, alloc_access);
+
+        assert!(effect.reads);
+        assert!(effect.writes);
+        assert!(matches!(effect.region, MemoryRegion::Any { .. }));
+    }
+
+    /// Memcpy produces a read followed by a write access for its operands.
+    #[test]
+    fn test_memory_memcpy_read_write_effects() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
+    v2: int64 = 4
+    intrinsic.memory.raw.copyBytes(v0, v1, v2)
+    v3: int32 = load v0
+    return v3
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        let memcpy_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcpy);
+        let accesses = instruction_accesses(memory, memcpy_inst);
+
+        // ensure we recorded a read and a write
+        assert_eq!(accesses.len(), 2);
+
+        // extract effects in order
+        let read_effect = access_effect(memory, accesses[0]);
+        let write_effect = access_effect(memory, accesses[1]);
+
+        assert!(read_effect.reads);
+        assert!(!read_effect.writes);
+        assert!(write_effect.writes);
+        assert!(!write_effect.reads);
+
+        let read_address = address_from_region(&read_effect.region).expect("missing read address");
+        let write_address =
+            address_from_region(&write_effect.region).expect("missing write address");
+
+        assert_eq!(read_address, mir::Value::new(1));
+        assert_eq!(write_address, mir::Value::new(0));
+
+        let read_size = size_from_region(&read_effect.region).expect("missing read size");
+        let write_size = size_from_region(&write_effect.region).expect("missing write size");
+
+        assert_eq!(read_size, 4);
+        assert_eq!(write_size, 4);
+    }
+
+    /// Memcmp produces two read accesses for its operands.
+    #[test]
+    fn test_memory_memcmp_read_effects() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
+    v2: int64 = 4
+    v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
+    return v3
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        let memcmp_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcmp);
+        let accesses = instruction_accesses(memory, memcmp_inst);
+
+        // ensure we recorded two reads
+        assert_eq!(accesses.len(), 2);
+
+        for access_id in accesses {
+            let effect = access_effect(memory, access_id);
+            assert!(effect.reads);
+            assert!(!effect.writes);
+        }
+    }
+
+    /// Volatile accesses are marked as volatile effects.
+    #[test]
+    fn test_memory_volatile_marks_effects() {
+        let mut test = TestProgram::new(
+            r#"
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
+    v1: int32 = load v0
+    store v0, v1
+    return v1
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+
+        // locate volatile instructions
+        let block = test.tree.get(function.block(0));
+        let volatile_load = block.instructions[0];
+        let volatile_store = block.instructions[1];
+
+        // attach volatile memory access entries
+        test.insert_address_location_with_options(
+            volatile_load,
+            mir::MemoryOperation::Read,
+            mir::Value::new(0),
+            Some(4),
+            true,
+            None,
+        );
+        test.insert_address_location_with_options(
+            volatile_store,
+            mir::MemoryOperation::Write,
+            mir::Value::new(0),
+            Some(4),
+            true,
+            None,
+        );
+
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        // collect volatile effects
+        let load_access = memory
+            .instruction_access(volatile_load)
+            .expect("missing volatile load access");
+        let store_access = memory
+            .instruction_access(volatile_store)
+            .expect("missing volatile store access");
+
+        let load_effect = access_effect(memory, load_access);
+        let store_effect = access_effect(memory, store_access);
+
+        assert!(load_effect.is_volatile);
+        assert!(store_effect.is_volatile);
+    }
+
+    /// Atomic accesses are treated as volatile effects.
+    #[test]
+    fn test_memory_atomic_marks_effects() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: ref<atomic<int32>, borrowed, mutable>): int32 {
+entry(v0: ref<atomic<int32>, borrowed, mutable>):
+    v1: int32 = atomic.load v0, acquire, scope(device)
+    atomic.store v0, v1, release, scope(device)
+    return v1
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        let block = test.tree.get(function.block(0));
+        let atomic_load = block.instructions[0];
+        let atomic_store = block.instructions[1];
+
+        let load_access = memory
+            .instruction_access(atomic_load)
+            .expect("missing atomic load access");
+        let store_access = memory
+            .instruction_access(atomic_store)
+            .expect("missing atomic store access");
+
+        let load_effect = access_effect(memory, load_access);
+        let store_effect = access_effect(memory, store_access);
+
+        assert!(load_effect.is_volatile);
+        assert!(store_effect.is_volatile);
+    }
+
+    /// Atomic fence produces a barrier access.
+    #[test]
+    fn test_memory_atomic_fence_barrier() {
+        let test = TestProgram::new(
+            r#"
+function test(): int32 {
+entry:
+    atomic.fence sequentiallyConsistent, scope(device), storage(device)
+    v0: int32 = 0
+    return v0
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        // locate fence instruction
+        let block = test.tree.get(function.block(0));
+        let fence_inst = block.instructions[0];
+        let fence_access = memory
+            .instruction_access(fence_inst)
+            .expect("missing fence access");
+
+        let fence_effect = access_effect(memory, fence_access);
+        assert!(fence_effect.is_barrier);
+        assert!(matches!(fence_effect.region, MemoryRegion::Any { .. }));
+    }
+
+    /// Calls without precise tables are modeled as read and write effects over any memory.
+    #[test]
+    fn test_memory_call_is_any_def() {
+        let test = TestProgram::new(
+            r#"
+external function imported(ref<int32, borrowed, mutable>): void
+
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
+    call imported(v0): (ref<int32, borrowed, mutable>) => void
+    v1: int32 = 0
+    return v1
+}
+"#,
+        );
+
+        // select the defined function
+        let function_id = test
+            .tree
+            .iter_nodes::<mir::Function>()
+            .find(|(_, function)| function.entry().is_some())
+            .expect("missing function")
+            .0;
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        // locate call instruction
+        let block = test.tree.get(function.block(0));
+        let call_inst = block.instructions[0];
+        let call_access = memory
+            .instruction_access(call_inst)
+            .expect("missing call access");
+
+        let call_effect = access_effect(memory, call_access);
+        assert!(call_effect.reads);
+        assert!(call_effect.writes);
+        assert!(matches!(call_effect.region, MemoryRegion::Any { .. }));
+    }
+
+    /// Continuation loads see memory effects from invokes.
+    #[test]
+    fn test_memory_invoke_clobbers_continuation() {
+        let test = TestProgram::new(
+            r#"
+external function imported(ref<int32, borrowed, mutable>): void
+
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
+    invoke imported(v0): (ref<int32, borrowed, mutable>) => void => b1 | b2
+
+b1:
+    v1: int32 = load v0
+    return v1
+
+b2:
+    unwind.resume
+}
+"#,
+        );
+
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        // locate the invoke and continuation load
+        let entry = function.block(0);
+        let continuation = function.block(1);
+        let load = test.tree.get(continuation).instructions[0];
+
+        let call_accesses = terminator_accesses(memory, entry);
+        let load_access = memory
+            .instruction_access(load)
+            .expect("missing load access");
+
+        // require the invoke to define the continuation memory state
+        assert_eq!(call_accesses.len(), 1);
+        assert_eq!(memory.defining_access(load_access), Some(call_accesses[0]));
+    }
+
+    /// Call tables no memory suppresses memory accesses.
+    #[test]
+    fn test_memory_skips_no_memory_call() {
+        let mut test = TestProgram::new(
+            r#"
+external function imported(ref<int32, borrowed, mutable>): void
+
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
+    call imported(v0): (ref<int32, borrowed, mutable>) => void
+    v1: int32 = 0
+    return v1
+}
+"#,
+        );
+
+        let function_id = test.entry_function_id();
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
+        let callsite = mir::CallSite::Instruction(call_inst);
+        test.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
+
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+
+        assert!(
+            memory.instruction_accesses(call_inst).is_none(),
+            "no memory calls should not create memory accesses"
+        );
+    }
+
+    /// Memory access entries overrides default instruction effects.
+    #[test]
+    fn test_memory_access_entries_override() {
+        // build the test program
+        let mut test = TestProgram::new(
+            r#"
+external function imported(ref<int32, borrowed, mutable>, ref<int32, borrowed, mutable>): void
+
+function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
+    call imported(v0, v1): (ref<int32, borrowed, mutable>, ref<int32, borrowed, mutable>) => void
+    v2: int32 = 0
+    return v2
+}
+"#,
+        );
+
+        // collect parameter values and the call instruction
+        let function_id = test.entry_function_id();
+        let param_values = {
+            let function = test.tree.get(function_id);
+            function
+                .parameters
+                .iter()
+                .map(|param| param.value)
+                .collect::<Vec<_>>()
+        };
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
+
+        // build explicit access entries
+        let read_access = mir::MemoryAccess::plain(
+            mir::MemoryOperation::Read,
+            mir::MemoryTarget::Address(param_values[0]),
+            Some(4),
+            None,
+        );
+        let write_access = mir::MemoryAccess::plain(
+            mir::MemoryOperation::Write,
+            mir::MemoryTarget::Address(param_values[1]),
+            Some(4),
+            None,
+        );
+
+        // attach memory access entries to the call
+        test.insert_accesses(call_inst, vec![read_access, write_access]);
+
+        // build analyses
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        // locate access effects for the call
+        let accesses = instruction_accesses(memory, call_inst);
+        assert_eq!(accesses.len(), 2);
+
+        // verify read and write effects
+        let read_effect = access_effect(memory, accesses[0]);
+        let write_effect = access_effect(memory, accesses[1]);
+
+        assert!(read_effect.reads);
+        assert!(!read_effect.writes);
+        assert!(write_effect.writes);
+        assert!(!write_effect.reads);
+
+        // verify addresses and sizes
+        let read_address = address_from_region(&read_effect.region).expect("missing read address");
+        let write_address =
+            address_from_region(&write_effect.region).expect("missing write address");
+        assert_eq!(read_address, function.parameters[0].value);
+        assert_eq!(write_address, function.parameters[1].value);
+
+        let read_size = size_from_region(&read_effect.region).expect("missing read size");
+        let write_size = size_from_region(&write_effect.region).expect("missing write size");
+        assert_eq!(read_size, 4);
+        assert_eq!(write_size, 4);
+    }
+
+    /// Loop headers get memory phis when defs flow around the backedge.
+    #[test]
+    fn test_memory_loop_phi_in_header() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: ref<int32, borrowed, mutable>, v1: int32): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: int32):
+    v2: int32 = 0
+    store v0, v2
+    jump b1(v2)
+
+b1(v3: int32):
+    v4: boolean = lt v3, v1
+    branch v4 => b2 | b3
+
+b2:
+    v5: int32 = 1
+    store v0, v5
+    v6: int32 = add v3, v5
+    jump b1(v6)
+
+b3:
+    v7: int32 = load v0
+    return v7
+}
+"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
+
+        // find phi for loop header
+        let header_block = function.block(1);
+        let phi_id = memory
+            .block_phi(header_block)
+            .expect("missing loop header phi");
+
+        let MemoryNode::Phi(phi) = memory.access(phi_id) else {
+            panic!("expected memory phi");
         };
 
-        assert_eq!(local.spaces(), mir::StorageSet::FRAME);
-        assert_eq!(allocation.spaces(), mir::StorageSet::SHARED);
-        assert_eq!(parameter.spaces(), mir::StorageSet::LOCAL);
+        let incoming_blocks: HashSet<_> = phi.incoming.iter().map(|(block, _)| *block).collect();
+        let body_block = function.block(2);
+
+        assert!(incoming_blocks.contains(&function.block(0)));
+        assert!(incoming_blocks.contains(&body_block));
     }
 
-    /// Memory places track constant and indexed offsets.
+    /// Unreachable blocks do not contribute memory accesses.
     #[test]
-    fn test_memory_place_const_offset() {
-        let mut place = MemoryPlace::from_root(StorageRoot::LocalSlot(mir::LocalNodeId::new(0)));
-        assert!(place.is_constant_offset());
+    fn test_memory_ignores_unreachable_blocks() {
+        let test = TestProgram::new(
+            r#"
+function test(): int32 {
+    local l0: int32
 
-        place.add_const_offset(16);
-        assert!(place.is_constant_offset());
-        assert_eq!(place.const_offset, 16);
+entry:
+    v0: int32 = 0
+    return v0
 
-        place.add_indexed_offset(mir::Value::new(0), 4);
-        assert!(!place.is_constant_offset());
-    }
-
-    /// Exclusive parameters are reported as exclusive.
-    #[test]
-    fn test_storage_is_exclusive_parameter() {
-        let exclusive_parameter = StorageRoot::Parameter {
-            index: 0,
-            storage: mir::Storage::Heap(mir::Space::Local),
-            kind: mir::ReferenceKind::Borrowed,
-            access: mir::Access::Exclusive,
-        };
-        let mutable_parameter = StorageRoot::Parameter {
-            index: 1,
-            storage: mir::Storage::Heap(mir::Space::Local),
-            kind: mir::ReferenceKind::Borrowed,
-            access: mir::Access::Mutable,
-        };
-        let local = StorageRoot::LocalSlot(mir::LocalNodeId::new(0));
-
-        assert!(exclusive_parameter.is_exclusive_parameter());
-        assert!(!mutable_parameter.is_exclusive_parameter());
-        assert!(!local.is_exclusive_parameter());
-    }
-
-    /// Field paths are captured by memory places.
-    #[test]
-    fn test_memory_place_fields() {
-        let mut place = MemoryPlace::from_root(StorageRoot::LocalSlot(mir::LocalNodeId::new(0)));
-        assert!(place.fields.is_empty());
-
-        place.add_field(0);
-        assert_eq!(place.fields, vec![0]);
-
-        place.add_field(2);
-        assert_eq!(place.fields, vec![0, 2]);
-
-        assert!(place.is_constant_offset());
-    }
-
-    /// Multiple indexed offsets are tracked.
-    #[test]
-    fn test_memory_place_multiple_indexed_offsets() {
-        let mut place = MemoryPlace::from_root(StorageRoot::Allocation {
-            instruction: mir::LocalNodeId::new(0),
-            space: mir::Space::Local,
-            kind: mir::ReferenceKind::Unique,
-        });
-
-        place.add_indexed_offset(mir::Value::new(1), 4);
-        place.add_indexed_offset(mir::Value::new(2), 8);
-
-        assert!(!place.is_constant_offset());
-        assert_eq!(place.indexed_offsets.len(), 2);
-        assert_eq!(place.indexed_offsets[0].index, mir::Value::new(1));
-        assert_eq!(place.indexed_offsets[0].scale, 4);
-        assert_eq!(place.indexed_offsets[1].index, mir::Value::new(2));
-        assert_eq!(place.indexed_offsets[1].scale, 8);
-    }
-
-    /// Constant offsets accumulate.
-    #[test]
-    fn test_memory_place_const_offset_accumulation() {
-        let mut place = MemoryPlace::from_root(StorageRoot::Global {
-            global: mir::LocalNodeId::new(0),
-            storage: mir::GlobalStorage::Constant,
-        });
-
-        place.add_const_offset(8);
-        place.add_const_offset(16);
-
-        assert_eq!(place.const_offset, 24);
-    }
-
-    /// Negative offsets are handled consistently.
-    #[test]
-    fn test_memory_place_negative_offset() {
-        let mut place = MemoryPlace::from_root(StorageRoot::LocalSlot(mir::LocalNodeId::new(0)));
-
-        place.add_const_offset(-8);
-        assert_eq!(place.const_offset, -8);
-
-        place.add_const_offset(4);
-        assert_eq!(place.const_offset, -4);
-    }
-
-    /// Equal ranges are detected.
-    #[test]
-    fn test_ranges_equal() {
-        assert!(ByteRange::new(0, 4).equals(ByteRange::new(0, 4)));
-        assert!(!ByteRange::new(0, 4).equals(ByteRange::new(0, 8)));
-        assert!(!ByteRange::new(0, 4).equals(ByteRange::new(4, 4)));
-        assert!(!ByteRange::new(0, 8).equals(ByteRange::new(4, 8)));
-    }
-
-    /// Adjacent ranges are disjoint.
-    #[test]
-    fn test_range_relation_adjacent() {
-        assert_eq!(
-            ByteRange::new(0, 4).relation(ByteRange::new(4, 4)),
-            RangeRelation::Disjoint
-        );
-        assert_eq!(
-            ByteRange::new(4, 4).relation(ByteRange::new(0, 4)),
-            RangeRelation::Disjoint
-        );
-    }
-
-    /// Partial overlaps are classified correctly.
-    #[test]
-    fn test_range_relation_partial_overlap() {
-        assert_eq!(
-            ByteRange::new(0, 8).relation(ByteRange::new(4, 8)),
-            RangeRelation::Overlaps
-        );
-        assert_eq!(
-            ByteRange::new(4, 8).relation(ByteRange::new(0, 8)),
-            RangeRelation::Overlaps
-        );
-    }
-
-    /// Zero sized ranges use half open range semantics.
-    #[test]
-    fn test_range_relation_zero_size() {
-        assert_eq!(
-            ByteRange::new(0, 0).relation(ByteRange::new(0, 0)),
-            RangeRelation::Disjoint
+b1:
+    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v2: int32 = 1
+    store v1, v2
+    return v2
+}
+"#,
         );
 
-        assert_eq!(
-            ByteRange::new(0, 0).relation(ByteRange::new(0, 4)),
-            RangeRelation::Disjoint
-        );
-        assert_eq!(
-            ByteRange::new(0, 4).relation(ByteRange::new(0, 0)),
-            RangeRelation::Disjoint
-        );
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = memory.as_ref();
 
-        assert_eq!(
-            ByteRange::new(2, 0).relation(ByteRange::new(0, 8)),
-            RangeRelation::ContainedBy
-        );
+        // locate store in unreachable block
+        let unreachable_block = function.block(1);
+        let block = test.tree.get(unreachable_block);
+        let store_inst = block.instructions[2];
 
-        // handle zero size after the end
-        assert_eq!(
-            ByteRange::new(10, 0).relation(ByteRange::new(0, 8)),
-            RangeRelation::Disjoint
+        assert!(
+            memory.instruction_accesses(store_inst).is_none(),
+            "unreachable store should not be tracked"
         );
     }
 }

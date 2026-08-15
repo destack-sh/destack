@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate as mir;
 
 use crate::{
-    ControlFlowGraph, DominatorTree, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses,
+    ControlTable, DominatorTable, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, terminator_remap,
 };
 
 /// Return one block target with appended arguments.
@@ -57,8 +57,8 @@ pub fn collect_reachable_blocks(
 /// Compute dominance frontiers for a list of blocks.
 pub fn compute_dominance_frontiers(
     blocks: &[mir::LocalNodeId<mir::Block>],
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
+    cfg: &ControlTable,
+    dominator: &DominatorTable,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>> {
     // initialize frontiers for each block
     let mut frontiers: HashMap<
@@ -77,18 +77,20 @@ pub fn compute_dominance_frontiers(
             continue;
         }
 
-        let idom = domtree.immediate_dominator(block);
+        let idom = dominator.immediate_dominator(block);
         for &pred in preds {
             let mut runner = pred;
             while Some(runner) != idom
                 && runner != block
-                && domtree.immediate_dominator(runner).is_some()
+                && dominator.immediate_dominator(runner).is_some()
             {
                 if let Some(frontier) = frontiers.get_mut(&runner) {
                     frontier.insert(block);
                 }
 
-                runner = domtree.immediate_dominator(runner).unwrap();
+                runner = dominator
+                    .immediate_dominator(runner)
+                    .unwrap_or_else(|| unreachable!("dominance runner has no parent"));
             }
         }
     }
@@ -135,7 +137,7 @@ pub fn ensure_edge_block(
     successor: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    cfg: &ControlFlowGraph,
+    cfg: &ControlTable,
     edge_blocks: &mut HashMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
         mir::LocalNodeId<mir::Block>,
@@ -162,7 +164,7 @@ pub fn ensure_edge_block(
     }
 
     // extract the successor arguments for this edge
-    let args = match pred_terminator.edge_arguments(tree, successor) {
+    let args = match pred_terminator.successor_arguments(tree, successor) {
         mir::EdgeArguments::Found(args) => args.to_vec(),
         _ => return predecessor,
     };
@@ -183,6 +185,68 @@ pub fn ensure_edge_block(
         edge_block_id
     } else {
         predecessor
+    }
+}
+
+impl mir::Edge {
+    /// Split this exact edge and return its insertion block.
+    pub fn split(
+        self,
+        function: &mut mir::Function,
+        tree: &mut mir::Tree,
+        edge_blocks: &mut HashMap<mir::Edge, mir::LocalNodeId<mir::Block>>,
+        changed: &mut bool,
+    ) -> mir::LocalNodeId<mir::Block> {
+        if let Some(existing) = edge_blocks.get(&self) {
+            return *existing;
+        }
+
+        // capture the exact edge before mutating its terminator
+        let terminator_id = tree.get(self.source).terminator;
+        let terminator = tree.get(terminator_id);
+        let target = terminator
+            .targets(tree, self.source)
+            .into_iter()
+            .find_map(|(edge, target)| (edge == self).then_some(target.clone()))
+            .unwrap_or_else(|| unreachable!("control-flow edge is absent from its terminator"));
+        let arguments = target.arguments(tree).to_vec();
+        let destination = tree.get(self.target);
+
+        // reproduce every implicit and explicit destination parameter
+        let parameters = destination
+            .parameters
+            .iter()
+            .map(|parameter| mir::BlockParameter {
+                value: function.next_typed_value(parameter.ty),
+                ty: parameter.ty,
+            })
+            .collect::<Vec<_>>();
+        let forwarded = parameters
+            .iter()
+            .map(|parameter| parameter.value)
+            .collect::<Vec<_>>();
+
+        // forward the complete edge state into the original destination
+        let forwarded = tree.add_values(&forwarded);
+        let terminator = tree.insert(mir::Terminator::Jump {
+            target: mir::BlockTarget::new(self.target, forwarded),
+        });
+        let block = tree.insert(mir::Block::with_parameters(parameters, terminator));
+
+        // redirect the selected edge with its original explicit arguments
+        let mut terminator = tree.get(terminator_id).clone();
+        let arguments = tree.add_values(&arguments);
+        let target = mir::BlockTarget::new(block, arguments);
+        if !terminator.replace_edge(self.successor, target, tree) {
+            unreachable!("control-flow edge cannot be replaced in its terminator");
+        }
+        tree.set(terminator_id, terminator);
+        insert_block_after(function, self.source, block, tree);
+
+        edge_blocks.insert(self, block);
+        *changed = true;
+
+        block
     }
 }
 
@@ -245,7 +309,7 @@ pub struct BlockParamForwarding {
 
 impl BlockParamForwarding {
     /// Build forwarding information for block parameters.
-    pub fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlFlowGraph) -> Self {
+    pub fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlTable) -> Self {
         // map parameters to consistent incoming values
         let mut map = HashMap::new();
 
@@ -266,7 +330,7 @@ impl BlockParamForwarding {
                 // read arguments for the predecessor edge
                 let pred_block = tree.get(pred);
                 let pred_terminator = tree.get(pred_block.terminator);
-                let successor_args = pred_terminator.edge_arguments(tree, block_id);
+                let successor_args = pred_terminator.successor_arguments(tree, block_id);
 
                 let args = match successor_args {
                     mir::EdgeArguments::Found(args) => args,
@@ -349,8 +413,8 @@ impl BlockParamForwarding {
 pub fn apply_substitutions_in_dominated_blocks(
     function: &mir::Function,
     tree: &mut mir::Tree,
-    memory: &mut mir::MemoryTable,
-    domtree: &DominatorTree,
+    accesses: &mut mir::AccessTable,
+    dominator: &DominatorTable,
     root: mir::LocalNodeId<mir::Block>,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> bool {
@@ -365,7 +429,7 @@ pub fn apply_substitutions_in_dominated_blocks(
     // update blocks dominated by the root
     for &block_id in function.blocks() {
         // skip blocks not dominated by the root
-        if !domtree.dominates(root, block_id) {
+        if !dominator.dominates(root, block_id) {
             continue;
         }
 
@@ -384,7 +448,7 @@ pub fn apply_substitutions_in_dominated_blocks(
             // replace when a rewrite occurred
             if updated != instruction {
                 tree.set(instruction_id, updated);
-                remap_instruction_memory_accesses(memory, instruction_id, substitutions);
+                remap_instruction_memory_accesses(accesses, instruction_id, substitutions);
                 changed = true;
             }
         }
@@ -432,7 +496,7 @@ pub fn block_uses_available_in_predecessor(
     tree: &mir::Tree,
     predecessor: mir::LocalNodeId<mir::Block>,
     value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    domtree: &DominatorTree,
+    dominator: &DominatorTable,
 ) -> bool {
     // collect block parameter values
     let mut param_values: HashSet<mir::Value> = HashSet::new();
@@ -460,7 +524,7 @@ pub fn block_uses_available_in_predecessor(
         }
 
         // require dominance at the predecessor
-        if !domtree.dominates(*def_block, predecessor) {
+        if !dominator.dominates(*def_block, predecessor) {
             return false;
         }
     }
@@ -483,7 +547,7 @@ pub fn resolve_edge_value(
 
     // read arguments for the predecessor edge
     let predecessor_terminator = tree.get(predecessor.terminator);
-    let args = match predecessor_terminator.edge_arguments(tree, block_id) {
+    let args = match predecessor_terminator.successor_arguments(tree, block_id) {
         mir::EdgeArguments::Found(args) => args,
         _ => return None,
     };
@@ -498,7 +562,7 @@ pub fn value_available_in_block(
     block_id: mir::LocalNodeId<mir::Block>,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     function_params: &HashSet<mir::Value>,
-    domtree: &DominatorTree,
+    dominator: &DominatorTable,
 ) -> bool {
     // accept function parameters
     if function_params.contains(&value) {
@@ -511,7 +575,7 @@ pub fn value_available_in_block(
     };
 
     // ensure the definition dominates the block
-    domtree.dominates(*def_block, block_id)
+    dominator.dominates(*def_block, block_id)
 }
 
 /// Return true when block parameters are used outside the block.
@@ -535,13 +599,7 @@ pub fn block_parameters_used_outside_block(
     false
 }
 
-/// Thread jumps through empty or passthrough blocks.
-///
-/// If a block has no instructions and either has no parameters or just forwards
-/// them, predecessors can bypass it. For jump terminators, we resolve chains
-/// (A to B to C becomes A to C).
-///
-/// Returns true if any changes were made.
+/// Thread jumps through empty and passthrough blocks.
 pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> bool {
     // find all empty blocks (no instructions) that can be threaded
     let mut threadable: HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock> = HashMap::new();
@@ -921,10 +979,7 @@ fn block_is_passthrough_jump(block: &mir::Block, arguments: &[mir::Value]) -> bo
     is_forwarding
 }
 
-/// Substitute values in a terminator according to the given map.
-///
-/// Creates a new terminator with value references replaced according to the substitution map.
-/// Values not in the map are left unchanged.
+/// Substitute mapped values in one terminator.
 pub fn terminator_substitute_uses(
     tree: &mut mir::Tree,
     terminator: &mir::Terminator,
@@ -936,7 +991,7 @@ pub fn terminator_substitute_uses(
 
     let mut terminator = terminator.clone();
     let block_map = HashMap::new();
-    crate::terminator_remap(tree, &mut terminator, &block_map, substitutions);
+    terminator_remap(tree, &mut terminator, &block_map, substitutions);
 
     terminator
 }
