@@ -232,7 +232,7 @@ Associated constant accesses belong to their member declaration.
 ```ds main.ds
 struct Buffer {
     const Width: uint64 = 8;
-                   ^^^^^ declaration
+          ^^^^^ declaration
 }
 
 const first = Buffer.Width;
@@ -405,7 +405,7 @@ A const parameter has one lexical identity inside the function body.
 
 ```ds main.ds
 function createBuffer<const size: int32>(): int32 {
-                               ^^^^ declaration
+                            ^^^^ declaration
     return size;
            ^^^^ reference
 }
@@ -422,8 +422,8 @@ A const parameter has one lexical identity inside the declared type.
 
 ```ds main.ds
 type Buffer<const size: usize> = [uint8; size];
-                     ^^^^ declaration
-                                            ^^^^ reference
+                  ^^^^ declaration
+                                         ^^^^ reference
 ```
 
 ```query find_references main.ds#reference include_declaration=true
@@ -532,7 +532,7 @@ function scale(value: int32): int32 {
 }
 
 const first = const scale(2);
-                       ^^^^^ first_reference
+                    ^^^^^ first_reference
 const second = scale(3);
                ^^^^^ second_reference
 ```

@@ -624,7 +624,7 @@ Renaming an associated constant updates its declaration and nominal accesses.
 ```ds main.ds
 struct Buffer {
     const Width: uint = 8;
-                   ^^^^^ target
+          ^^^^^ target
 }
 
 const first = Buffer.Width;
@@ -885,7 +885,7 @@ A const value parameter updates every use in its declaration.
 
 ```ds main.ds
 type Buffer<const size: usize> = [uint8; size];
-                     ^^^^ target
+                  ^^^^ target
 ```
 
 ```query rename main.ds#target new_name=length

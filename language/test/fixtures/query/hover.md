@@ -387,7 +387,7 @@ const width = Buffer.Width;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 declaration="Buffer.Width: uint64" location=main.ds:2:5-2:35 selection=main.ds:2:20-2:25 range=main.ds#reference
+@hover.item index=0 declaration="Buffer.Width: uint64" location=main.ds:2:5-2:26 selection=main.ds:2:11-2:16 range=main.ds#reference
 ```
 
 ### Hover over associated types

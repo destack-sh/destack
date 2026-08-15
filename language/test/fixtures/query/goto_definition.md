@@ -218,9 +218,8 @@ A nominal associated constant access resolves to its declaration.
 ```ds main.ds
 struct Buffer {
     const Width: uint64 = 8;
-                   ^^^^^ definition:width
-    ^ width_declaration:start
-                                   ^ width_declaration:end
+          ^^^^^ definition:width
+    ^^^^^^^^^^^^^^^^^^^^^^^ width_declaration
 }
 
 const width = Buffer.Width;
@@ -804,7 +803,7 @@ function build(): int32 {
 ^ declaration:build:end
 
 const value = const build();
-                       ^^^^^ reference:build
+                    ^^^^^ reference:build
 ```
 
 ```query goto_definition main.ds#reference:build

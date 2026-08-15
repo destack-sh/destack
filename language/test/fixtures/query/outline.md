@@ -366,8 +366,8 @@ newtype interface Measure {
     ^^^^^^^^^^^^^^^^^^ unit_range
                   ^^^^ unit_selection
     abstract const Scale: uint;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ scale_range
-                            ^^^^^ scale_selection
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^ scale_range
+                   ^^^^^ scale_selection
     measure(): float64;
     ^^^^^^^^^^^^^^^^^^ measure_method_range
     ^^^^^^^ measure_method_selection

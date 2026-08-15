@@ -204,7 +204,7 @@ A const type parameter identifies its local parameter.
 
 ```ds main.ds
 type Buffer<const size: usize> = [uint8; size];
-                                            ^^^^ reference
+                                         ^^^^ reference
 ```
 
 ```query rename_target main.ds#reference
@@ -353,7 +353,7 @@ function build(): int32 {
 }
 
 const value = const build();
-                       ^^^^^ reference
+                    ^^^^^ reference
 ```
 
 ```query rename_target main.ds#reference

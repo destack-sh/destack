@@ -568,10 +568,10 @@ Generic type and const value parameters remain distinct from nominal types and l
 function identity<Value, const size: usize>(value: Value): Value {
          ^^^^^^^^ function
                   ^^^^^ generic
-                                  ^^^^ size_declaration
-                                               ^^^^^ parameter
-                                                      ^^^^^ parameter_type
-                                                              ^^^^^ return_type
+                               ^^^^ size_declaration
+                                            ^^^^^ parameter
+                                                   ^^^^^ parameter_type
+                                                           ^^^^^ return_type
     const buffer: [uint8; size] = [];
           ^^^^^^ buffer
                           ^^^^ size_reference

@@ -95,7 +95,7 @@ type Integer = bigint;
 ```
 
 ```query goto_type_definition main.ds#reference:string
-@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:28:1-31:2 selection=destack://string/string:28:14-28:20 symbol=destack://string/string#String@25
+@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:28:1-31:2 selection=destack://string/string:28:14-28:20 symbol=destack://string/string#String@26
 ```
 
 ```query goto_type_definition main.ds#reference:bigint
