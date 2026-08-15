@@ -83,6 +83,7 @@ match extracted {
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
 - One of the few things worse than superfluous duplication is forced abstraction.
 - Often, when properly factored, the real world (and thus the way to model it) is surprisingly symmetrical at varying scales (types, functions, files, modules, sub-systems). Identifying symmetry and generalising it - even if only informally, no "real" language-level interface required - is extremely valuable (naming, parameter conventions, file names and placement, module layout, .. anything).
+- Symmetry applies at all scals, and it also applies to smaller things like the variants of a sum type. If the variants are not conceptually and lexically symmetric, that is often a model smell.
 - Logic should be "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic _and_ state at various pieces of granularity.
 - Similarly, avoid "bag nouns" that exist only to separate out certain fields from a larger type / struct but add no real behavior or structure. Fewer, fatter structs are generally preferred unless there is a genuine domain or machine-empathy need for more granular factoring. 
 - Conceptually, incremental granularity means not hiding details too much, and assuming (especially internally, within the castle) that the caller is a consenting adult.
