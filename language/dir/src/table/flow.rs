@@ -15,6 +15,8 @@ impl BindingUse {
     pub const WRITTEN: Self = Self(1 << 1);
     /// The symbol is used through a closure.
     pub const CAPTURED: Self = Self(1 << 2);
+    /// The binding storage requires mutable or exclusive access.
+    pub const MUTABLE: Self = Self(1 << 3);
 
     /// Return whether every bit of `other` is set.
     pub fn contains(self, other: Self) -> bool {
