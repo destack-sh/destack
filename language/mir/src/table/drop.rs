@@ -10,9 +10,9 @@ use crate::{Function, LocalNodeId, Storage, Type};
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct DropTable {
     /// Generated destructors keyed by type and storage.
-    pub destructors: HashMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
+    destructors: HashMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
     /// User-authored drop hooks keyed by type and storage.
-    pub hooks: HashMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
+    hooks: HashMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
 }
 
 impl DropTable {
@@ -56,6 +56,15 @@ impl DropTable {
         self.destructors
             .keys()
             .any(|(candidate, _)| *candidate == ty)
+    }
+
+    /// Iterate generated destructors.
+    pub fn destructors(
+        &self,
+    ) -> impl Iterator<Item = (LocalNodeId<Type>, Storage, LocalNodeId<Function>)> + '_ {
+        self.destructors
+            .iter()
+            .map(|(&(ty, storage), &function)| (ty, storage, function))
     }
 
     /// Record the generated destructor for a type in one storage.

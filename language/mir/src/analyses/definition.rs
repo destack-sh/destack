@@ -4,17 +4,15 @@ use crate as mir;
 
 use super::{Analysis, FunctionCache, Mutation};
 
-/// Definitions and integer constants for one MIR function.
+/// Definitions for one MIR function.
 #[derive(Debug, Clone, Default)]
 pub struct DefinitionTable {
     /// Definition site for each SSA value.
     definitions: Vec<Option<ValueDefinition>>,
-    /// Integer constant value for each SSA value known to be constant.
-    constants: Vec<Option<i64>>,
-    /// Values written into each local.
-    local_values: HashMap<mir::LocalId, Vec<mir::Value>>,
-    /// Values passed to each block parameter.
-    block_parameter_values: HashMap<mir::Value, Vec<mir::Value>>,
+    /// First input offset for each value and the final input count.
+    block_parameter_offsets: Vec<u32>,
+    /// Inputs grouped by block parameter value.
+    block_parameter_values: Vec<mir::Value>,
 }
 
 /// Definition site for one SSA value.
@@ -61,8 +59,6 @@ impl DefinitionTable {
     pub fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         let value_count = function.value_capacity();
         let mut definitions = vec![None; value_count];
-        let mut constants = vec![None; value_count];
-        let mut local_values = HashMap::new();
 
         // record function parameter definitions
         for (index, parameter) in function.parameters.iter().enumerate() {
@@ -89,29 +85,15 @@ impl DefinitionTable {
                         instruction: instruction_id,
                     });
                 }
-
-                if let mir::Instruction::Const { destination, value } = instruction
-                    && let mir::Constant::Int { value, .. } = value
-                    && let Ok(value) = i64::try_from(*value)
-                {
-                    constants[destination.0 as usize] = Some(value);
-                }
-
-                if let mir::Instruction::LocalSet { local, value } = instruction {
-                    local_values
-                        .entry(*local)
-                        .or_insert_with(Vec::new)
-                        .push(*value);
-                }
             }
         }
 
-        let block_parameter_values = Self::build_block_parameter_values(function, tree);
+        let (block_parameter_offsets, block_parameter_values) =
+            Self::build_block_parameter_values(function, tree);
 
         Self {
             definitions,
-            constants,
-            local_values,
+            block_parameter_offsets,
             block_parameter_values,
         }
     }
@@ -137,13 +119,6 @@ impl DefinitionTable {
         self.definition(value).and_then(ValueDefinition::block)
     }
 
-    /// Return the integer constant for one value.
-    pub fn int_constant(&self, value: impl Into<mir::Value>) -> Option<i64> {
-        let value = value.into();
-
-        self.constants.get(value.0 as usize).copied().flatten()
-    }
-
     /// Return the raw instruction definition map.
     pub fn instruction_map(&self) -> HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> {
         self.definitions
@@ -167,22 +142,26 @@ impl DefinitionTable {
             })
     }
 
-    /// Return values written into locals.
-    pub fn local_values(&self) -> &HashMap<mir::LocalId, Vec<mir::Value>> {
-        &self.local_values
-    }
+    /// Return values passed to one block parameter.
+    pub fn block_parameter_values(&self, parameter: mir::Value) -> &[mir::Value] {
+        let index = parameter.id() as usize;
+        let offsets = self
+            .block_parameter_offsets
+            .get(index..=index + 1)
+            .unwrap_or_else(|| unreachable!("value outside definition table: {parameter:?}"));
+        let start = offsets[0] as usize;
+        let end = offsets[1] as usize;
 
-    /// Return values passed to block parameters.
-    pub fn block_parameter_values(&self) -> &HashMap<mir::Value, Vec<mir::Value>> {
-        &self.block_parameter_values
+        &self.block_parameter_values[start..end]
     }
 
     /// Build block parameter definitions from predecessor arguments.
     fn build_block_parameter_values(
         function: &mir::Function,
         tree: &mir::Tree,
-    ) -> HashMap<mir::Value, Vec<mir::Value>> {
-        let mut values = HashMap::new();
+    ) -> (Vec<u32>, Vec<mir::Value>) {
+        let value_count = function.value_capacity();
+        let mut entries = Vec::new();
 
         // collect arguments from every outgoing target
         for &block_id in function.blocks() {
@@ -191,7 +170,7 @@ impl DefinitionTable {
 
             for (edge, target) in terminator.targets(tree, block_id) {
                 Self::add_block_parameter_values(
-                    &mut values,
+                    &mut entries,
                     terminator,
                     edge.successor,
                     target,
@@ -200,12 +179,24 @@ impl DefinitionTable {
             }
         }
 
-        values
+        // group inputs by block parameter value
+        entries.sort_by_key(|(parameter, _)| parameter.id());
+        let mut offsets = vec![0u32; value_count + 1];
+        for (parameter, _) in &entries {
+            offsets[parameter.id() as usize + 1] += 1;
+        }
+        for value in 0..value_count {
+            offsets[value + 1] += offsets[value];
+        }
+
+        let values = entries.into_iter().map(|(_, value)| value).collect();
+
+        (offsets, values)
     }
 
     /// Add one target's arguments to the block parameter value map.
     fn add_block_parameter_values(
-        values: &mut HashMap<mir::Value, Vec<mir::Value>>,
+        entries: &mut Vec<(mir::Value, mir::Value)>,
         terminator: &mir::Terminator,
         successor: mir::Successor,
         target: &mir::BlockTarget,
@@ -218,13 +209,13 @@ impl DefinitionTable {
 
         // pair target arguments with the destination block parameters
         for (parameter, argument) in parameters.iter().zip(arguments) {
-            values.entry(parameter.value).or_default().push(*argument);
+            entries.push((parameter.value, *argument));
         }
     }
 }
 
 impl Analysis for DefinitionTable {
-    const INVALIDATED_BY: Mutation = Mutation::VALUE;
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
 }
 
 impl DefinitionTable {
@@ -270,15 +261,15 @@ b2(v4: int32):
 
         // success result is produced by the terminator and has no edge argument
         assert!(
-            !definitions
-                .block_parameter_values()
-                .contains_key(&success_result)
+            definitions
+                .block_parameter_values(success_result)
+                .is_empty()
         );
 
         // explicit payloads on both edges come from the same source value
         assert_eq!(
-            definitions.block_parameter_values()[&success_payload],
-            definitions.block_parameter_values()[&failure_payload]
+            definitions.block_parameter_values(success_payload),
+            definitions.block_parameter_values(failure_payload)
         );
     }
 }

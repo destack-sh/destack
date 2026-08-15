@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate as mir;
@@ -6,9 +5,9 @@ use crate::EffectTable;
 
 use super::{
     AliasTable, CallTable, ConstantTable, ControlTable, CostTable, CostWeights, DefinitionTable,
-    DominatorTable, EscapeTable, EvolutionTable, ExpressionTable, FrequencyTable, LifetimeTable,
-    LinkTable, LivenessTable, LoopTable, MemoryTable, MoveTable, Mutation, PlaceTable,
-    PostdominatorTable, RangeTable, ResolutionTable, UseTable, ValueTypeTable,
+    DominatorTable, EscapeTable, EvolutionTable, ExpressionTable, FrequencyTable,
+    InitializationTable, LinkTable, LivenessTable, LoopTable, MemoryTable, MoveTable, Mutation,
+    PlaceTable, PostdominatorTable, RangeTable, ResolutionTable, UseTable,
 };
 
 /// Largest loop scale for profile frequency analysis.
@@ -38,14 +37,12 @@ pub struct AnalysisCache {
     resolution: Option<Arc<ResolutionTable>>,
     /// The cached function effects.
     effect: Option<Arc<EffectTable>>,
-    /// The cached lifetime table.
-    lifetime: Option<Arc<LifetimeTable>>,
     /// The cached symbol links.
     link: Option<Arc<LinkTable>>,
-    /// The function caches keyed by function id.
-    functions: HashMap<mir::FunctionId, FunctionCache>,
+    /// Function caches sorted by function id.
+    functions: Vec<(mir::FunctionId, FunctionCache)>,
     /// The analysis options.
-    options: AnalysisOptions,
+    options: Arc<AnalysisOptions>,
 }
 
 /// Cached analyses for one MIR function.
@@ -69,6 +66,8 @@ pub struct FunctionCache {
     expression: Option<Arc<ExpressionTable>>,
     /// The cached execution frequencies.
     frequency: Option<Arc<FrequencyTable>>,
+    /// The cached move-path initialization.
+    initialization: Option<Arc<InitializationTable>>,
     /// The cached liveness table.
     liveness: Option<Arc<LivenessTable>>,
     /// The cached loops.
@@ -85,12 +84,10 @@ pub struct FunctionCache {
     range: Option<Arc<RangeTable>>,
     /// The cached scalar evolution.
     evolution: Option<Arc<EvolutionTable>>,
-    /// The cached value types.
-    value_type: Option<Arc<ValueTypeTable>>,
     /// The cached value uses.
     uses: Option<Arc<UseTable>>,
     /// The analysis options.
-    options: AnalysisOptions,
+    options: Arc<AnalysisOptions>,
 }
 
 /// Options for MIR execution frequency analysis.
@@ -284,9 +281,18 @@ macro_rules! function_analysis_through_module {
             tree: &mir::Tree,
             $($parameter: $parameter_type,)*
         ) -> Arc<$analysis> {
-            let analyses = self.functions.entry(function_id).or_insert_with(|| {
-                FunctionCache::with_options(self.options)
-            });
+            let index = self
+                .functions
+                .binary_search_by_key(&function_id, |(function, _)| *function);
+            let index = match index {
+                Ok(index) => index,
+                Err(index) => {
+                    let analyses = FunctionCache::from_options(self.options.clone());
+                    self.functions.insert(index, (function_id, analyses));
+                    index
+                }
+            };
+            let analyses = &mut self.functions[index].1;
             let function = tree.get(function_id);
 
             analyses.$method(function, tree, $($parameter,)*)
@@ -302,6 +308,11 @@ impl FunctionCache {
 
     /// Create empty function analyses with the given options.
     pub fn with_options(options: AnalysisOptions) -> Self {
+        Self::from_options(Arc::new(options))
+    }
+
+    /// Create empty function analyses sharing existing options.
+    fn from_options(options: Arc<AnalysisOptions>) -> Self {
         Self {
             alias: None,
             constant: None,
@@ -312,6 +323,7 @@ impl FunctionCache {
             escape: None,
             expression: None,
             frequency: None,
+            initialization: None,
             liveness: None,
             loops: None,
             memory: None,
@@ -320,13 +332,12 @@ impl FunctionCache {
             postdominator: None,
             range: None,
             evolution: None,
-            value_type: None,
             uses: None,
             options,
         }
     }
 
-    /// Get the analysis options.
+    /// Return the analysis options.
     pub fn options(&self) -> &AnalysisOptions {
         &self.options
     }
@@ -376,6 +387,12 @@ impl FunctionCache {
         "Return execution frequencies."
     );
     function_analysis!(liveness, liveness, LivenessTable, "Return value liveness.");
+    function_analysis!(
+        initialization,
+        initialization,
+        InitializationTable,
+        "Return move-path initialization."
+    );
     function_analysis!(loops, loops, LoopTable, "Return loop analysis.");
     function_analysis!(
         memory,
@@ -399,12 +416,6 @@ impl FunctionCache {
         evolution,
         EvolutionTable,
         "Return scalar evolution."
-    );
-    function_analysis!(
-        value_type,
-        value_type,
-        ValueTypeTable,
-        "Return value types."
     );
     function_analysis!(uses, uses, UseTable, "Return value uses.");
 
@@ -440,6 +451,9 @@ impl FunctionCache {
         if LivenessTable::INVALIDATED_BY.intersects(mutation) {
             self.liveness = None;
         }
+        if InitializationTable::INVALIDATED_BY.intersects(mutation) {
+            self.initialization = None;
+        }
         if LoopTable::INVALIDATED_BY.intersects(mutation) {
             self.loops = None;
         }
@@ -460,9 +474,6 @@ impl FunctionCache {
         }
         if EvolutionTable::INVALIDATED_BY.intersects(mutation) {
             self.evolution = None;
-        }
-        if ValueTypeTable::INVALIDATED_BY.intersects(mutation) {
-            self.value_type = None;
         }
         if UseTable::INVALIDATED_BY.intersects(mutation) {
             self.uses = None;
@@ -488,14 +499,13 @@ impl AnalysisCache {
             call: None,
             resolution: None,
             effect: None,
-            lifetime: None,
             link: None,
-            functions: HashMap::new(),
-            options,
+            functions: Vec::new(),
+            options: Arc::new(options),
         }
     }
 
-    /// Get the analysis options.
+    /// Return the analysis options.
     pub fn options(&self) -> &AnalysisOptions {
         &self.options
     }
@@ -505,7 +515,7 @@ impl AnalysisCache {
         call,
         CallTable,
         "Return the call graph.",
-        effects: &mir::EffectTable
+        dispatch: &mir::DispatchTable
     );
     module_analysis!(
         resolution,
@@ -520,15 +530,16 @@ impl AnalysisCache {
         EffectTable,
         "Return function effects.",
         accesses: &mir::AccessTable,
-        effects: &mir::EffectTable
+        effects: &mir::EffectTable,
+        dispatch: &mir::DispatchTable
     );
-    module_analysis!(lifetime, lifetime, LifetimeTable, "Return lifetime.");
     module_analysis!(
         link,
         link,
         LinkTable,
         "Return the link graph.",
-        effects: &mir::EffectTable
+        effects: &mir::EffectTable,
+        dispatch: &mir::DispatchTable
     );
 
     function_analysis_through_module!(alias, AliasTable, "Return function alias analysis.");
@@ -586,7 +597,11 @@ impl AnalysisCache {
         EvolutionTable,
         "Return function scalar evolution."
     );
-    function_analysis_through_module!(value_type, ValueTypeTable, "Return function value types.");
+    function_analysis_through_module!(
+        initialization,
+        InitializationTable,
+        "Return function move-path initialization."
+    );
     function_analysis_through_module!(uses, UseTable, "Return function value uses.");
 
     /// Drop every analysis the given mutation invalidates.
@@ -600,14 +615,11 @@ impl AnalysisCache {
         if EffectTable::INVALIDATED_BY.intersects(mutation) {
             self.effect = None;
         }
-        if LifetimeTable::INVALIDATED_BY.intersects(mutation) {
-            self.lifetime = None;
-        }
         if LinkTable::INVALIDATED_BY.intersects(mutation) {
             self.link = None;
         }
 
-        for analyses in self.functions.values_mut() {
+        for (_, analyses) in &mut self.functions {
             analyses.invalidate(mutation);
         }
     }

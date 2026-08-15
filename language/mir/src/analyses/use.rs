@@ -5,8 +5,10 @@ use super::{Analysis, FunctionCache, Mutation};
 /// Operand uses for SSA values in one MIR function.
 #[derive(Debug, Clone, Default)]
 pub struct UseTable {
-    /// Operand uses indexed by value id.
-    uses: Vec<Vec<ValueUse>>,
+    /// First use offset for each value and the final use count.
+    offsets: Vec<u32>,
+    /// Operand uses grouped by value id.
+    uses: Vec<ValueUse>,
 }
 
 /// One operand occurrence of an SSA value.
@@ -33,43 +35,80 @@ pub enum ValueUse {
 impl UseTable {
     /// Build operand uses for one function.
     pub fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
-        let mut value_uses = Self {
-            uses: vec![Vec::new(); function.value_capacity()],
-        };
+        let value_count = function.value_capacity();
+        let mut counts = vec![0u32; value_count];
 
-        // scan every executable block
+        // count uses for each value
         for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
-            // scan instruction operands
+            for &instruction_id in &block.instructions {
+                let instruction = tree.get(instruction_id);
+                for value in instruction.reads(tree) {
+                    counts[value.0 as usize] += 1;
+                }
+            }
+
+            let terminator = tree.get(block.terminator);
+            for value in terminator.uses(tree) {
+                counts[value.0 as usize] += 1;
+            }
+        }
+
+        // build dense value ranges
+        let mut offsets = Vec::with_capacity(value_count + 1);
+        offsets.push(0);
+        for count in counts {
+            let next = offsets[offsets.len() - 1] + count;
+            offsets.push(next);
+        }
+
+        let mut cursors = offsets[..value_count].to_vec();
+        let mut uses = vec![None; offsets[value_count] as usize];
+
+        // fill each value range in program order
+        for &block_id in function.blocks() {
+            let block = tree.get(block_id);
+
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
                 for (index, value) in instruction.reads(tree).into_iter().enumerate() {
-                    value_uses.record(
+                    Self::record(
                         value,
                         ValueUse::Instruction {
                             block: block_id,
                             instruction: instruction_id,
                             index,
                         },
+                        &mut cursors,
+                        &mut uses,
                     );
                 }
             }
 
-            // scan terminator operands
             let terminator = tree.get(block.terminator);
             for (index, value) in terminator.uses(tree).into_iter().enumerate() {
-                value_uses.record(
+                Self::record(
                     value,
                     ValueUse::Terminator {
                         block: block_id,
                         index,
                     },
+                    &mut cursors,
+                    &mut uses,
                 );
             }
         }
 
-        value_uses
+        let uses = uses
+            .into_iter()
+            .map(|value_use| match value_use {
+                Some(value_use) => value_use,
+                None => unreachable!("missing value use"),
+            })
+            .collect();
+
+        Self { offsets, uses }
     }
 
     /// Return operand uses for one value.
@@ -77,10 +116,13 @@ impl UseTable {
         let value = value.into();
         let index = value.0 as usize;
 
-        match self.uses.get(index) {
-            Some(uses) => uses,
-            None => unreachable!("value use outside function value table: {value:?}"),
-        }
+        let Some(range) = self.offsets.get(index..=index + 1) else {
+            unreachable!("value use outside function value table: {value:?}");
+        };
+        let start = range[0] as usize;
+        let end = range[1] as usize;
+
+        &self.uses[start..end]
     }
 
     /// Return how many operand occurrences read one value.
@@ -94,19 +136,23 @@ impl UseTable {
     }
 
     /// Record one operand use.
-    fn record(&mut self, value: mir::Value, value_use: ValueUse) {
+    fn record(
+        value: mir::Value,
+        value_use: ValueUse,
+        cursors: &mut [u32],
+        uses: &mut [Option<ValueUse>],
+    ) {
         let index = value.0 as usize;
-
-        let Some(uses) = self.uses.get_mut(index) else {
+        let Some(cursor) = cursors.get_mut(index) else {
             unreachable!("value use outside function value table: {value:?}");
         };
-
-        uses.push(value_use);
+        uses[*cursor as usize] = Some(value_use);
+        *cursor += 1;
     }
 }
 
 impl Analysis for UseTable {
-    const INVALIDATED_BY: Mutation = Mutation::VALUE;
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
 }
 
 impl UseTable {

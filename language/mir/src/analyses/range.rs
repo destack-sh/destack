@@ -8,7 +8,7 @@ use crate::{
     fold_cast, fold_unary,
 };
 
-use super::Lattice;
+use super::{Lattice, Mutation};
 
 /// Value ranges for one function.
 #[derive(Debug)]
@@ -371,7 +371,7 @@ impl RangeState {
         }
     }
 
-    /// Get the range for a value.
+    /// Return the range for one value.
     pub fn get(&self, value: impl Into<mir::Value>) -> Option<&ValueRange> {
         self.ranges.get(&value.into())
     }
@@ -537,7 +537,7 @@ impl RangeTable {
         }
     }
 
-    /// Get the ranges at block entry.
+    /// Return ranges at block entry.
     pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &RangeState {
         let ranges = self.block_entry.get(block);
 
@@ -547,7 +547,7 @@ impl RangeTable {
         }
     }
 
-    /// Get the ranges at block exit.
+    /// Return ranges at block exit.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &RangeState {
         let ranges = self.block_exit.get(block);
 
@@ -558,7 +558,11 @@ impl RangeTable {
     }
 }
 
-impl Analysis for RangeTable {}
+impl Analysis for RangeTable {
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL
+        .union(Mutation::VALUE)
+        .union(Mutation::LAYOUT);
+}
 
 impl RangeTable {
     /// Compute value ranges for one function.
@@ -996,7 +1000,7 @@ impl ValueRange {
 impl RangeState {
     /// Return a shared empty range map.
     fn empty() -> &'static Self {
-        // initialize the shared empty map
+        // initialize the shared empty state
         static EMPTY: std::sync::OnceLock<RangeState> = std::sync::OnceLock::new();
 
         EMPTY.get_or_init(Self::new)

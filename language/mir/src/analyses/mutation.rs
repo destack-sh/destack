@@ -1,9 +1,4 @@
-/// The kinds of IR a pass changed, used to invalidate analyses.
-///
-/// A pass returns the union of what it changed; each analysis declares the kinds
-/// that invalidate it via [`Analysis::INVALIDATED_BY`](super::Analysis::INVALIDATED_BY).
-/// The cache drops every analysis whose invalidation mask intersects a pass's
-/// reported change, then cascades to dependents through the dependency graph.
+/// MIR mutations used to invalidate cached analyses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Mutation(u8);
 
@@ -14,11 +9,11 @@ impl Mutation {
     pub const CONTROL: Self = Self(1 << 0);
     /// Values changed: instructions or operands added, removed, or rewritten.
     pub const VALUE: Self = Self(1 << 1);
-    /// Memory operations or memory tables changed.
+    /// Memory access metadata changed.
     pub const MEMORY: Self = Self(1 << 2);
     /// Effect tables changed.
     pub const EFFECT: Self = Self(1 << 3);
-    /// Layout or type representation data changed.
+    /// Type or layout representations changed.
     pub const LAYOUT: Self = Self(1 << 4);
     /// Profile tables changed.
     pub const PROFILE: Self = Self(1 << 5);

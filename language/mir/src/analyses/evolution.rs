@@ -14,8 +14,8 @@ use super::{ControlTable, Loop, LoopTable};
 /// Scalar evolution for one function.
 #[derive(Debug)]
 pub struct EvolutionTable {
-    /// SCEV expressions keyed by loop index and SSA value.
-    loop_scev: HashMap<usize, HashMap<mir::Value, Scev>>,
+    /// SCEV expressions indexed by loop, then keyed by SSA value.
+    loop_scev: Vec<HashMap<mir::Value, Scev>>,
 }
 
 /// Symbolic expression for scalar evolution.
@@ -78,7 +78,7 @@ pub enum Scev {
 }
 
 impl Scev {
-    /// Check if the expression is invariant with respect to a loop header.
+    /// Return whether the expression is invariant for one loop.
     pub fn is_loop_invariant(&self, loop_header: mir::LocalNodeId<mir::Block>) -> bool {
         match self {
             Scev::Constant(_) => true,
@@ -135,7 +135,7 @@ impl EvolutionTable {
         // handle functions without bodies
         if function.entry().is_none() {
             return Self {
-                loop_scev: HashMap::new(),
+                loop_scev: Vec::new(),
             };
         }
 
@@ -143,8 +143,8 @@ impl EvolutionTable {
         let forwarding = BlockParamForwarding::build(function, tree, cfg);
 
         // compute per loop SCEV maps
-        let mut loop_scev = HashMap::new();
-        for (loop_index, lp) in loops.loops().iter().enumerate() {
+        let mut loop_scev = Vec::with_capacity(loops.loops().len());
+        for lp in loops.loops() {
             let mut builder = LoopScevBuilder::new(
                 function,
                 tree,
@@ -155,24 +155,28 @@ impl EvolutionTable {
                 target_layout,
             );
             let scev_map = builder.build();
-            loop_scev.insert(loop_index, scev_map);
+            loop_scev.push(scev_map);
         }
 
         Self { loop_scev }
     }
 
-    /// Get the SCEV for a value in a specific loop.
+    /// Return the evolution for one value in one loop.
     pub fn value_scev(&self, loop_index: usize, value: mir::Value) -> Option<&Scev> {
-        self.loop_scev.get(&loop_index)?.get(&value)
+        self.loop_scev.get(loop_index)?.get(&value)
     }
 
-    /// Get all SCEVs for a loop.
+    /// Return every evolution in one loop.
     pub fn loop_scevs(&self, loop_index: usize) -> Option<&HashMap<mir::Value, Scev>> {
-        self.loop_scev.get(&loop_index)
+        self.loop_scev.get(loop_index)
     }
 }
 
-impl Analysis for EvolutionTable {}
+impl Analysis for EvolutionTable {
+    const INVALIDATED_BY: mir::Mutation = mir::Mutation::CONTROL
+        .union(mir::Mutation::VALUE)
+        .union(mir::Mutation::LAYOUT);
+}
 
 impl EvolutionTable {
     /// Compute scalar evolution for one function.
@@ -541,7 +545,7 @@ impl<'a> LoopScevBuilder<'a> {
         }
     }
 
-    /// Check if a value is defined inside the loop.
+    /// Return whether a value is defined inside the loop.
     fn value_defined_in_loop(&self, value: mir::Value) -> bool {
         // treat missing definitions as not in loop
         let definition = match self.definitions.definition(value) {
@@ -554,7 +558,7 @@ impl<'a> LoopScevBuilder<'a> {
             .is_some_and(|block| self.lp.blocks.contains(&block))
     }
 
-    /// Get the index of a header parameter if this value is one.
+    /// Return the header parameter index for one value.
     fn header_param_index(&self, value: mir::Value) -> Option<usize> {
         // require a header parameter definition
         let definition = self.definitions.definition(value)?;
@@ -710,7 +714,7 @@ impl<'a> LoopScevBuilder<'a> {
         }
     }
 
-    /// Check if a value is loop invariant.
+    /// Return whether a value is loop invariant.
     fn is_invariant_value(&self, value: mir::Value) -> bool {
         // use fixed invariant set
         self.invariants.contains(&value)

@@ -1,51 +1,54 @@
-use std::collections::HashMap;
-
 use crate as mir;
 
-use super::{Analysis, AnalysisCache, Mutation, OpenCallSite, ValueTypeTable};
+use super::{Analysis, AnalysisCache, Mutation};
 
 /// Static dispatch target analysis for MIR callsites.
 #[derive(Debug, Default)]
 pub struct ResolutionTable {
-    /// Resolved targets keyed by callsite.
-    targets: HashMap<mir::CallSite, mir::FunctionId>,
-    /// Calls whose target set is still open.
-    open_callsites: Vec<OpenCallSite>,
+    /// Resolved targets sorted by callsite.
+    targets: Vec<(mir::CallSite, mir::FunctionId)>,
 }
 
 impl ResolutionTable {
     /// Return the resolved target for one callsite.
     pub fn target(&self, callsite: mir::CallSite) -> Option<mir::FunctionId> {
-        self.targets.get(&callsite).copied()
+        let index = self
+            .targets
+            .binary_search_by_key(&callsite, |(callsite, _)| *callsite)
+            .ok()?;
+
+        Some(self.targets[index].1)
     }
 
-    /// Iterate open callsites.
-    pub fn open_callsites(&self) -> &[OpenCallSite] {
-        &self.open_callsites
-    }
-
-    /// Build dispatch analysis for one MIR tree.
-    fn build(
-        tree: &mir::Tree,
-        analyses: &mut AnalysisCache,
-        dispatch_table: &mir::DispatchTable,
-    ) -> Self {
+    /// Build static callsite resolutions for one MIR tree.
+    fn build(tree: &mir::Tree, dispatch_table: &mir::DispatchTable) -> Self {
         let mut analysis = Self::default();
 
         // scan each function body
-        for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+        for (_, function) in tree.iter_nodes::<mir::Function>() {
             if function.entry().is_some() {
-                let value_types = analyses.value_type(function_id, tree);
                 let mut resolver = DispatchResolver {
                     tree,
                     dispatch: dispatch_table,
                     function,
-                    value_types: &value_types,
                     analysis: &mut analysis,
                 };
 
-                resolver.record_function(function_id);
+                resolver.record_function();
             }
+        }
+
+        analysis
+            .targets
+            .sort_unstable_by_key(|(callsite, _)| *callsite);
+
+        // reject duplicate callsite ownership
+        if analysis
+            .targets
+            .windows(2)
+            .any(|targets| targets[0].0 == targets[1].0)
+        {
+            unreachable!("callsite resolves to multiple targets");
         }
 
         analysis
@@ -53,27 +56,22 @@ impl ResolutionTable {
 
     /// Record a resolved target.
     fn resolve(&mut self, callsite: mir::CallSite, target: mir::FunctionId) {
-        self.targets.insert(callsite, target);
-    }
-
-    /// Record an open callsite.
-    fn record_open_callsite(&mut self, callsite: OpenCallSite) {
-        self.open_callsites.push(callsite);
+        self.targets.push((callsite, target));
     }
 }
 
 impl Analysis for ResolutionTable {
-    const INVALIDATED_BY: Mutation = Mutation::VALUE;
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
 }
 
 impl ResolutionTable {
     /// Compute static dispatch targets for the module.
     pub(crate) fn compute(
         tree: &mir::Tree,
-        analyses: &mut AnalysisCache,
+        _analyses: &mut AnalysisCache,
         dispatch_table: &mir::DispatchTable,
     ) -> Self {
-        Self::build(tree, analyses, dispatch_table)
+        Self::build(tree, dispatch_table)
     }
 }
 
@@ -85,39 +83,36 @@ struct DispatchResolver<'a, 'b> {
     dispatch: &'a mir::DispatchTable,
     /// The function being scanned.
     function: &'a mir::Function,
-    /// Value types for the function.
-    value_types: &'b ValueTypeTable,
     /// Analysis being populated.
     analysis: &'b mut ResolutionTable,
 }
 
 impl<'a, 'b> DispatchResolver<'a, 'b> {
     /// Record dispatch targets in one function.
-    fn record_function(&mut self, caller: mir::FunctionId) {
+    fn record_function(&mut self) {
         for &block_id in self.function.blocks() {
-            self.record_block(caller, block_id);
+            self.record_block(block_id);
         }
     }
 
     /// Record dispatch targets in one block.
-    fn record_block(&mut self, caller: mir::FunctionId, block_id: mir::BlockId) {
+    fn record_block(&mut self, block_id: mir::BlockId) {
         let block = self.tree.get(block_id);
 
         // record call instructions
         for &instruction_id in &block.instructions {
             let instruction = self.tree.get(instruction_id);
-            self.record_instruction(caller, instruction_id, instruction);
+            self.record_instruction(instruction_id, instruction);
         }
 
         // record the block terminator
         let terminator = self.tree.get(block.terminator);
-        self.record_terminator(caller, block_id, terminator);
+        self.record_terminator(block_id, terminator);
     }
 
     /// Record one call instruction.
     fn record_instruction(
         &mut self,
-        caller: mir::FunctionId,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
     ) {
@@ -126,32 +121,24 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
             return;
         };
 
-        self.record_call(caller, callsite, call);
+        self.record_call(callsite, call);
     }
 
     /// Record one terminator call.
-    fn record_terminator(
-        &mut self,
-        caller: mir::FunctionId,
-        block_id: mir::BlockId,
-        terminator: &mir::Terminator,
-    ) {
+    fn record_terminator(&mut self, block_id: mir::BlockId, terminator: &mir::Terminator) {
         let callsite = mir::CallSite::Terminator(block_id);
         let call = match terminator {
             mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => call,
             _ => return,
         };
 
-        self.record_call(caller, callsite, call);
+        self.record_call(callsite, call);
     }
 
     /// Record one call operation.
-    fn record_call(&mut self, caller: mir::FunctionId, callsite: mir::CallSite, call: &mir::Call) {
+    fn record_call(&mut self, callsite: mir::CallSite, call: &mir::Call) {
         match &call.callee {
-            mir::Callee::Direct { function } => self.analysis.resolve(callsite, *function),
-            mir::Callee::Indirect { .. } => {
-                self.record_open_callsite(caller, callsite, mir::CallDispatch::Indirect);
-            }
+            mir::Callee::Direct { .. } | mir::Callee::Indirect { .. } => {}
             mir::Callee::Virtual {
                 receiver,
                 class,
@@ -159,12 +146,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
                 ..
             } => {
                 let target = self.virtual_target(*receiver, *class, *slot);
-                self.record_target_or_open(
-                    caller,
-                    callsite,
-                    mir::CallDispatch::Virtual { slot: *slot },
-                    target,
-                );
+                self.record_target(callsite, target);
             }
             mir::Callee::Dynamic {
                 receiver,
@@ -173,44 +155,16 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
                 ..
             } => {
                 let target = self.dynamic_target(*receiver, *constraint, *slot);
-                self.record_target_or_open(
-                    caller,
-                    callsite,
-                    mir::CallDispatch::Dynamic { slot: *slot },
-                    target,
-                );
+                self.record_target(callsite, target);
             }
         }
     }
 
-    /// Record a resolved target or open callsite.
-    fn record_target_or_open(
-        &mut self,
-        caller: mir::FunctionId,
-        callsite: mir::CallSite,
-        dispatch: mir::CallDispatch,
-        target: Option<mir::FunctionId>,
-    ) {
+    /// Record a resolved target when present.
+    fn record_target(&mut self, callsite: mir::CallSite, target: Option<mir::FunctionId>) {
         if let Some(target) = target {
             self.analysis.resolve(callsite, target);
-        } else {
-            self.record_open_callsite(caller, callsite, dispatch);
         }
-    }
-
-    /// Record an open callsite.
-    fn record_open_callsite(
-        &mut self,
-        caller: mir::FunctionId,
-        callsite: mir::CallSite,
-        dispatch: mir::CallDispatch,
-    ) {
-        self.analysis.record_open_callsite(OpenCallSite {
-            caller,
-            callsite,
-            dispatch,
-            known_target: None,
-        });
     }
 
     /// Resolve a virtual dispatch target.
@@ -254,7 +208,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
 
     /// Resolve the concrete receiver type when statically known.
     fn receiver_type(&self, receiver: mir::Value) -> Option<mir::TypeId> {
-        let receiver_type = self.value_types.value_type(receiver)?;
+        let receiver_type = self.function.value_type(receiver)?;
         match self.tree.get(receiver_type) {
             mir::Type::Reference { pointee, .. } => Some(*pointee),
             mir::Type::Dynamic { .. } => None,
@@ -271,7 +225,7 @@ mod tests {
 
     /// Virtual calls resolve when receiver type and virtual table are closed.
     #[test]
-    fn test_dispatch_resolves_virtual_call() {
+    fn test_resolve_virtual_call() {
         let mut program = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
@@ -298,15 +252,14 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&program.tree, &program.dispatch);
 
-        assert_eq!(dispatch.target(callsite), Some(callee));
-        assert!(dispatch.open_callsites().is_empty());
+        assert_eq!(resolution.target(callsite), Some(callee));
     }
 
     /// Virtual calls do not resolve when the slot is outside the method table.
     #[test]
-    fn test_dispatch_keeps_missing_virtual_slot_open() {
+    fn test_leave_missing_virtual_slot_open() {
         let mut program = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
@@ -333,15 +286,14 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&program.tree, &program.dispatch);
 
-        assert_eq!(dispatch.target(callsite), None);
-        assert_eq!(dispatch.open_callsites().len(), 1);
+        assert_eq!(resolution.target(callsite), None);
     }
 
     /// Dynamic calls resolve when receiver and constraint tables are closed.
     #[test]
-    fn test_dispatch_resolves_dynamic_call() {
+    fn test_resolve_dynamic_call() {
         let mut program = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
@@ -370,15 +322,14 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&program.tree, &program.dispatch);
 
-        assert_eq!(dispatch.target(callsite), Some(callee));
-        assert!(dispatch.open_callsites().is_empty());
+        assert_eq!(resolution.target(callsite), Some(callee));
     }
 
     /// Dynamic calls do not resolve against field-offset slots.
     #[test]
-    fn test_dispatch_keeps_dynamic_field_slot_open() {
+    fn test_leave_dynamic_field_slot_open() {
         let mut program = TestProgram::new(
             r#"
 function test(v0: int32): int32 {
@@ -401,15 +352,14 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&program.tree, &program.dispatch);
 
-        assert_eq!(dispatch.target(callsite), None);
-        assert_eq!(dispatch.open_callsites().len(), 1);
+        assert_eq!(resolution.target(callsite), None);
     }
 
-    /// Open calls stay visible when no dispatch table proves a target.
+    /// Virtual calls do not resolve without a dispatch table.
     #[test]
-    fn test_dispatch_records_open_virtual_call() {
+    fn test_leave_missing_virtual_table_open() {
         let program = TestProgram::new(
             r#"
 function test(v0: int32): int32 {
@@ -421,14 +371,13 @@ entry(v0: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let dispatch = analyses.resolution(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&program.tree, &program.dispatch);
 
         assert!(
-            dispatch
+            resolution
                 .target(first_virtual_call(&program, program.entry_function_id()).0)
                 .is_none()
         );
-        assert_eq!(dispatch.open_callsites().len(), 1);
     }
 
     /// Return the first virtual callsite and class type.

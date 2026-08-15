@@ -2,12 +2,12 @@ use std::marker::PhantomData;
 
 use crate::{LocalNodeId, Node};
 
-/// Dense table keyed by local MIR node ids from one domain.
+/// Compact table keyed by local MIR node ids from one domain.
 #[derive(Debug, Clone)]
 pub(crate) struct NodeTable<N: Node, T> {
-    /// Nodes that belong to this table.
-    membership: Vec<bool>,
-    /// Values indexed by local node id.
+    /// Sorted node ids parallel to the values.
+    nodes: Vec<LocalNodeId<N>>,
+    /// Values indexed by node position.
     values: Vec<T>,
     /// The node id domain for this table.
     domain: PhantomData<fn() -> N>,
@@ -17,7 +17,7 @@ impl<N: Node, T> NodeTable<N, T> {
     /// Create an empty node table.
     pub(crate) fn new() -> Self {
         Self {
-            membership: Vec::new(),
+            nodes: Vec::new(),
             values: Vec::new(),
             domain: PhantomData,
         }
@@ -25,30 +25,22 @@ impl<N: Node, T> NodeTable<N, T> {
 
     /// Create a table covering one node set.
     pub(crate) fn from_nodes(nodes: &[LocalNodeId<N>], mut value: impl FnMut() -> T) -> Self {
-        let node_count = nodes
-            .iter()
-            .map(|node| node.id as usize + 1)
-            .max()
-            .unwrap_or(0);
-        let mut membership = vec![false; node_count];
-        let mut values = Vec::with_capacity(node_count);
-        values.resize_with(node_count, &mut value);
+        let mut nodes = nodes.to_vec();
+        nodes.sort_unstable_by_key(|node| node.id);
 
-        // mark nodes owned by this table
-        for node in nodes {
-            membership[node.id as usize] = true;
+        // reject duplicate entries in one node domain
+        if nodes.windows(2).any(|nodes| nodes[0] == nodes[1]) {
+            unreachable!("duplicate node in table");
         }
 
+        let mut values = Vec::with_capacity(nodes.len());
+        values.resize_with(nodes.len(), &mut value);
+
         Self {
-            membership,
+            nodes,
             values,
             domain: PhantomData,
         }
-    }
-
-    /// Return the number of dense table entries.
-    pub(crate) fn len(&self) -> usize {
-        self.values.len()
     }
 
     /// Return whether this table has no dense entries.
@@ -61,14 +53,9 @@ impl<N: Node, T> NodeTable<N, T> {
         self.values.as_slice()
     }
 
-    /// Iterate over node ids and values that belong to this table.
+    /// Iterate over node ids and values.
     pub(crate) fn iter_nodes(&self) -> impl Iterator<Item = (LocalNodeId<N>, &T)> {
-        self.membership
-            .iter()
-            .copied()
-            .enumerate()
-            .filter(|(_, is_member)| *is_member)
-            .map(|(index, _)| (LocalNodeId::new(index as u32), &self.values[index]))
+        self.nodes.iter().copied().zip(&self.values)
     }
 
     /// Return one table entry.
@@ -85,16 +72,21 @@ impl<N: Node, T> NodeTable<N, T> {
         &mut self.values[index]
     }
 
-    /// Return the dense index for one node.
-    pub(crate) fn index(&self, node: LocalNodeId<N>) -> usize {
-        let index = node.id as usize;
-        if self.membership.get(index).copied().unwrap_or(false) {
-            index
-        } else {
-            panic!("node is outside table: {node:?}");
-        }
+    /// Return one node's compact table index.
+    fn index(&self, node: LocalNodeId<N>) -> usize {
+        self.nodes
+            .binary_search_by_key(&node.id, |candidate| candidate.id)
+            .unwrap_or_else(|_| unreachable!("node is outside table: {node:?}"))
     }
 }
+
+impl<N: Node, T: PartialEq> PartialEq for NodeTable<N, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.nodes == other.nodes && self.values == other.values
+    }
+}
+
+impl<N: Node, T: Eq> Eq for NodeTable<N, T> {}
 
 impl<N: Node, T: Copy> NodeTable<N, Option<T>> {
     /// Return one expected optional table entry.

@@ -8,7 +8,9 @@ use crate::{
 };
 
 /// Stable identifier for one callsite inside a function body.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub enum CallSite {
     /// Callsite stored as an instruction.
     Instruction(LocalNodeId<Instruction>),

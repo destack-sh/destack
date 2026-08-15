@@ -11,16 +11,30 @@ pub trait Lattice: Clone + PartialEq {
     fn meet(&self, other: &Self) -> Self;
 }
 
-/// Dense result of a dataflow analysis.
+/// One forward dataflow transfer.
+#[derive(Debug)]
+pub enum ForwardTransfer<'a> {
+    /// Transfer one complete block.
+    Block(mir::LocalNodeId<mir::Block>),
+    /// Transfer one control-flow edge.
+    Edge {
+        /// The transferred edge.
+        edge: mir::Edge,
+        /// The target carried by the edge.
+        target: &'a mir::BlockTarget,
+    },
+}
+
+/// Entry and exit states from one dataflow analysis.
 #[derive(Debug, Clone)]
-pub struct DataflowResult<S> {
-    /// State at entry indexed by block id.
+pub struct Dataflow<S> {
+    /// Entry state for each block.
     block_entry: NodeTable<mir::Block, Option<S>>,
-    /// State at exit indexed by block id.
+    /// Exit state for each block.
     block_exit: NodeTable<mir::Block, Option<S>>,
 }
 
-impl<S> DataflowResult<S> {
+impl<S> Dataflow<S> {
     /// Create an empty result.
     pub fn new() -> Self {
         Self {
@@ -68,13 +82,13 @@ impl<S> DataflowResult<S> {
     }
 }
 
-impl<S> Default for DataflowResult<S> {
+impl<S> Default for Dataflow<S> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<S> DataflowResult<S>
+impl<S> Dataflow<S>
 where
     S: Lattice,
 {
@@ -87,7 +101,7 @@ where
         mut transfer: F,
     ) -> Self
     where
-        F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::Tree) -> S,
+        F: for<'a> FnMut(ForwardTransfer<'a>, S, &mir::Tree) -> S,
     {
         let entry = match function.entry() {
             Some(entry) => entry,
@@ -96,46 +110,42 @@ where
 
         let mut result = Self::for_function(function);
 
-        // initialize entry block
-        result.set_entry(entry, entry_state.clone());
-
         // seed the worklist with the entry block
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+        let mut in_worklist = NodeTable::from_nodes(function.blocks(), || false);
 
         worklist.push_back(entry);
-        in_worklist.insert(entry);
+        *in_worklist.get_mut(entry) = true;
 
         while let Some(block_id) = worklist.pop_front() {
-            in_worklist.remove(&block_id);
+            *in_worklist.get_mut(block_id) = false;
 
-            // merge predecessor exits into the block entry
-            let new_entry = if block_id == entry {
-                result
-                    .entry(entry)
-                    .cloned()
-                    .unwrap_or_else(|| panic!("missing entry state for dataflow root: {entry:?}"))
-            } else {
-                let predecessors = cfg.predecessors(block_id);
-                if predecessors.is_empty() {
-                    continue;
-                }
-
-                let mut merged: Option<S> = None;
-                for &predecessor in predecessors {
-                    if let Some(predecessor_exit) = result.exit(predecessor) {
-                        merged = Some(match merged {
-                            Some(state) => state.meet(predecessor_exit),
-                            None => predecessor_exit.clone(),
-                        });
-                    }
-                }
-
-                let Some(merged) = merged else {
+            // merge the function entry state and every reached incoming edge
+            let mut merged = (block_id == entry).then(|| entry_state.clone());
+            for &predecessor in cfg.predecessors(block_id) {
+                let Some(predecessor_exit) = result.exit(predecessor) else {
                     continue;
                 };
-
-                merged
+                let predecessor_block = tree.get(predecessor);
+                let terminator = tree.get(predecessor_block.terminator);
+                for (edge, target) in terminator
+                    .targets(tree, predecessor)
+                    .into_iter()
+                    .filter(|(_, target)| target.block == block_id)
+                {
+                    let state = transfer(
+                        ForwardTransfer::Edge { edge, target },
+                        predecessor_exit.clone(),
+                        tree,
+                    );
+                    merged = Some(match merged {
+                        Some(merged) => merged.meet(&state),
+                        None => state,
+                    });
+                }
+            }
+            let Some(new_entry) = merged else {
+                continue;
             };
 
             // skip blocks whose entry is already stable
@@ -143,14 +153,14 @@ where
                 .entry(block_id)
                 .map(|old| old != &new_entry)
                 .unwrap_or(true);
-            if !entry_changed && block_id != entry {
+            if !entry_changed {
                 continue;
             }
 
             result.set_entry(block_id, new_entry.clone());
 
             // apply transfer from entry state to exit state
-            let exit_state = transfer(block_id, new_entry, tree);
+            let exit_state = transfer(ForwardTransfer::Block(block_id), new_entry, tree);
             let exit_changed = result
                 .exit(block_id)
                 .map(|old| old != &exit_state)
@@ -165,9 +175,9 @@ where
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
             for successor in terminator.successors(tree) {
-                if !in_worklist.contains(&successor) {
+                if !*in_worklist.get(successor) {
                     worklist.push_back(successor);
-                    in_worklist.insert(successor);
+                    *in_worklist.get_mut(successor) = true;
                 }
             }
         }
@@ -210,17 +220,17 @@ where
 
         // seed the worklist from every terminal block
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+        let mut in_worklist = NodeTable::from_nodes(function.blocks(), || false);
 
         for &block_id in function.blocks() {
             if result.exit(block_id).is_some() {
                 worklist.push_back(block_id);
-                in_worklist.insert(block_id);
+                *in_worklist.get_mut(block_id) = true;
             }
         }
 
         while let Some(block_id) = worklist.pop_front() {
-            in_worklist.remove(&block_id);
+            *in_worklist.get_mut(block_id) = false;
 
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
@@ -281,9 +291,9 @@ where
 
             // enqueue predecessors that may observe the changed entry
             for &predecessor in cfg.predecessors(block_id) {
-                if !in_worklist.contains(&predecessor) {
+                if !*in_worklist.get(predecessor) {
                     worklist.push_back(predecessor);
-                    in_worklist.insert(predecessor);
+                    *in_worklist.get_mut(predecessor) = true;
                 }
             }
         }
@@ -299,21 +309,47 @@ impl<T: Clone + Eq + std::hash::Hash> Lattice for HashSet<T> {
     }
 }
 
-/// Optional lattice where `None` is unknown and meet retains the first known value.
-impl<T: Clone + PartialEq> Lattice for Option<T> {
-    fn meet(&self, other: &Self) -> Self {
-        match (self, other) {
-            (None, x) | (x, None) => x.clone(),
-            (Some(a), Some(b)) if a == b => Some(a.clone()),
-            _ => None, // conflict, return top
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::analyses::tests::TestProgram;
+
+    /// Forward dataflow merges backedges into the function entry state.
+    #[test]
+    fn test_forward_dataflow_entry_backedge() {
+        let program = TestProgram::new(
+            r#"
+function test(v0: boolean): void {
+entry(v0: boolean):
+    branch v0 => entry(v0) | exit
+
+exit:
+    return
+}
+"#,
+        );
+
+        let function_id = program.first_function_id();
+        let function = program.tree.get(function_id);
+        let entry = function.entry().expect("missing entry");
+        let control = ControlTable::build(function, &program.tree);
+        let state = HashSet::from([0_u8]);
+        let result = Dataflow::forward(
+            function,
+            &program.tree,
+            &control,
+            state,
+            |transfer, mut state, _| {
+                if matches!(transfer, ForwardTransfer::Edge { .. }) {
+                    state.insert(1);
+                }
+
+                state
+            },
+        );
+
+        assert_eq!(result.entry(entry), Some(&HashSet::from([0, 1])));
+    }
 
     /// Forward dataflow should not skip blocks when the first predecessor is unreachable.
     #[test]
@@ -354,13 +390,16 @@ b2:
         let function = program.tree.get(function_id);
         let cfg = ControlTable::build(function, &program.tree);
         let entry_state: HashSet<mir::LocalNodeId<mir::Block>> = [block0].into_iter().collect();
-        let result = DataflowResult::forward(
+        let result = Dataflow::forward(
             function,
             &program.tree,
             &cfg,
             entry_state,
-            |block_id, mut state, _| {
-                state.insert(block_id);
+            |transfer, mut state, _| {
+                if let ForwardTransfer::Block(block) = transfer {
+                    state.insert(block);
+                }
+
                 state
             },
         );
@@ -393,7 +432,7 @@ entry(v0: int32):
         let entry = function.entry().expect("missing entry");
 
         let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
-        let result = DataflowResult::backward(
+        let result = Dataflow::backward(
             function,
             &program.tree,
             &cfg,
@@ -426,7 +465,7 @@ entry(v0: ref<void, managed, readonly>):
         let entry = function.entry().expect("missing entry");
 
         let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
-        let result = DataflowResult::backward(
+        let result = Dataflow::backward(
             function,
             &program.tree,
             &cfg,

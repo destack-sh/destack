@@ -33,7 +33,7 @@ impl ConstantState {
         }
     }
 
-    /// Get the constant value for a given SSA value.
+    /// Return the constant for one SSA value.
     pub fn get(&self, value: impl Into<mir::Value>) -> Option<&mir::Constant> {
         let value = value.into();
         self.constants.get(&value)
@@ -104,7 +104,7 @@ impl ConstantTable {
         target_layout: TargetLayout,
         entry_constants: ConstantState,
     ) -> Self {
-        // entry block selection
+        // select the entry block
         let entry = match function.entry() {
             Some(entry) => entry,
             None => {
@@ -205,7 +205,7 @@ impl ConstantTable {
         }
     }
 
-    /// Get the constants at block entry.
+    /// Return constants at block entry.
     pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantState {
         let constants = self.block_entry.get(block);
 
@@ -215,7 +215,7 @@ impl ConstantTable {
         }
     }
 
-    /// Get the constants at block exit.
+    /// Return constants at block exit.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantState {
         let constants = self.block_exit.get(block);
 
@@ -225,7 +225,7 @@ impl ConstantTable {
         }
     }
 
-    /// Get a constant value at block entry.
+    /// Return one constant at block entry.
     pub fn constant_at_entry(
         &self,
         block: mir::LocalNodeId<mir::Block>,
@@ -234,7 +234,7 @@ impl ConstantTable {
         self.entry(block).get(value)
     }
 
-    /// Get a constant value at block exit.
+    /// Return one constant at block exit.
     pub fn constant_at_exit(
         &self,
         block: mir::LocalNodeId<mir::Block>,
@@ -263,7 +263,11 @@ impl ConstantTable {
     }
 }
 
-impl Analysis for ConstantTable {}
+impl Analysis for ConstantTable {
+    const INVALIDATED_BY: mir::Mutation = mir::Mutation::CONTROL
+        .union(mir::Mutation::VALUE)
+        .union(mir::Mutation::LAYOUT);
+}
 
 impl ConstantTable {
     /// Compute constants for one function.
@@ -485,7 +489,7 @@ impl ConstantTable {
 impl ConstantState {
     /// Return a shared empty constant map.
     fn empty() -> &'static Self {
-        // initialize the shared empty map
+        // initialize the shared empty state
         static EMPTY: std::sync::OnceLock<ConstantState> = std::sync::OnceLock::new();
 
         EMPTY.get_or_init(Self::new)

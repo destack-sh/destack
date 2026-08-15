@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Binding, Block, FunctionParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId,
-    Node, NodeType, StaticId, Symbol, Tree, Type, TypeId, Value,
+    Node, NodeType, ReferenceKind, StaticId, Storage, Symbol, Tree, Type, TypeId, Value,
 };
 
 /// One MIR function declaration or definition.
@@ -94,8 +94,8 @@ pub struct InstructionLocation {
 /// Function-local instruction location index.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 struct InstructionIndex {
-    /// Instruction locations keyed by instruction id.
-    locations: Vec<Option<InstructionLocation>>,
+    /// Instruction locations sorted by instruction id.
+    locations: Vec<(LocalNodeId<Instruction>, InstructionLocation)>,
 }
 
 impl InstructionIndex {
@@ -113,17 +113,42 @@ impl InstructionIndex {
         for &block_id in blocks {
             let block = tree.get(block_id);
             for (index, &instruction) in block.instructions.iter().enumerate() {
-                self.set(instruction, block_id, index);
+                self.locations.push((
+                    instruction,
+                    InstructionLocation {
+                        block: block_id,
+                        index: index as u32,
+                    },
+                ));
             }
+        }
+
+        self.sort();
+    }
+
+    /// Sort locations by instruction id and reject duplicate ownership.
+    fn sort(&mut self) {
+        self.locations
+            .sort_unstable_by_key(|(instruction, _)| instruction.id);
+
+        // reject duplicate instruction ownership
+        if self
+            .locations
+            .windows(2)
+            .any(|locations| locations[0].0 == locations[1].0)
+        {
+            unreachable!("instruction belongs to multiple blocks");
         }
     }
 
     /// Return one instruction location.
     fn location(&self, instruction: LocalNodeId<Instruction>) -> Option<InstructionLocation> {
-        self.locations
-            .get(instruction.id as usize)
-            .copied()
-            .flatten()
+        let index = self
+            .locations
+            .binary_search_by_key(&instruction.id, |(instruction, _)| instruction.id)
+            .ok()?;
+
+        Some(self.locations[index].1)
     }
 
     /// Return the block that owns one instruction.
@@ -143,38 +168,27 @@ impl InstructionIndex {
         block: LocalNodeId<Block>,
         instructions: &[LocalNodeId<Instruction>],
     ) {
-        for location in &mut self.locations {
-            let Some(existing) = location else {
-                continue;
-            };
+        self.locations
+            .retain(|(_, location)| location.block != block);
 
-            if existing.block == block {
-                *location = None;
-            }
-        }
-
-        for (index, &instruction) in instructions.iter().enumerate() {
-            self.set(instruction, block, index);
-        }
-    }
-
-    /// Record one instruction location.
-    fn set(
-        &mut self,
-        instruction: LocalNodeId<Instruction>,
-        block: LocalNodeId<Block>,
-        index: usize,
-    ) {
-        let slot = instruction.id as usize;
-        let count = slot + 1;
-        if self.locations.len() < count {
-            self.locations.resize(count, None);
-        }
-
-        self.locations[slot] = Some(InstructionLocation {
-            block,
-            index: index as u32,
-        });
+        // append replacement locations before restoring lookup order
+        self.locations
+            .extend(
+                instructions
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .map(|(index, instruction)| {
+                        (
+                            instruction,
+                            InstructionLocation {
+                                block,
+                                index: index as u32,
+                            },
+                        )
+                    }),
+            );
+        self.sort();
     }
 }
 
@@ -455,34 +469,6 @@ impl Function {
             .unwrap_or(0)
     }
 
-    /// Return the dense local table capacity for this function.
-    pub fn local_capacity(&self) -> usize {
-        self.locals()
-            .iter()
-            .map(|local| local.id as usize + 1)
-            .max()
-            .unwrap_or(0)
-    }
-
-    /// Return the dense block table capacity for this function.
-    pub fn block_capacity(&self) -> usize {
-        self.blocks()
-            .iter()
-            .map(|block| block.id as usize + 1)
-            .max()
-            .unwrap_or(0)
-    }
-
-    /// Return the dense instruction table capacity for this function.
-    pub fn instruction_capacity(&self, tree: &Tree) -> usize {
-        self.blocks()
-            .iter()
-            .flat_map(|block| tree.get(*block).instructions.iter())
-            .map(|instruction| instruction.id as usize + 1)
-            .max()
-            .unwrap_or(0)
-    }
-
     /// Build parameter-derived SSA tables.
     pub(crate) fn parameter_state(
         parameters: &[FunctionParameter],
@@ -523,7 +509,7 @@ impl Function {
         linkage: Linkage,
         body: Option<FunctionBody>,
     ) -> Self {
-        // function signature
+        // build the function signature
         Self {
             name,
             arguments: Vec::new(),
@@ -605,6 +591,57 @@ impl Function {
             Some(ty) => ty,
             None => unreachable!("missing type for value {value:?}"),
         }
+    }
+
+    /// Return the pointee type for one address value.
+    pub fn pointee_type(&self, value: Value, tree: &Tree) -> Option<TypeId> {
+        let ty = self.expect_value_type(value);
+
+        match tree.get(ty) {
+            Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => Some(*pointee),
+            Type::Slice { element, .. }
+            | Type::Tensor { element, .. }
+            | Type::TensorView { element, .. } => Some(*element),
+            _ => None,
+        }
+    }
+
+    /// Return the reference kind for one reference-like value.
+    pub fn reference_kind(&self, value: Value, tree: &Tree) -> Option<ReferenceKind> {
+        let ty = self.expect_value_type(value);
+
+        tree.get(ty).reference_kind()
+    }
+
+    /// Return the storage for one reference-like value.
+    pub fn reference_storage(&self, value: Value, tree: &Tree) -> Option<Storage> {
+        let ty = self.expect_value_type(value);
+
+        tree.get(ty).reference_storage()
+    }
+
+    /// Return the width of one unsigned integer value.
+    pub fn unsigned_int_width(
+        &self,
+        value: Value,
+        pointer_width_bits: u16,
+        tree: &Tree,
+    ) -> Option<u16> {
+        let ty = self.expect_value_type(value);
+
+        match tree.get(ty) {
+            Type::Int {
+                width,
+                is_signed: false,
+            } => Some(*width),
+            Type::Usize => Some(pointer_width_bits),
+            _ => None,
+        }
+    }
+
+    /// Return whether one value can substitute another value.
+    pub fn can_substitute(&self, destination: Value, replacement: Value) -> bool {
+        self.expect_value_type(destination) == self.expect_value_type(replacement)
     }
 
     /// Set the linkage and return self (builder pattern).

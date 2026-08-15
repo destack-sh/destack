@@ -5,9 +5,11 @@ use smallvec::SmallVec;
 
 use crate::{
     AliasTable, Analysis, ControlTable, DefinitionTable, DominatorTable, FunctionCache,
-    MemoryLocation, MemoryRegion, NodeTable, StorageRoot, TargetLayout, ValueTypeTable,
-    collect_reachable_blocks, compute_dominance_frontiers,
+    MemoryLocation, MemoryRegion, NodeTable, StorageRoot, TargetLayout, collect_reachable_blocks,
+    compute_dominance_frontiers,
 };
+
+use super::Mutation;
 
 /// Memory versions for one function.
 #[derive(Debug)]
@@ -450,7 +452,6 @@ impl MemoryTable {
         cfg: &ControlTable,
         dominator: &DominatorTable,
         definitions: &DefinitionTable,
-        value_types: &ValueTypeTable,
         accesses: &mir::AccessTable,
         effect_table: &mir::EffectTable,
         target_layout: TargetLayout,
@@ -476,7 +477,6 @@ impl MemoryTable {
             function,
             tree,
             definitions,
-            value_types,
             accesses,
             effect_table,
             target_layout,
@@ -761,7 +761,7 @@ impl MemoryTable {
         self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
     }
 
-    /// Check if a def access clobbers the given region.
+    /// Return whether a definition clobbers one region.
     pub fn def_clobbers_region(
         &self,
         def_access: MemoryAccessId,
@@ -776,7 +776,7 @@ impl MemoryTable {
         def_access.clobbers_region(region, alias)
     }
 
-    /// Check if a def access clobbers another access.
+    /// Return whether a definition clobbers another access.
     pub fn def_clobbers_access(
         &self,
         def_access: MemoryAccessId,
@@ -870,7 +870,12 @@ impl MemoryTable {
     }
 }
 
-impl Analysis for MemoryTable {}
+impl Analysis for MemoryTable {
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL
+        .union(Mutation::VALUE)
+        .union(Mutation::MEMORY)
+        .union(Mutation::EFFECT);
+}
 
 impl MemoryTable {
     /// Compute memory versions for one function.
@@ -885,7 +890,6 @@ impl MemoryTable {
         let cfg = analyses.control(function, tree);
         let dominator = analyses.dominator(function, tree);
         let definitions = analyses.definition(function, tree);
-        let value_types = analyses.value_type(function, tree);
 
         Self::build(
             function,
@@ -893,7 +897,6 @@ impl MemoryTable {
             &cfg,
             &dominator,
             &definitions,
-            &value_types,
             accesses,
             effects,
             analyses.target_layout(),
@@ -934,8 +937,6 @@ struct MemoryAccessCollector<'a> {
     function: &'a mir::Function,
     /// MIR tree.
     tree: &'a mir::Tree,
-    /// Value type lookup for address resolution.
-    value_types: &'a ValueTypeTable,
     /// Value definitions for address provenance.
     definitions: DefinitionTable,
     /// Explicit memory access table.
@@ -952,7 +953,6 @@ impl<'a> MemoryAccessCollector<'a> {
         function: &'a mir::Function,
         tree: &'a mir::Tree,
         definitions: &DefinitionTable,
-        value_types: &'a ValueTypeTable,
         accesses: &'a mir::AccessTable,
         effect_table: &'a mir::EffectTable,
         target_layout: TargetLayout,
@@ -961,7 +961,6 @@ impl<'a> MemoryAccessCollector<'a> {
         Self {
             function,
             tree,
-            value_types,
             definitions: definitions.clone(),
             accesses,
             effect_table,
@@ -1038,7 +1037,7 @@ impl<'a> MemoryAccessCollector<'a> {
         }
     }
 
-    /// Determine memory effects for an instruction.
+    /// Return memory effects for one instruction.
     fn instruction_effects(
         &mut self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
@@ -1347,7 +1346,7 @@ impl<'a> MemoryAccessCollector<'a> {
         }
     }
 
-    /// Determine memory effects for a block terminator.
+    /// Return memory effects for one block terminator.
     fn terminator_effects(
         &mut self,
         block_id: mir::LocalNodeId<mir::Block>,
@@ -1464,14 +1463,14 @@ impl<'a> MemoryAccessCollector<'a> {
 
     /// Resolve the memory spaces for an address-bearing value.
     fn address_storage_set(&mut self, address: mir::Value) -> mir::StorageSet {
-        let Some(storage) = self.value_types.reference_storage(address, self.tree) else {
+        let Some(storage) = self.function.reference_storage(address, self.tree) else {
             return mir::StorageSet::ANY;
         };
 
         storage.storage_set()
     }
 
-    /// Determine memory effects for a call instruction using tables.
+    /// Return memory effects for one call instruction.
     fn call_effects(
         &mut self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
@@ -1483,7 +1482,7 @@ impl<'a> MemoryAccessCollector<'a> {
         )
     }
 
-    /// Determine memory effects for a callsite using tables.
+    /// Return memory effects for one callsite.
     fn callsite_effects(
         &self,
         callsite: mir::CallSite,
@@ -1560,7 +1559,7 @@ impl<'a> MemoryAccessCollector<'a> {
             .map(|tables| tables.memory.clone())
     }
 
-    /// Determine memory effects for an intrinsic.
+    /// Return memory effects for one intrinsic.
     fn intrinsic_effects(
         &mut self,
         intrinsic: mir::Intrinsic,
@@ -1901,17 +1900,17 @@ impl<'a> MemoryAccessCollector<'a> {
 
     /// Resolve the pointee type for an address-bearing value.
     fn address_value_type(&self, address: mir::Value) -> Option<mir::TypeId> {
-        self.value_types.pointee_type(address, self.tree)
+        self.function.pointee_type(address, self.tree)
     }
 
     /// Return the reference kind carried by an address, when applicable.
     fn reference_kind(&self, address: mir::Value) -> Option<mir::ReferenceKind> {
-        self.value_types.reference_kind(address, self.tree)
+        self.function.reference_kind(address, self.tree)
     }
 
     /// Return the reference storage carried by an address, when applicable.
     fn reference_storage(&self, address: mir::Value) -> Option<mir::Storage> {
-        self.value_types.reference_storage(address, self.tree)
+        self.function.reference_storage(address, self.tree)
     }
 }
 
@@ -1956,7 +1955,7 @@ impl<'a> MemoryRenamer<'a> {
 
     /// Rename memory accesses to build SSA form.
     fn rename(&mut self, ssa: &mut MemoryTable) {
-        // initialize stack with live on entry
+        // initialize the stack with live definitions
         let mut stack = Vec::new();
         stack.push(ssa.live_on_entry);
 
@@ -2740,7 +2739,7 @@ entry(v0: ref<int32, borrowed, mutable>):
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
         let callsite = mir::CallSite::Instruction(call_inst);
-        test.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
+        test.effects.upsert_call(callsite).memory = mir::MemoryEffect::none();
 
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();

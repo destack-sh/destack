@@ -11,11 +11,11 @@ use crate::{Field, Function, LocalNodeId, Type};
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct DispatchTable {
     /// Virtual dispatch tables.
-    pub virtual_tables: Vec<VirtualTable>,
+    virtual_tables: Vec<VirtualTable>,
     /// Dynamic dispatch tables.
-    pub dynamic_tables: Vec<DynamicTable>,
+    dynamic_tables: Vec<DynamicTable>,
     /// Dynamic dispatch shapes keyed by constraint type id.
-    pub dynamic_shapes: Vec<DynamicShape>,
+    dynamic_shapes: Vec<DynamicShape>,
 }
 
 impl DispatchTable {
@@ -47,24 +47,26 @@ impl DispatchTable {
 
     /// Insert a virtual table.
     pub fn insert_virtual_table(&mut self, table: VirtualTable) -> Option<VirtualTable> {
-        if let Some(index) = self
+        let index = self
             .virtual_tables
-            .iter()
-            .position(|candidate| candidate.concrete == table.concrete)
-        {
-            return Some(mem::replace(&mut self.virtual_tables[index], table));
+            .binary_search_by_key(&table.concrete.get(), |candidate| candidate.concrete.get());
+
+        match index {
+            Ok(index) => Some(mem::replace(&mut self.virtual_tables[index], table)),
+            Err(index) => {
+                self.virtual_tables.insert(index, table);
+
+                None
+            }
         }
-
-        self.virtual_tables.push(table);
-
-        None
     }
 
     /// Return the virtual table for a type when present.
     pub fn virtual_table(&self, ty: LocalNodeId<Type>) -> Option<&VirtualTable> {
         self.virtual_tables
-            .iter()
-            .find(|table| table.concrete == ty)
+            .binary_search_by_key(&ty.get(), |table| table.concrete.get())
+            .ok()
+            .map(|index| &self.virtual_tables[index])
     }
 
     /// Iterate all virtual tables.
@@ -74,15 +76,19 @@ impl DispatchTable {
 
     /// Insert a dynamic table.
     pub fn insert_dynamic_table(&mut self, table: DynamicTable) -> Option<DynamicTable> {
-        if let Some(index) = self.dynamic_tables.iter().position(|candidate| {
-            candidate.concrete == table.concrete && candidate.constraint == table.constraint
-        }) {
-            return Some(mem::replace(&mut self.dynamic_tables[index], table));
+        let key = (table.concrete.get(), table.constraint.get());
+        let index = self.dynamic_tables.binary_search_by_key(&key, |candidate| {
+            (candidate.concrete.get(), candidate.constraint.get())
+        });
+
+        match index {
+            Ok(index) => Some(mem::replace(&mut self.dynamic_tables[index], table)),
+            Err(index) => {
+                self.dynamic_tables.insert(index, table);
+
+                None
+            }
         }
-
-        self.dynamic_tables.push(table);
-
-        None
     }
 
     /// Return the dynamic table for a concrete type and constraint when present.
@@ -91,9 +97,12 @@ impl DispatchTable {
         concrete: LocalNodeId<Type>,
         constraint: LocalNodeId<Type>,
     ) -> Option<&DynamicTable> {
+        let key = (concrete.get(), constraint.get());
+
         self.dynamic_tables
-            .iter()
-            .find(|table| table.concrete == concrete && table.constraint == constraint)
+            .binary_search_by_key(&key, |table| (table.concrete.get(), table.constraint.get()))
+            .ok()
+            .map(|index| &self.dynamic_tables[index])
     }
 
     /// Iterate all dynamic tables.
@@ -104,8 +113,9 @@ impl DispatchTable {
     /// Return the dynamic shape for a constraint type id.
     pub fn dynamic_shape(&self, constraint: LocalNodeId<Type>) -> Option<&DynamicShape> {
         self.dynamic_shapes
-            .iter()
-            .find(|shape| shape.constraint == constraint)
+            .binary_search_by_key(&constraint.get(), |shape| shape.constraint.get())
+            .ok()
+            .map(|index| &self.dynamic_shapes[index])
     }
 
     /// Iterate all dynamic shapes.
@@ -115,17 +125,20 @@ impl DispatchTable {
 
     /// Insert a dynamic shape.
     pub fn insert_dynamic_shape(&mut self, shape: DynamicShape) -> Option<DynamicShape> {
-        if let Some(index) = self
+        let index = self
             .dynamic_shapes
-            .iter()
-            .position(|candidate| candidate.constraint == shape.constraint)
-        {
-            return Some(mem::replace(&mut self.dynamic_shapes[index], shape));
+            .binary_search_by_key(&shape.constraint.get(), |candidate| {
+                candidate.constraint.get()
+            });
+
+        match index {
+            Ok(index) => Some(mem::replace(&mut self.dynamic_shapes[index], shape)),
+            Err(index) => {
+                self.dynamic_shapes.insert(index, shape);
+
+                None
+            }
         }
-
-        self.dynamic_shapes.push(shape);
-
-        None
     }
 }
 

@@ -1,68 +1,96 @@
 use std::collections::HashSet;
 
-use super::{Analysis, FunctionCache};
+use destack_core::BitSet;
+
+use super::{Analysis, FunctionCache, Mutation};
 use crate::{Block, Function, Instruction, Local, LocalNodeId, NodeTable, Tree, Value};
 
 /// Liveness for one MIR function.
 #[derive(Debug, Clone, Default)]
 pub struct LivenessTable {
     /// Values live at entry indexed by block id.
-    value_live_in: NodeTable<Block, HashSet<Value>>,
+    value_live_in: NodeTable<Block, BitSet>,
     /// Values live at exit indexed by block id.
-    value_live_out: NodeTable<Block, HashSet<Value>>,
+    value_live_out: NodeTable<Block, BitSet>,
     /// Locals live at entry indexed by block id.
-    local_live_in: NodeTable<Block, HashSet<LocalNodeId<Local>>>,
+    local_live_in: NodeTable<Block, BitSet>,
     /// Locals live at exit indexed by block id.
-    local_live_out: NodeTable<Block, HashSet<LocalNodeId<Local>>>,
+    local_live_out: NodeTable<Block, BitSet>,
+    /// Function locals in compact liveness order.
+    locals: Vec<LocalNodeId<Local>>,
 }
 
 /// Per-block local use and definition sets for liveness.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct BlockLiveness {
     /// Values used before local definition in the block.
-    value_use: HashSet<Value>,
+    value_use: BitSet,
     /// Values defined in the block.
-    value_def: HashSet<Value>,
+    value_def: BitSet,
     /// Locals used before local definition in the block.
-    local_use: HashSet<LocalNodeId<Local>>,
+    local_use: BitSet,
     /// Locals defined in the block.
-    local_def: HashSet<LocalNodeId<Local>>,
+    local_def: BitSet,
 }
 
 impl LivenessTable {
     /// Build liveness for one MIR function.
     pub fn build(function: &Function, tree: &Tree) -> Self {
+        let mut locals = function.locals().to_vec();
+        locals.sort_unstable_by_key(|local| local.get());
+
+        let mut local_indices = NodeTable::from_nodes(&locals, || 0);
+        for (index, local) in locals.iter().copied().enumerate() {
+            *local_indices.get_mut(local) = index;
+        }
+
         // collect local block liveness
-        let blocks = Self::collect_blocks(function, tree);
+        let blocks = Self::collect_blocks(function, tree, &local_indices);
 
-        // initial state
-        let mut liveness = Self::initialize(function);
+        // initialize empty block states
+        let mut liveness = Self::initialize(function, locals);
 
-        // fixed point
+        // propagate liveness to a fixed point
         Self::propagate_to_fixed_point(&mut liveness, function, tree, &blocks);
 
         liveness
     }
 
     /// Collect local use and def sets for each block.
-    fn collect_blocks(function: &Function, tree: &Tree) -> NodeTable<Block, BlockLiveness> {
-        let mut blocks = NodeTable::from_nodes(function.blocks(), BlockLiveness::default);
+    fn collect_blocks(
+        function: &Function,
+        tree: &Tree,
+        local_indices: &NodeTable<Local, usize>,
+    ) -> NodeTable<Block, BlockLiveness> {
+        let value_count = function.value_capacity();
+        let local_count = local_indices.values().len();
+        let mut blocks = NodeTable::from_nodes(function.blocks(), || BlockLiveness {
+            value_use: BitSet::new(value_count),
+            value_def: BitSet::new(value_count),
+            local_use: BitSet::new(local_count),
+            local_def: BitSet::new(local_count),
+        });
 
         // scan each block independently
         for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
-            let mut seen_value_defs = HashSet::new();
-            let mut seen_local_defs = HashSet::new();
-            let mut block_liveness = BlockLiveness::default();
+            let mut seen_value_defs = BitSet::new(value_count);
+            let mut seen_local_defs = BitSet::new(local_count);
+            let mut block_liveness = BlockLiveness {
+                value_use: BitSet::new(value_count),
+                value_def: BitSet::new(value_count),
+                local_use: BitSet::new(local_count),
+                local_def: BitSet::new(local_count),
+            };
 
-            // block parameters
+            // record block parameter definitions
             for parameter in &block.parameters {
-                seen_value_defs.insert(parameter.value);
-                block_liveness.value_def.insert(parameter.value);
+                seen_value_defs.insert(parameter.value.0 as usize);
+                block_liveness.value_def.insert(parameter.value.0 as usize);
             }
 
-            // instructions
+            // record instruction uses and definitions
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
                 Self::record_instruction_value_uses(
@@ -75,19 +103,21 @@ impl LivenessTable {
                     &mut block_liveness,
                     &seen_local_defs,
                     instruction,
+                    local_indices,
                 );
                 Self::record_instruction_defs(
                     &mut block_liveness,
                     &mut seen_value_defs,
                     &mut seen_local_defs,
                     instruction,
+                    local_indices,
                 );
             }
 
-            // terminator uses
+            // record terminator uses
             for used in terminator.uses(tree) {
-                if !seen_value_defs.contains(&used) {
-                    block_liveness.value_use.insert(used);
+                if !seen_value_defs.contains(used.0 as usize) {
+                    block_liveness.value_use.insert(used.0 as usize);
                 }
             }
 
@@ -100,21 +130,13 @@ impl LivenessTable {
     /// Record instruction value uses in one block liveness set.
     fn record_instruction_value_uses(
         liveness: &mut BlockLiveness,
-        seen_value_defs: &HashSet<Value>,
+        seen_value_defs: &BitSet,
         instruction: &Instruction,
         tree: &Tree,
     ) {
-        for used in instruction.uses() {
-            if !seen_value_defs.contains(&used) {
-                liveness.value_use.insert(used);
-            }
-        }
-
-        if let Some(arguments) = instruction.argument_slice() {
-            for &argument in tree.get_values(arguments) {
-                if !seen_value_defs.contains(&argument) {
-                    liveness.value_use.insert(argument);
-                }
+        for used in instruction.reads(tree) {
+            if !seen_value_defs.contains(used.0 as usize) {
+                liveness.value_use.insert(used.0 as usize);
             }
         }
     }
@@ -122,13 +144,15 @@ impl LivenessTable {
     /// Record instruction local uses in one block liveness set.
     fn record_instruction_local_uses(
         liveness: &mut BlockLiveness,
-        seen_local_defs: &HashSet<LocalNodeId<Local>>,
+        seen_local_defs: &BitSet,
         instruction: &Instruction,
+        local_indices: &NodeTable<Local, usize>,
     ) {
         match instruction {
             Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
-                if !seen_local_defs.contains(local) {
-                    liveness.local_use.insert(*local);
+                let index = *local_indices.get(*local);
+                if !seen_local_defs.contains(index) {
+                    liveness.local_use.insert(index);
                 }
             }
             _ => {}
@@ -138,28 +162,34 @@ impl LivenessTable {
     /// Record instruction defs in one block liveness set.
     fn record_instruction_defs(
         liveness: &mut BlockLiveness,
-        seen_value_defs: &mut HashSet<Value>,
-        seen_local_defs: &mut HashSet<LocalNodeId<Local>>,
+        seen_value_defs: &mut BitSet,
+        seen_local_defs: &mut BitSet,
         instruction: &Instruction,
+        local_indices: &NodeTable<Local, usize>,
     ) {
         if let Some(destination) = instruction.destination() {
-            seen_value_defs.insert(destination);
-            liveness.value_def.insert(destination);
+            seen_value_defs.insert(destination.0 as usize);
+            liveness.value_def.insert(destination.0 as usize);
         }
 
         if let Instruction::LocalSet { local, .. } = instruction {
-            seen_local_defs.insert(*local);
-            liveness.local_def.insert(*local);
+            let index = *local_indices.get(*local);
+            seen_local_defs.insert(index);
+            liveness.local_def.insert(index);
         }
     }
 
     /// Initialize empty liveness state for all blocks.
-    fn initialize(function: &Function) -> Self {
+    fn initialize(function: &Function, locals: Vec<LocalNodeId<Local>>) -> Self {
+        let value_count = function.value_capacity();
+        let local_count = locals.len();
+
         Self {
-            value_live_in: NodeTable::from_nodes(function.blocks(), HashSet::new),
-            value_live_out: NodeTable::from_nodes(function.blocks(), HashSet::new),
-            local_live_in: NodeTable::from_nodes(function.blocks(), HashSet::new),
-            local_live_out: NodeTable::from_nodes(function.blocks(), HashSet::new),
+            value_live_in: NodeTable::from_nodes(function.blocks(), || BitSet::new(value_count)),
+            value_live_out: NodeTable::from_nodes(function.blocks(), || BitSet::new(value_count)),
+            local_live_in: NodeTable::from_nodes(function.blocks(), || BitSet::new(local_count)),
+            local_live_out: NodeTable::from_nodes(function.blocks(), || BitSet::new(local_count)),
+            locals,
         }
     }
 
@@ -194,52 +224,48 @@ impl LivenessTable {
         let terminator = tree.get(block.terminator);
         let block_liveness = blocks.get(block_id);
 
-        // successor live-out
-        let mut next_value_live_out = HashSet::new();
-        let mut next_local_live_out = HashSet::new();
+        // merge successor entries into block exits
+        let mut next_value_live_out = BitSet::new(block_liveness.value_use.len());
+        let mut next_local_live_out = BitSet::new(block_liveness.local_use.len());
 
         for successor in terminator.successors(tree) {
             let successor_value_live_in = liveness.value_live_in.get(successor);
-            next_value_live_out.extend(successor_value_live_in.iter().copied());
+            next_value_live_out.union_with(successor_value_live_in);
 
             let successor_local_live_in = liveness.local_live_in.get(successor);
-            next_local_live_out.extend(successor_local_live_in.iter().copied());
+            next_local_live_out.union_with(successor_local_live_in);
         }
 
-        // block live-in
-        let mut next_value_live_in: HashSet<Value> = next_value_live_out
-            .difference(&block_liveness.value_def)
-            .copied()
-            .collect();
-        next_value_live_in.extend(block_liveness.value_use.iter().copied());
+        // subtract definitions and add upward-exposed uses
+        let mut next_value_live_in = next_value_live_out.clone();
+        next_value_live_in.subtract(&block_liveness.value_def);
+        next_value_live_in.union_with(&block_liveness.value_use);
 
-        let mut next_local_live_in: HashSet<LocalNodeId<Local>> = next_local_live_out
-            .difference(&block_liveness.local_def)
-            .copied()
-            .collect();
-        next_local_live_in.extend(block_liveness.local_use.iter().copied());
+        let mut next_local_live_in = next_local_live_out.clone();
+        next_local_live_in.subtract(&block_liveness.local_def);
+        next_local_live_in.union_with(&block_liveness.local_use);
 
         let mut changed = false;
 
-        // value live-in
+        // update value entry state
         if next_value_live_in != *liveness.value_live_in.get(block_id) {
             *liveness.value_live_in.get_mut(block_id) = next_value_live_in;
             changed = true;
         }
 
-        // value live-out
+        // update value exit state
         if next_value_live_out != *liveness.value_live_out.get(block_id) {
             *liveness.value_live_out.get_mut(block_id) = next_value_live_out;
             changed = true;
         }
 
-        // local live-in
+        // update local entry state
         if next_local_live_in != *liveness.local_live_in.get(block_id) {
             *liveness.local_live_in.get_mut(block_id) = next_local_live_in;
             changed = true;
         }
 
-        // local live-out
+        // update local exit state
         if next_local_live_out != *liveness.local_live_out.get(block_id) {
             *liveness.local_live_out.get_mut(block_id) = next_local_live_out;
             changed = true;
@@ -249,28 +275,46 @@ impl LivenessTable {
     }
 
     /// Return the values live at block entry.
-    pub fn value_live_in(&self, block: LocalNodeId<Block>) -> &HashSet<Value> {
-        self.value_live_in.get(block)
+    pub fn value_live_in(&self, block: LocalNodeId<Block>) -> impl Iterator<Item = Value> + '_ {
+        self.value_live_in
+            .get(block)
+            .iter()
+            .map(|index| Value(index as u32))
     }
 
     /// Return the values live at block exit.
-    pub fn value_live_out(&self, block: LocalNodeId<Block>) -> &HashSet<Value> {
-        self.value_live_out.get(block)
+    pub fn value_live_out(&self, block: LocalNodeId<Block>) -> impl Iterator<Item = Value> + '_ {
+        self.value_live_out
+            .get(block)
+            .iter()
+            .map(|index| Value(index as u32))
     }
 
     /// Return the locals live at block entry.
-    pub fn local_live_in(&self, block: LocalNodeId<Block>) -> &HashSet<LocalNodeId<Local>> {
-        self.local_live_in.get(block)
+    pub fn local_live_in(
+        &self,
+        block: LocalNodeId<Block>,
+    ) -> impl Iterator<Item = LocalNodeId<Local>> + '_ {
+        self.local_live_in
+            .get(block)
+            .iter()
+            .map(|index| self.locals[index])
     }
 
     /// Return the locals live at block exit.
-    pub fn local_live_out(&self, block: LocalNodeId<Block>) -> &HashSet<LocalNodeId<Local>> {
-        self.local_live_out.get(block)
+    pub fn local_live_out(
+        &self,
+        block: LocalNodeId<Block>,
+    ) -> impl Iterator<Item = LocalNodeId<Local>> + '_ {
+        self.local_live_out
+            .get(block)
+            .iter()
+            .map(|index| self.locals[index])
     }
 
     /// Return whether one value is live at block entry.
     pub fn is_value_live_in(&self, block: LocalNodeId<Block>, value: Value) -> bool {
-        self.value_live_in(block).contains(&value)
+        self.value_live_in.get(block).contains(value.0 as usize)
     }
 
     /// Return whether one available value is live after entering a block.
@@ -305,7 +349,7 @@ impl LivenessTable {
 
     /// Return whether one value is live at block exit.
     pub fn is_value_live_out(&self, block: LocalNodeId<Block>, value: Value) -> bool {
-        self.value_live_out(block).contains(&value)
+        self.value_live_out.get(block).contains(value.0 as usize)
     }
 
     /// Return whether one value is live after one instruction.
@@ -319,26 +363,16 @@ impl LivenessTable {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
-        // later instructions
+        // scan later instructions
         for &instruction_id in block.instructions.iter().skip(instruction_index + 1) {
             let instruction = tree.get(instruction_id);
 
-            if instruction.uses().iter().copied().any(|used| used == value) {
-                return true;
-            }
-
-            if let Some(arguments) = instruction.argument_slice()
-                && tree
-                    .get_values(arguments)
-                    .iter()
-                    .copied()
-                    .any(|argument| argument == value)
-            {
+            if instruction.reads(tree).contains(&value) {
                 return true;
             }
         }
 
-        // terminator
+        // scan the terminator
         if terminator
             .uses(tree)
             .iter()
@@ -360,7 +394,7 @@ impl LivenessTable {
     ) -> HashSet<Value> {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        let mut live = self.value_live_out(block_id).clone();
+        let mut live = self.value_live_out(block_id).collect::<HashSet<_>>();
 
         // retain values consumed by the terminator
         live.extend(terminator.uses(tree));
@@ -373,14 +407,8 @@ impl LivenessTable {
                 live.remove(&destination);
             }
 
-            for used in instruction.uses() {
+            for used in instruction.reads(tree) {
                 live.insert(used);
-            }
-
-            if let Some(arguments) = instruction.argument_slice() {
-                for &argument in tree.get_values(arguments) {
-                    live.insert(argument);
-                }
             }
         }
 
@@ -396,12 +424,12 @@ impl LivenessTable {
     ) -> HashSet<LocalNodeId<Local>> {
         let block = tree.get(block_id);
 
-        // block entry
+        // return entry liveness directly
         if instruction_offset == 0 {
-            return self.local_live_in(block_id).clone();
+            return self.local_live_in(block_id).collect();
         }
 
-        let mut live = self.local_live_out(block_id).clone();
+        let mut live = self.local_live_out(block_id).collect::<HashSet<_>>();
 
         // walk later local reads and writes backward
         for instruction_id in block.instructions.iter().skip(instruction_offset).rev() {
@@ -427,7 +455,7 @@ impl LivenessTable {
     ) -> HashSet<Value> {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        let mut live = self.value_live_out(block_id).clone();
+        let mut live = self.value_live_out(block_id).collect::<HashSet<_>>();
 
         // retain values consumed by the terminator itself
         live.extend(terminator.uses(tree));
@@ -440,7 +468,7 @@ impl LivenessTable {
         &self,
         block_id: LocalNodeId<Block>,
     ) -> HashSet<LocalNodeId<Local>> {
-        self.local_live_out(block_id).clone()
+        self.local_live_out(block_id).collect()
     }
 
     /// Return all values live somewhere in the function.
@@ -448,18 +476,20 @@ impl LivenessTable {
         let mut values = HashSet::new();
 
         for live in self.value_live_in.values() {
-            values.extend(live.iter().copied());
+            values.extend(live.iter().map(|index| Value(index as u32)));
         }
 
         for live in self.value_live_out.values() {
-            values.extend(live.iter().copied());
+            values.extend(live.iter().map(|index| Value(index as u32)));
         }
 
         values
     }
 }
 
-impl Analysis for LivenessTable {}
+impl Analysis for LivenessTable {
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
+}
 
 impl LivenessTable {
     /// Compute liveness for one function.
@@ -495,7 +525,7 @@ entry:
         assert!(!liveness.is_value_live_in(entry, Value::new(0)));
         assert!(!liveness.is_value_live_in(entry, Value::new(1)));
         assert!(!liveness.is_value_live_in(entry, Value::new(2)));
-        assert!(liveness.value_live_out(entry).is_empty());
+        assert_eq!(liveness.value_live_out(entry).count(), 0);
         assert!(liveness.is_value_live_after_instruction(entry, 0, Value::new(0), &tree));
         assert!(liveness.is_value_live_after_instruction(entry, 2, Value::new(2), &tree));
     }

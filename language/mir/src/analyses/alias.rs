@@ -2,7 +2,7 @@ use crate as mir;
 
 use crate::{
     Analysis, DefinitionTable, FunctionCache, MemoryLocation, MemoryRegion, MemoryRegionBuilder,
-    StorageRoot, TargetLayout, ValueTypeTable,
+    StorageRoot, TargetLayout,
 };
 
 /// Alias analysis for one MIR function.
@@ -17,11 +17,10 @@ impl AliasTable {
     pub fn build(
         function: &mir::Function,
         definitions: &DefinitionTable,
-        value_types: &ValueTypeTable,
         target_layout: TargetLayout,
         tree: &mir::Tree,
     ) -> Self {
-        let regions = Self::build_regions(function, definitions, value_types, target_layout, tree);
+        let regions = Self::build_regions(function, definitions, target_layout, tree);
 
         Self { regions }
     }
@@ -103,17 +102,10 @@ impl AliasTable {
     fn build_regions(
         function: &mir::Function,
         definitions: &DefinitionTable,
-        value_types: &ValueTypeTable,
         target_layout: TargetLayout,
         tree: &mir::Tree,
     ) -> Vec<Option<MemoryRegion>> {
-        let mut builder = MemoryRegionBuilder::new(
-            definitions,
-            tree,
-            &function.parameters,
-            value_types,
-            target_layout,
-        );
+        let mut builder = MemoryRegionBuilder::new(function, definitions, tree, target_layout);
 
         let mut regions = vec![None; function.value_capacity()];
 
@@ -127,7 +119,9 @@ impl AliasTable {
 }
 
 impl Analysis for AliasTable {
-    const INVALIDATED_BY: mir::Mutation = mir::Mutation::VALUE.union(mir::Mutation::MEMORY);
+    const INVALIDATED_BY: mir::Mutation = mir::Mutation::CONTROL
+        .union(mir::Mutation::VALUE)
+        .union(mir::Mutation::LAYOUT);
 }
 
 impl AliasTable {
@@ -138,15 +132,8 @@ impl AliasTable {
         analyses: &mut FunctionCache,
     ) -> Self {
         let definitions = analyses.definition(function, tree);
-        let value_types = analyses.value_type(function, tree);
 
-        Self::build(
-            function,
-            &definitions,
-            &value_types,
-            analyses.target_layout(),
-            tree,
-        )
+        Self::build(function, &definitions, analyses.target_layout(), tree)
     }
 }
 
@@ -164,17 +151,17 @@ pub enum AliasResult {
 }
 
 impl AliasResult {
-    /// Check whether this proves non-aliasing.
+    /// Return whether this proves non-aliasing.
     pub fn is_no_alias(self) -> bool {
         matches!(self, AliasResult::NoAlias)
     }
 
-    /// Check whether the locations may alias.
+    /// Return whether the locations may alias.
     pub fn may_alias(self) -> bool {
         !matches!(self, AliasResult::NoAlias)
     }
 
-    /// Check whether this proves identical memory.
+    /// Return whether this proves identical memory.
     pub fn is_must_alias(self) -> bool {
         matches!(self, AliasResult::MustAlias)
     }

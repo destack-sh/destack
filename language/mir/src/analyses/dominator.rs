@@ -28,7 +28,7 @@ impl DenseControlFlow {
     fn build(function: &Function, tree: &Tree, cfg: &ControlTable) -> Self {
         let mut block_index = NodeTable::from_nodes(function.blocks(), || None);
 
-        // block indices
+        // assign compact block indices
         for (index, &block) in function.blocks().iter().enumerate() {
             *block_index.get_mut(block) = Some(index);
         }
@@ -95,7 +95,7 @@ impl DominatorTable {
 
         let mut immediate_dominators = NodeTable::from_nodes(function.blocks(), || None);
 
-        // block dominators
+        // build block dominators
         for &block in function.blocks() {
             let index = dense.index_of(block);
             if let Some(idom_index) = result.immediate_dominators[index] {

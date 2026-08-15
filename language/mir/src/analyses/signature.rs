@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate as mir;
 
 /// Signature key used for matching function types.
@@ -56,88 +54,5 @@ impl SignatureKey {
             parameters,
             result: function.return_type,
         })
-    }
-}
-
-/// Remapping information for removed parameters.
-#[derive(Debug, Clone)]
-pub struct ParameterRemap {
-    /// Parameter indices removed from the signature.
-    removal_indices: Vec<usize>,
-    /// Fast lookup set for removed indices.
-    removal_set: HashSet<usize>,
-}
-
-impl ParameterRemap {
-    /// Create a new remapping from removal indices.
-    pub fn new(removals: &[usize]) -> Self {
-        // copy and sort the removal indices
-        let mut removal_indices: Vec<usize> = removals.to_vec();
-        removal_indices.sort_unstable();
-
-        // build the removal set for lookups
-        let removal_set: HashSet<usize> = removal_indices.iter().copied().collect();
-
-        Self {
-            removal_indices,
-            removal_set,
-        }
-    }
-
-    /// Return the sorted removal indices.
-    pub fn removal_indices(&self) -> &[usize] {
-        &self.removal_indices
-    }
-
-    /// Return the removal set for fast lookups.
-    pub fn removal_set(&self) -> &HashSet<usize> {
-        &self.removal_set
-    }
-
-    /// Filter a list by removing indices in the removal set.
-    pub fn filter_by_index<T: Clone>(&self, items: &[T]) -> Vec<T> {
-        // build the filtered list
-        let mut filtered = Vec::with_capacity(items.len().saturating_sub(self.removal_set.len()));
-        for (index, item) in items.iter().enumerate() {
-            if !self.removal_set.contains(&index) {
-                filtered.push(item.clone());
-            }
-        }
-
-        filtered
-    }
-
-    /// Remap a parameter index after removals.
-    pub fn remap_parameter_index(&self, index: u32) -> Option<u32> {
-        // convert the index to usize for comparisons
-        let index = index as usize;
-
-        // reject indices that were removed
-        if self.removal_indices.binary_search(&index).is_ok() {
-            return None;
-        }
-
-        // compute the shift from earlier removals
-        let shift = self
-            .removal_indices
-            .iter()
-            .take_while(|removed| **removed < index)
-            .count();
-
-        Some((index - shift) as u32)
-    }
-
-    /// Collect parameter indices required by the result lifetime.
-    pub fn required_indices(function: &mir::Function, tree: &mir::Tree) -> HashSet<usize> {
-        let mut required = HashSet::new();
-
-        // include return type lifetime slots
-        if let Some(lifetime) = tree.type_lifetime(function.return_type) {
-            for index in lifetime.slot_indices() {
-                required.insert(index as usize);
-            }
-        }
-
-        required
     }
 }

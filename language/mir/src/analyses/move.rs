@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
-    Analysis, Function, FunctionCache, Instruction, LocalId, Mutation, Place, PlaceTable,
-    Projection, Tree, Type, TypeId, Value,
+    Analysis, Function, FunctionCache, Instruction, Local, LocalId, Mutation, NodeTable, Place,
+    PlaceTable, Projection, Tree, Type, TypeId, Value,
 };
 
 /// Dense structural paths whose initialization can change independently.
@@ -15,7 +15,7 @@ pub struct MoveTable {
     /// Root paths keyed by SSA value.
     values: Vec<Option<MovePathId>>,
     /// Root paths keyed by function local.
-    locals: HashMap<LocalId, MovePathId>,
+    locals: NodeTable<Local, Option<MovePathId>>,
 }
 
 impl MoveTable {
@@ -25,7 +25,7 @@ impl MoveTable {
             paths: Vec::new(),
             ids: HashMap::new(),
             values: vec![None; function.value_types().len()],
-            locals: HashMap::new(),
+            locals: NodeTable::from_nodes(function.locals(), || None),
         };
 
         // create roots for every move-only SSA value
@@ -50,36 +50,47 @@ impl MoveTable {
             }
 
             let path = table.insert(Place::local(local), ty, None);
-            table.locals.insert(local, path);
+            *table.locals.get_mut(local) = Some(path);
         }
 
-        // expand aggregates that MIR moves or reconstructs by field
+        // collect types that MIR moves or reconstructs by projection
+        let mut projected_types = HashSet::new();
         for &block in function.blocks() {
             for &instruction in &tree.get(block).instructions {
-                match tree.get(instruction) {
+                let aggregate = match tree.get(instruction) {
                     Instruction::FieldGet {
                         destination,
                         aggregate,
                         ..
-                    } if table.value(*destination).is_some() => {
-                        table.expand_value(*aggregate, function, tree, places);
-                    }
+                    } if table.value(*destination).is_some() => Some(*aggregate),
                     Instruction::ElementGet {
                         destination,
                         aggregate,
                         ..
-                    } if table.value(*destination).is_some() => {
-                        table.expand_value(*aggregate, function, tree, places);
-                    }
-                    Instruction::FieldSet { aggregate, .. } => {
-                        table.expand_value(*aggregate, function, tree, places);
-                    }
-                    Instruction::ElementSet { aggregate, .. } => {
-                        table.expand_value(*aggregate, function, tree, places);
-                    }
-                    _ => {}
+                    } if table.value(*destination).is_some() => Some(*aggregate),
+                    Instruction::FieldSet { aggregate, .. }
+                    | Instruction::ElementSet { aggregate, .. } => Some(*aggregate),
+                    _ => None,
+                };
+                if let Some(aggregate) = aggregate
+                    && table.value(aggregate).is_some()
+                {
+                    projected_types.insert(function.expect_value_type(aggregate));
                 }
             }
+        }
+
+        // expand every root of each projected type to the same shape
+        let mut index = 0;
+        while index < table.paths.len() {
+            let path = MovePathId::new(index as u32);
+            let ty = table.get(path).ty;
+            if projected_types.contains(&ty) && table.children(path).is_empty() {
+                let place = table.get(path).place.clone();
+                table.expand(path, place, ty, tree);
+            }
+
+            index += 1;
         }
 
         table
@@ -107,7 +118,7 @@ impl MoveTable {
 
     /// Return the root path for one local.
     pub fn local(&self, local: LocalId) -> Option<MovePathId> {
-        self.locals.get(&local).copied()
+        *self.locals.get(local)
     }
 
     /// Return the path for one canonical place.
@@ -194,25 +205,6 @@ impl MoveTable {
         }
 
         false
-    }
-
-    /// Expand one aggregate value into independently movable fields.
-    fn expand_value(
-        &mut self,
-        value: Value,
-        function: &Function,
-        tree: &Tree,
-        places: &PlaceTable,
-    ) {
-        let Some(parent) = self.value(value) else {
-            return;
-        };
-        if !self.children(parent).is_empty() {
-            return;
-        }
-
-        let ty = function.expect_value_type(value);
-        self.expand(parent, places.get(value).clone(), ty, tree);
     }
 
     /// Expand one structural type into direct children.
@@ -334,139 +326,4 @@ impl MovePathId {
     pub const fn index(self) -> usize {
         self.0 as usize
     }
-}
-
-/// Initialization of every move path at one program point.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InitializationState {
-    /// Initialization for each move path.
-    states: Vec<Initialization>,
-}
-
-impl InitializationState {
-    /// Create uninitialized state for every move path.
-    pub fn new(path_count: usize) -> Self {
-        Self {
-            states: vec![Initialization::Uninitialized; path_count],
-        }
-    }
-
-    /// Return one path's initialization.
-    pub fn get(&self, path: MovePathId) -> Initialization {
-        self.states[path.index()]
-    }
-
-    /// Mark one path and every child initialized.
-    pub fn initialize(&mut self, path: MovePathId, paths: &MoveTable) {
-        for path in paths.descendants(path) {
-            self.states[path.index()] = Initialization::Initialized;
-        }
-
-        // rebuild each complete containing aggregate
-        let mut parent = paths.get(path).parent;
-        while let Some(current) = parent {
-            let is_initialized = paths
-                .children(current)
-                .iter()
-                .all(|child| self.is_initialized(*child, paths));
-            if !is_initialized {
-                break;
-            }
-
-            self.states[current.index()] = Initialization::Initialized;
-            parent = paths.get(current).parent;
-        }
-    }
-
-    /// Mark one path and every child uninitialized.
-    pub fn uninitialize(&mut self, path: MovePathId, paths: &MoveTable) {
-        for path in paths.descendants(path) {
-            self.states[path.index()] = Initialization::Uninitialized;
-        }
-    }
-
-    /// Transfer one move path tree into another.
-    pub fn bind(&mut self, argument: MovePathId, parameter: MovePathId, paths: &MoveTable) {
-        if argument == parameter {
-            return;
-        }
-
-        let states = paths
-            .descendants(argument)
-            .map(|path| {
-                let parameter = paths.map(path, argument, parameter);
-
-                (parameter, self.states[path.index()])
-            })
-            .collect::<Vec<_>>();
-
-        // transfer each structural path into its matching parameter path
-        for (parameter, state) in states {
-            self.states[parameter.index()] = state;
-        }
-
-        self.uninitialize(argument, paths);
-    }
-
-    /// Merge reached predecessor states.
-    pub fn merge<'a>(
-        predecessors: impl IntoIterator<Item = &'a InitializationState>,
-        path_count: usize,
-    ) -> Self {
-        let predecessors = predecessors.into_iter().collect::<Vec<_>>();
-        let mut merged = Self::new(path_count);
-        let Some(first) = predecessors.first() else {
-            return merged;
-        };
-
-        // merge each dense path independently
-        for index in 0..path_count {
-            let first = first.states[index];
-            merged.states[index] = if predecessors
-                .iter()
-                .all(|predecessor| predecessor.states[index] == first)
-            {
-                first
-            } else {
-                Initialization::MaybeInitialized
-            };
-        }
-
-        merged
-    }
-
-    /// Return whether one complete path tree is initialized.
-    pub fn is_initialized(&self, path: MovePathId, paths: &MoveTable) -> bool {
-        self.get(path) == Initialization::Initialized
-            && paths
-                .children(path)
-                .iter()
-                .all(|child| self.is_initialized(*child, paths))
-    }
-
-    /// Discard ownership that exists on only some incoming paths.
-    pub fn discard_maybe(&mut self) {
-        for state in &mut self.states {
-            if *state == Initialization::MaybeInitialized {
-                *state = Initialization::Uninitialized;
-            }
-        }
-    }
-}
-
-impl Default for InitializationState {
-    fn default() -> Self {
-        Self::new(0)
-    }
-}
-
-/// Initialization of one move path.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Initialization {
-    /// The path cannot be read or dropped.
-    Uninitialized,
-    /// The path can be read, moved, or dropped.
-    Initialized,
-    /// The path is initialized on only some incoming control flow paths.
-    MaybeInitialized,
 }

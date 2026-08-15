@@ -38,7 +38,7 @@ impl PointerLayout {
     }
 }
 
-/// ABI layout facts for one target.
+/// ABI layout for one target.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TargetLayout {

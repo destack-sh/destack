@@ -4,7 +4,7 @@ use crate as mir;
 
 use crate::{AliasResult, TargetLayout};
 
-use super::{DefinitionTable, ValueTypeTable};
+use super::DefinitionTable;
 
 /// One memory location reached through an address.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -362,7 +362,7 @@ impl MemoryPlace {
         }
     }
 
-    /// Check if this place has only constant offsets.
+    /// Return whether this place has only constant offsets.
     pub fn is_constant_offset(&self) -> bool {
         self.indexed_offsets.is_empty()
     }
@@ -474,10 +474,8 @@ pub struct MemoryRegionBuilder<'a> {
     definitions: &'a DefinitionTable,
     /// The MIR tree.
     tree: &'a mir::Tree,
-    /// Function parameters for parameter regions.
-    parameters: &'a [mir::FunctionParameter],
-    /// Value type map for element sizing.
-    value_types: &'a ValueTypeTable,
+    /// The MIR function.
+    function: &'a mir::Function,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
@@ -485,18 +483,16 @@ pub struct MemoryRegionBuilder<'a> {
 impl<'a> MemoryRegionBuilder<'a> {
     /// Create a new region builder.
     pub fn new(
+        function: &'a mir::Function,
         definitions: &'a DefinitionTable,
         tree: &'a mir::Tree,
-        parameters: &'a [mir::FunctionParameter],
-        value_types: &'a ValueTypeTable,
         target_layout: TargetLayout,
     ) -> Self {
         Self {
             cache: HashMap::new(),
             definitions,
             tree,
-            parameters,
-            value_types,
+            function,
             target_layout,
         }
     }
@@ -528,7 +524,7 @@ impl<'a> MemoryRegionBuilder<'a> {
     /// Resolve an address-bearing value to a memory region.
     fn region_impl(&mut self, address: mir::Value) -> MemoryRegion {
         // check if it's a parameter
-        for (index, parameter) in self.parameters.iter().enumerate() {
+        for (index, parameter) in self.function.parameters.iter().enumerate() {
             if parameter.value == address {
                 return self.parameter_region(index, parameter);
             }
@@ -699,7 +695,7 @@ impl<'a> MemoryRegionBuilder<'a> {
 
     /// Return the value type for an SSA value.
     fn value_type(&self, value: mir::Value) -> mir::LocalNodeId<mir::Type> {
-        self.value_types.expect_value_type(value)
+        self.function.expect_value_type(value)
     }
 
     /// Return the byte stride for one indexed value.

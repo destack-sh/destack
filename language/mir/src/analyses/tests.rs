@@ -29,7 +29,6 @@ impl TestProgram {
         let (
             tree,
             _target_layout,
-            _types,
             _layouts,
             dispatch,
             _drops,

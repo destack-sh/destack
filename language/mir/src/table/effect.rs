@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
@@ -9,31 +7,100 @@ use crate::{CallSite, Function, LocalNodeId, StorageSet};
 /// Function and call effect tables for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EffectTable {
-    /// Effects keyed by function id.
-    pub functions: HashMap<LocalNodeId<Function>, FunctionEffect>,
-    /// Effects keyed by callsite.
-    pub calls: HashMap<CallSite, CallEffect>,
+    /// Function effects sorted by function id.
+    functions: Vec<(LocalNodeId<Function>, FunctionEffect)>,
+    /// Call effects sorted by callsite.
+    calls: Vec<(CallSite, CallEffect)>,
 }
 
 impl EffectTable {
     /// Return function effects when present.
     pub fn function(&self, function: LocalNodeId<Function>) -> Option<&FunctionEffect> {
-        self.functions.get(&function)
+        let index = self
+            .functions
+            .binary_search_by_key(&function, |(function, _)| *function)
+            .ok()?;
+
+        Some(&self.functions[index].1)
     }
 
     /// Return mutable function effects, inserting unknown effects when absent.
-    pub fn function_mut(&mut self, function: LocalNodeId<Function>) -> &mut FunctionEffect {
-        self.functions.entry(function).or_default()
+    pub fn upsert_function(&mut self, function: LocalNodeId<Function>) -> &mut FunctionEffect {
+        let index = self
+            .functions
+            .binary_search_by_key(&function, |(function, _)| *function);
+        let index = match index {
+            Ok(index) => index,
+            Err(index) => {
+                self.functions
+                    .insert(index, (function, FunctionEffect::default()));
+                index
+            }
+        };
+
+        &mut self.functions[index].1
     }
 
     /// Return call effects when present.
     pub fn call(&self, callsite: CallSite) -> Option<&CallEffect> {
-        self.calls.get(&callsite)
+        let index = self
+            .calls
+            .binary_search_by_key(&callsite, |(callsite, _)| *callsite)
+            .ok()?;
+
+        Some(&self.calls[index].1)
+    }
+
+    /// Return mutable call effects when present.
+    pub fn call_mut(&mut self, callsite: CallSite) -> Option<&mut CallEffect> {
+        let index = self
+            .calls
+            .binary_search_by_key(&callsite, |(callsite, _)| *callsite)
+            .ok()?;
+
+        Some(&mut self.calls[index].1)
     }
 
     /// Return mutable call effects, inserting unknown effects when absent.
-    pub fn call_mut(&mut self, callsite: CallSite) -> &mut CallEffect {
-        self.calls.entry(callsite).or_default()
+    pub fn upsert_call(&mut self, callsite: CallSite) -> &mut CallEffect {
+        let index = self
+            .calls
+            .binary_search_by_key(&callsite, |(callsite, _)| *callsite);
+        let index = match index {
+            Ok(index) => index,
+            Err(index) => {
+                self.calls.insert(index, (callsite, CallEffect::default()));
+                index
+            }
+        };
+
+        &mut self.calls[index].1
+    }
+
+    /// Iterate function effects in function id order.
+    pub fn functions(&self) -> impl Iterator<Item = (LocalNodeId<Function>, &FunctionEffect)> {
+        self.functions
+            .iter()
+            .map(|(function, effect)| (*function, effect))
+    }
+
+    /// Replace every function effect.
+    pub(crate) fn replace_functions(
+        &mut self,
+        functions: impl IntoIterator<Item = (LocalNodeId<Function>, FunctionEffect)>,
+    ) {
+        self.functions = functions.into_iter().collect();
+        self.functions
+            .sort_unstable_by_key(|(function, _)| *function);
+
+        // reject duplicate function effects
+        if self
+            .functions
+            .windows(2)
+            .any(|functions| functions[0].0 == functions[1].0)
+        {
+            unreachable!("function has multiple effect entries");
+        }
     }
 }
 
@@ -79,8 +146,6 @@ pub struct CallEffect {
     pub memory: MemoryEffect,
     /// Behavioral effects of this call.
     pub behavior: FunctionBehavior,
-    /// Resolved direct target when dispatch analysis proves one.
-    pub target: Option<LocalNodeId<Function>>,
     /// Argument memory behavior when known.
     pub arguments: Vec<CallArgumentEffect>,
 }

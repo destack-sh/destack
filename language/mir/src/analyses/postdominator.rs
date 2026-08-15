@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use super::DominatorBuilder;
 use crate::{
     Analysis, Block, ControlTable, Function, FunctionCache, LocalNodeId, Mutation, NodeTable, Tree,
@@ -32,12 +30,12 @@ impl PostdominatorTable {
         let has_exits = !exit_blocks.is_empty();
 
         if !has_exits {
-            exit_blocks = function.blocks().iter().copied().collect();
+            exit_blocks = function.blocks().to_vec();
         }
 
         let mut block_index = NodeTable::from_nodes(function.blocks(), || None);
 
-        // block indices
+        // assign compact block indices
         for (index, &block) in function.blocks().iter().enumerate() {
             *block_index.get_mut(block) = Some(index);
         }
@@ -118,8 +116,8 @@ impl PostdominatorTable {
     }
 
     /// Collect blocks with no successors.
-    fn collect_exit_blocks(function: &Function, tree: &Tree) -> HashSet<LocalNodeId<Block>> {
-        let mut exits = HashSet::new();
+    fn collect_exit_blocks(function: &Function, tree: &Tree) -> Vec<LocalNodeId<Block>> {
+        let mut exits = Vec::new();
 
         // terminators with no successors
         for &block_id in function.blocks() {
@@ -127,7 +125,7 @@ impl PostdominatorTable {
             let terminator = tree.get(block.terminator);
 
             if terminator.successors(tree).is_empty() {
-                exits.insert(block_id);
+                exits.push(block_id);
             }
         }
 

@@ -206,15 +206,9 @@ impl PlaceTable {
         tree: &Tree,
     ) -> Resolution {
         let mut place = None;
-        let mut visited = Vec::new();
 
         // merge the matching argument from every incoming edge
         for &predecessor in graph.predecessors(block) {
-            if visited.contains(&predecessor) {
-                continue;
-            }
-            visited.push(predecessor);
-
             let predecessor_id = predecessor;
             let predecessor = tree.get(predecessor_id);
             let terminator = tree.get(predecessor.terminator);
@@ -288,12 +282,11 @@ impl PlaceTable {
     }
 
     /// Replace one value resolution.
-    fn set(resolutions: &mut Vec<Resolution>, value: Value, resolution: Resolution) -> bool {
+    fn set(resolutions: &mut [Resolution], value: Value, resolution: Resolution) -> bool {
         let index = value.id() as usize;
-        if index >= resolutions.len() {
-            resolutions.resize(index + 1, Resolution::Unknown);
-        }
-        let current = &resolutions[index];
+        let current = resolutions
+            .get(index)
+            .unwrap_or_else(|| unreachable!("value outside place table: {value:?}"));
         if current == &resolution || matches!(current, Resolution::Opaque) {
             return false;
         }

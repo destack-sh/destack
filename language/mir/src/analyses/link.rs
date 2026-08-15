@@ -4,23 +4,27 @@ use std::collections::HashMap;
 use destack_core::{BitSet, DenseGraph};
 use serde::{Deserialize, Serialize};
 
-use super::{Analysis, AnalysisCache};
+use super::{Analysis, AnalysisCache, Mutation};
 use crate::{
-    EffectTable, Function, FunctionBehavior, Global, GlobalInitializer, Instruction, Linkage,
-    MemoryEffect, Symbol, Tree,
+    DispatchTable, EffectTable, Function, FunctionBehavior, Global, GlobalInitializer, Instruction,
+    Linkage, MemoryEffect, Symbol, Tree,
 };
 
 /// Symbol references for one module.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LinkTable {
-    /// Defined symbols, by identity.
-    nodes: HashMap<Symbol, LinkNode>,
-    /// Outgoing references, by source symbol.
-    edges: HashMap<Symbol, Vec<LinkEdge>>,
+    /// Defined symbols and nodes sorted by identity.
+    nodes: Vec<(Symbol, LinkNode)>,
+    /// First outgoing edge offset for each node and the final edge count.
+    offsets: Vec<u32>,
+    /// Outgoing references grouped by source node.
+    edges: Vec<LinkEdge>,
 }
 
 /// How one symbol references another.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub enum LinkEdgeKind {
     /// The source calls the target.
     Call,
@@ -31,7 +35,9 @@ pub enum LinkEdgeKind {
 }
 
 /// One outgoing reference from a symbol to another symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub struct LinkEdge {
     /// The referenced symbol.
     pub target: Symbol,
@@ -52,8 +58,8 @@ pub enum LinkNode {
         behavior: FunctionBehavior,
         /// Estimated inline cost.
         inline_cost: u32,
-        /// True when the function makes indirect or virtual calls.
-        indirect: bool,
+        /// Whether the function contains calls without a closed target.
+        has_open_calls: bool,
     },
     /// A defined global.
     Global {
@@ -72,24 +78,14 @@ impl LinkNode {
 }
 
 impl LinkTable {
-    /// Create an empty link graph.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Insert one defined symbol's node.
-    pub fn insert(&mut self, symbol: Symbol, node: LinkNode) {
-        self.nodes.insert(symbol, node);
-    }
-
-    /// Record one outgoing reference from a source symbol.
-    pub fn add_edge(&mut self, source: Symbol, edge: LinkEdge) {
-        self.edges.entry(source).or_default().push(edge);
-    }
-
     /// Look up one symbol's node.
     pub fn node(&self, symbol: Symbol) -> Option<&LinkNode> {
-        self.nodes.get(&symbol)
+        let index = self
+            .nodes
+            .binary_search_by_key(&symbol, |(symbol, _)| *symbol)
+            .ok()?;
+
+        Some(&self.nodes[index].1)
     }
 
     /// Iterate over all defined symbol nodes with their identities.
@@ -99,38 +95,82 @@ impl LinkTable {
 
     /// Return the outgoing references from one source symbol.
     pub fn edges(&self, source: Symbol) -> &[LinkEdge] {
-        self.edges.get(&source).map(Vec::as_slice).unwrap_or(&[])
+        let Ok(index) = self
+            .nodes
+            .binary_search_by_key(&source, |(symbol, _)| *symbol)
+        else {
+            return &[];
+        };
+        let start = self.offsets[index] as usize;
+        let end = self.offsets[index + 1] as usize;
+
+        &self.edges[start..end]
     }
 
-    /// Record address-of edges from a global initializer.
+    /// Build a compact link table from symbol nodes and outgoing references.
+    fn build(mut nodes: Vec<(Symbol, LinkNode)>, mut references: Vec<(Symbol, LinkEdge)>) -> Self {
+        nodes.sort_unstable_by_key(|(symbol, _)| *symbol);
+        if nodes.windows(2).any(|nodes| nodes[0].0 == nodes[1].0) {
+            unreachable!("duplicate symbol in link table");
+        }
+
+        let indices = nodes
+            .iter()
+            .enumerate()
+            .map(|(index, (symbol, _))| (*symbol, index))
+            .collect::<HashMap<_, _>>();
+        references.sort_unstable_by_key(|(source, edge)| (*source, *edge));
+
+        let mut offsets = vec![0u32; nodes.len() + 1];
+        for (source, _) in &references {
+            let index = indices
+                .get(source)
+                .copied()
+                .unwrap_or_else(|| unreachable!("link edge has undefined source {source:?}"));
+            offsets[index + 1] += 1;
+        }
+        for index in 0..nodes.len() {
+            offsets[index + 1] += offsets[index];
+        }
+
+        let edges = references.into_iter().map(|(_, edge)| edge).collect();
+
+        Self {
+            nodes,
+            offsets,
+            edges,
+        }
+    }
+
+    /// Record address references from a global initializer.
     fn add_initializer_edges(
-        &mut self,
+        edges: &mut Vec<(Symbol, LinkEdge)>,
         source: Symbol,
         initializer: &GlobalInitializer,
         tree: &Tree,
     ) {
         match initializer {
             GlobalInitializer::FunctionAddress(function) => {
-                self.add_edge(
+                edges.push((
                     source,
                     LinkEdge {
                         target: tree.get(*function).symbol,
                         kind: LinkEdgeKind::Address,
                     },
-                );
+                ));
             }
             GlobalInitializer::GlobalAddress(global) => {
-                self.add_edge(
+                edges.push((
                     source,
                     LinkEdge {
                         target: tree.get(*global).symbol,
                         kind: LinkEdgeKind::Address,
                     },
-                );
+                ));
             }
             GlobalInitializer::Aggregate(elements) => {
                 for element in elements {
-                    self.add_initializer_edges(source, element, tree);
+                    Self::add_initializer_edges(edges, source, element, tree);
                 }
             }
             GlobalInitializer::Zero
@@ -438,7 +478,12 @@ impl LinkSupergraph {
     }
 }
 
-impl Analysis for LinkTable {}
+impl Analysis for LinkTable {
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL
+        .union(Mutation::VALUE)
+        .union(Mutation::EFFECT)
+        .union(Mutation::SYMBOL);
+}
 
 impl LinkTable {
     /// Build the link graph for one module from its call graph and tree.
@@ -446,9 +491,11 @@ impl LinkTable {
         tree: &Tree,
         analyses: &mut AnalysisCache,
         effects: &EffectTable,
+        dispatch: &DispatchTable,
     ) -> Self {
-        let call_table = analyses.call(tree, effects);
-        let mut graph = LinkTable::new();
+        let call_table = analyses.call(tree, dispatch);
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
 
         // record each defined function with its attributes and outgoing references
         for (function_id, function) in tree.iter_nodes::<Function>() {
@@ -461,27 +508,27 @@ impl LinkTable {
             let tables = effects.function(function_id);
             let memory = tables.map(|m| m.memory.clone()).unwrap_or_default();
             let behavior = tables.map(|m| m.behavior.clone()).unwrap_or_default();
-            graph.insert(
+            nodes.push((
                 symbol,
                 LinkNode::Function {
                     linkage: function.linkage,
                     memory,
                     behavior,
                     inline_cost: Self::function_inline_cost(function, tree),
-                    indirect: !call_table.open_callsites(function_id).is_empty(),
+                    has_open_calls: !call_table.open_callsites(function_id).is_empty(),
                 },
-            );
+            ));
 
-            // call edges, lowered from tree-local callees to persistent symbols
+            // lower call edges from tree-local callees to persistent symbols
             for edge in call_table.outgoing(function_id) {
                 let target = tree.get(edge.callee).symbol;
-                graph.add_edge(
+                edges.push((
                     symbol,
                     LinkEdge {
                         target,
                         kind: LinkEdgeKind::Call,
                     },
-                );
+                ));
             }
 
             // record symbol references from instruction operands
@@ -490,7 +537,7 @@ impl LinkTable {
                 for &instruction_id in &block.instructions {
                     if let Some(edge) = LinkTable::instruction_edge(tree.get(instruction_id), tree)
                     {
-                        graph.add_edge(symbol, edge);
+                        edges.push((symbol, edge));
                     }
                 }
             }
@@ -499,17 +546,17 @@ impl LinkTable {
         // record each global with its address-of references from its initializer
         for (_global_id, global) in tree.iter_nodes::<Global>() {
             let symbol = global.symbol;
-            graph.insert(
+            nodes.push((
                 symbol,
                 LinkNode::Global {
                     linkage: global.linkage,
                 },
-            );
+            ));
             if let Some(initializer) = &global.initializer {
-                graph.add_initializer_edges(symbol, initializer, tree);
+                Self::add_initializer_edges(&mut edges, symbol, initializer, tree);
             }
         }
 
-        graph
+        Self::build(nodes, edges)
     }
 }

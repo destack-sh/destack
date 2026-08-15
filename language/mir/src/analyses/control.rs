@@ -4,51 +4,92 @@ use crate::{Block, Function, LocalNodeId, NodeTable, Tree};
 /// Control flow graph for one function.
 #[derive(Debug, Clone)]
 pub struct ControlTable {
-    /// Predecessors indexed by block id.
-    predecessors: NodeTable<Block, Vec<LocalNodeId<Block>>>,
+    /// Compact index for each function block.
+    indices: NodeTable<Block, u32>,
+    /// First predecessor offset for each block and the final predecessor count.
+    offsets: Vec<u32>,
+    /// Predecessors grouped by block id.
+    predecessors: Vec<LocalNodeId<Block>>,
 }
 
 impl ControlTable {
     /// Build the control flow graph for one function.
     pub fn build(function: &Function, tree: &Tree) -> Self {
-        let mut predecessors = NodeTable::from_nodes(function.blocks(), Vec::new);
+        let mut blocks = function.blocks().to_vec();
+        blocks.sort_unstable_by_key(|block| block.get());
 
-        // compute predecessors from successor edges
+        let mut indices = NodeTable::from_nodes(&blocks, || 0);
+        for (index, block) in blocks.iter().copied().enumerate() {
+            *indices.get_mut(block) = index as u32;
+        }
+
+        let block_count = blocks.len();
+        let mut edges = Vec::new();
+
+        // collect predecessor pairs
         for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
             for successor in terminator.successors(tree) {
-                let block_predecessors = predecessors.get_mut(successor);
-                block_predecessors.push(block_id);
+                edges.push((successor, block_id));
             }
         }
+        edges.sort_unstable_by_key(|(successor, predecessor)| (successor.get(), predecessor.get()));
+        edges.dedup();
 
-        Self { predecessors }
+        let mut offsets = vec![0u32; block_count + 1];
+
+        // count predecessors per block
+        for (successor, _) in &edges {
+            let index = *indices.get(*successor) as usize;
+            offsets[index + 1] += 1;
+        }
+
+        // convert predecessor counts into ranges
+        for block in 0..block_count {
+            offsets[block + 1] += offsets[block];
+        }
+
+        let predecessors = edges
+            .into_iter()
+            .map(|(_, predecessor)| predecessor)
+            .collect();
+
+        Self {
+            indices,
+            offsets,
+            predecessors,
+        }
     }
 
     /// Return the predecessors of one block.
     pub fn predecessors(&self, block: LocalNodeId<Block>) -> &[LocalNodeId<Block>] {
-        self.predecessors.get(block).as_slice()
+        let index = *self.indices.get(block) as usize;
+        let range = &self.offsets[index..=index + 1];
+        let start = range[0] as usize;
+        let end = range[1] as usize;
+
+        &self.predecessors[start..end]
     }
 
     /// Return whether one block is reachable from the entry block.
     pub fn is_reachable(&self, block: LocalNodeId<Block>, entry: LocalNodeId<Block>) -> bool {
         // validate query blocks
-        self.predecessors.index(block);
-        self.predecessors.index(entry);
+        self.predecessors(block);
+        self.predecessors(entry);
 
-        // the entry block is always reachable from itself
+        // accept the entry block itself
         if block == entry {
             return true;
         }
 
         let mut worklist = vec![block];
-        let mut visited = vec![false; self.predecessors.len()];
+        let mut visited = vec![false; self.offsets.len() - 1];
 
         // walk backward through predecessors until we find the entry
         while let Some(current) = worklist.pop() {
-            let index = self.predecessors.index(current);
+            let index = *self.indices.get(current) as usize;
             let is_visited = &mut visited[index];
             if *is_visited {
                 continue;
@@ -59,8 +100,7 @@ impl ControlTable {
                 return true;
             }
 
-            let predecessors = self.predecessors.get(current);
-            worklist.extend(predecessors.iter().copied());
+            worklist.extend(self.predecessors(current).iter().copied());
         }
 
         false

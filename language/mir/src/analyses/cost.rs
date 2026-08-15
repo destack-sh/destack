@@ -136,7 +136,7 @@ impl OperationCost {
                 .saturating_mul(self.write_barrier as u64),
         );
 
-        // call weights
+        // record call weights
         score = score.saturating_add(weights.direct_call.saturating_mul(self.direct_call as u64));
         score = score.saturating_add(
             weights
@@ -442,7 +442,7 @@ impl CostTable {
 }
 
 impl Analysis for CostTable {
-    const INVALIDATED_BY: Mutation = Mutation::ALL;
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
 }
 
 impl CostTable {

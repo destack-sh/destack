@@ -171,12 +171,12 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Set the memory effect for the function.
     pub fn set_memory_effect(&mut self, effect: MemoryEffect) {
-        self.effects.function_mut(self.function_id).memory = effect;
+        self.effects.upsert_function(self.function_id).memory = effect;
     }
 
     /// Set behavioral effects for the function.
     pub fn set_function_behavior(&mut self, behavior: FunctionBehavior) {
-        self.effects.function_mut(self.function_id).behavior = behavior;
+        self.effects.upsert_function(self.function_id).behavior = behavior;
     }
 
     /// Set allocation mode for this function.

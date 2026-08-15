@@ -43,17 +43,17 @@ pub struct Loop {
 }
 
 impl Loop {
-    /// Check if the loop has a single latch (canonical form).
+    /// Return whether the loop has one latch.
     pub fn has_single_latch(&self) -> bool {
         self.latches.len() == 1
     }
 
-    /// Check if the loop has a single exiting block.
+    /// Return whether the loop has one exiting block.
     pub fn has_single_exit(&self) -> bool {
         self.exiting_blocks.len() == 1
     }
 
-    /// Check if a block is inside this loop.
+    /// Return whether a block is inside this loop.
     pub fn contains(&self, block: mir::LocalNodeId<mir::Block>) -> bool {
         self.blocks.contains(&block)
     }
@@ -297,36 +297,36 @@ impl LoopTable {
         block_to_loop
     }
 
-    /// Get all loops.
+    /// Return every loop.
     pub fn loops(&self) -> &[Loop] {
         &self.loops
     }
 
-    /// Get the number of loops.
+    /// Return the number of loops.
     pub fn num_loops(&self) -> usize {
         self.loops.len()
     }
 
-    /// Check if a block is a loop header.
+    /// Return whether a block is a loop header.
     pub fn is_loop_header(&self, block: mir::LocalNodeId<mir::Block>) -> bool {
         self.header_to_loop.get(block).is_some()
     }
 
-    /// Get the loop with the given header.
+    /// Return the loop with one header.
     pub fn header_loop(&self, header: mir::LocalNodeId<mir::Block>) -> Option<&Loop> {
         let index = (*self.header_to_loop.get(header))?;
 
         Some(&self.loops[index])
     }
 
-    /// Get the innermost loop containing a block.
+    /// Return the innermost loop containing one block.
     pub fn innermost_loop(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&Loop> {
         let index = (*self.block_to_loop.get(block))?;
 
         Some(&self.loops[index])
     }
 
-    /// Get the nesting depth for a block (0 if not in any loop).
+    /// Return the nesting depth for one block.
     pub fn loop_depth(&self, block: mir::LocalNodeId<mir::Block>) -> u32 {
         if let Some(index) = *self.block_to_loop.get(block) {
             self.loops[index].depth + 1
@@ -335,7 +335,7 @@ impl LoopTable {
         }
     }
 
-    /// Check if a block is inside any loop.
+    /// Return whether a block is inside any loop.
     pub fn is_in_loop(&self, block: mir::LocalNodeId<mir::Block>) -> bool {
         self.block_to_loop.get(block).is_some()
     }
@@ -350,7 +350,7 @@ impl LoopTable {
         self.loops_at_depth(0)
     }
 
-    /// Get the child loops of a given loop.
+    /// Return the direct children of one loop.
     pub fn child_loops(&self, loop_index: usize) -> impl Iterator<Item = (usize, &Loop)> {
         self.loops
             .iter()
@@ -358,12 +358,12 @@ impl LoopTable {
             .filter(move |(_, lp)| lp.parent == Some(loop_index))
     }
 
-    /// Get a loop by index.
+    /// Return one loop by index.
     pub fn get_loop(&self, index: usize) -> Option<&Loop> {
         self.loops.get(index)
     }
 
-    /// Get the loop index for a header.
+    /// Return the loop index for one header.
     pub fn loop_index(&self, header: mir::LocalNodeId<mir::Block>) -> Option<usize> {
         *self.header_to_loop.get(header)
     }

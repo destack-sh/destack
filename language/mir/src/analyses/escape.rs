@@ -56,7 +56,7 @@ impl EscapeTable {
 }
 
 impl Analysis for EscapeTable {
-    const INVALIDATED_BY: Mutation = Mutation::ALL;
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
 }
 
 impl EscapeTable {
@@ -79,7 +79,7 @@ struct EscapePropagation<'a, 'b> {
     /// Allocation root by SSA value id.
     roots: &'b mut [Option<mir::Value>],
     /// Root stored in each local slot.
-    locals: Vec<Option<mir::Value>>,
+    locals: mir::NodeTable<mir::Local, Option<mir::Value>>,
 }
 
 impl<'a, 'b> EscapePropagation<'a, 'b> {
@@ -93,7 +93,7 @@ impl<'a, 'b> EscapePropagation<'a, 'b> {
             function,
             tree,
             roots,
-            locals: vec![None; function.local_capacity()],
+            locals: mir::NodeTable::from_nodes(function.locals(), || None),
         }
     }
 
@@ -165,7 +165,7 @@ impl<'a, 'b> EscapePropagation<'a, 'b> {
                 ..
             } => self.copy_matching_root(*destination, *then_value, *else_value),
             mir::Instruction::LocalGet { destination, local } => {
-                if let Some(root) = self.locals.get(local.id as usize).copied().flatten() {
+                if let Some(root) = *self.locals.get(*local) {
                     self.set_root(*destination, root)
                 } else {
                     false
@@ -255,7 +255,7 @@ impl<'a, 'b> EscapePropagation<'a, 'b> {
 
     /// Set a local root.
     fn set_local(&mut self, local: mir::LocalId, root: Option<mir::Value>) -> bool {
-        let slot = &mut self.locals[local.id as usize];
+        let slot = self.locals.get_mut(local);
         if *slot == root {
             false
         } else {
