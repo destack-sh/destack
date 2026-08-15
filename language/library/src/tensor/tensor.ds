@@ -28,7 +28,7 @@ import { TensorView } from "./view.ds";
 /// Owning tensor value.
 @languageItem("tensor.Tensor")
 export newtype Tensor<
-    T,
+    T: Numeric | boolean,
     const Rank: usize,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
     P: Placement = Unsharded,

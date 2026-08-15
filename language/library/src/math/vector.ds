@@ -2,10 +2,11 @@ import { Slice } from "destack:collections";
 import { todo } from "destack:error";
 
 import { Integer } from "./integer.ds";
+import { Numeric } from "./numeric.ds";
 
 /// Fixed-width vector type.
 @languageItem("math.Vector")
-export newtype Vector<T, const N: usize> = intrinsic;
+export newtype Vector<T: Numeric | boolean, const N: usize> = intrinsic;
 
 /// Vector mask type.
 export type Mask<const N: usize> = Vector<boolean, N>;

@@ -1,7 +1,9 @@
 import { FixedArray, Slice } from "destack:collections";
 import { Mesh } from "destack:compute";
 import { todo } from "destack:error";
+import { Numeric } from "destack:math";
 import { Access } from "destack:memory";
+import { Numeric } from "destack:math";
 import { Index, IndexSet } from "destack:ops";
 
 import { Dense, MemoryOrder, Strided, TensorViewFormat } from "./layout.ds";
@@ -11,7 +13,7 @@ import { Placement, Sharding, ShardingAxis, Unsharded } from "./sharding.ds";
 /// Borrowed view over tensor storage.
 @languageItem("tensor.TensorView")
 export newtype TensorView<
-    T,
+    T: Numeric | boolean,
     const Rank: usize,
     F: TensorViewFormat = Dense<MemoryOrder.RowMajor>,
     P: Placement = Unsharded,
