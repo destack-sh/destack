@@ -3,7 +3,7 @@ use destack_core::{StringId, StringPool};
 use crate::build::FunctionHeaderBuilder;
 use crate::{
     AccessTable, DispatchTable, DropTable, EffectTable, Layout, LayoutId, LayoutTable, LocalNodeId,
-    ProfileTable, TargetLayout, Tree, Type, TypeTable,
+    ProfileTable, TargetLayout, Tree, Type,
 };
 
 /// Builder for constructing a MIR module (collection of functions and types).
@@ -13,8 +13,6 @@ pub struct ModuleBuilder {
     pub(super) tree: Tree,
     /// Target ABI layout.
     pub(super) target_layout: TargetLayout,
-    /// Canonical MIR type table.
-    pub(super) types: TypeTable,
     /// Canonical MIR layout table.
     pub(super) layouts: LayoutTable,
     /// Canonical MIR dispatch table.
@@ -37,7 +35,6 @@ impl ModuleBuilder {
         Self {
             tree: Tree::new(),
             target_layout: TargetLayout::default(),
-            types: TypeTable::default(),
             layouts: LayoutTable::default(),
             dispatch: DispatchTable::default(),
             drops: DropTable::default(),
@@ -56,16 +53,6 @@ impl ModuleBuilder {
     /// Get a mutable reference to the tree.
     pub fn tree_mut(&mut self) -> &mut Tree {
         &mut self.tree
-    }
-
-    /// Get a reference to the type table.
-    pub fn types(&self) -> &TypeTable {
-        &self.types
-    }
-
-    /// Get a mutable reference to the type table.
-    pub fn types_mut(&mut self) -> &mut TypeTable {
-        &mut self.types
     }
 
     /// Get a reference to the layout table.
@@ -166,7 +153,7 @@ impl ModuleBuilder {
     /// Record one computed layout for a type.
     pub fn insert_layout(&mut self, ty: LocalNodeId<Type>, layout: Layout) -> LayoutId {
         let id = self.layouts.insert(layout);
-        self.layouts.types.insert(ty, id);
+        self.layouts.set_layout_id(ty, id);
 
         id
     }
@@ -178,11 +165,10 @@ impl ModuleBuilder {
 
     /// Finish building the module.
     pub fn finish(
-        mut self,
+        self,
     ) -> (
         Tree,
         TargetLayout,
-        TypeTable,
         LayoutTable,
         DispatchTable,
         DropTable,
@@ -191,12 +177,9 @@ impl ModuleBuilder {
         ProfileTable,
         StringPool,
     ) {
-        self.types.rebuild_primitive_types(&self.tree);
-
         (
             self.tree,
             self.target_layout,
-            self.types,
             self.layouts,
             self.dispatch,
             self.drops,
@@ -208,9 +191,7 @@ impl ModuleBuilder {
     }
 
     /// Finish building the module and return only the tree and strings.
-    pub fn finish_tree(mut self) -> (Tree, StringPool) {
-        self.types.rebuild_primitive_types(&self.tree);
-
+    pub fn finish_tree(self) -> (Tree, StringPool) {
         (self.tree, self.strings)
     }
 }

@@ -7,7 +7,6 @@ mod layout;
 mod profile;
 mod target;
 mod trace;
-mod r#type;
 
 pub use access::*;
 pub use r#borrow::*;
@@ -18,4 +17,3 @@ pub use layout::*;
 pub use profile::*;
 pub use target::*;
 pub use trace::*;
-pub use r#type::*;

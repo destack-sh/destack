@@ -1,6 +1,7 @@
 use super::{assert_format, assert_format_eq, assert_output_eq, format_tree_with_options};
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, FormatOptions, Symbol, Tree, Type,
+    TypeHeritage,
 };
 use destack_core::StringPool;
 
@@ -315,6 +316,24 @@ entry(v0: ref<Point, managed, mutable>, v1: ref<Node, managed, mutable>):
     );
 }
 
+/// Formats direct nominal heritage canonically.
+#[test]
+fn test_format_type_heritage() {
+    assert_format(
+        r#"
+type Parent { }
+
+type Base { }
+
+type Left { }
+
+type Right { }
+
+type Child extends Parent, Base implements Left, Right { }
+"#,
+    );
+}
+
 /// Formats copy markers canonically.
 #[test]
 fn test_format_type_copy_markers() {
@@ -367,7 +386,13 @@ fn test_format_synthetic_copy_marker() {
     let representation = tree.get(struct_type).clone();
     let pair = tree.reserve_type(Symbol::named(declaration_name));
     tree.define_type(pair, representation);
-    tree.insert_type_declaration(declaration_name, Vec::new(), Vec::new(), pair);
+    tree.insert_type_declaration(
+        declaration_name,
+        Vec::new(),
+        Vec::new(),
+        pair,
+        TypeHeritage::default(),
+    );
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 
@@ -416,7 +441,13 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     let representation = tree.get(struct_type).clone();
     let point = tree.reserve_type(Symbol::named(declaration_name));
     tree.define_type(point, representation);
-    tree.insert_type_declaration(declaration_name, Vec::new(), Vec::new(), point);
+    tree.insert_type_declaration(
+        declaration_name,
+        Vec::new(),
+        Vec::new(),
+        point,
+        TypeHeritage::default(),
+    );
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 

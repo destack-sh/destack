@@ -15,9 +15,9 @@ use crate::{
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LayoutTable {
     /// Layout entries indexed by LayoutId.
-    pub entries: Vec<Layout>,
+    entries: Vec<Layout>,
     /// Layout ids keyed by type id.
-    pub types: HashMap<LocalNodeId<Type>, LayoutId>,
+    types: HashMap<LocalNodeId<Type>, LayoutId>,
 }
 
 impl LayoutTable {
@@ -45,12 +45,11 @@ impl LayoutTable {
 
     /// Return the layout entry for a type id when available.
     pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
-        let layout_id = self.types.get(&ty)?;
+        let layout_id = self.layout_id(ty)?;
 
-        self.entries.get(layout_id.index())
+        Some(self.layout(layout_id))
     }
 
-    /// Return the layout id for a type when present.
     /// Return the named field offsets of one laid-out struct type.
     pub fn named_field_offsets(&self, ty: LocalNodeId<Type>) -> Vec<(StringId, u32)> {
         let layout = self.layout_id(ty).map(|id| self.layout(id));
@@ -67,8 +66,14 @@ impl LayoutTable {
         fields
     }
 
+    /// Return the layout id for a type when present.
     pub fn layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
         self.types.get(&ty).copied()
+    }
+
+    /// Iterate laid-out types and their layout ids.
+    pub fn types(&self) -> impl Iterator<Item = (LocalNodeId<Type>, LayoutId)> + '_ {
+        self.types.iter().map(|(&ty, &layout)| (ty, layout))
     }
 
     /// Record the layout id for a type.

@@ -30,6 +30,34 @@ shared global sharedValue: int32 = 2
     );
 }
 
+/// Parsed MIR retains direct nominal heritage on each type declaration.
+#[test]
+fn test_parse_type_heritage() {
+    let source = r#"
+type Parent { }
+type Base { }
+type Left { }
+type Right { }
+type Child extends Parent, Base implements Left, Right { }
+"#;
+
+    let (tree, _) = TestParser::new(source).parse();
+    let declarations = tree
+        .iter_nodes::<TypeDeclaration>()
+        .map(|(_, declaration)| declaration)
+        .collect::<Vec<_>>();
+
+    let child = declarations[4];
+    assert_eq!(
+        child.heritage.extends,
+        vec![declarations[0].ty, declarations[1].ty]
+    );
+    assert_eq!(
+        child.heritage.implements,
+        vec![declarations[2].ty, declarations[3].ty]
+    );
+}
+
 /// Parsed MIR records main spans for item and block names.
 #[test]
 fn test_parse_named_node_spans() {

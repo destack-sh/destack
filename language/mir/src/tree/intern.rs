@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Attribute, Field, Lifetime, LifetimeParameter, LocalNodeId, SignatureParameter, StaticId,
-    Symbol, Tree, Type, TypeDeclaration, TypeId, VariantCase,
+    Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId, VariantCase,
 };
 
 /// One stored MIR type.
@@ -141,6 +141,7 @@ impl Tree {
         arguments: Vec<StaticId>,
         lifetimes: Vec<LifetimeParameter>,
         ty: TypeId,
+        heritage: TypeHeritage,
     ) -> LocalNodeId<TypeDeclaration> {
         // reject structural types and incomplete recursive placeholders
         let type_local_id = self.node_local_id(ty.id);
@@ -157,6 +158,7 @@ impl Tree {
             arguments,
             lifetimes,
             ty,
+            heritage,
         };
         let declaration_local_id = self.type_declarations.allocate(declaration);
         let id = self.insert_node(declaration_local_id);
@@ -178,6 +180,13 @@ impl Tree {
         };
 
         *declaration
+    }
+
+    /// Return one identified type's direct heritage when declared.
+    pub fn type_heritage(&self, ty: TypeId) -> Option<&TypeHeritage> {
+        let declaration = self.type_declaration(ty)?;
+
+        Some(&self.get(declaration).heritage)
     }
 
     /// Return whether one identified type is defined.

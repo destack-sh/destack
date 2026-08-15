@@ -81,7 +81,6 @@ impl<'a> TestParser<'a> {
         let (
             tree,
             _target_layout,
-            _types,
             _layouts,
             _dispatch,
             _drops,
@@ -109,7 +108,6 @@ impl<'a> TestParser<'a> {
         let (
             tree,
             target_layout,
-            _types,
             _layouts,
             _dispatch,
             _drops,

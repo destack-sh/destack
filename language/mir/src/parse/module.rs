@@ -4,7 +4,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global, GlobalInitializer,
     GlobalStorage, Linkage, LocalNodeId, Mutability, Symbol, Type, TypeDeclaration,
-    TypeDeclarationSpans, TypeId,
+    TypeDeclarationSpans, TypeHeritage, TypeId,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -410,6 +410,9 @@ impl Parser {
             }
         };
 
+        // direct nominal heritage
+        let heritage = self.parse_type_heritage()?;
+
         // declaration target type
         let (ty, type_span, field_spans, declaration_spans) = if self.peek_is(TokenType::OpenBrace)
         {
@@ -455,16 +458,19 @@ impl Parser {
             set_type_copy(&mut resolved, copy, item_start)?;
         }
         self.tree.define_type(type_id, resolved);
-        self.types.copy_type_entries(ty, type_id);
         self.layouts.copy_type_entries(ty, type_id);
         self.dispatch.copy_type_entries(ty, type_id);
         self.drops.copy_type_entries(ty, type_id);
 
         // record declaration
         let name_id = self.strings.intern(&name);
-        let id = self
-            .tree
-            .insert_type_declaration(name_id, arguments, lifetimes.clone(), type_id);
+        let id = self.tree.insert_type_declaration(
+            name_id,
+            arguments,
+            lifetimes.clone(),
+            type_id,
+            heritage,
+        );
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, keyword_span);
@@ -488,6 +494,36 @@ impl Parser {
         }
 
         Ok(id)
+    }
+
+    /// Parse direct nominal heritage after one declared type name.
+    fn parse_type_heritage(&mut self) -> ParseResult<TypeHeritage> {
+        // inherited types
+        let mut extends = Vec::new();
+        if self.eat_name_if("extends") {
+            loop {
+                extends.push(self.parse_type_part()?.0);
+                if !self.eat_token_if(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+
+        // implemented interfaces
+        let mut implements = Vec::new();
+        if self.eat_name_if("implements") {
+            loop {
+                implements.push(self.parse_type_part()?.0);
+                if !self.eat_token_if(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+
+        Ok(TypeHeritage {
+            extends,
+            implements,
+        })
     }
 
     /// Return the explicit copy attribute when present.

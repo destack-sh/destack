@@ -10,7 +10,7 @@ use crate::source::{Lexer, TokenType};
 use crate::{
     AccessTable, Block, DispatchTable, DropTable, EffectTable, Function, Global, LayoutTable,
     LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node, ProfileTable, StaticId,
-    TargetLayout, Tree, Type, TypeTable, Value,
+    TargetLayout, Tree, Type, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -22,8 +22,6 @@ pub struct ParsedMir {
     pub tree: Tree,
     /// Target ABI layout.
     pub target_layout: TargetLayout,
-    /// Canonical MIR type table.
-    pub types: TypeTable,
     /// Canonical MIR layout table.
     pub layouts: LayoutTable,
     /// Canonical MIR dispatch table.
@@ -49,7 +47,6 @@ impl ParsedMir {
     ) -> (
         Tree,
         TargetLayout,
-        TypeTable,
         LayoutTable,
         DispatchTable,
         DropTable,
@@ -62,7 +59,6 @@ impl ParsedMir {
         (
             self.tree,
             self.target_layout,
-            self.types,
             self.layouts,
             self.dispatch,
             self.drops,
@@ -79,7 +75,6 @@ impl ParsedMir {
         let Self {
             tree,
             target_layout: _,
-            types: _,
             layouts: _,
             dispatch: _,
             drops: _,
@@ -121,8 +116,6 @@ pub struct Parser {
     pub(super) tree: Tree,
     /// Target ABI layout.
     pub(super) target_layout: TargetLayout,
-    /// Canonical MIR type table.
-    pub(super) types: TypeTable,
     /// Canonical MIR layout table.
     pub(super) layouts: LayoutTable,
     /// Canonical MIR dispatch table.
@@ -187,7 +180,6 @@ impl Parser {
             pos: 0,
             tree,
             target_layout,
-            types: TypeTable::default(),
             layouts: LayoutTable::default(),
             dispatch: DispatchTable::default(),
             drops: DropTable::default(),
@@ -224,13 +216,9 @@ impl Parser {
         // attach source comments after the node graph exists
         parser.attach_comment_ownership();
 
-        // rebuild derived primitive type cache
-        parser.types.rebuild_primitive_types(&parser.tree);
-
         Ok(ParsedMir {
             tree: parser.tree,
             target_layout: parser.target_layout,
-            types: parser.types,
             layouts: parser.layouts,
             dispatch: parser.dispatch,
             drops: parser.drops,

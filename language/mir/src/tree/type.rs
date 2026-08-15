@@ -1228,7 +1228,7 @@ impl Node for Field {
     const TYPE: NodeType = NodeType::Field;
 }
 
-/// A named type declaration in MIR text format.
+/// A named MIR type declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeDeclaration {
     /// The declaration name.
@@ -1239,10 +1239,28 @@ pub struct TypeDeclaration {
     pub lifetimes: Vec<LifetimeParameter>,
     /// The identified type.
     pub ty: TypeId,
+    /// The directly inherited and implemented types.
+    pub heritage: TypeHeritage,
 }
 
 impl Node for TypeDeclaration {
     const TYPE: NodeType = NodeType::TypeDeclaration;
+}
+
+/// Direct heritage for one nominal type.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct TypeHeritage {
+    /// Directly inherited types.
+    pub extends: Vec<TypeId>,
+    /// Directly implemented interfaces.
+    pub implements: Vec<TypeId>,
+}
+
+impl TypeHeritage {
+    /// Return whether the type declares no direct supertypes.
+    pub fn is_empty(&self) -> bool {
+        self.extends.is_empty() && self.implements.is_empty()
+    }
 }
 
 impl Type {

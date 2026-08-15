@@ -11,7 +11,7 @@ use crate::{
     GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability,
     ReferenceKind, SignatureParameter, StaticId, Storage, TensorDimension, TensorDimensionOrder,
     TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type,
-    TypeDeclaration, TypeDeclarationSpans, TypeId, Writer, write_comments_before,
+    TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId, Writer, write_comments_before,
 };
 
 impl FormatNode for Type {
@@ -70,6 +70,9 @@ pub(super) fn format_type_declaration<'a>(
     let arguments = declaration_id
         .map(|declaration_id| f.context().tree.get(declaration_id).arguments.clone())
         .unwrap_or_default();
+    let heritage = declaration_id
+        .map(|declaration_id| f.context().tree.get(declaration_id).heritage.clone())
+        .unwrap_or_default();
 
     // synthetic copy marker
     if type_copy(ty) == Some(Copy::Yes) && !has_copy_attribute(attributes, f) {
@@ -99,12 +102,19 @@ pub(super) fn format_type_declaration<'a>(
 
     let previous_lifetimes = f.context_mut().replace_lifetimes(lifetimes.clone());
     let result = match ty {
-        Type::Struct { fields, .. } => {
-            format_struct_type_declaration(name, &arguments, declaration_id, &lifetimes, fields, f)
-        }
+        Type::Struct { fields, .. } => format_struct_type_declaration(
+            name,
+            &arguments,
+            declaration_id,
+            &lifetimes,
+            &heritage,
+            fields,
+            f,
+        ),
         _ => {
             write!(f, [token("type"), space()])?;
             format_type_name(name, &arguments, &lifetimes, f)?;
+            format_type_heritage(&heritage, f)?;
             write!(f, [space(), token("="), space()])?;
             format_type_expanded(f, type_id, ty)?;
             write!(f, [token(";")])
@@ -145,11 +155,13 @@ fn format_struct_type_declaration<'a>(
     arguments: &[StaticId],
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     lifetimes: &[LifetimeParameter],
+    heritage: &TypeHeritage,
     fields: &[LocalNodeId<Field>],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("type"), space()])?;
     format_type_name(name, arguments, lifetimes, f)?;
+    format_type_heritage(heritage, f)?;
     write!(f, [space(), token("{")])?;
 
     if fields.is_empty() {
@@ -171,6 +183,33 @@ fn format_struct_type_declaration<'a>(
         }))]
     )?;
     write!(f, [hard_line_break(), token("}")])
+}
+
+/// Format direct nominal heritage after one declared type name.
+fn format_type_heritage<'a>(heritage: &TypeHeritage, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    // inherited types
+    if !heritage.extends.is_empty() {
+        write!(f, [space(), token("extends"), space()])?;
+        for (index, base) in heritage.extends.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+            format_type_id(*base, f)?;
+        }
+    }
+
+    // implemented interfaces
+    if !heritage.implements.is_empty() {
+        write!(f, [space(), token("implements"), space()])?;
+        for (index, interface) in heritage.implements.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+            format_type_id(*interface, f)?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Format the fields of one struct type declaration.
