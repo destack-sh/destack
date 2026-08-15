@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, Cardinality, GenericParameterBinding, GenericParameterKey, GenericTemplate,
-    GlobalNodeIdAny, GlobalSymbolId, LocalGenericParameterId, LocalGenericTemplateId, LocalScopeId,
-    SegmentView, VarianceModifier,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalGenericParameterId, LocalGenericTemplateId,
+    LocalScopeId, SegmentView, TypeFold, VarianceModifier,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -445,5 +445,21 @@ impl GenericSegment {
     /// Return whether this segment contains the given parameter id.
     fn contains_parameter_id(&self, parameter_id: LocalGenericParameterId) -> bool {
         parameter_id.0 >= self.first_parameter_id && parameter_id.0 < self.parameter_count()
+    }
+}
+
+impl TypeFold for GenericSegment {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for template in self.templates.iter_mut() {
+            template.map_types(map)?;
+        }
+        for binding in self.parameters.iter_mut() {
+            binding.map_types(map)?;
+        }
+
+        Ok(())
     }
 }

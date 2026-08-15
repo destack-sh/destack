@@ -220,6 +220,19 @@ impl GenericTemplate {
     }
 }
 
+impl TypeFold for GenericTemplate {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for predicate in &mut self.predicates {
+            predicate.map_types(map)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// One where clause declared on a generic template.
 ///
 /// Instantiation sites prove each predicate and the declaring
@@ -239,6 +252,18 @@ pub struct WherePredicate {
     pub left: GlobalTypeId,
     /// The right relation operand.
     pub right: GlobalTypeId,
+}
+
+impl TypeFold for WherePredicate {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.left = map(self.left)?;
+        self.right = map(self.right)?;
+
+        Ok(())
+    }
 }
 
 /// One declaration-side generic parameter.
@@ -274,6 +299,19 @@ pub struct GenericParameterBinding {
     pub is_variadic: bool,
     /// Whether type inference preserves exact argument literals.
     pub is_const: bool,
+}
+
+impl TypeFold for GenericParameterBinding {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.ty = map(self.ty)?;
+        self.constraint.map_types(map)?;
+        self.default.map_types(map)?;
+
+        Ok(())
+    }
 }
 
 /// How many inhabitants one parameter's argument type may have.

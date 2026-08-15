@@ -100,6 +100,9 @@ impl CheckState<'_> {
             &mut state.captures
         })?;
         self.resolve_segment_types(dir::AutoSegment::new(module), |state| &mut state.auto)?;
+        self.resolve_segment_types(dir::GenericSegment::new(module), |state| {
+            &mut state.generics_tail
+        })?;
 
         Ok(())
     }
