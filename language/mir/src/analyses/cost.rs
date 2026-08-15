@@ -398,8 +398,7 @@ impl CostTable {
             mir::Instruction::BarrierWrite { .. } => cost.write_barrier += 1,
             mir::Instruction::Call { call, .. } => cost.add_call(call),
             mir::Instruction::Drop { .. } => cost.drop += 1,
-            mir::Instruction::CallDetach { .. }
-            | mir::Instruction::ContextReplace { .. }
+            mir::Instruction::ContextReplace { .. }
             | mir::Instruction::ContextGet { .. }
             | mir::Instruction::Poll
             | mir::Instruction::Intrinsic { .. } => cost.intrinsic_call += 1,

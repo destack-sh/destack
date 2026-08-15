@@ -211,7 +211,6 @@ impl PureExpression {
             | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::FunctionEnvironmentCurrent { .. }
             | mir::Instruction::ContextCurrent { .. }
-            | mir::Instruction::CallDetach { .. }
             | mir::Instruction::ContextReplace { .. }
             | mir::Instruction::ContextBind { .. }
             | mir::Instruction::ContextGet { .. }

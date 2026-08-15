@@ -150,11 +150,6 @@ pub enum Instruction {
         /// The SSA value to define with the current context.
         destination: Value,
     },
-    /// Run one thunk value behind a detach boundary (call.detach).
-    CallDetach {
-        /// The thunk function value entered at the boundary.
-        thunk: Value,
-    },
     /// Replace the current execution context and return its previous value.
     ContextReplace {
         /// The SSA value to define with the previous context.
@@ -948,7 +943,6 @@ impl Instruction {
     pub fn destination(&self) -> Option<Value> {
         match self {
             Instruction::Error => None,
-            Instruction::CallDetach { .. } => None,
             Instruction::Const { destination, .. } => Some(*destination),
             Instruction::Binary { destination, .. } => Some(*destination),
             Instruction::Unary { destination, .. } => Some(*destination),
@@ -1048,7 +1042,6 @@ impl Instruction {
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
             Instruction::Error => smallvec![],
-            Instruction::CallDetach { thunk } => smallvec![*thunk],
             Instruction::Const { .. } => smallvec![],
             Instruction::Binary { left, right, .. } => smallvec![*left, *right],
             Instruction::Unary { argument, .. } => smallvec![*argument],

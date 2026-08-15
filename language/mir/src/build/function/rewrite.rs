@@ -77,9 +77,6 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 Instruction::FunctionEnvironmentCurrent { .. } => {}
                 Instruction::ContextCurrent { .. } => {}
-                Instruction::CallDetach { thunk } => {
-                    Self::replace_value_in_slot(thunk, from, to);
-                }
                 Instruction::ContextReplace { context, .. } => {
                     Self::replace_value_in_slot(context, from, to);
                 }

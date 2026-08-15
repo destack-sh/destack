@@ -1324,8 +1324,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::Call { .. } => self.call_effects(instruction_id, instruction),
-            mir::Instruction::CallDetach { .. }
-            | mir::Instruction::ContextCurrent { .. }
+            mir::Instruction::ContextCurrent { .. }
             | mir::Instruction::ContextReplace { .. }
             | mir::Instruction::ContextBind { .. }
             | mir::Instruction::Free { .. }

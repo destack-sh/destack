@@ -193,7 +193,6 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::FunctionEnvironment { .. }
         | Instruction::FunctionEnvironmentCurrent { .. }
         | Instruction::ContextCurrent { .. }
-        | Instruction::CallDetach { .. }
         | Instruction::ContextReplace { .. }
         | Instruction::Store { .. }
         | Instruction::Aggregate { .. }

@@ -94,7 +94,6 @@ impl Parser {
                     | "tensor.fill"
                     | "tensor.copy"
                     | "drop"
-                    | "call.detach"
                     | "free"
                     | "unpin"
                     | "barrier.write"
@@ -216,11 +215,6 @@ impl Parser {
                 let value = self.parse_value_segment(&mut segment_spans)?;
 
                 Instruction::Drop { value }
-            }
-            "call.detach" => {
-                let thunk = self.parse_value_segment(&mut segment_spans)?;
-
-                Instruction::CallDetach { thunk }
             }
 
             // allocation protocol

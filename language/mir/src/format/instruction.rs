@@ -261,9 +261,6 @@ impl FormatNode for Instruction {
                 format_typed_destination(*destination, f)?;
                 write!(f, [space(), token("="), space(), token("context.current")])
             }
-            Instruction::CallDetach { thunk } => {
-                write!(f, [token("call.detach"), space(), thunk])
-            }
             Instruction::ContextReplace {
                 destination,
                 context,

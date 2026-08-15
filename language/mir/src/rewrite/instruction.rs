@@ -106,7 +106,6 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
 
         // calls may have side effects
         mir::Instruction::Call { .. }
-        | mir::Instruction::CallDetach { .. }
         | mir::Instruction::ContextCurrent { .. }
         | mir::Instruction::ContextReplace { .. }
         | mir::Instruction::ContextBind { .. }
@@ -286,7 +285,6 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
 
         // calls may have side effects
         mir::Instruction::Call { .. }
-        | mir::Instruction::CallDetach { .. }
         | mir::Instruction::ContextReplace { .. }
         | mir::Instruction::ContextBind { .. }
         | mir::Instruction::Drop { .. } => true,
@@ -483,9 +481,6 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");
         }
-        mir::Instruction::CallDetach { thunk } => mir::Instruction::CallDetach {
-            thunk: substitute(thunk),
-        },
         mir::Instruction::Binary {
             destination,
             operator,
@@ -2015,9 +2010,6 @@ pub fn instruction_map(
         mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");
         }
-        mir::Instruction::CallDetach { thunk } => mir::Instruction::CallDetach {
-            thunk: remap(*thunk),
-        },
         mir::Instruction::Const { destination, value } => mir::Instruction::Const {
             destination: remap(*destination),
             value: value.clone(),
@@ -2842,9 +2834,6 @@ pub fn instruction_map_with_locals(
         mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");
         }
-        mir::Instruction::CallDetach { thunk } => mir::Instruction::CallDetach {
-            thunk: remap(*thunk),
-        },
         mir::Instruction::Const { destination, value } => mir::Instruction::Const {
             destination: remap(*destination),
             value: value.clone(),
