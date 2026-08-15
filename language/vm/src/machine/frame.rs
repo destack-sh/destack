@@ -1,6 +1,6 @@
 use destack_bytecode::{CodeOffset, CodeRange, RegisterSpan};
 use destack_program as program;
-use destack_program::{Completion, Context, FrameStateId, FunctionId, Word};
+use destack_program::{Completion, FrameStateId, FunctionId, Word};
 use serde::{Deserialize, Serialize};
 
 /// One active bytecode call frame.
@@ -48,15 +48,6 @@ pub(crate) enum Return {
         /// Retained caller frames released after this destructor returns.
         frame_count: u16,
     },
-    /// Resume the caller of one detach boundary when its thunk settles or splits.
-    Detach {
-        /// Caller program counter that entered the boundary.
-        pc: CodeOffset,
-        /// Logical fiber identity restored on the caller.
-        caller_fiber_id: program::FiberId,
-        /// Execution context restored on the caller after a split.
-        context: Context,
-    },
 }
 
 impl Return {
@@ -64,7 +55,7 @@ impl Return {
     pub(crate) const fn pc(self) -> Option<CodeOffset> {
         match self {
             Self::Exit { .. } => None,
-            Self::Call { pc, .. } | Self::Drop { pc, .. } | Self::Detach { pc, .. } => Some(pc),
+            Self::Call { pc, .. } | Self::Drop { pc, .. } => Some(pc),
         }
     }
 

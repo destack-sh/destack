@@ -29,16 +29,6 @@ pub(crate) enum RuntimeCall {
         /// The parked fiber identity.
         fiber_id: program::FiberId,
     },
-    /// Allocate one detached fiber identity.
-    Detach {
-        /// The issued identity.
-        fiber_id: program::FiberId,
-    },
-    /// Retire one running detached fiber.
-    Retire {
-        /// The retired identity.
-        fiber_id: program::FiberId,
-    },
 }
 
 /// Strict runtime used by bytecode execution tests.
@@ -56,8 +46,6 @@ pub(crate) struct TestRuntime {
     selected_events: program::EventSet,
     /// Program execution events with their logical fiber identities.
     observations: Vec<(Option<program::FiberId>, program::Event)>,
-    /// Next detached fiber slot to issue.
-    next_fiber: u32,
 }
 
 impl TestRuntime {
@@ -157,21 +145,5 @@ impl program::Runtime for TestRuntime {
         } else {
             Ok(program::Park::Ready(self.wakes.remove(0)))
         }
-    }
-
-    /// Allocate one detached fiber identity.
-    fn detach(&mut self) -> Result<program::FiberId> {
-        let fiber_id = program::FiberId::new(self.next_fiber, 1);
-        self.next_fiber += 1;
-        self.calls.push(RuntimeCall::Detach { fiber_id });
-
-        Ok(fiber_id)
-    }
-
-    /// Retire one running detached fiber.
-    fn retire(&mut self, fiber_id: program::FiberId) -> Result<()> {
-        self.calls.push(RuntimeCall::Retire { fiber_id });
-
-        Ok(())
     }
 }

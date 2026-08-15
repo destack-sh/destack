@@ -291,64 +291,6 @@ function f1 {
     );
 }
 
-/// Attribute detached frame execution to its exact logical fiber identity.
-#[test]
-fn test_observe_detached_fiber() {
-    let mut machine = TestMachine::parse(
-        r#"
-function f0 {
-    return
-}
-
-function f1 {
-    function.address r0, f0
-    call.detach r0
-    return
-}
-"#,
-        TestProgram::words(),
-    );
-    machine.select_events([EventKind::Frame]);
-
-    let value = machine.complete(1, &[]);
-    let detached_fiber_id = FiberId::new(0, 1);
-
-    assert_eq!(value, Vec::<Word>::new());
-    assert_eq!(
-        machine.take_observations(),
-        vec![
-            (
-                Some(TEST_FIBER_ID),
-                Event::Frame {
-                    event: FrameEvent::Enter,
-                    function: FunctionId(1),
-                },
-            ),
-            (
-                Some(detached_fiber_id),
-                Event::Frame {
-                    event: FrameEvent::Enter,
-                    function: FunctionId(0),
-                },
-            ),
-            (
-                Some(detached_fiber_id),
-                Event::Frame {
-                    event: FrameEvent::Exit,
-                    function: FunctionId(0),
-                },
-            ),
-            (
-                Some(TEST_FIBER_ID),
-                Event::Frame {
-                    event: FrameEvent::Exit,
-                    function: FunctionId(1),
-                },
-            ),
-        ]
-    );
-}
-
 /// Publish every frame exit while a panic unwinds through its caller.
 #[test]
 fn test_observe_panic_and_unwind() {

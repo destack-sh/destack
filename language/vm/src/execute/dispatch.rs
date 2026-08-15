@@ -189,7 +189,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     Opcode::FREE | Opcode::PIN | Opcode::UNPIN | Opcode::BARRIER => {
                         self.execute_reference(instruction)?
                     }
-                    Opcode::DROP => {
+                    Opcode::DROP | Opcode::DROP_DYNAMIC | Opcode::DROP_FUNCTION => {
                         self.cursor.set_position(position);
                         self.execute_drop(operation_pc, instruction)?;
                         position = self.cursor.position();
@@ -251,8 +251,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     | Opcode::TAIL_CALL
                     | Opcode::TAIL_CALL_INDIRECT
                     | Opcode::TAIL_CALL_VIRTUAL
-                    | Opcode::TAIL_CALL_DYNAMIC
-                    | Opcode::CALL_DETACH => {
+                    | Opcode::TAIL_CALL_DYNAMIC => {
                         self.cursor.set_position(position);
                         if let Some(outcome) = self.execute_call(operation_pc, instruction)? {
                             return Ok(outcome);

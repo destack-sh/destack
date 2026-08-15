@@ -307,6 +307,13 @@ impl TestProgram {
         self
     }
 
+    /// Set one function's captured environment type.
+    pub(crate) fn environment(mut self, function: u32, ty: u32) -> Self {
+        self.environments.insert(function, TypeId(ty));
+
+        self
+    }
+
     /// Append one mutable worker-local global.
     pub(crate) fn local_global(mut self) -> Self {
         self.globals.push(program::GlobalLocation::LocalStatic);

@@ -5,7 +5,6 @@ mod fiber;
 mod frame;
 mod machine;
 mod materialize;
-mod split;
 mod stack;
 mod state;
 

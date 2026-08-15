@@ -1,7 +1,9 @@
-use destack_bytecode::{CodeOffset, Instruction, Opcode, ReferenceType, RegisterId, Space};
+use destack_bytecode::{
+    CodeOffset, Instruction, Opcode, ReferenceKind, ReferenceType, RegisterId, Space, Storage,
+};
 use destack_heap::{HeapEdge, HeapReference, SharedHeapReference};
 use destack_mir as mir;
-use destack_program::{FunctionId, Runtime, Word};
+use destack_program::{DynamicTableId, FunctionId, Runtime, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::Activation;
@@ -74,10 +76,67 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> ExecutionResult<(), R::Error> {
         let mut operands = self.operands(instruction);
         let value = operands.span()?;
-        let function = FunctionId(operands.u32()?);
-        let value = self.register_byte_range(value)?;
+        let (function, reference) = match instruction.opcode() {
+            Opcode::DROP => {
+                let function = FunctionId(operands.u32()?);
+                let value = self.register_byte_range(value)?;
+                let reference = self.fiber.stack.memory_offset(value.start);
+
+                (function, Word::from_bits(reference as u64))
+            }
+            Opcode::DROP_DYNAMIC | Opcode::DROP_FUNCTION => {
+                let representation = operands.reference()?;
+                if value.word_count != 2 || representation.kind() != ReferenceKind::UNIQUE {
+                    return Err(self.invalid_instruction().into());
+                }
+                let reference = match instruction.opcode() {
+                    Opcode::DROP_DYNAMIC => self.read(value.start.0),
+                    Opcode::DROP_FUNCTION => self.read(value.start.0 + 1),
+                    _ => unreachable!("erased drop selects one carrier"),
+                };
+                if reference.bits() <= 1 {
+                    return Ok(());
+                }
+                let ty = match instruction.opcode() {
+                    Opcode::DROP_DYNAMIC => {
+                        let table = DynamicTableId::from(self.read(value.start.0 + 1));
+                        self.machine
+                            .program
+                            .dynamic_table(table)
+                            .ok_or_else(|| self.invalid_instruction())?
+                            .concrete
+                    }
+                    Opcode::DROP_FUNCTION => {
+                        let function = FunctionId::from_word(self.read(value.start.0))
+                            .ok_or_else(|| self.invalid_instruction())?;
+                        self.machine
+                            .program
+                            .function(function)
+                            .and_then(|function| function.environment())
+                            .ok_or_else(|| self.invalid_instruction())?
+                    }
+                    _ => unreachable!("erased drop selects one carrier"),
+                };
+                let storage = match representation.storage() {
+                    Storage::LOCAL => mir::Storage::Heap(mir::Space::Local),
+                    Storage::SHARED => mir::Storage::Heap(mir::Space::Shared),
+                    _ => return Err(self.invalid_instruction().into()),
+                };
+                let Some(function) = self
+                    .machine
+                    .program
+                    .destructor(ty, storage)
+                    .map_err(Error::program)?
+                else {
+                    return Ok(());
+                };
+
+                (function, reference)
+            }
+            _ => unreachable!("drop dispatch selects one drop opcode"),
+        };
         let caller_state = self.machine.frame_state_at(self.frame(), pc)?;
 
-        self.call_destructor(function, value.start, pc, caller_state, 0)
+        self.call_destructor(function, reference, pc, caller_state, 0)
     }
 }

@@ -2,6 +2,7 @@ mod aggregate;
 mod allocation;
 mod call;
 mod control;
+mod drop;
 mod dynamic;
 mod event;
 mod float;

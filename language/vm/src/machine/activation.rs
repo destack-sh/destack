@@ -277,7 +277,7 @@ where
             Return::Exit { .. } => {
                 return Err(self.invalid_instruction().into());
             }
-            Return::Drop { .. } | Return::Detach { .. } => return_to,
+            Return::Drop { .. } => return_to,
         };
         if let Callee::Binding(binding) =
             Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
@@ -355,60 +355,6 @@ where
         Ok(None)
     }
 
-    /// Enter one detach boundary call on a fresh logical fiber.
-    pub(crate) fn detach(
-        &mut self,
-        pc: CodeOffset,
-        thunk: RegisterSpan,
-    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
-        // decode the thunk function value
-        let environment = match thunk.word_count {
-            1 => None,
-            2 => Some(self.read(thunk.start.0 + 1)),
-            _ => return Err(self.invalid_instruction().into()),
-        };
-        let function = self.function_id(self.read(thunk.start.0))?;
-        self.observe_call(self.frame(), pc, function)?;
-
-        // mount one detached logical fiber under the boundary
-        let caller_fiber_id = self.fiber_id()?;
-        let fiber_id = self
-            .activation
-            .runtime
-            .detach()
-            .map_err(ExecutionError::runtime)?;
-        let return_to = Return::Detach {
-            pc,
-            caller_fiber_id,
-            context: *self.activation.context,
-        };
-        let arguments = RegisterSpan::new(RegisterId(0), 0);
-        self.fiber.fiber_id = Some(fiber_id);
-        match self.call(function, arguments, environment, return_to, None, None) {
-            // boundary calls enter bodies and never publish an outcome
-            Ok(None) => Ok(None),
-            Ok(Some(_)) => {
-                self.fiber.fiber_id = Some(caller_fiber_id);
-                self.activation
-                    .runtime
-                    .retire(fiber_id)
-                    .map_err(ExecutionError::runtime)?;
-
-                Err(self.invalid_instruction().into())
-            }
-            Err(error) => {
-                // release the unused identity so the boundary fails atomically
-                self.fiber.fiber_id = Some(caller_fiber_id);
-                self.activation
-                    .runtime
-                    .retire(fiber_id)
-                    .map_err(ExecutionError::runtime)?;
-
-                Err(error)
-            }
-        }
-    }
-
     /// Ask the runtime to park the running fiber at one binding call.
     fn park(
         &mut self,
@@ -445,37 +391,6 @@ where
                 self.save_position();
                 self.fiber.context = *self.activation.context;
 
-                // split at the innermost detach boundary instead of parking whole
-                let boundary = self
-                    .fiber
-                    .frames
-                    .iter()
-                    .rposition(|frame| matches!(frame.return_to, Return::Detach { .. }));
-                if let Some(boundary) = boundary {
-                    let Return::Detach {
-                        caller_fiber_id,
-                        context,
-                        ..
-                    } = self.fiber.frames[boundary].return_to
-                    else {
-                        unreachable!("boundary position matched a detach return");
-                    };
-                    let split = self.machine.split(self.fiber, boundary, registers);
-                    self.fiber.fiber_id = Some(caller_fiber_id);
-                    *self.activation.context = context;
-                    if let Err(error) = split {
-                        // release the orphaned identity so the failure stays atomic
-                        self.activation
-                            .runtime
-                            .retire(fiber_id)
-                            .map_err(ExecutionError::runtime)?;
-
-                        return Err(error.into());
-                    }
-                    self.activate();
-
-                    return Ok(None);
-                }
                 self.fiber.wake_to = Some(registers);
 
                 Ok(Some(Outcome::Parked))
@@ -487,7 +402,7 @@ where
     pub(crate) fn call_destructor(
         &mut self,
         function: FunctionId,
-        value_offset: usize,
+        reference: Word,
         pc: CodeOffset,
         caller_state: FrameStateId,
         frame_count: u16,
@@ -503,12 +418,9 @@ where
         let frame = self
             .machine
             .allocate_frame(self.fiber, function, 1, return_to)?;
-        let reference = self.fiber.stack.memory_offset(value_offset);
 
-        // pass one MemoryMap-relative reference to retained value storage
-        self.fiber
-            .stack
-            .write(frame.register_offset, Word::from_bits(reference as u64));
+        // pass the relative reference to retained value storage
+        self.fiber.stack.write(frame.register_offset, reference);
         self.save_position();
         self.fiber.frames.push(frame);
         self.activate();
@@ -734,27 +646,6 @@ where
                 if let Some(normal) = normal {
                     self.jump(normal);
                 }
-                self.fiber.stack.truncate(frame.byte_offset());
-
-                Ok(None)
-            }
-
-            // settle one detach boundary that completed without parking
-            Return::Detach {
-                caller_fiber_id,
-                context,
-                ..
-            } => {
-                if results.word_count != 0 {
-                    return Err(self.invalid_instruction().into());
-                }
-                let retired = self.fiber_id()?;
-                self.fiber.fiber_id = Some(caller_fiber_id);
-                *self.activation.context = context;
-                self.activation
-                    .runtime
-                    .retire(retired)
-                    .map_err(ExecutionError::runtime)?;
                 self.fiber.stack.truncate(frame.byte_offset());
 
                 Ok(None)

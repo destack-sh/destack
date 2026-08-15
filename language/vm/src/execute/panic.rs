@@ -70,22 +70,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             let unwind = match frame.return_to {
                 Return::Call { unwind, .. } => unwind,
                 Return::Exit { .. } | Return::Drop { .. } => None,
-                // lowered thunks catch their own panics before the boundary
-                Return::Detach {
-                    caller_fiber_id,
-                    context,
-                    ..
-                } => {
-                    let retired = self.fiber_id()?;
-                    self.fiber.fiber_id = Some(caller_fiber_id);
-                    *self.activation.context = context;
-                    self.activation
-                        .runtime
-                        .retire(retired)
-                        .map_err(ExecutionError::runtime)?;
-
-                    None
-                }
             };
             if let Some(unwind) = unwind {
                 self.jump(unwind);

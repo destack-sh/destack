@@ -21,10 +21,8 @@ pub struct Fiber {
     pub(crate) context: Context,
     /// The parked call's result registers awaiting one wake value.
     pub(crate) wake_to: Option<RegisterSpan>,
-    /// The logical fiber executing here; detach boundaries nest inner identities.
+    /// The logical fiber carrying this execution.
     pub(crate) fiber_id: Option<program::FiberId>,
-    /// Executions split off at detach boundaries, drained after every run.
-    pub(crate) detached: Vec<Fiber>,
 }
 
 impl Fiber {
@@ -38,24 +36,17 @@ impl Fiber {
             context: Context::default(),
             wake_to: None,
             fiber_id: None,
-            detached: Vec::new(),
         })
     }
 
     /// Fork this fiber over one already-forked world memory map.
     pub fn fork(&self, memory: Arc<MemoryMap>) -> Self {
-        assert!(
-            self.detached.is_empty(),
-            "detached executions drain before forks"
-        );
-
         Self {
             stack: self.stack.fork(memory),
             frames: self.frames.clone(),
             context: self.context,
             wake_to: self.wake_to,
             fiber_id: self.fiber_id,
-            detached: Vec::new(),
         }
     }
 
@@ -69,7 +60,7 @@ impl Fiber {
         self.frames.len()
     }
 
-    /// Release every frame, stack byte, and mounted identity, keeping split-off executions.
+    /// Release every frame, stack byte, and mounted identity.
     pub fn clear(&mut self) {
         self.frames.clear();
         self.stack.clear();
@@ -87,11 +78,6 @@ impl Fiber {
         self.fiber_id
     }
 
-    /// Drain the executions split off at detach boundaries.
-    pub fn take_detached(&mut self) -> Vec<Fiber> {
-        std::mem::take(&mut self.detached)
-    }
-
     /// Return the world memory map that owns this fiber's stack.
     pub fn memory(&self) -> Arc<MemoryMap> {
         self.stack.memory()
@@ -104,11 +90,6 @@ impl Fiber {
 
     /// Capture one durable image of this fiber's execution state.
     pub fn image(&self) -> FiberImage {
-        assert!(
-            self.detached.is_empty(),
-            "detached executions drain before images"
-        );
-
         FiberImage {
             stack_range: self.stack.range(),
             stack_byte_len: self.stack.byte_len(),
@@ -151,7 +132,6 @@ impl Fiber {
             context: image.context,
             wake_to: image.wake_to,
             fiber_id: image.fiber_id,
-            detached: Vec::new(),
         })
     }
 }
