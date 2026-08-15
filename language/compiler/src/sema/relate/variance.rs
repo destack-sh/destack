@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{Cause, CauseId, CauseKind, CheckState, Origin, Relation};
+use crate::sema::{Cause, CauseId, CauseKind, CheckState, Origin, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 /// One derived generic parameter variance.
@@ -656,10 +656,10 @@ impl CheckState<'_> {
         relation: Relation,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // pair the written arguments by kind, collecting elided lifetimes for proof only
         let Some(slots) = self.slot_application_arguments(source, target)? else {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         };
         let (source, target): (SmallVec<[_; 4]>, SmallVec<[_; 4]>) = slots.iter().copied().unzip();
 
@@ -676,12 +676,13 @@ impl CheckState<'_> {
         relation: Relation,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         if source.len() != target.len() {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         }
 
         let relation = self.instance_argument_relation(symbol, relation)?;
+        let mut verdict = Verdict::Holds;
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
             // erased target arguments admit every instantiation of their parameter
             if matches!(self.ty(*target)?, dir::Type::Erased(_)) {
@@ -711,7 +712,7 @@ impl CheckState<'_> {
                     {
                         self.constrain_type(origin, child, Relation::Equal, *source, *target)?
                     } else {
-                        true
+                        Verdict::Holds
                     }
                 }
                 Some((relation, order)) => {
@@ -720,12 +721,13 @@ impl CheckState<'_> {
                     self.constrain_type(origin, child, relation, source, target)?
                 }
             };
-            if !related {
-                return Ok(false);
+            verdict = verdict.and(related);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Return the relation used by one instance symbol's arguments.

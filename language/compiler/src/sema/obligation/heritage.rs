@@ -213,7 +213,7 @@ impl CheckState<'_> {
                             base.ty,
                             None,
                         )?;
-                        match assignment {
+                        match assignment.holds() {
                             true => selected_overrides.push((member.symbol, base.symbol)),
                             false => {
                                 failures.push(ObligationFailure::IncompatibleOverride {

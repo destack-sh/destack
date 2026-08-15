@@ -1,10 +1,10 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    BodyState, Callee, Cause, CauseKind, CheckOutcome, Constraint, DeferredCheck, Expectation,
-    FlowSite, InferMode, Obligation, OperatorExpressionResult, Origin, PlaceUse, ProtocolCall,
-    Relation, Selection, ValueUse, VariableRole, Widening, WritableTargetObligation,
-    binary_operator_protocols, unary_operator_protocols,
+    BodyState, Callee, Cause, CauseKind, Check, CheckOutcome, Expectation, FailedCheck, FlowSite,
+    InferMode, Obligation, OperatorExpressionResult, Origin, PlaceUse, ProtocolCall, Relation,
+    RelationCheck, Selection, SelectionCheck, ValueUse, VariableRole, Verdict, Widening,
+    WritableTargetObligation, binary_operator_protocols, unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -298,7 +298,9 @@ impl BodyState<'_, '_> {
             let left_operand = self.strip_form(origin, left)?;
             let right_operand = self.strip_form(origin, right)?;
             let target = self.language_type(dir::LanguageItem::PartialEqual, &[right_operand])?;
-            if self.evaluate_relation(origin, Relation::Satisfies, left_operand, target)? {
+            if self.evaluate_relation(origin, Relation::Satisfies, left_operand, target)?
+                != Verdict::Fails
+            {
                 // record the selection so later passes replay this dispatch
                 let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
                 if let Some(key) = selection_key {
@@ -466,11 +468,11 @@ impl BodyState<'_, '_> {
             let hole = self.variable_type(variable)?;
             self.commit_node_type(node, hole)?;
         }
-        self.check.register_check(DeferredCheck::Infer {
+        self.check.register_check(Check::Selection(SelectionCheck {
             site,
             use_: PlaceUse::Read,
             stalled_on,
-        });
+        }));
 
         Ok(())
     }
@@ -533,7 +535,7 @@ impl BodyState<'_, '_> {
                     scope,
                 );
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                self.push_constraint(Constraint::r#type(
+                self.push_relation(RelationCheck::new(
                     origin,
                     Relation::Assignable,
                     operand,
@@ -712,6 +714,12 @@ impl BodyState<'_, '_> {
         let common = if numeric {
             let mut carrier = *first;
             for operand in rest {
+                // FUGU #Architecture: builtin_numeric_join collapses Verdict::Ambiguous
+                //  to false through .holds(), so an open operand arriving from
+                //  select_switch_equality hits the internal error below while it
+                //  should wait. A proper fix defers the whole switch equality
+                //  selection through infer_switch_statement's flow forking. Today
+                //  every test stays clear of it.
                 let Some(joined) = self.builtin_numeric_join(origin, carrier, *operand)? else {
                     return Err(CompilerError::Internal {
                         message: "comparable numeric operands have no common type".to_string(),
@@ -726,7 +734,9 @@ impl BodyState<'_, '_> {
         } else {
             let mut is_equal = true;
             for operand in rest {
-                is_equal &= self.evaluate_relation(origin, Relation::Equal, *first, *operand)?;
+                is_equal &= self
+                    .evaluate_relation(origin, Relation::Equal, *first, *operand)?
+                    .holds();
             }
 
             is_equal.then_some(*first)
@@ -1020,7 +1030,9 @@ impl BodyState<'_, '_> {
                     dir::Type::Parameter(_) => {
                         self.builtin_scalar_accepts_literal(origin, left, right)?
                     }
-                    _ => self.evaluate_relation(origin, Relation::Assignable, left, right)?,
+                    _ => self
+                        .evaluate_relation(origin, Relation::Assignable, left, right)?
+                        .holds(),
                 };
 
                 Ok(adapts.then_some(right))
@@ -1030,14 +1042,18 @@ impl BodyState<'_, '_> {
                     dir::Type::Parameter(_) => {
                         self.builtin_scalar_accepts_literal(origin, right, left)?
                     }
-                    _ => self.evaluate_relation(origin, Relation::Assignable, right, left)?,
+                    _ => self
+                        .evaluate_relation(origin, Relation::Assignable, right, left)?
+                        .holds(),
                 };
 
                 Ok(adapts.then_some(left))
             }
             // typed operands must agree exactly
             (None, None) => {
-                let equal = self.evaluate_relation(origin, Relation::Equal, left, right)?;
+                let equal = self
+                    .evaluate_relation(origin, Relation::Equal, left, right)?
+                    .holds();
 
                 Ok(equal.then_some(left))
             }
@@ -1232,14 +1248,15 @@ impl BodyState<'_, '_> {
 
         // record the failure against the store site
         if let CheckOutcome::Fails(failure) = outcome {
-            self.check.record_failure(
+            self.check.record_failure(FailedCheck {
                 cause,
                 relation,
-                Some(ValueUse::Store),
+                use_: Some(ValueUse::Store),
                 source,
-                writeback,
+                target: writeback,
                 failure,
-            )?;
+                is_provisional: false,
+            })?;
         }
 
         Ok(())

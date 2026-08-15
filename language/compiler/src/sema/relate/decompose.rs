@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, GenericParameterId, Origin, Relation, TypeSubstitution};
+use crate::sema::{CheckState, GenericParameterId, Origin, Relation, TypeSubstitution, Verdict};
 
 impl CheckState<'_> {
     /// Decompose two same-constructor types into fixed slot pairs.
@@ -681,7 +681,10 @@ impl CheckState<'_> {
             return Ok(true);
         };
 
-        self.evaluate_relation(origin, Relation::Equal, bound, argument)
+        // match unless the bound is proven unequal
+        let verdict = self.evaluate_relation(origin, Relation::Equal, bound, argument)?;
+
+        Ok(verdict != Verdict::Fails)
     }
 
     /// Match fixed positional type pairs.

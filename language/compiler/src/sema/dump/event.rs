@@ -49,28 +49,15 @@ impl CheckEvent {
                     "cause",
                     context.origin_label(context.check.infer.cause(bound.cause).origin),
                 ),
-            Self::RelationChecked {
-                constraint,
-                is_finished,
-            } => match context.check.fulfill.constraints.get(*constraint) {
-                Ok(relation) => relation.render_event(*constraint, *is_finished, context),
-                Err(_) => ArtifactEvent::new("relation.checked")
-                    .debug()
-                    .text("id", context.constraint_label(*constraint))
-                    .bool("finished", *is_finished),
-            },
-            Self::ObligationChecked {
-                obligation,
-                is_finished,
-            } => match context.check.fulfill.obligations.get(*obligation) {
-                Ok(entry) => entry
-                    .obligation
-                    .render_event(*obligation, *is_finished, context),
-                Err(_) => ArtifactEvent::new("obligation.checked")
-                    .debug()
-                    .text("id", context.obligation_label(*obligation))
-                    .bool("finished", *is_finished),
-            },
+            Self::Checked { check, is_finished } => {
+                match context.check.fulfill.checks.get(*check) {
+                    Ok(check_kind) => check_kind.render_event(*check, *is_finished, context),
+                    Err(_) => ArtifactEvent::new("check.checked")
+                        .debug()
+                        .text("id", context.check_label(*check))
+                        .bool("finished", *is_finished),
+                }
+            }
             Self::NodeDecided { node } => ArtifactEvent::new("node.decided")
                 .debug()
                 .text("node", context.node_label(*node))

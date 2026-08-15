@@ -576,7 +576,10 @@ impl BodyState<'_, '_> {
         // require the lookup receiver to satisfy the applied target
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         let target = self.substitute_type(target_type, &substitution)?;
-        if !self.constrain_type(origin, cause, Relation::Assignable, lookup_receiver, target)? {
+        if !self
+            .constrain_type(origin, cause, Relation::Assignable, lookup_receiver, target)?
+            .holds()
+        {
             return Ok(None);
         }
 
@@ -604,13 +607,13 @@ impl BodyState<'_, '_> {
 
                 // decide a closed bound now, rejecting an inapplicable candidate
                 if closed {
-                    let id = self.check.register_constraint(constraint);
-                    self.check.solve_constraint(id, Settle::Final)?;
+                    let id = self.check.register_relation(constraint);
+                    self.check.solve_relation(id, Settle::Final)?;
 
                     // an unprovable closed bound rejects the candidate
                     let failed = matches!(
-                        self.check.fulfill.constraints.result(id)?,
-                        Some(result) if matches!(result.outcome, CheckOutcome::Fails(_))
+                        self.check.fulfill.checks.result(id)?,
+                        Some(outcome) if matches!(outcome, CheckOutcome::Fails(_))
                     );
                     if failed {
                         return Ok(None);
@@ -618,7 +621,7 @@ impl BodyState<'_, '_> {
                 }
                 // defer an open bound, which the sole candidate settles
                 else {
-                    self.check.register_constraint(constraint);
+                    self.check.register_relation(constraint);
                 }
             }
         }
@@ -1241,7 +1244,8 @@ impl BodyState<'_, '_> {
 
         // require the subject to satisfy the bound target
         let target = self.substitute_type(target_type, &substitution)?;
-        if !self.evaluate_relation(origin, Relation::Assignable, subject, target)? {
+        if self.evaluate_relation(origin, Relation::Assignable, subject, target)? == Verdict::Fails
+        {
             return Ok(None);
         }
 

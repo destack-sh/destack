@@ -3,10 +3,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, ConditionBranch, Constraint,
-    ControlTargetForm, Expectation, ExpectedType, FlowBranch, FlowSite, ForInSourceObligation,
-    InferMode, Obligation, Origin, PatternArm, PatternCoverage, PatternCoverageObligation,
-    PlaceUse, Relation, ValueCheck, ValueUse,
+    BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, ConditionBranch, ControlTargetForm,
+    Expectation, ExpectedType, FlowBranch, FlowSite, ForInSourceObligation, InferMode, Obligation,
+    Origin, PatternArm, PatternCoverage, PatternCoverageObligation, PlaceUse, Relation,
+    RelationCheck, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -341,7 +341,7 @@ impl BodyState<'_, '_> {
             let cause = self
                 .check
                 .intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.check.push_constraint(Constraint::r#type(
+            self.check.push_relation(RelationCheck::new(
                 origin,
                 Relation::Assignable,
                 failure,

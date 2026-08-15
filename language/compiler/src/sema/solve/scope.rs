@@ -1,7 +1,7 @@
 use destack_repository::ArtifactAttemptRecorder;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, FallbackStage, InferenceScope, Pass, WalkState};
+use crate::sema::{Check, CheckState, FallbackStage, InferenceScope, Pass, WalkState};
 
 /// How far one fulfillment settles the scope's owned variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,8 +33,8 @@ impl WalkState<'_, '_> {
 pub(in crate::sema) struct ScopeMark {
     /// The variables and mutations the scope owns.
     scope: InferenceScope,
-    /// The constraint count at the open.
-    constraints: usize,
+    /// The check count at the open.
+    checks: usize,
     /// The retained failure count at the open.
     failures: usize,
 }
@@ -57,8 +57,8 @@ impl CheckState<'_> {
         self.infer.scope_depth += 1;
 
         ScopeMark {
-            scope: InferenceScope::open(self.infer.variable_count(), self.infer.trail.len()),
-            constraints: self.fulfill.constraint_count(),
+            scope: InferenceScope::open(self.infer.variable_count()),
+            checks: self.fulfill.checks.count(),
             failures: self.fulfill.failures.len(),
         }
     }
@@ -80,16 +80,16 @@ impl CheckState<'_> {
             self.fulfill.requeue_parked();
             self.fulfill.requeue_stalled();
 
-            // drive every constraint that never reached a verdict
+            // drive every relation check still open
             let incomplete = self
                 .fulfill
-                .constraints
+                .checks
                 .iter()
-                .map(|(id, _)| id)
-                .filter(|id| !self.fulfill.constraints.is_complete(*id))
+                .filter_map(|(id, check)| matches!(check, Check::Relation(_)).then_some(id))
+                .filter(|id| !self.fulfill.checks.is_complete(*id))
                 .collect::<Vec<_>>();
             for id in incomplete {
-                self.solve_constraint(id, Settle::Final)?;
+                self.solve_relation(id, Settle::Final)?;
             }
         }
 
@@ -120,7 +120,7 @@ impl CheckState<'_> {
 
     /// Close one inference scope.
     fn close_scope(&mut self, mark: ScopeMark) -> CompilerResult<()> {
-        // an inner close leaves defaults and reporting to the outermost
+        // resolve only the variables a nested close allocated, leaving defaults to the outermost
         if self.infer.scope_depth > 1 {
             self.fulfill_scope(mark.scope, Settle::Bounded)?;
             self.infer.scope_depth -= 1;
@@ -149,7 +149,7 @@ impl CheckState<'_> {
         self.fulfill_scope(mark.scope, Settle::Final)?;
 
         // report the pass's failures, then poison what stayed open
-        let explained = self.report_failures(mark.constraints, mark.failures)?;
+        let explained = self.report_failures(mark.checks, mark.failures)?;
         self.report_unresolved(mark.scope, &explained)?;
 
         // step the remainder over the poisoned holes
@@ -157,12 +157,9 @@ impl CheckState<'_> {
     }
 
     /// Close the inference one statement opened.
-    pub(in crate::sema) fn close_statement(
-        &mut self,
-        scope: InferenceScope,
-    ) -> CompilerResult<()> {
+    pub(in crate::sema) fn close_statement(&mut self, scope: InferenceScope) -> CompilerResult<()> {
         // skip statements that opened no inference
-        if self.infer.variable_count() == scope.first_variable() && self.fulfill.open_work == 0 {
+        if self.infer.variable_count() == scope.first_variable() && !self.fulfill.has_open_work() {
             return Ok(());
         }
 

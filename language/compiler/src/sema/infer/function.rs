@@ -1,6 +1,5 @@
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckFailure, CheckOutcome, Expectation, FlowSite, InferMode,
-    Relation, ValueCheck,
+    BodyState, CheckFailure, CheckOutcome, Expectation, FlowSite, InferMode, Relation, ValueCheck,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -15,12 +14,14 @@ impl BodyState<'_, '_> {
         expectation: Option<Expectation>,
         mode: InferMode,
     ) -> CompilerResult<ValueCheck> {
+        // read the function value's collected body
         let node = site.node;
         let Some(body) = self.check.lambdas.get(&node).cloned() else {
             return Err(CompilerError::Internal {
                 message: format!("function value {node:?} has no body"),
             });
         };
+
         // read the declared callable and the context the body checks under
         let callable = self.check.symbol_type(body.symbol)?;
         let output_mode = expectation
@@ -30,30 +31,36 @@ impl BodyState<'_, '_> {
 
         // constrain the declared callable against its expected type
         let carrier = if let Some(expectation) = expectation {
+            // report either rejection as the callable missing its expected type
             let origin = site.origin();
-            let Some(target) = self.construction_value(origin, expectation.target)? else {
+            let rejection = ValueCheck {
+                source: callable,
+                outcome: CheckOutcome::Fails(CheckFailure::Relation),
+                target,
+            };
+
+            // require the expectation to name a constructible value
+            let Some(construction) = self.construction_value(origin, expectation.target)? else {
                 self.check.commit_node_type(node, callable)?;
 
-                return Ok(ValueCheck {
-                    source: callable,
-                    outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                    target,
-                });
+                return Ok(rejection);
             };
-            let cause = self
-                .check
-                .intern_cause(Cause::root(origin, CauseKind::Expression));
+
+            // require the declared callable to be assignable to that value
             if !self
                 .check
-                .constrain_type(origin, cause, Relation::Assignable, callable, target)?
+                .constrain_type(
+                    origin,
+                    expectation.cause,
+                    Relation::Assignable,
+                    callable,
+                    construction,
+                )?
+                .holds()
             {
                 self.check.commit_node_type(node, callable)?;
 
-                return Ok(ValueCheck {
-                    source: callable,
-                    outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                    target,
-                });
+                return Ok(rejection);
             }
 
             // keep the source under satisfies, take the storage form otherwise
@@ -61,7 +68,9 @@ impl BodyState<'_, '_> {
                 Relation::Satisfies => callable,
                 _ => self.replace_form_value(origin, expectation.target, callable)?,
             }
-        } else {
+        }
+        // otherwise carry the declared callable as written
+        else {
             callable
         };
 

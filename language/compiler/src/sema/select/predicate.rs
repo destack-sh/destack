@@ -5,6 +5,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::sema::{
     BodyState, FlowSite, Obligation, Origin, PlaceUse, Relation, RuntimePredicateObligation,
+    Verdict,
 };
 
 impl BodyState<'_, '_> {
@@ -339,8 +340,17 @@ impl BodyState<'_, '_> {
                     self.type_ids(value.module_id, union.elements)?.into();
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
-                    let satisfies =
-                        self.evaluate_relation(origin, Relation::Satisfies, element, target)?;
+                    // build no predicate for an undecided arm
+                    let satisfies = match self.evaluate_relation(
+                        origin,
+                        Relation::Satisfies,
+                        element,
+                        target,
+                    )? {
+                        Verdict::Holds => true,
+                        Verdict::Fails => false,
+                        Verdict::Ambiguous => return Ok(None),
+                    };
                     let predicate = self.runtime_union_arm_predicate(origin, value, element)?;
                     if satisfies && let Some(predicate) = predicate {
                         alternatives.push(predicate);
@@ -364,13 +374,12 @@ impl BodyState<'_, '_> {
 
             // plain values either satisfy the target statically or never can
             _ => {
-                let satisfies =
-                    self.evaluate_relation(origin, Relation::Satisfies, value, target)?;
-                let condition = if satisfies {
-                    dir::PredicateCondition::Always
-                } else {
-                    dir::PredicateCondition::Never
-                };
+                let condition =
+                    match self.evaluate_relation(origin, Relation::Satisfies, value, target)? {
+                        Verdict::Holds => dir::PredicateCondition::Always,
+                        Verdict::Fails => dir::PredicateCondition::Never,
+                        Verdict::Ambiguous => return Ok(None),
+                    };
                 let predicate = self.unary_predicate(origin, value, target, condition)?;
 
                 Ok(Some(predicate))

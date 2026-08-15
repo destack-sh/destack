@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, Origin};
+use crate::sema::{CheckState, Origin, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -12,18 +12,18 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // use bounds declared by generic types
         if let Some(decision) =
             self.decide_generic_auto_interface(origin, ty, dir::AutoInterface::DynamicSafe)?
         {
-            return Ok(decision);
+            return Ok(Verdict::decided(decision));
         }
 
         // close recursive structural types coinductively
         let ty = self.shallow_resolve(ty)?;
         if active.contains(&ty) {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
         active.push(ty);
 
@@ -40,16 +40,13 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let kind = self.ty(ty)?;
 
         // decide each runtime representation
         match kind {
-            dir::Type::Variable(variable) => Err(CompilerError::Internal {
-                message: format!(
-                    "unsolved type variable {variable:?} reached structural dynamic safety"
-                ),
-            }),
+            // leave an open variable undecided
+            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -70,25 +67,25 @@ impl CheckState<'_> {
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
-            | dir::Type::Range(_) => Ok(true),
+            | dir::Type::Range(_) => Ok(Verdict::Holds),
             dir::Type::Variant(variant) => {
                 self.satisfies_dynamic_safe(origin, variant.owner, active)
             }
-            dir::Type::Reference(_) => Ok(false),
+            dir::Type::Reference(_) => Ok(Verdict::Fails),
             dir::Type::Application(instance) => {
                 let Some(definition) = self.definition(instance.symbol)? else {
-                    return Ok(false);
+                    return Ok(Verdict::Fails);
                 };
                 let is_type_reference = !matches!(definition, dir::Definition::Extension(_));
 
-                Ok(is_type_reference)
+                Ok(Verdict::decided(is_type_reference))
             }
             dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
                 Err(CompilerError::Internal {
                     message: format!("generic type {ty:?} reached structural dynamic safety"),
                 })
             }
-            dir::Type::Member(_) | dir::Type::Operation(_) => Ok(false),
+            dir::Type::Member(_) | dir::Type::Operation(_) => Ok(Verdict::Fails),
             dir::Type::Form(form) => self.satisfies_dynamic_safe(origin, form.value, active),
             dir::Type::Dynamic(dynamic) => {
                 self.satisfies_dynamic_safe(origin, dynamic.constraint, active)
@@ -132,7 +129,7 @@ impl CheckState<'_> {
 
                 self.all_dynamic_safe(origin, ids, active)
             }
-            dir::Type::Object(_) => Ok(true),
+            dir::Type::Object(_) => Ok(Verdict::Holds),
             dir::Type::FunctionSignature(function) => {
                 let function = self.type_signature(ty.module_id, function)?;
                 self.satisfies_dynamic_safe_function(origin, ty.module_id, &function, active)
@@ -164,14 +161,16 @@ impl CheckState<'_> {
         origin: Origin,
         ids: impl IntoIterator<Item = dir::GlobalTypeId>,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
+        let mut verdict = Verdict::Holds;
         for id in ids {
-            if !self.satisfies_dynamic_safe(origin, id, active)? {
-                return Ok(false);
+            verdict = verdict.and(self.satisfies_dynamic_safe(origin, id, active)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Decide whether one function signature can be dynamically represented.
@@ -181,10 +180,10 @@ impl CheckState<'_> {
         module: ModuleId,
         function: &dir::FunctionSignatureType,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // reject signatures whose parameters require runtime type arguments
         if !self.signature_generic_parameters(function)?.is_empty() {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         }
 
         // require the receiver, parameters, and result to survive erasure

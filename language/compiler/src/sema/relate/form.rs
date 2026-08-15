@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{Cause, CauseId, CauseKind, CheckState, Origin, Relation, VarianceForm};
+use crate::sema::{Cause, CauseId, CauseKind, CheckState, Origin, Relation, VarianceForm, Verdict};
 
 impl CheckState<'_> {
     /// Constrain the value beneath one memory form.
@@ -16,7 +16,7 @@ impl CheckState<'_> {
         form: dir::Form,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // name the payload slot the form carries
         let cause = self.intern_cause(Cause::child(origin, CauseKind::Payload, cause));
 
@@ -89,7 +89,7 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         match (self.ty(source)?, self.ty(target)?) {
             // relate nominal arguments by the declaration's variance in this form
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
@@ -196,7 +196,7 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<bool>> {
+    ) -> CompilerResult<Option<Verdict>> {
         // classify explicit placement before structural dispatch
         let source_place = self.form_space(source)?;
         let target_place = self.form_space(target)?;
@@ -315,8 +315,8 @@ impl CheckState<'_> {
                     source_borrow.lifetime,
                     target_borrow.lifetime,
                 )?;
-                if !lifetime {
-                    return Ok(Some(false));
+                if lifetime == Verdict::Fails {
+                    return Ok(Some(Verdict::Fails));
                 }
 
                 // bind the access slot before descending into the payload
@@ -325,11 +325,11 @@ impl CheckState<'_> {
                     source_borrow.access,
                     target_borrow.access,
                 )?;
-                if !access {
-                    return Ok(Some(false));
+                if access == Verdict::Fails {
+                    return Ok(Some(Verdict::Fails));
                 }
 
-                Ok(Some(self.constrain_form_value(
+                let payload = self.constrain_form_value(
                     origin,
                     cause,
                     relation,
@@ -337,7 +337,9 @@ impl CheckState<'_> {
                     dir::Form::Borrowed(target_borrow_id),
                     source_value,
                     target_value,
-                )?))
+                )?;
+
+                Ok(Some(lifetime.and(access).and(payload)))
             }
 
             // memory forms check constructor then payload
@@ -350,7 +352,7 @@ impl CheckState<'_> {
                     target.module_id,
                     target_form.form,
                 )?;
-                if !constructor {
+                if constructor == Verdict::Fails {
                     // read copyable payloads out of unmatched borrows, never widening
                     if relation != Relation::Widens
                         && matches!(source_form.form, dir::Form::Borrowed(_))
@@ -363,10 +365,10 @@ impl CheckState<'_> {
                         )?));
                     }
 
-                    return Ok(Some(false));
+                    return Ok(Some(Verdict::Fails));
                 }
 
-                Ok(Some(self.constrain_form_value(
+                let payload = self.constrain_form_value(
                     origin,
                     cause,
                     relation,
@@ -374,7 +376,9 @@ impl CheckState<'_> {
                     target_form.form,
                     source_form.value,
                     target_form.value,
-                )?))
+                )?;
+
+                Ok(Some(constructor.and(payload)))
             }
 
             // copy values into concrete storage, never relabeling references
@@ -389,7 +393,7 @@ impl CheckState<'_> {
                 if target_form.form == dir::Form::Owned {
                     let is_reference = self.type_is_reference(origin, source)?;
                     if is_reference {
-                        return Ok(Some(false));
+                        return Ok(Some(Verdict::Fails));
                     }
                 }
 
@@ -415,7 +419,7 @@ impl CheckState<'_> {
                             _ => None,
                         };
                         if nominal != Some(dir::Space::Shared) {
-                            return Ok(Some(false));
+                            return Ok(Some(Verdict::Fails));
                         }
 
                         return Ok(Some(self.constrain_type(
@@ -429,10 +433,9 @@ impl CheckState<'_> {
                 }
 
                 // copy everything else into the destination storage
-                let copyable =
-                    self.satisfies_auto_interface(origin, source, dir::AutoInterface::Copy)?;
-                if !copyable {
-                    return Ok(Some(false));
+                match self.satisfies_auto_interface(origin, source, dir::AutoInterface::Copy)? {
+                    Verdict::Holds => {}
+                    verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(Some(verdict)),
                 }
 
                 Ok(Some(self.constrain_type(
@@ -464,7 +467,7 @@ impl CheckState<'_> {
             {
                 // keep the handle for managed defaults
                 if self.defaults_to_managed(origin, source_form.value)? {
-                    Ok(Some(false))
+                    Ok(Some(Verdict::Fails))
                 }
                 // take the payload directly for every other default
                 else {
@@ -496,7 +499,7 @@ impl CheckState<'_> {
                 // keep references at their placement
                 let is_reference = self.type_is_reference(origin, source)?;
                 if is_reference {
-                    return Ok(Some(false));
+                    return Ok(Some(Verdict::Fails));
                 }
 
                 Ok(Some(self.constrain_copyable_read_out(
@@ -543,11 +546,11 @@ impl CheckState<'_> {
         relation: Relation,
         payload: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // preserve views over reference carriers
         let is_reference = self.type_is_reference(origin, payload)?;
         if is_reference {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         }
 
         // reject writable borrow targets before reading the copy out
@@ -556,14 +559,14 @@ impl CheckState<'_> {
         {
             let access = self.type_borrow(target.module_id, borrow)?.access;
             if self.access_literal(origin, access)? != Some(dir::Access::Readonly) {
-                return Ok(false);
+                return Ok(Verdict::Fails);
             }
         }
 
         // read copyable payloads out of the view only
-        let copyable = self.satisfies_auto_interface(origin, payload, dir::AutoInterface::Copy)?;
-        if !copyable {
-            return Ok(false);
+        match self.satisfies_auto_interface(origin, payload, dir::AutoInterface::Copy)? {
+            Verdict::Holds => {}
+            verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(verdict),
         }
 
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
@@ -580,7 +583,7 @@ impl CheckState<'_> {
         source: dir::Form,
         target_module: ModuleId,
         target: dir::Form,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         match (source, target) {
             (dir::Form::Borrowed(source_borrow), dir::Form::Borrowed(target_borrow)) => {
                 let source_borrow = self.type_borrow(source_module, source_borrow)?;
@@ -597,7 +600,7 @@ impl CheckState<'_> {
             (dir::Form::Placed { place: source }, dir::Form::Placed { place: target }) => {
                 self.constrain_type(origin, cause, Relation::Equal, source, target)
             }
-            _ => Ok(source.same_constructor(&target)),
+            _ => Ok(Verdict::decided(source.same_constructor(&target))),
         }
     }
 
@@ -610,9 +613,9 @@ impl CheckState<'_> {
         source: dir::Form,
         target_module: ModuleId,
         target: dir::Form,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         match (source, target) {
-            (dir::Form::Borrowed(_), dir::Form::Readonly) => Ok(true),
+            (dir::Form::Borrowed(_), dir::Form::Readonly) => Ok(Verdict::Holds),
             (dir::Form::Borrowed(source), dir::Form::Borrowed(target)) => {
                 let source = self.type_borrow(source_module, source)?;
                 let target = self.type_borrow(target_module, target)?;
@@ -622,7 +625,7 @@ impl CheckState<'_> {
             (dir::Form::Placed { place: source }, dir::Form::Placed { place: target }) => {
                 self.constrain_type(origin, cause, Relation::Equal, source, target)
             }
-            _ => Ok(source.same_constructor(&target)),
+            _ => Ok(Verdict::decided(source.same_constructor(&target))),
         }
     }
 
@@ -632,65 +635,65 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let source =
             self.normalize_memory_component(origin, source, dir::MemoryParameter::Access)?;
         let target =
             self.normalize_memory_component(origin, target, dir::MemoryParameter::Access)?;
         if source == target {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
 
         match (self.ty(source)?, self.ty(target)?) {
             (
                 dir::Type::Memory(dir::MemoryLiteral::Access(source)),
                 dir::Type::Memory(dir::MemoryLiteral::Access(target)),
-            ) => Ok(source.grants(target)),
+            ) => Ok(Verdict::decided(source.grants(target))),
 
             // require every possible source access to grant the requirement
             (dir::Type::Union(union), _) => {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(source.module_id, union.elements)?.into();
-                let mut decision = true;
+                let mut verdict = Verdict::Holds;
                 for element in elements {
-                    decision = self.relate_access_assignable(origin, element, target)?;
-                    if !decision {
+                    verdict = verdict.and(self.relate_access_assignable(origin, element, target)?);
+                    if verdict == Verdict::Fails {
                         break;
                     }
                 }
 
-                Ok(decision)
+                Ok(verdict)
             }
 
             // accept one target access
             (_, dir::Type::Union(union)) => {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(target.module_id, union.elements)?.into();
-                let mut decision = false;
+                let mut verdict = Verdict::Fails;
                 for element in elements {
-                    decision = self.relate_access_assignable(origin, source, element)?;
-                    if decision {
+                    verdict = verdict.or(self.relate_access_assignable(origin, source, element)?);
+                    if verdict == Verdict::Holds {
                         break;
                     }
                 }
 
-                Ok(decision)
+                Ok(verdict)
             }
 
             // grant what any declared bound proves for a rigid parameter
             (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
-                let mut decision = false;
+                let mut verdict = Verdict::Fails;
                 for bound in self.parameter_bounds(origin, parameter)? {
-                    decision = self.relate_access_assignable(origin, bound, target)?;
-                    if decision {
+                    verdict = verdict.or(self.relate_access_assignable(origin, bound, target)?);
+                    if verdict == Verdict::Holds {
                         break;
                     }
                 }
 
-                Ok(decision)
+                Ok(verdict)
             }
 
-            _ => Ok(false),
+            _ => Ok(Verdict::Fails),
         }
     }
 
@@ -700,7 +703,7 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let source = self.shallow_resolve(source)?;
         let target = self.shallow_resolve(target)?;
         if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {

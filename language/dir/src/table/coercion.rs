@@ -129,6 +129,11 @@ pub enum CoercionAdjustment {
         cases: Vec<CoercionCase>,
     },
     /// Box the value into or out of an existential carrier, like `Dynamic<T>`.
+    ///
+    /// FUGU #Architecture: reconsider this variant's shape: `lower_existential`
+    ///  only ever implements the erase (concrete-into-existential) direction;
+    ///  split it into an `Erase` case and a real `Narrow` case, or fold a
+    ///  same-constraint read into no adjustment at all.
     Existential {
         /// The existential type after this adjustment.
         target: GlobalTypeId,

@@ -309,7 +309,7 @@ impl CheckState<'_> {
                         required,
                         substitution.receiver,
                     )?;
-                    if decision {
+                    if decision.holds() {
                         selected = Some(symbol);
                         break;
                     }
@@ -339,7 +339,7 @@ impl CheckState<'_> {
             target,
             &requirements,
         )?;
-        if !signatures {
+        if !signatures.holds() {
             return Ok(ConformanceSelection::Missing);
         }
 
@@ -454,8 +454,13 @@ impl CheckState<'_> {
         }
 
         // decide the interface's own conformance rule
-        if self.satisfies_auto_interface(origin, ty, interface)? {
-            return Ok(ObligationCheck::holds());
+        match self.satisfies_auto_interface(origin, ty, interface)? {
+            Verdict::Holds => return Ok(ObligationCheck::holds()),
+            // stall the obligation while an open variable leaves the rule undecided
+            Verdict::Ambiguous => {
+                return Ok(ObligationCheck::Ambiguous(self.open_type_variables([ty])?));
+            }
+            Verdict::Fails => {}
         }
 
         // report the unsatisfied interface against the obligation's source

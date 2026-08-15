@@ -84,7 +84,7 @@ impl CheckState<'_> {
             && let Some(decision) =
                 self.constrain_form_assignable(origin, cause, relation, source, target)?
         {
-            return Ok(Verdict::decided(decision));
+            return Ok(decision);
         }
 
         // memory singletons inhabit their stdlib singleton kind
@@ -105,37 +105,31 @@ impl CheckState<'_> {
 
         // enum members satisfy constraints through their owner
         if let dir::Type::Variant(member) = self.ty(source)? {
-            let holds = self.constrain_type(origin, cause, relation, member.owner, target)?;
-
-            return Ok(Verdict::decided(holds));
+            return self.constrain_type(origin, cause, relation, member.owner, target);
         }
 
         // generic parameters prove relations through their active bounds
         if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = self.ty(source)? {
             let decision =
                 self.relate_parameter_bounds(origin, cause, relation, parameter, target)?;
-            let holds =
-                self.relate_union_membership(origin, cause, relation, decision, source, target)?;
 
-            return Ok(Verdict::decided(holds));
+            return self.relate_union_membership(origin, cause, relation, decision, source, target);
         }
 
         // union sources must satisfy the target through every element
         if let dir::Type::Union(union) = self.ty(source)? {
             let elements: SmallVec<[_; 8]> =
                 self.type_ids(source.module_id, union.elements)?.into();
-            let holds = self.relate_all_sources(origin, cause, relation, &elements, target)?;
 
-            return Ok(Verdict::decided(holds));
+            return self.relate_all_sources(origin, cause, relation, &elements, target);
         }
 
         // union targets accept when any element accepts the source
         if let dir::Type::Union(union) = self.ty(target)? {
             let elements: SmallVec<[_; 8]> =
                 self.type_ids(target.module_id, union.elements)?.into();
-            let holds = self.relate_any_target(origin, cause, relation, source, &elements)?;
 
-            return Ok(Verdict::decided(holds));
+            return self.relate_any_target(origin, cause, relation, source, &elements);
         }
 
         // const scalars inhabit closed enums by member value
@@ -161,9 +155,11 @@ impl CheckState<'_> {
             self.operation_head(source)?,
             Some(dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_))
         ) && let Some(result) = self.static_operation_type(origin, source)?
-            && self.constrain_type(origin, cause, relation, result, target)?
         {
-            return Ok(Verdict::Holds);
+            let verdict = self.constrain_type(origin, cause, relation, result, target)?;
+            if verdict != Verdict::Fails {
+                return Ok(verdict);
+            }
         }
 
         // intersection targets require every element under the same relation
@@ -171,9 +167,8 @@ impl CheckState<'_> {
             let elements: SmallVec<[_; 8]> = self
                 .type_ids(target.module_id, intersection.elements)?
                 .into();
-            let holds = self.relate_all_targets(origin, cause, relation, source, &elements)?;
 
-            return Ok(Verdict::decided(holds));
+            return self.relate_all_targets(origin, cause, relation, source, &elements);
         }
 
         // intersection sources satisfy through any element
@@ -181,9 +176,8 @@ impl CheckState<'_> {
             let elements: SmallVec<[_; 8]> = self
                 .type_ids(source.module_id, intersection.elements)?
                 .into();
-            let holds = self.relate_any_source(origin, cause, relation, &elements, target)?;
 
-            return Ok(Verdict::decided(holds));
+            return self.relate_any_source(origin, cause, relation, &elements, target);
         }
 
         // read the nominal application the target names, if any
@@ -209,19 +203,15 @@ impl CheckState<'_> {
         };
 
         match (instances, relation) {
-            (Some((source_instance, target_instance)), _) => {
-                let holds = self.relate_application(
-                    origin,
-                    cause,
-                    relation,
-                    source,
-                    &source_instance,
-                    target,
-                    &target_instance,
-                )?;
-
-                Ok(Verdict::decided(holds))
-            }
+            (Some((source_instance, target_instance)), _) => self.relate_application(
+                origin,
+                cause,
+                relation,
+                source,
+                &source_instance,
+                target,
+                &target_instance,
+            ),
 
             // satisfy other values through assignability or union membership
             (None, _) => {
@@ -229,17 +219,13 @@ impl CheckState<'_> {
                 if let (dir::Type::Object(_), dir::Type::Object(_)) =
                     (self.ty(source)?, self.ty(target)?)
                 {
-                    let holds = self.relate_shape(origin, cause, relation, source, target)?;
-
-                    return Ok(Verdict::decided(holds));
+                    return self.relate_shape(origin, cause, relation, source, target);
                 }
 
                 // everything else decides through assignability
                 let assignable = self.relate_assignable(origin, cause, relation, source, target)?;
-                let holds = self
-                    .relate_union_membership(origin, cause, relation, assignable, source, target)?;
 
-                Ok(Verdict::decided(holds))
+                self.relate_union_membership(origin, cause, relation, assignable, source, target)
             }
         }
     }
@@ -254,13 +240,13 @@ impl CheckState<'_> {
         source_instance: &dir::GenericApplication,
         target: dir::GlobalTypeId,
         target_instance: &dir::GenericApplication,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // keep nominal applications symbolic while declaring
         let has_target_definition = self.definition(target_instance.symbol)?.is_some();
         let has_source_definition = self.definition(source_instance.symbol)?.is_some();
         if !has_target_definition || !has_source_definition {
             if self.is_declaration() {
-                return Ok(true);
+                return Ok(Verdict::Holds);
             }
 
             return Err(CompilerError::Internal {
@@ -275,9 +261,7 @@ impl CheckState<'_> {
 
         // interface targets select one implementation path
         if target_kind.is_interface() {
-            let decided = self.relate_interface(origin, cause, relation, source, target)?;
-
-            return Ok(decided.holds());
+            return self.relate_interface(origin, cause, relation, source, target);
         }
 
         // select the source application of the target declaration
@@ -325,7 +309,7 @@ impl CheckState<'_> {
             return Ok(arguments);
         }
 
-        Ok(false)
+        Ok(Verdict::Fails)
     }
 
     /// Relate two different nominal applications under assignability.
@@ -335,10 +319,10 @@ impl CheckState<'_> {
         cause: CauseId,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let (source_instance, target_instance) = match (self.ty(source)?, self.ty(target)?) {
             (dir::Type::Application(source), dir::Type::Application(target)) => (source, target),
-            _ => return Ok(false),
+            _ => return Ok(Verdict::Fails),
         };
 
         self.relate_application(
@@ -661,7 +645,7 @@ impl CheckState<'_> {
         source_module: ModuleId,
         source_instance: &dir::GenericApplication,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // require each target field from the source fields
         let (fields, index_signatures) = match self.ty(target)? {
             dir::Type::Object(shape) => (
@@ -673,12 +657,13 @@ impl CheckState<'_> {
                     self.shape_index_signatures(target.module_id, shape.index_signatures)?,
                 ),
             ),
-            _ => return Ok(false),
+            _ => return Ok(Verdict::Fails),
         };
         let module = origin.module();
         let source = self.reference_type(origin, source_module, source_instance)?;
 
         // look each target key up on the source and relate what it finds
+        let mut verdict = Verdict::Holds;
         for (key, field_type, is_optional) in fields {
             let subject = dir::MemberSubject::new(source, source, dir::MemberSpace::Instance);
             let lookup = self.body().lookup_member(origin, module, subject, key)?;
@@ -688,12 +673,14 @@ impl CheckState<'_> {
                 // missing members satisfy optional targets only
                 None => {
                     if !is_optional {
-                        return Ok(false);
+                        return Ok(Verdict::Fails);
                     }
                 }
                 Some(member) => {
-                    if !self.constrain_type(origin, cause, relation, member, field_type)? {
-                        return Ok(false);
+                    verdict = verdict
+                        .and(self.constrain_type(origin, cause, relation, member, field_type)?);
+                    if verdict == Verdict::Fails {
+                        return Ok(Verdict::Fails);
                     }
                 }
             }
@@ -701,12 +688,14 @@ impl CheckState<'_> {
 
         // require each target index signature from the source
         for signature in index_signatures {
-            if !self.relate_index_signature(origin, relation, source, &signature)? {
-                return Ok(false);
+            verdict =
+                verdict.and(self.relate_index_signature(origin, relation, source, &signature)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Return the full heritage closure for one nominal application.
@@ -828,18 +817,18 @@ impl CheckState<'_> {
                 }
 
                 let (previous_module, previous_instance) = self.nominal_application(previous.ty)?;
-                match self.constrain_instance_arguments(
+                let arguments = self.constrain_instance_arguments(
                     origin,
                     previous_module,
                     &previous_instance,
                     application_module,
                     &instance,
-                )? {
-                    true => {}
-                    false => closure.conflicts.push(HeritageConflict {
+                )?;
+                if arguments == Verdict::Fails {
+                    closure.conflicts.push(HeritageConflict {
                         source: application.source,
                         current: application.ty,
-                    }),
+                    });
                 }
                 continue;
             }
@@ -947,7 +936,7 @@ impl CheckState<'_> {
         source: &dir::GenericApplication,
         target_module: ModuleId,
         target: &dir::GenericApplication,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // written applications complete their elided arguments
         let mut source = *source;
         let mut target = *target;
@@ -973,7 +962,7 @@ impl CheckState<'_> {
 
         // both applications must reach the same arity to pair up
         if source.arguments.len() != target.arguments.len() {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         }
 
         // pair the arguments positionally
@@ -1006,18 +995,26 @@ impl CheckState<'_> {
 
         // require every remaining pair to be equal
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        let mut verdict = Verdict::Holds;
         for (index, (source_argument, target_argument)) in pairs.into_iter().enumerate() {
             if lifetimes.get(index).copied().unwrap_or(false) {
                 continue;
             }
 
             let relation = Relation::Equal;
-            if !self.constrain_type(origin, cause, relation, source_argument, target_argument)? {
-                return Ok(false);
+            verdict = verdict.and(self.constrain_type(
+                origin,
+                cause,
+                relation,
+                source_argument,
+                target_argument,
+            )?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Allocate one reference type for a nominal application.

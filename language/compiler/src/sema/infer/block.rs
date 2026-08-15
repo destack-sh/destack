@@ -54,10 +54,7 @@ impl BodyState<'_, '_> {
             }
 
             // let each statement own the inference it opens
-            let scope = InferenceScope::open(
-                self.check.infer.variable_count(),
-                self.check.infer.trail.len(),
-            );
+            let scope = InferenceScope::open(self.check.infer.variable_count());
             self.attempt_node(site, PlaceUse::Read, None)?;
 
             // inference closes at the statement that opened it

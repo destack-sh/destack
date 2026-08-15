@@ -2,9 +2,7 @@ use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{
-    CandidateVerdict, CheckState, ConstraintId, DumpContext, ObligationId, TypeBound, Widening,
-};
+use crate::sema::{CandidateVerdict, Check, CheckId, CheckState, DumpContext, TypeBound, Widening};
 
 /// Environment variable naming the file check events stream into.
 const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
@@ -94,18 +92,11 @@ pub(in crate::sema) enum CheckEvent {
         /// The pushed bound.
         bound: TypeBound,
     },
-    /// One relation constraint was checked.
-    RelationChecked {
-        /// The constraint.
-        constraint: ConstraintId,
-        /// Whether the constraint finished.
-        is_finished: bool,
-    },
-    /// One obligation was checked.
-    ObligationChecked {
-        /// The obligation.
-        obligation: ObligationId,
-        /// Whether the obligation finished.
+    /// One check was stepped.
+    Checked {
+        /// The stepped check.
+        check: CheckId,
+        /// Whether the check finished.
         is_finished: bool,
     },
     /// One node was decided.
@@ -215,10 +206,24 @@ impl CheckState<'_> {
             solutions += usize::from(!state.state.is_open());
         }
 
+        // render relation and declared checks as the pinned constraint and obligation counts
+        let mut constraints = 0;
+        let mut obligations = 0;
+        for (_, check) in self.fulfill.checks.iter() {
+            match check {
+                Check::Relation(_) => constraints += 1,
+                Check::Declared(_) => obligations += 1,
+                Check::Node(_)
+                | Check::Conversion(_)
+                | Check::Narrowing(_)
+                | Check::Selection(_) => {}
+            }
+        }
+
         CheckStats {
             variables: self.infer.variable_count(),
-            constraints: self.fulfill.constraint_count(),
-            obligations: self.fulfill.obligation_count(),
+            constraints,
+            obligations,
             solutions,
             bounds,
             decisions: self.module.decisions.decision_entries().count(),

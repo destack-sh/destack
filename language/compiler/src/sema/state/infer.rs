@@ -1,11 +1,10 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::sema::{
-    BoundSide, Cause, CauseArena, CauseId, ConstraintId, ConstraintResult, ConstraintTable,
-    Fulfillment, GenericParameterId, InferenceScope, Origin, OriginArena, OriginId, RelationStack,
-    TypeBound, Variable, VariableRole, VariableState, VariableTable, Widening,
+    BoundSide, Cause, CauseArena, CauseId, CheckId, CheckOutcome, CheckTable, Fulfillment,
+    GenericParameterId, InferenceScope, Origin, OriginArena, OriginId, RelationStack, TypeBound,
+    Variable, VariableRole, VariableState, VariableTable, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -63,12 +62,12 @@ pub(in crate::sema) enum InferUndo {
         /// The previous default.
         previous: Option<dir::GlobalTypeId>,
     },
-    /// Undo one constraint entry mutation.
-    Constraint {
-        /// The changed constraint.
-        id: ConstraintId,
-        /// The previous completed result.
-        previous: Option<ConstraintResult>,
+    /// Undo one check entry mutation.
+    Check {
+        /// The changed check.
+        id: CheckId,
+        /// The previous completed outcome.
+        previous: Option<CheckOutcome>,
     },
     /// Undo one recorded instantiation.
     Instantiation {
@@ -99,10 +98,8 @@ impl InferContext {
 pub(in crate::sema) struct TrailMark {
     /// The variable count at the mark.
     variables: usize,
-    /// The constraint count at the mark.
-    constraints: usize,
-    /// The obligation count at the mark.
-    obligations: usize,
+    /// The check count at the mark.
+    checks: usize,
     /// The trail length at the mark.
     trail: usize,
 }
@@ -110,12 +107,12 @@ pub(in crate::sema) struct TrailMark {
 impl TrailMark {
     /// Return the inference scope opened by this mark.
     pub(in crate::sema) fn inference_scope(&self) -> InferenceScope {
-        InferenceScope::open(self.variables, self.trail)
+        InferenceScope::open(self.variables)
     }
 
-    /// Return the constraint count at this mark.
-    pub(in crate::sema) fn constraint_count(&self) -> usize {
-        self.constraints
+    /// Return the check count at this mark.
+    pub(in crate::sema) fn check_count(&self) -> usize {
+        self.checks
     }
 }
 
@@ -126,8 +123,7 @@ impl InferContext {
 
         TrailMark {
             variables: self.variables.count(),
-            constraints: fulfill.constraints.count(),
-            obligations: fulfill.obligations.count(),
+            checks: fulfill.checks.count(),
             trail: self.trail.len(),
         }
     }
@@ -151,9 +147,8 @@ impl InferContext {
             self.rollback_undo(undo, poison, fulfill)?;
         }
 
-        // drop the speculative constraints and obligations, then close the mark
-        fulfill.constraints.truncate(mark.constraints);
-        fulfill.obligations.truncate(mark.obligations);
+        // drop the speculative checks with their scheduling, then close the mark
+        fulfill.truncate(mark.checks);
         self.marks -= 1;
 
         Ok(())
@@ -196,37 +191,6 @@ impl InferContext {
     /// Intern one check origin.
     pub(in crate::sema) fn intern_origin(&mut self, origin: Origin) -> OriginId {
         self.origins.intern(origin)
-    }
-
-    /// Return preexisting variables bounded by one inference scope.
-    pub(in crate::sema) fn adopted_variables(
-        &self,
-        scope: InferenceScope,
-    ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 4]>> {
-        let mutations =
-            self.trail
-                .get(scope.first_mutation()..)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!(
-                        "inference scope mutation mark {} exceeds length {}",
-                        scope.first_mutation(),
-                        self.trail.len(),
-                    ),
-                })?;
-
-        // collect every bounded variable the scope opened before its mark
-        let mut adopted = SmallVec::new();
-        for mutation in mutations {
-            let InferUndo::Bound { id, .. } = mutation else {
-                continue;
-            };
-
-            if !scope.owns(*id) && !adopted.contains(id) {
-                adopted.push(*id);
-            }
-        }
-
-        Ok(adopted)
     }
 
     /// Intern one constraint cause.
@@ -291,15 +255,15 @@ impl InferContext {
         self.variables.get_mut(variable)
     }
 
-    /// Set one constraint result, recording its prior state on the trail.
-    pub(in crate::sema) fn set_constraint_result(
+    /// Set one check's outcome, recording its prior state on the trail.
+    pub(in crate::sema) fn set_check_result(
         &mut self,
-        constraints: &mut ConstraintTable,
-        id: ConstraintId,
-        result: ConstraintResult,
+        checks: &mut CheckTable,
+        id: CheckId,
+        outcome: Option<CheckOutcome>,
     ) -> CompilerResult<()> {
-        self.record_constraint(constraints, id)?;
-        constraints.set_result(id, Some(result))?;
+        self.record_check(checks, id)?;
+        checks.set_result(id, outcome)?;
 
         Ok(())
     }
@@ -401,16 +365,12 @@ impl InferContext {
         Ok(())
     }
 
-    /// Record one constraint entry if speculation is active.
-    fn record_constraint(
-        &mut self,
-        constraints: &ConstraintTable,
-        id: ConstraintId,
-    ) -> CompilerResult<()> {
+    /// Record one check entry if speculation is active.
+    fn record_check(&mut self, checks: &CheckTable, id: CheckId) -> CompilerResult<()> {
         if self.marks > 0 {
-            self.trail.push(InferUndo::Constraint {
+            self.trail.push(InferUndo::Check {
                 id,
-                previous: constraints.result(id)?.cloned(),
+                previous: checks.result(id)?.cloned(),
             });
         }
 
@@ -440,9 +400,7 @@ impl InferContext {
                 Some(previous) => self.variables.set_default(id, previous),
                 None => self.variables.remove_default(id),
             },
-            InferUndo::Constraint { id, previous } => {
-                fulfill.constraints.set_result(id, previous)?
-            }
+            InferUndo::Check { id, previous } => fulfill.checks.set_result(id, previous)?,
             InferUndo::Instantiation { key } => {
                 self.instantiations.swap_remove(&key);
             }

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, GenericParameterId, Origin, Relation};
+use crate::sema::{CheckState, GenericParameterId, Origin, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -51,8 +51,9 @@ impl CheckState<'_> {
         // open member sets retain the receiver and the property established at runtime
         let unknown = self.intern_type(dir::Type::Unknown)?;
         let member = self.field_shape_type(key, unknown)?;
-        let member_is_narrower =
-            self.evaluate_relation(origin, Relation::Satisfies, member, receiver)?;
+        let member_is_narrower = self
+            .evaluate_relation(origin, Relation::Satisfies, member, receiver)?
+            .holds();
         let narrowed = if member_is_narrower {
             member
         } else {
@@ -62,15 +63,16 @@ impl CheckState<'_> {
         Ok(narrowed)
     }
 
-    /// Filter the declared alternatives of one type through a runtime predicate.
+    /// Filter one type's alternatives through a runtime predicate, or the variable blocking it.
     pub(in crate::sema) fn narrow_type_alternatives(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         is_positive: bool,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+    ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
         let source = self.normalize(origin, source)?;
+<<<<<<< HEAD
         let alternatives = if let Some(variants) = self.variant_types(source)? {
             variants
         } else {
@@ -91,12 +93,34 @@ impl CheckState<'_> {
             };
 
             arms.into_vec()
+||||||| parent of 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
+        let alternatives = match self.variant_types(origin.module(), source)? {
+            Some(variants) => variants,
+            None => match self.ty(source)? {
+                dir::Type::Union(union) => {
+                    self.type_ids(source.module_id, union.elements)?.to_vec()
+                }
+                _ => return Ok(None),
+            },
+=======
+        let alternatives = match self.variant_types(origin.module(), source)? {
+            Some(variants) => variants,
+            None => match self.ty(source)? {
+                dir::Type::Union(union) => {
+                    self.type_ids(source.module_id, union.elements)?.to_vec()
+                }
+                _ => return Ok(Ok(None)),
+            },
+>>>>>>> 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
         };
 
         // keep original alternatives whose projected predicate remains inhabited
         let mut kept = Vec::with_capacity(alternatives.len());
         for alternative in alternatives {
-            let narrowed = self.narrow_element(origin, alternative, target, is_positive)?;
+            let narrowed = match self.narrow_element(origin, alternative, target, is_positive)? {
+                Ok(narrowed) => narrowed,
+                Err(variable) => return Ok(Err(variable)),
+            };
             let narrowed = self.normalize(origin, narrowed)?;
             if !matches!(self.ty(narrowed)?, dir::Type::Never) {
                 kept.push(alternative);
@@ -109,7 +133,7 @@ impl CheckState<'_> {
             _ => self.normalized_union_type(kept)?,
         };
 
-        Ok(Some(narrowed))
+        Ok(Ok(Some(narrowed)))
     }
 
     /// Return the finite runtime domain of one rigid parameter.
@@ -259,7 +283,11 @@ impl CheckState<'_> {
 
         // filter each arm through the guard relation
         for element in elements {
-            let narrowed = self.narrow_element(origin, element, target, narrow.is_positive)?;
+            // defer the whole operation on an undecided arm
+            let narrowed = match self.narrow_element(origin, element, target, narrow.is_positive)? {
+                Ok(narrowed) => narrowed,
+                Err(_) => return Ok(None),
+            };
             let narrowed = self.normalize(origin, narrowed)?;
             if matches!(self.ty(narrowed)?, dir::Type::Never) {
                 continue;
@@ -279,19 +307,48 @@ impl CheckState<'_> {
         Ok(Some(joined))
     }
 
-    /// Narrow one source arm through one runtime target.
+    /// Return the variable that blocks an ambiguous relation between one source and target.
+    fn narrow_blocking_variable(
+        &self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::TypeVariableId> {
+        self.open_type_variables([source, target])?
+            .first()
+            .copied()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "narrowing {source:?} against {target:?} is ambiguous without an open variable"
+                ),
+            })
+    }
+
+    /// Narrow one source arm through one runtime target, or the variable blocking it.
     fn narrow_element(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         is_positive: bool,
+<<<<<<< HEAD
     ) -> CompilerResult<dir::GlobalTypeId> {
+||||||| parent of 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let module = origin.module();
+
+=======
+    ) -> CompilerResult<Result<dir::GlobalTypeId, dir::TypeVariableId>> {
+        let module = origin.module();
+
+>>>>>>> 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
         // narrow an erased value through its checked runtime domain
         if let dir::Type::Dynamic(dynamic) = self.ty(source)? {
             let constraint = dynamic.constraint;
             let narrowed_constraint =
-                self.narrow_element(origin, constraint, target, is_positive)?;
+                match self.narrow_element(origin, constraint, target, is_positive)? {
+                    Ok(narrowed) => narrowed,
+                    blocked @ Err(_) => return Ok(blocked),
+                };
             let narrowed = if matches!(self.ty(narrowed_constraint)?, dir::Type::Never) {
                 narrowed_constraint
             } else if narrowed_constraint == constraint || !is_positive {
@@ -300,7 +357,7 @@ impl CheckState<'_> {
                 narrowed_constraint
             };
 
-            return Ok(narrowed);
+            return Ok(Ok(narrowed));
         }
 
         // disjoint arms can be decided without assignability
@@ -311,22 +368,77 @@ impl CheckState<'_> {
                 source
             };
 
-            return Ok(narrowed);
+            return Ok(Ok(narrowed));
         }
 
-        // keep or remove the source arm on an exact match
-        if self.evaluate_relation(origin, Relation::Subtype, source, target)? {
-            let narrowed = if is_positive {
+        // keep or remove the source arm on an exact match, deferring an undecided one
+        match self.evaluate_relation(origin, Relation::Subtype, source, target)? {
+            Verdict::Holds => {
+                let narrowed = if is_positive {
+                    source
+                } else {
+                    self.intern_type(dir::Type::Never)?
+                };
+
+                return Ok(Ok(narrowed));
+            }
+            Verdict::Ambiguous => {
+                let variable = self.narrow_blocking_variable(source, target)?;
+
+                return Ok(Err(variable));
+            }
+            Verdict::Fails => {}
+        }
+
+<<<<<<< HEAD
+||||||| parent of 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
+        // unmatched Tagged variants expose their backing to structural predicates
+        if let dir::Type::Variant(variant) = self.ty(source)?
+            && let Some(backing) = self.tagged_variant_backing(module, &variant)?
+        {
+            let narrowed = self.narrow_element(origin, backing, target, is_positive)?;
+            let narrowed = if matches!(self.ty(narrowed)?, dir::Type::Never) {
+                narrowed
+            } else if narrowed == backing {
                 source
             } else {
-                self.intern_type(dir::Type::Never)?
+                self.normalized_intersection_type([source, narrowed])?
             };
 
             return Ok(narrowed);
         }
 
+=======
+        // unmatched Tagged variants expose their backing to structural predicates
+        if let dir::Type::Variant(variant) = self.ty(source)?
+            && let Some(backing) = self.tagged_variant_backing(module, &variant)?
+        {
+            let narrowed = match self.narrow_element(origin, backing, target, is_positive)? {
+                Ok(narrowed) => narrowed,
+                blocked @ Err(_) => return Ok(blocked),
+            };
+            let narrowed = if matches!(self.ty(narrowed)?, dir::Type::Never) {
+                narrowed
+            } else if narrowed == backing {
+                source
+            } else {
+                self.normalized_intersection_type([source, narrowed])?
+            };
+
+            return Ok(Ok(narrowed));
+        }
+
+>>>>>>> 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
         // select the target when it is narrower, otherwise preserve both constraints
-        let is_top_like = self.evaluate_relation(origin, Relation::Subtype, target, source)?;
+        let is_top_like = match self.evaluate_relation(origin, Relation::Subtype, target, source)? {
+            Verdict::Holds => true,
+            Verdict::Fails => false,
+            Verdict::Ambiguous => {
+                let variable = self.narrow_blocking_variable(source, target)?;
+
+                return Ok(Err(variable));
+            }
+        };
         let narrowed = if is_positive && is_top_like {
             target
         } else if is_positive {
@@ -335,6 +447,6 @@ impl CheckState<'_> {
             source
         };
 
-        Ok(narrowed)
+        Ok(Ok(narrowed))
     }
 }

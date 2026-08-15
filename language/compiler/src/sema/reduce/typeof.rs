@@ -72,6 +72,19 @@ impl CheckState<'_> {
             // use a single value declaration's static value or checked type
             Some(dir::Reference::Bound(symbols)) => {
                 let symbols = self.present_symbols(&symbols);
+
+                // intersect an overload group's signatures into one type
+                if symbols.len() > 1 {
+                    let mut elements = Vec::new();
+                    for symbol in &symbols {
+                        elements.push(self.symbol_type(*symbol)?);
+                    }
+                    let elements = self.intern_type_ids(&elements)?;
+
+                    return Ok(Some(self.intern_type(dir::Type::Intersection(
+                        dir::IntersectionType { elements },
+                    ))?));
+                }
                 let [symbol] = symbols.as_slice() else {
                     return Ok(None);
                 };

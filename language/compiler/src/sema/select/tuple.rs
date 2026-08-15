@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{BodyState, Cause, CauseKind, Constraint, FlowPointId, Origin, Relation};
+use crate::sema::{BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, RelationCheck};
 
 impl BodyState<'_, '_> {
     /// Select one tuple pattern, projecting elements by position.
@@ -76,7 +76,7 @@ impl BodyState<'_, '_> {
                     let hole = self.require_node_type(target)?;
                     let cause = self
                         .intern_cause(Cause::root(origin, CauseKind::Pattern { pattern: target }));
-                    self.push_constraint(Constraint::r#type(
+                    self.push_relation(RelationCheck::new(
                         origin,
                         Relation::Equal,
                         projected_value,

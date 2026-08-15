@@ -85,22 +85,14 @@ pub(in crate::sema) enum Widening {
 pub(in crate::sema) struct InferenceScope {
     /// The first owned variable.
     first_variable: u32,
-    /// The first transactional mutation made by the scope.
-    first_mutation: usize,
 }
 
 impl InferenceScope {
-    /// Open a scope at one variable and mutation count.
-    pub(in crate::sema) fn open(variable_count: usize, mutation_count: usize) -> Self {
+    /// Open a scope at one variable count.
+    pub(in crate::sema) fn open(variable_count: usize) -> Self {
         Self {
             first_variable: variable_count as u32,
-            first_mutation: mutation_count,
         }
-    }
-
-    /// Return whether this scope owns one variable.
-    pub(in crate::sema) fn owns(self, variable: dir::TypeVariableId) -> bool {
-        variable.0 >= self.first_variable
     }
 
     /// Return the owned variable indices below one arena length.
@@ -111,11 +103,6 @@ impl InferenceScope {
     /// Return the first owned variable index.
     pub(in crate::sema) fn first_variable(self) -> usize {
         self.first_variable as usize
-    }
-
-    /// Return the first transactional mutation made by this scope.
-    pub(in crate::sema) fn first_mutation(self) -> usize {
-        self.first_mutation
     }
 }
 

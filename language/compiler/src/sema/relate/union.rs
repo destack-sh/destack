@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{CauseId, CheckState, Origin, Relation};
+use crate::sema::{CauseId, CheckState, Origin, Relation, Verdict};
 
 impl CheckState<'_> {
     /// Return the members of one union target with its enclosing forms.
@@ -75,32 +75,45 @@ impl CheckState<'_> {
         origin: Origin,
         cause: CauseId,
         relation: Relation,
-        decision: bool,
+        decision: Verdict,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // a direct proof needs no membership fallback
-        if decision {
-            return Ok(true);
+        if decision == Verdict::Holds {
+            return Ok(Verdict::Holds);
         }
 
         // membership tags the value into the union carrier and never widens
         if relation == Relation::Widens {
-            return Ok(false);
+            return Ok(decision);
         }
         let dir::Type::Union(union) = self.ty(target)? else {
-            return Ok(false);
+            return Ok(decision);
         };
 
-        // relate the source against any one element
+        // relate the source against any one element, closed arms before open arms
         let elements: SmallVec<[_; 8]> = self.type_ids(target.module_id, union.elements)?.into();
+        let mut open: SmallVec<[_; 8]> = SmallVec::new();
+        let mut verdict = decision;
         for element in elements {
-            if self.constrain_type(origin, cause, relation, source, element)? {
-                return Ok(true);
+            if matches!(self.ty(element)?, dir::Type::Variable(_)) {
+                open.push(element);
+                continue;
+            }
+            verdict = verdict.or(self.constrain_type(origin, cause, relation, source, element)?);
+            if verdict == Verdict::Holds {
+                return Ok(Verdict::Holds);
+            }
+        }
+        for element in open {
+            verdict = verdict.or(self.constrain_type(origin, cause, relation, source, element)?);
+            if verdict == Verdict::Holds {
+                return Ok(Verdict::Holds);
             }
         }
 
-        Ok(false)
+        Ok(verdict)
     }
 
     /// Relate every source to one target.
@@ -111,14 +124,16 @@ impl CheckState<'_> {
         relation: Relation,
         sources: &[dir::GlobalTypeId],
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
+        let mut verdict = Verdict::Holds;
         for source in sources {
-            if !self.constrain_type(origin, cause, relation, *source, target)? {
-                return Ok(false);
+            verdict = verdict.and(self.constrain_type(origin, cause, relation, *source, target)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Relate any one source to one target.
@@ -129,7 +144,7 @@ impl CheckState<'_> {
         relation: Relation,
         sources: &[dir::GlobalTypeId],
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // choose one open arm by constraint over the whole candidate set
         let mut is_open = self.type_flags(target)?.has_variable();
         for source in sources {
@@ -145,13 +160,15 @@ impl CheckState<'_> {
         }
 
         // relate any one source against the target
+        let mut verdict = Verdict::Fails;
         for source in sources {
-            if self.constrain_type(origin, cause, relation, *source, target)? {
-                return Ok(true);
+            verdict = verdict.or(self.constrain_type(origin, cause, relation, *source, target)?);
+            if verdict == Verdict::Holds {
+                return Ok(Verdict::Holds);
             }
         }
 
-        Ok(false)
+        Ok(verdict)
     }
 
     /// Relate one source to every target.
@@ -162,14 +179,16 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         targets: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
+        let mut verdict = Verdict::Holds;
         for target in targets {
-            if !self.constrain_type(origin, cause, relation, source, *target)? {
-                return Ok(false);
+            verdict = verdict.and(self.constrain_type(origin, cause, relation, source, *target)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Relate one source to any one target.
@@ -180,12 +199,12 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         targets: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // exact singleton keys prove membership without candidate relations
         if let Some(source_key) = self.static_key_from_type(source)? {
             for target in targets {
                 if self.static_key_from_type(*target)? == Some(source_key) {
-                    return Ok(true);
+                    return Ok(Verdict::Holds);
                 }
             }
         }
@@ -205,12 +224,14 @@ impl CheckState<'_> {
         }
 
         // relate the source against any one target
+        let mut verdict = Verdict::Fails;
         for target in targets {
-            if self.constrain_type(origin, cause, relation, source, *target)? {
-                return Ok(true);
+            verdict = verdict.or(self.constrain_type(origin, cause, relation, source, *target)?);
+            if verdict == Verdict::Holds {
+                return Ok(Verdict::Holds);
             }
         }
 
-        Ok(false)
+        Ok(verdict)
     }
 }

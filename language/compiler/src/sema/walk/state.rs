@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    Cause, CauseKind, CheckState, Constraint, DeferredCheck, Expectation, FlowSite, FlowState,
-    Origin, Relation, ValueUse, VariableRole, Widening,
+    Cause, CauseKind, Check, CheckState, Expectation, FlowSite, FlowState, NodeCheck, Origin,
+    Relation, RelationCheck, ValueUse, VariableRole, Widening,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
 
@@ -138,7 +138,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let cause = self.check.intern_cause(Cause::root(site.origin(), kind));
         let expectation = Expectation::assignable(target, cause, use_);
         self.check
-            .register_check(DeferredCheck::Expect { site, expectation });
+            .register_check(Check::Node(NodeCheck { site, expectation }));
 
         Ok(())
     }
@@ -346,7 +346,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<()> {
         let cause = self.check.intern_cause(Cause::root(origin, kind));
         self.check
-            .push_constraint(Constraint::r#type(origin, relation, source, target, cause))?;
+            .push_relation(RelationCheck::new(origin, relation, source, target, cause))?;
 
         Ok(())
     }

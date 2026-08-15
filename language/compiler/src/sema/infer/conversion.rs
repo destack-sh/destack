@@ -3,9 +3,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, BorrowConversion, CandidateOutcome, CandidateVerdict, CauseId, CheckFailure,
-    CheckOutcome, CheckState, DeferredCheck, Expectation, FlowSite, InferMode, Origin, Relation,
-    Value, ValueConversion, ValueUse,
+    BodyState, BorrowConversion, CandidateOutcome, CandidateVerdict, CauseId, Check, CheckFailure,
+    CheckOutcome, CheckState, ConversionCheck, Expectation, FlowSite, InferMode, Origin, Relation,
+    Value, ValueConversion, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -67,17 +67,16 @@ impl BodyState<'_, '_> {
                 ty: candidate,
                 ..source
             };
-            let holds =
+            let verdict =
                 self.constrain_conversion(site, cause, relation, candidate, target, use_)?;
 
-            // open conversions finish once the enclosing inference closes
-            if holds {
+            // re-check an undecided conversion in the queue once its blockers solve,
+            //  keeping the candidate's own binding committed
+            if verdict == Verdict::Ambiguous {
                 source.ty = self.shallow_resolve(source.ty)?;
                 target = self.shallow_resolve(target)?;
-                variables = self.type_variables(source.ty)?;
-                variables.extend(self.type_variables(target)?);
-                if !variables.is_empty() {
-                    self.check.register_check(DeferredCheck::Convert {
+                self.check
+                    .register_check(Check::Conversion(ConversionCheck {
                         site,
                         source,
                         expectation: Expectation {
@@ -87,7 +86,35 @@ impl BodyState<'_, '_> {
                             use_,
                             mode,
                         },
-                    });
+                    }));
+
+                return Ok(ValueConversion {
+                    outcome: CheckOutcome::Pending,
+                    target,
+                    coercion: None,
+                });
+            }
+            let holds = verdict.holds();
+
+            // finish open conversions once the enclosing inference closes
+            if holds {
+                source.ty = self.shallow_resolve(source.ty)?;
+                target = self.shallow_resolve(target)?;
+                variables = self.type_variables(source.ty)?;
+                variables.extend(self.type_variables(target)?);
+                if !variables.is_empty() {
+                    self.check
+                        .register_check(Check::Conversion(ConversionCheck {
+                            site,
+                            source,
+                            expectation: Expectation {
+                                cause,
+                                relation,
+                                target,
+                                use_,
+                                mode,
+                            },
+                        }));
 
                     return Ok(ValueConversion {
                         outcome: CheckOutcome::Holds,
@@ -129,7 +156,12 @@ impl BodyState<'_, '_> {
 
         // complete a relation that participated in inference
         if let Some(holds) = inferred {
-            let outcome = self.complete_constraint_check(relation, source.ty, target, holds)?;
+            let outcome = self.complete_constraint_check(
+                relation,
+                source.ty,
+                target,
+                Verdict::decided(holds),
+            )?;
             if outcome != CheckOutcome::Holds
                 || relation != Relation::Assignable
                 || !use_.requires_runtime_coercion()
@@ -146,8 +178,8 @@ impl BodyState<'_, '_> {
         if inferred.is_none()
             && (relation != Relation::Assignable || !use_.requires_runtime_coercion())
         {
-            let holds = self.constrain_conversion(site, cause, relation, source, target, use_)?;
-            let outcome = self.complete_constraint_check(relation, source.ty, target, holds)?;
+            let verdict = self.constrain_conversion(site, cause, relation, source, target, use_)?;
+            let outcome = self.complete_constraint_check(relation, source.ty, target, verdict)?;
 
             return Ok(ValueConversion {
                 outcome,
@@ -180,7 +212,7 @@ impl BodyState<'_, '_> {
         source: Value,
         target: dir::GlobalTypeId,
         use_: ValueUse,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let origin = site.origin();
 
         // explicit and implicit borrowing use the same value place
@@ -241,7 +273,7 @@ impl BodyState<'_, '_> {
         relation: Relation,
         source: Value,
         conversion: &BorrowConversion,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let place = self.value_place(origin, source)?;
         let dir::Form::Borrowed(target_borrow) = conversion.borrow.form else {
             return Err(CompilerError::Internal {
@@ -250,6 +282,7 @@ impl BodyState<'_, '_> {
         };
 
         // require the selected target placement from the source storage
+        let mut verdict = Verdict::Holds;
         if let Some(target_place) = conversion.target.place() {
             let placement = self.constrain_type(
                 origin,
@@ -258,9 +291,10 @@ impl BodyState<'_, '_> {
                 place.placement,
                 target_place,
             )?;
-            if !placement {
-                return Ok(placement);
+            if placement == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
+            verdict = verdict.and(placement);
         }
 
         // bind an elided borrow lifetime to the source place provenance
@@ -272,15 +306,17 @@ impl BodyState<'_, '_> {
             place.lifetime,
             borrow.lifetime,
         )?;
-        if !lifetime {
-            return Ok(lifetime);
+        if lifetime == Verdict::Fails {
+            return Ok(Verdict::Fails);
         }
+        verdict = verdict.and(lifetime);
 
         // constrain the borrow through the source value place
         let access = self.constrain_access_assignable(origin, place.access, borrow.access)?;
-        if !access {
-            return Ok(access);
+        if access == Verdict::Fails {
+            return Ok(Verdict::Fails);
         }
+        verdict = verdict.and(access);
 
         // lend the borrow itself on a handle acquisition, its payload on a reborrow
         let source_value = match (
@@ -292,7 +328,7 @@ impl BodyState<'_, '_> {
             (_, None) => conversion.source.base(),
         };
 
-        self.constrain_form_value(
+        let payload = self.constrain_form_value(
             origin,
             cause,
             relation,
@@ -300,7 +336,9 @@ impl BodyState<'_, '_> {
             conversion.borrow.form,
             source_value,
             conversion.borrow.value,
-        )
+        )?;
+
+        Ok(verdict.and(payload))
     }
 
     /// Convert one value whose inference variables have settled.
@@ -402,7 +440,10 @@ impl BodyState<'_, '_> {
         };
 
         // skip adjustment for identical and unreachable values
-        if self.evaluate_relation(origin, Relation::Equal, source.ty, target)? {
+        if self
+            .evaluate_relation(origin, Relation::Equal, source.ty, target)?
+            .holds()
+        {
             return Ok(Ok(None));
         }
         let source_value = self.strip_form(origin, source.ty)?;
@@ -553,7 +594,10 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Result<(dir::GlobalTypeId, Option<Box<dir::Coercion>>), CheckFailure>> {
         // exact cases preserve their declared identity
         for target in targets.iter().copied() {
-            if self.evaluate_relation(origin, Relation::Equal, source.ty, target)? {
+            if self
+                .evaluate_relation(origin, Relation::Equal, source.ty, target)?
+                .holds()
+            {
                 return Ok(Ok((target, None)));
             }
         }
@@ -616,15 +660,39 @@ impl BodyState<'_, '_> {
         use_: ValueUse,
     ) -> CompilerResult<Result<Option<Box<dir::Coercion>>, CheckFailure>> {
         let relation = Relation::Assignable;
-        let holds = self.constrain_conversion(site, cause, relation, source, target, use_)?;
-        let outcome = self.complete_constraint_check(relation, source.ty, target, holds)?;
+        let verdict = self.constrain_conversion(site, cause, relation, source, target, use_)?;
+        let outcome = self.complete_constraint_check(relation, source.ty, target, verdict)?;
         if let CheckOutcome::Fails(failure) = outcome {
             return Ok(Err(failure));
         }
 
+        // record the settled result of a target reaching a deferred operation
+        let resolved_target = self.shallow_resolve(target)?;
+        let target_reaches_computation = match self.ty(resolved_target)? {
+            dir::Type::Operation(_) => true,
+            dir::Type::Application(instance) => self.alias_computes(instance.symbol)?,
+            _ => false,
+        };
+        let recorded_target = if target_reaches_computation {
+            self.normalize(origin, target)?
+        } else {
+            target
+        };
+
+        // record no adjustment for a dynamic read at exactly its declared constraint
+        if let dir::Type::Dynamic(dynamic) = self.ty(self.shallow_resolve(source.ty)?)?
+            && self
+                .evaluate_relation(origin, Relation::Equal, dynamic.constraint, recorded_target)?
+                .holds()
+        {
+            return Ok(Ok(None));
+        }
+
         // borrowing creates a reference to the complete source storage
         if self.borrow_conversion(origin, source.ty, target)?.is_some() {
-            let adjustment = dir::CoercionAdjustment::Borrow { target };
+            let adjustment = dir::CoercionAdjustment::Borrow {
+                target: recorded_target,
+            };
             let coercion =
                 dir::Coercion::new(source.ty, vec![adjustment], dir::CastOrigin::Implicit);
 
@@ -676,7 +744,7 @@ impl BodyState<'_, '_> {
 
             // base types select their explicit value operation
             if let Some(adjustment) =
-                dir::CoercionAdjustment::classify(&source_head, &target_head, target)
+                dir::CoercionAdjustment::classify(&source_head, &target_head, recorded_target)
             {
                 Some(adjustment)
             }
@@ -686,7 +754,9 @@ impl BodyState<'_, '_> {
                 && self.form_ownership(origin, &source_chain)?
                     != self.form_ownership(origin, &target_chain)?
             {
-                Some(dir::CoercionAdjustment::Carrier { target })
+                Some(dir::CoercionAdjustment::Carrier {
+                    target: recorded_target,
+                })
             }
             // accept every remaining distinction, which preserves representation
             else {

@@ -370,7 +370,9 @@ impl CheckState<'_> {
                 let RepresentationCheck::Concrete { interface } = check else {
                     return Ok(None);
                 };
-                let holds = self.evaluate_relation(origin, Relation::Satisfies, ty, interface)?;
+                let holds = self
+                    .evaluate_relation(origin, Relation::Satisfies, ty, interface)?
+                    .holds();
 
                 return Ok((!holds).then_some(RepresentationFailure::Abstract));
             }

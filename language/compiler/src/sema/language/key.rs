@@ -64,12 +64,15 @@ impl CheckState<'_> {
                     .shape_index_signatures(ty.module_id, shape.index_signatures)?
                     .to_vec();
                 for signature in signatures {
-                    if self.evaluate_relation(
-                        origin,
-                        Relation::Assignable,
-                        key_type,
-                        signature.key_type,
-                    )? {
+                    if self
+                        .evaluate_relation(
+                            origin,
+                            Relation::Assignable,
+                            key_type,
+                            signature.key_type,
+                        )?
+                        .holds()
+                    {
                         return Ok(true);
                     }
                 }

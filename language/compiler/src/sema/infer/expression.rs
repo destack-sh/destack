@@ -3,7 +3,8 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckOutcome, Expectation, FlowSite, PlaceUse, Relation, ValueUse,
+    BodyState, Cause, CauseKind, CheckOutcome, Expectation, FailedCheck, FlowSite, PlaceUse,
+    Relation, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -198,15 +199,18 @@ impl BodyState<'_, '_> {
                     CheckOutcome::Holds => {
                         self.check_value(site, check.source, expectation)?;
                     }
+                    // leave a pending conversion to the queue
+                    CheckOutcome::Pending => {}
                     CheckOutcome::Fails(failure) => {
-                        self.record_failure(
+                        self.record_failure(FailedCheck {
                             cause,
-                            Relation::Assignable,
-                            Some(ValueUse::Store),
-                            check.source,
+                            relation: Relation::Assignable,
+                            use_: Some(ValueUse::Store),
+                            source: check.source,
                             target,
                             failure,
-                        )?;
+                            is_provisional: false,
+                        })?;
                     }
                 }
 
@@ -453,14 +457,14 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         resolution: &dir::NameResolution,
     ) -> CompilerResult<()> {
+        // reject a plural declaration group referenced without a selecting call
         let [symbol] = resolution.symbols() else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "name expression at {:?} resolved to {} symbols",
-                    site.node,
-                    resolution.symbols().len(),
-                ),
-            });
+            let symbol = resolution.symbols()[0];
+            self.check.report_ambiguous_overload(site.node, symbol)?;
+            let ty = self.intern_type(dir::Type::Error)?;
+            self.commit_node_type(site.node, ty)?;
+
+            return Ok(());
         };
 
         // report foreign value reads while declaring
@@ -522,6 +526,29 @@ impl BodyState<'_, '_> {
             .is_some_and(dir::SymbolKind::is_binding)
         {
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
+        }
+
+        // record the selected function value for runtime consumers
+        if matches!(
+            self.symbol_kind_maybe(*symbol)?,
+            Some(dir::SymbolKind::Function)
+        ) {
+            let value = dir::FunctionValue {
+                target: dir::CallableTarget::Symbol {
+                    function: dir::FunctionTarget {
+                        receiver: None,
+                        generic_scope: None,
+                        symbol: *symbol,
+                        generic_arguments: Vec::new(),
+                    },
+                    dispatch: dir::FunctionDispatch::Direct,
+                },
+                callable_type: ty,
+            };
+            self.commit_decision(
+                site.node,
+                dir::Decision::Function(dir::OperationResolution::One(value)),
+            )?;
         }
 
         let ty = self.flow_type_at(site, ty)?;

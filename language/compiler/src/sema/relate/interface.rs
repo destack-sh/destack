@@ -131,7 +131,7 @@ impl CheckState<'_> {
                 Relation::Subtype => relation,
                 _ => relation.interior(),
             };
-            let arguments = self.relate_type_arguments(
+            return self.relate_type_arguments(
                 origin,
                 cause,
                 target_instance.symbol,
@@ -139,9 +139,7 @@ impl CheckState<'_> {
                 argument_relation,
                 &source_arguments,
                 &target_arguments,
-            )?;
-
-            return Ok(Verdict::decided(arguments));
+            );
         }
 
         // select a visible extension implementation
@@ -169,17 +167,12 @@ impl CheckState<'_> {
 
         // dynamic values carry their erased interface constraint
         if let dir::Type::Dynamic(dynamic) = self.ty(source)? {
-            let holds = self.constrain_type(origin, cause, relation, dynamic.constraint, target)?;
-
-            return Ok(Verdict::decided(holds));
+            return self.constrain_type(origin, cause, relation, dynamic.constraint, target);
         }
 
         // structural interfaces conform by shape
         if !is_nominal {
-            let holds =
-                self.relate_interface_requirements(origin, cause, relation, source, target)?;
-
-            return Ok(Verdict::decided(holds));
+            return self.relate_interface_requirements(origin, cause, relation, source, target);
         }
 
         Ok(implemented)
@@ -194,7 +187,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         receiver: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         if role.is_callable() {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
@@ -285,6 +278,7 @@ impl CheckState<'_> {
                         &arguments,
                         &interface_arguments,
                     )?
+                    .holds()
                 }
                 None => false,
             };
@@ -366,7 +360,7 @@ impl CheckState<'_> {
                 let written = self.deeply_resolve(origin, written)?;
                 let declared = self.deeply_resolve(origin, declared)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                if !self.relate_equal(origin, cause, written, declared)? {
+                if !self.relate_equal(origin, cause, written, declared)?.holds() {
                     return Ok(None);
                 }
             }
@@ -402,7 +396,9 @@ impl CheckState<'_> {
 
             let constraint =
                 self.instantiate_interface_type(constraint, implementation, receiver)?;
-            if !self.evaluate_relation(origin, Relation::Satisfies, *value, constraint)? {
+            if self.evaluate_relation(origin, Relation::Satisfies, *value, constraint)?
+                == Verdict::Fails
+            {
                 return Ok(None);
             }
         }
@@ -418,12 +414,13 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // read what the applied interface demands of the source
         let requirements = self.interface_requirements(target, source)?;
         let module = origin.module();
 
         // require each member from the source
+        let mut verdict = Verdict::Holds;
         for member in &requirements.members {
             let subject = dir::MemberSubject::new(source, source, member.space);
             let lookup = self
@@ -436,7 +433,7 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                return Ok(false);
+                return Ok(Verdict::Fails);
             };
 
             // relate the found member against the requirement by its role
@@ -450,7 +447,7 @@ impl CheckState<'_> {
                             continue;
                         }
 
-                        return Ok(false);
+                        return Ok(Verdict::Fails);
                     };
                     let source = dir::TypeProperty {
                         key: member.key,
@@ -468,7 +465,7 @@ impl CheckState<'_> {
                         &source,
                         &target,
                     ) else {
-                        return Ok(false);
+                        return Ok(Verdict::Fails);
                     };
 
                     self.relate_shape_fields(origin, cause, &relations)?
@@ -480,7 +477,7 @@ impl CheckState<'_> {
                             continue;
                         }
 
-                        return Ok(false);
+                        return Ok(Verdict::Fails);
                     };
 
                     self.relate_method(
@@ -499,33 +496,37 @@ impl CheckState<'_> {
                             continue;
                         }
 
-                        return Ok(false);
+                        return Ok(Verdict::Fails);
                     };
 
                     self.constrain_type(origin, cause, Relation::Assignable, found, member_type)?
                 }
             };
 
-            if !member_decision {
-                return Ok(false);
+            verdict = verdict.and(member_decision);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
         // prove each direct signature from the source
         let signatures =
             self.relate_interface_signatures(origin, cause, relation, source, &requirements)?;
-        if !signatures {
-            return Ok(false);
+        verdict = verdict.and(signatures);
+        if verdict == Verdict::Fails {
+            return Ok(Verdict::Fails);
         }
 
         // preserve each inherited interface's structural or nominal identity
         for inherited in requirements.inherited {
-            if !self.constrain_type(origin, cause, relation, source, inherited.ty)? {
-                return Ok(false);
+            verdict =
+                verdict.and(self.constrain_type(origin, cause, relation, source, inherited.ty)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Relate one source against an interface's direct signatures.
@@ -536,8 +537,9 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         requirements: &InterfaceRequirements,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // prove each required call signature from the source
+        let mut verdict = Verdict::Holds;
         for signature in &requirements.call_signatures {
             let satisfied = self.relate_signature_requirement(
                 origin,
@@ -546,8 +548,9 @@ impl CheckState<'_> {
                 signature.ty,
                 SignatureFamily::Call,
             )?;
-            if !satisfied {
-                return Ok(false);
+            verdict = verdict.and(satisfied);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
@@ -560,8 +563,9 @@ impl CheckState<'_> {
                 signature.ty,
                 SignatureFamily::Construct,
             )?;
-            if !satisfied {
-                return Ok(false);
+            verdict = verdict.and(satisfied);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
@@ -569,12 +573,13 @@ impl CheckState<'_> {
         for signature in &requirements.index_signatures {
             let satisfied =
                 self.relate_index_signature(origin, relation, source, &signature.signature)?;
-            if !satisfied {
-                return Ok(false);
+            verdict = verdict.and(satisfied);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Relate one source against a required signature.
@@ -585,7 +590,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         required: dir::GlobalTypeId,
         family: SignatureFamily,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // relate function-typed sources through their own signature
         let is_function = match self.ty(source)? {
             dir::Type::FunctionSignature(_)
@@ -599,7 +604,7 @@ impl CheckState<'_> {
                 SignatureFamily::Call => {
                     self.relate_method(origin, cause, Relation::Assignable, source, required, None)
                 }
-                SignatureFamily::Construct => Ok(false),
+                SignatureFamily::Construct => Ok(Verdict::Fails),
             };
         }
 
@@ -607,26 +612,27 @@ impl CheckState<'_> {
         let constraint = match self.ty(source)? {
             dir::Type::Dynamic(dynamic) => dynamic.constraint,
             dir::Type::Application(_) => source,
-            _ => return Ok(false),
+            _ => return Ok(Verdict::Fails),
         };
 
         // accept one apparent signature satisfying the requirement
         let signatures = self.apparent_signatures(constraint, family)?;
+        let mut verdict = Verdict::Fails;
         for signature in signatures {
-            let satisfied = self.relate_method(
+            verdict = verdict.or(self.relate_method(
                 origin,
                 cause,
                 Relation::Assignable,
                 signature.ty,
                 required,
                 None,
-            )?;
-            if satisfied {
-                return Ok(true);
+            )?);
+            if verdict == Verdict::Holds {
+                return Ok(Verdict::Holds);
             }
         }
 
-        Ok(false)
+        Ok(verdict)
     }
 
     /// Return requirements imposed by one interface application.

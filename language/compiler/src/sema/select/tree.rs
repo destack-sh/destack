@@ -3,8 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CallableArgument, Cause, CauseKind, CheckOutcome, Expectation, FlowSite, InferMode,
-    Origin, PlaceUse, Relation, SignatureMatch, Value, ValueUse,
+    BodyState, CallableArgument, Cause, CauseKind, CheckOutcome, Expectation, FailedCheck,
+    FlowSite, InferMode, Origin, PlaceUse, Relation, SignatureMatch, Value, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -91,7 +91,8 @@ impl BodyState<'_, '_> {
         )?;
         let interface = protocol.instance(self.check, origin.module())?;
         let interface = self.check.intern_type(dir::Type::Application(interface))?;
-        let implements = self.evaluate_relation(origin, Relation::Satisfies, target, interface)?;
+        let implements = self.evaluate_relation(origin, Relation::Satisfies, target, interface)?
+            != Verdict::Fails;
 
         Ok(implements.then_some(target))
     }
@@ -282,7 +283,9 @@ impl BodyState<'_, '_> {
             .intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
                 target: tags.ty,
             }))?;
-        let accepted = self.evaluate_relation(origin, Relation::Satisfies, tag_type, rows)?;
+        let accepted = self
+            .evaluate_relation(origin, Relation::Satisfies, tag_type, rows)?
+            .holds();
         if !accepted {
             self.check
                 .report_unknown_tree_tag(module, node.local_id, tag, builder);
@@ -422,7 +425,10 @@ impl BodyState<'_, '_> {
                         let key_type = self.check.static_key_type(field.key)?;
 
                         // spread members outside the row pass through unchecked
-                        if !self.evaluate_relation(origin, Relation::Satisfies, key_type, keys)? {
+                        if !self
+                            .evaluate_relation(origin, Relation::Satisfies, key_type, keys)?
+                            .holds()
+                        {
                             continue;
                         }
                         let property = self.tree_row_projection(origin, row, key_type)?;
@@ -480,7 +486,10 @@ impl BodyState<'_, '_> {
             .intern_type(dir::Type::Literal(dir::ScalarLiteral::String(key)))?;
 
         // reject attributes outside the declared row
-        if !self.evaluate_relation(origin, Relation::Satisfies, key_type, keys)? {
+        if !self
+            .evaluate_relation(origin, Relation::Satisfies, key_type, keys)?
+            .holds()
+        {
             self.check
                 .report_unknown_tree_attribute(module, node.local_id, key, row);
             self.check.commit_decision(node, dir::Decision::Rejected)?;
@@ -523,14 +532,15 @@ impl BodyState<'_, '_> {
         let outcome =
             self.check_type_constraint(origin, cause, Relation::Assignable, value, property)?;
         if let CheckOutcome::Fails(failure) = outcome {
-            self.check.record_failure(
+            self.check.record_failure(FailedCheck {
                 cause,
-                Relation::Assignable,
-                Some(ValueUse::Store),
-                value,
-                property,
+                relation: Relation::Assignable,
+                use_: Some(ValueUse::Store),
+                source: value,
+                target: property,
                 failure,
-            )?;
+                is_provisional: false,
+            })?;
         }
 
         Ok(())
@@ -637,7 +647,7 @@ impl BodyState<'_, '_> {
             });
         };
         let target = match named_symbol {
-            Some(symbol) => dir::CallTarget::Symbol {
+            Some(symbol) => dir::CallableTarget::Symbol {
                 function: dir::FunctionTarget {
                     receiver: None,
                     generic_scope: None,
@@ -646,7 +656,7 @@ impl BodyState<'_, '_> {
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },
-            None => dir::CallTarget::Expression {
+            None => dir::CallableTarget::Expression {
                 generic_arguments: selection.generic_arguments.clone(),
             },
         };

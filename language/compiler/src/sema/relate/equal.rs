@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{CauseId, CheckState, Origin, Relation};
+use crate::sema::{CauseId, CheckState, Origin, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -12,15 +12,15 @@ impl CheckState<'_> {
         cause: CauseId,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // error types poison silently instead of cascading
-            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
+            (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
             // compare lifetime pairs equal, MIR Verify enforces outlives
             (_, _)
                 if self.is_lifetime_slot_type(source)? && self.is_lifetime_slot_type(target)? =>
             {
-                true
+                Verdict::Holds
             }
             // unit types compare by kind
             (dir::Type::Null, dir::Type::Null)
@@ -29,32 +29,48 @@ impl CheckState<'_> {
             | (dir::Type::Never, dir::Type::Never)
             | (dir::Type::Any, dir::Type::Any)
             | (dir::Type::Unknown, dir::Type::Unknown)
-            | (dir::Type::This, dir::Type::This) => true,
+            | (dir::Type::This, dir::Type::This) => Verdict::Holds,
             // unit values are the concrete value representation of void
             (dir::Type::Void, dir::Type::Tuple(tuple))
             | (dir::Type::Tuple(tuple), dir::Type::Void)
                 if tuple.form == dir::TupleForm::Tuple && tuple.elements.is_empty() =>
             {
-                true
+                Verdict::Holds
             }
             // scalar types compare structurally
-            (dir::Type::Literal(source), dir::Type::Literal(target)) => source == target,
-            (dir::Type::Primitive(source), dir::Type::Primitive(target)) => source == target,
+            (dir::Type::Literal(source), dir::Type::Literal(target)) => {
+                Verdict::decided(source == target)
+            }
+            (dir::Type::Primitive(source), dir::Type::Primitive(target)) => {
+                Verdict::decided(source == target)
+            }
             // nullish literals equal their canonical unit types
             (dir::Type::Null, dir::Type::Literal(dir::ScalarLiteral::Null))
             | (dir::Type::Literal(dir::ScalarLiteral::Null), dir::Type::Null)
             | (dir::Type::Undefined, dir::Type::Literal(dir::ScalarLiteral::Undefined))
-            | (dir::Type::Literal(dir::ScalarLiteral::Undefined), dir::Type::Undefined) => true,
+            | (dir::Type::Literal(dir::ScalarLiteral::Undefined), dir::Type::Undefined) => {
+                Verdict::Holds
+            }
             // memory singleton values compare against their authored string text
             (dir::Type::Memory(memory), dir::Type::Literal(dir::ScalarLiteral::String(text)))
             | (dir::Type::Literal(dir::ScalarLiteral::String(text)), dir::Type::Memory(memory)) => {
-                text == dir::StringId::for_text(memory.text())
+                Verdict::decided(text == dir::StringId::for_text(memory.text()))
             }
-            (dir::Type::Memory(source), dir::Type::Memory(target)) => source == target,
-            (dir::Type::Static(source), dir::Type::Static(target)) => source == target,
-            (dir::Type::Parameter(source), dir::Type::Parameter(target)) => source == target,
-            (dir::Type::Erased(source), dir::Type::Erased(target)) => source == target,
-            (dir::Type::Range(source), dir::Type::Range(target)) => source == target,
+            (dir::Type::Memory(source), dir::Type::Memory(target)) => {
+                Verdict::decided(source == target)
+            }
+            (dir::Type::Static(source), dir::Type::Static(target)) => {
+                Verdict::decided(source == target)
+            }
+            (dir::Type::Parameter(source), dir::Type::Parameter(target)) => {
+                Verdict::decided(source == target)
+            }
+            (dir::Type::Erased(source), dir::Type::Erased(target)) => {
+                Verdict::decided(source == target)
+            }
+            (dir::Type::Range(source), dir::Type::Range(target)) => {
+                Verdict::decided(source == target)
+            }
             // unions and intersections compare as unordered type sets
             (dir::Type::Union(source_union), dir::Type::Union(target_union)) => {
                 let source: SmallVec<[_; 8]> = self
@@ -89,17 +105,19 @@ impl CheckState<'_> {
                     target.module_id,
                     target_form.form,
                 )?;
-                if !constructor {
-                    return Ok(constructor);
+                if constructor == Verdict::Fails {
+                    return Ok(Verdict::Fails);
                 }
 
-                self.constrain_type(
+                let payload = self.constrain_type(
                     origin,
                     cause,
                     Relation::Equal,
                     source_form.value,
                     target_form.value,
-                )?
+                )?;
+
+                constructor.and(payload)
             }
             // anonymous classes
             (dir::Type::Object(_), dir::Type::Object(_)) => {
@@ -108,7 +126,7 @@ impl CheckState<'_> {
             // composites compare fixed slots beneath one shared constructor
             _ => match self.decompose_type_pair(source, target)? {
                 Some(pairs) => self.relate_each(origin, cause, Relation::Equal, &pairs)?,
-                None => false,
+                None => Verdict::Fails,
             },
         };
 
@@ -122,9 +140,9 @@ impl CheckState<'_> {
         cause: CauseId,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         if source.len() != target.len() {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         }
         let mut source = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(source);
         let mut target = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(target);
@@ -141,12 +159,10 @@ impl CheckState<'_> {
                     if self.shallow_resolve(source_type)? == self.shallow_resolve(target_type)? {
                         matched = Some(target_index);
                     }
-                } else if self.evaluate_relation(
-                    origin,
-                    Relation::Equal,
-                    source_type,
-                    target_type,
-                )? {
+                } else if self
+                    .evaluate_relation(origin, Relation::Equal, source_type, target_type)?
+                    .holds()
+                {
                     matched = Some(target_index);
                 }
                 if matched.is_some() {
@@ -166,7 +182,7 @@ impl CheckState<'_> {
             return self.constrain_type(origin, cause, Relation::Equal, *source, *target);
         }
         if source.is_empty() {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
 
         // unresolved variables on either side leave the equation ambiguous
@@ -177,6 +193,6 @@ impl CheckState<'_> {
             });
         }
 
-        Ok(false)
+        Ok(Verdict::Fails)
     }
 }

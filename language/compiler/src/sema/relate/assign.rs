@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{CauseId, CheckState, Origin, Relation};
+use crate::sema::{CauseId, CheckState, Origin, Relation, Verdict};
 
 impl CheckState<'_> {
     /// Relate assignability from one reduced source to one reduced target.
@@ -13,7 +13,7 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let widens = relation == Relation::Widens;
 
         let source_signature = self.callable_signature(source)?;
@@ -21,11 +21,11 @@ impl CheckState<'_> {
 
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // error types absorb everything
-            (dir::Type::Error, _) | (_, dir::Type::Error) => true,
+            (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
             // box values into an existential target, which never widens
-            (_, dir::Type::Any) | (_, dir::Type::Unknown) => !widens,
-            (dir::Type::Any, _) => !widens,
-            (dir::Type::Never, _) => true,
+            (_, dir::Type::Any) | (_, dir::Type::Unknown) => Verdict::decided(!widens),
+            (dir::Type::Any, _) => Verdict::decided(!widens),
+            (dir::Type::Never, _) => Verdict::Holds,
 
             // string literals inhabit matching template literal patterns
             (
@@ -60,7 +60,7 @@ impl CheckState<'_> {
                     dir::TypeOperation::TemplateLiteral(_)
                 ) =>
             {
-                true
+                Verdict::Holds
             }
             // patterns with only empty segments absorb the whole string domain
             (dir::Type::Primitive(dir::PrimitiveType::String), dir::Type::Operation(operation))
@@ -98,7 +98,7 @@ impl CheckState<'_> {
                         .static_key_from_type(source)?
                         .is_some_and(|key| key.widens_to_primitive(primitive)) =>
             {
-                true
+                Verdict::Holds
             }
 
             // decide memory forms through their placement and readonly views
@@ -136,8 +136,17 @@ impl CheckState<'_> {
 
                 self.relate_any_target(origin, cause, relation, source, &elements)?
             }
+            // try union membership for a nominal value while the target still solves a parameter
+            (dir::Type::Application(_), dir::Type::Union(union))
+                if widens && self.type_flags(target)?.has_variable() =>
+            {
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
+
+                self.relate_any_target(origin, cause, relation, source, &elements)?
+            }
             // reject every other widening into a union
-            (_, dir::Type::Union(_)) if widens => false,
+            (_, dir::Type::Union(_)) if widens => Verdict::Fails,
 
             // require every element of a union source to assign
             (dir::Type::Union(union), _) => {
@@ -154,7 +163,7 @@ impl CheckState<'_> {
                 self.relate_union_membership(origin, cause, relation, decision, source, target)?
             }
             // reject concrete writes into an existential erased target
-            (_, dir::Type::Erased(_)) => false,
+            (_, dir::Type::Erased(_)) => Verdict::Fails,
             // assign this through its enclosing interface hypotheses or a union target
             (dir::Type::This, _) => {
                 let decision = self.relate_this_bounds(origin, cause, relation, target)?;
@@ -169,7 +178,7 @@ impl CheckState<'_> {
                     Some(constraint) => {
                         self.constrain_type(origin, cause, relation, constraint, target)?
                     }
-                    None => false,
+                    None => Verdict::Fails,
                 };
 
                 self.relate_union_membership(origin, cause, relation, decision, source, target)?
@@ -213,7 +222,7 @@ impl CheckState<'_> {
                 )?
             }
             // box values into an existential target, which never widens
-            (_, dir::Type::Dynamic(_)) | (dir::Type::Dynamic(_), _) if widens => false,
+            (_, dir::Type::Dynamic(_)) | (dir::Type::Dynamic(_), _) if widens => Verdict::Fails,
             // erase compatible values into dynamic targets
             (_, dir::Type::Dynamic(dynamic)) => {
                 self.relate_dynamic_assignable(origin, cause, source, dynamic.constraint)?
@@ -228,12 +237,14 @@ impl CheckState<'_> {
             )?,
 
             // reject widening for literals without a uniform carrier
-            (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_carrier() => false,
-            (dir::Type::Range(_), _) if widens => false,
+            (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_carrier() => {
+                Verdict::Fails
+            }
+            (dir::Type::Range(_), _) if widens => Verdict::Fails,
 
             // adapt a const literal to a parameter its scalar-family admits
             (dir::Type::Literal(_), dir::Type::Parameter(_)) => {
-                self.builtin_scalar_accepts_literal(origin, source, target)?
+                Verdict::decided(self.builtin_scalar_accepts_literal(origin, source, target)?)
             }
 
             // relate literal and interval sources to interface targets
@@ -243,12 +254,11 @@ impl CheckState<'_> {
                     .is_some_and(|kind| kind.is_interface()) =>
             {
                 self.relate_interface(origin, cause, Relation::Assignable, source, target)?
-                    .holds()
             }
 
             // literals and intervals widen by value
-            (dir::Type::Literal(literal), target) => literal.widens_to(&target),
-            (dir::Type::Range(range), target) => range.widens_to(&target),
+            (dir::Type::Literal(literal), target) => Verdict::decided(literal.widens_to(&target)),
+            (dir::Type::Range(range), target) => Verdict::decided(range.widens_to(&target)),
 
             // precise variants assign through their declared owner
             (dir::Type::Variant(member), _)
@@ -272,7 +282,7 @@ impl CheckState<'_> {
                 source.element,
                 target.element,
             )?,
-            (dir::Type::Array(_), dir::Type::FixedArray(_)) => false,
+            (dir::Type::Array(_), dir::Type::FixedArray(_)) => Verdict::Fails,
             (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type(
                 origin,
                 cause,
@@ -297,7 +307,7 @@ impl CheckState<'_> {
                     target.count,
                 )?;
 
-                element && count
+                element.and(count)
             }
             // view a fixed array through a slice of the same element
             (dir::Type::FixedArray(source), dir::Type::Slice(target)) if !widens => self
@@ -309,7 +319,7 @@ impl CheckState<'_> {
                     target.element,
                 )?,
             // reject growing into a managed array, which allocates and copies
-            (dir::Type::FixedArray(_), dir::Type::Array(_)) => false,
+            (dir::Type::FixedArray(_), dir::Type::Array(_)) => Verdict::Fails,
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
                 self.relate_tuple_assignable(origin, cause, relation, source, target)?
             }
@@ -368,7 +378,6 @@ impl CheckState<'_> {
                 .is_some_and(|kind| kind.is_interface()) =>
             {
                 self.relate_interface(origin, cause, Relation::Assignable, source, target)?
-                    .holds()
             }
             // relate callable applications to interface targets
             (dir::Type::Application(callable), dir::Type::Application(instance))
@@ -378,7 +387,6 @@ impl CheckState<'_> {
                     && self.is_function_language_item(callable.symbol)? =>
             {
                 self.relate_interface(origin, cause, Relation::Assignable, source, target)?
-                    .holds()
             }
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
@@ -421,7 +429,7 @@ impl CheckState<'_> {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
 
-            _ => false,
+            _ => Verdict::Fails,
         };
 
         Ok(decision)
@@ -434,15 +442,16 @@ impl CheckState<'_> {
         cause: CauseId,
         source: dir::GlobalTypeId,
         constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let source = match self.ty(source)? {
             dir::Type::Dynamic(dynamic) => dynamic.constraint,
             _ => source,
         };
 
         // box erasable values only behind a dynamic constraint
-        if !self.satisfies_auto_interface(origin, source, dir::AutoInterface::DynamicSafe)? {
-            return Ok(false);
+        match self.satisfies_auto_interface(origin, source, dir::AutoInterface::DynamicSafe)? {
+            Verdict::Holds => {}
+            verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(verdict),
         }
 
         self.constrain_type(origin, cause, Relation::Assignable, source, constraint)
@@ -456,7 +465,7 @@ impl CheckState<'_> {
         relation: Relation,
         parameter: dir::GlobalGenericParameterId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let bounds = self.parameter_bounds(origin, parameter)?;
 
         // choose one open bound by constraint over the whole candidate set
@@ -474,13 +483,15 @@ impl CheckState<'_> {
         }
 
         // prove through any declared or assumed bound
+        let mut verdict = Verdict::Fails;
         for bound in bounds {
-            if self.constrain_type(origin, cause, relation, bound, target)? {
-                return Ok(true);
+            verdict = verdict.or(self.constrain_type(origin, cause, relation, bound, target)?);
+            if verdict == Verdict::Holds {
+                return Ok(Verdict::Holds);
             }
         }
 
-        Ok(false)
+        Ok(verdict)
     }
 
     /// Relate the assumed `this` bounds against a target.
@@ -490,7 +501,7 @@ impl CheckState<'_> {
         cause: CauseId,
         relation: Relation,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let bounds = self.this_bounds(origin)?;
 
         // choose one open bound by constraint over the whole candidate set
@@ -508,12 +519,14 @@ impl CheckState<'_> {
         }
 
         // prove through any assumed this bound
+        let mut verdict = Verdict::Fails;
         for bound in bounds {
-            if self.constrain_type(origin, cause, relation, bound, target)? {
-                return Ok(true);
+            verdict = verdict.or(self.constrain_type(origin, cause, relation, bound, target)?);
+            if verdict == Verdict::Holds {
+                return Ok(Verdict::Holds);
             }
         }
 
-        Ok(false)
+        Ok(verdict)
     }
 }

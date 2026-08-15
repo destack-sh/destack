@@ -1,19 +1,19 @@
 use destack_artifact::ArtifactEvent;
 use destack_dir as dir;
 
-use crate::sema::{DumpContext, Obligation, ObligationId, PatternCoverage};
+use crate::sema::{CheckId, DumpContext, Obligation, PatternCoverage};
 
 impl Obligation {
     /// Render this obligation as one trace event.
     pub(in crate::sema) fn render_event(
         &self,
-        id: ObligationId,
+        id: CheckId,
         finished: bool,
         context: &DumpContext<'_, '_>,
     ) -> ArtifactEvent {
         let event = ArtifactEvent::new("obligation.checked")
             .debug()
-            .text("id", context.obligation_label(id))
+            .text("id", context.check_label(id))
             .text("kind", self.kind_label())
             .text("source", context.node_label(self.source()))
             .text("at", context.node_source_label(self.source()))

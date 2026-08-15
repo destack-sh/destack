@@ -2,7 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 
 use crate::sema::{
-    BoundSide, CheckOutcome, CheckState, FailedCheck, InferenceScope, Origin, VariableRole,
+    BoundSide, Check, CheckOutcome, CheckState, FailedCheck, InferenceScope, Origin, VariableRole,
     VariableState, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
@@ -11,45 +11,43 @@ impl CheckState<'_> {
     /// Report one failure for every terminal failed cause past the given counts.
     pub(in crate::sema) fn report_failures(
         &mut self,
-        constraints_from: usize,
+        checks_from: usize,
         failures_from: usize,
     ) -> CompilerResult<FxIndexSet<dir::TypeVariableId>> {
         // take the failures retained past the given count
         let mut failures = self.fulfill.failures.split_off(failures_from);
 
-        // include completed type constraints in the same cause forest
-        for id in self.fulfill.constraints.failures_from(constraints_from) {
-            let constraint = *self.fulfill.constraints.get(id)?;
-            let result =
+        // include completed relation checks in the same cause forest
+        for id in self.fulfill.checks.relation_failures_from(checks_from) {
+            let Check::Relation(relation) = *self.fulfill.checks.get(id)? else {
+                return Err(CompilerError::Internal {
+                    message: format!("failed relation check {id:?} names a non-relation check"),
+                });
+            };
+
+            let outcome =
                 self.fulfill
-                    .constraints
+                    .checks
                     .result(id)?
                     .ok_or_else(|| CompilerError::Internal {
-                        message: format!("failed constraint {id:?} has no completed result"),
+                        message: format!("failed check {id:?} has no completed outcome"),
                     })?;
-            let CheckOutcome::Fails(failure) = result.outcome else {
+            let CheckOutcome::Fails(failure) = *outcome else {
                 return Err(CompilerError::Internal {
-                    message: format!("failed constraint {id:?} has a successful result"),
+                    message: format!("failed check {id:?} has a successful outcome"),
                 });
             };
 
             // record completed failures as provisional, to re-judge over solved types
             failures.push(FailedCheck {
-                cause: constraint.cause(),
-                relation: constraint.relation(),
+                cause: relation.cause,
+                relation: relation.relation,
                 use_: None,
-                source: result.source,
-                target: result.target,
+                source: relation.source,
+                target: relation.target,
                 failure,
                 is_provisional: true,
             });
-        }
-
-        // explain the open variables each failed relation contains
-        let mut explained = FxIndexSet::default();
-        for failure in &failures {
-            explained.extend(self.type_variables(failure.source)?);
-            explained.extend(self.type_variables(failure.target)?);
         }
 
         // suppress every failed cause with a failed descendant
@@ -63,6 +61,7 @@ impl CheckState<'_> {
         }
 
         // report the first retained failure at each terminal cause
+        let mut explained = FxIndexSet::default();
         let mut causes = FxIndexSet::default();
         for failure in failures {
             if suppressed.contains(&failure.cause) || !causes.insert(failure.cause) {
@@ -70,7 +69,7 @@ impl CheckState<'_> {
             }
             if failure.is_provisional {
                 let origin = self.cause_origin(failure.cause);
-                let verdict = self.constrain_relation(
+                let verdict = self.constrain_type(
                     origin,
                     failure.cause,
                     failure.relation,
@@ -81,14 +80,12 @@ impl CheckState<'_> {
                     continue;
                 }
             }
-            self.emit_failure(
-                failure.cause,
-                failure.relation,
-                failure.use_,
-                failure.source,
-                failure.target,
-                failure.failure,
-            )?;
+
+            // explain the open variables each emitted failure contains
+            if self.emit_failure(&failure)? {
+                explained.extend(self.type_variables(failure.source)?);
+                explained.extend(self.type_variables(failure.target)?);
+            }
         }
 
         Ok(explained)
@@ -152,9 +149,12 @@ impl CheckState<'_> {
             // anchor at the earliest source occurrence
             let mut anchor = None;
             for variable in candidates {
+                // skip a variable already explained by a committed origin type
                 let origin = self.infer.origin(self.infer.variable(*variable)?.origin);
                 if let Origin::Node(node, _) = origin
                     && self.node_types.contains(node)
+                    && let Some(committed) = self.committed_node_type(node)
+                    && !self.type_variables(committed)?.contains(variable)
                 {
                     continue;
                 }

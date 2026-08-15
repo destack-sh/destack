@@ -29,7 +29,8 @@ impl BodyState<'_, '_> {
         let origin = site.origin();
         let is_granted = self
             .check
-            .constrain_access_assignable(origin, place.access, access)?;
+            .constrain_access_assignable(origin, place.access, access)?
+            .holds();
         if !is_granted {
             let granted = self.check.access_literal(origin, place.access)?;
             self.check

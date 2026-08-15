@@ -265,7 +265,8 @@ impl CheckState<'_> {
         // full conformance lets declared implementations serve components
         let item = dir::LanguageItem::from(interface);
         let target = self.language_type(item, &[])?;
+        let verdict = self.evaluate_relation(origin, Relation::Satisfies, field, target)?;
 
-        self.evaluate_relation(origin, Relation::Satisfies, field, target)
+        Ok(verdict.holds())
     }
 }

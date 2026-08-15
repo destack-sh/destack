@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     BodyState, Cause, CauseKind, CheckAttempt, CheckFailure, CheckOutcome, Expectation, FlowSite,
-    InferMode, MemberRole, Origin, PlaceUse, Relation, ValueCheck, ValueUse, WalkState,
+    InferMode, MemberRole, Origin, PlaceUse, Relation, ValueCheck, ValueUse, Verdict, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -264,7 +264,7 @@ impl BodyState<'_, '_> {
                                 Relation::Assignable,
                                 key_type,
                                 signature.key_type,
-                            )?;
+                            )? != Verdict::Fails;
                             if accepts {
                                 let access = match signature.is_readonly {
                                     true => dir::PropertyAccess::Read(signature.value_type),

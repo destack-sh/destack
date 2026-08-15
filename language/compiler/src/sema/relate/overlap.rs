@@ -3,7 +3,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, Origin, Relation, Variance};
+use crate::sema::{CheckState, Origin, Relation, Variance, Verdict};
 
 impl CheckState<'_> {
     /// Return whether two types can share at least one runtime inhabitant.
@@ -309,7 +309,10 @@ impl CheckState<'_> {
                         }
                     }
                     Variance::Invariant => {
-                        if !self.evaluate_relation(origin, Relation::Equal, source, target)? {
+                        // treat an undecided pair as overlapping
+                        if self.evaluate_relation(origin, Relation::Equal, source, target)?
+                            == Verdict::Fails
+                        {
                             return Ok(false);
                         }
                     }
@@ -324,7 +327,8 @@ impl CheckState<'_> {
             self.evaluate_relation(origin, Relation::Subtype, source, target)?;
         let target_is_subtype =
             self.evaluate_relation(origin, Relation::Subtype, target, source)?;
-        if source_is_subtype || target_is_subtype {
+        // treat an undecided pair as overlapping
+        if source_is_subtype != Verdict::Fails || target_is_subtype != Verdict::Fails {
             return Ok(true);
         }
 

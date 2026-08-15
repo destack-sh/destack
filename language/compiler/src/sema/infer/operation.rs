@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::sema::{
-    BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, Obligation, PlaceUse,
-    RangeElementObligation, Relation, ValueUse, VariableRole, Widening,
+    BodyState, Cause, CauseKind, Expectation, FlowSite, Obligation, PlaceUse,
+    RangeElementObligation, Relation, RelationCheck, ValueUse, VariableRole, Widening,
 };
 
 impl BodyState<'_, '_> {
@@ -123,7 +123,7 @@ impl BodyState<'_, '_> {
                 let element = self.variable_type(variable)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 for bound in bounds {
-                    self.push_constraint(Constraint::r#type(
+                    self.push_relation(RelationCheck::new(
                         origin,
                         Relation::Assignable,
                         *bound,
@@ -208,7 +208,7 @@ impl BodyState<'_, '_> {
                 arguments,
             }))?;
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.push_constraint(Constraint::r#type(
+            self.push_relation(RelationCheck::new(
                 origin,
                 Relation::Satisfies,
                 return_target,

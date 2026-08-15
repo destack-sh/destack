@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use super::InferMode;
 use crate::sema::{
-    BodyState, CauseId, CheckOutcome, DeferredCheck, FlowSite, Relation, ValueCheck,
-    ValueConversion, ValueUse,
+    BodyState, CauseId, Check, CheckOutcome, FailedCheck, FlowSite, NodeCheck, Relation,
+    ValueCheck, ValueConversion, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -162,14 +162,15 @@ impl BodyState<'_, '_> {
 
         // retain a failed confirmed value check at its authored cause
         if let CheckOutcome::Fails(failure) = conversion.outcome {
-            self.check.record_failure(
-                expectation.cause,
-                expectation.relation,
-                Some(expectation.use_),
+            self.check.record_failure(FailedCheck {
+                cause: expectation.cause,
+                relation: expectation.relation,
+                use_: Some(expectation.use_),
                 source,
-                conversion.target,
+                target: conversion.target,
                 failure,
-            )?;
+                is_provisional: false,
+            })?;
         }
 
         Ok(ValueCheck {
@@ -191,14 +192,15 @@ impl BodyState<'_, '_> {
         // preserve target-directed failures without attempting conversion
         if let CheckOutcome::Fails(failure) = check.outcome {
             let source = check.source;
-            self.check.record_failure(
-                expectation.cause,
-                expectation.relation,
-                Some(expectation.use_),
+            self.check.record_failure(FailedCheck {
+                cause: expectation.cause,
+                relation: expectation.relation,
+                use_: Some(expectation.use_),
                 source,
-                check.target,
+                target: check.target,
                 failure,
-            )?;
+                is_provisional: false,
+            })?;
 
             return Ok(check);
         }
@@ -222,7 +224,7 @@ impl BodyState<'_, '_> {
             let open = self.open_type_variables([no_infer])?;
             if !open.is_empty() {
                 self.check
-                    .register_check(DeferredCheck::Expect { site, expectation });
+                    .register_check_stalled(Check::Node(NodeCheck { site, expectation }), &open);
 
                 return Ok(ValueCheck {
                     source: expectation.target,

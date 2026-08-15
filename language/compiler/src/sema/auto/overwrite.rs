@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, Origin};
+use crate::sema::{CheckState, Origin, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -12,18 +12,18 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // use bounds declared by generic types
         if let Some(decision) =
             self.decide_generic_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)?
         {
-            return Ok(decision);
+            return Ok(Verdict::decided(decision));
         }
 
         // close recursive structural types coinductively
         let ty = self.shallow_resolve(ty)?;
         if active.contains(&ty) {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
         active.push(ty);
 
@@ -40,16 +40,13 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let kind = self.ty(ty)?;
 
         // decide each stored representation
         match kind {
-            dir::Type::Variable(variable) => Err(CompilerError::Internal {
-                message: format!(
-                    "unsolved type variable {variable:?} reached structural overwrite stability"
-                ),
-            }),
+            // leave an open variable undecided
+            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -68,7 +65,7 @@ impl CheckState<'_> {
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::Range(_)
-            | dir::Type::Reference(_) => Ok(true),
+            | dir::Type::Reference(_) => Ok(Verdict::Holds),
             dir::Type::Variant(variant) => {
                 self.satisfies_overwrite_stable(origin, variant.owner, active)
             }
@@ -80,15 +77,15 @@ impl CheckState<'_> {
             | dir::Type::Dynamic(_)
             | dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
-            | dir::Type::Union(_) => Ok(false),
+            | dir::Type::Union(_) => Ok(Verdict::Fails),
             dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
                 Err(CompilerError::Internal {
                     message: format!("generic type {ty:?} reached structural overwrite stability"),
                 })
             }
             dir::Type::Form(form) => match form.form {
-                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(true),
-                dir::Form::Owned => Ok(false),
+                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(Verdict::Holds),
+                dir::Form::Owned => Ok(Verdict::Fails),
                 dir::Form::Placed { .. } | dir::Form::Readonly => {
                     self.satisfies_overwrite_stable(origin, form.value, active)
                 }
@@ -96,11 +93,11 @@ impl CheckState<'_> {
             dir::Type::Application(instance) => {
                 self.satisfies_overwrite_stable_instance(origin, ty.module_id, instance, active)
             }
-            dir::Type::Array(_) => Ok(true),
+            dir::Type::Array(_) => Ok(Verdict::Holds),
             dir::Type::FixedArray(array) => {
                 self.satisfies_overwrite_stable(origin, array.element, active)
             }
-            dir::Type::Slice(_) => Ok(true),
+            dir::Type::Slice(_) => Ok(Verdict::Holds),
             dir::Type::Tuple(tuple) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .tuple_elements(ty.module_id, tuple.elements)?
@@ -119,7 +116,7 @@ impl CheckState<'_> {
 
                 self.all_overwrite_stable(origin, ids, active)
             }
-            dir::Type::FunctionPointer(_) => Ok(true),
+            dir::Type::FunctionPointer(_) => Ok(Verdict::Holds),
             dir::Type::Intersection(intersection) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(self.type_ids(ty.module_id, intersection.elements)?);
@@ -136,9 +133,9 @@ impl CheckState<'_> {
         instance_module: ModuleId,
         instance: dir::GenericApplication,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let Some(definition) = self.definition(instance.symbol)?.cloned() else {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         };
 
         match definition {
@@ -163,8 +160,8 @@ impl CheckState<'_> {
                     active,
                 )
             }
-            dir::Definition::Class(_) | dir::Definition::Interface(_) => Ok(true),
-            dir::Definition::Enum(_) => Ok(false),
+            dir::Definition::Class(_) | dir::Definition::Interface(_) => Ok(Verdict::Holds),
+            dir::Definition::Enum(_) => Ok(Verdict::Fails),
             dir::Definition::Newtype(definition) => self.all_applied_overwrite_stable(
                 origin,
                 instance_module,
@@ -172,7 +169,7 @@ impl CheckState<'_> {
                 [definition.backing],
                 active,
             ),
-            dir::Definition::Extension(_) => Ok(false),
+            dir::Definition::Extension(_) => Ok(Verdict::Fails),
         }
     }
 
@@ -184,16 +181,18 @@ impl CheckState<'_> {
         instance: &dir::GenericApplication,
         ids: impl IntoIterator<Item = dir::GlobalTypeId>,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let substitution = self.instance_substitution(instance_module, instance)?;
+        let mut verdict = Verdict::Holds;
         for id in ids {
             let id = self.substitute_type(id, &substitution)?;
-            if !self.satisfies_overwrite_stable(origin, id, active)? {
-                return Ok(false);
+            verdict = verdict.and(self.satisfies_overwrite_stable(origin, id, active)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Decide whether every type in one iterator is overwrite-stable.
@@ -202,13 +201,15 @@ impl CheckState<'_> {
         origin: Origin,
         ids: impl IntoIterator<Item = dir::GlobalTypeId>,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
+        let mut verdict = Verdict::Holds;
         for id in ids {
-            if !self.satisfies_overwrite_stable(origin, id, active)? {
-                return Ok(false);
+            verdict = verdict.and(self.satisfies_overwrite_stable(origin, id, active)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 }

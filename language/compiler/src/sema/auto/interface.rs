@@ -60,28 +60,18 @@ impl CheckState<'_> {
                 );
 
                 // require the argument to equal the receiver otherwise
-                let receiver_holds =
-                    numeric || self.evaluate_relation(origin, Relation::Equal, ty, other)?;
-                if !receiver_holds {
-                    // leave the receiver rule undecided for an open argument
-                    if !self.open_type_variables([ty, other])?.is_empty() {
-                        return Ok(Verdict::Ambiguous);
-                    }
-
-                    return Ok(Verdict::Fails);
+                let receiver = match numeric {
+                    true => Verdict::Holds,
+                    false => self.evaluate_relation(origin, Relation::Equal, ty, other)?,
+                };
+                if receiver != Verdict::Holds {
+                    return Ok(receiver);
                 }
             }
         }
 
-        // decide the interface's own conformance rule
-        let holds = self.satisfies_auto_interface(origin, ty, interface)?;
-
-        // leave the rule undecided for an open variable inside the subject
-        if !holds && !self.open_type_variables([ty])?.is_empty() {
-            return Ok(Verdict::Ambiguous);
-        }
-
-        Ok(Verdict::decided(holds))
+        // decide the interface's own conformance rule, propagating its verdict
+        self.satisfies_auto_interface(origin, ty, interface)
     }
 
     /// Decide whether one type satisfies a compiler-known auto interface.
@@ -90,7 +80,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // decide conformance once over variable-free types, since a hole stands still
         let flags = self.type_flags(ty)?;
         let key = if flags.has_variable() {
@@ -105,11 +95,11 @@ impl CheckState<'_> {
             Some((ty, interface, scope))
         };
 
-        // serve the memo
+        // serve the memoized verdict
         if let Some(key) = &key
             && let Some(holds) = self.conforms.get(key)
         {
-            return Ok(*holds);
+            return Ok(Verdict::decided(*holds));
         }
 
         // use bounds declared by generic types
@@ -118,7 +108,7 @@ impl CheckState<'_> {
                 self.conforms.insert(key, decision);
             }
 
-            return Ok(decision);
+            return Ok(Verdict::decided(decision));
         }
 
         // allow a written derive list to replace the auto set of its declaration
@@ -134,59 +124,70 @@ impl CheckState<'_> {
                     self.conforms.insert(key, false);
                 }
 
-                return Ok(false);
+                return Ok(Verdict::Fails);
             }
         }
 
         // dispatch compiler-known conformance rules
         let mut active = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        let holds = match interface {
-            dir::AutoInterface::AtomicSafe => self.satisfies_atomic_safe(ty),
+        let verdict = match interface {
+            dir::AutoInterface::AtomicSafe => self.satisfies_atomic_safe(ty).map(Verdict::decided),
             dir::AutoInterface::DynamicSafe => self.satisfies_dynamic_safe(origin, ty, &mut active),
             dir::AutoInterface::OverwriteStable => {
                 self.satisfies_overwrite_stable(origin, ty, &mut active)
             }
-            dir::AutoInterface::Integer => {
-                self.satisfies_scalar_representation(ty, dir::ScalarDomain::Integer)
-            }
-            dir::AutoInterface::IntegerDomain => {
-                self.satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Integer)
-            }
-            dir::AutoInterface::Float => {
-                self.satisfies_scalar_representation(ty, dir::ScalarDomain::Float)
-            }
-            dir::AutoInterface::FloatDomain => {
-                self.satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Float)
-            }
+            dir::AutoInterface::Integer => self
+                .satisfies_scalar_representation(ty, dir::ScalarDomain::Integer)
+                .map(Verdict::decided),
+            dir::AutoInterface::IntegerDomain => self
+                .satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Integer)
+                .map(Verdict::decided),
+            dir::AutoInterface::Float => self
+                .satisfies_scalar_representation(ty, dir::ScalarDomain::Float)
+                .map(Verdict::decided),
+            dir::AutoInterface::FloatDomain => self
+                .satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Float)
+                .map(Verdict::decided),
             dir::AutoInterface::Copy => self.satisfies_copy(origin, ty, &mut active),
-            dir::AutoInterface::SharedSafe => self.satisfies_shared_safe(origin, ty),
+            dir::AutoInterface::SharedSafe => {
+                self.satisfies_shared_safe(origin, ty).map(Verdict::decided)
+            }
             // TODO #Incomplete: the remaining auto interfaces never hold
-            dir::AutoInterface::Unpin | dir::AutoInterface::Zeroable => Ok(false),
-            dir::AutoInterface::Concrete => self.satisfies_concrete(origin, ty),
+            dir::AutoInterface::Unpin | dir::AutoInterface::Zeroable => Ok(Verdict::Fails),
+            dir::AutoInterface::Concrete => {
+                self.satisfies_concrete(origin, ty).map(Verdict::decided)
+            }
             dir::AutoInterface::Equal
             | dir::AutoInterface::PartialEqual
             | dir::AutoInterface::Clone
             | dir::AutoInterface::Debug
             | dir::AutoInterface::Display
-            | dir::AutoInterface::Hash => self.satisfies_derivable(origin, ty, interface),
+            | dir::AutoInterface::Hash => self
+                .satisfies_derivable(origin, ty, interface)
+                .map(Verdict::decided),
             // order scalars intrinsically
-            dir::AutoInterface::Compare | dir::AutoInterface::PartialCompare => Ok(self
-                .ty(ty)?
-                .scalar_domain()
-                .and_then(|domain| domain.conforms_to(interface))
-                .unwrap_or(false)),
+            dir::AutoInterface::Compare | dir::AutoInterface::PartialCompare => {
+                Ok(Verdict::decided(
+                    self.ty(ty)?
+                        .scalar_domain()
+                        .and_then(|domain| domain.conforms_to(interface))
+                        .unwrap_or(false),
+                ))
+            }
             // leave defaults and serialization to written derives
             dir::AutoInterface::Default
             | dir::AutoInterface::Serialize
-            | dir::AutoInterface::Deserialize => Ok(false),
+            | dir::AutoInterface::Deserialize => Ok(Verdict::Fails),
         }?;
 
-        // memoize the settled decision
-        if let Some(key) = key {
-            self.conforms.insert(key, holds);
+        // memoize a settled verdict, leaving an ambiguous one uncached
+        if let Some(key) = key
+            && verdict != Verdict::Ambiguous
+        {
+            self.conforms.insert(key, verdict.holds());
         }
 
-        Ok(holds)
+        Ok(verdict)
     }
 
     /// Decide auto conformance for one generic type.
@@ -206,20 +207,26 @@ impl CheckState<'_> {
                 let target = self.language_type(item, &[])?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
-                Some(self.relate_parameter_bounds(
-                    origin,
-                    cause,
-                    Relation::Satisfies,
-                    parameter,
-                    target,
-                )?)
+                Some(
+                    self.relate_parameter_bounds(
+                        origin,
+                        cause,
+                        Relation::Satisfies,
+                        parameter,
+                        target,
+                    )?
+                    .holds(),
+                )
             }
             dir::Type::This => {
                 let item = dir::LanguageItem::from(interface);
                 let target = self.language_type(item, &[])?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
-                Some(self.relate_this_bounds(origin, cause, Relation::Satisfies, target)?)
+                Some(
+                    self.relate_this_bounds(origin, cause, Relation::Satisfies, target)?
+                        .holds(),
+                )
             }
             _ => None,
         };
@@ -280,8 +287,15 @@ impl CheckState<'_> {
             let target = self.intern_type(dir::Type::Application(instance))?;
             let origin = Origin::Symbol(symbol);
             for interface in dir::AutoInterface::REPRESENTATION {
-                let holds = self.satisfies_auto_interface(origin, target, interface)?;
-                if holds {
+                let verdict = self.satisfies_auto_interface(origin, target, interface)?;
+                if verdict == Verdict::Ambiguous {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "declaration instance {target:?} left {interface:?} conformance ambiguous"
+                        ),
+                    });
+                }
+                if verdict == Verdict::Holds {
                     self.module_mut(module)
                         .auto
                         .push_conformance(dir::AutoConformance { interface, target });

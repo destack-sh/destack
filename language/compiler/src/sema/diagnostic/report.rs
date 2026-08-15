@@ -6,7 +6,7 @@ use destack_source::{
 };
 
 use crate::sema::{
-    BoundSide, CauseId, CauseKind, CheckFailure, CheckState, MixedObjectSignature,
+    BoundSide, CauseKind, CheckFailure, CheckState, FailedCheck, MixedObjectSignature,
     ObligationFailure, OperatorOperands, Origin, Relation, SignatureRejection, TypeBound,
     UncoveredValue, ValueUse, Variance,
 };
@@ -300,6 +300,23 @@ impl CheckState<'_> {
             anchor,
             module,
             parameter: self.parameter_label(parameter),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one overload group referenced without a selecting call.
+    pub(in crate::sema) fn report_ambiguous_overload(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::AmbiguousOverload {
+            anchor,
+            module,
+            name: self.format_symbol(symbol),
         };
         self.report(module, error);
 
@@ -1198,7 +1215,15 @@ impl CheckState<'_> {
                 failure,
                 ..
             } => {
-                self.record_failure(cause, relation, use_, source, target, failure)?;
+                self.record_failure(FailedCheck {
+                    cause,
+                    relation,
+                    use_,
+                    source,
+                    target,
+                    failure,
+                    is_provisional: false,
+                })?;
             }
 
             // report receiver mismatch on the call itself
@@ -1678,26 +1703,31 @@ impl CheckState<'_> {
     }
 
     /// Emit one failed closed check.
-    pub(in crate::sema) fn emit_failure(
-        &mut self,
-        cause: CauseId,
-        relation: Relation,
-        value_use: Option<ValueUse>,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-        failure: CheckFailure,
-    ) -> CompilerResult<()> {
+    pub(in crate::sema) fn emit_failure(&mut self, check: &FailedCheck) -> CompilerResult<bool> {
+        let FailedCheck {
+            cause,
+            relation,
+            use_: value_use,
+            source,
+            target,
+            failure,
+            ..
+        } = *check;
+
         // skip reporting once source or target already reported an error
         if self.any_error_operand(&[source, target])? {
-            return Ok(());
+            return Ok(false);
         }
 
+        // anchor the diagnostic at the site the cause names
         let origin = self.cause_origin(cause);
         let root_kind = self.root_cause(cause).kind;
         let (module, anchor) = match (root_kind, value_use) {
+            // anchor initializers and stores at their own node
             (CauseKind::Initializer { .. }, _) | (_, Some(ValueUse::Store)) => {
                 self.origin_node_anchor(origin)?
             }
+            // anchor every other cause at its diagnostic site
             _ => self.origin_diagnostic_anchor(origin)?,
         };
 
@@ -1708,11 +1738,14 @@ impl CheckState<'_> {
         };
         let is_place_relabel = matches!(failure, CheckFailure::Relation)
             && self.is_place_relabel(origin, source, target)?;
+
+        // render both operands at the reporting module
         let source = self.format_type_at(module, source);
         let target = self.format_type_at(module, target);
 
         // translate the selected failure reason
         let diagnostic = match failure {
+            // report the relation itself
             CheckFailure::Relation => {
                 let error = self.constraint_relation_error(
                     anchor.clone(),
@@ -1724,15 +1757,33 @@ impl CheckState<'_> {
                 );
                 let diagnostic = DiagnosticBuilder::new(error);
 
-                // explain that a value never changes its storage placement
+                // explain that a value keeps the storage placement it was created in
                 if is_place_relabel {
                     diagnostic.note("a value never changes its space").help(
                         "use a value in the destination placement or create a new value there",
                     )
-                } else {
+                }
+                // otherwise report the mismatch on its own
+                else {
                     diagnostic
                 }
             }
+            // ask for the annotation that decides an ambiguous relation
+            CheckFailure::Undecided => {
+                let error = self.constraint_relation_error(
+                    anchor.clone(),
+                    module,
+                    relation,
+                    value_use,
+                    source,
+                    target,
+                );
+
+                DiagnosticBuilder::new(error)
+                    .note("inference cannot decide this relation")
+                    .help("annotate the type explicitly")
+            }
+            // report a value converting to several represented union cases
             CheckFailure::AmbiguousUnionCoercion => {
                 let error = CheckError::AmbiguousUnionCoercion {
                     anchor: anchor.clone(),
@@ -1743,6 +1794,7 @@ impl CheckState<'_> {
 
                 DiagnosticBuilder::new(error)
             }
+            // report the required key the literal missed
             CheckFailure::MissingRequiredProperty { key } => {
                 let error = CheckError::MissingRequiredProperty {
                     anchor: anchor.clone(),
@@ -1753,6 +1805,7 @@ impl CheckState<'_> {
 
                 DiagnosticBuilder::new(error)
             }
+            // report the unknown key the literal supplied
             CheckFailure::ExcessProperty { key } => {
                 let error = CheckError::ExcessProperty {
                     anchor: anchor.clone(),
@@ -1764,6 +1817,7 @@ impl CheckState<'_> {
                 DiagnosticBuilder::new(error)
                     .note("object literals may only specify known properties")
             }
+            // report the writable index signature the source misses
             CheckFailure::WritableIndexRequiresIndexSet { signature } => {
                 let error = CheckError::WritableIndexRequiresIndexSet {
                     anchor: anchor.clone(),
@@ -1776,10 +1830,11 @@ impl CheckState<'_> {
                 DiagnosticBuilder::new(error)
             }
         };
+        // explain the cause chain and report the failure once
         let diagnostic = self.explain_cause(diagnostic, cause, &anchor, blame.as_ref())?;
         self.report(module, diagnostic);
 
-        Ok(())
+        Ok(true)
     }
 
     /// Build the diagnostic for one unstable overwrite.
@@ -2380,14 +2435,12 @@ impl CheckState<'_> {
                 module,
                 actual: source,
             },
-            (_, Some(ValueUse::Argument | ValueUse::Const)) => {
-                CheckError::ArgumentNotAssignable {
-                    anchor,
-                    module,
-                    source,
-                    target,
-                }
-            }
+            (_, Some(ValueUse::Argument | ValueUse::Const)) => CheckError::ArgumentNotAssignable {
+                anchor,
+                module,
+                source,
+                target,
+            },
             (_, Some(ValueUse::Output)) => CheckError::ReturnNotAssignable {
                 anchor,
                 module,
@@ -2681,10 +2734,7 @@ impl CheckState<'_> {
     }
 
     /// Report one accessor used as a struct field initializer.
-    pub(in crate::sema) fn report_invalid_struct_accessor(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-    ) {
+    pub(in crate::sema) fn report_invalid_struct_accessor(&mut self, source: dir::GlobalNodeIdAny) {
         let (module, anchor) = self.source_anchor(source);
         let error = CheckError::InvalidStructAccessor { anchor, module };
 

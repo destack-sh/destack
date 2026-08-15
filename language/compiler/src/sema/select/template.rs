@@ -45,7 +45,7 @@ impl BodyState<'_, '_> {
             None => self.intern_type(dir::Type::Void)?,
         };
         let call = dir::Call {
-            target: dir::CallTarget::Expression {
+            target: dir::CallableTarget::Expression {
                 generic_arguments: Vec::new(),
             },
             callable_type: signature,

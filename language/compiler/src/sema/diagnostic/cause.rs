@@ -194,7 +194,10 @@ impl CheckState<'_> {
         for (slot, child_relation, child_source, child_target) in
             self.blame_pairs(relation, source, target)?
         {
-            if self.evaluate_relation(origin, child_relation, child_source, child_target)? {
+            if self
+                .evaluate_relation(origin, child_relation, child_source, child_target)?
+                .holds()
+            {
                 continue;
             }
 

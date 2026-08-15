@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     CandidateOutcome, CandidateVerdict, CauseId, CheckFailure, CheckOutcome, CheckState, Origin,
-    Relation, Verdict,
+    Relation, RelationCheck, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -26,7 +26,7 @@ impl CheckState<'_> {
         Ok(signature)
     }
 
-    /// Enforce one relation between two types, bounding open variables.
+    /// Enforce one relation between two types as one collected obligation.
     pub(in crate::sema) fn relate(
         &mut self,
         origin: Origin,
@@ -35,20 +35,12 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let holds = self.constrain_type(origin, cause, relation, source, target)?;
-        let check = self.complete_constraint_check(relation, source, target, holds)?;
+        self.check_type_constraint(origin, cause, relation, source, target)?;
 
-        match check {
-            CheckOutcome::Holds => Ok(()),
-            CheckOutcome::Fails(failure) => {
-                self.record_failure(cause, relation, None, source, target, failure)?;
-
-                Ok(())
-            }
-        }
+        Ok(())
     }
 
-    /// Check one type constraint and return the completed result.
+    /// Check one type constraint through the queue and return its result so far.
     pub(in crate::sema) fn check_type_constraint(
         &mut self,
         origin: Origin,
@@ -57,10 +49,16 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<CheckOutcome> {
-        let holds = self.constrain_type(origin, cause, relation, source, target)?;
-        let check = self.complete_constraint_check(relation, source, target, holds)?;
+        // collect the relation and read whatever it decided in place
+        let id = self.push_relation(RelationCheck::new(origin, relation, source, target, cause))?;
+        let outcome = match self.fulfill.checks.result(id)? {
+            // take the decided outcome
+            Some(outcome) => *outcome,
+            // leave an undecided relation to the queue
+            None => CheckOutcome::Pending,
+        };
 
-        Ok(check)
+        Ok(outcome)
     }
 
     /// Return the completed check for one closed constraint.
@@ -69,11 +67,16 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-        holds: bool,
+        verdict: Verdict,
     ) -> CompilerResult<CheckOutcome> {
+        // complete an undecided relation through the queue
+        if verdict == Verdict::Ambiguous {
+            return Ok(CheckOutcome::Pending);
+        }
+
         // property relations explain themselves through their first bad field
         let is_property_relation = matches!(relation, Relation::Assignable | Relation::Satisfies);
-        let check = match (holds, is_property_relation) {
+        let check = match (verdict.holds(), is_property_relation) {
             // complete successful relations
             (true, _) => CheckOutcome::Holds,
             // report a failed non-property relation as the relation failure
@@ -85,15 +88,22 @@ impl CheckState<'_> {
                     self.ty(source)?,
                     dir::Type::Application(_) | dir::Type::Reference(_)
                 );
+                // blame the first missing key
                 if let Some(key) = self.first_missing_struct_field(source, target)? {
                     CheckOutcome::Fails(CheckFailure::MissingRequiredProperty { key })
-                } else if let Some(key) = self.first_excess_struct_field(source, target)? {
+                }
+                // blame the first excess key
+                else if let Some(key) = self.first_excess_struct_field(source, target)? {
                     CheckOutcome::Fails(CheckFailure::ExcessProperty { key })
-                } else if is_nominal_source
+                }
+                // blame the writable index signature a nominal source misses
+                else if is_nominal_source
                     && let Some(signature) = self.first_writable_index_signature(target)?
                 {
                     CheckOutcome::Fails(CheckFailure::WritableIndexRequiresIndexSet { signature })
-                } else {
+                }
+                // fall back to the relation itself
+                else {
                     CheckOutcome::Fails(CheckFailure::Relation)
                 }
             }
@@ -102,7 +112,7 @@ impl CheckState<'_> {
         Ok(check)
     }
 
-    /// Constrain one relation between two types, bounding open variables.
+    /// Constrain one relation between two types, binding through open variables.
     pub(in crate::sema) fn constrain_type(
         &mut self,
         origin: Origin,
@@ -110,40 +120,12 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let holds = self.constrain_type_pair(origin, cause, relation, source, target)?;
-
-        Ok(holds)
-    }
-
-    /// Constrain one relation, binding through open variables, where ambiguity is a verdict.
-    pub(in crate::sema) fn constrain_relation(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        let holds = self.constrain_type(origin, cause, relation, source, target)?;
-
-        self.verdict(holds, origin, relation, source, target)
-    }
-
-    /// Constrain one resolved pair.
-    fn constrain_type_pair(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
         // substitute solved variables before comparing
         let source = self.shallow_resolve(source)?;
         let target = self.shallow_resolve(target)?;
         if source == target {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
 
         // identity mapped targets over an open variable bind it whole
@@ -160,7 +142,7 @@ impl CheckState<'_> {
             (Some(source_variable), Some(target_variable), Relation::Equal) => {
                 self.alias_variable(source_variable, target_variable)?;
 
-                Ok(true)
+                Ok(Verdict::Holds)
             }
             // unify one open side with a closed type, or record the equation as a bound
             (Some(variable), None, Relation::Equal) => {
@@ -170,8 +152,9 @@ impl CheckState<'_> {
                     self.push_upper_bound(variable, origin, cause, target, Relation::Equal)?;
                 }
 
-                Ok(true)
+                Ok(Verdict::Holds)
             }
+            // unify one open target the same way
             (None, Some(variable), Relation::Equal) => {
                 if self.type_variables(source)?.is_empty() {
                     self.commit_solution(variable, source)?;
@@ -179,37 +162,32 @@ impl CheckState<'_> {
                     self.push_lower_bound(variable, origin, cause, source, Relation::Equal)?;
                 }
 
-                Ok(true)
+                Ok(Verdict::Holds)
             }
             // directed relations bound open sides directionally
-            (
-                Some(_),
-                Some(variable),
-                Relation::Assignable | Relation::Widens | Relation::Castable,
-            ) => {
+            (source_variable @ Some(_), target_variable, relation)
+            | (source_variable, target_variable @ Some(_), relation)
+                if relation.is_directed() =>
+            {
+                if let Some(variable) = target_variable {
+                    self.push_lower_bound(variable, origin, cause, source, relation)?;
+                } else if let Some(variable) = source_variable {
+                    self.push_upper_bound(variable, origin, cause, target, relation)?;
+                }
+
+                Ok(Verdict::Holds)
+            }
+            // bound an open target from below
+            (None, Some(variable), Relation::Satisfies) => {
                 self.push_lower_bound(variable, origin, cause, source, relation)?;
 
-                Ok(true)
+                Ok(Verdict::Holds)
             }
-            (Some(variable), _, Relation::Assignable | Relation::Widens | Relation::Castable) => {
-                self.push_upper_bound(variable, origin, cause, target, relation)?;
-
-                Ok(true)
-            }
-            (
-                None,
-                Some(variable),
-                Relation::Assignable | Relation::Widens | Relation::Castable | Relation::Satisfies,
-            ) => {
-                self.push_lower_bound(variable, origin, cause, source, relation)?;
-
-                Ok(true)
-            }
-            // constraint relations restrict the open source without choosing it
+            // restrict an open source with the constraint as an upper bound
             (Some(variable), _, Relation::Satisfies) => {
                 self.push_upper_bound(variable, origin, cause, target, relation)?;
 
-                Ok(true)
+                Ok(Verdict::Holds)
             }
             // check-only relations require both sides to be closed
             (Some(_), _, _) | (_, Some(_), _) => Err(CompilerError::Internal {
@@ -219,14 +197,16 @@ impl CheckState<'_> {
             }),
             // dispatch the shared decision matrix, binding through open children
             (None, None, _) => {
-                let holds = ensure_sufficient_stack(|| {
+                let verdict = ensure_sufficient_stack(|| {
                     self.relate_pair(origin, cause, relation, source, target)
                 })?;
-                if holds {
-                    return Ok(true);
+                if verdict.holds() {
+                    return Ok(Verdict::Holds);
                 }
 
-                self.constrain_stuck(origin, cause, relation, source, target)
+                let stuck = self.constrain_stuck(origin, cause, relation, source, target)?;
+
+                Ok(stuck.join_undecided(verdict))
             }
         }
     }
@@ -239,11 +219,11 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let reduced_source = self.structurally_normalize(origin, source)?;
         let reduced_target = self.structurally_normalize(origin, target)?;
         if reduced_source == source && reduced_target == target {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         }
 
         self.constrain_type(origin, cause, relation, reduced_source, reduced_target)
@@ -256,7 +236,7 @@ impl CheckState<'_> {
         cause: CauseId,
         relation: Relation,
         candidates: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // take a single alternative without speculative selection
         if let [candidate] = candidates {
             return self.constrain_type(origin, cause, relation, candidate.0, candidate.1);
@@ -268,7 +248,10 @@ impl CheckState<'_> {
         let mut is_indeterminate_ambiguous = false;
         for candidate in candidates.iter().copied() {
             let verdict = self.probe_candidate(|state| {
-                match state.constrain_type(origin, cause, relation, candidate.0, candidate.1)? {
+                match state
+                    .constrain_type(origin, cause, relation, candidate.0, candidate.1)?
+                    .holds()
+                {
                     true => Ok(CandidateOutcome::Accepted(())),
                     false => Ok(CandidateOutcome::Rejected(())),
                 }
@@ -284,26 +267,28 @@ impl CheckState<'_> {
 
         // disambiguate tied arms by matching constructors first
         if viables.len() > 1 {
-            let matching = viables
-                .iter()
-                .copied()
-                .filter(|(source, target)| {
-                    self.same_type_constructor(*source, *target)
-                        .unwrap_or(false)
-                })
-                .collect::<SmallVec<[_; 4]>>();
+            let mut matching = SmallVec::<[_; 4]>::new();
+            for (source, target) in viables.iter().copied() {
+                if self.same_type_constructor(source, target)? {
+                    matching.push((source, target));
+                }
+            }
             match matching.as_slice() {
+                // take the one arm whose constructors match
                 [matched] => viables = SmallVec::from_slice(&[*matched]),
+                // fall back to the one arm targeting a naked variable
                 [] => {
-                    let naked = viables
-                        .iter()
-                        .copied()
-                        .filter(|(_, target)| matches!(self.root_variable(*target), Ok(Some(_))))
-                        .collect::<SmallVec<[_; 4]>>();
+                    let mut naked = SmallVec::<[_; 4]>::new();
+                    for (source, target) in viables.iter().copied() {
+                        if self.root_variable(target)?.is_some() {
+                            naked.push((source, target));
+                        }
+                    }
                     if let [matched] = naked.as_slice() {
                         viables = SmallVec::from_slice(&[*matched]);
                     }
                 }
+                // keep several matching arms tied
                 _ => {}
             }
         }
@@ -329,11 +314,11 @@ impl CheckState<'_> {
                 .flat_map(|(source, target)| iter::once(*source).chain(iter::once(*target))),
         )?;
         if !open.is_empty() {
-            return Ok(false);
+            return Ok(Verdict::Ambiguous);
         }
 
-        // multiple closed arms all prove the same relation
-        Ok(!viables.is_empty())
+        // decide from the closed arms that proved the relation
+        Ok(Verdict::decided(!viables.is_empty()))
     }
 
     /// Return whether one pair shares its top type constructor.
@@ -355,6 +340,7 @@ impl CheckState<'_> {
             (dir::Type::Reference(source), dir::Type::Reference(target)) => {
                 Ok(source.symbol == target.symbol)
             }
+            (dir::Type::Primitive(source), dir::Type::Primitive(target)) => Ok(source == target),
             (source, target) => {
                 Ok(std::mem::discriminant(&source) == std::mem::discriminant(&target))
             }
@@ -366,6 +352,7 @@ impl CheckState<'_> {
         &self,
         types: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
+        // collect each referenced open variable once
         let mut variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
         for ty in types {
             for variable in self.type_variables(ty)? {
@@ -427,6 +414,7 @@ impl CheckState<'_> {
         match origin {
             Origin::Node(node, _) => Ok(node.local_id),
             Origin::Symbol(symbol) => {
+                // read a loaded module's own declaration node
                 if let Some(module) = self.module_maybe(symbol.module_id) {
                     return module.symbol_declaration_node(symbol.local_id);
                 }

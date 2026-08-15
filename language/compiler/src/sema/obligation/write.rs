@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    CheckState, ObligationCheck, ObligationFailure, Origin, WritableTargetObligation,
+    CheckState, ObligationCheck, ObligationFailure, Origin, Verdict, WritableTargetObligation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -228,8 +228,13 @@ impl CheckState<'_> {
         }
 
         // require a value that overwrites atomically for a shared receiver
-        if self.satisfies_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)? {
-            return Ok(ObligationCheck::holds());
+        match self.satisfies_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)? {
+            Verdict::Holds => return Ok(ObligationCheck::holds()),
+            // stall the obligation while an open variable leaves the rule undecided
+            Verdict::Ambiguous => {
+                return Ok(ObligationCheck::Ambiguous(self.open_type_variables([ty])?));
+            }
+            Verdict::Fails => {}
         }
 
         let failure = ObligationFailure::OverwriteStabilityNotSatisfied { source, ty };

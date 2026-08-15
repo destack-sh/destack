@@ -56,6 +56,11 @@ impl Relation {
         }
     }
 
+    /// Return whether this relation flows the source operand into the target operand.
+    pub(in crate::sema) fn is_directed(self) -> bool {
+        matches!(self, Self::Assignable | Self::Widens | Self::Castable)
+    }
+
     /// Return whether a union target accepts any successful element relation.
     pub(in crate::sema) fn distributes_over_union_target(self) -> bool {
         matches!(

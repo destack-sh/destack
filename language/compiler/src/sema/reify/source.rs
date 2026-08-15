@@ -571,18 +571,18 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         };
         let arguments = match call {
             dir::Call {
-                target: dir::CallTarget::Expression { generic_arguments },
+                target: dir::CallableTarget::Expression { generic_arguments },
                 ..
             }
             | dir::Call {
                 target:
-                    dir::CallTarget::Dynamic {
+                    dir::CallableTarget::Dynamic {
                         generic_arguments, ..
                     },
                 ..
             } => generic_arguments.as_slice(),
             dir::Call {
-                target: dir::CallTarget::Symbol { function, .. },
+                target: dir::CallableTarget::Symbol { function, .. },
                 ..
             } => function.generic_arguments.as_slice(),
         };

@@ -6,9 +6,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, ConditionBranch, Constraint, ControlTargetForm, Expectation,
-    ExpectedType, FlowSite, GeneratorTargets, InferMode, Obligation, Origin, PatternCoverage,
-    PatternCoverageObligation, PlaceUse, Relation, ValueUse, VariableRole, WalkState, Widening,
+    BodyState, Cause, CauseKind, ConditionBranch, ControlTargetForm, Expectation, ExpectedType,
+    FlowSite, GeneratorTargets, InferMode, Obligation, Origin, PatternCoverage,
+    PatternCoverageObligation, PlaceUse, Relation, RelationCheck, ValueUse, VariableRole,
+    WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -146,7 +147,7 @@ impl BodyState<'_, '_> {
                 site.origin(),
                 CauseKind::Return { annotation: None },
             ));
-            self.check.push_constraint(Constraint::r#type(
+            self.check.push_relation(RelationCheck::new(
                 site.origin(),
                 Relation::Assignable,
                 void,
@@ -215,7 +216,7 @@ impl BodyState<'_, '_> {
                     let cause = self
                         .check
                         .intern_cause(Cause::root(site.origin(), CauseKind::Expression));
-                    self.check.push_constraint(Constraint::r#type(
+                    self.check.push_relation(RelationCheck::new(
                         site.origin(),
                         Relation::Assignable,
                         void,
@@ -362,7 +363,7 @@ impl BodyState<'_, '_> {
             let cause = self
                 .check
                 .intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.check.push_constraint(Constraint::r#type(
+            self.check.push_relation(RelationCheck::new(
                 origin,
                 Relation::Equal,
                 result,
@@ -497,7 +498,7 @@ impl BodyState<'_, '_> {
                             site.origin(),
                             CauseKind::Return { annotation: None },
                         ));
-                        self.check.push_constraint(Constraint::r#type(
+                        self.check.push_relation(RelationCheck::new(
                             site.origin(),
                             Relation::Assignable,
                             void,

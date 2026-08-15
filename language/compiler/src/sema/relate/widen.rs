@@ -54,7 +54,9 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                absorbed = self.evaluate_relation(origin, Relation::Assignable, bound, other)?;
+                absorbed = self
+                    .evaluate_relation(origin, Relation::Assignable, bound, other)?
+                    .holds();
                 if absorbed {
                     break;
                 }
@@ -148,7 +150,9 @@ impl CheckState<'_> {
             for (other_bound, other_value, other_borrow) in borrows.iter().copied().skip(index + 1)
             {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                let payloads_equal = self.relate_equal(origin, cause, value, other_value)?;
+                let payloads_equal = self
+                    .relate_equal(origin, cause, value, other_value)?
+                    .holds();
                 let accesses_equal = self.ty(borrow.access)? == self.ty(other_borrow.access)?;
                 if payloads_equal && accesses_equal {
                     consumed.push(other_bound);

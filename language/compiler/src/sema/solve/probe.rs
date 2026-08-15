@@ -3,8 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    BodyState, CheckEvent, CheckOutcome, CheckState, ConstraintId, PendingWork, Settle, TrailMark,
-    WorkState,
+    BodyState, Check, CheckEvent, CheckId, CheckOutcome, CheckState, Settle, TrailMark, WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -59,8 +58,6 @@ pub(in crate::sema) struct ProbeMark {
     symbol_variables: usize,
     /// The contextual expected type count before the probe.
     expected_types: usize,
-    /// The pending work count before the probe.
-    pending: usize,
     /// The event count before the probe.
     events: usize,
     /// The failed check count before the probe.
@@ -105,45 +102,51 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<CandidateAttempt<T, R>> {
         let outcome = attempt(self)?;
 
-        // solve the attempt's queued constraints before the verdict
-        let mut has_failed_constraint = false;
+        // solve the attempt's queued relation checks before the verdict
+        let mut has_failed_relation = false;
         if fulfill {
             // fulfill the candidate's own scope to a fixpoint
             let scope = mark.trail.inference_scope();
             self.check.fulfill_scope(scope, Settle::Complete)?;
 
             // re-solve the stalled pending set, not only fresh allocations
-            let pending = self
+            let mut relations: Vec<CheckId> = Vec::new();
+            for (id, check) in self.check.fulfill.checks.iter() {
+                let is_open = self.check.fulfill.checks.state(id) != WorkState::Done;
+                if is_open && matches!(check, Check::Relation(_)) {
+                    relations.push(id);
+                }
+            }
+            for (id, check) in self
                 .check
                 .fulfill
-                .work
+                .checks
                 .iter()
-                .filter_map(|work| match (work.state, work.kind) {
-                    (WorkState::Done, _) => None,
-                    (_, PendingWork::Constraint(id)) => Some(id),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            let fresh = mark.trail.constraint_count()..self.check.fulfill.constraint_count();
-            for id in pending.into_iter().chain(fresh.map(ConstraintId::at)) {
-                self.check.solve_constraint(id, Settle::Complete)?;
-                if let Some(result) = self.check.fulfill.constraints.result(id)? {
-                    has_failed_constraint |= matches!(result.outcome, CheckOutcome::Fails(_));
+                .skip(mark.trail.check_count())
+            {
+                if matches!(check, Check::Relation(_)) && !relations.contains(&id) {
+                    relations.push(id);
+                }
+            }
+            for id in relations {
+                self.check.solve_relation(id, Settle::Complete)?;
+                if let Some(outcome) = self.check.fulfill.checks.result(id)? {
+                    has_failed_relation |= matches!(outcome, CheckOutcome::Fails(_));
                 }
             }
         }
 
-        // reject the attempt when a constraint it solved failed
+        // reject the attempt when a relation check it solved failed
         let has_failure = self
             .check
             .fulfill
-            .constraints
-            .failures_from(mark.trail.constraint_count())
+            .checks
+            .relation_failures_from(mark.trail.check_count())
             .next()
             .is_some()
             || self.check.fulfill.failures.len() > mark.failures;
 
-        if has_failure || has_failed_constraint {
+        if has_failure || has_failed_relation {
             Ok(CandidateAttempt::Failed)
         } else {
             Ok(CandidateAttempt::Outcome(outcome))
@@ -336,8 +339,8 @@ impl CheckState<'_> {
         let scope = mark.trail.inference_scope();
         let has_failure = self
             .fulfill
-            .constraints
-            .failures_from(mark.trail.constraint_count())
+            .checks
+            .relation_failures_from(mark.trail.check_count())
             .next()
             .is_some()
             || self.fulfill.failures.len() > mark.failures;
@@ -388,7 +391,6 @@ impl CheckState<'_> {
             binding_types: self.binding_types.len(),
             symbol_variables: self.infer.symbol_variables.len(),
             expected_types: self.expected_types.open_probe(),
-            pending: self.fulfill.work.len(),
             events: self.trace_events().len(),
             failures: self.fulfill.failures.len(),
             modules,
@@ -408,7 +410,6 @@ impl CheckState<'_> {
             binding_types,
             symbol_variables,
             expected_types,
-            pending,
             events,
             failures,
             modules,
@@ -435,8 +436,7 @@ impl CheckState<'_> {
         }
         self.expected_types.close_probe(expected_types);
 
-        // cancel the probe's pending work, drop its trace events and failures
-        self.fulfill.cancel_work_from(pending);
+        // drop the probe's trace events and failures
         if let Some(trace) = &mut self.trace {
             trace.events.truncate(events);
         }

@@ -145,13 +145,15 @@ impl BodyState<'_, '_> {
                     && let Some(conversion) =
                         state.borrow_conversion(origin, receiver.ty, this_parameter)?
                 {
-                    let acquired = state.constrain_borrow(
-                        origin,
-                        cause,
-                        Relation::Assignable,
-                        receiver,
-                        &conversion,
-                    )?;
+                    let acquired = state
+                        .constrain_borrow(
+                            origin,
+                            cause,
+                            Relation::Assignable,
+                            receiver,
+                            &conversion,
+                        )?
+                        .holds();
 
                     return match acquired {
                         true => {
@@ -168,13 +170,16 @@ impl BodyState<'_, '_> {
                 }
 
                 // otherwise relate the current receiver without acquiring storage
-                match state.constrain_type(
-                    origin,
-                    cause,
-                    Relation::Assignable,
-                    receiver.ty,
-                    this_parameter,
-                )? {
+                match state
+                    .constrain_type(
+                        origin,
+                        cause,
+                        Relation::Assignable,
+                        receiver.ty,
+                        this_parameter,
+                    )?
+                    .holds()
+                {
                     true => Ok(CandidateOutcome::Accepted(None)),
                     false => Ok(CandidateOutcome::Rejected(())),
                 }

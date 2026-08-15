@@ -1,9 +1,7 @@
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
-use crate::sema::{
-    CheckState, ConstraintId, ExpectedType, ObligationId, Origin, Relation, TypeBound, Widening,
-};
+use crate::sema::{CheckId, CheckState, ExpectedType, Origin, Relation, TypeBound, Widening};
 
 /// Rendering context for check trace values.
 pub(in crate::sema) struct DumpContext<'a, 'b> {
@@ -17,14 +15,9 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         Self { check }
     }
 
-    /// Return a compact constraint id label.
-    pub(in crate::sema) fn constraint_label(&self, id: ConstraintId) -> String {
-        format!("c{}", id.index())
-    }
-
-    /// Return a compact obligation id label.
-    pub(in crate::sema) fn obligation_label(&self, id: ObligationId) -> String {
-        format!("o{}", id.index())
+    /// Return a compact check id label.
+    pub(in crate::sema) fn check_label(&self, id: CheckId) -> String {
+        format!("k{}", id.index())
     }
 
     /// Return a compact type variable label.

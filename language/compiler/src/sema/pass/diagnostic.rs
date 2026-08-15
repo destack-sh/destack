@@ -4,14 +4,12 @@ use destack_artifact::{
 };
 use destack_core::{StringId, StringPool};
 
-use crate::sema::{CheckError, CheckState, CheckWarning};
+use crate::sema::{Check, CheckError, CheckState, CheckWarning};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Collect final diagnostics for one checked module.
-    pub(in crate::sema) fn collect_diagnostics(
-        &mut self,
-    ) -> CompilerResult<Vec<DiagnosticRecord>> {
+    pub(in crate::sema) fn collect_diagnostics(&mut self) -> CompilerResult<Vec<DiagnosticRecord>> {
         let modules = [self.module_id];
         let mut errors = Vec::<DiagnosticBuilder<CheckError>>::new();
         let mut warnings = Vec::<DiagnosticBuilder<CheckWarning>>::new();
@@ -22,14 +20,17 @@ impl CheckState<'_> {
             warnings.append(&mut self.module_mut(module).warnings);
         }
 
-        // reject unsettled constraints outside declarations
+        // reject unsettled relation checks outside declarations
         if !self.is_declaration() {
-            for (id, constraint) in self.fulfill.constraints.iter() {
-                if !self.fulfill.constraints.is_complete(id) {
+            for (id, check) in self.fulfill.checks.iter() {
+                let Check::Relation(relation) = check else {
+                    continue;
+                };
+                if !self.fulfill.checks.is_complete(id) {
                     return Err(CompilerError::Internal {
                         message: format!(
-                            "checked write found the unsettled constraint {:?} at {:?}",
-                            id, constraint.origin,
+                            "checked write found the unsettled relation check {:?} at {:?}",
+                            id, relation.origin,
                         ),
                     });
                 }

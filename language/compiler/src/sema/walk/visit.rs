@@ -6,8 +6,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::sema::{
-    Cause, CauseKind, CheckState, Constraint, GenericTemplateId, InferMode, Obligation, Origin,
-    PlaceUse, Relation, TemplatePass, TypeSubstitution, WalkState, WellFormedTypeObligation,
+    Cause, CauseKind, CheckState, GenericTemplateId, InferMode, Obligation, Origin, PlaceUse,
+    Relation, RelationCheck, TemplatePass, TypeSubstitution, WalkState, WellFormedTypeObligation,
 };
 
 impl CheckState<'_> {
@@ -86,21 +86,34 @@ impl CheckState<'_> {
             })?;
         }
 
-        // check function bodies in declaration order, including bodies discovered while checking
+        // check function and member block bodies in discovery order
         let mut next_body = 0;
+        let mut next_block = 0;
         loop {
             let function = walk
                 .check
                 .functions
                 .get_index(next_body)
                 .map(|(_, function)| function.clone());
-            let Some(function) = function else {
+            if let Some(function) = function {
+                next_body += 1;
+                walk.check
+                    .with_scope(|check| function.check(check, InferMode::Exact, None))?;
+                walk.flush_flows()?;
+
+                continue;
+            }
+
+            // type queued member blocks like module roots
+            let Some(block) = walk.check.blocks.get(next_block).copied() else {
                 break;
             };
-            next_body += 1;
-
-            walk.check
-                .with_scope(|check| function.check(check, InferMode::Exact, None))?;
+            next_block += 1;
+            walk.check.with_scope(|check| {
+                let site = check.visit_site(block)?;
+                let mut body = check.body();
+                body.attempt_node(site, PlaceUse::Read, None)
+            })?;
             walk.flush_flows()?;
         }
 
@@ -284,7 +297,7 @@ impl CheckState<'_> {
                 .unwrap_or(source);
             let origin = Origin::Node(argument_source, scope);
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
-            self.push_constraint(Constraint::generic_bound(
+            self.push_relation(RelationCheck::generic_bound(
                 origin,
                 argument,
                 constraint,
@@ -303,7 +316,7 @@ impl CheckState<'_> {
             let right = self.substitute_type(predicate.right, &substitution)?;
             let origin = Origin::Node(source, scope);
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.push_constraint(Constraint::r#type(
+            self.push_relation(RelationCheck::new(
                 origin,
                 Relation::Satisfies,
                 left,

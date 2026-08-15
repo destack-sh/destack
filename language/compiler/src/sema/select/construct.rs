@@ -249,7 +249,7 @@ impl BodyState<'_, '_> {
         for constraint in
             self.substitute_application_constraints(origin, template, &substitution)?
         {
-            self.check.push_constraint(constraint)?;
+            self.check.push_relation(constraint)?;
         }
 
         // apply the instantiated arguments to the nominal head

@@ -1,6 +1,6 @@
 mod bound;
 mod cause;
-mod constraint;
+mod check;
 mod decision;
 mod fulfill;
 mod probe;
@@ -13,7 +13,7 @@ mod writeback;
 
 pub(in crate::sema) use bound::*;
 pub(in crate::sema) use cause::*;
-pub(in crate::sema) use constraint::*;
+pub(in crate::sema) use check::*;
 pub(in crate::sema) use fulfill::*;
 pub(in crate::sema) use probe::*;
 pub(in crate::sema) use relation::*;

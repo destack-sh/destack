@@ -25,8 +25,7 @@ pub(in crate::sema) struct FlowState {
     /// Places definitely assigned at the current flow point.
     pub(in crate::sema::flow) assigned: FxIndexSet<AssignedPlace>,
     /// Flow narrowings keyed by static path.
-    pub(in crate::sema::flow) narrowings:
-        FxIndexMap<dir::AccessPath, SmallVec<[FlowPredicate; 2]>>,
+    pub(in crate::sema::flow) narrowings: FxIndexMap<dir::AccessPath, SmallVec<[FlowPredicate; 2]>>,
     /// Jumps that bound no target and complete as statements.
     unbound_jumps: FxIndexSet<dir::LocalNodeIdAny>,
 

@@ -649,10 +649,16 @@ impl WalkState<'_, '_> {
             dir::Member::StaticBlock { body } | dir::Member::ConstBlock { body } => {
                 let body = *body;
 
-                // check member blocks in declaration context
-                let before_body = self.fork_flow();
-                self.walk_expression(body, self.tree.get(body))?;
-                self.restore_flow(before_body);
+                // queue the block interior to type after the current body completes
+                if self.check.is_checking() {
+                    self.check.blocks.push(body.into_global_any(self.module));
+                }
+                // walk member blocks in declaration context while declaring
+                else {
+                    let before_body = self.fork_flow();
+                    self.walk_expression(body, self.tree.get(body))?;
+                    self.restore_flow(before_body);
+                }
 
                 Ok(None)
             }

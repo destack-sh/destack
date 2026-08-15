@@ -5,9 +5,9 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::sema::infer::InferMode;
 use crate::sema::{
-    BodyState, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome, Constraint,
-    Expectation, Origin, ReceiverSteps, Relation, TypeArgumentInference, TypeSubstitution, Value,
-    ValueUse, Verdict,
+    BodyState, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
+    Expectation, Origin, ReceiverSteps, Relation, RelationCheck, TypeArgumentInference,
+    TypeSubstitution, Value, ValueUse, Verdict,
 };
 
 /// Callable signature accepted for an invocation.
@@ -108,7 +108,7 @@ impl SignatureSelection {
         // dispatch directly on a value receiver, dynamically on an erased one
         let generic_arguments = self.generic_arguments.clone();
         let target = match receiver {
-            dir::MemberReceiver::Direct(receiver) => dir::CallTarget::Symbol {
+            dir::MemberReceiver::Direct(receiver) => dir::CallableTarget::Symbol {
                 function: dir::FunctionTarget {
                     receiver: Some(receiver),
                     generic_scope: Some(owner),
@@ -117,7 +117,7 @@ impl SignatureSelection {
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },
-            dir::MemberReceiver::Dynamic(dispatch) => dir::CallTarget::Dynamic {
+            dir::MemberReceiver::Dynamic(dispatch) => dir::CallableTarget::Dynamic {
                 dispatch,
                 function: dir::DynamicFunction::Symbol(symbol),
                 generic_arguments,
@@ -677,7 +677,8 @@ impl BodyState<'_, '_> {
                     expectation.use_,
                     expectation.mode,
                 )?;
-                if !converted.outcome.is_holds() {
+                // leave a pending expectation to the queue after commitment
+                if matches!(converted.outcome, CheckOutcome::Fails(_)) {
                     is_return_mismatch = true;
                 }
             }
@@ -722,7 +723,7 @@ impl BodyState<'_, '_> {
             }
 
             // collect the callable and owner template constraints
-            let mut bounds = SmallVec::<[Constraint; 4]>::new();
+            let mut bounds = SmallVec::<[RelationCheck; 4]>::new();
             if let Some(template) = function.template {
                 bounds.extend(self.substitute_application_constraints(
                     origin,
@@ -743,12 +744,12 @@ impl BodyState<'_, '_> {
 
             // queue obligations, rejecting on decided failures only
             for bound in bounds {
-                let id = self.check.push_constraint(bound)?;
-                let Some(result) = self.check.fulfill.constraints.result(id)? else {
+                let id = self.check.push_relation(bound)?;
+                let Some(outcome) = self.check.fulfill.checks.result(id)?.copied() else {
                     continue;
                 };
 
-                if let CheckOutcome::Fails(failure) = result.outcome {
+                if let CheckOutcome::Fails(failure) = outcome {
                     rejection = Some(SignatureRejection::Mismatch {
                         verdict: self.check.verdict(
                             false,

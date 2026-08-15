@@ -1,28 +1,12 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::{CompilerError, CompilerResult};
+use crate::CompilerResult;
 
 use crate::sema::{
-    AssignmentSelection, CheckEvent, CheckState, ExpectedType, GenericTemplateId, Origin,
-    PendingWork, Variance,
+    AssignmentSelection, Check, CheckEvent, CheckId, CheckState, ExpectedType, GenericTemplateId,
+    Origin, Variance,
 };
-
-/// Component-global id of one collected obligation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::sema) struct ObligationId(u32);
-
-impl ObligationId {
-    /// Return the obligation id at one index.
-    pub(in crate::sema) fn at(index: usize) -> Self {
-        Self(index as u32)
-    }
-
-    /// Return the obligation index.
-    pub(in crate::sema) fn index(self) -> usize {
-        self.0 as usize
-    }
-}
 
 /// One active match arm used for coverage.
 ///
@@ -648,76 +632,26 @@ pub(in crate::sema) struct ObligationEntry {
     pub(in crate::sema) scope: Option<GenericTemplateId>,
 }
 
-/// Collected obligations in allocation order.
-#[derive(Debug, Clone)]
-pub(in crate::sema) struct ObligationTable {
-    /// The collected obligations indexed by obligation id.
-    obligations: Vec<ObligationEntry>,
-}
-
-impl ObligationTable {
-    /// Create an empty obligation table.
-    pub(in crate::sema) fn new() -> Self {
-        Self {
-            obligations: Vec::new(),
-        }
-    }
-
-    /// Append one obligation at the next id.
-    pub(in crate::sema) fn insert(&mut self, id: ObligationId, entry: ObligationEntry) {
-        debug_assert_eq!(self.obligations.len(), id.index());
-        self.obligations.push(entry);
-    }
-
-    /// Truncate obligations undone by one probe rollback.
-    pub(in crate::sema) fn truncate(&mut self, count: usize) {
-        self.obligations.truncate(count);
-    }
-
-    /// Return one collected obligation.
-    pub(in crate::sema) fn get(&self, id: ObligationId) -> CompilerResult<&ObligationEntry> {
-        self.obligations
-            .get(id.index())
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("check obligation {id:?} does not exist"),
-            })
-    }
-
-    /// Return the number of collected obligations.
-    pub(in crate::sema) fn count(&self) -> usize {
-        self.obligations.len()
-    }
-}
-
 impl CheckState<'_> {
     /// Collect one obligation under one assuming scope.
     pub(in crate::sema) fn push_obligation(
         &mut self,
         obligation: Obligation,
         scope: Option<GenericTemplateId>,
-    ) -> ObligationId {
+    ) -> CheckId {
         let entry = ObligationEntry { obligation, scope };
-        let id = self.fulfill.allocate_obligation(entry);
-        self.fulfill.register_work(PendingWork::Obligation(id));
 
-        id
+        self.register_check(Check::Declared(entry))
     }
 
     /// Check one obligation once, returning its failures.
     pub(in crate::sema) fn run_obligation(
         &mut self,
-        id: ObligationId,
+        id: CheckId,
+        entry: &ObligationEntry,
     ) -> CompilerResult<Option<SmallVec<[dir::TypeVariableId; 2]>>> {
-        // body obligations judge checked nodes: only check runs them
-        if !self.is_checking() {
-            return Ok(None);
-        }
-
-        // copy the obligation for the borrow-free check
-        let entry = self.fulfill.obligations.get(id)?.clone();
         let origin = Origin::Node(entry.obligation.source(), entry.scope);
-        let obligation = entry.obligation;
-        let check = self.check_obligation(origin, &obligation)?;
+        let check = self.check_obligation(origin, &entry.obligation)?;
 
         // stall the obligation while its variables stay open
         if let ObligationCheck::Ambiguous(stalls) = check {
@@ -728,8 +662,8 @@ impl CheckState<'_> {
         for failure in check.into_failures() {
             self.report_obligation_failure(failure)?;
         }
-        self.record_event(CheckEvent::ObligationChecked {
-            obligation: id,
+        self.record_event(CheckEvent::Checked {
+            check: id,
             is_finished: true,
         });
 

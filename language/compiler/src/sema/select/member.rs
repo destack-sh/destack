@@ -7,8 +7,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, CheckState, DeferredCheck,
-    FlowSite, InferMode, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation, SignatureMatch,
+    BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Check, CheckState, FlowSite,
+    InferMode, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation, SelectionCheck,
+    SignatureMatch, TypeSubstitution, Value, ValueUse, VariableRole, Widening,
     TypeSubstitution, Value, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
@@ -1371,11 +1372,11 @@ impl BodyState<'_, '_> {
         }
 
         // re-select once the receiver's variable solves
-        self.check.register_check(DeferredCheck::Infer {
+        self.check.register_check(Check::Selection(SelectionCheck {
             site,
             use_: PlaceUse::Read,
             stalled_on: Some(stalled_on),
-        });
+        }));
 
         Ok(())
     }
@@ -2104,8 +2105,11 @@ impl BodyState<'_, '_> {
             return Ok(true);
         }
 
-        // copied values carry no view to project
-        if self.satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)? {
+        // project no view from a copied value, keeping the view while the copy is undecided
+        if self
+            .satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)?
+            .holds()
+        {
             return Ok(false);
         }
 

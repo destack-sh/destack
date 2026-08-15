@@ -76,8 +76,9 @@ impl CheckState<'_> {
                         self.intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
                             target: index.left,
                         }))?;
-                    let proven =
-                        self.evaluate_relation(origin, Relation::Satisfies, index.index, keys)?;
+                    let proven = self
+                        .evaluate_relation(origin, Relation::Satisfies, index.index, keys)?
+                        .holds();
                     if proven {
                         return Ok(ObligationCheck::holds());
                     }

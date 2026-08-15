@@ -224,6 +224,8 @@ pub(in crate::sema) struct CheckState<'a> {
     // body driver state
     /// Named function bodies keyed by their declaration symbol.
     pub(in crate::sema) functions: FxIndexMap<dir::GlobalSymbolId, FunctionBody>,
+    /// Member block bodies discovered while checking, in discovery order.
+    pub(in crate::sema) blocks: Vec<dir::GlobalNodeIdAny>,
     /// Lambda bodies keyed by their value expression.
     pub(in crate::sema) lambdas: FxIndexMap<dir::GlobalNodeIdAny, FunctionBody>,
 
@@ -337,6 +339,7 @@ impl<'a> CheckState<'a> {
             walking_declarations: Vec::new(),
             deciding_extensions: FxIndexSet::default(),
             functions: FxIndexMap::default(),
+            blocks: Vec::new(),
             lambdas: FxIndexMap::default(),
             trace: CheckTrace::new(emit_events, should_stream_check_events()),
         };
@@ -686,12 +689,22 @@ impl CheckState<'_> {
             child_flags |= self.type_operation(module, operation)?.own_flags();
         }
 
-        // keep written alias applications intact, consumers normalize on demand
+        // keep written alias and collection applications intact, normalizing them lazily
         let is_written_alias = match &ty {
-            dir::Type::Application(instance) => matches!(
-                self.definition(instance.symbol)?,
-                Some(dir::Definition::TypeAlias(_))
-            ),
+            dir::Type::Application(instance) => {
+                matches!(
+                    self.definition(instance.symbol)?,
+                    Some(dir::Definition::TypeAlias(_))
+                ) || matches!(
+                    self.language_item(instance.symbol)?,
+                    Some(
+                        dir::LanguageItem::Array
+                            | dir::LanguageItem::Slice
+                            | dir::LanguageItem::FixedArray
+                            | dir::LanguageItem::Dynamic
+                    )
+                )
+            }
             _ => false,
         };
 

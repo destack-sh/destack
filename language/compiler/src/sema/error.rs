@@ -1857,6 +1857,27 @@ pub enum CheckError {
         parameter: String,
     },
 
+    /// A reference to an overload group materializes without a selecting call.
+    ///
+    /// ```ds
+    /// function parse(value: int32): int32 {}
+    /// function parse(value: string): string {}
+    ///
+    /// const parser = parse;
+    /// ```
+    #[diagnostic(
+        id = "ambiguous-overload",
+        message = "overload '{name}' is ambiguous without a call"
+    )]
+    AmbiguousOverload {
+        /// Report the referencing expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The referenced overloaded name.
+        name: String,
+    },
+
     /// Range endpoints carry different element types.
     ///
     /// ```ds

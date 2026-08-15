@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Constraint, Expectation, FlowSite,
-    InferMode, Origin, PlaceUse, Relation, ValueCheck, ValueUse, VariableRole, Widening,
+    BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Expectation, FlowSite, InferMode,
+    Origin, PlaceUse, Relation, RelationCheck, ValueCheck, ValueUse, VariableRole, Widening,
 };
 
 impl BodyState<'_, '_> {
@@ -98,7 +98,7 @@ impl BodyState<'_, '_> {
                     Origin::Node(*source, site.scope),
                     CauseKind::Expression,
                 ));
-                self.push_constraint(Constraint::r#type(
+                self.push_relation(RelationCheck::new(
                     Origin::Node(*source, site.scope),
                     Relation::Assignable,
                     *value,
@@ -118,7 +118,7 @@ impl BodyState<'_, '_> {
                 Origin::Node(value.into_global_any(module), site.scope),
                 CauseKind::Expression,
             ));
-            self.push_constraint(Constraint::r#type(
+            self.push_relation(RelationCheck::new(
                 Origin::Node(value.into_global_any(module), site.scope),
                 Relation::Assignable,
                 item,

@@ -179,6 +179,14 @@ impl CheckState<'_> {
             _ => SmallVec::from_slice(&[left]),
         };
 
+        // defer an open tested conditional until its variables solve
+        if !self
+            .open_type_variables([left, conditional.right])?
+            .is_empty()
+        {
+            return Ok(None);
+        }
+
         // collect infer binders declared by the extends pattern
         let binders = self.collect_infer_binders(conditional.right)?;
 
@@ -238,7 +246,9 @@ impl CheckState<'_> {
         then_type: dir::GlobalTypeId,
         else_type: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let extends = self.evaluate_relation(origin, Relation::Extends, left, right)?;
+        let extends = self
+            .evaluate_relation(origin, Relation::Extends, left, right)?
+            .holds();
 
         Ok(if extends { then_type } else { else_type })
     }
@@ -365,7 +375,9 @@ impl CheckState<'_> {
             let constraint = infer.constraint;
 
             if let Some(constraint) = constraint
-                && !self.evaluate_relation(origin, Relation::Extends, actual, constraint)?
+                && !self
+                    .evaluate_relation(origin, Relation::Extends, actual, constraint)?
+                    .holds()
             {
                 return Ok(false);
             }
@@ -381,6 +393,18 @@ impl CheckState<'_> {
         let actual_module = actual.module_id;
         let pattern_type = self.ty(pattern)?;
         let actual_type = self.ty(actual)?;
+
+        // admit a mutable actual under a readonly pattern through the identity view
+        if let dir::Type::Form(pattern_form) = pattern_type
+            && pattern_form.form == dir::Form::Readonly
+            && !matches!(
+                actual_type,
+                dir::Type::Form(actual_form) if actual_form.form == dir::Form::Readonly
+            )
+        {
+            return self.match_infer_type(origin, captures, variance, pattern_form.value, actual);
+        }
+
         match (pattern_type, actual_type) {
             // template patterns split the actual text into span captures
             (
@@ -549,7 +573,11 @@ impl CheckState<'_> {
             (dir::Type::Form(pattern), dir::Type::Form(actual)) if pattern.form == actual.form => {
                 self.match_infer_type(origin, captures, variance, pattern.value, actual.value)
             }
-            _ => self.evaluate_relation(origin, Relation::Extends, actual, pattern),
+            _ => {
+                let verdict = self.evaluate_relation(origin, Relation::Extends, actual, pattern)?;
+
+                Ok(verdict.holds())
+            }
         }
     }
 

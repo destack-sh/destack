@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, Origin};
-use crate::{CompilerError, CompilerResult};
+use crate::CompilerResult;
+use crate::sema::{CheckState, Origin, Verdict};
 
 impl CheckState<'_> {
     /// Decide whether one type duplicates implicitly without ownership.
@@ -12,18 +12,18 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // use bounds declared by generic types
         if let Some(decision) =
             self.decide_generic_auto_interface(origin, ty, dir::AutoInterface::Copy)?
         {
-            return Ok(decision);
+            return Ok(Verdict::decided(decision));
         }
 
         // close recursive structural types coinductively
         let ty = self.shallow_resolve(ty)?;
         if active.contains(&ty) {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
         active.push(ty);
 
@@ -40,18 +40,18 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let kind = self.ty(ty)?;
 
         // decide explicit memory carriers before their payload types
         if let dir::Type::Form(form) = kind {
             return match form.form {
-                dir::Form::Managed | dir::Form::Raw | dir::Form::Readonly => Ok(true),
-                dir::Form::Owned => Ok(false),
+                dir::Form::Managed | dir::Form::Raw | dir::Form::Readonly => Ok(Verdict::Holds),
+                dir::Form::Owned => Ok(Verdict::Fails),
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
-                    self.body().access_is_readonly(access)
+                    Ok(Verdict::decided(self.body().access_is_readonly(access)?))
                 }
                 dir::Form::Placed { .. } => self.satisfies_copy(origin, form.value, active),
             };
@@ -59,14 +59,13 @@ impl CheckState<'_> {
 
         // managed defaults copy their compact runtime handles
         if self.default_ownership(origin, ty)? == Some(dir::Ownership::Managed) {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
 
         // decide the remaining structural forms
         match kind {
-            dir::Type::Variable(variable) => Err(CompilerError::Internal {
-                message: format!("unsolved type variable {variable:?} reached structural copy"),
-            }),
+            // leave an open variable undecided
+            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -86,7 +85,7 @@ impl CheckState<'_> {
             | dir::Type::FunctionPointer(_)
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
-            | dir::Type::Range(_) => Ok(true),
+            | dir::Type::Range(_) => Ok(Verdict::Holds),
             dir::Type::Variant(member) => self.satisfies_copy(origin, member.owner, active),
             dir::Type::Any
             | dir::Type::Unknown
@@ -96,9 +95,9 @@ impl CheckState<'_> {
             | dir::Type::FunctionSignature(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
-            | dir::Type::Reference(_) => Ok(false),
+            | dir::Type::Reference(_) => Ok(Verdict::Fails),
             dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
-                Err(CompilerError::Internal {
+                Err(crate::CompilerError::Internal {
                     message: format!("generic type {ty:?} reached structural copy"),
                 })
             }
@@ -141,7 +140,7 @@ impl CheckState<'_> {
         instance_module: ModuleId,
         instance: dir::GenericApplication,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // admit the copy capability and the scalar markers by definition
         let item = self.language_item(instance.symbol)?;
         if matches!(
@@ -149,11 +148,11 @@ impl CheckState<'_> {
             Some(dir::LanguageItem::Copy | dir::LanguageItem::Phantom)
         ) || item.is_some_and(|item| item.scalar_domain().is_some())
         {
-            return Ok(true);
+            return Ok(Verdict::Holds);
         }
 
         let Some(definition) = self.definition(instance.symbol)?.cloned() else {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         };
 
         match definition {
@@ -172,7 +171,7 @@ impl CheckState<'_> {
 
                 self.all_applied_copy(origin, instance_module, &instance, fields, active)
             }
-            dir::Definition::Enum(_) => Ok(true),
+            dir::Definition::Enum(_) => Ok(Verdict::Holds),
             dir::Definition::Newtype(definition) => self.all_applied_copy(
                 origin,
                 instance_module,
@@ -183,7 +182,7 @@ impl CheckState<'_> {
             dir::Definition::Class(_) | dir::Definition::Interface(_) => {
                 unreachable!("managed instances return before structural copy")
             }
-            dir::Definition::Extension(_) => Ok(false),
+            dir::Definition::Extension(_) => Ok(Verdict::Fails),
         }
     }
 
@@ -195,16 +194,18 @@ impl CheckState<'_> {
         instance: &dir::GenericApplication,
         ids: impl IntoIterator<Item = dir::GlobalTypeId>,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let substitution = self.instance_substitution(instance_module, instance)?;
+        let mut verdict = Verdict::Holds;
         for id in ids {
             let applied = self.substitute_type(id, &substitution)?;
-            if !self.satisfies_copy(origin, applied, active)? {
-                return Ok(false);
+            verdict = verdict.and(self.satisfies_copy(origin, applied, active)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Decide whether every type in one iterator is copyable.
@@ -213,13 +214,15 @@ impl CheckState<'_> {
         origin: Origin,
         ids: impl IntoIterator<Item = dir::GlobalTypeId>,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
+        let mut verdict = Verdict::Holds;
         for id in ids {
-            if !self.satisfies_copy(origin, id, active)? {
-                return Ok(false);
+            verdict = verdict.and(self.satisfies_copy(origin, id, active)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 }

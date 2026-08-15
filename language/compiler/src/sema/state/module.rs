@@ -13,8 +13,8 @@ use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, Constraint, FlowPoint,
-    FlowPointId, FlowSite, Origin, Relation, StaticPresence, VariableRole, Widening,
+    Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, FlowPoint, FlowPointId,
+    FlowSite, Origin, Relation, RelationCheck, StaticPresence, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -755,7 +755,7 @@ impl CheckState<'_> {
                 // equate a solved hole with its re-derivation through the solver
                 if let Some(origin) = self.node_origin_maybe(node) {
                     let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                    self.register_constraint(Constraint::r#type(
+                    self.register_relation(RelationCheck::new(
                         origin,
                         Relation::Equal,
                         ty,
@@ -973,7 +973,7 @@ impl CheckState<'_> {
             let origin = self.intern_origin(Origin::Symbol(symbol));
             let origin = self.infer.origin(origin);
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.push_constraint(Constraint::r#type(
+            self.push_relation(RelationCheck::new(
                 origin,
                 Relation::Equal,
                 existing,

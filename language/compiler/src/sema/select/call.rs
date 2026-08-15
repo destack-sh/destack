@@ -5,8 +5,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CallableArgument, Callee, CandidateVerdict, CheckFailure, CheckOutcome,
-    DeferredCheck, Expectation, FlowSite, InferMode, Origin, PlaceUse, Selection, SignatureFamily,
+    BodyState, CallableArgument, Callee, CandidateVerdict, Check, CheckFailure, CheckOutcome,
+    Expectation, FlowSite, InferMode, Origin, PlaceUse, Selection, SelectionCheck, SignatureFamily,
     SignatureInstance, SignatureMatch, SignatureSelection, Value, ValueCheck, ValueUse,
     VariableRole, Widening,
 };
@@ -802,7 +802,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<dir::Call>> {
         // name the callable the candidate reached for
         let target = match &candidate.target {
-            CallableTarget::Symbol(symbol) => dir::CallTarget::Symbol {
+            CallableTarget::Symbol(symbol) => dir::CallableTarget::Symbol {
                 function: dir::FunctionTarget {
                     receiver: None,
                     generic_scope: candidate.generic_scope,
@@ -811,7 +811,7 @@ impl BodyState<'_, '_> {
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },
-            CallableTarget::Expression => dir::CallTarget::Expression {
+            CallableTarget::Expression => dir::CallableTarget::Expression {
                 generic_arguments: Vec::new(),
             },
             _ => return Ok(None),
@@ -911,11 +911,11 @@ impl BodyState<'_, '_> {
             let hole = self.variable_type(variable)?;
             self.commit_node_type(node, hole)?;
         }
-        self.check.register_check(DeferredCheck::Infer {
+        self.check.register_check(Check::Selection(SelectionCheck {
             site,
             use_: PlaceUse::Read,
             stalled_on: Some(stalled_on),
-        });
+        }));
         let source = self.require_node_type(node)?;
         let target = expectation.map_or(source, |expectation| expectation.target);
 
@@ -1119,7 +1119,6 @@ impl BodyState<'_, '_> {
         // confirm the selected declaration outside any probe
         if let Some(candidate) = overload.candidates.first().copied() {
             let mark = self.check.infer.mark(&self.check.fulfill);
-            let pending = self.check.fulfill.work.len();
             let attempt =
                 self.attempt_call(origin, candidate, &arguments, &argument_types, expectation)?;
             match &attempt {
@@ -1134,7 +1133,6 @@ impl BodyState<'_, '_> {
                     self.check
                         .infer
                         .rollback(mark, poison, &mut self.check.fulfill)?;
-                    self.check.fulfill.cancel_work_from(pending);
                 }
             }
 
@@ -1473,7 +1471,7 @@ impl BodyState<'_, '_> {
         let arguments = self.argument_bindings(origin, module, argument_nodes, &parameters)?;
         let return_type = signature.return_type;
         let target = match &candidate.target {
-            CallableTarget::Expression => dir::CallTarget::Expression {
+            CallableTarget::Expression => dir::CallableTarget::Expression {
                 generic_arguments: signature.generic_arguments.clone(),
             },
             // dispatch erased signature calls through the callee's own table
@@ -1481,7 +1479,7 @@ impl BodyState<'_, '_> {
                 source,
                 receiver,
                 constraint,
-            } => dir::CallTarget::Dynamic {
+            } => dir::CallableTarget::Dynamic {
                 dispatch: dir::DynamicDispatch {
                     receiver: dir::AdjustedReceiver::direct(*receiver),
                     constraint: *constraint,
@@ -1494,16 +1492,16 @@ impl BodyState<'_, '_> {
                 .selected_receiver(signature)
                 .filter(|_| candidate.member_space != Some(dir::MemberSpace::Static))
             {
-                Some(dir::MemberReceiver::Direct(receiver)) => dir::CallTarget::Symbol {
+                Some(dir::MemberReceiver::Direct(receiver)) => dir::CallableTarget::Symbol {
                     function: candidate.function_target(signature, Some(receiver))?,
                     dispatch: dir::FunctionDispatch::Direct,
                 },
-                Some(dir::MemberReceiver::Dynamic(dispatch)) => dir::CallTarget::Dynamic {
+                Some(dir::MemberReceiver::Dynamic(dispatch)) => dir::CallableTarget::Dynamic {
                     dispatch,
                     function: dir::DynamicFunction::Symbol(*symbol),
                     generic_arguments: signature.generic_arguments.clone(),
                 },
-                None => dir::CallTarget::Symbol {
+                None => dir::CallableTarget::Symbol {
                     function: candidate.function_target(signature, None)?,
                     dispatch: dir::FunctionDispatch::Direct,
                 },

@@ -70,7 +70,10 @@ impl BodyState<'_, '_> {
             let verdict = self.probe_candidate(|state| {
                 let checked = state.try_check_expression(site, candidate)?;
                 let outcome = match checked {
-                    CheckAttempt::Checked(check) if check.outcome == CheckOutcome::Holds => {
+                    // proceed into the conversion attempt on a pending outer check
+                    CheckAttempt::Checked(check)
+                        if matches!(check.outcome, CheckOutcome::Holds | CheckOutcome::Pending) =>
+                    {
                         let source = state.flow_type_at(site, check.source)?;
                         let value = state.expression_value(site, source)?;
                         let conversion = state.convert_value(
@@ -85,6 +88,8 @@ impl BodyState<'_, '_> {
 
                         match conversion.outcome {
                             CheckOutcome::Holds => CandidateOutcome::Accepted(()),
+                            // accept a pending conversion under an open probe
+                            CheckOutcome::Pending => CandidateOutcome::Accepted(()),
                             CheckOutcome::Fails(_) => CandidateOutcome::Rejected(()),
                         }
                     }

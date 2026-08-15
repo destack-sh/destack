@@ -18,8 +18,7 @@ pub(in crate::sema) enum Callee {
 }
 
 /// The decided question one callee answers for closed operands in one scope.
-pub(in crate::sema) type SelectionKey =
-    (Callee, Option<dir::GlobalTypeId>, dir::TypeListId, Scope);
+pub(in crate::sema) type SelectionKey = (Callee, Option<dir::GlobalTypeId>, dir::TypeListId, Scope);
 
 impl BodyState<'_, '_> {
     /// Derive the key one selection decides under, unless an operand is open.

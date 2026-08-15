@@ -3,8 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, FlowSite, InferMode, InterfaceIndexSignature, MemberLookup,
-    Origin, PlaceUse, Relation, SubscriptProtocol, TypeSubstitution, Value, ValueUse,
+    BodyState, Cause, CauseKind, CheckOutcome, FlowSite, InferMode, InterfaceIndexSignature,
+    MemberLookup, Origin, PlaceUse, Relation, SubscriptProtocol, TypeSubstitution, Value, ValueUse,
+    Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -283,7 +284,7 @@ impl BodyState<'_, '_> {
         relation: Relation,
         receiver: dir::GlobalTypeId,
         signature: &dir::TypeIndexSignature,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let read = self.decide_subscript_read_signature(
             origin,
             relation,
@@ -291,7 +292,9 @@ impl BodyState<'_, '_> {
             signature.key_type,
             signature.value_type,
         )?;
-        if !read || signature.is_readonly {
+
+        // reject a proven read mismatch, standing on the read alone when readonly
+        if read == Verdict::Fails || signature.is_readonly {
             return Ok(read);
         }
 
@@ -303,7 +306,7 @@ impl BodyState<'_, '_> {
             signature.value_type,
         )?;
 
-        Ok(read && (write))
+        Ok(read.and(write))
     }
 
     /// Select the subscript meaning of one index expression.
@@ -519,12 +522,13 @@ impl BodyState<'_, '_> {
 
         // prefer index signatures declared by the selected interface
         for signature in requirements.index_signatures {
+            // keep the candidate alive on an undecided key relation, reject only a proven mismatch
             let accepts = self.evaluate_relation(
                 origin,
                 Relation::Assignable,
                 index,
                 signature.signature.key_type,
-            )?;
+            )? != Verdict::Fails;
             if accepts {
                 let selection = self.dynamic_subscript_selection(
                     origin, use_, receiver, constraint, index_node, signature,
@@ -680,7 +684,7 @@ impl BodyState<'_, '_> {
         };
 
         Ok(dir::Call {
-            target: dir::CallTarget::Dynamic {
+            target: dir::CallableTarget::Dynamic {
                 dispatch,
                 function,
                 generic_arguments: Vec::new(),
@@ -751,7 +755,7 @@ impl BodyState<'_, '_> {
                 ValueUse::Argument,
                 InferMode::Exact,
             )?;
-            if !conversion.outcome.is_holds() {
+            if matches!(conversion.outcome, CheckOutcome::Fails(_)) {
                 return Ok(false);
             }
             let coercion = conversion.coercion.map(|coercion| *coercion);
@@ -852,8 +856,10 @@ impl BodyState<'_, '_> {
             .shape_index_signatures(lookup_receiver.module_id, shape.index_signatures)?
             .into();
         for (position, signature) in index_signatures.into_iter().enumerate() {
+            // keep the candidate alive on an undecided key relation, reject only a proven mismatch
             let accepts =
-                self.evaluate_relation(origin, Relation::Assignable, index, signature.key_type)?;
+                self.evaluate_relation(origin, Relation::Assignable, index, signature.key_type)?
+                    != Verdict::Fails;
             if accepts {
                 let target = dir::MemberTarget::Index(dir::IndexResolution {
                     receiver: dir::MemberReceiver::direct(lookup_receiver),
@@ -874,7 +880,9 @@ impl BodyState<'_, '_> {
         let key_domain = self.intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
             target: lookup_receiver,
         }))?;
-        let accepts = self.evaluate_relation(origin, Relation::Assignable, index, key_domain)?;
+        // keep the candidate alive on an undecided key relation, reject only a proven mismatch
+        let accepts = self.evaluate_relation(origin, Relation::Assignable, index, key_domain)?
+            != Verdict::Fails;
         if accepts {
             let fields: SmallVec<[_; 4]> = self
                 .shape_properties(lookup_receiver.module_id, shape.properties)?
@@ -1260,7 +1268,7 @@ impl BodyState<'_, '_> {
             });
         };
         let target = match &candidate.receiver {
-            dir::MemberReceiver::Direct(receiver) => dir::CallTarget::Symbol {
+            dir::MemberReceiver::Direct(receiver) => dir::CallableTarget::Symbol {
                 function: dir::FunctionTarget {
                     receiver: Some(receiver.clone()),
                     generic_scope: Some(candidate.owner),
@@ -1269,7 +1277,7 @@ impl BodyState<'_, '_> {
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },
-            dir::MemberReceiver::Dynamic(dispatch) => dir::CallTarget::Dynamic {
+            dir::MemberReceiver::Dynamic(dispatch) => dir::CallableTarget::Dynamic {
                 dispatch: dispatch.clone(),
                 function: dir::DynamicFunction::Symbol(candidate.symbol),
                 generic_arguments: candidate.generic_arguments.clone(),
@@ -1307,7 +1315,7 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         key_type: dir::GlobalTypeId,
         value_type: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let method = SubscriptProtocol::Index;
         let sources = [dir::ArgumentSource::Static(key_type)];
         let key = method.key(self.strings());
@@ -1327,7 +1335,7 @@ impl BodyState<'_, '_> {
             &sources,
         )?;
         let Some((_protocol, call)) = selected else {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         };
 
         self.evaluate_relation(origin, relation, call.return_type, read_type)
@@ -1341,7 +1349,7 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         key_type: dir::GlobalTypeId,
         value_type: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let method = SubscriptProtocol::IndexSet;
         let key = method.key(self.strings());
         let selected = self.select_language_protocol_member(
@@ -1355,11 +1363,11 @@ impl BodyState<'_, '_> {
             &[],
         )?;
         let Some((_protocol, member)) = selected else {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         };
         let sources = [dir::ArgumentSource::Omitted, dir::ArgumentSource::Write];
         let Some(call) = self.subscript_write_call(origin, &member.resolution, &sources)? else {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         };
         let key_types = call.argument_types(dir::ArgumentSource::Omitted);
         let value_types = call.argument_types(dir::ArgumentSource::Write);
@@ -1382,9 +1390,9 @@ impl BodyState<'_, '_> {
             _ => self.normalized_intersection_type(value_types)?,
         };
 
-        let key_holds = self.evaluate_relation(origin, relation, key_type, key)?;
-        let value_holds = self.evaluate_relation(origin, relation, value_type, input)?;
+        let key_verdict = self.evaluate_relation(origin, relation, key_type, key)?;
+        let value_verdict = self.evaluate_relation(origin, relation, value_type, input)?;
 
-        Ok(key_holds && (value_holds))
+        Ok(key_verdict.and(value_verdict))
     }
 }

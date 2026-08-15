@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{CauseId, CheckState, Origin, Relation};
+use crate::sema::{CauseId, CheckState, Origin, Relation, Verdict};
 
 /// One numeric template capture attempt under a constraint head.
 enum NumericCapture {
@@ -50,7 +50,7 @@ impl CheckState<'_> {
         text: &str,
         template_module: ModuleId,
         template: &dir::TemplateLiteralType,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let segments = self.template_segments(template_module, template.strings)?;
         let spans: SmallVec<[_; 8]> = self.type_ids(template_module, template.spans)?.into();
 
@@ -60,7 +60,9 @@ impl CheckState<'_> {
             heads.push(self.template_span_head(origin, span)?);
         }
 
-        self.match_template_segments(origin, text, &segments, &heads)
+        let matched = self.match_template_segments(origin, text, &segments, &heads)?;
+
+        Ok(Verdict::decided(matched))
     }
 
     /// Relate one string literal into the open spans of a template literal pattern.
@@ -71,9 +73,9 @@ impl CheckState<'_> {
         text: &str,
         module: ModuleId,
         template: &dir::TemplateLiteralType,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let Some(parts) = self.split_template_captures(origin, text, module, template)? else {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         };
 
         // collect every capture bound before relating any of them
@@ -88,26 +90,34 @@ impl CheckState<'_> {
             let root = self.shallow_resolve(span)?;
             if let Some((_, previous)) = seen.iter().find(|(other, _)| *other == root) {
                 if *previous != captured {
-                    return Ok(false);
+                    return Ok(Verdict::Fails);
                 }
 
                 continue;
             }
             seen.push((root, captured.clone()));
             let Some(bound) = self.template_capture_bound(origin, span, &captured)? else {
-                return Ok(false);
+                return Ok(Verdict::Fails);
             };
             pairs.push((bound, span));
         }
 
         // relate every collected bound into its span
+        let mut verdict = Verdict::Holds;
         for (bound, span) in pairs {
-            if !self.constrain_type(origin, cause, Relation::Assignable, bound, span)? {
-                return Ok(false);
+            verdict = verdict.and(self.constrain_type(
+                origin,
+                cause,
+                Relation::Assignable,
+                bound,
+                span,
+            )?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Relate the whole string domain into one template pattern, binding its open spans.
@@ -118,7 +128,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         module: ModuleId,
         template: &dir::TemplateLiteralType,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let spans: SmallVec<[_; 8]> = self.type_ids(module, template.spans)?.into();
 
         // decide closed patterns by inhabitation
@@ -133,18 +143,26 @@ impl CheckState<'_> {
         // absorb the string domain into patterns whose segments are all empty
         for segment in self.template_strings(module, template.strings)? {
             if !self.strings().get(*segment).is_empty() {
-                return Ok(false);
+                return Ok(Verdict::Fails);
             }
         }
 
         // bind every open span to the whole string domain
+        let mut verdict = Verdict::Holds;
         for span in spans {
-            if !self.constrain_type(origin, cause, Relation::Assignable, source, span)? {
-                return Ok(false);
+            verdict = verdict.and(self.constrain_type(
+                origin,
+                cause,
+                Relation::Assignable,
+                source,
+                span,
+            )?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(verdict)
     }
 
     /// Relate the whole string domain into one closed template pattern.
@@ -152,27 +170,27 @@ impl CheckState<'_> {
         &mut self,
         template_module: ModuleId,
         template: &dir::TemplateLiteralType,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // accept only patterns whose segments are all empty
         for segment in self.template_strings(template_module, template.strings)? {
             if !self.strings().get(*segment).is_empty() {
-                return Ok(false);
+                return Ok(Verdict::Fails);
             }
         }
         let spans: SmallVec<[_; 8]> = self.type_ids(template_module, template.spans)?.into();
         if spans.is_empty() {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         }
         for span in spans {
             if !matches!(
                 self.ty(span)?,
                 dir::Type::Primitive(dir::PrimitiveType::String)
             ) {
-                return Ok(false);
+                return Ok(Verdict::Fails);
             }
         }
 
-        Ok(true)
+        Ok(Verdict::Holds)
     }
 
     /// Match one text against interleaved literal segments and span patterns.
@@ -389,6 +407,7 @@ impl CheckState<'_> {
                     self.type_operation(span.module_id, operation)? =>
             {
                 self.relate_template_string(origin, text, span.module_id, &nested)?
+                    .holds()
             }
             _ => false,
         };
@@ -415,7 +434,7 @@ impl CheckState<'_> {
         source: &dir::TemplateLiteralType,
         target_module: ModuleId,
         target: &dir::TemplateLiteralType,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // flatten the source into literal text and span pieces
         let segments = self.template_segments(source_module, source.strings)?;
         let spans: SmallVec<[_; 8]> = self.type_ids(source_module, source.spans)?.into();
@@ -440,7 +459,10 @@ impl CheckState<'_> {
             target_spans.push(self.template_span_head(origin, span)?);
         }
 
-        self.match_template_pieces(origin, &pieces, 0, "", &target_segments, &target_spans)
+        let matched =
+            self.match_template_pieces(origin, &pieces, 0, "", &target_segments, &target_spans)?;
+
+        Ok(Verdict::decided(matched))
     }
 
     /// Split one text into per-span captures with earliest delimiter rules.
@@ -725,7 +747,13 @@ impl CheckState<'_> {
                 dir::Type::Primitive(dir::PrimitiveType::Bigint),
                 dir::Type::Primitive(dir::PrimitiveType::Bigint),
             ) => Ok(true),
-            _ => self.evaluate_relation(origin, Relation::Assignable, source, target),
+            _ => {
+                // match the span unless the domain relation is proven false
+                let verdict =
+                    self.evaluate_relation(origin, Relation::Assignable, source, target)?;
+
+                Ok(verdict != Verdict::Fails)
+            }
         }
     }
 }

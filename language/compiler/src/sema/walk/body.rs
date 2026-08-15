@@ -59,13 +59,13 @@ impl WalkState<'_, '_> {
             }
             // walk class members under a managed receiver
             dir::Declaration::Class(class) => {
-                let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Managed))?;
-                let super_ty = match self.check.definition_maybe(symbol) {
-                    Some(dir::Definition::Class(class)) => {
-                        class.extends.as_ref().map(|heritage| heritage.ty)
-                    }
-                    _ => None,
+                // declare a body-local class before walking its members
+                let Some(dir::Definition::Class(declared)) = self.check.definition_maybe(symbol)
+                else {
+                    return Ok(false);
                 };
+                let super_ty = declared.extends.as_ref().map(|heritage| heritage.ty);
+                let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Managed))?;
                 let receiver = Receiver {
                     super_ty,
                     ..receiver

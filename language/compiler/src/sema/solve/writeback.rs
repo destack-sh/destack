@@ -5,6 +5,16 @@ use destack_dir::TypeFold;
 use crate::sema::{CheckModuleState, CheckState};
 use crate::{CompilerError, CompilerResult};
 
+/// One proved symbol use, recorded against the occurrence node that proved it.
+struct SymbolUse {
+    /// The node the use occurred at, when the use has one.
+    node: Option<dir::GlobalNodeIdAny>,
+    /// The used symbol.
+    symbol: dir::GlobalSymbolId,
+    /// How the symbol was used.
+    binding: dir::BindingUse,
+}
+
 impl CheckState<'_> {
     /// Write every commit since the last write into the module tail.
     pub(in crate::sema) fn write_back(&mut self) -> CompilerResult<()> {
@@ -96,44 +106,73 @@ impl CheckState<'_> {
 
     /// Record the symbol uses this pass proved in the flow segment.
     pub(in crate::sema) fn write_flows(&mut self) {
-        let mut uses = Vec::new();
+        let mut uses: Vec<SymbolUse> = Vec::new();
 
         // collect named references from every carried segment, covering reads by name
         let declared = self.module.declared.clone();
         let elaborated = self.module.elaborated.clone();
         let carried = [
             declared.as_deref().map(|declared| &declared.resolutions),
-            elaborated.as_deref().map(|elaborated| &elaborated.resolutions),
+            elaborated
+                .as_deref()
+                .map(|elaborated| &elaborated.resolutions),
         ];
         for segment in carried.into_iter().flatten() {
-            for (_, resolution) in segment.name_entries() {
-                uses.push((resolution.symbol(), dir::BindingUse::READ));
+            for (node, resolution) in segment.name_entries() {
+                if let Some(symbol) = resolution.single_symbol() {
+                    uses.push(SymbolUse {
+                        node: Some(node),
+                        symbol,
+                        binding: dir::BindingUse::READ,
+                    });
+                }
             }
         }
-        for (_, resolution) in self.module.resolutions.name_entries() {
-            uses.push((resolution.symbol(), dir::BindingUse::READ));
+        for (node, resolution) in self.module.resolutions.name_entries() {
+            if let Some(symbol) = resolution.single_symbol() {
+                uses.push(SymbolUse {
+                    node: Some(node),
+                    symbol,
+                    binding: dir::BindingUse::READ,
+                });
+            }
         }
 
         // collect keyed member selections and written targets from the decisions
-        for (_, decision) in self.module.decisions.decision_entries() {
+        for (node, decision) in self.module.decisions.decision_entries() {
             match decision {
                 dir::Decision::Member(member) => match member {
                     dir::OperationResolution::One(access) => {
-                        member_target_symbols(&access.target, dir::BindingUse::READ, &mut uses);
+                        collect_member_target_uses(
+                            node,
+                            &access.target,
+                            dir::BindingUse::READ,
+                            &mut uses,
+                        );
                     }
                     dir::OperationResolution::Union { arms, .. } => {
                         for access in arms {
-                            member_target_symbols(&access.target, dir::BindingUse::READ, &mut uses);
+                            collect_member_target_uses(
+                                node,
+                                &access.target,
+                                dir::BindingUse::READ,
+                                &mut uses,
+                            );
                         }
                     }
                 },
                 dir::Decision::Assignment(assignment) => match &assignment.write {
                     dir::WriteResolution::Binding { symbol, .. } => {
-                        uses.push((*symbol, dir::BindingUse::WRITTEN));
+                        uses.push(SymbolUse {
+                            node: Some(node),
+                            symbol: *symbol,
+                            binding: dir::BindingUse::WRITTEN,
+                        });
                     }
                     dir::WriteResolution::Member(member) => match member {
                         dir::OperationResolution::One(access) => {
-                            member_target_symbols(
+                            collect_member_target_uses(
+                                node,
                                 &access.target,
                                 dir::BindingUse::WRITTEN,
                                 &mut uses,
@@ -141,7 +180,8 @@ impl CheckState<'_> {
                         }
                         dir::OperationResolution::Union { arms, .. } => {
                             for access in arms {
-                                member_target_symbols(
+                                collect_member_target_uses(
+                                    node,
                                     &access.target,
                                     dir::BindingUse::WRITTEN,
                                     &mut uses,
@@ -158,14 +198,32 @@ impl CheckState<'_> {
         // collect closure uses from the captures
         for capture in self.module.captures.capture_by_function.values() {
             for binding in &capture.captures {
-                uses.push((binding.symbol(), dir::BindingUse::CAPTURED));
+                uses.push(SymbolUse {
+                    node: None,
+                    symbol: binding.symbol(),
+                    binding: dir::BindingUse::CAPTURED,
+                });
             }
         }
 
-        // record each use against its owning module
-        for (symbol, binding_use) in uses {
+        // record each use against its owning module, keeping the occurrence node
+        for SymbolUse {
+            node,
+            symbol,
+            binding: binding_use,
+        } in uses
+        {
             if symbol.module_id == self.module_id {
                 self.module.flows.record_use(symbol.local_id, binding_use);
+                if let Some(node) = node
+                    && node.module_id == self.module_id
+                {
+                    self.module.flows.record_occurrence(
+                        node.local_id,
+                        symbol.local_id,
+                        binding_use,
+                    );
+                }
             } else {
                 self.module.flows.record_foreign_use(symbol, binding_use);
             }
@@ -331,7 +389,10 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type alias declares a computation as its value.
-    fn alias_computes(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
+    pub(in crate::sema) fn alias_computes(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
         let mut named = FxIndexSet::default();
 
         self.name_computes(symbol, &mut named)
@@ -397,24 +458,33 @@ impl CheckState<'_> {
 }
 
 /// Collect the declared symbols one member target selects.
-fn member_target_symbols(
+fn collect_member_target_uses(
+    node: dir::GlobalNodeIdAny,
     target: &dir::MemberTarget,
-    binding_use: dir::BindingUse,
-    uses: &mut Vec<(dir::GlobalSymbolId, dir::BindingUse)>,
+    binding: dir::BindingUse,
+    uses: &mut Vec<SymbolUse>,
 ) {
     match target {
         // record the declared field a nominal access selects
         dir::MemberTarget::Field(field) => {
             if let dir::FieldTarget::Member { symbol, .. } = field.target {
-                uses.push((symbol, binding_use));
+                uses.push(SymbolUse {
+                    node: Some(node),
+                    symbol,
+                    binding,
+                });
             }
         }
         // record the declared member a symbol access selects
-        dir::MemberTarget::Symbol(candidate) => uses.push((candidate.symbol, binding_use)),
+        dir::MemberTarget::Symbol(candidate) => uses.push(SymbolUse {
+            node: Some(node),
+            symbol: candidate.symbol,
+            binding,
+        }),
         // walk grouped targets member by member
         dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
             for target in targets {
-                member_target_symbols(target, binding_use, uses);
+                collect_member_target_uses(node, target, binding, uses);
             }
         }
         dir::MemberTarget::Projection { .. }

@@ -23,6 +23,7 @@ impl BodyState<'_, '_> {
                 if !self
                     .check
                     .constrain_access_assignable(origin, held, requested)?
+                    .holds()
                 {
                     return Ok(None);
                 }

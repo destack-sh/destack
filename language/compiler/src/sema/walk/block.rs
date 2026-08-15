@@ -34,7 +34,10 @@ impl WalkState<'_, '_> {
 
                 // record the statement that stops the flow
                 if !is_reachable {
-                    self.check.module.flows.mark_diverging(expression.into_any());
+                    self.check
+                        .module
+                        .flows
+                        .mark_diverging(expression.into_any());
                 }
             }
             // check unreachable expression in isolated flow
