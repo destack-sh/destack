@@ -52,9 +52,12 @@ impl Default for MirLowered {
     }
 }
 
-/// Successful MIR verification marker.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]
-pub struct MirVerified;
+/// Verified MIR borrow dependencies.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct MirVerified {
+    /// Borrow dependencies required by drop elaboration.
+    pub borrows: mir::BorrowTable,
+}
 
 /// MIR after required elaboration.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
