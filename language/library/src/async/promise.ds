@@ -8,9 +8,8 @@ import { queueMicrotask } from "./task.ds";
 
 /// Value produced by asynchronous execution.
 ///
-/// A promise never rejects in Destack: recoverable failure remains an explicit `Result` value,
-/// and panic remains the Worker fault boundary.
-/// Every observer receives the same copyable value.
+/// A promise never rejects in Destack: recoverable failure remains an explicit `Result` value, and
+/// panic remains the Worker fault boundary. Every observer receives the same copyable value.
 @languageItem("async.Promise")
 export local class Promise<T: Copy> implements Awaitable<T> {
     /// The current settlement state.
@@ -34,22 +33,13 @@ export local class Promise<T: Copy> implements Awaitable<T> {
     /// Continue when the promise fulfills, adopting the returned promise.
     then<U: Copy>(onFulfilled: (value: T) => Promise<U>): Promise<U> {
         let next = Promise.pending<U>();
-        this.addReaction(
-            (source) => {
-                let returned = onFulfilled(source.observe());
-                returned.addReaction(
-                    (source) => {
-                        next.forward(source);
-                    },
-                    () => {
-                        Promise.cancel(next);
-                    },
-                );
-            },
-            () => {
-                Promise.cancel(next);
-            },
-        );
+
+        this.addReaction((source) => {
+            let returned = onFulfilled(source.observe());
+            returned.addReaction((source) => {
+                next.forward(source);
+            });
+        });
 
         return next;
     }
@@ -57,14 +47,10 @@ export local class Promise<T: Copy> implements Awaitable<T> {
     /// Continue when the promise fulfills.
     then<U: Copy>(onFulfilled: (value: T) => U): Promise<U> {
         let next = Promise.pending<U>();
-        this.addReaction(
-            (source) => {
-                Promise.fulfill(next, onFulfilled(source.observe()));
-            },
-            () => {
-                Promise.cancel(next);
-            },
-        );
+
+        this.addReaction((source) => {
+            Promise.fulfill(next, onFulfilled(source.observe()));
+        });
 
         return next;
     }
@@ -72,30 +58,13 @@ export local class Promise<T: Copy> implements Awaitable<T> {
     /// Continue after the promise fulfills, adopting the returned promise.
     finally(onFinally: () => Promise<void>): Promise<T> {
         let next = Promise.pending<T>();
-        this.addReaction(
-            (source) => {
-                let returned = onFinally();
-                returned.addReaction(
-                    (_completion) => {
-                        next.forward(source);
-                    },
-                    () => {
-                        Promise.cancel(next);
-                    },
-                );
-            },
-            () => {
-                let returned = onFinally();
-                returned.addReaction(
-                    (_completion) => {
-                        Promise.cancel(next);
-                    },
-                    () => {
-                        Promise.cancel(next);
-                    },
-                );
-            },
-        );
+
+        this.addReaction((source) => {
+            let returned = onFinally();
+            returned.addReaction((_completion) => {
+                next.forward(source);
+            });
+        });
 
         return next;
     }
@@ -103,16 +72,11 @@ export local class Promise<T: Copy> implements Awaitable<T> {
     /// Continue after the promise fulfills, keeping the value.
     finally(onFinally: () => void): Promise<T> {
         let next = Promise.pending<T>();
-        this.addReaction(
-            (source) => {
-                onFinally();
-                next.forward(source);
-            },
-            () => {
-                onFinally();
-                Promise.cancel(next);
-            },
-        );
+
+        this.addReaction((source) => {
+            onFinally();
+            next.forward(source);
+        });
 
         return next;
     }
@@ -158,11 +122,13 @@ export local class Promise<T: Copy> implements Awaitable<T> {
         return Promise.pending<T>();
     }
 
-    /// Block the current fiber until a promise fulfills.
-    static block<T: Copy>(promise: Promise<T>): T {
+    /// Park the current fiber until a promise fulfills.
+    private static park<T: Copy>(promise: Promise<T>): T {
         promise.addWaiter(new PromiseAwaiter(Fiber.current()));
 
-        return Fiber.park<T>();
+        Fiber.park();
+
+        return promise.observe();
     }
 
     /// Fulfill one promise with a final value.
@@ -177,20 +143,6 @@ export local class Promise<T: Copy> implements Awaitable<T> {
         let waiters = promise.state.head;
         promise.state = PromiseFulfilled { kind: "fulfilled", value };
         promise.queueWaiters(waiters, promise);
-    }
-
-    /// Cancel one promise from its producing async function.
-    @languageItem("async.Promise.cancel")
-    private static cancel<T: Copy>(promise: Promise<T>): void {
-        // ignore repeated settlement
-        if (promise.state.kind != "pending") {
-            return;
-        }
-
-        // publish cancellation before running waiters
-        let waiters = promise.state.head;
-        promise.state = PromiseCancelled { kind: "cancelled" };
-        promise.cancelWaiters(waiters);
     }
 
     /// Fulfill this promise from an existing fulfilled promise.
@@ -210,13 +162,14 @@ export local class Promise<T: Copy> implements Awaitable<T> {
     private observe(): T {
         match (this.state) {
             PromiseFulfilled { value } => value
+            PromiseForwarded { source } => source.observe()
             _ => trap("promise does not own a fulfilled value")
         }
     }
 
     /// Add one reaction.
-    private addReaction(run: (source: Promise<T>) => void, cancel: () => void): void {
-        this.addWaiter(new PromiseReaction(run, cancel));
+    private addReaction(run: (source: Promise<T>) => void): void {
+        this.addWaiter(new PromiseReaction(run));
     }
 
     /// Add or schedule one waiter.
@@ -228,10 +181,6 @@ export local class Promise<T: Copy> implements Awaitable<T> {
         // schedule from forwarded fulfilled storage
         else if (this.state.kind == "forwarded") {
             this.queueWaiter(waiter, this.state.source);
-        }
-        // propagate producer cancellation
-        else if (this.state.kind == "cancelled") {
-            this.cancelWaiter(waiter);
         }
         // initialize the pending list
         else if (this.state.tail == undefined) {
@@ -257,43 +206,18 @@ export local class Promise<T: Copy> implements Awaitable<T> {
         }
     }
 
-    /// Cancel all waiters after producer cancellation.
-    private cancelWaiters(head: PromiseWaiter<T> | undefined): void {
-        let waiter = head;
-
-        // detach before cancelling each waiter
-        while (waiter != undefined) {
-            let next = waiter.next;
-            waiter.next = undefined;
-            this.cancelWaiter(waiter);
-            waiter = next;
-        }
-    }
-
     /// Schedule one waiter after fulfillment.
     private queueWaiter(waiter: PromiseWaiter<T>, source: Promise<T>): void {
-        // resume compiler-lowered await directly
+        // resume compiler-lowered await as a microtask
         if (waiter.kind == "await") {
-            waiter.fiber.wake(source.observe());
+            queueMicrotask(() => {
+                waiter.fiber.wake();
+            });
         }
         // schedule user reactions as callbacks
         else {
             queueMicrotask(() => {
                 waiter.run(source);
-            });
-        }
-    }
-
-    /// Cancel one waiter after producer cancellation.
-    private cancelWaiter(waiter: PromiseWaiter<T>): void {
-        // cancel compiler-lowered await directly
-        if (waiter.kind == "await") {
-            todo("producer cancellation reaching a parked await");
-        }
-        // propagate cancellation through user reactions
-        else {
-            queueMicrotask(() => {
-                waiter.cancel();
             });
         }
     }
@@ -317,11 +241,7 @@ export local struct PromiseResolvers<T: Copy> {
 }
 
 /// Current promise state.
-type PromiseState<T: Copy> =
-    | PromisePending<T>
-    | PromiseFulfilled<T>
-    | PromiseForwarded<T>
-    | PromiseCancelled;
+type PromiseState<T: Copy> = PromisePending<T> | PromiseFulfilled<T> | PromiseForwarded<T>;
 
 /// Pending promise state.
 local struct PromisePending<T: Copy> {
@@ -351,12 +271,6 @@ local struct PromiseForwarded<T: Copy> {
 
     /// The fulfilled promise that owns the value.
     source: Promise<T>;
-}
-
-/// Promise cancelled by its producing async function.
-local struct PromiseCancelled {
-    /// The state tag.
-    kind: "cancelled";
 }
 
 /// One promise settlement waiter.
@@ -389,17 +303,13 @@ local class PromiseReaction<T: Copy> {
     /// Callback to queue with the fulfilled source.
     run: (source: Promise<T>) => void;
 
-    /// Cancellation continuation for the derived promise.
-    cancel: () => void;
-
     /// Next waiter in fulfillment order.
     next: PromiseWaiter<T> | undefined;
 
     /// Create one promise reaction.
-    constructor(run: (source: Promise<T>) => void, cancel: () => void) {
+    constructor(run: (source: Promise<T>) => void) {
         this.kind = "reaction";
         this.run = run;
-        this.cancel = cancel;
         this.next = undefined;
     }
 }

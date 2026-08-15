@@ -1,107 +1,276 @@
 import { todo, trap } from "destack:error";
-import { AsyncDispose, Cell, Copy, Drop } from "destack:memory";
+import { AsyncDispose, Cell, Drop } from "destack:memory";
 
 import { Awaitable } from "./awaitable.ds";
 import { Fiber } from "./fiber.ds";
 import { Promise } from "./promise.ds";
 
-/// Single-consumer asynchronous result on its own fiber.
+/// Single-consumer asynchronous result.
 ///
-/// Awaiting a task blocks the current fiber and moves the result out.
-/// Cancellation requests are delivered cooperatively at cancellable operations.
+/// Awaiting a task moves its result out. Cancellation is delivered cooperatively when its producer
+/// parks.
 @languageItem("async.Task")
-export local class Task<T> implements Awaitable<T> {
-    /// The single-consumer settlement state.
-    private state: Cell<TaskState<T>>;
-
-    /// Create one pending task.
-    private constructor() {
-        this.state = Cell.new(TaskPending { kind: "pending", waiter: undefined });
-    }
+export local struct Task<T> implements Awaitable<T>, Drop {
+    /// Shared task state.
+    private state: TaskState<T>;
 
     /// Create an already completed task.
     static resolve<T>(value: T): Task<T> {
-        let task = new Task<T>();
-        task.complete(value);
+        let start = Task.create<T>();
+        start.producer.complete(value);
 
-        return task;
+        return start.task;
     }
 
     /// Run one body on a fresh fiber and expose its result.
-    static spawn<T>(body: () => T): Task<T> {
-        let task = new Task<T>();
-        Fiber.spawn(() => {
-            task.complete(body());
-        });
+    static spawn<T>(body: Function<(), T, "once">): Task<T> {
+        let start = Task.create<T>();
+        let producer = start.producer;
 
-        return task;
+        @capture("move")
+        let run: Function<(), void, "once"> = () => {
+            producer.attach();
+            producer.complete(body());
+        };
+        Fiber.spawn(run);
+
+        return start.task;
     }
 
-    /// Block the current fiber until a task completes, moving the result out.
-    static block<T>(task: Task<T>): T {
-        match (task.state.replace(TaskTaken { kind: "taken" })) {
-            TaskPending { waiter: undefined } => {
-                let pending = TaskPending { kind: "pending", waiter: Fiber.current() };
-                task.state.set(pending);
+    /// Create one task and its producer.
+    @languageItem("async.Task.create")
+    private static create<T>(): TaskStart<T> {
+        let state = new TaskState<T>();
 
-                Fiber.park<T>()
+        return TaskStart {
+            task: Task { state },
+            producer: TaskProducer { state },
+        };
+    }
+
+    /// Park until this task completes, then move its result out.
+    private static park<T>(task: Task<T>): T {
+        task.state.wait(Fiber.current());
+        Fiber.park();
+
+        return task.state.take();
+    }
+
+    /// Request cancellation at the producer's next park.
+    cancel(&readonly this): void {
+        this.state.cancel();
+    }
+
+    /// Request producer cancellation when this task is discarded.
+    drop(this): void {
+        this.state.cancel();
+    }
+}
+
+/// Producer retained by one lowered async body.
+local struct TaskProducer<T> implements Drop {
+    /// Shared task state.
+    private state: TaskState<T>;
+
+    /// Attach the current producer fiber.
+    @languageItem("async.Task.attach")
+    attach(&readonly this): void {
+        this.state.attach(Fiber.current());
+    }
+
+    /// Complete this task with one result.
+    @languageItem("async.Task.complete")
+    complete(this, value: T): void {
+        this.state.complete(value);
+    }
+
+    /// Complete this task through cancellation after cleanup.
+    drop(this): void {
+        this.state.completeCancellation();
+    }
+}
+
+/// Task and producer returned to lowered async entry code.
+local struct TaskStart<T> {
+    /// The consumer returned by the async function.
+    task: Task<T>;
+
+    /// The producer bound into the task body.
+    producer: TaskProducer<T>;
+}
+
+/// Shared state between one task and its producer.
+local class TaskState<T> {
+    /// Current task phase.
+    private phase: Cell<TaskPhase<T>>;
+
+    /// Create pending task state.
+    constructor() {
+        this.phase = Cell.new(TaskPending {
+            kind: "pending",
+            producer: undefined,
+            waiter: undefined,
+            is_cancelled: false,
+        });
+    }
+
+    /// Attach the current producer fiber.
+    attach(&readonly this, producer: Fiber): void {
+        match (this.phase.replace(TaskTaken { kind: "taken" })) {
+            TaskPending { waiter, is_cancelled } => {
+                this.phase.set(TaskPending {
+                    kind: "pending",
+                    producer,
+                    waiter,
+                    is_cancelled,
+                });
+                if (is_cancelled) {
+                    producer.cancel();
+                }
+            }
+            phase => {
+                this.phase.set(phase);
+                trap("task producer attached after settlement")
+            }
+        }
+    }
+
+    /// Register one consumer or queue its completed continuation.
+    wait(&readonly this, waiter: Fiber): void {
+        match (this.phase.replace(TaskTaken { kind: "taken" })) {
+            TaskPending { producer, waiter: undefined, is_cancelled } => {
+                this.phase.set(TaskPending {
+                    kind: "pending",
+                    producer,
+                    waiter,
+                    is_cancelled,
+                });
+            }
+            TaskDone { value } => {
+                this.phase.set(TaskDone { kind: "done", value });
+                queueMicrotask(() => {
+                    waiter.wake();
+                });
+            }
+            TaskCancelled => {
+                this.phase.set(TaskCancelled { kind: "cancelled" });
+                queueMicrotask(() => {
+                    waiter.cancel();
+                });
             }
             TaskPending => trap("task already has a consumer")
-            TaskDone { value } => value
             TaskTaken => trap("task result was already consumed")
         }
     }
 
-    /// Request cancellation at the next suspension.
+    /// Request cancellation at the producer's next park.
     cancel(&readonly this): void {
-        todo("Task.cancel");
+        match (this.phase.replace(TaskTaken { kind: "taken" })) {
+            TaskPending { producer, waiter } => {
+                this.phase.set(TaskPending {
+                    kind: "pending",
+                    producer,
+                    waiter,
+                    is_cancelled: true,
+                });
+                if (producer != undefined) {
+                    producer.cancel();
+                }
+            }
+            phase => {
+                this.phase.set(phase);
+            }
+        }
     }
 
-    /// Settle this task, waking a blocked consumer.
-    private complete(value: T): void {
-        match (this.state.replace(TaskTaken { kind: "taken" })) {
-            TaskPending { waiter: undefined } => {
-                this.state.set(TaskDone { kind: "done", value });
-            }
+    /// Complete this task and wake its consumer.
+    complete(&readonly this, value: T): void {
+        match (this.phase.replace(TaskTaken { kind: "taken" })) {
             TaskPending { waiter } => {
-                waiter!.wake(value);
+                this.phase.set(TaskDone { kind: "done", value });
+                if (waiter != undefined) {
+                    queueMicrotask(() => {
+                        waiter.wake();
+                    });
+                }
             }
             _ => trap("task completed twice")
         }
     }
+
+    /// Complete this task through cancellation and cancel its consumer.
+    completeCancellation(&readonly this): void {
+        match (this.phase.replace(TaskTaken { kind: "taken" })) {
+            TaskPending { waiter } => {
+                this.phase.set(TaskCancelled { kind: "cancelled" });
+                if (waiter != undefined) {
+                    queueMicrotask(() => {
+                        waiter.cancel();
+                    });
+                }
+            }
+            TaskDone { value } => {
+                this.phase.set(TaskDone { kind: "done", value });
+            }
+            TaskCancelled => {
+                this.phase.set(TaskCancelled { kind: "cancelled" });
+            }
+            TaskTaken => trap("task producer dropped during a state transition")
+        }
+    }
+
+    /// Move the completed result out.
+    take(&readonly this): T {
+        match (this.phase.replace(TaskTaken { kind: "taken" })) {
+            TaskDone { value } => value
+            _ => trap("task resumed without a completed result")
+        }
+    }
 }
 
-/// One task's settlement state.
-local type TaskState<T> = TaskPending | TaskDone<T> | TaskTaken;
+/// One task's settlement phase.
+local type TaskPhase<T> = TaskPending | TaskDone<T> | TaskCancelled | TaskTaken;
 
-/// Task awaiting its body.
+/// Task awaiting producer completion.
 local struct TaskPending {
-    /// The state tag.
+    /// The phase tag.
     kind: "pending";
 
-    /// The blocked consumer when one arrived before completion.
+    /// The producer fiber once execution starts.
+    producer: Fiber | undefined;
+
+    /// The blocked consumer when present.
     waiter: Fiber | undefined;
+
+    /// Whether cancellation was requested.
+    is_cancelled: boolean;
 }
 
 /// Task holding an unconsumed result.
 local struct TaskDone<T> {
-    /// The state tag.
+    /// The phase tag.
     kind: "done";
 
-    /// The moved-in result.
+    /// The completed result.
     value: T;
 }
 
-/// Task whose result was consumed or is being settled.
+/// Task whose producer completed through cancellation.
+local struct TaskCancelled {
+    /// The phase tag.
+    kind: "cancelled";
+}
+
+/// Task whose result was consumed or is being updated.
 local struct TaskTaken {
-    /// The state tag.
+    /// The phase tag.
     kind: "taken";
 }
 
 /// Structured owner of spawned tasks.
 ///
-/// Asynchronous disposal waits for every child before it completes.
-/// Cancellation requests are delivered cooperatively at cancellable asynchronous operations.
+/// Asynchronous disposal waits for every child before it completes. Cancellation requests are
+/// delivered cooperatively at cancellable asynchronous operations.
 export local struct TaskScope implements AsyncDispose, Drop {
     /// Opaque task scope identity.
     private handle: uint64;
@@ -112,7 +281,7 @@ export local struct TaskScope implements AsyncDispose, Drop {
     }
 
     /// Spawn one task owned by this scope.
-    spawn<T: Copy>(&exclusive this, body: () => Task<T>): Task<T> {
+    spawn<T>(&exclusive this, body: Function<(), T, "once">): Task<T> {
         todo("TaskScope.spawn")
     }
 
@@ -126,19 +295,10 @@ export local struct TaskScope implements AsyncDispose, Drop {
         todo("TaskScope.asyncDispose")
     }
 
-    /// Cancel pending children and detach their cleanup.
+    /// Cancel pending children without waiting for cleanup.
     drop(): void {
         todo("TaskScope.drop");
     }
-}
-
-/// Yield the current fiber back to the Worker scheduler.
-export function yieldNow(): void {
-    let me = Fiber.current();
-    queueMicrotask(() => {
-        me.wake(undefined);
-    });
-    Fiber.park<void>();
 }
 
 /// Queue one function after the active task finishes.
@@ -148,4 +308,4 @@ export function yieldNow(): void {
     effect: "deterministic",
     requires: [],
 })
-export declare function queueMicrotask(run: () => void): void;
+export declare function queueMicrotask(run: Function<(), void, "once">): void;
