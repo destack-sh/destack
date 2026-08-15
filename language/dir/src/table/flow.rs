@@ -1,19 +1,23 @@
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use destack_core::FxIndexSet;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalNodeIdAny, LocalSymbolId};
+use crate::{GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, SegmentView};
 
-/// One symbol's uses inside a checked module.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+/// One symbol's recorded uses inside a DIR module.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct BindingUse(u8);
 
 impl BindingUse {
-    /// The symbol is read after initialization.
+    /// The symbol is read.
     pub const READ: Self = Self(1 << 0);
     /// The symbol is written after initialization.
     pub const WRITTEN: Self = Self(1 << 1);
-    /// The symbol is used through a closure.
+    /// The symbol is captured by a closure.
     pub const CAPTURED: Self = Self(1 << 2);
     /// The binding storage requires mutable or exclusive access.
     pub const MUTABLE: Self = Self(1 << 3);
@@ -35,32 +39,174 @@ impl std::ops::BitOrAssign for BindingUse {
     }
 }
 
-/// Flow conclusions for one checked DIR module.
+/// Cumulative flow conclusions for one DIR module.
+#[derive(Debug, Clone)]
+pub struct FlowTable<'a> {
+    /// The module id of the flow table.
+    pub module_id: ModuleId,
+    /// The ordered flow table segments.
+    segments: SegmentView<'a, FlowSegment>,
+}
+
+impl FlowTable<'static> {
+    /// Create a flow table from ordered segments.
+    pub fn from_segments(segments: Vec<Arc<FlowSegment>>) -> Self {
+        let segments = SegmentView::from_segments(segments);
+
+        Self::from_view(segments)
+    }
+
+    /// Create a flow table from one segment.
+    pub fn from_segment(segment: Arc<FlowSegment>) -> Self {
+        Self::from_segments(vec![segment])
+    }
+}
+
+impl<'a> FlowTable<'a> {
+    /// Create a flow table from a segment view.
+    pub fn from_view(segments: SegmentView<'a, FlowSegment>) -> Self {
+        let first = segments
+            .first()
+            .unwrap_or_else(|| panic!("flow table needs at least one segment"));
+        let module_id = first.module_id;
+
+        // require a single module owner
+        for segment in segments.iter() {
+            assert_eq!(
+                segment.module_id, module_id,
+                "flow table segment belongs to a different module"
+            );
+        }
+
+        Self {
+            module_id,
+            segments,
+        }
+    }
+
+    /// Create a flow table by appending a borrowed tail segment.
+    pub fn with_tail<'b>(&'b self, tail: &'b FlowSegment) -> FlowTable<'b> {
+        FlowTable::from_view(self.segments.with_tail(tail))
+    }
+
+    /// Iterate the recorded symbol uses by occurrence node.
+    pub fn occurrences(&self) -> impl Iterator<Item = BindingOccurrence> {
+        let mut occurrences = BTreeMap::new();
+
+        // merge the independent uses recorded across phases
+        for occurrence in self.segments.iter().flat_map(|segment| &segment.uses) {
+            *occurrences
+                .entry((occurrence.node, occurrence.symbol))
+                .or_insert(BindingUse::default()) |= occurrence.uses;
+        }
+
+        occurrences
+            .into_iter()
+            .map(|((node, symbol), uses)| BindingOccurrence { node, symbol, uses })
+    }
+
+    /// Return whether flow proves one node unreachable.
+    pub fn is_unreachable(&self, node: LocalNodeIdAny) -> bool {
+        self.segments
+            .iter()
+            .any(|segment| segment.unreachable.contains(&node))
+    }
+
+    /// Return whether flow proves one node never returns.
+    pub fn is_diverging(&self, node: LocalNodeIdAny) -> bool {
+        self.segments
+            .iter()
+            .any(|segment| segment.diverging.contains(&node))
+    }
+
+    /// Iterate the recorded module symbol uses.
+    pub fn uses(&self) -> impl Iterator<Item = (LocalSymbolId, BindingUse)> {
+        let mut recorded = BTreeMap::new();
+
+        // merge occurrences by local symbol
+        for occurrence in self.segments.iter().flat_map(|segment| &segment.uses) {
+            if occurrence.symbol.module_id == self.module_id {
+                *recorded
+                    .entry(occurrence.symbol.local_id)
+                    .or_insert(BindingUse::default()) |= occurrence.uses;
+            }
+        }
+
+        recorded.into_iter()
+    }
+
+    /// Iterate the recorded foreign symbol uses.
+    pub fn foreign_uses(&self) -> impl Iterator<Item = (GlobalSymbolId, BindingUse)> {
+        let mut recorded = BTreeMap::new();
+
+        // merge occurrences by foreign symbol
+        for occurrence in self.segments.iter().flat_map(|segment| &segment.uses) {
+            if occurrence.symbol.module_id != self.module_id {
+                *recorded
+                    .entry(occurrence.symbol)
+                    .or_insert(BindingUse::default()) |= occurrence.uses;
+            }
+        }
+
+        recorded.into_iter()
+    }
+
+    /// Iterate the nodes flow proves unreachable.
+    pub fn unreachable_nodes(&self) -> impl Iterator<Item = LocalNodeIdAny> {
+        let mut nodes = self
+            .segments
+            .iter()
+            .flat_map(|segment| segment.unreachable.iter().copied())
+            .collect::<Vec<_>>();
+        nodes.sort_unstable();
+        nodes.dedup();
+
+        nodes.into_iter()
+    }
+
+    /// Iterate the nodes flow proves never return.
+    pub fn diverging_nodes(&self) -> impl Iterator<Item = LocalNodeIdAny> {
+        let mut nodes = self
+            .segments
+            .iter()
+            .flat_map(|segment| segment.diverging.iter().copied())
+            .collect::<Vec<_>>();
+        nodes.sort_unstable();
+        nodes.dedup();
+
+        nodes.into_iter()
+    }
+}
+
+/// Flow conclusions added by one DIR phase.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FlowSegment {
     /// The module id of the flow segment.
     pub module_id: ModuleId,
-    /// Nodes flow proves unreachable, sorted.
-    unreachable: Vec<LocalNodeIdAny>,
-    /// Nodes flow proves never return, sorted.
-    diverging: Vec<LocalNodeIdAny>,
-    /// Uses of each module symbol, sorted by symbol.
-    uses: Vec<(LocalSymbolId, BindingUse)>,
-    /// Uses of the foreign symbols this module touches, sorted by symbol.
-    foreign_uses: Vec<(GlobalSymbolId, BindingUse)>,
-    /// The node each module symbol use occurred at, sorted by node.
-    occurrences: Vec<BindingOccurrence>,
+    /// Nodes flow proves unreachable.
+    unreachable: FxIndexSet<LocalNodeIdAny>,
+    /// Nodes flow proves never return.
+    diverging: FxIndexSet<LocalNodeIdAny>,
+    /// Proved symbol uses.
+    uses: FxIndexSet<BindingOccurrence>,
 }
 
 /// One symbol use at its occurrence node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct BindingOccurrence {
     /// The occurrence node.
     pub node: LocalNodeIdAny,
     /// The used symbol.
-    pub symbol: LocalSymbolId,
+    pub symbol: GlobalSymbolId,
     /// The recorded uses.
     pub uses: BindingUse,
+}
+
+/// One rollback position in a flow segment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FlowMark {
+    /// The per-collection lengths at the mark.
+    lengths: [usize; 3],
 }
 
 impl FlowSegment {
@@ -68,11 +214,9 @@ impl FlowSegment {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            unreachable: Vec::new(),
-            diverging: Vec::new(),
-            uses: Vec::new(),
-            foreign_uses: Vec::new(),
-            occurrences: Vec::new(),
+            unreachable: FxIndexSet::default(),
+            diverging: FxIndexSet::default(),
+            uses: FxIndexSet::default(),
         }
     }
 
@@ -83,101 +227,35 @@ impl FlowSegment {
 
     /// Mark one node unreachable.
     pub fn mark_unreachable(&mut self, node: LocalNodeIdAny) {
-        if let Err(index) = self.unreachable.binary_search(&node) {
-            self.unreachable.insert(index, node);
-        }
+        self.unreachable.insert(node);
     }
 
     /// Mark one node diverging.
     pub fn mark_diverging(&mut self, node: LocalNodeIdAny) {
-        if let Err(index) = self.diverging.binary_search(&node) {
-            self.diverging.insert(index, node);
+        self.diverging.insert(node);
+    }
+
+    /// Record one proved symbol use.
+    pub fn record_use(&mut self, node: LocalNodeIdAny, symbol: GlobalSymbolId, uses: BindingUse) {
+        self.uses.insert(BindingOccurrence { node, symbol, uses });
+    }
+
+    /// Return a rollback position for this segment.
+    pub fn mark(&self) -> FlowMark {
+        FlowMark {
+            lengths: [
+                self.unreachable.len(),
+                self.diverging.len(),
+                self.uses.len(),
+            ],
         }
     }
 
-    /// Record one use of a module symbol.
-    pub fn record_use(&mut self, symbol: LocalSymbolId, binding_use: BindingUse) {
-        match self.uses.binary_search_by_key(&symbol, |(key, _)| *key) {
-            Ok(index) => self.uses[index].1 |= binding_use,
-            Err(index) => self.uses.insert(index, (symbol, binding_use)),
-        }
-    }
-
-    /// Record one use of a foreign symbol.
-    pub fn record_foreign_use(&mut self, symbol: GlobalSymbolId, binding_use: BindingUse) {
-        match self
-            .foreign_uses
-            .binary_search_by_key(&symbol, |(key, _)| *key)
-        {
-            Ok(index) => self.foreign_uses[index].1 |= binding_use,
-            Err(index) => self.foreign_uses.insert(index, (symbol, binding_use)),
-        }
-    }
-
-    /// Record one symbol use at its occurrence node.
-    pub fn record_occurrence(
-        &mut self,
-        node: LocalNodeIdAny,
-        symbol: LocalSymbolId,
-        binding_use: BindingUse,
-    ) {
-        let key = (node, symbol);
-        match self
-            .occurrences
-            .binary_search_by_key(&key, |occurrence| (occurrence.node, occurrence.symbol))
-        {
-            Ok(index) => self.occurrences[index].uses |= binding_use,
-            Err(index) => self.occurrences.insert(
-                index,
-                BindingOccurrence {
-                    node,
-                    symbol,
-                    uses: binding_use,
-                },
-            ),
-        }
-    }
-
-    /// Iterate the recorded symbol uses by occurrence node.
-    pub fn occurrences(&self) -> impl Iterator<Item = BindingOccurrence> + '_ {
-        self.occurrences.iter().copied()
-    }
-
-    /// Return whether flow proves one node unreachable.
-    pub fn is_unreachable(&self, node: LocalNodeIdAny) -> bool {
-        self.unreachable.binary_search(&node).is_ok()
-    }
-
-    /// Return whether flow proves one node never returns.
-    pub fn is_diverging(&self, node: LocalNodeIdAny) -> bool {
-        self.diverging.binary_search(&node).is_ok()
-    }
-
-    /// Return the recorded uses of one module symbol.
-    pub fn use_of(&self, symbol: LocalSymbolId) -> BindingUse {
-        self.uses
-            .binary_search_by_key(&symbol, |(key, _)| *key)
-            .map(|index| self.uses[index].1)
-            .unwrap_or_default()
-    }
-
-    /// Iterate the recorded module symbol uses.
-    pub fn uses(&self) -> impl Iterator<Item = (LocalSymbolId, BindingUse)> + '_ {
-        self.uses.iter().copied()
-    }
-
-    /// Iterate the recorded foreign symbol uses.
-    pub fn foreign_uses(&self) -> impl Iterator<Item = (GlobalSymbolId, BindingUse)> + '_ {
-        self.foreign_uses.iter().copied()
-    }
-
-    /// Iterate the nodes flow proves unreachable.
-    pub fn unreachable_nodes(&self) -> impl Iterator<Item = LocalNodeIdAny> + '_ {
-        self.unreachable.iter().copied()
-    }
-
-    /// Iterate the nodes flow proves never return.
-    pub fn diverging_nodes(&self) -> impl Iterator<Item = LocalNodeIdAny> + '_ {
-        self.diverging.iter().copied()
+    /// Truncate this segment to a previous rollback position.
+    pub fn truncate_to(&mut self, mark: FlowMark) {
+        let [unreachable, diverging, uses] = mark.lengths;
+        self.unreachable.truncate(unreachable);
+        self.diverging.truncate(diverging);
+        self.uses.truncate(uses);
     }
 }

@@ -8,7 +8,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, Call,
+    AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, BindingUse, Call,
     CallDecision, ConstructDecision, FunctionDecision, GlobalNodeIdAny, GlobalSymbolId,
     GlobalTypeId, GuardDecision, MemberAccess, MemberDecision, OperationResolution,
     OperatorDecision, PatternDecision, PlaceResolution, ReceiverDecision, SegmentView,
@@ -53,6 +53,58 @@ pub enum Decision {
 }
 
 impl Decision {
+    /// Return the binding uses represented at this decision's node.
+    pub fn binding_uses(&self) -> Vec<(GlobalSymbolId, BindingUse)> {
+        let mut uses = Vec::new();
+
+        match self {
+            // collect member reads
+            Self::Member(member) => uses.extend(
+                member
+                    .target_symbols()
+                    .into_iter()
+                    .map(|symbol| (symbol, BindingUse::READ)),
+            ),
+            // collect assignment reads and writes
+            Self::Assignment(assignment) => {
+                // collect reads performed before the write
+                if let Some(read) = &assignment.read {
+                    uses.extend(
+                        read.target_symbols()
+                            .into_iter()
+                            .map(|symbol| (symbol, BindingUse::READ)),
+                    );
+                }
+
+                // collect writes
+                uses.extend(
+                    assignment
+                        .write
+                        .target_symbols()
+                        .into_iter()
+                        .map(|symbol| (symbol, BindingUse::WRITTEN)),
+                );
+            }
+            // no binding use at this node
+            Self::Receiver(_)
+            | Self::Function(_)
+            | Self::Label(_)
+            | Self::Operator(_)
+            | Self::Call(_)
+            | Self::Subscript(_)
+            | Self::Guard(_)
+            | Self::Construct(_)
+            | Self::Tree(_)
+            | Self::Pattern(_)
+            | Self::AssignPattern(_)
+            | Self::Attempted(_)
+            | Self::Rejected
+            | Self::Poisoned => {}
+        }
+
+        uses
+    }
+
     /// Return the single static member access selected at this node.
     pub fn member_access(&self) -> Option<&MemberAccess> {
         match self {

@@ -1122,6 +1122,16 @@ impl ReadResolution {
             Self::Dereference(dereference) => dereference.ty(),
         }
     }
+
+    /// Return the declaration symbols selected by this read.
+    pub fn target_symbols(&self) -> Vec<GlobalSymbolId> {
+        match self {
+            Self::Binding { symbol, .. } => vec![*symbol],
+            Self::Member(member) => member.target_symbols(),
+            Self::Subscript(subscript) => subscript.target_symbols(),
+            Self::Dereference(_) => Vec::new(),
+        }
+    }
 }
 
 /// Write selected for one place expression.
@@ -1152,6 +1162,16 @@ impl WriteResolution {
             Self::Member(member) => member.ty(),
             Self::Subscript(subscript) => subscript.ty(),
             Self::Dereference(dereference) => dereference.ty(),
+        }
+    }
+
+    /// Return the declaration symbols selected by this write.
+    pub fn target_symbols(&self) -> Vec<GlobalSymbolId> {
+        match self {
+            Self::Binding { symbol, .. } => vec![*symbol],
+            Self::Member(member) => member.target_symbols(),
+            Self::Subscript(subscript) => subscript.target_symbols(),
+            Self::Dereference(_) => Vec::new(),
         }
     }
 }
