@@ -10,7 +10,6 @@ use crate::sema::{
     BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Check, CheckState, FlowSite,
     InferMode, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation, SelectionCheck,
     SignatureMatch, TypeSubstitution, Value, ValueUse, VariableRole, Widening,
-    TypeSubstitution, Value, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -338,29 +337,34 @@ impl MemberLookup {
         }
     }
 
-    /// Return the required stored field type selected by this lookup.
+    /// Return the required directly stored field type selected by this lookup.
     pub(in crate::sema) fn required_field_type(&self) -> Option<dir::GlobalTypeId> {
         match self {
+            // a refined structural field reads its stored value
             Self::Field(FieldLookup::Structural {
+                receiver: LookupReceiver::Direct(_),
                 access,
                 is_optional: false,
                 ..
             }) => access.read(),
+            // one selected declared field reads its stored value
             Self::Found(candidates) => {
                 let candidates = Self::selected_candidates(candidates);
                 let [candidate] = candidates.as_slice() else {
                     return None;
                 };
-                if candidate.role != MemberRole::Field || candidate.is_optional {
+                if candidate.role != MemberRole::Field
+                    || candidate.is_optional
+                    || !matches!(candidate.receiver, LookupReceiver::Direct(_))
+                {
                     return None;
                 }
 
                 Some(candidate.access_type)
             }
+            // every remaining lookup reads through a property, a projection, or many arms
             Self::Missing
-            | Self::Field(FieldLookup::Structural {
-                is_optional: true, ..
-            })
+            | Self::Field(FieldLookup::Structural { .. })
             | Self::Field(FieldLookup::Projection { .. })
             | Self::Union(_)
             | Self::Intersection(_) => None,

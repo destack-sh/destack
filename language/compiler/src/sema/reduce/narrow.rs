@@ -63,30 +63,27 @@ impl CheckState<'_> {
         Ok(narrowed)
     }
 
-    /// Filter one type's alternatives through a runtime predicate, or the variable blocking it.
+    /// Filter one source's physical alternatives through a tested member value.
+    ///
+    /// The surviving alternatives rejoin as physical arms beneath any nominal
+    /// carrier, or the variable blocking an undecided member test comes back.
     pub(in crate::sema) fn narrow_type_alternatives(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
+        keys: &[dir::StaticKey],
         target: dir::GlobalTypeId,
         is_positive: bool,
     ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
         let source = self.normalize(origin, source)?;
+
+        // enumerate the cases an enum owner names
         let alternatives = if let Some(variants) = self.variant_types(source)? {
             variants
-        } else {
-            // unwrap nominal carriers while retaining the source memory forms
-            let mut carrier = source;
-            loop {
-                let base = self.form_chain(origin, carrier)?.base();
-                let Some(instance) = self.decompose_newtype(origin, base)? else {
-                    break;
-                };
-                let backing = self.normalize(origin, instance.backing)?;
-                carrier = self.replace_form_value(origin, carrier, backing)?;
-            }
-
-            // expose the resulting physical union arms
+        }
+        // enumerate the physical arms every other source carries
+        else {
+            let (carrier, _) = self.body().project_newtype_receiver(origin, source)?;
             let Some(arms) = self.union_arms(origin, carrier)? else {
                 return Ok(Ok(None));
             };
@@ -94,19 +91,21 @@ impl CheckState<'_> {
             arms.into_vec()
         };
 
-        // keep original alternatives whose projected predicate remains inhabited
+        // keep original alternatives whose tested member remains inhabited
         let mut kept = Vec::with_capacity(alternatives.len());
         for alternative in alternatives {
-            let narrowed = match self.narrow_element(origin, alternative, target, is_positive)? {
-                Ok(narrowed) => narrowed,
-                Err(variable) => return Ok(Err(variable)),
-            };
+            let narrowed =
+                match self.narrow_member(origin, alternative, keys, target, is_positive)? {
+                    Ok(narrowed) => narrowed,
+                    Err(variable) => return Ok(Err(variable)),
+                };
             let narrowed = self.normalize(origin, narrowed)?;
             if !matches!(self.ty(narrowed)?, dir::Type::Never) {
                 kept.push(alternative);
             }
         }
 
+        // join the surviving alternatives back into one type
         let narrowed = match kept.as_slice() {
             [] => self.intern_type(dir::Type::Never)?,
             [single] => *single,
@@ -301,6 +300,63 @@ impl CheckState<'_> {
                     "narrowing {source:?} against {target:?} is ambiguous without an open variable"
                 ),
             })
+    }
+
+    /// Narrow one alternative through its tested member chain, or the variable blocking it.
+    fn narrow_member(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        keys: &[dir::StaticKey],
+        target: dir::GlobalTypeId,
+        is_positive: bool,
+    ) -> CompilerResult<Result<dir::GlobalTypeId, dir::TypeVariableId>> {
+        // test the reached value once the chain ends
+        let [key, rest @ ..] = keys else {
+            return self.narrow_element(origin, source, target, is_positive);
+        };
+
+        // project the tested member, comparing values beneath memory forms
+        let lookup = self.body().lookup_inherent_member(
+            origin,
+            origin.module(),
+            source,
+            dir::MemberSpace::Instance,
+            *key,
+        )?;
+        if let Some(projected) = self.body().member_read_type(&lookup)? {
+            let projected = self.strip_form(origin, projected)?;
+            let projected = self.normalize(origin, projected)?;
+
+            // continue the chain through the projected member
+            let narrowed = match self.narrow_member(origin, projected, rest, target, is_positive)? {
+                Ok(narrowed) => narrowed,
+                blocked @ Err(_) => return Ok(blocked),
+            };
+
+            // retain the whole alternative while its tested member stays inhabited
+            let narrowed = if matches!(self.ty(narrowed)?, dir::Type::Never) {
+                narrowed
+            } else {
+                source
+            };
+
+            return Ok(Ok(narrowed));
+        }
+
+        // closed member sets fail the positive test and pass every negative test
+        if !self.may_have_additional_member(origin, source, *key)? {
+            let narrowed = if is_positive {
+                self.intern_type(dir::Type::Never)?
+            } else {
+                source
+            };
+
+            return Ok(Ok(narrowed));
+        }
+
+        // open member sets stay undecided by the test
+        Ok(Ok(source))
     }
 
     /// Narrow one source arm through one runtime target, or the variable blocking it.

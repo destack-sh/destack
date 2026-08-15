@@ -338,7 +338,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         operand: dir::GlobalNodeId<dir::Expression>,
         access: &dir::AccessResolution,
-        mut target: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
         is_equal: bool,
     ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
         let operand_path = access.path();
@@ -349,12 +349,13 @@ impl CheckState<'_> {
 
             return Ok(Ok(narrowed));
         }
+
+        // leave paths the operand does not reach untouched
         if !operand_path.starts_with(path) {
             return Ok(Ok(None));
         }
-        let origin = site.origin();
 
-        // derive the relative stored projection from the selected access paths
+        // derive the tested member chain from the selected access paths
         let relative = &operand_path.keys()[path.keys().len()..];
         if relative.is_empty() {
             return Err(CompilerError::Internal {
@@ -364,40 +365,8 @@ impl CheckState<'_> {
                 ),
             });
         }
-        let mut relative = relative;
 
-        // read the physical union mapping retained by a discriminant projection
-        let discriminant_cases = if let Some(access) = self
-            .decisions(operand.module_id)
-            .decision(operand.into_any())
-            .and_then(dir::Decision::member_access)
-            && let dir::MemberTarget::Projection {
-                projection: dir::Projection::Discriminant { cases, .. },
-                ..
-            } = &access.target
-        {
-            Some(cases)
-        } else {
-            None
-        };
-
-        // translate the semantic literal into its physical union arm
-        if let Some(cases) = discriminant_cases {
-            let literal = self.ty(target)?.singleton_literal();
-            target =
-                match literal.and_then(|literal| cases.iter().find(|case| case.value == literal)) {
-                    Some(case) => case.arm,
-                    None => self.intern_type(dir::Type::Never)?,
-                };
-            relative = &relative[..relative.len() - 1];
-        }
-
-        // wrap the selected value in each containing field predicate
-        for key in relative.iter().rev() {
-            target = self.field_shape_type(*key, target)?;
-        }
-
-        self.narrow_type_alternatives(origin, source, target, is_equal)
+        self.narrow_type_alternatives(site.origin(), source, relative, target, is_equal)
     }
 
     /// Return the singleton type selected by one equality operand.

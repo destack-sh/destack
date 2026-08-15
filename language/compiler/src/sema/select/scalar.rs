@@ -42,10 +42,11 @@ impl BodyState<'_, '_> {
         // closed literal values select literal predicates
         let literal = self.ty(ty)?.singleton_literal();
         match literal {
-            Some(value) => {
+            // test the matched input against the selected literal
+            Some(literal) => {
                 let predicate = dir::Predicate::unary(
                     dir::PredicateOperand::direct(input),
-                    dir::PredicateCondition::Literal(value),
+                    dir::PredicateCondition::Literal(literal),
                 )
                 .with_narrowed(ty);
 
@@ -56,6 +57,11 @@ impl BodyState<'_, '_> {
                     })),
                 )
             }
+            // error values already explain themselves
+            None if self.any_error_operand(&[ty])? => {
+                self.commit_pattern(node, dir::PatternDecision::Ignore)
+            }
+            // report every other pattern value
             None => {
                 self.report_expression_pattern_not_literal(module, node.local_id.into_any());
 

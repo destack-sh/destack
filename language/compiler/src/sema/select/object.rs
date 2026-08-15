@@ -1,9 +1,12 @@
+use std::slice;
+
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, FlowPointId, FlowSite, MemberCandidate, MemberLookup, MemberRole, Origin, Value,
+    BodyState, FlowPointId, FlowSite, MemberCandidate, MemberLookup, MemberRole, Origin, PlaceUse,
+    Value,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -29,20 +32,26 @@ impl BodyState<'_, '_> {
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<()> {
+        // check the keys, bindings, and rest field the pattern declares
         let module = node.module_id;
         self.check_pattern_field_keys(module, fields)?;
         self.check_pattern_bindings(module, fields)?;
-
         if !self.check_pattern_rest_fields(module, fields) {
             return self.commit_rejected_pattern(node);
         }
 
+        // project fields off the scrutinee subset the pattern's literal tests accept
+        let tests = self.object_pattern_tests(module, flow, scope, fields)?;
+        let scrutinee = self.narrow_pattern_scrutinee(origin, scrutinee, &tests)?;
+
+        // reject a scrutinee that carries no keys
         if !self.is_keyed_type(origin, scrutinee)? {
             self.report_pattern_source_not_object_shaped(origin, scrutinee)?;
 
             return self.commit_rejected_pattern(node);
         }
 
+        // destructure each named field, collecting the rest
         let (fields, rest) =
             self.project_named_fields(node, origin, flow, scope, scrutinee, fields)?;
 
@@ -75,6 +84,9 @@ impl BodyState<'_, '_> {
 
             return Ok(false);
         }
+
+        // destructure the physical value beneath nominal wrappers
+        let scrutinee = self.narrow_pattern_scrutinee(origin, scrutinee, &[])?;
 
         if !self.is_keyed_type(origin, scrutinee)? {
             self.report_pattern_source_not_object_shaped(origin, scrutinee)?;
@@ -455,7 +467,74 @@ impl BodyState<'_, '_> {
         }))
     }
 
-    /// Return the lowerable projection for one object destructuring key.
+    /// Collect the member values one object pattern's literal fields test.
+    fn object_pattern_tests(
+        &mut self,
+        module: ModuleId,
+        flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+    ) -> CompilerResult<Vec<(dir::StaticKey, dir::GlobalTypeId)>> {
+        let mut tests = Vec::new();
+
+        // collect one test per named field carrying an expression sub-pattern
+        for field in fields {
+            let dir::PatternField::Named {
+                name,
+                pattern: Some(pattern),
+                ..
+            } = self.module(module).view().get(*field).clone()
+            else {
+                continue;
+            };
+            let dir::Pattern::Expression { value } = *self.module(module).view().get(pattern)
+            else {
+                continue;
+            };
+
+            // singleton-valued sub-patterns test their field exactly
+            let site = FlowSite {
+                node: value.into_global_any(module),
+                flow,
+                scope,
+            };
+            let ty = self.infer_node_type(site, PlaceUse::Read)?;
+            if self.is_singleton_type(ty)? {
+                tests.push((name.into(), ty));
+            }
+        }
+
+        Ok(tests)
+    }
+
+    /// Narrow one scrutinee to the subset the pattern can match, keeping it whole when stuck.
+    fn narrow_pattern_scrutinee(
+        &mut self,
+        origin: Origin,
+        scrutinee: dir::GlobalTypeId,
+        tests: &[(dir::StaticKey, dir::GlobalTypeId)],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // destructure the physical value beneath nominal wrappers
+        let (mut narrowed, _) = self.project_newtype_receiver(origin, scrutinee)?;
+
+        // filter the alternatives through each tested member value
+        for (key, tested) in tests {
+            let keys = slice::from_ref(key);
+            narrowed = match self.narrow_type_alternatives(origin, narrowed, keys, *tested, true)? {
+                Ok(Some(next)) => next,
+                Ok(None) | Err(_) => narrowed,
+            };
+        }
+
+        // keep the whole scrutinee when the tests leave nothing to project
+        if matches!(self.ty(narrowed)?, dir::Type::Never) {
+            return Ok(scrutinee);
+        }
+
+        Ok(narrowed)
+    }
+
+    /// Select the field projection one object destructuring key names.
     fn object_field(
         &mut self,
         origin: Origin,

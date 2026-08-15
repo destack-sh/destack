@@ -708,15 +708,19 @@ impl BodyState<'_, '_> {
         }
 
         // require one distinct singleton-valued field from every selected arm
+        debug_assert_eq!(elements.len(), lookups.len());
         let mut cases = Vec::with_capacity(lookups.len());
         let mut types = Vec::with_capacity(lookups.len());
         for (element, arm) in elements.iter().zip(lookups) {
             let Some(ty) = arm.lookup.required_field_type() else {
                 return Ok(None);
             };
-            let Some(value) = self.ty(ty)?.singleton_literal() else {
+            let base = self.strip_form(origin, ty)?;
+            let Some(value) = self.ty(base)?.singleton_literal() else {
                 return Ok(None);
             };
+
+            // reject a repeated value, which selects no single arm
             if cases
                 .iter()
                 .any(|case: &dir::DiscriminantCase| case.value == value)
