@@ -19,7 +19,7 @@ pub struct MirLowered {
     /// Canonical MIR drop table.
     pub drops: mir::DropTable,
     /// Explicit MIR memory access table.
-    pub memory: mir::MemoryTable,
+    pub accesses: mir::AccessTable,
     /// Function and call effect table.
     pub effects: mir::EffectTable,
     /// Static profile counter table.
@@ -38,7 +38,7 @@ impl MirLowered {
             layouts: mir::LayoutTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
-            memory: mir::MemoryTable::default(),
+            accesses: mir::AccessTable::default(),
             effects: mir::EffectTable::default(),
             profile: mir::ProfileTable::default(),
             initializer: None,
@@ -72,7 +72,7 @@ pub struct MirElaborated {
     /// Canonical MIR drop table.
     pub drops: mir::DropTable,
     /// Explicit MIR memory access table.
-    pub memory: mir::MemoryTable,
+    pub accesses: mir::AccessTable,
     /// Function and call effect table.
     pub effects: mir::EffectTable,
     /// Static profile counter table.
@@ -95,7 +95,7 @@ pub struct MirOptimized {
     /// Canonical MIR drop table.
     pub drops: mir::DropTable,
     /// Explicit MIR memory access table.
-    pub memory: mir::MemoryTable,
+    pub accesses: mir::AccessTable,
     /// Function and call effect table.
     pub effects: mir::EffectTable,
     /// Static profile counter table.
@@ -112,7 +112,7 @@ impl MirOptimized {
             layouts: mir::LayoutTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
-            memory: mir::MemoryTable::default(),
+            accesses: mir::AccessTable::default(),
             effects: mir::EffectTable::default(),
             profile: mir::ProfileTable::default(),
         }
