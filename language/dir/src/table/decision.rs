@@ -1,4 +1,5 @@
 use destack_serde::Reflect;
+use std::hash::Hash;
 use std::slice;
 use std::sync::Arc;
 
@@ -551,7 +552,7 @@ impl DecisionSegment {
     }
 
     /// Drop map entries added past one length.
-    fn truncate_map<K: std::hash::Hash + Eq, T>(map: &mut IndexMap<K, T>, length: usize) {
+    fn truncate_map<K: Hash + Eq, T>(map: &mut IndexMap<K, T>, length: usize) {
         while map.len() > length {
             map.pop();
         }

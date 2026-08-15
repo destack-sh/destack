@@ -314,6 +314,104 @@ impl TypeFold for GenericParameterBinding {
     }
 }
 
+/// Unique identifier for generic instances.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct LocalInstanceId(pub u32);
+
+impl LocalInstanceId {
+    /// Wrap an id as a local instance id.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+
+    /// Turn into a global instance id.
+    pub fn into_global(self, module_id: ModuleId) -> GlobalInstanceId {
+        GlobalInstanceId {
+            module_id,
+            local_id: self,
+        }
+    }
+}
+
+/// Global generic instance id across modules.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
+pub struct GlobalInstanceId {
+    /// The module id of the global instance.
+    pub module_id: ModuleId,
+    /// The local instance id.
+    pub local_id: LocalInstanceId,
+}
+
+/// One generic template closed over concrete type arguments.
+///
+/// Examples:
+/// ```ds
+/// pick<float64>(30.5, 40.5)  // template: pick, arguments: (float64)
+/// Array<int32>               // template: Array, arguments: (int32)
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct Instance {
+    /// The generic declaration this instance closes.
+    pub template: GlobalSymbolId,
+    /// The complete selected generic argument bindings, in parameter order.
+    pub arguments: Vec<GenericArgumentBinding>,
+    /// One source node that closes this instance.
+    pub source: GlobalNodeIdAny,
+}
+
+impl TypeFold for Instance {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for binding in &mut self.arguments {
+            binding.map_types(map)?;
+        }
+
+        Ok(())
+    }
+}
+
+/// One instantiation a checked body performs, open while it mentions parameters.
+///
+/// Examples:
+/// ```ds
+/// function outer<T>(value: T): T {
+///     return inner(value);  // owner: outer, template: inner, arguments: (T)
+/// }
+///
+/// const chosen = outer(true);  // owner: none, template: outer, arguments: (true)
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct Instantiation {
+    /// The enclosing template whose instances close this instantiation, module-level when none.
+    pub owner: Option<GlobalSymbolId>,
+    /// The instantiated generic declaration.
+    pub template: GlobalSymbolId,
+    /// The instantiated generic argument bindings.
+    pub arguments: Vec<GenericArgumentBinding>,
+    /// The source node performing the instantiation.
+    pub source: GlobalNodeIdAny,
+}
+
+impl TypeFold for Instantiation {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        for binding in &mut self.arguments {
+            binding.map_types(map)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// How many inhabitants one parameter's argument type may have.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Cardinality {
