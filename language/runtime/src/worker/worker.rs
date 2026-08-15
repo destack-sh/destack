@@ -16,7 +16,9 @@ use crate::host::resource::ResourceImage;
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::machine::{Engine, Machine, MachineImage};
 use crate::runtime::RuntimeId;
-use crate::scheduler::{Callback, EventLoop, EventLoopImage, Readiness, RetainedRunnable};
+use crate::scheduler::{
+    Callback, EventLoop, EventLoopImage, Readiness, RetainedRunnable, ScheduledTimer,
+};
 use crate::world::topology::LabelSet;
 use crate::world::{RestoreContext, WorkerSequence, WorldState};
 
@@ -286,6 +288,16 @@ impl Worker {
     /// Remove the waiter registered for one timer resource.
     pub fn remove_timer_waiter(&mut self, handle: ResourceId) -> Option<Callback> {
         self.event_loop.remove_timer_waiter(handle)
+    }
+
+    /// Schedule one timer for this worker.
+    pub fn schedule_timer(&mut self, timer: ScheduledTimer) -> RuntimeResult<()> {
+        self.event_loop.schedule_timer(timer)
+    }
+
+    /// Cancel one timer for this worker.
+    pub fn cancel_timer(&mut self, handle: ResourceId) -> RuntimeResult<()> {
+        self.event_loop.cancel_timer(handle)
     }
 
     /// Add one waiter for one resource readiness.

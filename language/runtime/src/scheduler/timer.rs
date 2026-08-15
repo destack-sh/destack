@@ -60,7 +60,6 @@ pub(super) struct TimerQueue {
     next_generation: u64,
 }
 
-#[allow(dead_code)]
 impl TimerQueue {
     /// Fork this timer queue from its deterministic active timer image.
     pub(super) fn fork(&self) -> RuntimeResult<Self> {
@@ -401,7 +400,6 @@ impl PartialOrd for TimerEntry {
     }
 }
 
-#[allow(dead_code)]
 impl EventLoop {
     /// Normalize one timer deadline using scheduler options.
     pub(super) fn normalize_deadline(&self, deadline: Nanos) -> Nanos {
