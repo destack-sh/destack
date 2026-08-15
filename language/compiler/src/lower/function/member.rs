@@ -108,9 +108,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 } => {
                     let receiver = self.lower_adjusted_receiver(left, &receiver)?;
 
-                    // preserve evaluation of a computed singleton key
+                    // evaluate the computed singleton key
                     if let Some(index) = index {
-                        self.lower_expression(index)?;
+                        self.lower_const_expression(index)?;
                     }
 
                     self.lower_member_projection(receiver, &projection)
@@ -119,9 +119,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 dir::MemberTarget::Field(field) => {
                     let value = self.lower_member_receiver(left, &field.receiver)?;
 
-                    // preserve evaluation of a computed singleton key
+                    // evaluate the computed singleton key
                     if let Some(index) = index {
-                        self.lower_expression(index)?;
+                        self.lower_const_expression(index)?;
                     }
 
                     self.lower_field_value(expression, value, &field)

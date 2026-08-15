@@ -48,15 +48,56 @@ impl FunctionLowerer<'_, '_, '_> {
             _ => return Ok(CoercionValue::Expression(expression)),
         };
 
-        // evaluate nonliteral expressions even when their exact value is known statically
-        if !matches!(
-            self.source().tree().get(expression),
-            dir::Expression::ScalarLiteral(_)
-        ) {
-            self.lower_expression_value(expression)?;
-        }
+        // lower the const expression's remaining runtime evaluation
+        self.lower_const_expression(expression)?;
 
         Ok(value)
+    }
+
+    /// Lower one expression whose value lives in its type.
+    pub(in crate::lower) fn lower_const_expression(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        // a folded computation keeps no runtime form
+        if self.is_folded_expression(expression)? {
+            return Ok(());
+        }
+
+        // every remaining const value evaluates as an ordinary expression
+        // NOTE: value lowering avoids re-entering the coercion path that called here
+        self.lower_expression_value(expression)?;
+
+        Ok(())
+    }
+
+    /// Return whether one expression's computation folded into its committed type.
+    fn is_folded_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<bool> {
+        match self.source().tree().get(expression) {
+            // literal values compute nothing
+            dir::Expression::ScalarLiteral(_) => Ok(true),
+
+            // builtin operations fold when every operand folds
+            dir::Expression::Binary { left, right, .. } => {
+                let (left, right) = (*left, *right);
+                let is_builtin = self.operator_decision(expression)?.is_builtin();
+
+                Ok(is_builtin
+                    && self.is_folded_expression(left)?
+                    && self.is_folded_expression(right)?)
+            }
+            dir::Expression::Unary { right, .. } => {
+                let right = *right;
+                let is_builtin = self.operator_decision(expression)?.is_builtin();
+
+                Ok(is_builtin && self.is_folded_expression(right)?)
+            }
+
+            _ => Ok(false),
+        }
     }
 
     /// Apply one complete adjustment path.
@@ -813,9 +854,15 @@ impl FunctionLowerer<'_, '_, '_> {
                     return Ok(self.builder.constant(mir::Constant::Uninit, never));
                 }
 
-                // reject void calls in value position
+                // yield the unique inhabitant of a zero sized result
+                let result_type = self.lower_type(ty)?;
+                if matches!(self.builder.tree().get(result_type), mir::Type::Void) {
+                    return Ok(self.builder.constant(mir::Constant::Undefined, result_type));
+                }
+
+                // reject a call that produced no value in value position
                 Err(CompilerError::Internal {
-                    message: "a void call used as a value".to_string(),
+                    message: "a call used as a value produced no value".to_string(),
                 })
             }
 
