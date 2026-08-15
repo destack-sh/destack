@@ -64,6 +64,7 @@ export local struct Fiber implements Copy {
 declare function currentFiber(): Fiber;
 
 /// Create one suspended fiber.
+@languageItem("async.Fiber.create")
 @binding("destack.fiber.create", {
     provider: "runtime",
     effect: "deterministic",
@@ -92,6 +93,7 @@ declare function parkFiber(): void;
 declare function wakeFiber(fiber: Fiber): void;
 
 /// Resume one fiber until it yields or returns.
+@languageItem("async.Fiber.resume")
 @binding("destack.fiber.resume", {
     provider: "runtime",
     effect: "deterministic",
