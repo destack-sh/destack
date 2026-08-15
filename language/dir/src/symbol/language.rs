@@ -240,7 +240,7 @@ define_language_items! {
             /// Generator result type alias.
             GeneratorResult => (Type, "async/generator", "GeneratorResult"),
 
-            /// Create one generator from its first continuation.
+            /// Create one generator from its producer body.
             GeneratorCreate => (
                 Function,
                 "async/generator",
@@ -248,12 +248,28 @@ define_language_items! {
                 "async.Generator.create"
             ),
 
-            /// Create one async generator from its first continuation.
+            /// Yield one value from a generator producer.
+            GeneratorYield => (
+                Function,
+                "async/generator",
+                "yield",
+                "async.Generator.yield"
+            ),
+
+            /// Create one async generator from its producer body.
             AsyncGeneratorCreate => (
                 Function,
                 "async/generator",
                 "create",
                 "async.AsyncGenerator.create"
+            ),
+
+            /// Yield one value from an async generator producer.
+            AsyncGeneratorYield => (
+                Function,
+                "async/generator",
+                "yield",
+                "async.AsyncGenerator.yield"
             ),
 
         }
@@ -271,6 +287,12 @@ define_language_items! {
         fiber {
             /// Fiber identity struct.
             Fiber => (Struct, "async/fiber", "Fiber"),
+
+            /// Create one suspended fiber.
+            FiberCreate => (Function, "async/fiber", "createFiber", "async.Fiber.create"),
+
+            /// Resume one fiber synchronously.
+            FiberResume => (Function, "async/fiber", "resumeFiber", "async.Fiber.resume"),
         }
 
         /// `destack:async/promise`.
@@ -284,17 +306,23 @@ define_language_items! {
             /// Fulfill one lowered async function promise.
             PromiseFulfill => (Function, "async/promise", "fulfill", "async.Promise.fulfill"),
 
-            /// Cancel one lowered async function promise.
-            PromiseCancel => (Function, "async/promise", "cancel", "async.Promise.cancel"),
-
             /// Promise resolver pair.
             PromiseResolvers => (Struct, "async/promise", "PromiseResolvers"),
         }
 
         /// `destack:async/task`.
         task {
-            /// Task class.
-            Task => (Class, "async/task", "Task"),
+            /// Task struct.
+            Task => (Struct, "async/task", "Task"),
+
+            /// Create one task and its producer.
+            TaskCreate => (Function, "async/task", "create", "async.Task.create"),
+
+            /// Attach one task producer to the current fiber.
+            TaskAttach => (Function, "async/task", "attach", "async.Task.attach"),
+
+            /// Complete one task with its result.
+            TaskComplete => (Function, "async/task", "complete", "async.Task.complete"),
 
             /// Queue one microtask.
             QueueMicrotask => (Function, "async/task", "queueMicrotask"),
