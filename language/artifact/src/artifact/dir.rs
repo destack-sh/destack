@@ -436,6 +436,8 @@ impl DirElaborated {
 pub struct DirChecked {
     /// The stable fingerprint of this module's checked output.
     pub fingerprint: ArtifactProjectionFingerprint,
+    /// The modules the checked entries mention.
+    pub references: Vec<ModuleId>,
     /// Checked binding segment.
     pub bindings: Arc<dir::BindingSegment>,
     /// New decorator applications.
@@ -450,7 +452,7 @@ pub struct DirChecked {
     pub resolutions: Arc<dir::ResolutionSegment>,
     /// New decisions.
     pub decisions: Arc<dir::DecisionSegment>,
-    /// New generic slots and instances.
+    /// New generic slots and the instantiations the bodies perform.
     pub generics: Arc<dir::GenericSegment>,
     /// Refined declaration definitions.
     pub definitions: Arc<dir::DefinitionSegment>,
@@ -587,45 +589,22 @@ impl DirChecked {
     }
 }
 
-/// Const materialization segment for one module under one profile.
+/// Materialized DIR for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirMaterialized {
     /// Tree changes.
     pub patch: dir::Patch,
-    /// New bindings.
-    pub bindings: Arc<dir::BindingSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
-    /// New static values.
-    pub statics: Arc<dir::StaticSegment>,
-    /// New resolutions.
-    pub resolutions: Arc<dir::ResolutionSegment>,
-    /// New decisions.
-    pub decisions: Arc<dir::DecisionSegment>,
-    /// New generic slots and instances.
+    /// Closed generic instances and their materialized types.
     pub generics: Arc<dir::GenericSegment>,
-    /// New implicit coercions.
-    pub coercions: Arc<dir::CoercionSegment>,
-    /// New captures.
-    pub captures: Arc<dir::CaptureSegment>,
+    /// Evaluated declaration definitions.
+    pub definitions: Arc<dir::DefinitionSegment>,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 }
 
 impl DirMaterialized {
-    /// Return the cumulative binding table for materialized DIR.
-    pub fn binding_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-    ) -> dir::BindingTable<'static> {
-        dir::BindingTable::from_segments(vec![
-            bound.bindings.clone(),
-            expanded.bindings.clone(),
-            self.bindings.clone(),
-        ])
-    }
-
     /// Return the cumulative type table for materialized DIR.
     pub fn type_table(
         &self,
@@ -645,63 +624,16 @@ impl DirMaterialized {
         ])
     }
 
-    /// Return the cumulative static table for materialized DIR.
-    pub fn static_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) -> dir::StaticTable<'static> {
-        dir::StaticTable::from_segments(vec![
-            bound.statics.clone(),
-            expanded.statics.clone(),
-            declared.statics.clone(),
-            elaborated.statics.clone(),
-            checked.statics.clone(),
-            self.statics.clone(),
-        ])
-    }
-
-    /// Return the cumulative resolution table for materialized DIR.
-    pub fn resolution_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) -> dir::ResolutionTable<'static> {
-        dir::ResolutionTable::from_segments(vec![
-            declared.resolutions.clone(),
-            elaborated.resolutions.clone(),
-            checked.resolutions.clone(),
-            self.resolutions.clone(),
-        ])
-    }
-
-    /// Return the cumulative decision table for materialized DIR.
-    pub fn decision_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) -> dir::DecisionTable<'static> {
-        dir::DecisionTable::from_segments(vec![
-            declared.decisions.clone(),
-            elaborated.decisions.clone(),
-            checked.decisions.clone(),
-            self.decisions.clone(),
-        ])
-    }
-
     /// Return the cumulative generic table for materialized DIR.
     pub fn generic_table(
         &self,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
         checked: &DirChecked,
     ) -> dir::GenericTable<'static> {
         dir::GenericTable::from_segments(vec![
             declared.generics.clone(),
+            elaborated.generics.clone(),
             checked.generics.clone(),
             self.generics.clone(),
         ])
@@ -716,16 +648,7 @@ impl DirMaterialized {
         dir::DefinitionTable::from_segments(vec![
             elaborated.definitions.clone(),
             checked.definitions.clone(),
+            self.definitions.clone(),
         ])
-    }
-
-    /// Return the cumulative coercion table for materialized DIR.
-    pub fn coercion_table(&self, checked: &DirChecked) -> dir::CoercionTable<'static> {
-        dir::CoercionTable::from_segments(vec![checked.coercions.clone(), self.coercions.clone()])
-    }
-
-    /// Return the cumulative capture table for materialized DIR.
-    pub fn capture_table(&self, checked: &DirChecked) -> dir::CaptureTable<'static> {
-        dir::CaptureTable::from_segments(vec![checked.captures.clone(), self.captures.clone()])
     }
 }
