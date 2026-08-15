@@ -1,5 +1,5 @@
 use destack_core::BitSet;
-use destack_mir::{self as mir, CallComponentGraph, LinkGraph, LinkSupergraph, Symbol};
+use destack_mir::{self as mir, CallComponentGraph, LinkSupergraph, LinkTable, Symbol};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -136,13 +136,13 @@ impl Default for MirOptimized {
 /// Per-module link summary produced by program analysis.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirAnalyzed {
-    /// The module's symbol reference graph.
-    pub links: LinkGraph,
+    /// The module's symbol links.
+    pub links: LinkTable,
 }
 
 impl MirAnalyzed {
-    /// Create a per-module analysis payload from its link graph.
-    pub fn new(links: LinkGraph) -> Self {
+    /// Create a per-module analysis payload from its link table.
+    pub fn new(links: LinkTable) -> Self {
         Self { links }
     }
 }
