@@ -12,7 +12,7 @@ use destack_source::{ModuleId, TargetId};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
-    /// Collect inputs for the analyzed link summary of one module and target.
+    /// Collect inputs for one module's MIR analysis.
     pub(crate) fn collect_mir_analyzed(
         &self,
         module: ModuleId,
@@ -26,7 +26,7 @@ impl Compiler {
         Ok(dependencies)
     }
 
-    /// Build the link summary for one module and target.
+    /// Analyze symbol links for one module and target.
     pub(crate) fn provide_mir_analyzed(
         &self,
         module: ModuleId,
@@ -39,9 +39,9 @@ impl Compiler {
             .read::<MirElaborated>((module, profile, target))
             .map_err(CompilerError::from)?;
 
-        // summarize the elaborated tree's linkable references
-        let mut analyses = mir::ModuleAnalyses::new();
-        let links = analyses.link_graph(&elaborated.tree, &elaborated.effects);
+        // analyze the elaborated tree's symbol links
+        let mut analyses = mir::AnalysisCache::new();
+        let links = analyses.link(&elaborated.tree, &elaborated.effects);
 
         Ok(ArtifactPayload::MirAnalyzed(Arc::new(MirAnalyzed::new(
             (*links).clone(),
@@ -62,7 +62,7 @@ impl Compiler {
                 message: format!("failed to enumerate profile modules: {error}"),
             })?;
 
-        // depend on every module's link summary
+        // depend on every module's symbol links
         let mut dependencies = ArtifactDependencySet::default();
         for module in modules {
             dependencies.require(ArtifactKey::mir_analyzed(module, profile, target));
@@ -97,8 +97,8 @@ impl Compiler {
             .collect();
         let artifacts = self.artifact_reader(context);
 
-        // load every module's link graph, seeding roots from each root module's exports
-        let mut analyses: Vec<Arc<MirAnalyzed>> = Vec::new();
+        // load every module's links, seeding roots from each root module's exports
+        let mut analyzed_modules: Vec<Arc<MirAnalyzed>> = Vec::new();
         let mut roots: Vec<mir::Symbol> = Vec::new();
         for module in modules {
             let analyzed = artifacts
@@ -111,11 +111,12 @@ impl Compiler {
                     }
                 }
             }
-            analyses.push(analyzed);
+            analyzed_modules.push(analyzed);
         }
 
-        // stitch the transient supergraph and derive the persisted per-symbol columns
-        let supergraph = mir::LinkSupergraph::build(analyses.iter().map(|summary| &summary.links));
+        // build the supergraph and derive whole-program reachability
+        let supergraph =
+            mir::LinkSupergraph::build(analyzed_modules.iter().map(|analyzed| &analyzed.links));
         let analysis = ProgramAnalysis::analyze(&supergraph, &roots);
 
         Ok(ArtifactPayload::ProgramAnalysis(Arc::new(analysis)))
