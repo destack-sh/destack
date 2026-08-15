@@ -712,7 +712,7 @@ impl BodyState<'_, '_> {
         let mut cases = Vec::with_capacity(lookups.len());
         let mut types = Vec::with_capacity(lookups.len());
         for (element, arm) in elements.iter().zip(lookups) {
-            let Some(ty) = arm.lookup.required_field_type() else {
+            let Some(ty) = arm.lookup.direct_field_type() else {
                 return Ok(None);
             };
             let base = self.strip_form(origin, ty)?;

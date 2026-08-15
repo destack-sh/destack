@@ -14,15 +14,14 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let receiver = self.normalize(origin, receiver)?;
 
-        // filter union alternatives independently by their declared member sets
+        // filter union arms independently by their declared member sets
         if let dir::Type::Union(union) = self.ty(receiver)? {
-            let elements: SmallVec<[_; 8]> =
-                self.type_ids(receiver.module_id, union.elements)?.into();
-            let mut narrowed = Vec::with_capacity(elements.len());
-            for element in elements {
-                let element = self.narrow_membership_receiver(origin, element, key)?;
-                if !matches!(self.ty(element)?, dir::Type::Never) {
-                    narrowed.push(element);
+            let arms: SmallVec<[_; 8]> = self.type_ids(receiver.module_id, union.elements)?.into();
+            let mut narrowed = Vec::with_capacity(arms.len());
+            for arm in arms {
+                let arm = self.narrow_membership_receiver(origin, arm, key)?;
+                if !matches!(self.ty(arm)?, dir::Type::Never) {
+                    narrowed.push(arm);
                 }
             }
 
@@ -63,11 +62,11 @@ impl CheckState<'_> {
         Ok(narrowed)
     }
 
-    /// Filter one source's physical alternatives through a tested member value.
+    /// Filter one source's physical arms through a tested member value.
     ///
-    /// The surviving alternatives rejoin as physical arms beneath any nominal
-    /// carrier, or the variable blocking an undecided member test comes back.
-    pub(in crate::sema) fn narrow_type_alternatives(
+    /// The surviving arms rejoin beneath any nominal carrier, or the variable
+    /// blocking an undecided member test comes back.
+    pub(in crate::sema) fn narrow_arms(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
@@ -78,7 +77,7 @@ impl CheckState<'_> {
         let source = self.normalize(origin, source)?;
 
         // enumerate the cases an enum owner names
-        let alternatives = if let Some(variants) = self.variant_types(source)? {
+        let arms = if let Some(variants) = self.variant_types(source)? {
             variants
         }
         // enumerate the physical arms every other source carries
@@ -91,21 +90,20 @@ impl CheckState<'_> {
             arms.into_vec()
         };
 
-        // keep original alternatives whose tested member remains inhabited
-        let mut kept = Vec::with_capacity(alternatives.len());
-        for alternative in alternatives {
-            let narrowed =
-                match self.narrow_member(origin, alternative, keys, target, is_positive)? {
-                    Ok(narrowed) => narrowed,
-                    Err(variable) => return Ok(Err(variable)),
-                };
+        // keep original arms whose tested member remains inhabited
+        let mut kept = Vec::with_capacity(arms.len());
+        for arm in arms {
+            let narrowed = match self.narrow_member(origin, arm, keys, target, is_positive)? {
+                Ok(narrowed) => narrowed,
+                Err(variable) => return Ok(Err(variable)),
+            };
             let narrowed = self.normalize(origin, narrowed)?;
             if !matches!(self.ty(narrowed)?, dir::Type::Never) {
-                kept.push(alternative);
+                kept.push(arm);
             }
         }
 
-        // join the surviving alternatives back into one type
+        // join the surviving arms back into one type
         let narrowed = match kept.as_slice() {
             [] => self.intern_type(dir::Type::Never)?,
             [single] => *single,
@@ -136,7 +134,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // intersect the enumerated alternatives with every active bound
+        // intersect the enumerated arms with every active bound
         let domain = self.normalized_intersection_type(bounds)?;
         let narrowing = dir::NarrowType {
             source: enumerated,
@@ -263,7 +261,7 @@ impl CheckState<'_> {
         // filter each arm through the guard relation
         for element in elements {
             // defer the whole operation on an undecided arm
-            let narrowed = match self.narrow_element(origin, element, target, narrow.is_positive)? {
+            let narrowed = match self.narrow_arm(origin, element, target, narrow.is_positive)? {
                 Ok(narrowed) => narrowed,
                 Err(_) => return Ok(None),
             };
@@ -302,7 +300,7 @@ impl CheckState<'_> {
             })
     }
 
-    /// Narrow one alternative through its tested member chain, or the variable blocking it.
+    /// Narrow one arm through its tested member chain, or the variable blocking it.
     fn narrow_member(
         &mut self,
         origin: Origin,
@@ -313,7 +311,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Result<dir::GlobalTypeId, dir::TypeVariableId>> {
         // test the reached value once the chain ends
         let [key, rest @ ..] = keys else {
-            return self.narrow_element(origin, source, target, is_positive);
+            return self.narrow_arm(origin, source, target, is_positive);
         };
 
         // project the tested member, comparing values beneath memory forms
@@ -334,7 +332,7 @@ impl CheckState<'_> {
                 blocked @ Err(_) => return Ok(blocked),
             };
 
-            // retain the whole alternative while its tested member stays inhabited
+            // retain the whole arm while its tested member stays inhabited
             let narrowed = if matches!(self.ty(narrowed)?, dir::Type::Never) {
                 narrowed
             } else {
@@ -360,7 +358,7 @@ impl CheckState<'_> {
     }
 
     /// Narrow one source arm through one runtime target, or the variable blocking it.
-    fn narrow_element(
+    fn narrow_arm(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
@@ -371,7 +369,7 @@ impl CheckState<'_> {
         if let dir::Type::Dynamic(dynamic) = self.ty(source)? {
             let constraint = dynamic.constraint;
             let narrowed_constraint =
-                match self.narrow_element(origin, constraint, target, is_positive)? {
+                match self.narrow_arm(origin, constraint, target, is_positive)? {
                     Ok(narrowed) => narrowed,
                     blocked @ Err(_) => return Ok(blocked),
                 };

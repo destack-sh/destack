@@ -366,7 +366,7 @@ impl CheckState<'_> {
             });
         }
 
-        self.narrow_type_alternatives(site.origin(), source, relative, target, is_equal)
+        self.narrow_arms(site.origin(), source, relative, target, is_equal)
     }
 
     /// Return the singleton type selected by one equality operand.

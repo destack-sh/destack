@@ -337,8 +337,8 @@ impl MemberLookup {
         }
     }
 
-    /// Return the required directly stored field type selected by this lookup.
-    pub(in crate::sema) fn required_field_type(&self) -> Option<dir::GlobalTypeId> {
+    /// Return the required field type this lookup reads directly.
+    pub(in crate::sema) fn direct_field_type(&self) -> Option<dir::GlobalTypeId> {
         match self {
             // a refined structural field reads its stored value
             Self::Field(FieldLookup::Structural {
