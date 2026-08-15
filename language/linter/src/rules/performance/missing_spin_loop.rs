@@ -51,8 +51,8 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
             continue;
         };
         let loops = module.analyses.loops(function_id, tree);
-        let definitions = module.analyses.value_definitions(function_id, tree);
-        let dominators = module.analyses.dominators(function_id, tree);
+        let definitions = module.analyses.definition(function_id, tree);
+        let dominators = module.analyses.dominator(function_id, tree);
 
         for natural_loop in loops.loops() {
             let Some(poll) =
@@ -77,9 +77,9 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
 fn find_atomic_poll(
     natural_loop: &mir::Loop,
     entry: mir::LocalNodeId<mir::Block>,
-    loops: &mir::LoopAnalysis,
-    definitions: &mir::ValueDefinitions,
-    dominators: &mir::DominatorTree,
+    loops: &mir::LoopTable,
+    definitions: &mir::DefinitionTable,
+    dominators: &mir::DominatorTable,
     tree: &mir::Tree,
 ) -> Result<Option<mir::LocalNodeId<mir::Instruction>>, ProviderError> {
     // treat a nested loop as substantive loop work
@@ -192,7 +192,7 @@ fn find_atomic_definition(
     value: mir::Value,
     natural_loop: &mir::Loop,
     entry: mir::LocalNodeId<mir::Block>,
-    definitions: &mir::ValueDefinitions,
+    definitions: &mir::DefinitionTable,
     tree: &mir::Tree,
     visited: &mut FxIndexSet<mir::Value>,
 ) -> Result<Option<mir::LocalNodeId<mir::Instruction>>, ProviderError> {
@@ -428,7 +428,7 @@ entry(v0: ref<atomic<boolean>, borrowed, mutable, shared>):
 
 poll:
     v1: boolean = atomic.load v0, acquire, scope(system)
-    v2: boolean = int.not v1
+    v2: boolean = not v1
     branch v2 => poll | done
 
 done:
@@ -446,7 +446,7 @@ warning[missing-spin-loop]: atomic busy-wait loop has no processor hint
 5 │ poll:
 6 │     v1: boolean = atomic.load v0, acquire, scope(system)
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-7 │     v2: boolean = int.not v1
+7 │     v2: boolean = not v1
 8 │     branch v2 => poll | done
   │
 

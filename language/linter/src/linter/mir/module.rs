@@ -14,7 +14,7 @@ pub struct MirModule {
     /// The MIR artifact.
     pub lowered: Arc<MirLowered>,
     /// Analyses of the verified MIR tree.
-    pub analyses: mir::ModuleAnalyses,
+    pub analyses: mir::AnalysisCache,
     /// The repository string pool.
     pub strings: Arc<StringPool>,
 }
@@ -23,7 +23,7 @@ impl MirModule {
     /// Create one verified MIR module.
     pub(crate) fn new(id: ModuleId, lowered: Arc<MirLowered>, strings: Arc<StringPool>) -> Self {
         let options = mir::AnalysisOptions::new(lowered.target);
-        let analyses = mir::ModuleAnalyses::with_options(options);
+        let analyses = mir::AnalysisCache::with_options(options);
 
         Self {
             id,
