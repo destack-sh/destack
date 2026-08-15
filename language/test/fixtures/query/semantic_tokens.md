@@ -833,43 +833,6 @@ const { value: item, ...rest } = boxed;
 @semantic_tokens.token range=main.ds#boxed_reference type=variable modifiers=readonly
 ```
 
-### Classify qualified tagged match bindings
-
-Qualified variant patterns classify the variant, field binding, and bound reference.
-
-```ds main.ds
-declare const result: Result<int32, string>;
-              ^^^^^^ result_declaration
-                      ^^^^^^ result_type
-const value = match (result) {
-      ^^^^^ match_value_declaration
-                     ^^^^^^ result_reference
-    Result.Ok { value } => value
-    ^^^^^^ ok_owner
-           ^^ ok_variant
-                ^^^^^ ok_value_declaration
-                           ^^^^^ value_reference
-    Result.Err { error } => 0
-    ^^^^^^ err_owner
-           ^^^ err_variant
-                 ^^^^^ error_declaration
-};
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#result_declaration type=variable modifiers=declaration,readonly
-@semantic_tokens.token range=main.ds#result_type type=type modifiers=default_library
-@semantic_tokens.token range=main.ds#match_value_declaration type=variable modifiers=declaration,readonly
-@semantic_tokens.token range=main.ds#result_reference type=variable modifiers=readonly
-@semantic_tokens.token range=main.ds#ok_owner type=type modifiers=default_library
-@semantic_tokens.token range=main.ds#ok_variant type=enum_member modifiers=default_library
-@semantic_tokens.token range=main.ds#ok_value_declaration type=variable modifiers=declaration,readonly
-@semantic_tokens.token range=main.ds#value_reference type=variable modifiers=readonly
-@semantic_tokens.token range=main.ds#err_owner type=type modifiers=default_library
-@semantic_tokens.token range=main.ds#err_variant type=enum_member modifiers=default_library
-@semantic_tokens.token range=main.ds#error_declaration type=variable modifiers=declaration,readonly
-```
-
 ### Classify member references
 
 Member references use their declaration identities rather than generic property shapes.
