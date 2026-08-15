@@ -343,5 +343,181 @@ function make<T, E>(value: T): AsyncResult<T, E> {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#""#);
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+declare class Promise<in out T> {
+    static resolve<T>(value: Promise<T>): Promise<T>;
+    static resolve<T>(value: T): Promise<T>;
+}
+
+struct Ok<out T> {
+    kind: "ok" = "ok";
+    value: T;
+}
+
+struct Err<out E> {
+    kind: "err" = "err";
+    error: E;
+}
+
+newtype Result<out T, out E> = Ok<T> | Err<E>;
+
+declare function ok<T, E>(value: T): Result<T, E>;
+
+newtype AsyncResult<in out T, in out E> = Promise<Result<T, E>>;
+
+function make<T, E>(value: T): AsyncResult<T, E> {
+    return AsyncResult(Promise.resolve<Result<T, E>>(ok<T, E>(value)));
+}
+
+=== checked ===
+declare class Promise<in out T> {
+/// @generic.template symbol=Promise parameters=(in out T#1)
+/// @type.symbol symbol=Promise type=Promise
+/// @definition.class symbol=Promise template=(in out T#1)
+/// @definition.method symbol=Promise.resolve#1 source="static resolve<T>(value: Promise<T>): Promise<T>" slot=resolve static=true type=<T#2>(Promise<T#2>) => Promise<T#2>
+/// @definition.method symbol=Promise.resolve#2 source="static resolve<T>(value: T): Promise<T>" slot=resolve static=true type=<T#3>(T#3) => Promise<T#3>
+/// @type.symbol symbol=Promise.T source="in out T" type=T#1
+
+    static resolve<T>(value: Promise<T>): Promise<T>;
+    /// @generic.template symbol=Promise.resolve#1 parent=template#0 parameters=(T#2)
+    /// @type.symbol symbol=Promise.resolve#1 source="static resolve<T>(value: Promise<T>): Promise<T>" type=<T#2>(Promise<T#2>) => Promise<T#2>
+    /// @type.symbol symbol=Promise.resolve.T#1 source=T type=T#2
+    /// @type.symbol symbol=Promise.resolve.value#1 source="value: Promise<T>" type=Promise<T#2>
+    /// @resolution.name source=Promise target=Promise
+    /// @resolution.name source=T target=Promise.resolve.T#1
+    /// @resolution.name source=Promise target=Promise
+    /// @resolution.name source=T target=Promise.resolve.T#1
+
+    static resolve<T>(value: T): Promise<T>;
+    /// @generic.template symbol=Promise.resolve#2 parent=template#0 parameters=(T#3)
+    /// @type.symbol symbol=Promise.resolve#2 source="static resolve<T>(value: T): Promise<T>" type=<T#3>(T#3) => Promise<T#3>
+    /// @type.symbol symbol=Promise.resolve.T#2 source=T type=T#3
+    /// @type.symbol symbol=Promise.resolve.value#2 source="value: T" type=T#3
+    /// @resolution.name source=T target=Promise.resolve.T#2
+    /// @resolution.name source=Promise target=Promise
+    /// @resolution.name source=T target=Promise.resolve.T#2
+
+}
+
+struct Ok<T> {
+/// @generic.template symbol=Ok parameters=(out T#4)
+/// @type.symbol symbol=Ok type=Ok
+/// @definition.struct symbol=Ok template=(out T#4)
+/// @definition.field symbol=Ok.kind source="kind: \"ok\" = \"ok\"" key=kind type="ok"
+/// @definition.field symbol=Ok.value source="value: T" key=value type=T#4
+/// @type.symbol symbol=Ok.T source=T type=T#4
+
+    kind: "ok" = "ok";
+    /// @type.symbol symbol=Ok.kind source="kind: \"ok\" = \"ok\"" type="ok"
+    /// @type.node source="\"ok\"" type="ok"
+
+    value: T;
+    /// @type.symbol symbol=Ok.value source="value: T" type=T#4
+    /// @resolution.name source=T target=Ok.T
+
+}
+
+struct Err<E> {
+/// @generic.template symbol=Err parameters=(out E#1)
+/// @type.symbol symbol=Err type=Err
+/// @definition.struct symbol=Err template=(out E#1)
+/// @definition.field symbol=Err.error source="error: E" key=error type=E#1
+/// @definition.field symbol=Err.kind source="kind: \"err\" = \"err\"" key=kind type="err"
+/// @type.symbol symbol=Err.E source=E type=E#1
+
+    kind: "err" = "err";
+    /// @type.symbol symbol=Err.kind source="kind: \"err\" = \"err\"" type="err"
+    /// @type.node source="\"err\"" type="err"
+
+    error: E;
+    /// @type.symbol symbol=Err.error source="error: E" type=E#1
+    /// @resolution.name source=E target=Err.E
+
+}
+
+newtype Result<T, E> = Ok<T> | Err<E>;
+/// @generic.template symbol=Result parameters=(out T#5, out E#2)
+/// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#5, out E#2) backing=Ok<T#5> | Err<E#2> constructors=[<T#5, E#2>(Ok<T#5>) => Result<T#5, E#2>, <T#5, E#2>(Err<E#2>) => Result<T#5, E#2>, <T#5, E#2>(Ok<T#5> | Err<E#2>) => Result<T#5, E#2>]
+/// @type.symbol symbol=Result.T source=T type=T#5
+/// @type.symbol symbol=Result.E source=E type=E#2
+/// @resolution.name source=Ok target=Ok
+/// @resolution.name source=T target=Result.T
+/// @resolution.name source=Err target=Err
+/// @resolution.name source=E target=Result.E
+
+declare function ok<T, E>(value: T): Result<T, E>;
+/// @generic.template symbol=ok parameters=(T#6, E#3)
+/// @type.symbol symbol=ok source="declare function ok<T, E>(value: T): Result<T, E>" type=<T#6, E#3>(T#6) => Result<T#6, E#3>
+/// @type.symbol symbol=ok.T source=T type=T#6
+/// @type.symbol symbol=ok.E source=E type=E#3
+/// @type.symbol symbol=ok.value source="value: T" type=T#6
+/// @resolution.name source=T target=ok.T
+/// @resolution.name source=Result target=Result
+/// @resolution.name source=T target=ok.T
+/// @resolution.name source=E target=ok.E
+
+newtype AsyncResult<T, E> = Promise<Result<T, E>>;
+/// @generic.template symbol=AsyncResult parameters=(in out T#7, in out E#4)
+/// @type.symbol symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" type=AsyncResult
+/// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(in out T#7, in out E#4) backing=Promise<Result<T#7, E#4>> constructors=[<T#7, E#4>(Promise<Result<T#7, E#4>>) => AsyncResult<T#7, E#4>]
+/// @type.symbol symbol=AsyncResult.T source=T type=T#7
+/// @type.symbol symbol=AsyncResult.E source=E type=E#4
+/// @resolution.name source=Promise target=Promise
+/// @resolution.name source=Result target=Result
+/// @resolution.name source=T target=AsyncResult.T
+/// @resolution.name source=E target=AsyncResult.E
+
+function make<T, E>(value: T): AsyncResult<T, E> {
+/// @generic.template symbol=make parameters=(T#8, E#5)
+/// @type.symbol symbol=make type=<T#8, E#5>(T#8) => AsyncResult<T#8, E#5>
+/// @type.symbol symbol=make.T source=T type=T#8
+/// @type.symbol symbol=make.E source=E type=E#5
+/// @type.symbol symbol=make.value source="value: T" type=T#8
+/// @resolution.name source=T target=make.T
+/// @resolution.name source=AsyncResult target=AsyncResult
+/// @resolution.name source=T target=make.T
+/// @resolution.name source=E target=make.E
+
+    return AsyncResult(Promise.resolve(ok(value)));
+    /// @type.node source=AsyncResult type=AsyncResult
+    /// @type.node source=AsyncResult(Promise.resolve(ok(value))) type=AsyncResult<T#8, E#5>
+    /// @resolution.name source=AsyncResult target=AsyncResult
+    /// @resolution.construct source=AsyncResult(Promise.resolve(ok(value))) parameters=(Promise<Result<T#8, E#5>>) arguments=(provided(Promise.resolve(ok(value))) as Promise<Result<T#8, E#5>>) return=AsyncResult<T#8, E#5> kind=newtype target=AsyncResult backing=Promise<Result<T#8, E#5>> instance="AsyncResult<T#8, E#5>"
+    /// @generic.instance source=AsyncResult(Promise.resolve(ok(value))) id="AsyncResult<T#8, E#5>"
+    /// @type.node source=Promise type=Promise
+    /// @type.node source=Promise.resolve type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3>
+    /// @type.node source=Promise.resolve(ok(value)) type=Promise<Result<T#8, E#5>>
+    /// @resolution.name source=Promise target=Promise
+    /// @resolution.member source=Promise.resolve receiver=Promise type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3> kind=existential targets=[Promise.resolve#1, Promise.resolve#2]
+    /// @resolution.call source=Promise.resolve(ok(value)) parameters=(Result<T#8, E#5>) arguments=(provided(ok(value)) as Result<T#8, E#5>) return=Promise<Result<T#8, E#5>> kind=symbol target=Promise.resolve#2 instance="Promise.resolve#2<Result<T#8, E#5>>"
+    /// @generic.instance source=Promise.resolve id=Promise<T#2>
+    /// @generic.instance source=Promise.resolve id=Promise<T#3>
+    /// @generic.instance source=Promise.resolve(ok(value)) id="Promise.resolve#2<Result<T#8, E#5>>"
+    /// @generic.instance source=Promise.resolve(ok(value)) id="Promise<Result<T#8, E#5>>"
+    /// @generic.instance source=Promise.resolve(ok(value)) id="Result<T#8, E#5>"
+    /// @type.node source=ok type=(T#8) => Result<T#8, E#5>
+    /// @type.node source=ok(value) type=Result<T#8, E#5>
+    /// @resolution.name source=ok target=ok
+    /// @resolution.call source=ok(value) parameters=(T#8) arguments=(provided(value) as T#8) return=Result<T#8, E#5> kind=symbol target=ok instance="ok<T#8, E#5>"
+    /// @generic.instance source=ok id="Result<T#8, E#5>"
+    /// @generic.instance source=ok(value) id="Result<T#8, E#5>"
+    /// @generic.instance source=ok(value) id="ok<T#8, E#5>"
+    /// @type.node source=value type=T#8
+    /// @resolution.name source=value target=make.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=make.value
+
+}
+
+/// @generic.instance id="AsyncResult<T#8, E#5>" template=AsyncResult arguments=(T#8, E#5)
+/// @generic.instance id="Promise.resolve#2<Result<T#8, E#5>>" template=Promise.resolve#2 arguments=(Result<T#8, E#5>)
+/// @generic.instance id="Promise<Result<T#8, E#5>>" template=Promise arguments=(Result<T#8, E#5>)
+/// @generic.instance id="Result<T#6, E#3>" template=Result arguments=(T#6, E#3)
+/// @generic.instance id="Result<T#8, E#5>" template=Result arguments=(T#8, E#5)
+/// @generic.instance id="ok<T#8, E#5>" template=ok arguments=(T#8, E#5)
+/// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
+/// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
+"#);
 }

@@ -27,7 +27,128 @@ function read<T>(state: State<T>): T {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#""#);
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+struct Pending<out T> {
+    kind: "pending" = "pending";
+    waiting: T;
+}
+
+struct Ready<out T> {
+    kind: "ready" = "ready";
+    value: T;
+}
+
+newtype State<out T> = Pending<T> | Ready<T>;
+
+function read<T>(state: State<T>): T {
+    if (state.kind === ("ready" as "pending" | "ready")) {
+        return state.value;
+    }
+
+    return state.waiting;
+}
+
+=== checked ===
+struct Pending<T> {
+/// @generic.template symbol=Pending parameters=(out T#1)
+/// @type.symbol symbol=Pending type=Pending
+/// @definition.struct symbol=Pending template=(out T#1)
+/// @definition.field symbol=Pending.kind source="kind: \"pending\" = \"pending\"" key=kind type="pending"
+/// @definition.field symbol=Pending.waiting source="waiting: T" key=waiting type=T#1
+/// @type.symbol symbol=Pending.T source=T type=T#1
+
+    kind: "pending" = "pending";
+    /// @type.symbol symbol=Pending.kind source="kind: \"pending\" = \"pending\"" type="pending"
+    /// @type.node source="\"pending\"" type="pending"
+
+    waiting: T;
+    /// @type.symbol symbol=Pending.waiting source="waiting: T" type=T#1
+    /// @resolution.name source=T target=Pending.T
+
+}
+
+struct Ready<T> {
+/// @generic.template symbol=Ready parameters=(out T#2)
+/// @type.symbol symbol=Ready type=Ready
+/// @definition.struct symbol=Ready template=(out T#2)
+/// @definition.field symbol=Ready.kind source="kind: \"ready\" = \"ready\"" key=kind type="ready"
+/// @definition.field symbol=Ready.value source="value: T" key=value type=T#2
+/// @type.symbol symbol=Ready.T source=T type=T#2
+
+    kind: "ready" = "ready";
+    /// @type.symbol symbol=Ready.kind source="kind: \"ready\" = \"ready\"" type="ready"
+    /// @type.node source="\"ready\"" type="ready"
+
+    value: T;
+    /// @type.symbol symbol=Ready.value source="value: T" type=T#2
+    /// @resolution.name source=T target=Ready.T
+
+}
+
+newtype State<T> = Pending<T> | Ready<T>;
+/// @generic.template symbol=State parameters=(out T#3)
+/// @type.symbol symbol=State source="newtype State<T> = Pending<T> | Ready<T>" type=State
+/// @definition.newtype symbol=State source="newtype State<T> = Pending<T> | Ready<T>" template=(out T#3) backing=Pending<T#3> | Ready<T#3> constructors=[<T#3>(Pending<T#3>) => State<T#3>, <T#3>(Ready<T#3>) => State<T#3>, <T#3>(Pending<T#3> | Ready<T#3>) => State<T#3>]
+/// @type.symbol symbol=State.T source=T type=T#3
+/// @resolution.name source=Pending target=Pending
+/// @resolution.name source=T target=State.T
+/// @resolution.name source=Ready target=Ready
+/// @resolution.name source=T target=State.T
+
+function read<T>(state: State<T>): T {
+/// @generic.template symbol=read parameters=(T#4)
+/// @type.symbol symbol=read type=<T#4>(State<T#4>) => T#4
+/// @type.symbol symbol=read.T source=T type=T#4
+/// @type.symbol symbol=read.state source="state: State<T>" type=State<T#4>
+/// @resolution.name source=State target=State
+/// @resolution.name source=T target=read.T
+/// @resolution.name source=T target=read.T
+
+    if (state.kind === "ready") {
+    /// @type.node source="state.kind === \"ready\"" type=boolean
+    /// @type.node source=state type=State<T#4>
+    /// @type.node source=state.kind type="pending" | "ready"
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.kind receiver=State<T#4> type="pending" | "ready" kind=projection target="discriminant(Pending<T#4> | Ready<T#4>, kind, cases=[Pending<T#4>: pending, Ready<T#4>: ready], \"pending\" | \"ready\")"
+    /// @resolution.operator source="state.kind === \"ready\"" type=boolean operator="===" kind=builtin operands=[state.kind as "pending" | "ready" families=(string), "ready" as "pending" | "ready" families=(string)]
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.kind placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state.kind root=read.state keys=[kind]
+    /// @generic.instance source=state id=State<T#4>
+    /// @type.node source="\"ready\"" type="ready"
+
+        return state.value;
+        /// @type.node source=state type=Ready<T#4>
+        /// @type.node source=state.value type=T#4
+        /// @resolution.name source=state target=read.state
+        /// @resolution.member source=state.value receiver=Ready<T#4> type=T#4 kind=field target_receiver=Ready<T#4> key=value target=Ready.value target_type=T#4
+        /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state root=read.state
+        /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state.value root=read.state keys=[value]
+        /// @generic.instance source=state id=Ready<T#4>
+
+    }
+
+    return state.waiting;
+    /// @type.node source=state type=Pending<T#4>
+    /// @type.node source=state.waiting type=T#4
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.waiting receiver=Pending<T#4> type=T#4 kind=field target_receiver=Pending<T#4> key=waiting target=Pending.waiting target_type=T#4
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state.waiting root=read.state keys=[waiting]
+    /// @generic.instance source=state id=Pending<T#4>
+
+}
+
+/// @generic.instance id=Pending<T#4> template=Pending arguments=(T#4)
+/// @generic.instance id=Ready<T#4> template=Ready arguments=(T#4)
+/// @generic.instance id=State<T#4> template=State arguments=(T#4)
+"#);
 }
 
 /// Narrow an imported generic newtype through its structural discriminant.
@@ -66,7 +187,74 @@ function read<T>(state: State<T>): T {
         )
         .build();
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#""#);
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+import { State } from "./state.ds";
+
+function read<T>(state: State<T>): T {
+    if (state.kind === ("ready" as "pending" | "ready")) {
+        return state.value;
+    }
+
+    return state.waiting;
+}
+
+=== checked ===
+import { State } from "./state.ds";
+
+function read<T>(state: State<T>): T {
+/// @generic.template symbol=read parameters=(T)
+/// @type.symbol symbol=read type=<T>(state.State<T>) => T
+/// @type.symbol symbol=read.T source=T type=T
+/// @type.symbol symbol=read.state source="state: State<T>" type=state.State<T>
+/// @resolution.name source=State target=state.State
+/// @resolution.name source=T target=read.T
+/// @resolution.name source=T target=read.T
+
+    if (state.kind === "ready") {
+    /// @type.node source="state.kind === \"ready\"" type=boolean
+    /// @type.node source=state type=state.State<T>
+    /// @type.node source=state.kind type="pending" | "ready"
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.kind receiver=state.State<T> type="pending" | "ready" kind=projection target="discriminant(state.Pending<T> | state.Ready<T>, kind, cases=[state.Pending<T>: pending, state.Ready<T>: ready], \"pending\" | \"ready\")"
+    /// @resolution.operator source="state.kind === \"ready\"" type=boolean operator="===" kind=builtin operands=[state.kind as "pending" | "ready" families=(string), "ready" as "pending" | "ready" families=(string)]
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.kind placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state.kind root=read.state keys=[kind]
+    /// @generic.instance source=state id=state.State<T>
+    /// @type.node source="\"ready\"" type="ready"
+
+        return state.value;
+        /// @type.node source=state type=state.Ready<T>
+        /// @type.node source=state.value type=T
+        /// @resolution.name source=state target=read.state
+        /// @resolution.member source=state.value receiver=state.Ready<T> type=T kind=field target_receiver=state.Ready<T> key=value target=state.Ready.value target_type=T
+        /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state root=read.state
+        /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state.value root=read.state keys=[value]
+        /// @generic.instance source=state id=state.Ready<T>
+
+    }
+
+    return state.waiting;
+    /// @type.node source=state type=state.Pending<T>
+    /// @type.node source=state.waiting type=T
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.waiting receiver=state.Pending<T> type=T kind=field target_receiver=state.Pending<T> key=waiting target=state.Pending.waiting target_type=T
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state.waiting root=read.state keys=[waiting]
+    /// @generic.instance source=state id=state.Pending<T>
+
+}
+
+/// @generic.instance id=state.Pending<T> template=state.Pending arguments=(T)
+/// @generic.instance id=state.Ready<T> template=state.Ready arguments=(T)
+/// @generic.instance id=state.State<T> template=state.State arguments=(T)
+"#);
 }
 
 #[test]

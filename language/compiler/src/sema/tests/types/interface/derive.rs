@@ -665,7 +665,6 @@ struct Point {
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=1 type=1
 
 @derive(value)
 /// @resolution.name source=derive target=decorator.derive.derive
@@ -683,7 +682,7 @@ struct Point {
 "#,
         r#"
 /// @diagnostic.error id=invalid-derive-interface message="derive argument must name a derivable interface"
-/// @diagnostic.label line=4 column=9 span=value line_source="@derive(value)"
+/// @diagnostic.label line=4 column=9 span="value" line_source="@derive(value)"
 "#,
     );
 }
@@ -728,7 +727,7 @@ struct Point {
 "#,
         r#"
 /// @diagnostic.error id=duplicate-derive-interface message="duplicate derive interface 'Clone'"
-/// @diagnostic.label line=2 column=16 span=Clone line_source="@derive(Clone, Clone)"
+/// @diagnostic.label line=2 column=16 span="Clone" line_source="@derive(Clone, Clone)"
 "#,
     );
 }
@@ -753,7 +752,81 @@ requireEqual(Point { x: 1 });
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#""#, r#""#);
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+const invalid: 1 = 1;
+
+@derive(Clone, invalid)
+struct Point {
+    x: int32;
+}
+
+function requireClone<T: Clone>(value: T): void {}
+function requireEqual<T: Equal>(value: T): void {}
+
+requireClone(Point { x: 1 });
+requireEqual(Point { x: 1 });
+
+=== checked ===
+const invalid = 1;
+/// @type.symbol symbol=invalid source=invalid type=1
+/// @resolution.pattern source=invalid kind=binding target=invalid
+
+@derive(Clone, invalid)
+/// @resolution.name source=derive target=decorator.derive.derive
+/// @resolution.name source=Clone target=memory.capability.Clone
+/// @resolution.name source=invalid target=invalid
+
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+}
+
+function requireClone<T: Clone>(value: T): void {}
+/// @generic.template symbol=requireClone parameters=(T#1: Clone)
+/// @type.symbol symbol=requireClone source="function requireClone<T: Clone>(value: T): void {}" type=<T#1: Clone>(T#1) => void
+/// @type.symbol symbol=requireClone.T source="T: Clone" type=T#1
+/// @resolution.name source=Clone target=memory.capability.Clone
+/// @type.symbol symbol=requireClone.value source="value: T" type=T#1
+/// @resolution.name source=T target=requireClone.T
+
+function requireEqual<T: Equal>(value: T): void {}
+/// @generic.template symbol=requireEqual parameters=(T#2: Equal)
+/// @type.symbol symbol=requireEqual source="function requireEqual<T: Equal>(value: T): void {}" type=<T#2: Equal>(T#2) => void
+/// @type.symbol symbol=requireEqual.T source="T: Equal" type=T#2
+/// @resolution.name source=Equal target=ops.equality.Equal
+/// @type.symbol symbol=requireEqual.value source="value: T" type=T#2
+/// @resolution.name source=T target=requireEqual.T
+
+requireClone(Point { x: 1 });
+/// @resolution.name source=requireClone target=requireClone
+/// @resolution.call source="requireClone(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=void kind=symbol target=requireClone instance=requireClone<<error>>
+/// @generic.instance source="requireClone(Point { x: 1 })" id=requireClone<<error>>
+/// @resolution.name source=Point target=Point
+
+requireEqual(Point { x: 1 });
+/// @resolution.name source=requireEqual target=requireEqual
+/// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=void kind=symbol target=requireEqual instance=requireEqual<<error>>
+/// @generic.instance source="requireEqual(Point { x: 1 })" id=requireEqual<<error>>
+/// @resolution.name source=Point target=Point
+
+/// @generic.instance id=requireClone<<error>> template=requireClone arguments=(<error>)
+/// @generic.instance id=requireEqual<<error>> template=requireEqual arguments=(<error>)
+"#, r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Clone'"
+/// @diagnostic.label line=12 column=1 span="requireClone(Point { x: 1 })" line_source="requireClone(Point { x: 1 });"
+/// @diagnostic.related line=9 column=23 span="T" line_source="function requireClone<T: Clone>(value: T): void {}" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Equal'"
+/// @diagnostic.label line=13 column=1 span="requireEqual(Point { x: 1 })" line_source="requireEqual(Point { x: 1 });"
+/// @diagnostic.related line=10 column=23 span="T" line_source="function requireEqual<T: Equal>(value: T): void {}" message="required by this bound on 'T'"
+/// @diagnostic.error id=invalid-derive-interface message="derive argument must name a derivable interface"
+/// @diagnostic.label line=4 column=16 span="invalid" line_source="@derive(Clone, invalid)"
+"#);
 }
 
 #[test]

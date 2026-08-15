@@ -103,15 +103,15 @@ function run(): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.greet(v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; }): void {
-entry(v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; }):
+function test.main.greet(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }): void {
+entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
     return
 }
 
 function test.main.run(): void {
 entry:
-    v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
-    call test.main.greet(v0): (variant<uint8> { 0uint8 = boolean; 1uint8 = void; }) => void
+    v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; } = variant.new 1
+    call test.main.greet(v0): (variant<uint1> { 0uint1 = boolean; 1uint1 = void; }) => void
     return
 }
 /// @layout.variant name=type@3 size=1 align=1

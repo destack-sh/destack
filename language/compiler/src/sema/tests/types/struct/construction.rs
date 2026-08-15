@@ -767,7 +767,7 @@ function make(options?: Options): Entry {
     /// @resolution.pattern source=entry kind=binding target=make.entry
     /// @resolution.name source=Entry target=Entry
     /// @resolution.name source=options target=make.options
-    /// @resolution.member source=options?.message receiver=Options type=string | undefined kind=field target_receiver=Options key=message target_type=string | undefined
+    /// @resolution.member source=options?.message receiver=Options | undefined type=string | undefined kind=field target_receiver=Options | undefined adjustments=(union.payload(Options | undefined, Options, Options)) key=message target_type=string | undefined
     /// @resolution.place source=options placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=options root=make.options
     /// @resolution.place source=options?.message placement="local" lifetime="frame" access="exclusive"

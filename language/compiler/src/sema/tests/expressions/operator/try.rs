@@ -123,7 +123,7 @@ extension of Attempt implements Try {
     }
 
     branch(): ControlFlow<string, int32> {
-        return ControlFlow.Continue({ value: this.value });
+        return ControlFlow.continue(this.value);
     }
 }
 
@@ -156,7 +156,7 @@ extension of Attempt implements Try {
     }
 
     branch(): ControlFlow<string, int32> {
-        return ControlFlow.Continue({ value: this.value });
+        return ControlFlow.continue<string, int32>(this.value);
     }
 }
 
@@ -226,11 +226,11 @@ extension of Attempt implements Try {
     /// @type.symbol symbol=branch type=<branch.'a>(this: &branch.'a exclusive this) => ops.try.ControlFlow<string, int32>
     /// @resolution.name source=ControlFlow target=ops.try.ControlFlow
 
-        return ControlFlow.Continue({ value: this.value });
+        return ControlFlow.continue(this.value);
         /// @resolution.name source=ControlFlow target=ops.try.ControlFlow
-        /// @resolution.member source=ControlFlow.Continue receiver=ops.try.ControlFlow type=<ops.try.ControlFlow.B, ops.try.ControlFlow.C>({ value: ops.try.ControlFlow.C }) => ops.try.ControlFlow.Continue<ops.try.ControlFlow.B, ops.try.ControlFlow.C> kind=symbol target_receiver=ops.try.ControlFlow target=ops.try.symbol30
-        /// @resolution.construct source="ControlFlow.Continue({ value: this.value })" parameters=({ value: int32 }) arguments=(provided({ value: this.value }) as { value: int32 }) return=ops.try.ControlFlow.Continue<string, int32> kind=variant owner=ops.try.ControlFlow variant=Continue instance="ops.try.ControlFlow<string, int32>" backing=ops.try.Continue<int32> argument={ value: int32 } discriminant=continue
-        /// @generic.instance source="ControlFlow.Continue({ value: this.value })" id="ops.try.ControlFlow<string, int32>"
+        /// @resolution.member source=ControlFlow.continue receiver=ops.try.ControlFlow type=(ops.try.C) => ops.try.ControlFlow<ops.try.B, ops.try.C> kind=symbol target_receiver=ops.try.ControlFlow target=ops.try.continue
+        /// @resolution.call source=ControlFlow.continue(this.value) parameters=(int32) arguments=(provided(this.value) as int32) return=ops.try.ControlFlow<string, int32> kind=symbol target=ops.try.continue instance="ops.try.ControlFlow<string, int32>.<extension#1>.continue"
+        /// @generic.instance source=ControlFlow.continue(this.value) id="ops.try.ControlFlow<string, int32>.<extension#1>.continue"
         /// @resolution.member source=this.value receiver=&branch.'a exclusive Attempt type=int32 kind=field target_receiver=&branch.'a exclusive Attempt key=value target=Attempt.value target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&branch.'a exclusive Attempt
         /// @resolution.place source=this placement="local" lifetime=branch.'a access="exclusive"
@@ -255,6 +255,7 @@ const selected = attempt ?? 0;
 /// @resolution.access source=attempt root=attempt
 
 /// @generic.instance id="ops.try.ControlFlow<string, int32>" template=ops.try.ControlFlow arguments=(string, int32)
+/// @generic.instance id="ops.try.ControlFlow<string, int32>.<extension#1>.continue" template=ops.try.continue arguments=(string, int32)
 "#,
     );
 }

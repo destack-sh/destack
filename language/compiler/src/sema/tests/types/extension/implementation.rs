@@ -1807,8 +1807,9 @@ export extension<K, V> of Bag<K, V>
 /// @definition.extension symbol=<module>#2 form=exported target=Bag<K#3, V#3>
 /// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target="iter.iterator.Iterable<(K#3, V#3)>"
 /// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="iter.iterator.Iterable<Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>>"
-/// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3)>
-/// @definition.method symbol=iterator#2 slot=iterator type=<const A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
+/// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator#1<(K#3, V#3)>
+/// @definition.method symbol=iterator#2 slot=iterator type=<const A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator#1<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
+/// @definition.conformance symbol=<module>#2 member=iter.iterator.Iterable.Iterator requirement=iter.iterator.Iterable.Iterator
 /// @definition.conformance symbol=<module>#2 member=iterator#1 requirement=iter.iterator.Iterable.iterator
 /// @definition.conformance symbol=<module>#2 member=iterator#2 requirement=iter.iterator.Iterable.iterator
 /// @type.symbol symbol=K source=K type=K#3
@@ -1830,8 +1831,8 @@ export extension<K, V> of Bag<K, V>
         /// @resolution.name source=V target=V
 
     iterator(): Iterator<(K, V)> {
-    /// @type.symbol symbol=iterator#1 type=(this: this) => iter.iterator.Iterator<(K#3, V#3)>
-    /// @resolution.name source=Iterator target=iter.iterator.Iterator
+    /// @type.symbol symbol=iterator#1 type=(this: this) => iter.iterator.Iterator#1<(K#3, V#3)>
+    /// @resolution.name source=Iterator target=iter.iterator.Iterator#1
     /// @resolution.name source=K target=K
     /// @resolution.name source=V target=V
 
@@ -1843,7 +1844,7 @@ export extension<K, V> of Bag<K, V>
 
     iterator<const A: Access = "readonly">(
     /// @generic.template symbol=iterator#2 parent=template#2 parameters=(const A: memory.access.Access = "readonly", 'a)
-    /// @type.symbol symbol=iterator#2 type=<const A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
+    /// @type.symbol symbol=iterator#2 type=<const A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator#1<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
     /// @type.symbol symbol=iterator.A source="const A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=memory.access.Access
 
@@ -1856,7 +1857,7 @@ export extension<K, V> of Bag<K, V>
         /// @resolution.name source=A target=iterator.A
 
     ): Iterator<Entry<&readonly K, WithAccess<&V, A>>> {
-    /// @resolution.name source=Iterator target=iter.iterator.Iterator
+    /// @resolution.name source=Iterator target=iter.iterator.Iterator#1
     /// @resolution.name source=Entry target=Entry
     /// @resolution.name source=K target=K
     /// @resolution.name source=WithAccess target=memory.type.WithAccess
@@ -1872,8 +1873,8 @@ export extension<K, V> of Bag<K, V>
 
 /// @generic.instance id="Bag<K#3, V#3>" template=Bag arguments=(K#3, V#3)
 /// @generic.instance id="Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>" template=Entry arguments=(&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>)
-/// @generic.instance id="iter.iterator.Iterator<(K#3, V#3)>" template=iter.iterator.Iterator arguments=((K#3, V#3))
-/// @generic.instance id="iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>" template=iter.iterator.Iterator arguments=(Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>)
+/// @generic.instance id="iter.iterator.Iterator#1<(K#3, V#3)>" template=iter.iterator.Iterator#1 arguments=((K#3, V#3))
+/// @generic.instance id="iter.iterator.Iterator#1<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>" template=iter.iterator.Iterator#1 arguments=(Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>)
 /// @generic.instance id="memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>" template=memory.type.WithAccess arguments=(&iterator#2.'a Bag<K#3, V#3>, A)
 /// @generic.instance id="memory.type.WithAccess<&iterator#2.'a V#3, A>" template=memory.type.WithAccess arguments=(&iterator#2.'a V#3, A)
 "#,

@@ -226,13 +226,13 @@ function make(): Options {
 @copy
 type Options {
     count: int32;
-    limit: variant<uint8> { 0uint8 = int32; 1uint8 = void; };
+    limit: variant<uint1> { 0uint1 = int32; 1uint1 = void; };
 }
 
 function test.main.make(): Options {
 entry:
     v0: int32 = 1
-    v1: variant<uint8> { 0uint8 = int32; 1uint8 = void; } = variant.new 1
+    v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 1
     v2: Options = aggregate (v0, v1)
     return v2
 }

@@ -70,7 +70,7 @@ function build(): int32 {
         "main.ds",
         r#"
 type Selector {
-    depth: variant<uint8> { 0uint8 = int32; 1uint8 = void; };
+    depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; };
     nested: ref<Selector, managed, mutable, undefined>;
 }
 
@@ -83,7 +83,7 @@ entry(v0: ref<Selector, managed, mutable>):
 function test.main.build(): int32 {
 entry:
     v0: int32 = 3
-    v1: variant<uint8> { 0uint8 = int32; 1uint8 = void; } = variant.new 0, v0
+    v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 0, v0
     v2: ref<Selector, managed, mutable, undefined> = undefined
     v3: Selector = aggregate (v1, v2)
     v4: ref<Selector, managed, mutable> = new.complete v3

@@ -173,8 +173,5 @@ async function sum(): Promise<int32> {
 "#, r#"
 /// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
 /// @diagnostic.label line=8 column=5 span="for" line_source="for await (const value of stream()) {"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'AsyncGenerator<int32, void, void>' does not satisfy 'Iterator<_, void>'"
-/// @diagnostic.label line=8 column=5 span="for" line_source="for await (const value of stream()) {"
-/// @diagnostic.related file="iterator.ds" line=43 column=24 span="I" line_source="export extension<T, R, I: Iterator<T, R>> of I implements Iterable<T, R> {" message="required by this bound on 'I'"
 "#);
 }
