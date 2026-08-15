@@ -1644,3 +1644,918 @@ function read(this: Box): string {
 }
 "#);
 }
+
+/// Narrow a borrowed newtype discriminant to its selected arm.
+#[test]
+fn test_narrow_borrowed_newtype_discriminant() {
+    let session = TestSession::single(
+        r#"
+struct Pending {
+    kind: "pending" = "pending";
+    waiting: int32;
+}
+
+struct Ready {
+    kind: "ready" = "ready";
+    value: int32;
+}
+
+newtype State = Pending | Ready;
+
+function read(state: &readonly State): int32 {
+    if (state.kind === "ready") {
+        return state.value;
+    }
+
+    return state.waiting;
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+struct Pending {
+    kind: "pending" = "pending";
+    waiting: int32;
+}
+
+struct Ready {
+    kind: "ready" = "ready";
+    value: int32;
+}
+
+newtype State = Pending | Ready;
+
+function read<'a>(state: &'a readonly State): int32 {
+    if (
+        (state.kind as readonly "pending" | readonly "ready" | "ready") ===
+        ("ready" as readonly "pending" | readonly "ready" | "ready")
+    ) {
+        return state.value;
+    }
+
+    return state.waiting;
+}
+
+=== checked ===
+struct Pending {
+/// @type.symbol symbol=Pending type=Pending
+/// @definition.struct symbol=Pending
+/// @definition.field symbol=Pending.kind source="kind: \"pending\" = \"pending\"" key=kind type="pending"
+/// @definition.field symbol=Pending.waiting source="waiting: int32" key=waiting type=int32
+
+    kind: "pending" = "pending";
+    /// @type.symbol symbol=Pending.kind source="kind: \"pending\" = \"pending\"" type="pending"
+    /// @type.node source="\"pending\"" type="pending"
+
+    waiting: int32;
+    /// @type.symbol symbol=Pending.waiting source="waiting: int32" type=int32
+
+}
+
+struct Ready {
+/// @type.symbol symbol=Ready type=Ready
+/// @definition.struct symbol=Ready
+/// @definition.field symbol=Ready.kind source="kind: \"ready\" = \"ready\"" key=kind type="ready"
+/// @definition.field symbol=Ready.value source="value: int32" key=value type=int32
+
+    kind: "ready" = "ready";
+    /// @type.symbol symbol=Ready.kind source="kind: \"ready\" = \"ready\"" type="ready"
+    /// @type.node source="\"ready\"" type="ready"
+
+    value: int32;
+    /// @type.symbol symbol=Ready.value source="value: int32" type=int32
+
+}
+
+newtype State = Pending | Ready;
+/// @type.symbol symbol=State source="newtype State = Pending | Ready" type=State
+/// @definition.newtype symbol=State source="newtype State = Pending | Ready" backing=Pending | Ready constructors=[(Pending) => State, (Ready) => State, (Pending | Ready) => State]
+/// @resolution.name source=Pending target=Pending
+/// @resolution.name source=Ready target=Ready
+
+function read(state: &readonly State): int32 {
+/// @generic.template symbol=read parameters=('a)
+/// @type.symbol symbol=read type=<read.'a>(&read.'a readonly State) => int32
+/// @type.symbol symbol=read.state source="state: &readonly State" type=&read.'a readonly State
+/// @resolution.name source=State target=State
+
+    if (state.kind === "ready") {
+    /// @type.node source="state.kind === \"ready\"" type=boolean
+    /// @type.node source=state type=&read.'a readonly State
+    /// @type.node source=state.kind type=Readonly<"pending"> | Readonly<"ready">
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.kind receiver=&read.'a readonly State type=Readonly<"pending"> | Readonly<"ready"> kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], Readonly<\"pending\"> | Readonly<\"ready\">)"
+    /// @resolution.operator source="state.kind === \"ready\"" type=boolean operator="===" kind=builtin operands=[state.kind as Readonly<"pending"> | Readonly<"ready"> | "ready", "ready" as Readonly<"pending"> | Readonly<"ready"> | "ready"]
+    /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.kind placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=state.kind root=read.state keys=[kind]
+    /// @type.node source="\"ready\"" type="ready"
+
+        return state.value;
+        /// @type.node source=state type=&read.'a readonly Ready
+        /// @type.node source=state.value type=int32
+        /// @resolution.name source=state target=read.state
+        /// @resolution.member source=state.value receiver=&read.'a readonly Ready type=int32 kind=field target_receiver=&read.'a readonly Ready key=value target=Ready.value target_type=int32
+        /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+        /// @resolution.access source=state root=read.state
+        /// @resolution.place source=state.value placement="local" lifetime=read.'a access="readonly"
+        /// @resolution.access source=state.value root=read.state keys=[value]
+
+    }
+
+    return state.waiting;
+    /// @type.node source=state type=&read.'a readonly Pending
+    /// @type.node source=state.waiting type=int32
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.waiting receiver=&read.'a readonly Pending type=int32 kind=field target_receiver=&read.'a readonly Pending key=waiting target=Pending.waiting target_type=int32
+    /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.waiting placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=state.waiting root=read.state keys=[waiting]
+
+}
+"#);
+}
+
+/// Narrow a struct union through an integer literal discriminant.
+#[test]
+fn test_narrow_struct_union_by_integer_discriminant() {
+    let session = TestSession::single(
+        r#"
+struct Header {
+    version: 1;
+    length: int32;
+}
+
+struct Trailer {
+    version: 2;
+    checksum: int32;
+}
+
+type Frame = Header | Trailer;
+
+function read(frame: Frame): int32 {
+    if (frame.version == 1) {
+        return frame.length;
+    }
+
+    return frame.checksum;
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+struct Header {
+    version: 1;
+    length: int32;
+}
+
+struct Trailer {
+    version: 2;
+    checksum: int32;
+}
+
+type Frame = Header | Trailer;
+
+function read(frame: Header | Trailer): int32 {
+    if (frame.version == (1 as 1 | 2)) {
+        return frame.length;
+    }
+
+    return frame.checksum;
+}
+
+=== checked ===
+struct Header {
+/// @type.symbol symbol=Header type=Header
+/// @definition.struct symbol=Header
+/// @definition.field symbol=Header.length source="length: int32" key=length type=int32
+/// @definition.field symbol=Header.version source="version: 1" key=version type=1
+
+    version: 1;
+    /// @type.symbol symbol=Header.version source="version: 1" type=1
+
+    length: int32;
+    /// @type.symbol symbol=Header.length source="length: int32" type=int32
+
+}
+
+struct Trailer {
+/// @type.symbol symbol=Trailer type=Trailer
+/// @definition.struct symbol=Trailer
+/// @definition.field symbol=Trailer.checksum source="checksum: int32" key=checksum type=int32
+/// @definition.field symbol=Trailer.version source="version: 2" key=version type=2
+
+    version: 2;
+    /// @type.symbol symbol=Trailer.version source="version: 2" type=2
+
+    checksum: int32;
+    /// @type.symbol symbol=Trailer.checksum source="checksum: int32" type=int32
+
+}
+
+type Frame = Header | Trailer;
+/// @type.symbol symbol=Frame source="type Frame = Header | Trailer" type=Header | Trailer
+/// @definition.type symbol=Frame source="type Frame = Header | Trailer" value=Header | Trailer
+/// @resolution.name source=Header target=Header
+/// @resolution.name source=Trailer target=Trailer
+
+function read(frame: Frame): int32 {
+/// @type.symbol symbol=read type=(Frame) => int32
+/// @type.symbol symbol=read type=(Header | Trailer) => int32
+/// @type.symbol symbol=read.frame source="frame: Frame" type=Header | Trailer
+/// @resolution.name source=Frame target=Frame
+
+    if (frame.version == 1) {
+    /// @type.node source="frame.version == 1" type=boolean
+    /// @type.node source=frame type=Header | Trailer
+    /// @type.node source=frame.version type=1 | 2
+    /// @resolution.name source=frame target=read.frame
+    /// @resolution.member source=frame.version receiver=Header | Trailer type=1 | 2 kind=projection target="discriminant(Header | Trailer, version, cases=[Header: 1, Trailer: 2], 1 | 2)"
+    /// @resolution.operator source="frame.version == 1" type=boolean operator="==" kind=builtin operands=[frame.version as 1 | 2 families=(integer), 1 as 1 | 2 families=(integer)]
+    /// @resolution.place source=frame placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=frame root=read.frame
+    /// @resolution.place source=frame.version placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=frame.version root=read.frame keys=[version]
+    /// @type.node source=1 type=1
+
+        return frame.length;
+        /// @type.node source=frame type=Header
+        /// @type.node source=frame.length type=int32
+        /// @resolution.name source=frame target=read.frame
+        /// @resolution.member source=frame.length receiver=Header type=int32 kind=field target_receiver=Header key=length target=Header.length target_type=int32
+        /// @resolution.place source=frame placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=frame root=read.frame
+        /// @resolution.place source=frame.length placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=frame.length root=read.frame keys=[length]
+
+    }
+
+    return frame.checksum;
+    /// @type.node source=frame type=Trailer
+    /// @type.node source=frame.checksum type=int32
+    /// @resolution.name source=frame target=read.frame
+    /// @resolution.member source=frame.checksum receiver=Trailer type=int32 kind=field target_receiver=Trailer key=checksum target=Trailer.checksum target_type=int32
+    /// @resolution.place source=frame placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=frame root=read.frame
+    /// @resolution.place source=frame.checksum placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=frame.checksum root=read.frame keys=[checksum]
+
+}
+"#);
+}
+
+/// Narrow a struct union through a boolean literal discriminant.
+#[test]
+fn test_narrow_struct_union_by_boolean_discriminant() {
+    let session = TestSession::single(
+        r#"
+struct Success {
+    ok: true;
+    value: int32;
+}
+
+struct Failure {
+    ok: false;
+    code: int32;
+}
+
+type Outcome = Success | Failure;
+
+function read(outcome: Outcome): int32 {
+    if (outcome.ok === true) {
+        return outcome.value;
+    }
+
+    return outcome.code;
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+struct Success {
+    ok: true;
+    value: int32;
+}
+
+struct Failure {
+    ok: false;
+    code: int32;
+}
+
+type Outcome = Success | Failure;
+
+function read(outcome: Success | Failure): int32 {
+    if (outcome.ok === (true as true | false)) {
+        return outcome.value;
+    }
+
+    return outcome.code;
+}
+
+=== checked ===
+struct Success {
+/// @type.symbol symbol=Success type=Success
+/// @definition.struct symbol=Success
+/// @definition.field symbol=Success.ok source="ok: true" key=ok type=true
+/// @definition.field symbol=Success.value source="value: int32" key=value type=int32
+
+    ok: true;
+    /// @type.symbol symbol=Success.ok source="ok: true" type=true
+
+    value: int32;
+    /// @type.symbol symbol=Success.value source="value: int32" type=int32
+
+}
+
+struct Failure {
+/// @type.symbol symbol=Failure type=Failure
+/// @definition.struct symbol=Failure
+/// @definition.field symbol=Failure.code source="code: int32" key=code type=int32
+/// @definition.field symbol=Failure.ok source="ok: false" key=ok type=false
+
+    ok: false;
+    /// @type.symbol symbol=Failure.ok source="ok: false" type=false
+
+    code: int32;
+    /// @type.symbol symbol=Failure.code source="code: int32" type=int32
+
+}
+
+type Outcome = Success | Failure;
+/// @type.symbol symbol=Outcome source="type Outcome = Success | Failure" type=Success | Failure
+/// @definition.type symbol=Outcome source="type Outcome = Success | Failure" value=Success | Failure
+/// @resolution.name source=Success target=Success
+/// @resolution.name source=Failure target=Failure
+
+function read(outcome: Outcome): int32 {
+/// @type.symbol symbol=read type=(Outcome) => int32
+/// @type.symbol symbol=read type=(Success | Failure) => int32
+/// @type.symbol symbol=read.outcome source="outcome: Outcome" type=Success | Failure
+/// @resolution.name source=Outcome target=Outcome
+
+    if (outcome.ok === true) {
+    /// @type.node source="outcome.ok === true" type=boolean
+    /// @type.node source=outcome type=Success | Failure
+    /// @type.node source=outcome.ok type=true | false
+    /// @resolution.name source=outcome target=read.outcome
+    /// @resolution.member source=outcome.ok receiver=Success | Failure type=true | false kind=projection target="discriminant(Success | Failure, ok, cases=[Success: true, Failure: false], true | false)"
+    /// @resolution.operator source="outcome.ok === true" type=boolean operator="===" kind=builtin operands=[outcome.ok as true | false families=(boolean), true as true | false families=(boolean)]
+    /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=outcome root=read.outcome
+    /// @resolution.place source=outcome.ok placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=outcome.ok root=read.outcome keys=[ok]
+    /// @type.node source=true type=true
+
+        return outcome.value;
+        /// @type.node source=outcome type=Success
+        /// @type.node source=outcome.value type=int32
+        /// @resolution.name source=outcome target=read.outcome
+        /// @resolution.member source=outcome.value receiver=Success type=int32 kind=field target_receiver=Success key=value target=Success.value target_type=int32
+        /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=outcome root=read.outcome
+        /// @resolution.place source=outcome.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=outcome.value root=read.outcome keys=[value]
+
+    }
+
+    return outcome.code;
+    /// @type.node source=outcome type=Failure
+    /// @type.node source=outcome.code type=int32
+    /// @resolution.name source=outcome target=read.outcome
+    /// @resolution.member source=outcome.code receiver=Failure type=int32 kind=field target_receiver=Failure key=code target=Failure.code target_type=int32
+    /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=outcome root=read.outcome
+    /// @resolution.place source=outcome.code placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=outcome.code root=read.outcome keys=[code]
+
+}
+"#);
+}
+
+/// Narrow the else branch of a negated newtype discriminant test.
+#[test]
+fn test_negated_equality_narrows_the_else_branch() {
+    let session = TestSession::single(
+        r#"
+struct Pending {
+    kind: "pending" = "pending";
+    waiting: int32;
+}
+
+struct Ready {
+    kind: "ready" = "ready";
+    value: int32;
+}
+
+newtype State = Pending | Ready;
+
+function read(state: State): int32 {
+    if (state.kind != "ready") {
+        return state.waiting;
+    }
+
+    return state.value;
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+struct Pending {
+    kind: "pending" = "pending";
+    waiting: int32;
+}
+
+struct Ready {
+    kind: "ready" = "ready";
+    value: int32;
+}
+
+newtype State = Pending | Ready;
+
+function read(state: State): int32 {
+    if (state.kind != "ready") {
+        return state.waiting;
+    }
+
+    return state.value;
+}
+
+=== checked ===
+struct Pending {
+/// @type.symbol symbol=Pending type=Pending
+/// @definition.struct symbol=Pending
+/// @definition.field symbol=Pending.kind source="kind: \"pending\" = \"pending\"" key=kind type="pending"
+/// @definition.field symbol=Pending.waiting source="waiting: int32" key=waiting type=int32
+
+    kind: "pending" = "pending";
+    /// @type.symbol symbol=Pending.kind source="kind: \"pending\" = \"pending\"" type="pending"
+    /// @type.node source="\"pending\"" type="pending"
+
+    waiting: int32;
+    /// @type.symbol symbol=Pending.waiting source="waiting: int32" type=int32
+
+}
+
+struct Ready {
+/// @type.symbol symbol=Ready type=Ready
+/// @definition.struct symbol=Ready
+/// @definition.field symbol=Ready.kind source="kind: \"ready\" = \"ready\"" key=kind type="ready"
+/// @definition.field symbol=Ready.value source="value: int32" key=value type=int32
+
+    kind: "ready" = "ready";
+    /// @type.symbol symbol=Ready.kind source="kind: \"ready\" = \"ready\"" type="ready"
+    /// @type.node source="\"ready\"" type="ready"
+
+    value: int32;
+    /// @type.symbol symbol=Ready.value source="value: int32" type=int32
+
+}
+
+newtype State = Pending | Ready;
+/// @type.symbol symbol=State source="newtype State = Pending | Ready" type=State
+/// @definition.newtype symbol=State source="newtype State = Pending | Ready" backing=Pending | Ready constructors=[(Pending) => State, (Ready) => State, (Pending | Ready) => State]
+/// @resolution.name source=Pending target=Pending
+/// @resolution.name source=Ready target=Ready
+
+function read(state: State): int32 {
+/// @type.symbol symbol=read type=(State) => int32
+/// @type.symbol symbol=read.state source="state: State" type=State
+/// @resolution.name source=State target=State
+
+    if (state.kind != "ready") {
+    /// @type.node source="state.kind != \"ready\"" type=boolean
+    /// @type.node source=state type=State
+    /// @type.node source=state.kind type="pending" | "ready"
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.kind receiver=State type="pending" | "ready" kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], \"pending\" | \"ready\")"
+    /// @resolution.operator source="state.kind != \"ready\"" type=boolean operator="!=" kind=builtin operands=[state.kind as "pending" | "ready" families=(string), "ready" as "ready" families=(string)]
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.kind placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state.kind root=read.state keys=[kind]
+    /// @type.node source="\"ready\"" type="ready"
+
+        return state.waiting;
+        /// @type.node source=state type=Pending
+        /// @type.node source=state.waiting type=int32
+        /// @resolution.name source=state target=read.state
+        /// @resolution.member source=state.waiting receiver=Pending type=int32 kind=field target_receiver=Pending key=waiting target=Pending.waiting target_type=int32
+        /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state root=read.state
+        /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state.waiting root=read.state keys=[waiting]
+
+    }
+
+    return state.value;
+    /// @type.node source=state type=Ready
+    /// @type.node source=state.value type=int32
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.value receiver=Ready type=int32 kind=field target_receiver=Ready key=value target=Ready.value target_type=int32
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state.value root=read.state keys=[value]
+
+}
+"#);
+}
+
+/// Narrow a newtype union through a static index discriminant test.
+#[test]
+fn test_static_index_equality_narrows_newtype_discriminant() {
+    let session = TestSession::single(
+        r#"
+struct Pending {
+    kind: "pending" = "pending";
+    waiting: int32;
+}
+
+struct Ready {
+    kind: "ready" = "ready";
+    value: int32;
+}
+
+newtype State = Pending | Ready;
+
+function read(state: State): int32 {
+    if (state["kind"] === "ready") {
+        return state.value;
+    }
+
+    return state.waiting;
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+struct Pending {
+    kind: "pending" = "pending";
+    waiting: int32;
+}
+
+struct Ready {
+    kind: "ready" = "ready";
+    value: int32;
+}
+
+newtype State = Pending | Ready;
+
+function read(state: State): int32 {
+    if (state["kind"] === ("ready" as "pending" | "ready")) {
+        return state.value;
+    }
+
+    return state.waiting;
+}
+
+=== checked ===
+struct Pending {
+/// @type.symbol symbol=Pending type=Pending
+/// @definition.struct symbol=Pending
+/// @definition.field symbol=Pending.kind source="kind: \"pending\" = \"pending\"" key=kind type="pending"
+/// @definition.field symbol=Pending.waiting source="waiting: int32" key=waiting type=int32
+
+    kind: "pending" = "pending";
+    /// @type.symbol symbol=Pending.kind source="kind: \"pending\" = \"pending\"" type="pending"
+    /// @type.node source="\"pending\"" type="pending"
+
+    waiting: int32;
+    /// @type.symbol symbol=Pending.waiting source="waiting: int32" type=int32
+
+}
+
+struct Ready {
+/// @type.symbol symbol=Ready type=Ready
+/// @definition.struct symbol=Ready
+/// @definition.field symbol=Ready.kind source="kind: \"ready\" = \"ready\"" key=kind type="ready"
+/// @definition.field symbol=Ready.value source="value: int32" key=value type=int32
+
+    kind: "ready" = "ready";
+    /// @type.symbol symbol=Ready.kind source="kind: \"ready\" = \"ready\"" type="ready"
+    /// @type.node source="\"ready\"" type="ready"
+
+    value: int32;
+    /// @type.symbol symbol=Ready.value source="value: int32" type=int32
+
+}
+
+newtype State = Pending | Ready;
+/// @type.symbol symbol=State source="newtype State = Pending | Ready" type=State
+/// @definition.newtype symbol=State source="newtype State = Pending | Ready" backing=Pending | Ready constructors=[(Pending) => State, (Ready) => State, (Pending | Ready) => State]
+/// @resolution.name source=Pending target=Pending
+/// @resolution.name source=Ready target=Ready
+
+function read(state: State): int32 {
+/// @type.symbol symbol=read type=(State) => int32
+/// @type.symbol symbol=read.state source="state: State" type=State
+/// @resolution.name source=State target=State
+
+    if (state["kind"] === "ready") {
+    /// @type.node source="state[\"kind\"] === \"ready\"" type=boolean
+    /// @type.node source="state[\"kind\"]" type="pending" | "ready"
+    /// @type.node source=state type=State
+    /// @resolution.name source=state target=read.state
+    /// @resolution.operator source="state[\"kind\"] === \"ready\"" type=boolean operator="===" kind=builtin operands=[state["kind"] as "pending" | "ready" families=(string), "ready" as "pending" | "ready" families=(string)]
+    /// @resolution.place source="state[\"kind\"]" placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source="state[\"kind\"]" root=read.state keys=[kind]
+    /// @resolution.subscript source="state[\"kind\"]" type="pending" | "ready" kind=member target="receiver=State, target=discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], \"pending\" | \"ready\"), type=\"pending\" | \"ready\""
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @type.node source="\"kind\"" type="kind"
+    /// @type.node source="\"ready\"" type="ready"
+
+        return state.value;
+        /// @type.node source=state type=Ready
+        /// @type.node source=state.value type=int32
+        /// @resolution.name source=state target=read.state
+        /// @resolution.member source=state.value receiver=Ready type=int32 kind=field target_receiver=Ready key=value target=Ready.value target_type=int32
+        /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state root=read.state
+        /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state.value root=read.state keys=[value]
+
+    }
+
+    return state.waiting;
+    /// @type.node source=state type=Pending
+    /// @type.node source=state.waiting type=int32
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.waiting receiver=Pending type=int32 kind=field target_receiver=Pending key=waiting target=Pending.waiting target_type=int32
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state.waiting root=read.state keys=[waiting]
+
+}
+"#);
+}
+
+/// Narrow a borrowed struct union through its discriminant.
+#[test]
+fn test_narrow_borrowed_struct_union_discriminant() {
+    let session = TestSession::single(
+        r#"
+struct Pending {
+    kind: "pending";
+    waiting: int32;
+}
+
+struct Ready {
+    kind: "ready";
+    value: int32;
+}
+
+type State = Pending | Ready;
+
+function read(state: &readonly State): int32 {
+    if (state.kind === "ready") {
+        return state.value;
+    }
+
+    return state.waiting;
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+struct Pending {
+    kind: "pending";
+    waiting: int32;
+}
+
+struct Ready {
+    kind: "ready";
+    value: int32;
+}
+
+type State = Pending | Ready;
+
+function read<'a>(state: &'a readonly (Pending | Ready)): int32 {
+    if (
+        (state.kind as readonly "pending" | readonly "ready" | "ready") ===
+        ("ready" as readonly "pending" | readonly "ready" | "ready")
+    ) {
+        return state.value;
+    }
+
+    return state.waiting;
+}
+
+=== checked ===
+struct Pending {
+/// @type.symbol symbol=Pending type=Pending
+/// @definition.struct symbol=Pending
+/// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
+/// @definition.field symbol=Pending.waiting source="waiting: int32" key=waiting type=int32
+
+    kind: "pending";
+    /// @type.symbol symbol=Pending.kind source="kind: \"pending\"" type="pending"
+
+    waiting: int32;
+    /// @type.symbol symbol=Pending.waiting source="waiting: int32" type=int32
+
+}
+
+struct Ready {
+/// @type.symbol symbol=Ready type=Ready
+/// @definition.struct symbol=Ready
+/// @definition.field symbol=Ready.kind source="kind: \"ready\"" key=kind type="ready"
+/// @definition.field symbol=Ready.value source="value: int32" key=value type=int32
+
+    kind: "ready";
+    /// @type.symbol symbol=Ready.kind source="kind: \"ready\"" type="ready"
+
+    value: int32;
+    /// @type.symbol symbol=Ready.value source="value: int32" type=int32
+
+}
+
+type State = Pending | Ready;
+/// @type.symbol symbol=State source="type State = Pending | Ready" type=Pending | Ready
+/// @definition.type symbol=State source="type State = Pending | Ready" value=Pending | Ready
+/// @resolution.name source=Pending target=Pending
+/// @resolution.name source=Ready target=Ready
+
+function read(state: &readonly State): int32 {
+/// @generic.template symbol=read parameters=('a)
+/// @type.symbol symbol=read type=<read.'a>(&read.'a readonly Pending | Ready) => int32
+/// @type.symbol symbol=read type=<read.'a>(&read.'a readonly State) => int32
+/// @type.symbol symbol=read.state source="state: &readonly State" type=&read.'a readonly Pending | Ready
+/// @resolution.name source=State target=State
+
+    if (state.kind === "ready") {
+    /// @type.node source="state.kind === \"ready\"" type=boolean
+    /// @type.node source=state type=&read.'a readonly Pending | Ready
+    /// @type.node source=state.kind type=Readonly<"pending"> | Readonly<"ready">
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.kind receiver=&read.'a readonly Pending | Ready type=Readonly<"pending"> | Readonly<"ready"> kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], Readonly<\"pending\"> | Readonly<\"ready\">)"
+    /// @resolution.operator source="state.kind === \"ready\"" type=boolean operator="===" kind=builtin operands=[state.kind as Readonly<"pending"> | Readonly<"ready"> | "ready", "ready" as Readonly<"pending"> | Readonly<"ready"> | "ready"]
+    /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.kind placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=state.kind root=read.state keys=[kind]
+    /// @type.node source="\"ready\"" type="ready"
+
+        return state.value;
+        /// @type.node source=state type=&read.'a readonly Ready
+        /// @type.node source=state.value type=int32
+        /// @resolution.name source=state target=read.state
+        /// @resolution.member source=state.value receiver=&read.'a readonly Ready type=int32 kind=field target_receiver=&read.'a readonly Ready key=value target=Ready.value target_type=int32
+        /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+        /// @resolution.access source=state root=read.state
+        /// @resolution.place source=state.value placement="local" lifetime=read.'a access="readonly"
+        /// @resolution.access source=state.value root=read.state keys=[value]
+
+    }
+
+    return state.waiting;
+    /// @type.node source=state type=&read.'a readonly Pending
+    /// @type.node source=state.waiting type=int32
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.waiting receiver=&read.'a readonly Pending type=int32 kind=field target_receiver=&read.'a readonly Pending key=waiting target=Pending.waiting target_type=int32
+    /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.waiting placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=state.waiting root=read.state keys=[waiting]
+
+}
+"#);
+}
+
+/// Narrow an interface union through a strict inequality discriminant test.
+#[test]
+fn test_strict_inequality_narrows_an_interface_union() {
+    let session = TestSession::single(
+        r#"
+interface Pending {
+    kind: "pending";
+    reactions: int32;
+}
+
+interface Fulfilled {
+    kind: "fulfilled";
+    value: int32;
+}
+
+type State = Pending | Fulfilled;
+
+function read(state: State): int32 {
+    if (state.kind !== "pending") {
+        return state.value;
+    }
+
+    return state.reactions;
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+interface Pending {
+    kind: "pending";
+    reactions: int32;
+}
+
+interface Fulfilled {
+    kind: "fulfilled";
+    value: int32;
+}
+
+type State = Pending | Fulfilled;
+
+function read(state: Dynamic<Pending> | Dynamic<Fulfilled>): int32 {
+    if (state.kind !== ("pending" as "pending" | "fulfilled")) {
+        return state.value;
+    }
+
+    return state.reactions;
+}
+
+=== checked ===
+interface Pending {
+/// @type.symbol symbol=Pending type=Pending
+/// @definition.interface symbol=Pending
+/// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
+/// @definition.field symbol=Pending.reactions source="reactions: int32" key=reactions type=int32
+
+    kind: "pending";
+    /// @type.symbol symbol=Pending.kind source="kind: \"pending\"" type="pending"
+
+    reactions: int32;
+    /// @type.symbol symbol=Pending.reactions source="reactions: int32" type=int32
+
+}
+
+interface Fulfilled {
+/// @type.symbol symbol=Fulfilled type=Fulfilled
+/// @definition.interface symbol=Fulfilled
+/// @definition.field symbol=Fulfilled.kind source="kind: \"fulfilled\"" key=kind type="fulfilled"
+/// @definition.field symbol=Fulfilled.value source="value: int32" key=value type=int32
+
+    kind: "fulfilled";
+    /// @type.symbol symbol=Fulfilled.kind source="kind: \"fulfilled\"" type="fulfilled"
+
+    value: int32;
+    /// @type.symbol symbol=Fulfilled.value source="value: int32" type=int32
+
+}
+
+type State = Pending | Fulfilled;
+/// @type.symbol symbol=State source="type State = Pending | Fulfilled" type=Pending | Fulfilled
+/// @definition.type symbol=State source="type State = Pending | Fulfilled" value=Pending | Fulfilled
+/// @resolution.name source=Pending target=Pending
+/// @resolution.name source=Fulfilled target=Fulfilled
+
+function read(state: State): int32 {
+/// @type.symbol symbol=read type=(Dynamic<Pending> | Dynamic<Fulfilled>) => int32
+/// @type.symbol symbol=read type=(State) => int32
+/// @type.symbol symbol=read.state source="state: State" type=Dynamic<Pending> | Dynamic<Fulfilled>
+/// @resolution.name source=State target=State
+
+    if (state.kind !== "pending") {
+    /// @type.node source="state.kind !== \"pending\"" type=boolean
+    /// @type.node source=state type=Dynamic<Pending> | Dynamic<Fulfilled>
+    /// @type.node source=state.kind type="pending" | "fulfilled"
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.kind type="pending" | "fulfilled" kind=union arms=[receiver=Dynamic<Pending>, target=field(receiver=dynamic(Dynamic<Pending>, constraint=Pending), target=Pending.kind, type="pending"), type="pending", receiver=Dynamic<Fulfilled>, target=field(receiver=dynamic(Dynamic<Fulfilled>, constraint=Fulfilled), target=Fulfilled.kind, type="fulfilled"), type="fulfilled"]
+    /// @resolution.operator source="state.kind !== \"pending\"" type=boolean operator="!==" kind=builtin operands=[state.kind as "pending" | "fulfilled" families=(string), "pending" as "pending" | "fulfilled" families=(string)]
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.kind placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state.kind root=read.state keys=[kind]
+    /// @type.node source="\"pending\"" type="pending"
+
+        return state.value;
+        /// @type.node source=state type=Dynamic<Fulfilled>
+        /// @type.node source=state.value type=int32
+        /// @resolution.name source=state target=read.state
+        /// @resolution.member source=state.value receiver=Dynamic<Fulfilled> type=int32 kind=field target_receiver=Dynamic<Fulfilled> dispatch=dynamic constraint=Fulfilled key=value target=Fulfilled.value target_type=int32
+        /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state root=read.state
+        /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=state.value root=read.state keys=[value]
+
+    }
+
+    return state.reactions;
+    /// @type.node source=state type=Dynamic<Pending>
+    /// @type.node source=state.reactions type=int32
+    /// @resolution.name source=state target=read.state
+    /// @resolution.member source=state.reactions receiver=Dynamic<Pending> type=int32 kind=field target_receiver=Dynamic<Pending> dispatch=dynamic constraint=Pending key=reactions target=Pending.reactions target_type=int32
+    /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state root=read.state
+    /// @resolution.place source=state.reactions placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=state.reactions root=read.state keys=[reactions]
+
+}
+"#);
+}
