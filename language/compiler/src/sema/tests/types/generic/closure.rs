@@ -195,12 +195,12 @@ const value = use(() => make());
 /// @generic.instance id=use<<error>> template=use arguments=(<error>)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '() => Box<Box<…>>' is not assignable to parameter of type '() => Box<…> | Box<…>'"
-/// @diagnostic.label line=6 column=19 span="() => make()" line_source="const value = use(() => make());"
-/// @diagnostic.related line=6 column=15 span="use(() => make())" line_source="const value = use(() => make());" message="in this call"
 /// @diagnostic.error id=not-assignable message="type 'Box<Box<int32>>' is not assignable to type 'Box<_> | Box<Box<_>>'"
 /// @diagnostic.label line=6 column=19 span="() => make()" line_source="const value = use(() => make());"
+/// @diagnostic.related line=6 column=15 span="use(() => make())" line_source="const value = use(() => make());" message="in this call"
+/// @diagnostic.note message="inference cannot decide this relation"
 /// @diagnostic.note message="the mismatch is in the return type"
+/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }

@@ -935,7 +935,7 @@ inspect(state.users[0]);
 /// @resolution.access source=state.users root=state keys=[users]
 /// @resolution.place source=state.users[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=state.users[0] root=state keys=[users, 0]
-/// @resolution.subscript source=state.users[0] type=User kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static User, \"exclusive\">)"
+/// @resolution.subscript source=state.users[0] type=User kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static User, \"exclusive\">)"
 /// @generic.instance source=state.users[0] id="Array<User>.<extension#5>.index#1<\"exclusive\">"
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
@@ -1524,8 +1524,8 @@ declare const values: shared int32[];
 
 values.push(1);
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<int32>, "shared">, ...int32[]) => usize kind=symbol target_receiver=Placed<Array<int32>, "shared"> target=collections.array.push
-/// @resolution.call source=values.push(1) parameters=(Placed<Array<int32>, "shared">) arguments=(rest(1) as int32) return=usize kind=symbol target=collections.array.push receiver=Placed<Array<int32>, "shared"> instance=Array<int32>.<extension#5>.push
+/// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<int32>, "shared">, ...int32[]) => isize kind=symbol target_receiver=Placed<Array<int32>, "shared"> target=collections.array.push
+/// @resolution.call source=values.push(1) parameters=(Placed<Array<int32>, "shared">) arguments=(rest(1) as int32) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<int32>, "shared"> instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instance source=values.push(1) id=Array<int32>.<extension#5>.push
@@ -1546,8 +1546,8 @@ declare const message: shared Message;
 
 messages.push(message);
 /// @resolution.name source=messages target=messages
-/// @resolution.member source=messages.push receiver=Placed<Array<Message>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<Message>, "shared">, ...Message[]) => usize kind=symbol target_receiver=Placed<Array<Message>, "shared"> target=collections.array.push
-/// @resolution.call source=messages.push(message) parameters=(Placed<Array<Message>, "shared">) arguments=(rest(message) as Placed<Message, "shared">) return=usize kind=symbol target=collections.array.push receiver=Placed<Array<Message>, "shared"> instance=Array<Message>.<extension#5>.push
+/// @resolution.member source=messages.push receiver=Placed<Array<Message>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<Message>, "shared">, ...Message[]) => isize kind=symbol target_receiver=Placed<Array<Message>, "shared"> target=collections.array.push
+/// @resolution.call source=messages.push(message) parameters=(Placed<Array<Message>, "shared">) arguments=(rest(message) as Placed<Message, "shared">) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<Message>, "shared"> instance=Array<Message>.<extension#5>.push
 /// @resolution.place source=messages placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=messages root=messages
 /// @generic.instance source=messages.push(message) id=Array<Message>.<extension#5>.push

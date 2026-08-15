@@ -210,7 +210,7 @@ const length = values.length;
         r#"
 === annotated ===
 let values: int32[] = [];
-const length: usize = values.length;
+const length: isize = values.length;
 
 === checked ===
 let values: int32[] = [];
@@ -219,12 +219,12 @@ let values: int32[] = [];
 /// @type.node source=[] type=Array<int32>
 
 const length = values.length;
-/// @type.symbol symbol=length source=length type=usize
+/// @type.symbol symbol=length source=length type=isize
 /// @resolution.pattern source=length kind=binding target=length
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.length type=usize
+/// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
+/// @resolution.member source=values.length receiver=Array<int32> type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instance source=values.length id=Array<int32>.<extension#3>.length#2
@@ -260,18 +260,18 @@ const length = values.length;
 === annotated ===
 import { values } from "./values.ds";
 
-const length: usize = values.length;
+const length: isize = values.length;
 
 === checked ===
 import { values } from "./values.ds";
 
 const length = values.length;
-/// @type.symbol symbol=length source=length type=usize
+/// @type.symbol symbol=length source=length type=isize
 /// @resolution.pattern source=length kind=binding target=length
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.length type=usize
+/// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values.values
-/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
+/// @resolution.member source=values.length receiver=Array<int32> type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values.values
 /// @generic.instance source=values.length id=Array<int32>.<extension#3>.length#2
@@ -373,11 +373,11 @@ let values: int32[] = [];
 
 values.push(1);
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.push type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => usize
-/// @type.node source=values.push(1) type=usize
+/// @type.node source=values.push type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => isize
+/// @type.node source=values.push(1) type=isize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Array<int32> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => usize kind=symbol target_receiver=Array<int32> target=collections.array.push
-/// @resolution.call source=values.push(1) parameters=(Array<int32>) arguments=(rest(1) as int32) return=usize kind=symbol target=collections.array.push receiver=Array<int32> adjustments=(borrow(&'static exclusive Array<int32>)) instance=Array<int32>.<extension#5>.push
+/// @resolution.member source=values.push receiver=Array<int32> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => isize kind=symbol target_receiver=Array<int32> target=collections.array.push
+/// @resolution.call source=values.push(1) parameters=(Array<int32>) arguments=(rest(1) as int32) return=isize kind=symbol target=collections.array.push receiver=Array<int32> adjustments=(borrow(&'static exclusive Array<int32>)) instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instance source=values.push(1) id=Array<int32>.<extension#5>.push

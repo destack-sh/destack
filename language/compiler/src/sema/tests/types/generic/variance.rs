@@ -880,6 +880,49 @@ take(increment);
 /// @resolution.name source=take target=take
 /// @resolution.call source=take(increment) parameters=(Function<(int32,), int32 | undefined>) arguments=(provided(increment) as Function<(int32,), int32 | undefined>) return=void kind=symbol target=take
 /// @resolution.name source=increment target=increment
+/// @resolution.function source=increment type=(int32) => int32 target=increment
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Discard an async callback result against a void-returning parameter.
+#[test]
+fn test_void_callback_parameter_discards_an_unsolved_result() {
+    let session = TestSession::single(
+        r#"
+declare function forEach(visit: (value: int32) => void): void;
+
+forEach(async (value) => value);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function forEach(visit: (arg0: int32) => void): void;
+
+forEach(async (value: int32) => value);
+
+=== checked ===
+declare function forEach(visit: (value: int32) => void): void;
+/// @type.symbol symbol=forEach source="declare function forEach(visit: (value: int32) => void): void" type=(Function<(int32,), void>) => void
+/// @type.symbol symbol=forEach.visit source="visit: (value: int32) => void" type=Function<(int32,), void>
+/// @type.symbol symbol=forEach.value source="value: int32" type=int32
+
+forEach(async (value) => value);
+/// @resolution.name source=forEach target=forEach
+/// @resolution.call source="forEach(async (value) => value)" parameters=(Function<(int32,), void>) arguments=(provided(async (value) => value) as Function<(int32,), void>) return=void kind=symbol target=forEach
+/// @type.symbol symbol=symbol4 source="async (value) => value" type=Function<(int32,), Promise<int32>>
+/// @type.symbol symbol=symbol4.value source=value type=int32
+/// @resolution.name source=value target=symbol4.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol4.value
+
+/// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
 "#,
         r#"
 "#,

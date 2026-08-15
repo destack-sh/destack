@@ -750,6 +750,7 @@ function render(): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source="<Header title=\"hello\"/>" builder=Panel form=component callee=Header call=Header attributes=(title: "hello") children=() type=Panel
     /// @resolution.name source=Header target=Header
+    /// @resolution.function source=Header type=({ title: string }) => Panel target=Header
 
     return page;
     /// @resolution.name source=page target=render.page
@@ -1167,6 +1168,7 @@ function render(): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source="<Stack title=\"hello\"><span/></Stack>" builder=Panel form=component callee=Stack call=Stack attributes=(title: "hello") children=(Panel) type=Panel
     /// @resolution.name source=Stack target=Stack
+    /// @resolution.function source=Stack type=({ title: string; children: (Panel,) }) => Panel target=Stack
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
 
     return page;

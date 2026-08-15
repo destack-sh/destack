@@ -63,6 +63,9 @@ impl SnapshotTable for dir::DecisionTable<'_> {
                 dir::Decision::Call(resolution) => {
                     add_call_decision_row(builder, node_id, resolution);
                 }
+                dir::Decision::Function(resolution) => {
+                    add_function_decision_row(builder, node_id, resolution);
+                }
                 dir::Decision::Subscript(resolution) => {
                     add_subscript_decision_row(builder, node_id, resolution);
                 }
@@ -316,7 +319,7 @@ fn add_path_resolution_row(
     )
     .optional_field("source", builder.name_resolution_source(node_id))
     .field("index", segment.to_string())
-    .field("target", builder.symbol_path_label(resolution.symbol()));
+    .field("target", builder.symbol_path_label(resolution.symbols()[0]));
 
     builder.push(row);
 }
@@ -528,6 +531,31 @@ fn add_member_access_fields(
 }
 
 /// Add one call resolution row.
+fn add_function_decision_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::FunctionDecision,
+) {
+    let arms: &[dir::FunctionValue] = match resolution {
+        dir::OperationResolution::One(value) => std::slice::from_ref(value),
+        dir::OperationResolution::Union { arms, .. } => arms,
+    };
+    for value in arms {
+        let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "function")
+            .optional_field("source", builder.node_source(node_id))
+            .type_field("type", builder.global_type_label(value.callable_type))
+            .optional_field(
+                "target",
+                value
+                    .target
+                    .symbol()
+                    .map(|symbol| builder.symbol_path_label(symbol)),
+            );
+
+        builder.push(row);
+    }
+}
+
 fn add_call_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
@@ -612,17 +640,17 @@ fn add_call_fields(
 fn add_call_target_fields(
     builder: &DirSnapshotBuilder<'_>,
     row: SnapshotRow,
-    target: &dir::CallTarget,
+    target: &dir::CallableTarget,
 ) -> SnapshotRow {
     match target {
-        dir::CallTarget::Expression { generic_arguments } => row
+        dir::CallableTarget::Expression { generic_arguments } => row
             .field("kind", "expression")
             .field("target", "expression")
             .optional_field(
                 "generic_arguments",
                 builder.generic_arguments_label(generic_arguments),
             ),
-        dir::CallTarget::Symbol { function, dispatch } => {
+        dir::CallableTarget::Symbol { function, dispatch } => {
             let row = add_function_target_fields(builder, row.field("kind", "symbol"), function);
             let dispatch = match dispatch {
                 dir::FunctionDispatch::Direct => None,
@@ -633,7 +661,7 @@ fn add_call_target_fields(
 
             row.optional_field("dispatch", dispatch)
         }
-        dir::CallTarget::Dynamic {
+        dir::CallableTarget::Dynamic {
             dispatch,
             function,
             generic_arguments,
@@ -1198,10 +1226,10 @@ fn call_label(builder: &DirSnapshotBuilder<'_>, call: &dir::Call) -> String {
 }
 
 /// Return one call target snapshot label.
-fn call_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::CallTarget) -> String {
+fn call_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::CallableTarget) -> String {
     match target {
-        dir::CallTarget::Expression { .. } => "expression".to_string(),
-        dir::CallTarget::Symbol { function, dispatch } => match dispatch {
+        dir::CallableTarget::Expression { .. } => "expression".to_string(),
+        dir::CallableTarget::Symbol { function, dispatch } => match dispatch {
             dir::FunctionDispatch::Direct => builder.function_target_label(function),
             dir::FunctionDispatch::Virtual { class } => format!(
                 "virtual({}.{})",
@@ -1209,7 +1237,7 @@ fn call_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::CallTarget)
                 builder.function_target_label(function)
             ),
         },
-        dir::CallTarget::Dynamic {
+        dir::CallableTarget::Dynamic {
             dispatch, function, ..
         } => format!(
             "dynamic({} as {}, {})",
@@ -1381,9 +1409,9 @@ fn tree_call_label(builder: &DirSnapshotBuilder<'_>, call: &dir::CallDecision) -
         return None;
     };
     let target = match &call.target {
-        dir::CallTarget::Symbol { function, .. } => builder.function_target_label(function),
-        dir::CallTarget::Expression { .. } => "expression".to_string(),
-        dir::CallTarget::Dynamic { .. } => "dynamic".to_string(),
+        dir::CallableTarget::Symbol { function, .. } => builder.function_target_label(function),
+        dir::CallableTarget::Expression { .. } => "expression".to_string(),
+        dir::CallableTarget::Dynamic { .. } => "dynamic".to_string(),
     };
 
     Some(target)
@@ -1970,16 +1998,16 @@ fn add_call_generic_instances(
     let source = builder.node_source(node_id);
 
     match &call.target {
-        dir::CallTarget::Symbol { function, .. } => {
+        dir::CallableTarget::Symbol { function, .. } => {
             add_function_target_generic_instance(builder, anchor, source, function);
         }
-        dir::CallTarget::Dynamic {
+        dir::CallableTarget::Dynamic {
             function: dir::DynamicFunction::Symbol(symbol),
             generic_arguments,
             ..
         } => add_generic_instance(builder, anchor, source, *symbol, generic_arguments),
-        dir::CallTarget::Expression { .. }
-        | dir::CallTarget::Dynamic {
+        dir::CallableTarget::Expression { .. }
+        | dir::CallableTarget::Dynamic {
             function:
                 dir::DynamicFunction::CallSignature(_)
                 | dir::DynamicFunction::IndexRead(_)

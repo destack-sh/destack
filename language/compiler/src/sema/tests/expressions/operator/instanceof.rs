@@ -528,6 +528,7 @@ function adopt<T>(value: T | Deferred<T>): void {
         r#"
 /// @diagnostic.error id=not-assignable message="type '*' is not assignable to type '* | T'"
 /// @diagnostic.label line=8 column=20 span="(value) => {}" line_source="value.then((value) => {});"
+/// @diagnostic.related line=8 column=9 span="value.then((value) => {})" line_source="value.then((value) => {});" message="in this call"
 /// @diagnostic.note message="the mismatch is in parameter 0"
 "#,
     );

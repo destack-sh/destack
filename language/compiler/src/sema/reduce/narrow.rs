@@ -72,7 +72,6 @@ impl CheckState<'_> {
         is_positive: bool,
     ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
         let source = self.normalize(origin, source)?;
-<<<<<<< HEAD
         let alternatives = if let Some(variants) = self.variant_types(source)? {
             variants
         } else {
@@ -89,29 +88,10 @@ impl CheckState<'_> {
 
             // expose the resulting physical union arms
             let Some(arms) = self.union_arms(origin, carrier)? else {
-                return Ok(None);
+                return Ok(Ok(None));
             };
 
             arms.into_vec()
-||||||| parent of 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
-        let alternatives = match self.variant_types(origin.module(), source)? {
-            Some(variants) => variants,
-            None => match self.ty(source)? {
-                dir::Type::Union(union) => {
-                    self.type_ids(source.module_id, union.elements)?.to_vec()
-                }
-                _ => return Ok(None),
-            },
-=======
-        let alternatives = match self.variant_types(origin.module(), source)? {
-            Some(variants) => variants,
-            None => match self.ty(source)? {
-                dir::Type::Union(union) => {
-                    self.type_ids(source.module_id, union.elements)?.to_vec()
-                }
-                _ => return Ok(Ok(None)),
-            },
->>>>>>> 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
         };
 
         // keep original alternatives whose projected predicate remains inhabited
@@ -330,17 +310,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         is_positive: bool,
-<<<<<<< HEAD
-    ) -> CompilerResult<dir::GlobalTypeId> {
-||||||| parent of 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = origin.module();
-
-=======
     ) -> CompilerResult<Result<dir::GlobalTypeId, dir::TypeVariableId>> {
-        let module = origin.module();
-
->>>>>>> 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
         // narrow an erased value through its checked runtime domain
         if let dir::Type::Dynamic(dynamic) = self.ty(source)? {
             let constraint = dynamic.constraint;
@@ -390,45 +360,6 @@ impl CheckState<'_> {
             Verdict::Fails => {}
         }
 
-<<<<<<< HEAD
-||||||| parent of 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
-        // unmatched Tagged variants expose their backing to structural predicates
-        if let dir::Type::Variant(variant) = self.ty(source)?
-            && let Some(backing) = self.tagged_variant_backing(module, &variant)?
-        {
-            let narrowed = self.narrow_element(origin, backing, target, is_positive)?;
-            let narrowed = if matches!(self.ty(narrowed)?, dir::Type::Never) {
-                narrowed
-            } else if narrowed == backing {
-                source
-            } else {
-                self.normalized_intersection_type([source, narrowed])?
-            };
-
-            return Ok(narrowed);
-        }
-
-=======
-        // unmatched Tagged variants expose their backing to structural predicates
-        if let dir::Type::Variant(variant) = self.ty(source)?
-            && let Some(backing) = self.tagged_variant_backing(module, &variant)?
-        {
-            let narrowed = match self.narrow_element(origin, backing, target, is_positive)? {
-                Ok(narrowed) => narrowed,
-                blocked @ Err(_) => return Ok(blocked),
-            };
-            let narrowed = if matches!(self.ty(narrowed)?, dir::Type::Never) {
-                narrowed
-            } else if narrowed == backing {
-                source
-            } else {
-                self.normalized_intersection_type([source, narrowed])?
-            };
-
-            return Ok(Ok(narrowed));
-        }
-
->>>>>>> 5572d15767 (refactor(language/compiler/sema): solve every Check through one Fulfillment queue)
         // select the target when it is narrower, otherwise preserve both constraints
         let is_top_like = match self.evaluate_relation(origin, Relation::Subtype, target, source)? {
             Verdict::Holds => true,

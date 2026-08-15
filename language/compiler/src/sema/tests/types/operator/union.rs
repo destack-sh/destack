@@ -497,7 +497,7 @@ const first = values[0];
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static int32, "exclusive">), collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static string, "exclusive">)]
+/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int32, "exclusive">), collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static string, "exclusive">)]
 /// @generic.instance source=values[0] id="Array<int32>.<extension#5>.index#1<\"exclusive\">"
 /// @generic.instance source=values[0] id="Array<string>.<extension#5>.index#1<\"exclusive\">"
 

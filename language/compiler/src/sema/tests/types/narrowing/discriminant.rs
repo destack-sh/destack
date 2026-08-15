@@ -186,7 +186,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
     /// @resolution.access source=values root=read.values
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=read.values keys=[0]
-    /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
+    /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
     /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#5>.index#1<\"exclusive\">"
 
         return values[0];
@@ -195,7 +195,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
         /// @resolution.access source=values root=read.values
         /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values[0] root=read.values keys=[0]
-        /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
+        /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
         /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#5>.index#1<\"exclusive\">"
 
     }

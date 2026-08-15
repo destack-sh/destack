@@ -159,3 +159,88 @@ const bad: Args = ("Ada", "one");
 "#,
     );
 }
+
+/// Reduce typeof over an overload group to the signature intersection.
+#[test]
+fn test_typeof_over_an_overload_group_reduces_to_the_intersection() {
+    let session = TestSession::single(
+        r#"
+function parse(value: int32): int32 {
+    value
+}
+
+function parse(value: string): string {
+    value
+}
+
+type Parser = typeof parse;
+
+declare const parser: Parser;
+
+parser satisfies ((value: int32) => int32) & ((value: string) => string);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function parse(value: int32): int32 {
+    value
+}
+
+function parse(value: string): string {
+    value
+}
+
+type Parser = typeof parse;
+
+declare const parser: ((arg0: int32) => int32) & ((arg0: string) => string);
+
+parser satisfies ((value: int32) => int32) & ((value: string) => string);
+
+=== checked ===
+function parse(value: int32): int32 {
+/// @type.symbol symbol=parse#1 type=(int32) => int32
+/// @type.symbol symbol=parse.value#1 source="value: int32" type=int32
+
+    value
+    /// @resolution.name source=value target=parse.value#1
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=parse.value#1
+
+}
+
+function parse(value: string): string {
+/// @type.symbol symbol=parse#2 type=(string) => string
+/// @type.symbol symbol=parse.value#2 source="value: string" type=string
+
+    value
+    /// @resolution.name source=value target=parse.value#2
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=parse.value#2
+
+}
+
+type Parser = typeof parse;
+/// @type.symbol symbol=Parser source="type Parser = typeof parse" type=(int32) => int32 & (string) => string
+/// @definition.type symbol=Parser source="type Parser = typeof parse" value=(int32) => int32 & (string) => string
+/// @resolution.name source=parse target=[parse#1, parse#2]
+
+declare const parser: Parser;
+/// @type.symbol symbol=parser source=parser type=(int32) => int32 & (string) => string
+/// @resolution.pattern source=parser kind=binding target=parser
+/// @resolution.name source=Parser target=Parser
+
+parser satisfies ((value: int32) => int32) & ((value: string) => string);
+/// @resolution.name source=parser target=parser
+/// @resolution.place source=parser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=parser root=parser
+/// @type.symbol symbol=value#1 source="value: int32" type=int32
+/// @type.symbol symbol=value#2 source="value: string" type=string
+"#,
+        r#"
+"#,
+    );
+}

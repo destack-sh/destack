@@ -246,7 +246,7 @@ fn test_scratch_slice_index_write() {
     let session = TestSession::single(
         r#"
 function put<T>(destination: &exclusive [T], value: T): void {
-    let lane: usize = 0;
+    let lane: isize = 0;
 
     destination[lane] = value;
 }
@@ -259,7 +259,7 @@ function put<T>(destination: &exclusive [T], value: T): void {
         r#"
 === annotated ===
 function put<T, 'a>(destination: &'a exclusive [T], value: T): void {
-    let lane: usize = 0;
+    let lane: isize = 0;
 
     destination[lane] = value;
 }
@@ -274,8 +274,8 @@ function put<T>(destination: &exclusive [T], value: T): void {
 /// @type.symbol symbol=put.value source="value: T" type=T
 /// @resolution.name source=T target=put.T
 
-    let lane: usize = 0;
-    /// @type.symbol symbol=put.lane source=lane type=usize
+    let lane: isize = 0;
+    /// @type.symbol symbol=put.lane source=lane type=isize
     /// @resolution.pattern source=lane kind=binding target=put.lane
 
     destination[lane] = value;
@@ -283,7 +283,7 @@ function put<T>(destination: &exclusive [T], value: T): void {
     /// @resolution.place source=destination placement="local" lifetime=put.'a access="exclusive"
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
-    /// @resolution.assignment source=destination[lane] write="collections.slice.indexSet#1(parameters=(usize, T), arguments=(provided(lane) as usize, write as T), return=void)" type=T
+    /// @resolution.assignment source=destination[lane] write="collections.slice.indexSet#1(parameters=(isize, T), arguments=(provided(lane) as isize, write as T), return=void)" type=T
     /// @resolution.name source=lane target=put.lane
     /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=lane root=put.lane
@@ -301,7 +301,7 @@ fn test_scratch_slice_index_write_concrete() {
     let session = TestSession::single(
         r#"
 function put(destination: &exclusive [int32], value: int32): void {
-    let lane: usize = 0;
+    let lane: isize = 0;
 
     destination[lane] = value;
 }
@@ -314,7 +314,7 @@ function put(destination: &exclusive [int32], value: int32): void {
         r#"
 === annotated ===
 function put<'a>(destination: &'a exclusive [int32], value: int32): void {
-    let lane: usize = 0;
+    let lane: isize = 0;
 
     destination[lane] = value;
 }
@@ -326,8 +326,8 @@ function put(destination: &exclusive [int32], value: int32): void {
 /// @type.symbol symbol=put.destination source="destination: &exclusive [int32]" type=&put.'a exclusive Slice<int32>
 /// @type.symbol symbol=put.value source="value: int32" type=int32
 
-    let lane: usize = 0;
-    /// @type.symbol symbol=put.lane source=lane type=usize
+    let lane: isize = 0;
+    /// @type.symbol symbol=put.lane source=lane type=isize
     /// @resolution.pattern source=lane kind=binding target=put.lane
 
     destination[lane] = value;
@@ -335,7 +335,7 @@ function put(destination: &exclusive [int32], value: int32): void {
     /// @resolution.place source=destination placement="local" lifetime=put.'a access="exclusive"
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
-    /// @resolution.assignment source=destination[lane] write="collections.slice.indexSet#1(parameters=(usize, int32), arguments=(provided(lane) as usize, write as int32), return=void)" type=int32
+    /// @resolution.assignment source=destination[lane] write="collections.slice.indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, write as int32), return=void)" type=int32
     /// @resolution.name source=lane target=put.lane
     /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=lane root=put.lane

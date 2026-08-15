@@ -513,7 +513,7 @@ function updateNumbers(values: &[int32; 2]): void {
     /// @resolution.place source=values placement="local" lifetime=updateNumbers.'a access="mutable"
     /// @resolution.access source=values root=updateNumbers.values
     /// @resolution.pattern.assign source=values[0] kind=place
-    /// @resolution.assignment source=values[0] write="collections.fixed-array.indexSet#1(parameters=(usize, int32), arguments=(provided(0) as usize, write as int32), return=void)" type=int32
+    /// @resolution.assignment source=values[0] write="collections.fixed-array.indexSet#1(parameters=(isize, int32), arguments=(provided(0) as isize, write as int32), return=void)" type=int32
 
 }
 
@@ -528,7 +528,7 @@ function updateStatuses(values: &[Status; 2]): void {
     /// @resolution.place source=values placement="local" lifetime=updateStatuses.'a access="mutable"
     /// @resolution.access source=values root=updateStatuses.values
     /// @resolution.pattern.assign source=values[0] kind=place
-    /// @resolution.assignment source=values[0] write="collections.fixed-array.indexSet#1(parameters=(usize, Status), arguments=(provided(0) as usize, write as Status), return=void)" type=Status
+    /// @resolution.assignment source=values[0] write="collections.fixed-array.indexSet#1(parameters=(isize, Status), arguments=(provided(0) as isize, write as Status), return=void)" type=Status
     /// @resolution.name source=Status target=Status
     /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 

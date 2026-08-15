@@ -164,6 +164,7 @@ use(source);
 /// @resolution.call source=use(source) parameters=(Function<(unknown,), void>) arguments=(provided(source) as Function<(unknown,), void>) return=void kind=symbol target=use
 /// @type.node source=source type=(Dynamic<unknown> | undefined?) => void
 /// @resolution.name source=source target=source
+/// @resolution.function source=source type=(Dynamic<unknown> | undefined?) => void target=source
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '(value: Dynamic<unknown> | undefined) => void' is not assignable to parameter of type '(value: unknown) => void'"

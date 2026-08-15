@@ -30,15 +30,15 @@ const slice = bytes[1..3];
 /// @resolution.name source=bytes target=bytes
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
-/// @resolution.subscript source=bytes[1..3] type=Slice<uint8> kind=call target="collections.fixed-array.index#2(parameters=(Range<usize>), arguments=(provided(1..3) as Range<usize>), return=&'static exclusive Slice<uint8>)"
+/// @resolution.subscript source=bytes[1..3] type=Slice<uint8> kind=call target="collections.fixed-array.index#2(parameters=(Range<isize>), arguments=(provided(1..3) as Range<isize>), return=&'static exclusive Slice<uint8>)"
 /// @generic.instance source=bytes[1..3] id="FixedArray<uint8, 4>.<extension#5>.index#2"
 /// @type.node source=1 type=1
-/// @type.node source=1..3 type=Range<usize>
-/// @generic.instance source=1..3 id=Range<usize>
+/// @type.node source=1..3 type=Range<isize>
+/// @generic.instance source=1..3 id=Range<isize>
 /// @type.node source=3 type=3
 
-/// @generic.instance id="FixedArray<uint8, 4>.<extension#5>.index#2" template=collections.fixed-array.index#2 arguments=(uint8, 4, Range<usize>, "exclusive")
-/// @generic.instance id=Range<usize> template=range.range.Range arguments=(usize)
+/// @generic.instance id="FixedArray<uint8, 4>.<extension#5>.index#2" template=collections.fixed-array.index#2 arguments=(uint8, 4, Range<isize>, "exclusive")
+/// @generic.instance id=Range<isize> template=range.range.Range arguments=(isize)
 "#,
     );
 }

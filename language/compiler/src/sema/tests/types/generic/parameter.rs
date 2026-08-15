@@ -135,7 +135,7 @@ const first = values[0];
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
+/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
 /// @generic.instance source=values[0] id="Array<float64>.<extension#5>.index#1<\"exclusive\">"
 
 /// @generic.instance id="Array<float64>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
@@ -380,7 +380,7 @@ const kind = values[0].kind;
 /// @resolution.access source=values root=values
 /// @resolution.place source=values[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
+/// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
 /// @resolution.access source=values[0].kind root=values keys=[0, kind]
 /// @generic.instance source=values[0] id="Array<{ readonly kind: \"ready\" }>.<extension#5>.index#1<\"exclusive\">"
 

@@ -614,7 +614,7 @@ function first<T>(values: T[]): T {
     /// @resolution.access source=values root=first.values
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=first.values keys=[0]
-    /// @resolution.subscript source=values[0] type=T kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T, \"exclusive\">)"
+    /// @resolution.subscript source=values[0] type=T kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame T, \"exclusive\">)"
     /// @generic.instance source=values[0] id="Array<T>.<extension#5>.index#1<\"exclusive\">"
     /// @type.node source=0 type=0
 
@@ -936,7 +936,7 @@ function parse<T>(value: T[]): T {
     /// @resolution.access source=value root=parse.value#2
     /// @resolution.place source=value[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value[0] root=parse.value#2 keys=[0]
-    /// @resolution.subscript source=value[0] type=T#2 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T#2, \"exclusive\">)"
+    /// @resolution.subscript source=value[0] type=T#2 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame T#2, \"exclusive\">)"
     /// @generic.instance source=value[0] id="Array<T#2>.<extension#5>.index#1<\"exclusive\">"
     /// @type.node source=0 type=0
 
@@ -1272,10 +1272,10 @@ const kept = values
 /// @type.symbol symbol=kept source=kept type=Owned<Array<int32>>
 /// @resolution.pattern source=kept kind=binding target=kept
 /// @resolution.name source=values target=values
-/// @resolution.member receiver=Owned<Array<int32>> type=(this: Owned<Array<int32>>, Function<(&type_expression.'a readonly int32, usize), boolean>) => Owned<Array<int32>> & (this: Owned<Array<int32>>, Function<(int32, usize), boolean>) => Owned<Array<int32>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
-/// @resolution.member receiver=Owned<Array<int32>> type=<collections.array.map.U#1>(this: Owned<Array<int32>>, Function<(int32, usize), collections.array.map.U#1>) => Owned<Array<collections.array.map.U#1>> & <collections.array.map.U#2>(this: Owned<Array<int32>>, Function<(int32, usize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=existential targets=[collections.array.map#1, collections.array.map#2]
-/// @resolution.call parameters=(Function<(&type_expression.'a readonly int32, usize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32, usize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
-/// @resolution.call parameters=(Function<(int32, usize), int32>) arguments=(provided((value) => value) as Function<(int32, usize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.map#1<int32>
+/// @resolution.member receiver=Owned<Array<int32>> type=(this: Owned<Array<int32>>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<Array<int32>> & (this: Owned<Array<int32>>, Function<(int32, isize), boolean>) => Owned<Array<int32>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
+/// @resolution.member receiver=Owned<Array<int32>> type=<collections.array.map.U#1>(this: Owned<Array<int32>>, Function<(int32, isize), collections.array.map.U#1>) => Owned<Array<collections.array.map.U#1>> & <collections.array.map.U#2>(this: Owned<Array<int32>>, Function<(int32, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=existential targets=[collections.array.map#1, collections.array.map#2]
+/// @resolution.call parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @resolution.call parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value) as Function<(int32, isize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.map#1<int32>
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 
@@ -1375,6 +1375,1147 @@ extension<T: Integer> of T {
 "#,
         r#"
 "#,
+    );
+}
+
+/// Infer chained callback parameters from the receiver's element type.
+#[test]
+fn test_chained_filter_callback_infers_its_parameter() {
+    let session = TestSession::single(
+        r#"
+declare const values: (int32 | undefined)[];
+
+const defined = values.map((value) => value).filter((value) => value !== undefined);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const values: (int32 | undefined)[];
+
+const defined: ^Array<int32 | undefined> = values.map<int32 | undefined, int32 | undefined>(
+    (value: int32 | undefined): int32 | undefined => value,
+).filter<int32 | undefined>(
+    (value: &'a readonly (int32 | undefined)): boolean => value !== undefined,
+);
+
+=== checked ===
+declare const values: (int32 | undefined)[];
+/// @type.symbol symbol=values source=values type=Array<int32 | undefined>
+/// @resolution.pattern source=values kind=binding target=values
+
+const defined = values.map((value) => value).filter((value) => value !== undefined);
+/// @type.symbol symbol=defined source=defined type=Owned<Array<int32 | undefined>>
+/// @resolution.pattern source=defined kind=binding target=defined
+/// @resolution.name source=values target=values
+/// @resolution.member source="values.map((value) => value).filter" receiver=Owned<Array<int32 | undefined>> type=(this: Owned<Array<int32 | undefined>>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>> & (this: Owned<Array<int32 | undefined>>, Function<(int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
+/// @resolution.member source=values.map receiver=Array<int32 | undefined> type=<collections.array.map.U#2>(this: Array<int32 | undefined>, Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=symbol target_receiver=Array<int32 | undefined> target=collections.array.map#2
+/// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.map#2 receiver=Array<int32 | undefined> instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
+/// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32 | undefined>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @generic.instance source="values.map((value) => value)" id="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
+/// @generic.instance source="values.map((value) => value).filter((value) => value !== undefined)" id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
+/// @type.symbol symbol=symbol2.value source=value type=int32 | undefined
+/// @resolution.name source=value target=symbol2.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol2.value
+/// @type.symbol symbol=symbol4 source="(value) => value !== undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>
+/// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a readonly int32 | undefined
+/// @resolution.name source=value target=symbol4.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol4.value
+
+/// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
+/// @generic.instance id="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
+/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32 | undefined)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Infer a receiver-owned const parameter from a literal argument.
+#[test]
+fn test_method_literal_argument_infers_a_const_parameter() {
+    let session = TestSession::single(
+        r#"
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+
+class Values<T> {
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[]
+        where T: Clone {
+        todo("flat")
+    }
+}
+
+declare const values: Values<int32>;
+
+const once = values.flat();
+const twice = values.flat(2);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+
+class Values<T> {
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[]
+        where T: Clone {
+        todo("flat" as string | undefined)
+    }
+}
+
+declare const values: Values<int32>;
+
+const once: Element<int32, 1>[] = values.flat<int32, 1>();
+const twice: Element<int32, 2>[] = values.flat<int32, 2>(2 as 2 | undefined);
+
+=== checked ===
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+/// @generic.template symbol=Element parameters=(T#1, const Depth#1: usize)
+/// @type.symbol symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" type=Depth#1 extends 0 ? T#1 : Array<T#1>
+/// @definition.type symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" template=(T#1, const Depth#1: usize) value=Depth#1 extends 0 ? T#1 : Array<T#1>
+/// @type.symbol symbol=Element.T source=T type=T#1
+/// @type.symbol symbol=Element.Depth source="const Depth: usize" type=Depth#1
+/// @resolution.name source=Depth target=Element.Depth
+/// @resolution.name source=T target=Element.T
+/// @resolution.name source=T target=Element.T
+
+class Values<T> {
+/// @generic.template symbol=Values parameters=(T#2)
+/// @type.symbol symbol=Values type=Values
+/// @definition.class symbol=Values template=(T#2)
+/// @definition.method symbol=Values.flat slot=flat type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly this, Depth#2 | undefined?) => Array<Element<T#2, Depth#2>>
+/// @type.symbol symbol=Values.T source=T type=T#2
+
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[]
+    /// @generic.template symbol=Values.flat parent=template#1 parameters=(const Depth#2: usize = 1, 'a)
+    /// @type.symbol symbol=Values.flat type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly this, Depth#2 | undefined?) => Array<Element<T#2, Depth#2>>
+    /// @type.symbol symbol=Values.flat.Depth source="const Depth: usize = 1" type=Depth#2
+    /// @type.symbol symbol=Values.flat.this source="&readonly this" type=&Values.flat.'a readonly this
+    /// @type.symbol symbol=Values.flat.depth source="depth?: Depth" type=Depth#2 | undefined
+    /// @resolution.name source=Depth target=Values.flat.Depth
+    /// @resolution.name source=Element target=Element
+    /// @resolution.name source=T target=Values.T
+    /// @resolution.name source=Depth target=Values.flat.Depth
+
+        where T: Clone {
+        /// @resolution.name source=T target=Values.T
+        /// @resolution.name source=Clone target=memory.capability.Clone
+
+        todo("flat")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"flat\")" parameters=(string | undefined) arguments=(provided("flat") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+declare const values: Values<int32>;
+/// @type.symbol symbol=values source=values type=Values<int32>
+/// @resolution.pattern source=values kind=binding target=values
+/// @resolution.name source=Values target=Values
+
+const once = values.flat();
+/// @type.symbol symbol=once source=once type=Array<Array<int32>>
+/// @resolution.pattern source=once kind=binding target=once
+/// @resolution.name source=values target=values
+/// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly Values<int32>, Depth#2 | undefined?) => Array<Element<int32, Depth#2>> kind=symbol target_receiver=Values<int32> target=Values.flat
+/// @resolution.call source=values.flat() parameters=(1 | undefined) arguments=(omitted as 1 | undefined) return=Array<Array<int32>> kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance=Values<int32>.flat<1>
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @generic.instance source=values.flat() id=Values<int32>.flat<1>
+
+const twice = values.flat(2);
+/// @type.symbol symbol=twice source=twice type=Array<Array<int32>>
+/// @resolution.pattern source=twice kind=binding target=twice
+/// @resolution.name source=values target=values
+/// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly Values<int32>, Depth#2 | undefined?) => Array<Element<int32, Depth#2>> kind=symbol target_receiver=Values<int32> target=Values.flat
+/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=Array<Array<int32>> kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance=Values<int32>.flat<2>
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @generic.instance source=values.flat(2) id=Values<int32>.flat<2>
+
+/// @generic.instance id="Element<T#2, Depth#2>" template=Element arguments=(T#2, Depth#2)
+/// @generic.instance id=Values<int32> template=Values arguments=(int32)
+/// @generic.instance id=Values<int32>.flat<1> template=Values.flat arguments=(int32, 1)
+/// @generic.instance id=Values<int32>.flat<2> template=Values.flat arguments=(int32, 2)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Infer an extension method's const parameter from a literal argument.
+#[test]
+fn test_extension_literal_argument_infers_a_const_parameter() {
+    let session = TestSession::single(
+        r#"
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+
+declare class Values<out T> {}
+
+extension<T> of Values<T> {
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[]
+        where T: Clone {
+        todo("flat")
+    }
+}
+
+declare const values: Values<int32>;
+
+const twice: Element<int32, 2>[] = values.flat(2);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+
+declare class Values<out T> {}
+
+extension<T> of Values<T> {
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[]
+        where T: Clone {
+        todo("flat" as string | undefined)
+    }
+}
+
+declare const values: Values<int32>;
+
+const twice: Element<int32, 2>[] = values.flat<int32, 2>(2 as 2 | undefined);
+
+=== checked ===
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+/// @generic.template symbol=Element parameters=(T#1, const Depth#1: usize)
+/// @type.symbol symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" type=Depth#1 extends 0 ? T#1 : Array<T#1>
+/// @definition.type symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" template=(T#1, const Depth#1: usize) value=Depth#1 extends 0 ? T#1 : Array<T#1>
+/// @type.symbol symbol=Element.T source=T type=T#1
+/// @type.symbol symbol=Element.Depth source="const Depth: usize" type=Depth#1
+/// @resolution.name source=Depth target=Element.Depth
+/// @resolution.name source=T target=Element.T
+/// @resolution.name source=T target=Element.T
+
+declare class Values<out T> {}
+/// @generic.template symbol=Values parameters=(out T#2)
+/// @type.symbol symbol=Values source="declare class Values<out T> {}" type=Values
+/// @definition.class symbol=Values source="declare class Values<out T> {}" template=(out T#2)
+/// @type.symbol symbol=Values.T source="out T" type=T#2
+
+extension<T> of Values<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#3)
+/// @definition.extension symbol=<module>#2 form=local target=Values<T#3>
+/// @definition.method symbol=flat slot=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Array<Element<T#3, Depth#2>>
+/// @type.symbol symbol=T source=T type=T#3
+/// @resolution.name source=Values target=Values
+/// @resolution.name source=T target=T
+
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[]
+    /// @generic.template symbol=flat parent=template#2 parameters=(const Depth#2: usize = 1, 'a)
+    /// @type.symbol symbol=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Array<Element<T#3, Depth#2>>
+    /// @type.symbol symbol=flat.Depth source="const Depth: usize = 1" type=Depth#2
+    /// @type.symbol symbol=flat.this source="&readonly this" type=&flat.'a readonly this
+    /// @type.symbol symbol=flat.depth source="depth?: Depth" type=Depth#2 | undefined
+    /// @resolution.name source=Depth target=flat.Depth
+    /// @resolution.name source=Element target=Element
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=Depth target=flat.Depth
+
+        where T: Clone {
+        /// @resolution.name source=T target=T
+        /// @resolution.name source=Clone target=memory.capability.Clone
+
+        todo("flat")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"flat\")" parameters=(string | undefined) arguments=(provided("flat") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+declare const values: Values<int32>;
+/// @type.symbol symbol=values source=values type=Values<int32>
+/// @resolution.pattern source=values kind=binding target=values
+/// @resolution.name source=Values target=Values
+
+const twice: Element<int32, 2>[] = values.flat(2);
+/// @type.symbol symbol=twice source=twice type=Array<Array<int32>>
+/// @resolution.pattern source=twice kind=binding target=twice
+/// @resolution.name source=Element target=Element
+/// @resolution.name source=values target=values
+/// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly Values<int32>, Depth#2 | undefined?) => Array<Element<int32, Depth#2>> kind=symbol target_receiver=Values<int32> target=flat
+/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=Array<Array<int32>> kind=symbol target=flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance=Values<int32>.<extension#1>.flat<2>
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @generic.instance source=values.flat(2) id=Values<int32>.<extension#1>.flat<2>
+
+/// @generic.instance id="Element<T#3, Depth#2>" template=Element arguments=(T#3, Depth#2)
+/// @generic.instance id=Values<int32> template=Values arguments=(int32)
+/// @generic.instance id=Values<int32>.<extension#1>.flat<2> template=flat arguments=(int32, 2)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Keep an expected optional result open across a callback's return statements.
+#[test]
+fn test_block_callback_returns_solve_through_an_optional_result() {
+    let session = TestSession::single(
+        r#"
+declare function filterMap<T, U>(values: T[], callback: (value: T) => U | undefined): U[];
+
+declare const values: (int32 | undefined)[];
+
+const defined = filterMap(values, (value) => {
+    if (value !== undefined) {
+        return value;
+    }
+    return undefined;
+});
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function filterMap<T, U>(values: T[], callback: (arg0: T) => U | undefined): U[];
+
+declare const values: (int32 | undefined)[];
+
+const defined: int32[] = filterMap<int32 | undefined, int32>(
+    values,
+    (value: int32 | undefined): int32 | undefined => {
+        if (value !== (undefined as int32 | undefined)) {
+            return value as int32 | undefined;
+        }
+        return undefined as int32 | undefined;
+    },
+);
+
+=== checked ===
+declare function filterMap<T, U>(values: T[], callback: (value: T) => U | undefined): U[];
+/// @generic.template symbol=filterMap parameters=(T, U)
+/// @type.symbol symbol=filterMap type=<T, U>(Array<T>, Function<(T,), U | undefined>) => Array<U>
+/// @type.symbol symbol=filterMap.T source=T type=T
+/// @type.symbol symbol=filterMap.U source=U type=U
+/// @type.symbol symbol=filterMap.values source="values: T[]" type=Array<T>
+/// @resolution.name source=T target=filterMap.T
+/// @type.symbol symbol=filterMap.callback source="callback: (value: T) => U | undefined" type=Function<(T,), U | undefined>
+/// @type.symbol symbol=filterMap.value source="value: T" type=T
+/// @resolution.name source=T target=filterMap.T
+/// @resolution.name source=U target=filterMap.U
+/// @resolution.name source=U target=filterMap.U
+
+declare const values: (int32 | undefined)[];
+/// @type.symbol symbol=values source=values type=Array<int32 | undefined>
+/// @resolution.pattern source=values kind=binding target=values
+
+const defined = filterMap(values, (value) => {
+/// @type.symbol symbol=defined source=defined type=Array<int32>
+/// @resolution.pattern source=defined kind=binding target=defined
+/// @resolution.name source=filterMap target=filterMap
+/// @resolution.call parameters=(Array<int32 | undefined>, Function<(int32 | undefined,), int32 | undefined>) arguments=(provided(values) as Array<int32 | undefined>, provided(argument) as Function<(int32 | undefined,), int32 | undefined>) return=Array<int32> kind=symbol target=filterMap instance="filterMap<int32 | undefined, int32>"
+/// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @type.symbol symbol=symbol8 type=Function<(int32 | undefined,), int32 | undefined>
+/// @type.symbol symbol=symbol8.value source=value type=int32 | undefined
+
+    if (value !== undefined) {
+    /// @resolution.name source=value target=symbol8.value
+    /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=symbol8.value
+
+        return value;
+        /// @resolution.name source=value target=symbol8.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=symbol8.value
+
+    }
+    return undefined;
+});
+
+/// @generic.instance id="filterMap<int32 | undefined, int32>" template=filterMap arguments=(int32 | undefined, int32)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Infer a const parameter from a literal argument beside a union receiver.
+#[test]
+fn test_union_receiver_literal_argument_infers_a_const_parameter() {
+    let session = TestSession::single(
+        r#"
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+
+declare class Values<out T> {}
+
+extension<T> of Values<T> {
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[] {
+        todo("flat")
+    }
+}
+
+declare const values: Values<int32 | int32[]>;
+
+const once: Element<int32 | int32[], 1>[] = values.flat(1);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+
+declare class Values<out T> {}
+
+extension<T> of Values<T> {
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[] {
+        todo("flat" as string | undefined)
+    }
+}
+
+declare const values: Values<int32 | int32[]>;
+
+const once: Element<int32 | int32[], 1>[] = values.flat<int32 | int32[], 1>(1 as 1 | undefined);
+
+=== checked ===
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+/// @generic.template symbol=Element parameters=(T#1, const Depth#1: usize)
+/// @type.symbol symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" type=Depth#1 extends 0 ? T#1 : Array<T#1>
+/// @definition.type symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" template=(T#1, const Depth#1: usize) value=Depth#1 extends 0 ? T#1 : Array<T#1>
+/// @type.symbol symbol=Element.T source=T type=T#1
+/// @type.symbol symbol=Element.Depth source="const Depth: usize" type=Depth#1
+/// @resolution.name source=Depth target=Element.Depth
+/// @resolution.name source=T target=Element.T
+/// @resolution.name source=T target=Element.T
+
+declare class Values<out T> {}
+/// @generic.template symbol=Values parameters=(out T#2)
+/// @type.symbol symbol=Values source="declare class Values<out T> {}" type=Values
+/// @definition.class symbol=Values source="declare class Values<out T> {}" template=(out T#2)
+/// @type.symbol symbol=Values.T source="out T" type=T#2
+
+extension<T> of Values<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#3)
+/// @definition.extension symbol=<module>#2 form=local target=Values<T#3>
+/// @definition.method symbol=flat slot=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Array<Element<T#3, Depth#2>>
+/// @type.symbol symbol=T source=T type=T#3
+/// @resolution.name source=Values target=Values
+/// @resolution.name source=T target=T
+
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[] {
+    /// @generic.template symbol=flat parent=template#2 parameters=(const Depth#2: usize = 1, 'a)
+    /// @type.symbol symbol=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Array<Element<T#3, Depth#2>>
+    /// @type.symbol symbol=flat.Depth source="const Depth: usize = 1" type=Depth#2
+    /// @type.symbol symbol=flat.this source="&readonly this" type=&flat.'a readonly this
+    /// @type.symbol symbol=flat.depth source="depth?: Depth" type=Depth#2 | undefined
+    /// @resolution.name source=Depth target=flat.Depth
+    /// @resolution.name source=Element target=Element
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=Depth target=flat.Depth
+
+        todo("flat")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"flat\")" parameters=(string | undefined) arguments=(provided("flat") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+declare const values: Values<int32 | int32[]>;
+/// @type.symbol symbol=values source=values type=Values<int32 | Array<int32>>
+/// @resolution.pattern source=values kind=binding target=values
+/// @resolution.name source=Values target=Values
+
+const once: Element<int32 | int32[], 1>[] = values.flat(1);
+/// @type.symbol symbol=once source=once type=Array<Array<int32 | Array<int32>>>
+/// @resolution.pattern source=once kind=binding target=once
+/// @resolution.name source=Element target=Element
+/// @resolution.name source=values target=values
+/// @resolution.member source=values.flat receiver=Values<int32 | Array<int32>> type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly Values<int32 | Array<int32>>, Depth#2 | undefined?) => Array<Element<int32 | Array<int32>, Depth#2>> kind=symbol target_receiver=Values<int32 | Array<int32>> target=flat
+/// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Array<Array<int32 | Array<int32>>> kind=symbol target=flat receiver=Values<int32 | Array<int32>> adjustments=(borrow(&'static readonly Values<int32 | Array<int32>>)) instance="Values<int32 | Array<int32>>.<extension#1>.flat<1>"
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @generic.instance source=values.flat(1) id="Values<int32 | Array<int32>>.<extension#1>.flat<1>"
+
+/// @generic.instance id="Element<T#3, Depth#2>" template=Element arguments=(T#3, Depth#2)
+/// @generic.instance id="Values<int32 | Array<int32>>" template=Values arguments=(int32 | Array<int32>)
+/// @generic.instance id="Values<int32 | Array<int32>>.<extension#1>.flat<1>" template=flat arguments=(int32 | Array<int32>, 1)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Satisfy a Copy bound with a union of copyable arms.
+#[test]
+fn test_union_of_copyable_arms_satisfies_copy() {
+    let session = TestSession::single(
+        r#"
+import { Copy } from "destack:memory";
+
+declare function requireCopy<T: Copy>(value: T): void;
+
+declare const value: int32 | int32[];
+
+requireCopy(value);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Copy } from "destack:memory";
+
+declare function requireCopy<T: Copy>(value: T): void;
+
+declare const value: int32 | int32[];
+
+requireCopy<int32 | int32[]>(value);
+
+=== checked ===
+import { Copy } from "destack:memory";
+
+declare function requireCopy<T: Copy>(value: T): void;
+/// @generic.template symbol=requireCopy parameters=(T: memory.capability.Copy)
+/// @type.symbol symbol=requireCopy source="declare function requireCopy<T: Copy>(value: T): void" type=<T: memory.capability.Copy>(T) => void
+/// @type.symbol symbol=requireCopy.T source="T: Copy" type=T
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @type.symbol symbol=requireCopy.value source="value: T" type=T
+/// @resolution.name source=T target=requireCopy.T
+
+declare const value: int32 | int32[];
+/// @type.symbol symbol=value source=value type=int32 | Array<int32>
+/// @resolution.pattern source=value kind=binding target=value
+
+requireCopy(value);
+/// @resolution.name source=requireCopy target=requireCopy
+/// @resolution.call source=requireCopy(value) parameters=(int32 | Array<int32>) arguments=(provided(value) as int32 | Array<int32>) return=void kind=symbol target=requireCopy instance="requireCopy<int32 | Array<int32>>"
+/// @generic.instance source=requireCopy(value) id="requireCopy<int32 | Array<int32>>"
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+
+/// @generic.instance id="requireCopy<int32 | Array<int32>>" template=requireCopy arguments=(int32 | Array<int32>)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Flatten a union-element array through the library flat.
+#[test]
+fn test_library_flat_reduces_a_union_element_array() {
+    let session = TestSession::single(
+        r#"
+function flatten(values: (int32 | int32[])[]): int32[] {
+    return values.flat(1);
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function flatten(values: (int32 | int32[])[]): int32[] {
+    return values.flat<int32 | int32[], 1>(1 as 1 | undefined) as int32[];
+}
+
+=== checked ===
+function flatten(values: (int32 | int32[])[]): int32[] {
+/// @type.symbol symbol=flatten type=(Array<int32 | Array<int32>>) => Array<int32>
+/// @type.symbol symbol=flatten.values source="values: (int32 | int32[])[]" type=Array<int32 | Array<int32>>
+
+    return values.flat(1);
+    /// @resolution.name source=values target=flatten.values
+    /// @resolution.member source=values.flat receiver=Array<int32 | Array<int32>> type=<const collections.array.flat.Depth: usize = 1, collections.array.flat.'a>(this: &collections.array.flat.'a readonly Array<int32 | Array<int32>>, collections.array.flat.Depth | undefined?) => Owned<Array<collections.array.FlattenedElement<int32 | Array<int32>, collections.array.flat.Depth>>> kind=symbol target_receiver=Array<int32 | Array<int32>> target=collections.array.flat
+    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Owned<Array<int32>> kind=symbol target=collections.array.flat receiver=Array<int32 | Array<int32>> adjustments=(borrow(&'frame readonly Array<int32 | Array<int32>>)) instance="Array<int32 | Array<int32>>.<extension#5>.flat<1>"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=flatten.values
+    /// @generic.instance source=values.flat(1) id="Array<int32 | Array<int32>>.<extension#5>.flat<1>"
+
+}
+
+/// @generic.instance id="Array<int32 | Array<int32>>.<extension#5>.flat<1>" template=collections.array.flat arguments=(int32 | Array<int32>, 1)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Infer a const parameter under a return expectation through a conditional alias.
+#[test]
+fn test_return_expectation_keeps_a_const_parameter_exact() {
+    let session = TestSession::single(
+        r#"
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+
+declare class Values<out T> {}
+
+extension<T> of Values<T> {
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[] {
+        todo("flat")
+    }
+}
+
+declare const values: Values<int32 | int32[]>;
+
+function flatten(): (int32 | int32[])[][] {
+    return values.flat(1);
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+
+declare class Values<out T> {}
+
+extension<T> of Values<T> {
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[] {
+        todo("flat" as string | undefined)
+    }
+}
+
+declare const values: Values<int32 | int32[]>;
+
+function flatten(): (int32 | int32[])[][] {
+    return values.flat<int32 | int32[], 1>(1 as 1 | undefined);
+}
+
+=== checked ===
+type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
+/// @generic.template symbol=Element parameters=(T#1, const Depth#1: usize)
+/// @type.symbol symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" type=Depth#1 extends 0 ? T#1 : Array<T#1>
+/// @definition.type symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" template=(T#1, const Depth#1: usize) value=Depth#1 extends 0 ? T#1 : Array<T#1>
+/// @type.symbol symbol=Element.T source=T type=T#1
+/// @type.symbol symbol=Element.Depth source="const Depth: usize" type=Depth#1
+/// @resolution.name source=Depth target=Element.Depth
+/// @resolution.name source=T target=Element.T
+/// @resolution.name source=T target=Element.T
+
+declare class Values<out T> {}
+/// @generic.template symbol=Values parameters=(out T#2)
+/// @type.symbol symbol=Values source="declare class Values<out T> {}" type=Values
+/// @definition.class symbol=Values source="declare class Values<out T> {}" template=(out T#2)
+/// @type.symbol symbol=Values.T source="out T" type=T#2
+
+extension<T> of Values<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#3)
+/// @definition.extension symbol=<module>#2 form=local target=Values<T#3>
+/// @definition.method symbol=flat slot=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Array<Element<T#3, Depth#2>>
+/// @type.symbol symbol=T source=T type=T#3
+/// @resolution.name source=Values target=Values
+/// @resolution.name source=T target=T
+
+    flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[] {
+    /// @generic.template symbol=flat parent=template#2 parameters=(const Depth#2: usize = 1, 'a)
+    /// @type.symbol symbol=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Array<Element<T#3, Depth#2>>
+    /// @type.symbol symbol=flat.Depth source="const Depth: usize = 1" type=Depth#2
+    /// @type.symbol symbol=flat.this source="&readonly this" type=&flat.'a readonly this
+    /// @type.symbol symbol=flat.depth source="depth?: Depth" type=Depth#2 | undefined
+    /// @resolution.name source=Depth target=flat.Depth
+    /// @resolution.name source=Element target=Element
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=Depth target=flat.Depth
+
+        todo("flat")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"flat\")" parameters=(string | undefined) arguments=(provided("flat") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+declare const values: Values<int32 | int32[]>;
+/// @type.symbol symbol=values source=values type=Values<int32 | Array<int32>>
+/// @resolution.pattern source=values kind=binding target=values
+/// @resolution.name source=Values target=Values
+
+function flatten(): (int32 | int32[])[][] {
+/// @type.symbol symbol=flatten type=() => Array<Array<int32 | Array<int32>>>
+
+    return values.flat(1);
+    /// @resolution.name source=values target=values
+    /// @resolution.member source=values.flat receiver=Values<int32 | Array<int32>> type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly Values<int32 | Array<int32>>, Depth#2 | undefined?) => Array<Element<int32 | Array<int32>, Depth#2>> kind=symbol target_receiver=Values<int32 | Array<int32>> target=flat
+    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Array<Array<int32 | Array<int32>>> kind=symbol target=flat receiver=Values<int32 | Array<int32>> adjustments=(borrow(&'static readonly Values<int32 | Array<int32>>)) instance="Values<int32 | Array<int32>>.<extension#1>.flat<1>"
+    /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=values root=values
+    /// @generic.instance source=values.flat(1) id="Values<int32 | Array<int32>>.<extension#1>.flat<1>"
+
+}
+
+/// @generic.instance id="Element<T#3, Depth#2>" template=Element arguments=(T#3, Depth#2)
+/// @generic.instance id="Values<int32 | Array<int32>>" template=Values arguments=(int32 | Array<int32>)
+/// @generic.instance id="Values<int32 | Array<int32>>.<extension#1>.flat<1>" template=flat arguments=(int32 | Array<int32>, 1)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Narrow a union operand through loose nullish equality.
+#[test]
+fn test_loose_nullish_equality_narrows_a_union_operand() {
+    let session = TestSession::single(
+        r#"
+declare const value: int32 | null | undefined;
+
+if (value != null) {
+    value satisfies int32;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const value: int32 | null | undefined;
+
+if (value != null) {
+    value satisfies int32;
+}
+
+=== checked ===
+declare const value: int32 | null | undefined;
+/// @type.symbol symbol=value source=value type=int32 | null | undefined
+/// @resolution.pattern source=value kind=binding target=value
+
+if (value != null) {
+/// @type.node source="value != null" type=boolean
+/// @type.node source=value type=int32 | null | undefined
+/// @resolution.name source=value target=value
+/// @resolution.operator source="value != null" type=boolean operator="!=" kind=builtin operands=[value as int32 | null | undefined families=(integer | null | undefined), null as null families=(null)]
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @type.node source=null type=null
+
+    value satisfies int32;
+    /// @type.node source="value satisfies int32" type=int32
+    /// @type.node source=value type=int32
+    /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value root=value
+
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Compare a borrowed scalar with an intrinsic operator.
+#[test]
+fn test_borrowed_scalar_compares_with_an_intrinsic_operator() {
+    let session = TestSession::single(
+        r#"
+declare const values: ^int32[];
+
+const positive = values.filter((value) => value > 0);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const values: ^int32[];
+
+const positive: ^Array<int32> = values.filter<int32>(
+    (value: &'a readonly int32): boolean => (value as int32) > 0,
+);
+
+=== checked ===
+declare const values: ^int32[];
+/// @type.symbol symbol=values source=values type=Owned<Array<int32>>
+/// @resolution.pattern source=values kind=binding target=values
+
+const positive = values.filter((value) => value > 0);
+/// @type.symbol symbol=positive source=positive type=Owned<Array<int32>>
+/// @resolution.pattern source=positive kind=binding target=positive
+/// @resolution.name source=values target=values
+/// @resolution.member source=values.filter receiver=Owned<Array<int32>> type=(this: Owned<Array<int32>>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<Array<int32>> & (this: Owned<Array<int32>>, Function<(int32, isize), boolean>) => Owned<Array<int32>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
+/// @resolution.call source="values.filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @generic.instance source="values.filter((value) => value > 0)" id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @type.symbol symbol=symbol2 source="(value) => value > 0" type=Function<(&type_expression.'a readonly int32,), boolean>
+/// @type.symbol symbol=symbol2.value source=value type=&type_expression.'a readonly int32
+/// @resolution.name source=value target=symbol2.value
+/// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol2.value
+
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Instantiate an extension through explicit receiver type arguments.
+#[test]
+fn test_extension_selection_substitutes_explicit_receiver_arguments() {
+    let session = TestSession::single(
+        r#"
+declare class Holder<out T> {}
+
+extension<T> of Holder<T> {
+    static wrap(value: T): Holder<T> {
+        todo("wrap")
+    }
+}
+
+const held: Holder<int32> = Holder<int32>.wrap(42);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare class Holder<out T> {}
+
+extension<T> of Holder<T> {
+    static wrap(value: T): Holder<T> {
+        todo("wrap" as string | undefined)
+    }
+}
+
+const held: Holder<int32> = Holder<int32>.wrap<int32>(42);
+
+=== checked ===
+declare class Holder<out T> {}
+/// @generic.template symbol=Holder parameters=(out T#1)
+/// @type.symbol symbol=Holder source="declare class Holder<out T> {}" type=Holder
+/// @definition.class symbol=Holder source="declare class Holder<out T> {}" template=(out T#1)
+/// @type.symbol symbol=Holder.T source="out T" type=T#1
+
+extension<T> of Holder<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=local target=Holder<T#2>
+/// @definition.method symbol=wrap slot=wrap static=true type=(T#2) => Holder<T#2>
+/// @type.symbol symbol=T source=T type=T#2
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=T target=T
+
+    static wrap(value: T): Holder<T> {
+    /// @type.symbol symbol=wrap type=(T#2) => Holder<T#2>
+    /// @type.symbol symbol=wrap.value source="value: T" type=T#2
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=Holder target=Holder
+    /// @resolution.name source=T target=T
+
+        todo("wrap")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"wrap\")" parameters=(string | undefined) arguments=(provided("wrap") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+const held: Holder<int32> = Holder<int32>.wrap(42);
+/// @type.symbol symbol=held source=held type=Holder<int32>
+/// @resolution.pattern source=held kind=binding target=held
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=Holder target=Holder
+/// @resolution.member source=Holder<int32>.wrap receiver=Holder<int32> type=(int32) => Holder<int32> kind=symbol target_receiver=Holder<int32> target=wrap
+/// @resolution.call source=Holder<int32>.wrap(42) parameters=(int32) arguments=(provided(42) as int32) return=Holder<int32> kind=symbol target=wrap instance=Holder<int32>.<extension#1>.wrap
+/// @resolution.instantiation source=Holder<int32> target=Holder instance=Holder<int32>
+/// @generic.instance source=Holder<int32> id=Holder<int32>
+/// @generic.instance source=Holder<int32>.wrap(42) id=Holder<int32>.<extension#1>.wrap
+
+/// @generic.instance id=Holder<T#2> template=Holder arguments=(T#2)
+/// @generic.instance id=Holder<int32> template=Holder arguments=(int32)
+/// @generic.instance id=Holder<int32>.<extension#1>.wrap template=wrap arguments=(int32)
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Iterate an integer range without a float default.
+#[test]
+fn test_integer_range_iterates_with_an_integer_element() {
+    let session = TestSession::single(
+        r#"
+for (const value of 0..10) {
+    value;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+for (const value of 0..10) {
+    value;
+}
+
+=== checked ===
+for (const value of 0..10) {
+/// @type.symbol symbol=value source=value type=int64
+/// @resolution.pattern source=value kind=binding target=value
+
+    value;
+    /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value
+
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_argument_matching_both_union_arms_requires_annotation() {
+    /// A value inhabiting both cases of a union parameter cannot pick the type argument.
+    let session = TestSession::single(
+        r#"
+declare class Box<in out T> {}
+declare function pick<T>(value: Box<T> | Box<Box<T>>): T;
+declare const boxed: Box<Box<int32>>;
+
+const picked = pick(boxed);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare class Box<in out T> {}
+declare function pick<T>(value: Box<T> | Box<Box<T>>): T;
+declare const boxed: Box<Box<int32>>;
+
+const picked = pick(boxed);
+
+=== checked ===
+declare class Box<in out T> {}
+/// @generic.template symbol=Box parameters=(in out T#1)
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T#1)
+/// @type.symbol symbol=Box.T source="in out T" type=T#1
+
+declare function pick<T>(value: Box<T> | Box<Box<T>>): T;
+/// @generic.template symbol=pick parameters=(T#2)
+/// @type.symbol symbol=pick source="declare function pick<T>(value: Box<T> | Box<Box<T>>): T" type=<T#2>(Box<T#2> | Box<Box<T#2>>) => T#2
+/// @type.symbol symbol=pick.T source=T type=T#2
+/// @type.symbol symbol=pick.value source="value: Box<T> | Box<Box<T>>" type=Box<T#2> | Box<Box<T#2>>
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=pick.T
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=pick.T
+/// @resolution.name source=T target=pick.T
+
+declare const boxed: Box<Box<int32>>;
+/// @type.symbol symbol=boxed source=boxed type=Box<Box<int32>>
+/// @resolution.pattern source=boxed kind=binding target=boxed
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Box target=Box
+
+const picked = pick(boxed);
+/// @type.symbol symbol=picked source=picked type=<error>
+/// @resolution.pattern source=picked kind=binding target=picked
+/// @type.node source=pick type=(Box<<error>> | Box<Box<<error>>>) => <error>
+/// @type.node source=pick(boxed) type=<error>
+/// @resolution.name source=pick target=pick
+/// @resolution.call source=pick(boxed) parameters=(Box<<error>> | Box<Box<<error>>>) arguments=(provided(boxed) as Box<<error>> | Box<Box<<error>>>) return=<error> kind=symbol target=pick instance=pick<<error>>
+/// @generic.instance source=pick id=Box<<error>>
+/// @generic.instance source=pick id=Box<Box<<error>>>
+/// @generic.instance source=pick(boxed) id=pick<<error>>
+/// @type.node source=boxed type=Box<Box<int32>>
+/// @resolution.name source=boxed target=boxed
+/// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=boxed root=boxed
+/// @generic.instance source=boxed id=Box<Box<int32>>
+/// @generic.instance source=boxed id=Box<int32>
+
+/// @generic.instance id=Box<<error>> template=Box arguments=(<error>)
+/// @generic.instance id=Box<Box<<error>>> template=Box arguments=(Box<<error>>)
+/// @generic.instance id=Box<Box<T#2>> template=Box arguments=(Box<T#2>)
+/// @generic.instance id=Box<Box<int32>> template=Box arguments=(Box<int32>)
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
+/// @generic.instance id=pick<<error>> template=pick arguments=(<error>)
+"#,
+        r#"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=6 column=16 span="pick(boxed)" line_source="const picked = pick(boxed);"
+/// @diagnostic.help message="annotate the type explicitly"
+"#,
+    );
+}
+
+#[test]
+fn test_nested_block_callbacks_solve_through_optional_results() {
+    /// Nested optional-result callbacks with block bodies solve both type arguments.
+    let session = TestSession::single(
+        r#"
+declare function collect<T, U>(values: T[], step: (value: T) => U | undefined): U[];
+declare const starts: (int32 | undefined)[];
+
+const doubled = collect(collect(starts, (start) => {
+    if (start !== (undefined as int32 | undefined)) {
+        return start;
+    }
+    return undefined;
+}), (value) => {
+    if (value > 3) {
+        return value * 2;
+    }
+    return undefined;
+});
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare function collect<T, U>(values: T[], step: (arg0: T) => U | undefined): U[];
+declare const starts: (int32 | undefined)[];
+
+const doubled: int32[] = collect<int32, int32>(
+    collect<int32 | undefined, int32>(starts, (start: int32 | undefined): int32 | undefined => {
+        if (start !== (undefined as int32 | undefined)) {
+            return start;
+        }
+        return undefined as int32 | undefined;
+    }),
+    (value: int32): int32 | undefined => {
+        if (value > 3) {
+            return (value * 2) as int32 | undefined;
+        }
+        return undefined as int32 | undefined;
+    },
+);
+
+=== checked ===
+declare function collect<T, U>(values: T[], step: (value: T) => U | undefined): U[];
+/// @generic.template symbol=collect parameters=(T, U)
+/// @type.symbol symbol=collect type=<T, U>(Array<T>, Function<(T,), U | undefined>) => Array<U>
+/// @type.symbol symbol=collect.T source=T type=T
+/// @type.symbol symbol=collect.U source=U type=U
+/// @type.symbol symbol=collect.values source="values: T[]" type=Array<T>
+/// @resolution.name source=T target=collect.T
+/// @type.symbol symbol=collect.step source="step: (value: T) => U | undefined" type=Function<(T,), U | undefined>
+/// @type.symbol symbol=collect.value source="value: T" type=T
+/// @resolution.name source=T target=collect.T
+/// @resolution.name source=U target=collect.U
+/// @resolution.name source=U target=collect.U
+
+declare const starts: (int32 | undefined)[];
+/// @type.symbol symbol=starts source=starts type=Array<int32 | undefined>
+/// @resolution.pattern source=starts kind=binding target=starts
+
+const doubled = collect(collect(starts, (start) => {
+/// @type.symbol symbol=doubled source=doubled type=Array<int32>
+/// @resolution.pattern source=doubled kind=binding target=doubled
+/// @type.node source=collect type=(Array<int32>, Function<(int32,), int32 | undefined>) => Array<int32>
+/// @type.node type=Array<int32>
+/// @resolution.name source=collect target=collect
+/// @resolution.call parameters=(Array<int32>, Function<(int32,), int32 | undefined>) arguments=(provided(argument) as Array<int32>, provided(argument) as Function<(int32,), int32 | undefined>) return=Array<int32> kind=symbol target=collect instance="collect<int32, int32>"
+/// @type.node source=collect type=(Array<int32 | undefined>, Function<(int32 | undefined,), int32 | undefined>) => Array<int32>
+/// @type.node type=Array<int32>
+/// @resolution.name source=collect target=collect
+/// @resolution.call parameters=(Array<int32 | undefined>, Function<(int32 | undefined,), int32 | undefined>) arguments=(provided(starts) as Array<int32 | undefined>, provided(argument) as Function<(int32 | undefined,), int32 | undefined>) return=Array<int32> kind=symbol target=collect instance="collect<int32 | undefined, int32>"
+/// @type.node source=starts type=Array<int32 | undefined>
+/// @resolution.name source=starts target=starts
+/// @resolution.place source=starts placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=starts root=starts
+/// @type.symbol symbol=symbol8 type=Function<(int32 | undefined,), int32 | undefined>
+/// @type.node type=Function<(int32 | undefined,), int32 | undefined>
+/// @type.symbol symbol=symbol8.start source=start type=int32 | undefined
+
+    if (start !== (undefined as int32 | undefined)) {
+    /// @type.node source="start !== (undefined as int32 | undefined)" type=boolean
+    /// @type.node source=start type=int32 | undefined
+    /// @resolution.name source=start target=symbol8.start
+    /// @resolution.operator source="start !== (undefined as int32 | undefined)" type=boolean operator="!==" kind=builtin operands=[start as int32 | undefined families=(integer | undefined), undefined as int32 | undefined as int32 | undefined families=(integer | undefined)]
+    /// @resolution.place source=start placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=start root=symbol8.start
+    /// @type.node source="undefined as int32 | undefined" type=int32 | undefined
+    /// @type.node source=undefined type=undefined
+
+        return start;
+        /// @type.node source=start type=int32 | undefined
+        /// @resolution.name source=start target=symbol8.start
+        /// @resolution.place source=start placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=start root=symbol8.start
+
+    }
+    return undefined;
+    /// @type.node source=undefined type=undefined
+
+}), (value) => {
+/// @type.symbol symbol=symbol10 type=Function<(int32,), int32 | undefined>
+/// @type.node type=Function<(int32,), int32 | undefined>
+/// @type.symbol symbol=symbol10.value source=value type=int32
+
+    if (value > 3) {
+    /// @type.node source="value > 3" type=boolean
+    /// @type.node source=value type=int32
+    /// @resolution.name source=value target=symbol10.value
+    /// @resolution.operator source="value > 3" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 3 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=symbol10.value
+    /// @type.node source=3 type=3
+
+        return value * 2;
+        /// @type.node source="value * 2" type=int32
+        /// @type.node source=value type=int32
+        /// @resolution.name source=value target=symbol10.value
+        /// @resolution.operator source="value * 2" type=int32 operator="*" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=symbol10.value
+        /// @type.node source=2 type=2
+
+    }
+    return undefined;
+    /// @type.node source=undefined type=undefined
+
+});
+
+/// @generic.instance id="collect<int32 | undefined, int32>" template=collect arguments=(int32 | undefined, int32)
+/// @generic.instance id="collect<int32, int32>" template=collect arguments=(int32, int32)
+"#,
+        r#""#,
     );
 }
 

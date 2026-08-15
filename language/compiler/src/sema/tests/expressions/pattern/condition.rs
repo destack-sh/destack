@@ -397,10 +397,10 @@ if (let { name } = user && name.length > 0) {
 /// @resolution.access source=user root=user
 /// @type.node source="name.length > 0" type=boolean
 /// @type.node source=name type=string
-/// @type.node source=name.length type=usize
+/// @type.node source=name.length type=isize
 /// @resolution.name source=name target=name#2
-/// @resolution.member source=name.length receiver=string type=usize kind=call target="string.string.length(parameters=(), arguments=(), return=usize)"
-/// @resolution.operator source="name.length > 0" type=boolean operator=">" kind=builtin operands=[name.length as usize families=(integer), 0 as usize families=(integer)]
+/// @resolution.member source=name.length receiver=string type=isize kind=call target="string.string.length(parameters=(), arguments=(), return=isize)"
+/// @resolution.operator source="name.length > 0" type=boolean operator=">" kind=builtin operands=[name.length as isize families=(integer), 0 as isize families=(integer)]
 /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=name root=name#2
 /// @type.node source=0 type=0

@@ -325,3 +325,70 @@ const value = greet("hi");
 "#,
     );
 }
+
+/// Reject a bare reference to an overload group without a selecting call.
+#[test]
+fn test_bare_overload_reference_reports_ambiguous_overload() {
+    let session = TestSession::single(
+        r#"
+function parse(value: int32): int32 {
+    value
+}
+
+function parse(value: string): string {
+    value
+}
+
+const parser = parse;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function parse(value: int32): int32 {
+    value
+}
+
+function parse(value: string): string {
+    value
+}
+
+const parser = parse;
+
+=== checked ===
+function parse(value: int32): int32 {
+/// @type.symbol symbol=parse#1 type=(int32) => int32
+/// @type.symbol symbol=parse.value#1 source="value: int32" type=int32
+
+    value
+    /// @resolution.name source=value target=parse.value#1
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=parse.value#1
+
+}
+
+function parse(value: string): string {
+/// @type.symbol symbol=parse#2 type=(string) => string
+/// @type.symbol symbol=parse.value#2 source="value: string" type=string
+
+    value
+    /// @resolution.name source=value target=parse.value#2
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=parse.value#2
+
+}
+
+const parser = parse;
+/// @type.symbol symbol=parser source=parser type=<error>
+/// @resolution.pattern source=parser kind=binding target=parser
+/// @resolution.name source=parse target=[parse#1, parse#2]
+"#,
+        r#"
+/// @diagnostic.error id=ambiguous-overload message="overload 'parse' is ambiguous without a call"
+/// @diagnostic.label line=10 column=16 span="parse" line_source="const parser = parse;"
+"#,
+    );
+}

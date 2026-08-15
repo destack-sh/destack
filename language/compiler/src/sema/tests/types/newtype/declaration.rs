@@ -68,7 +68,7 @@ struct Buffer {
 
         bytes.length
         /// @resolution.name source=bytes target=Buffer.write.bytes
-        /// @resolution.member source=bytes.length receiver=readonly Array<uint8> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
+        /// @resolution.member source=bytes.length receiver=readonly Array<uint8> type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
         /// @resolution.place source=bytes placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=bytes root=Buffer.write.bytes
         /// @generic.instance source=bytes.length id=Array<uint8>.<extension#3>.length#2
@@ -85,6 +85,8 @@ const writer: NamedWriter = Buffer {};
 /// @generic.instance id=Array<uint8>.<extension#3>.length#2 template=collections.array.length#2 arguments=(uint8)
 "#,
         r#"
+/// @diagnostic.error id=return-not-assignable message="type 'isize' is not assignable to the declared result type 'usize'"
+/// @diagnostic.label line=9 column=43 span="{\n        bytes.length\n    }" line_source="write(bytes: readonly uint8[]): usize {"
 /// @diagnostic.error id=not-assignable message="type 'Buffer' is not assignable to type 'NamedWriter'"
 /// @diagnostic.label line=14 column=29 span="Buffer {}" line_source="const writer: NamedWriter = Buffer {};"
 /// @diagnostic.related line=14 column=15 span="NamedWriter" line_source="const writer: NamedWriter = Buffer {};" message="expected due to this annotation"

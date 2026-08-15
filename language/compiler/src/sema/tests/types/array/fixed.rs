@@ -29,7 +29,7 @@ const byte = bytes[1];
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.access source=bytes[1] root=bytes keys=[1]
-/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.fixed-array.index#1(parameters=(usize), arguments=(provided(1) as usize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
+/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(1) as isize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
 /// @generic.instance source=bytes[1] id="FixedArray<uint8, 4>.<extension#2>.index#1<\"exclusive\">"
 
 /// @generic.instance id="FixedArray<uint8, 4>.<extension#2>.index#1<\"exclusive\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "exclusive")
@@ -98,7 +98,7 @@ const size = bytes.size;
         r#"
 === annotated ===
 declare const bytes: [uint8; 4];
-const size: usize = bytes.size;
+const size: isize = bytes.size;
 
 === checked ===
 declare const bytes: [uint8; 4];
@@ -106,12 +106,12 @@ declare const bytes: [uint8; 4];
 /// @resolution.pattern source=bytes kind=binding target=bytes
 
 const size = bytes.size;
-/// @type.symbol symbol=size source=size type=usize
+/// @type.symbol symbol=size source=size type=isize
 /// @resolution.pattern source=size kind=binding target=size
 /// @type.node source=bytes type=FixedArray<uint8, 4>
-/// @type.node source=bytes.size type=usize
+/// @type.node source=bytes.size type=isize
 /// @resolution.name source=bytes target=bytes
-/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=usize kind=call target="collections.fixed-array.size(parameters=(), arguments=(), return=usize)"
+/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="collections.fixed-array.size(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
 /// @generic.instance source=bytes.size id="FixedArray<uint8, 4>.<extension#2>.size"

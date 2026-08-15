@@ -5,7 +5,7 @@ fn test_dynamic_array_subscript_selects_element_type() {
     let session = TestSession::single(
         r#"
 declare const bytes: uint8[];
-declare const index: usize;
+declare const index: isize;
 const byte = bytes[index];
 "#,
     );
@@ -16,7 +16,7 @@ const byte = bytes[index];
         r#"
 === annotated ===
 declare const bytes: uint8[];
-declare const index: usize;
+declare const index: isize;
 const byte: uint8 = bytes[index];
 
 === checked ===
@@ -24,8 +24,8 @@ declare const bytes: uint8[];
 /// @type.symbol symbol=bytes source=bytes type=Array<uint8>
 /// @resolution.pattern source=bytes kind=binding target=bytes
 
-declare const index: usize;
-/// @type.symbol symbol=index source=index type=usize
+declare const index: isize;
+/// @type.symbol symbol=index source=index type=isize
 /// @resolution.pattern source=index kind=binding target=index
 
 const byte = bytes[index];
@@ -34,7 +34,7 @@ const byte = bytes[index];
 /// @resolution.name source=bytes target=bytes
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
-/// @resolution.subscript source=bytes[index] type=uint8 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(index) as usize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
+/// @resolution.subscript source=bytes[index] type=uint8 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(index) as isize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
 /// @generic.instance source=bytes[index] id="Array<uint8>.<extension#5>.index#1<\"exclusive\">"
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
@@ -50,7 +50,7 @@ fn test_dynamic_array_subscript_write_selects_index_set() {
     let session = TestSession::single(
         r#"
 declare const bytes: uint8[];
-declare const index: usize;
+declare const index: isize;
 bytes[index] = 255;
 "#,
     );
@@ -61,7 +61,7 @@ bytes[index] = 255;
         r#"
 === annotated ===
 declare const bytes: uint8[];
-declare const index: usize;
+declare const index: isize;
 bytes[index] = 255;
 
 === checked ===
@@ -69,8 +69,8 @@ declare const bytes: uint8[];
 /// @type.symbol symbol=bytes source=bytes type=Array<uint8>
 /// @resolution.pattern source=bytes kind=binding target=bytes
 
-declare const index: usize;
-/// @type.symbol symbol=index source=index type=usize
+declare const index: isize;
+/// @type.symbol symbol=index source=index type=isize
 /// @resolution.pattern source=index kind=binding target=index
 
 bytes[index] = 255;
@@ -78,7 +78,7 @@ bytes[index] = 255;
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.pattern.assign source=bytes[index] kind=place
-/// @resolution.assignment source=bytes[index] write="collections.array.indexSet(parameters=(usize, uint8), arguments=(provided(index) as usize, write as uint8), return=void)" type=uint8
+/// @resolution.assignment source=bytes[index] write="collections.array.indexSet(parameters=(isize, uint8), arguments=(provided(index) as isize, write as uint8), return=void)" type=uint8
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=index root=index
@@ -91,7 +91,7 @@ fn test_dynamic_array_compound_subscript_resolves_read_and_write() {
     let session = TestSession::single(
         r#"
 declare const bytes: uint8[];
-declare const index: usize;
+declare const index: isize;
 bytes[index] += 1;
 "#,
     );
@@ -102,7 +102,7 @@ bytes[index] += 1;
         r#"
 === annotated ===
 declare const bytes: uint8[];
-declare const index: usize;
+declare const index: isize;
 bytes[index] += 1;
 
 === checked ===
@@ -110,8 +110,8 @@ declare const bytes: uint8[];
 /// @type.symbol symbol=bytes source=bytes type=Array<uint8>
 /// @resolution.pattern source=bytes kind=binding target=bytes
 
-declare const index: usize;
-/// @type.symbol symbol=index source=index type=usize
+declare const index: isize;
+/// @type.symbol symbol=index source=index type=isize
 /// @resolution.pattern source=index kind=binding target=index
 
 bytes[index] += 1;
@@ -120,7 +120,7 @@ bytes[index] += 1;
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.pattern.assign source=bytes[index] kind=place
-/// @resolution.assignment source=bytes[index] read="collections.array.index#1(parameters=(usize), arguments=(provided(index) as usize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)" write="collections.array.indexSet(parameters=(usize, uint8), arguments=(provided(index) as usize, write as uint8), return=void)" type=uint8
+/// @resolution.assignment source=bytes[index] read="collections.array.index#1(parameters=(isize), arguments=(provided(index) as isize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)" write="collections.array.indexSet(parameters=(isize, uint8), arguments=(provided(index) as isize, write as uint8), return=void)" type=uint8
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=index root=index
