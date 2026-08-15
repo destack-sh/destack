@@ -2,8 +2,8 @@ import { Copy } from "destack:memory";
 
 /// Cooperative execution on the current Worker.
 ///
-/// A fiber handle names one parked or running execution for wake delivery.
-/// Handles are plain identities: copying one never copies the execution.
+/// A fiber handle names one parked or running execution for wake delivery. Handles are plain
+/// identities: copying one never copies the execution.
 @languageItem("async.Fiber")
 export local struct Fiber implements Copy {
     /// Opaque fiber identity.
@@ -14,21 +14,43 @@ export local struct Fiber implements Copy {
         return currentFiber();
     }
 
-    /// Park the current fiber until one wake delivers a value.
-    static park<T>(): T {
-        return parkFiber<T>();
+    /// Create one suspended fiber.
+    static create(body: Function<(), void, "once">): Fiber {
+        return createFiber(body);
     }
 
-    /// Deliver one wake value to this fiber.
-    ///
-    /// A wake sent before the target parks is buffered for its next park.
-    wake<T>(this, value: T): void {
-        wakeFiber(this, value);
+    /// Park the current fiber until it is woken.
+    static park(): void {
+        parkFiber();
+    }
+
+    /// Queue this fiber for execution, retaining the wake until its next park.
+    wake(this): void {
+        wakeFiber(this);
+    }
+
+    /// Resume this fiber until it yields or returns.
+    resume(this): void {
+        resumeFiber(this);
+    }
+
+    /// Yield execution to the fiber that resumed this one.
+    static yield(): void {
+        yieldFiber();
+    }
+
+    /// Request cancellation at this fiber's next park.
+    cancel(this): void {
+        cancelFiber(this);
     }
 
     /// Queue one thunk to run on a fresh fiber.
-    static spawn(body: () => void): void {
-        spawnFiber(body);
+    static spawn(body: Function<(), void, "once">): Fiber {
+        let fiber = Fiber.create(body);
+
+        fiber.wake();
+
+        return fiber;
     }
 }
 
@@ -41,7 +63,16 @@ export local struct Fiber implements Copy {
 })
 declare function currentFiber(): Fiber;
 
-/// Park the current fiber until one wake delivers a value.
+/// Create one suspended fiber.
+@binding("destack.fiber.create", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+declare function createFiber(body: Function<(), void, "once">): Fiber;
+
+/// Park the current fiber until it is woken.
 @binding("destack.fiber.park", {
     provider: "runtime",
     effect: "deterministic",
@@ -49,22 +80,41 @@ declare function currentFiber(): Fiber;
     affinity: "worker",
     park: true,
 })
-declare function parkFiber<T>(): T;
+declare function parkFiber(): void;
 
-/// Deliver one wake value to one fiber.
+/// Queue one fiber for execution, retaining the wake until its next park.
 @binding("destack.fiber.wake", {
     provider: "runtime",
     effect: "deterministic",
     requires: [],
     affinity: "worker",
 })
-declare function wakeFiber<T>(fiber: Fiber, value: T): void;
+declare function wakeFiber(fiber: Fiber): void;
 
-/// Queue one thunk to run on a fresh fiber.
-@binding("destack.fiber.spawn", {
+/// Resume one fiber until it yields or returns.
+@binding("destack.fiber.resume", {
     provider: "runtime",
     effect: "deterministic",
     requires: [],
     affinity: "worker",
 })
-declare function spawnFiber(body: () => void): void;
+declare function resumeFiber(fiber: Fiber): void;
+
+/// Yield execution to the fiber that resumed this one.
+@binding("destack.fiber.yield", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+    park: true,
+})
+declare function yieldFiber(): void;
+
+/// Request cancellation at one fiber's next park.
+@binding("destack.fiber.cancel", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+declare function cancelFiber(fiber: Fiber): void;
