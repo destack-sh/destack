@@ -1,4 +1,5 @@
 mod access;
+mod r#borrow;
 mod dispatch;
 mod drop;
 mod effect;
@@ -9,6 +10,7 @@ mod trace;
 mod r#type;
 
 pub use access::*;
+pub use r#borrow::*;
 pub use dispatch::*;
 pub use drop::*;
 pub use effect::*;
