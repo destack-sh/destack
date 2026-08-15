@@ -263,6 +263,22 @@ impl PanicBehavior {
     }
 }
 
+/// Parking behavior for a call or function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum ParkBehavior {
+    /// The operation cannot park the current fiber.
+    CannotPark,
+    /// The operation may park the current fiber.
+    MayPark,
+}
+
+impl ParkBehavior {
+    /// Return true when the operation may park the current fiber.
+    pub fn may_park(self) -> bool {
+        matches!(self, Self::MayPark)
+    }
+}
+
 /// Behavioral effects for calls and functions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FunctionBehavior {
@@ -272,6 +288,8 @@ pub struct FunctionBehavior {
     pub panic: PanicBehavior,
     /// Return behavior for this operation.
     pub return_behavior: ReturnBehavior,
+    /// Parking behavior for this operation.
+    pub park: ParkBehavior,
     /// Whether optimization must preserve each execution of this operation.
     pub must_preserve_execution: bool,
     /// Whether this operation may allocate storage.
@@ -287,6 +305,7 @@ impl FunctionBehavior {
             determinism: Determinism::Deterministic,
             panic: PanicBehavior::CannotPanic,
             return_behavior: ReturnBehavior::MayReturn,
+            park: ParkBehavior::CannotPark,
             must_preserve_execution: false,
             allocates: false,
             frees: false,
@@ -299,6 +318,7 @@ impl FunctionBehavior {
             determinism: Determinism::NonDeterministic,
             panic: PanicBehavior::MayPanic,
             return_behavior: ReturnBehavior::MayReturn,
+            park: ParkBehavior::MayPark,
             must_preserve_execution: false,
             allocates: true,
             frees: true,
@@ -311,6 +331,7 @@ impl FunctionBehavior {
             determinism: Determinism::Deterministic,
             panic: PanicBehavior::CannotPanic,
             return_behavior: ReturnBehavior::WillReturn,
+            park: ParkBehavior::CannotPark,
             must_preserve_execution: false,
             allocates: false,
             frees: false,
@@ -332,6 +353,12 @@ impl FunctionBehavior {
     /// Return this behavior with will-return enabled.
     pub const fn with_will_return(mut self) -> Self {
         self.return_behavior = ReturnBehavior::WillReturn;
+        self
+    }
+
+    /// Return this behavior with parking enabled.
+    pub const fn with_park(mut self) -> Self {
+        self.park = ParkBehavior::MayPark;
         self
     }
 

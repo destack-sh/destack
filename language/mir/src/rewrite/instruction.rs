@@ -408,6 +408,7 @@ pub fn instruction_allows_read_only_motion(
         return false;
     };
     if tables.behavior.must_preserve_execution
+        || tables.behavior.park.may_park()
         || tables.behavior.return_behavior.is_no_return()
         || tables.behavior.allocates
         || tables.behavior.frees

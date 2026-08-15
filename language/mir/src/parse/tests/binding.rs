@@ -11,6 +11,7 @@ fn test_parse_binding_declaration() {
     effect: "external",
     replay: "forbidden",
     affinity: "main",
+    park: true,
     requires: ["host.fs.open"],
     platforms: ["linux"],
     families: ["unix"],
@@ -33,6 +34,7 @@ external function open(): void
     assert_eq!(binding.effect, BindingEffect::External);
     assert_eq!(binding.replay, BindingReplay::Forbidden);
     assert_eq!(binding.affinity, BindingAffinity::Main);
+    assert!(binding.is_park);
     assert_eq!(binding.requires.len(), 1);
     assert_eq!(strings.get(binding.requires[0]), "host.fs.open");
     assert_eq!(binding.platforms.len(), 1);

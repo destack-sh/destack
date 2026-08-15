@@ -431,6 +431,8 @@ struct BehaviorAccumulator {
     determinism: mir::Determinism,
     /// Whether execution may panic.
     may_panic: bool,
+    /// Whether execution may park the current fiber.
+    may_park: bool,
     /// Whether each execution of any operation must be preserved.
     must_preserve_execution: bool,
     /// Whether any callee allocates.
@@ -445,6 +447,7 @@ impl BehaviorAccumulator {
         Self {
             determinism: mir::Determinism::Deterministic,
             may_panic: false,
+            may_park: false,
             must_preserve_execution: false,
             allocates: false,
             frees: false,
@@ -458,6 +461,7 @@ impl BehaviorAccumulator {
         }
 
         self.may_panic |= behavior.panic.may_panic();
+        self.may_park |= behavior.park.may_park();
         self.must_preserve_execution |= behavior.must_preserve_execution;
         self.allocates |= behavior.allocates;
         self.frees |= behavior.frees;
@@ -476,6 +480,11 @@ impl BehaviorAccumulator {
                 mir::PanicBehavior::MayPanic
             } else {
                 mir::PanicBehavior::CannotPanic
+            },
+            park: if self.may_park {
+                mir::ParkBehavior::MayPark
+            } else {
+                mir::ParkBehavior::CannotPark
             },
             must_preserve_execution: self.must_preserve_execution,
             allocates: self.allocates,
@@ -653,6 +662,37 @@ entry:
         let effect = effects.function(root).expect("missing function effect");
 
         assert!(effect.behavior.allocates);
+    }
+
+    /// Direct calls propagate parking behavior from bodyless functions.
+    #[test]
+    fn test_function_effects_propagate_parking() {
+        let mut program = TestProgram::new(
+            r#"
+external function park(): void
+
+function root(): void {
+entry:
+    call park(): () => void
+    return
+}
+"#,
+        );
+        let park = program.function_id_by_name("park");
+        program.effects.functions.insert(
+            park,
+            mir::FunctionEffect {
+                memory: mir::MemoryEffect::none(),
+                behavior: mir::FunctionBehavior::none().with_park(),
+            },
+        );
+
+        let mut analyses = program.module_analyses();
+        let effects = analyses.effect(&program.tree, &program.accesses, &program.effects);
+        let root = program.function_id_by_name("root");
+        let effect = effects.function(root).expect("missing function effect");
+
+        assert!(effect.behavior.park.may_park());
     }
 
     /// Open calls stay unknown until tables or dispatch proves a target.
