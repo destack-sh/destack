@@ -1,44 +1,79 @@
-import { todo } from "destack:error";
-import { Iterator, IteratorResult } from "destack:iter";
-import { Copy } from "destack:memory";
+import { trap } from "destack:error";
+import { Iterator, IteratorResult, IteratorReturn, IteratorYield } from "destack:iter";
+import { Cell, Copy } from "destack:memory";
 
+import { Fiber } from "./fiber.ds";
 import { AsyncIterator } from "./iterator.ds";
-import { Promise } from "./promise.ds";
+import { Promise, PromiseResolvers } from "./promise.ds";
+import { queueMicrotask } from "./task.ds";
 
 /// The union of generator yield and return results.
 @languageItem("async.GeneratorResult")
 export type GeneratorResult<Y, R = void> = IteratorResult<Y, R>;
 
+/// One request delivered into a generator body.
+export type GeneratorRequest<R, N> = GeneratorNext<N> | GeneratorReturn<R>;
+
+/// Continue the producer with one sent value.
+export local struct GeneratorNext<N> {
+    /// The request tag.
+    kind: "next";
+
+    /// Value sent into the producer.
+    value: N | undefined;
+}
+
+/// Run the producer's return path with one completion value.
+export local struct GeneratorReturn<R> {
+    /// The request tag.
+    kind: "return";
+
+    /// Value carried into the return path.
+    value: R;
+}
+
 /// Generator object.
-///
-/// A generator body runs on its own fiber; each step wakes the body with the
-/// consumer request and blocks the consumer until the body yields or returns.
 @languageItem("async.Generator")
 export local class Generator<Y, R = void, N = void> {
-    /// The generator state.
-    private state: GeneratorState;
+    /// Shared producer state.
+    private state: GeneratorState<Y, R, N>;
 
-    /// Create an idle generator awaiting its first step.
-    private constructor() {
-        this.state = GeneratorIdle { kind: "idle" };
+    /// Create a generator over one producer state.
+    private constructor(state: GeneratorState<Y, R, N>) {
+        this.state = state;
     }
 
-    /// Create a generator from its lowered body.
+    /// Create a suspended generator from its lowered body.
     @languageItem("async.Generator.create")
     private static create<Y, R, N>(
-        body: (channel: GeneratorChannel<Y, R, N>) => R,
+        body: Function<(GeneratorProducer<Y, R, N>,), R, "once">,
     ): Generator<Y, R, N> {
-        todo("Generator.create")
+        let state = new GeneratorState<Y, R, N>();
+
+        @capture("move")
+        let run: Function<(), void, "once"> = () => {
+            let producer = GeneratorProducer { state };
+            let request = state.begin();
+            let result = match (request) {
+                GeneratorNext => body(producer)
+                GeneratorReturn { value } => value
+            };
+            state.complete(result);
+        };
+        let producer = Fiber.create(run);
+        state.attach(producer);
+
+        return new Generator(state);
     }
 
     /// Advance the generator with one value.
     next(value: N | undefined): GeneratorResult<Y, R> {
-        todo("Generator.next")
+        return this.state.advance(GeneratorNext { kind: "next", value });
     }
 
     /// Finalize the generator and return the completion value.
     return(value: R): GeneratorResult<Y, R> {
-        todo("Generator.return")
+        return this.state.advance(GeneratorReturn { kind: "return", value });
     }
 }
 
@@ -53,64 +88,183 @@ export extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y> {
     }
 }
 
-/// Step surface passed to one lowered generator body.
-export local struct GeneratorChannel<Y, R, N> {
-    /// Deliver one yielded value and block until the next request.
-    yield(&exclusive this, value: Y): GeneratorResume<R, N> {
-        todo("GeneratorChannel.yield")
+/// Step operations available to one lowered generator body.
+export local struct GeneratorProducer<Y, R, N> {
+    /// Shared producer state.
+    private state: GeneratorState<Y, R, N>;
+
+    /// Yield one value and receive the next consumer request.
+    yield(&exclusive this, value: Y): GeneratorRequest<R, N> {
+        return this.state.yield(value);
     }
 }
 
-/// One consumer request delivered back into a generator body.
-export type GeneratorResume<R, N> = GeneratorResumeNext<N> | GeneratorResumeFinish<R>;
+/// Shared state between one synchronous generator and its producer.
+local class GeneratorState<Y, R, N> {
+    /// Current generator phase.
+    private phase: Cell<GeneratorPhase<Y, R, N>>;
 
-/// Continue the body with one sent value.
-export local struct GeneratorResumeNext<N> {
-    /// The request tag.
-    kind: "next";
+    /// Suspended producer fiber.
+    private producer: Cell<Fiber | undefined>;
 
-    /// Value sent into the body.
-    value: N | undefined;
-}
+    /// Create one suspended-start state.
+    constructor() {
+        this.phase = Cell.new(GeneratorStart { kind: "start" });
+        this.producer = Cell.new(undefined);
+    }
 
-/// Run the body's return path with one completion value.
-export local struct GeneratorResumeFinish<R> {
-    /// The request tag.
-    kind: "finish";
+    /// Attach the suspended producer fiber.
+    attach(&readonly this, producer: Fiber): void {
+        if (this.producer.replace(producer) != undefined) {
+            trap("generator producer attached twice");
+        }
+    }
 
-    /// Value carried to the body return.
-    value: R;
+    /// Submit one consumer request and run the producer synchronously.
+    advance(&readonly this, request: GeneratorRequest<R, N>): GeneratorResult<Y, R> {
+        match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
+            GeneratorStart | GeneratorSuspended => {
+                this.phase.set(GeneratorRequested {
+                    kind: "requested",
+                    request,
+                });
+            }
+            GeneratorExhausted => {
+                this.phase.set(GeneratorExhausted { kind: "exhausted" });
+
+                return match (request) {
+                    GeneratorNext => IteratorReturn { value: undefined }
+                    GeneratorReturn { value } => IteratorReturn { value }
+                };
+            }
+            phase => {
+                this.phase.set(phase);
+                trap("generator is already executing")
+            }
+        }
+
+        let producer = this.producer.get();
+        if (producer == undefined) {
+            trap("generator has no producer");
+        }
+        producer!.resume();
+
+        return this.takeResult();
+    }
+
+    /// Begin producer execution with its first consumer request.
+    begin(&readonly this): GeneratorRequest<R, N> {
+        return this.takeRequest();
+    }
+
+    /// Publish one yielded value and suspend the producer.
+    yield(&readonly this, value: Y): GeneratorRequest<R, N> {
+        match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
+            GeneratorRunning => {
+                this.phase.set(GeneratorYielded { kind: "yielded", value });
+            }
+            phase => {
+                this.phase.set(phase);
+                trap("generator yielded outside producer execution")
+            }
+        }
+        Fiber.yield();
+
+        return this.takeRequest();
+    }
+
+    /// Publish the producer's return value.
+    complete(&readonly this, value: R): void {
+        match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
+            GeneratorRunning => {
+                this.phase.set(GeneratorReturned { kind: "returned", value });
+            }
+            phase => {
+                this.phase.set(phase);
+                trap("generator completed outside producer execution")
+            }
+        }
+        this.producer.replace(undefined);
+    }
+
+    /// Take the request submitted before producer execution.
+    private takeRequest(&readonly this): GeneratorRequest<R, N> {
+        match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
+            GeneratorRequested { request } => {
+                this.phase.set(GeneratorRunning { kind: "running" });
+
+                request
+            }
+            phase => {
+                this.phase.set(phase);
+                trap("generator resumed without a consumer request")
+            }
+        }
+    }
+
+    /// Take the value published before returning to the consumer.
+    private takeResult(&readonly this): GeneratorResult<Y, R> {
+        match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
+            GeneratorYielded { value } => {
+                this.phase.set(GeneratorSuspended { kind: "suspended" });
+
+                IteratorYield { value }
+            }
+            GeneratorReturned { value } => {
+                this.phase.set(GeneratorExhausted { kind: "exhausted" });
+
+                IteratorReturn { value }
+            }
+            phase => {
+                this.phase.set(phase);
+                trap("generator returned without a result")
+            }
+        }
+    }
 }
 
 /// Async generator object.
-///
-/// Async generators serialize consumer requests and resolve one request promise per step.
 @languageItem("async.AsyncGenerator")
 export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
-    /// The async generator state.
-    private state: GeneratorState;
+    /// Shared producer state.
+    private state: AsyncGeneratorState<Y, R, N>;
 
-    /// Create an idle async generator awaiting its first step.
-    private constructor() {
-        this.state = GeneratorIdle { kind: "idle" };
+    /// Create an async generator over one producer state.
+    private constructor(state: AsyncGeneratorState<Y, R, N>) {
+        this.state = state;
     }
 
-    /// Create an async generator from its lowered body.
+    /// Create a suspended async generator from its lowered body.
     @languageItem("async.AsyncGenerator.create")
     private static create<Y: Copy, R: Copy, N>(
-        body: (channel: GeneratorChannel<Y, R, N>) => R,
+        body: Function<(AsyncGeneratorProducer<Y, R, N>,), R, "once">,
     ): AsyncGenerator<Y, R, N> {
-        todo("AsyncGenerator.create")
+        let state = new AsyncGeneratorState<Y, R, N>();
+
+        @capture("move")
+        let run: Function<(), void, "once"> = () => {
+            let producer = AsyncGeneratorProducer { state };
+            let request = state.begin();
+            let result = match (request) {
+                GeneratorNext => body(producer)
+                GeneratorReturn { value } => value
+            };
+            state.complete(result);
+        };
+        let producer = Fiber.create(run);
+        state.attach(producer);
+
+        return new AsyncGenerator(state);
     }
 
     /// Queue one generator step with an explicit value.
     next(value: N | undefined): Promise<GeneratorResult<Y, R>> {
-        todo("AsyncGenerator.next")
+        return this.state.enqueue(GeneratorNext { kind: "next", value });
     }
 
-    /// Finalize the async generator and return the completion result promise.
+    /// Finalize the generator and return its completion asynchronously.
     return(value: R): Promise<GeneratorResult<Y, R>> {
-        todo("AsyncGenerator.return")
+        return this.state.enqueue(GeneratorReturn { kind: "return", value });
     }
 }
 
@@ -125,11 +279,285 @@ export extension<Y: Copy, R: Copy, N> of AsyncGenerator<Y, R, N> implements Asyn
     }
 }
 
-/// Lifecycle of one generator body fiber.
-local type GeneratorState = GeneratorIdle;
+/// Step operations available to one lowered async generator body.
+export local struct AsyncGeneratorProducer<Y: Copy, R: Copy, N> {
+    /// Shared producer state.
+    private state: AsyncGeneratorState<Y, R, N>;
 
-/// Body not yet started.
-local struct GeneratorIdle {
-    /// The state tag.
-    kind: "idle";
+    /// Yield one value and await the next consumer request.
+    yield(&exclusive this, value: Y): GeneratorRequest<R, N> {
+        return this.state.yield(value);
+    }
+}
+
+/// Shared state between one async generator and its producer.
+local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
+    /// Current generator phase.
+    private phase: Cell<AsyncGeneratorPhase>;
+
+    /// Suspended producer fiber.
+    private producer: Cell<Fiber | undefined>;
+
+    /// First queued request.
+    private head: AsyncGeneratorRequest<Y, R, N> | undefined;
+
+    /// Last queued request.
+    private tail: AsyncGeneratorRequest<Y, R, N> | undefined;
+
+    /// Request currently owned by the producer.
+    private active: AsyncGeneratorRequest<Y, R, N> | undefined;
+
+    /// Create one suspended-start state.
+    constructor() {
+        this.phase = Cell.new(AsyncGeneratorPhase.Start);
+        this.producer = Cell.new(undefined);
+        this.head = undefined;
+        this.tail = undefined;
+        this.active = undefined;
+    }
+
+    /// Attach the suspended producer fiber.
+    attach(&readonly this, producer: Fiber): void {
+        if (this.producer.replace(producer) != undefined) {
+            trap("async generator producer attached twice");
+        }
+    }
+
+    /// Queue one consumer request and return its promise.
+    enqueue(&readonly this, operation: GeneratorRequest<R, N>): Promise<GeneratorResult<Y, R>> {
+        let settlement = Promise.withResolvers<GeneratorResult<Y, R>>();
+
+        // settle requests immediately after producer completion
+        if (this.phase.get() == AsyncGeneratorPhase.Completed) {
+            settlement.resolve(this.completedResult(operation));
+
+            return settlement.promise;
+        }
+
+        // append the request in consumer order
+        let request = new AsyncGeneratorRequest(operation, settlement);
+        if (this.tail == undefined) {
+            this.head = request;
+            this.tail = request;
+        } else {
+            this.tail.next = request;
+            this.tail = request;
+        }
+
+        // schedule suspended producer execution once
+        if (
+            this.phase.get() == AsyncGeneratorPhase.Start ||
+            this.phase.get() == AsyncGeneratorPhase.Suspended
+        ) {
+            this.phase.set(AsyncGeneratorPhase.Scheduled);
+            this.wake();
+        }
+
+        return settlement.promise;
+    }
+
+    /// Begin producer execution with its first queued request.
+    begin(&readonly this): GeneratorRequest<R, N> {
+        return this.takeRequest();
+    }
+
+    /// Publish one yielded value and park until another request arrives.
+    yield(&readonly this, value: Y): GeneratorRequest<R, N> {
+        let request = this.takeActive();
+        request.settlement.resolve(IteratorYield { value });
+        this.phase.set(AsyncGeneratorPhase.Suspended);
+        if (this.head != undefined) {
+            this.phase.set(AsyncGeneratorPhase.Scheduled);
+            let producer = Fiber.current();
+            queueMicrotask(() => {
+                producer.wake();
+            });
+        }
+        Fiber.park();
+
+        return this.takeRequest();
+    }
+
+    /// Publish the producer's return value and drain queued requests.
+    complete(&readonly this, value: R): void {
+        let request = this.takeActive();
+        request.settlement.resolve(IteratorReturn { value });
+        this.phase.set(AsyncGeneratorPhase.Completed);
+
+        // settle requests queued before completion became visible
+        while (this.head != undefined) {
+            let request = this.pop();
+            request.settlement.resolve(this.completedResult(request.take()));
+        }
+        this.producer.replace(undefined);
+    }
+
+    /// Wake the suspended producer.
+    private wake(&readonly this): void {
+        let producer = this.producer.get();
+        if (producer == undefined) {
+            trap("async generator has no producer");
+        }
+        producer!.wake();
+    }
+
+    /// Move the next queued request into producer ownership.
+    private takeRequest(&readonly this): GeneratorRequest<R, N> {
+        let request = this.pop();
+        let operation = request.take();
+        this.active = request;
+        this.phase.set(AsyncGeneratorPhase.Running);
+
+        operation
+    }
+
+    /// Take the request currently owned by the producer.
+    private takeActive(&readonly this): AsyncGeneratorRequest<Y, R, N> {
+        let request = this.active;
+        if (request == undefined) {
+            trap("async generator has no active request");
+        }
+        this.active = undefined;
+
+        request!
+    }
+
+    /// Pop the first queued request.
+    private pop(&readonly this): AsyncGeneratorRequest<Y, R, N> {
+        let request = this.head;
+        if (request == undefined) {
+            trap("async generator resumed without a request");
+        }
+        this.head = request!.next;
+        request!.next = undefined;
+        if (this.head == undefined) {
+            this.tail = undefined;
+        }
+
+        request!
+    }
+
+    /// Return the result of one request after producer completion.
+    private completedResult(operation: GeneratorRequest<R, N>): GeneratorResult<Y, R> {
+        return match (operation) {
+            GeneratorNext => IteratorReturn { value: undefined }
+            GeneratorReturn { value } => IteratorReturn { value }
+        };
+    }
+}
+
+/// One queued async generator request.
+local class AsyncGeneratorRequest<Y: Copy, R: Copy, N> {
+    /// Requested producer operation.
+    private operation: Cell<GeneratorRequest<R, N> | undefined>;
+
+    /// Promise settled by this request.
+    settlement: PromiseResolvers<GeneratorResult<Y, R>>;
+
+    /// Next request in consumer order.
+    next: AsyncGeneratorRequest<Y, R, N> | undefined;
+
+    /// Create one queued request.
+    constructor(
+        operation: GeneratorRequest<R, N>,
+        settlement: PromiseResolvers<GeneratorResult<Y, R>>,
+    ) {
+        this.operation = Cell.new(operation);
+        this.settlement = settlement;
+        this.next = undefined;
+    }
+
+    /// Move out the requested producer operation.
+    take(&readonly this): GeneratorRequest<R, N> {
+        return match (this.operation.replace(undefined)) {
+            undefined => trap("async generator request was already consumed")
+            operation => operation
+        };
+    }
+}
+
+/// One synchronous generator execution phase.
+local type GeneratorPhase<Y, R, N> =
+    | GeneratorStart
+    | GeneratorSuspended
+    | GeneratorRequested<R, N>
+    | GeneratorRunning
+    | GeneratorYielded<Y>
+    | GeneratorReturned<R>
+    | GeneratorExhausted
+    | GeneratorMoving;
+
+/// Producer has not started.
+local struct GeneratorStart {
+    /// The phase tag.
+    kind: "start";
+}
+
+/// Producer is suspended after yielding.
+local struct GeneratorSuspended {
+    /// The phase tag.
+    kind: "suspended";
+}
+
+/// Consumer request awaiting producer execution.
+local struct GeneratorRequested<R, N> {
+    /// The phase tag.
+    kind: "requested";
+
+    /// The submitted request.
+    request: GeneratorRequest<R, N>;
+}
+
+/// Producer is executing.
+local struct GeneratorRunning {
+    /// The phase tag.
+    kind: "running";
+}
+
+/// Producer yielded one value.
+local struct GeneratorYielded<Y> {
+    /// The phase tag.
+    kind: "yielded";
+
+    /// The yielded value.
+    value: Y;
+}
+
+/// Producer returned one value.
+local struct GeneratorReturned<R> {
+    /// The phase tag.
+    kind: "returned";
+
+    /// The returned value.
+    value: R;
+}
+
+/// Producer has completed.
+local struct GeneratorExhausted {
+    /// The phase tag.
+    kind: "exhausted";
+}
+
+/// Generator phase is being moved through its cell.
+local struct GeneratorMoving {
+    /// The phase tag.
+    kind: "moving";
+}
+
+/// One async generator execution phase.
+local enum AsyncGeneratorPhase {
+    /// Producer has not started.
+    Start,
+
+    /// Producer is queued for execution.
+    Scheduled,
+
+    /// Producer is executing.
+    Running,
+
+    /// Producer is parked after yielding.
+    Suspended,
+
+    /// Producer has completed.
+    Completed,
 }
