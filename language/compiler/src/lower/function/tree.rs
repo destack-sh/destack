@@ -77,7 +77,7 @@ impl FunctionLowerer<'_, '_, '_> {
         call: &dir::Call,
         values: Vec<mir::Value>,
     ) -> CompilerResult<mir::Value> {
-        let dir::CallTarget::Symbol { function, .. } = &call.target else {
+        let dir::CallableTarget::Symbol { function, .. } = &call.target else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "an indirect tree component call".to_string(),

@@ -18,11 +18,12 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // read a decided reference as its resolved symbol
         let node = expression.into_global_any(self.source);
-        let named = self
-            .source()
-            .resolutions
-            .name_resolution(node)
-            .and_then(|resolution| resolution.symbols().first().copied());
+        let named = self.source().decisions.function_symbol(node).or_else(|| {
+            self.source()
+                .resolutions
+                .name_resolution(node)
+                .and_then(|resolution| resolution.single_symbol())
+        });
         if let Some(symbol) = named {
             return self.lower_resolved_value(expression, symbol);
         }
@@ -52,7 +53,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::MemberTarget::Call(call) => {
                 let dir::Call {
                     target:
-                        dir::CallTarget::Symbol {
+                        dir::CallableTarget::Symbol {
                             function,
                             dispatch: dir::FunctionDispatch::Direct,
                         },
@@ -157,7 +158,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::SubscriptTarget::Call(call) => {
                 let dir::Call {
                     target:
-                        dir::CallTarget::Symbol {
+                        dir::CallableTarget::Symbol {
                             function,
                             dispatch: dir::FunctionDispatch::Direct,
                         },
@@ -188,7 +189,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let call = read.call;
                 let dir::Call {
                     target:
-                        dir::CallTarget::Symbol {
+                        dir::CallableTarget::Symbol {
                             function,
                             dispatch: dir::FunctionDispatch::Direct,
                         },

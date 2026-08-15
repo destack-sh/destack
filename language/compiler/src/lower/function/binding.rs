@@ -144,7 +144,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         }
-        let dir::CallTarget::Symbol {
+        let dir::CallableTarget::Symbol {
             function,
             dispatch: dir::FunctionDispatch::Direct,
         } = &call.target

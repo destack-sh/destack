@@ -301,11 +301,12 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<()> {
         // resolve the referenced symbol and require a callable declaration
         let state = self.state(module)?;
-        let Some(symbol) = state
-            .resolutions
-            .name_resolution(node)
-            .and_then(|resolution| resolution.symbols().first().copied())
-        else {
+        let Some(symbol) = state.decisions.function_symbol(node).or_else(|| {
+            state
+                .resolutions
+                .name_resolution(node)
+                .and_then(|resolution| resolution.single_symbol())
+        }) else {
             return Ok(());
         };
 
@@ -572,8 +573,10 @@ impl ModuleLowerer<'_> {
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         let function = match &call.target {
-            dir::CallTarget::Expression { .. } | dir::CallTarget::Dynamic { .. } => return Ok(()),
-            dir::CallTarget::Symbol { function, .. } => function,
+            dir::CallableTarget::Expression { .. } | dir::CallableTarget::Dynamic { .. } => {
+                return Ok(());
+            }
+            dir::CallableTarget::Symbol { function, .. } => function,
         };
 
         // route intrinsic and binding callables without an instance

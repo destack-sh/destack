@@ -663,7 +663,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     } => match &*call {
                         dir::Call {
                             target:
-                                dir::CallTarget::Symbol {
+                                dir::CallableTarget::Symbol {
                                     function,
                                     dispatch: dir::FunctionDispatch::Direct,
                                 },
@@ -702,7 +702,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     } => match &*call {
                         dir::Call {
                             target:
-                                dir::CallTarget::Symbol {
+                                dir::CallableTarget::Symbol {
                                     function,
                                     dispatch: dir::FunctionDispatch::Direct,
                                 },

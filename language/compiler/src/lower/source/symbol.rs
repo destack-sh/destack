@@ -67,10 +67,17 @@ impl ModuleLowerer<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalSymbolId> {
-        self.state(node.module_id)?
+        let state = self.state(node.module_id)?;
+
+        // read the selected function value ahead of the lexical group
+        if let Some(symbol) = state.decisions.function_symbol(node) {
+            return Ok(symbol);
+        }
+
+        state
             .resolutions
             .name_resolution(node)
-            .and_then(|resolution| resolution.symbols().first().copied())
+            .and_then(|resolution| resolution.single_symbol())
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing a name resolution for node {}", node.local_id.id),
             })

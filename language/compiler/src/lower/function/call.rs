@@ -23,7 +23,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match &call.target {
             // free(...)
-            dir::CallTarget::Symbol {
+            dir::CallableTarget::Symbol {
                 function,
                 dispatch: dir::FunctionDispatch::Direct,
             } => {
@@ -52,13 +52,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
             }
             // value(...)
-            dir::CallTarget::Expression { .. } => self.lower_indirect_call(expression, call),
+            dir::CallableTarget::Expression { .. } => self.lower_indirect_call(expression, call),
             // erased.method(...) dispatches through the constraint's entries
-            dir::CallTarget::Dynamic { dispatch, .. } => {
+            dir::CallableTarget::Dynamic { dispatch, .. } => {
                 self.lower_dynamic_call(expression, call, dispatch)
             }
             // reject virtual calls
-            dir::CallTarget::Symbol { .. } => Err(LowerError::Unsupported {
+            dir::CallableTarget::Symbol { .. } => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a virtual call".to_string(),
             }

@@ -596,7 +596,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return the folded layout of one call's subject type argument.
     fn subject_layout(&mut self, resolution: &dir::Call) -> CompilerResult<mir::Layout> {
         let dir::Call {
-            target: dir::CallTarget::Symbol { function, .. },
+            target: dir::CallableTarget::Symbol { function, .. },
             ..
         } = resolution
         else {

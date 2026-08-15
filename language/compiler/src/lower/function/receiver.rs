@@ -124,7 +124,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             // call the selected method for a protocol dereference
             dir::DereferenceTarget::Call(call) => {
-                let dir::CallTarget::Symbol {
+                let dir::CallableTarget::Symbol {
                     function,
                     dispatch: dir::FunctionDispatch::Direct,
                 } = &call.target
