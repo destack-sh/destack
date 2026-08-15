@@ -255,10 +255,6 @@ function readPostSources() {
         requireString(metadata, "date", sourceFile);
         requireString(metadata, "author", sourceFile);
 
-        if (!Array.isArray(metadata.tags) || !metadata.tags.every((tag) => typeof tag === "string")) {
-            throw new Error(`invalid tags in ${sourceFile}`);
-        }
-
         const headings = headingsFor(markdown);
 
         return {
@@ -395,7 +391,6 @@ function renderPostModule(posts) {
     slug: string;
     subtitle: string;
     tableOfContents: readonly TableOfContentsEntry[];
-    tags: readonly string[];
     textRoute: string;
     title: string;
     tokens: number;
@@ -440,7 +435,6 @@ function renderPostRecord(post) {
         slug: ${JSON.stringify(post.slug)},
         subtitle: ${JSON.stringify(post.subtitle)},
         tableOfContents: ${JSON.stringify(post.tableOfContents)},
-        tags: ${JSON.stringify(post.tags)},
         textRoute: ${JSON.stringify(post.textRoute)},
         title: ${JSON.stringify(post.title)},
         tokens: ${post.tokens},
