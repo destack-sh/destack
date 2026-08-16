@@ -343,7 +343,17 @@ impl ModuleLowerer<'_> {
         }
 
         // instantiated references declare from instance rows
-        if state.decisions.instantiation_decision(node).is_some() {
+        if state
+            .decisions
+            .function_decision(node)
+            .is_some_and(|decision| {
+                decision.arms().iter().any(|value| {
+                    value
+                        .selection()
+                        .is_some_and(|selection| !selection.arguments.is_empty())
+                })
+            })
+        {
             return Ok(());
         }
 

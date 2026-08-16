@@ -48,18 +48,42 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<GenericInstanceKey> {
         let node = expression.into_global_any(self.source);
-        let instantiation = self
+        let selected = self
             .lowerer
             .state(self.source)?
             .decisions
-            .instantiation_decision(node)
-            .cloned();
+            .function_decision(node)
+            .and_then(|decision| match decision {
+                dir::OperationResolution::One(value) => value.selection().cloned(),
+                dir::OperationResolution::Union { .. } => None,
+            });
+
+        // require the checker's selection behind every declared function reference
+        if selected.is_none() {
+            let kind = self
+                .lowerer
+                .state(symbol.module_id)?
+                .bindings
+                .get_symbol(symbol.local_id)
+                .kind;
+            let is_reference = !matches!(
+                self.source().tree().get(expression),
+                dir::Expression::Declaration(_)
+            );
+            if is_reference && kind == dir::SymbolKind::Function {
+                return Err(CompilerError::Internal {
+                    message: format!("function reference {node:?} has no function decision"),
+                });
+            }
+        }
 
         // key explicitly applied references by their recorded arguments
-        if let Some(instantiation) = instantiation {
+        if let Some(selection) = selected
+            && !selection.arguments.is_empty()
+        {
             let bindings = self
                 .lowerer
-                .instance_bindings(&instantiation.arguments, &self.type_substitution)?;
+                .instance_bindings(&selection.arguments, &self.type_substitution)?;
             let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
             return self.generic_instance_key(symbol, &arguments);
