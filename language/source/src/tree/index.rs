@@ -57,6 +57,8 @@ pub enum NodeSpanBoundary {
     Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub enum NodeSpanRegion {
+    /// The defining keyword span of a node.
+    Keyword,
     /// The opening element span of a compound node.
     Opening,
     /// The generic parameter container span of a function-like or declaration node.
