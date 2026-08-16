@@ -1439,9 +1439,10 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
-        // report the missing member at the written key
+        // report the missing member with the closest reachable key
         let key_span = self.module(node.module_id).diagnostic_span(node.local_id);
-        self.report_missing_member(origin, receiver, key, key_span)?;
+        let best = self.closest_member_key(origin, receiver, &key)?;
+        self.report_missing_member(origin, receiver, key, key_span, best)?;
         self.commit_decision(node, dir::Decision::Rejected)?;
         self.commit_error_node(node)?;
 

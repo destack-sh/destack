@@ -404,3 +404,85 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 "#,
     );
 }
+
+#[test]
+fn test_missing_member_through_access_generic_receiver_suggests_field() {
+    let session = TestSession::single(
+        r#"
+struct Box<Value> {
+    value: Value;
+}
+
+extension<Value, const A: Access = "readonly"> of Box<Value> {
+    read(this: WithAccess<&Box<Value>, A>): Value {
+        return this.val;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Box<out Value> {
+    value: Value;
+}
+
+extension<Value, const A: Access = "readonly"> of Box<Value> {
+    read(this: WithAccess<&Box<Value>, A>): Value {
+        return this.val;
+    }
+}
+
+=== dir ===
+struct Box<Value> {
+/// @generic.template symbol=Box parameters=(out Value#1)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out Value#1)
+/// @definition.field symbol=Box.value source="value: Value" key=value type=Value#1
+/// @type.symbol symbol=Box.Value source=Value type=Value#1
+
+    value: Value;
+    /// @type.symbol symbol=Box.value source="value: Value" type=Value#1
+    /// @resolution.name source=Value target=Box.Value
+
+}
+
+extension<Value, const A: Access = "readonly"> of Box<Value> {
+/// @generic.template symbol=<module>#2 parameters=(Value#2, const A: Access = "readonly")
+/// @definition.extension symbol=<module>#2 form=local target=Box<Value#2>
+/// @definition.method symbol=read slot=read type=<read.'a>(this: WithAccess<&read.'a Box<Value#2>, A>) => Value#2
+/// @type.symbol symbol=Value source=Value type=Value#2
+/// @type.symbol symbol=A source="const A: Access = \"readonly\"" type=A
+/// @resolution.name source=Access target=memory.access.Access
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Value target=Value
+
+    read(this: WithAccess<&Box<Value>, A>): Value {
+    /// @generic.template symbol=read parent=template#1 parameters=('a)
+    /// @type.symbol symbol=read type=<read.'a>(this: WithAccess<&read.'a Box<Value#2>, A>) => Value#2
+    /// @type.symbol symbol=read.this source="this: WithAccess<&Box<Value>, A>" type=WithAccess<&read.'a Box<Value#2>, A>
+    /// @resolution.name source=WithAccess target=memory.type.WithAccess
+    /// @resolution.name source=Box target=Box
+    /// @resolution.name source=Value target=Value
+    /// @resolution.name source=A target=A
+    /// @resolution.name source=Value target=Value
+
+        return this.val;
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&read.'a Box<Value#2>, A>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.rejected source=this.val
+
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=missing-member message="member 'val' does not exist on type 'WithAccess<&'a Box<Value>, A>'; did you mean 'value'?"
+/// @diagnostic.label line=8 column=21 span="val" line_source="return this.val;"
+/// @diagnostic.suggestion message="rename to 'value'" applicability=dangerous patched="return this.value;"
+"#,
+    );
+}

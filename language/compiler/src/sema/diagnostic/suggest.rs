@@ -1,27 +1,11 @@
 use destack_core::{NameMatch, find_best_match};
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{DiagnosticSuggestion, ModuleId};
 
 use crate::sema::CheckState;
-use crate::{CompilerResult, DiagnosticAnchor, diagnostic_suggestion_distance, rename_suggestion};
-use destack_source::DiagnosticSuggestion;
+use crate::{DiagnosticAnchor, diagnostic_suggestion_distance, rename_suggestion};
 
 impl CheckState<'_> {
-    /// Return the visible member key closest to one missing key.
-    pub(in crate::sema) fn closest_member_key(
-        &mut self,
-        receiver: dir::GlobalTypeId,
-        key: &str,
-    ) -> CompilerResult<Option<NameMatch<String>>> {
-        let keys = self.visible_member_keys(receiver)?;
-
-        Ok(find_best_match(
-            key,
-            keys,
-            diagnostic_suggestion_distance(key),
-        ))
-    }
-
     /// Return a human readable path label.
     pub(in crate::sema) fn path_label(&self, path: &dir::Path) -> String {
         let mut label = String::new();
@@ -126,46 +110,6 @@ impl CheckState<'_> {
         best: &NameMatch<String>,
     ) -> Option<DiagnosticSuggestion> {
         rename_suggestion(anchor, best)
-    }
-
-    /// Collect the member keys visible on one receiver.
-    fn visible_member_keys(&mut self, receiver: dir::GlobalTypeId) -> CompilerResult<Vec<String>> {
-        let mut current = self.shallow_resolve(receiver)?;
-        while let dir::Type::Form(form) = self.ty(current)? {
-            current = self.shallow_resolve(form.value)?;
-        }
-
-        let mut keys = Vec::new();
-        match self.ty(current)? {
-            dir::Type::Object(shape) => {
-                for field in self.shape_properties(current.module_id, shape.properties)? {
-                    keys.push(self.format_static_key(&field.key));
-                }
-            }
-            dir::Type::Reference(reference) => {
-                if let Some(definition) = self.definition_maybe(reference.symbol) {
-                    for member in definition.members() {
-                        if member.space() == dir::MemberSpace::Static
-                            && let Some(key) = member.key()
-                        {
-                            keys.push(self.format_static_key(&key));
-                        }
-                    }
-                }
-            }
-            dir::Type::Application(instance) => {
-                if let Some(definition) = self.definition_maybe(instance.symbol) {
-                    for member in definition.members() {
-                        if let Some(key) = member.key() {
-                            keys.push(self.format_static_key(&key));
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-
-        Ok(keys)
     }
 
     /// Collect named lexical bindings visible from one scope cursor.

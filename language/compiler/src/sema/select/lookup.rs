@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap, FxIndexSet};
+use destack_core::{FxIndexMap, FxIndexSet, NameMatch, find_best_match};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -9,7 +9,7 @@ use crate::sema::{
     ApparentInstance, BodyState, FieldLookup, LookupReceiver, MemberArmLookup, MemberCandidate,
     MemberLookup, MemberRole, Origin, ReceiverSteps, TypeArgumentInference, TypeSubstitution,
 };
-use crate::{CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult, diagnostic_suggestion_distance};
 
 /// One member lookup on the active recursion path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1652,6 +1652,35 @@ impl BodyState<'_, '_> {
         Ok(candidates)
     }
 
+    /// Return the reachable member key closest to one missing key.
+    pub(in crate::sema) fn closest_member_key(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        key: &str,
+    ) -> CompilerResult<Option<NameMatch<String>>> {
+        // enumerate the receiver's keys like keyed lookup, in its selected space
+        let module = origin.module();
+        let subject = self.normalize_computation(origin, receiver)?;
+        let space = match self.ty(subject)? {
+            dir::Type::Reference(_) => dir::MemberSpace::Static,
+            _ => dir::MemberSpace::Instance,
+        };
+        let mut keys = FxIndexSet::default();
+        let mut visited = FxIndexSet::default();
+        self.collect_subject_keys(origin, module, subject, space, &mut keys, &mut visited)?;
+        let keys = keys
+            .iter()
+            .map(|candidate| self.format_static_key(candidate))
+            .collect::<Vec<_>>();
+
+        Ok(find_best_match(
+            key,
+            keys,
+            diagnostic_suggestion_distance(key),
+        ))
+    }
+
     /// Collect the declared member keys reachable from one lookup subject.
     pub(in crate::sema) fn subject_member_keys(
         &mut self,
@@ -1683,8 +1712,8 @@ impl BodyState<'_, '_> {
         keys: &mut FxIndexSet<dir::StaticKey>,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
-        // resolve the subject head before collecting its keys
-        let subject = self.shallow_resolve(subject)?;
+        // normalize the subject head like keyed lookup before collecting its keys
+        let subject = self.normalize_computation(origin, subject)?;
 
         // stop cyclic paths through bounds, unions, and heritage
         if !visited.insert(subject) {

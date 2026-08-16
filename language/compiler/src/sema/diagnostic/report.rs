@@ -1,5 +1,5 @@
 use destack_artifact::{DiagnosticBuilder, DiagnosticControl};
-use destack_core::FxIndexSet;
+use destack_core::{FxIndexSet, NameMatch};
 use destack_dir as dir;
 use destack_source::{
     Applicability, DiagnosticSuggestion, FilePatch, ModuleId, Patch, PatchSet, Span,
@@ -858,6 +858,7 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         key: String,
         key_span: Option<Span>,
+        best: Option<NameMatch<String>>,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
 
@@ -867,7 +868,6 @@ impl CheckState<'_> {
             _ => anchor,
         };
         let receiver_text = self.format_type(receiver);
-        let best = self.closest_member_key(receiver, &key)?;
         let error = CheckError::MissingMember {
             anchor: anchor.clone(),
             module,
