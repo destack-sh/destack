@@ -84,16 +84,18 @@ fn additive_counter(
                 | dir::UnaryOperator::PreDecrement,
             right,
         } => *right,
-        dir::Expression::Assign {
-            left,
-            operator: dir::AssignOperator::AddAssign | dir::AssignOperator::SubtractAssign,
-            ..
-        } => {
-            let dir::AssignPattern::Place { expression } = view.get(*left) else {
+        dir::Expression::Assign { .. } => {
+            let Some(assignment) = module.place_assignment(increment) else {
                 return Ok(None);
             };
+            if !matches!(
+                assignment.operator,
+                dir::AssignOperator::AddAssign | dir::AssignOperator::SubtractAssign
+            ) {
+                return Ok(None);
+            }
 
-            *expression
+            assignment.target
         }
         _ => return Ok(None),
     };

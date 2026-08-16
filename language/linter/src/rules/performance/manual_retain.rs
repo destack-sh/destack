@@ -43,42 +43,38 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect statement-position plain assignments
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Assign {
-            left,
-            operator: dir::AssignOperator::Assign,
-            right,
-        } = node
-        else {
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
+        let Some(assignment) = module.place_assignment(expression) else {
             continue;
         };
+        if assignment.operator != dir::AssignOperator::Assign {
+            continue;
+        }
         if !view
             .get_parent_for(expression)
             .is_some_and(|parent| parent.ty == dir::NodeType::Block)
         {
             continue;
         }
-        let dir::AssignPattern::Place { expression: target } = view.get(*left) else {
-            continue;
-        };
 
         // require a canonical filter over the exact written storage path
-        let Some(filter) = module.member_call(*right) else {
+        let Some(filter) = module.member_call(assignment.value) else {
             continue;
         };
         if filter.is_optional
             || filter.is_member_optional
-            || module.language_member(*right)? != Some(dir::LanguageItem::Array.member("filter"))
+            || module.language_member(assignment.value)?
+                != Some(dir::LanguageItem::Array.member("filter"))
         {
             continue;
         }
-        if module.access_resolution(*target) != module.access_resolution(filter.receiver)
-            || module.access_resolution(*target).is_none()
-            || !module.is_repeatable_expression(*target)?
+        if module.access_resolution(assignment.target) != module.access_resolution(filter.receiver)
+            || module.access_resolution(assignment.target).is_none()
+            || !module.is_repeatable_expression(assignment.target)?
         {
             continue;
         }
-        let target_type = module.adjusted_type(target.into_any())?;
+        let target_type = module.adjusted_type(assignment.target.into_any())?;
         let receiver_type = module.adjusted_type(filter.receiver.into_any())?;
         if target_type != receiver_type
             || !matches!(target_type, dir::Type::Form(form) if form.form == dir::Form::Owned)
@@ -96,7 +92,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic =
             lint.diagnostic("owned array is replaced by its own filtered values", span);
-        if let Some(suggestion) = suggestion(module, lint, expression, *target, *predicate)? {
+        if let Some(suggestion) =
+            suggestion(module, lint, expression, assignment.target, *predicate)?
+        {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);

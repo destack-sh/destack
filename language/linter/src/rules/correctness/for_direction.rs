@@ -122,27 +122,23 @@ impl<'a> CounterUpdate<'a> {
 
                 (*right, direction, opposite_operator)
             }
-            dir::Expression::Assign {
-                left,
-                operator,
-                right,
-            } => {
-                let dir::AssignPattern::Place { expression } = view.get(*left) else {
+            dir::Expression::Assign { .. } => {
+                let Some(assignment) = module.place_assignment(increment) else {
                     return Ok(None);
                 };
                 let Some(direction) = module
-                    .scalar_constant(*right)?
+                    .scalar_constant(assignment.value)?
                     .and_then(Direction::from_step)
                 else {
                     return Ok(None);
                 };
-                let (direction, opposite_operator) = match operator {
+                let (direction, opposite_operator) = match assignment.operator {
                     dir::AssignOperator::AddAssign => (direction, "-="),
                     dir::AssignOperator::SubtractAssign => (direction.reverse(), "+="),
                     _ => return Ok(None),
                 };
 
-                (*expression, direction, opposite_operator)
+                (assignment.target, direction, opposite_operator)
             }
             _ => return Ok(None),
         };

@@ -40,24 +40,19 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect plain assignments to direct places
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Assign {
-            left,
-            operator: dir::AssignOperator::Assign,
-            right,
-        } = node
-        else {
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
+        let Some(assignment) = module.place_assignment(expression) else {
             continue;
         };
-        let dir::AssignPattern::Place { expression: left } = view.get(*left) else {
+        if assignment.operator != dir::AssignOperator::Assign {
             continue;
-        };
+        }
 
         // require the compiler to select one identical stable storage path
-        let Some(left) = module.access_resolution(*left) else {
+        let Some(left) = module.access_resolution(assignment.target) else {
             continue;
         };
-        let Some(right) = module.access_resolution(*right) else {
+        let Some(right) = module.access_resolution(assignment.value) else {
             continue;
         };
         if left != right {

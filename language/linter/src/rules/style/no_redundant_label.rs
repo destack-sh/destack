@@ -38,34 +38,26 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect transfers with a checked label target
-    for (global, selected) in module.decisions.label_entries() {
+    // inspect labeled transfers with a checked control target
+    for (global, selected) in module.decisions.transfer_entries() {
         if global.module_id != module.id {
             return Err(ProviderError::internal(format!(
-                "label decision {global:?} belongs to another module"
+                "control transfer {global:?} belongs to another module"
             )));
         }
         let expression = global
             .local_id
             .try_into_typed::<dir::Expression>()
             .map_err(ProviderError::internal)?;
-        let node = view.get(expression);
-        let label = match node {
-            dir::Expression::Break {
-                label: Some(label), ..
-            }
-            | dir::Expression::Continue { label: Some(label) } => *label,
-            _ => continue,
+        let Some(label) = view.get(expression).transfer_label() else {
+            continue;
         };
         let Some(target) = module.unlabeled_transfer_target(expression) else {
             continue;
         };
 
-        // resolve the selected label to its declaring control expression
-        let selected = module.symbol_declaration(selected)?;
-
         // require the unlabeled transfer to select the same expression
-        if selected != target.into_global_any(module.id) {
+        if selected != target.into_global(module.id) {
             continue;
         }
 

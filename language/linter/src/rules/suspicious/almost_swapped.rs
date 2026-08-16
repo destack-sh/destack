@@ -36,33 +36,25 @@ function exchange(pair: { left: int32; right: int32 }): void {
 
 /// One direct assignment between stable places.
 #[derive(Clone, Copy)]
-struct PlaceAssignment<'a> {
+struct PlaceTransfer<'a> {
     /// The written place.
     target: &'a dir::AccessResolution,
     /// The read place.
     value: &'a dir::AccessResolution,
 }
 
-impl<'a> PlaceAssignment<'a> {
+impl<'a> PlaceTransfer<'a> {
     /// Select one plain assignment between stable places.
     fn select(
         module: &'a DirModule<'_>,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<Self> {
-        let view = module.view();
-        let dir::Expression::Assign {
-            left,
-            operator: dir::AssignOperator::Assign,
-            right,
-        } = view.get(expression)
-        else {
+        let assignment = module.place_assignment(expression)?;
+        if assignment.operator != dir::AssignOperator::Assign {
             return None;
-        };
-        let dir::AssignPattern::Place { expression: left } = view.get(*left) else {
-            return None;
-        };
-        let target = module.access_resolution(*left)?;
-        let value = module.access_resolution(*right)?;
+        }
+        let target = module.access_resolution(assignment.target)?;
+        let value = module.access_resolution(assignment.value)?;
 
         Some(Self { target, value })
     }
@@ -87,8 +79,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // compare each adjacent pair without allocating block storage
         for second in expressions {
-            let first_assignment = PlaceAssignment::select(module, first);
-            let second_assignment = PlaceAssignment::select(module, second);
+            let first_assignment = PlaceTransfer::select(module, first);
+            let second_assignment = PlaceTransfer::select(module, second);
             if first_assignment
                 .zip(second_assignment)
                 .is_some_and(|(first, second)| first.is_reversed_by(second))

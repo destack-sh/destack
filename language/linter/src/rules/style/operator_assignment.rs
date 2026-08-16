@@ -43,23 +43,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect plain assignments whose value is a compound operation
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Assign {
-            left,
-            operator: dir::AssignOperator::Assign,
-            right,
-        } = node
-        else {
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
+        let Some(assignment) = module.place_assignment(expression) else {
             continue;
         };
-        let dir::AssignPattern::Place { expression: target } = view.get(*left) else {
+        if assignment.operator != dir::AssignOperator::Assign {
             continue;
-        };
+        }
         let dir::Expression::Binary {
             left: repeated,
             operator,
             right: value,
-        } = view.get(*right)
+        } = view.get(assignment.value)
         else {
             continue;
         };
@@ -68,19 +63,27 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         // require one selected operation and one repeatable checked target
-        if module.operator_decision(right.into_any())?.is_none() {
+        if module
+            .operator_decision(assignment.value.into_any())?
+            .is_none()
+        {
             continue;
         }
-        if !module.is_same_computation(*target, *repeated)? {
+        if !module.is_same_computation(assignment.target, *repeated)? {
             continue;
         }
 
         // report the expanded assignment and preserve all retained source
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic = lint.diagnostic("assignment repeats its target", span);
-        if let Some(suggestion) =
-            suggestion(module, lint, expression, *target, *value, operator.text())?
-        {
+        if let Some(suggestion) = suggestion(
+            module,
+            lint,
+            expression,
+            assignment.target,
+            *value,
+            operator.text(),
+        )? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);

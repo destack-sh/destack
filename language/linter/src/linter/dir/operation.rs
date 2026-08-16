@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
 
-use super::DirModule;
+use super::{DirModule, IntegerStep};
 
 /// One call whose callee is a member access.
 #[derive(Debug, Clone, Copy)]
@@ -18,6 +18,17 @@ pub(crate) struct MemberCall<'a> {
     pub(crate) is_optional: bool,
     /// Whether the selected member access is optional.
     pub(crate) is_member_optional: bool,
+}
+
+/// One authored assignment to a direct place.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct PlaceAssignment {
+    /// The written place expression.
+    pub(crate) target: dir::LocalNodeId<dir::Expression>,
+    /// The authored assignment operator.
+    pub(crate) operator: dir::AssignOperator,
+    /// The assigned value expression.
+    pub(crate) value: dir::LocalNodeId<dir::Expression>,
 }
 
 impl DirModule<'_> {
@@ -56,6 +67,110 @@ impl DirModule<'_> {
             is_optional: *is_optional,
             is_member_optional: *is_member_optional,
         })
+    }
+
+    /// Return one authored assignment to a direct place.
+    pub(crate) fn place_assignment(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<PlaceAssignment> {
+        // select an assignment expression
+        let view = self.view();
+        let dir::Expression::Assign {
+            left,
+            operator,
+            right,
+        } = view.get(expression)
+        else {
+            return None;
+        };
+
+        // require one direct place target
+        let dir::AssignPattern::Place { expression: target } = view.get(*left) else {
+            return None;
+        };
+
+        Some(PlaceAssignment {
+            target: *target,
+            operator: *operator,
+            value: *right,
+        })
+    }
+
+    /// Select an exact integral unit update and its target.
+    pub(crate) fn integer_update(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<IntegerStep>, ProviderError> {
+        let view = self.view();
+        let step = match view.get(expression) {
+            // recognize unary updates
+            dir::Expression::Unary { operator, right } => match operator {
+                dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PreIncrement => {
+                    IntegerStep::Increment(*right)
+                }
+                dir::UnaryOperator::PostDecrement | dir::UnaryOperator::PreDecrement => {
+                    IntegerStep::Decrement(*right)
+                }
+                _ => return Ok(None),
+            },
+
+            // recognize direct assignment updates
+            dir::Expression::Assign { .. } => {
+                let Some(assignment) = self.place_assignment(expression) else {
+                    return Ok(None);
+                };
+
+                // compose expanded assignments from their assigned integer step
+                if assignment.operator == dir::AssignOperator::Assign {
+                    let Some(step) = self.integer_step(assignment.value)? else {
+                        return Ok(None);
+                    };
+                    let repeated = match step {
+                        IntegerStep::Increment(repeated) | IntegerStep::Decrement(repeated) => {
+                            repeated
+                        }
+                    };
+                    if !self.is_same_computation(assignment.target, repeated)? {
+                        return Ok(None);
+                    }
+
+                    let step = match step {
+                        IntegerStep::Increment(_) => IntegerStep::Increment(assignment.target),
+                        IntegerStep::Decrement(_) => IntegerStep::Decrement(assignment.target),
+                    };
+
+                    return Ok(Some(step));
+                }
+
+                // classify compound assignments with exact signed unit values
+                match (
+                    assignment.operator,
+                    self.integral_constant(assignment.value)?,
+                ) {
+                    (dir::AssignOperator::AddAssign, Some(1))
+                    | (dir::AssignOperator::SubtractAssign, Some(-1)) => {
+                        IntegerStep::Increment(assignment.target)
+                    }
+                    (dir::AssignOperator::AddAssign, Some(-1))
+                    | (dir::AssignOperator::SubtractAssign, Some(1)) => {
+                        IntegerStep::Decrement(assignment.target)
+                    }
+                    _ => return Ok(None),
+                }
+            }
+            _ => return Ok(None),
+        };
+
+        // require checked integral behavior for unary and compound updates
+        let Some(operands) = self.builtin_operands(expression.into_any())? else {
+            return Ok(None);
+        };
+        if !operands.iter().all(dir::BuiltinOperand::is_integral) {
+            return Ok(None);
+        }
+
+        Ok(Some(step))
     }
 
     /// Iterate expressions with a checked call resolution.

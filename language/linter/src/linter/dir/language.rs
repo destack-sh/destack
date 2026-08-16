@@ -13,6 +13,11 @@ impl Dir<'_> {
         let type_id = self.strip_form(type_id)?;
         let ty = self.get_type(type_id)?;
 
+        // inspect the erased constraint carried by dynamic representations
+        if let dir::Type::Dynamic(dynamic) = ty {
+            return self.representation_item(dynamic.constraint);
+        }
+
         // recognize compiler-defined and nominal language representations
         let item = ty.representation_item().or_else(|| {
             ty.symbol()

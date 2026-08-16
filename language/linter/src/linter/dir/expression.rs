@@ -4,6 +4,37 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return the sole direct binding declarator in one declaration expression.
+    pub(crate) fn binding_declarator(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<(dir::Mutability, &dir::Declarator)> {
+        // select one declaration with one declarator
+        let view = self.view();
+        let dir::Expression::Let {
+            mutability,
+            declarators,
+            ..
+        } = view.get(expression)
+        else {
+            return None;
+        };
+        let [declarator] = declarators.as_slice() else {
+            return None;
+        };
+        let declarator = view.get(*declarator);
+
+        // require a direct rather than destructured binding
+        if !matches!(
+            view.get(declarator.pattern),
+            dir::Pattern::Binding { pattern: None, .. }
+        ) {
+            return None;
+        }
+
+        Some((*mutability, declarator))
+    }
+
     /// Return the expression that directly produces one expression's value.
     pub(crate) fn value_expression(
         &self,
@@ -20,10 +51,81 @@ impl DirModule<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<bool, ProviderError> {
-        self.is_same_computation(expression, expression)
+        if !self.is_same_computation(expression, expression)? {
+            return Ok(false);
+        }
+
+        self.can_trap(expression).map(|can_trap| !can_trap)
     }
 
-    /// Return whether two checked expressions denote the same repeatable computation.
+    /// Return whether evaluating one checked expression can trap.
+    fn can_trap(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        let node = self.view().get(expression);
+
+        // accept scalar values
+        if node.as_scalar().is_some() {
+            return Ok(false);
+        }
+
+        // inspect stable storage without hiding receiver evaluation
+        let can_trap = match node {
+            dir::Expression::Identifier { .. } | dir::Expression::This | dir::Expression::Super
+                if self.access_resolution(expression).is_some() =>
+            {
+                false
+            }
+            dir::Expression::Member { left, .. }
+                if self.access_resolution(expression).is_some() =>
+            {
+                self.can_trap(*left)?
+            }
+            dir::Expression::Chain { expression } => self.can_trap(*expression)?,
+            dir::Expression::Index { .. } => true,
+
+            // inspect the repeatable builtin operations
+            dir::Expression::Unary { .. } => {
+                let Some((operator, operand)) = self.builtin_unary(expression)? else {
+                    return Ok(true);
+                };
+                let operation_can_trap = operator == dir::UnaryOperator::Negate
+                    && operand.is_integral()
+                    && self.integral_constant(expression)?.is_none();
+
+                operation_can_trap || self.can_trap(operand.source.local_id)?
+            }
+            dir::Expression::Binary { .. } => {
+                let Some((operator, [left, right])) = self.builtin_binary(expression)? else {
+                    return Ok(true);
+                };
+                let operation_can_trap = left.is_integral()
+                    && self.integral_constant(expression)?.is_none()
+                    && matches!(
+                        operator,
+                        dir::BinaryOperator::Exponent
+                            | dir::BinaryOperator::Multiply
+                            | dir::BinaryOperator::Divide
+                            | dir::BinaryOperator::Remainder
+                            | dir::BinaryOperator::Add
+                            | dir::BinaryOperator::Subtract
+                            | dir::BinaryOperator::ShiftLeft
+                    );
+
+                operation_can_trap
+                    || self.can_trap(left.source.local_id)?
+                    || self.can_trap(right.source.local_id)?
+            }
+            dir::Expression::As { expression, .. }
+            | dir::Expression::Satisfies { expression, .. } => self.can_trap(*expression)?,
+            _ => true,
+        };
+
+        Ok(can_trap)
+    }
+
+    /// Return whether two checked expressions denote the same computation.
     pub fn is_same_computation(
         &self,
         left: dir::LocalNodeId<dir::Expression>,

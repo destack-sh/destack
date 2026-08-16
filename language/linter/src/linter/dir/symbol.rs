@@ -4,6 +4,65 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Iterate the checked symbols declared within one node subtree.
+    pub(crate) fn symbols_declared_within(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> impl Iterator<Item = dir::GlobalSymbolId> + '_ {
+        let view = self.view();
+
+        self.bindings
+            .declaration_symbols()
+            .filter(move |(declaration, _)| view.is_inside(declaration.local_id, node))
+            .map(|(_, symbol)| symbol.into_global(self.id))
+    }
+
+    /// Return the recorded uses of one binding within a node subtree.
+    pub(crate) fn binding_uses_within(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        node: dir::LocalNodeIdAny,
+        occurrences: &[dir::BindingOccurrence],
+    ) -> dir::BindingUse {
+        let view = self.view();
+        let mut uses = dir::BindingUse::default();
+
+        // merge occurrences within the selected node
+        for occurrence in occurrences {
+            if occurrence.symbol == symbol && view.is_inside(occurrence.node, node) {
+                uses |= occurrence.uses;
+            }
+        }
+
+        uses
+    }
+
+    /// Return the recorded uses of one binding outside selected node subtrees.
+    pub(crate) fn binding_uses_outside(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        nodes: &[dir::LocalNodeIdAny],
+        occurrences: &[dir::BindingOccurrence],
+    ) -> dir::BindingUse {
+        let view = self.view();
+        let mut uses = dir::BindingUse::default();
+
+        // merge occurrences outside every selected node
+        for occurrence in occurrences {
+            if occurrence.symbol != symbol {
+                continue;
+            }
+            if nodes
+                .iter()
+                .all(|node| !view.is_inside(occurrence.node, *node))
+            {
+                uses |= occurrence.uses;
+            }
+        }
+
+        uses
+    }
+
     /// Return the declaration node that introduced one checked symbol.
     pub fn symbol_declaration(
         &self,

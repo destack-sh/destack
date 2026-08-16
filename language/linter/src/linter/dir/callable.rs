@@ -95,6 +95,47 @@ impl DirModule<'_> {
         Some(function)
     }
 
+    /// Return whether one expression occurs within an explicit or implicit return value.
+    pub(crate) fn is_within_return_value(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let view = self.view();
+        let mut current = expression.into_any();
+
+        // climb through the current callable only
+        while let Some(parent) = view.get_parent_any(current) {
+            // accept an explicit return value
+            if let Ok(parent) = parent.try_into_typed::<dir::Expression>()
+                && let dir::Expression::Return { value: Some(value) } = view.get(parent)
+            {
+                return view.is_inside(expression.into_any(), value.into_any());
+            }
+
+            // accept a lambda value body and stop at every other callable
+            let Some(body) = self.callable_body(parent) else {
+                current = parent;
+                continue;
+            };
+            let Ok(declaration) = parent.try_into_typed::<dir::Declaration>() else {
+                return false;
+            };
+            let dir::Declaration::Function(function) = view.get(declaration) else {
+                return false;
+            };
+            if function.signature.form != dir::FunctionForm::Lambda {
+                return false;
+            }
+            let Some(value) = self.value_expression(body) else {
+                return false;
+            };
+
+            return view.is_inside(expression.into_any(), value.into_any());
+        }
+
+        false
+    }
+
     /// Return the checked result type id of one callable expression.
     pub fn callable_return_type_id(
         &self,
