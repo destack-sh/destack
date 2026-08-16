@@ -169,9 +169,15 @@ impl CheckState<'_> {
         &self,
         id: GenericTemplateId,
     ) -> Option<&dir::GenericTemplate> {
-        // read working templates before declared-stage templates
+        // read working templates before committed-stage templates
         if let Some(module) = self.module_maybe(id.module_id) {
             if let Some(template) = module.generics_tail.get_local_template(id.local_id) {
+                return Some(template);
+            }
+
+            if let Some(checked) = &module.checked
+                && let Some(template) = checked.generics.get_local_template(id.local_id)
+            {
                 return Some(template);
             }
 
@@ -195,9 +201,15 @@ impl CheckState<'_> {
         &self,
         id: GenericParameterId,
     ) -> Option<&dir::GenericParameterBinding> {
-        // read working parameters before declared-stage parameters
+        // read working parameters before committed-stage parameters
         if let Some(module) = self.module_maybe(id.module_id) {
             if let Some(parameter) = module.generics_tail.get_local_parameter(id.local_id) {
+                return Some(parameter);
+            }
+
+            if let Some(checked) = &module.checked
+                && let Some(parameter) = checked.generics.get_local_parameter(id.local_id)
+            {
                 return Some(parameter);
             }
 
@@ -220,6 +232,13 @@ impl CheckState<'_> {
         }
 
         None
+    }
+
+    /// Return whether one generic parameter is a lifetime.
+    pub(in crate::sema) fn is_lifetime_parameter(&self, id: GenericParameterId) -> bool {
+        self.generic_parameter(id).is_some_and(|parameter| {
+            parameter.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+        })
     }
 
     /// Return the canonical type denoting one generic parameter.

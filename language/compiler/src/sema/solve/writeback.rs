@@ -1,6 +1,6 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
-use destack_dir::TypeFold;
+use destack_dir::{TypeFold, WalkSelections};
 
 use crate::sema::{CheckModuleState, CheckState};
 use crate::{CompilerError, CompilerResult};
@@ -104,7 +104,81 @@ impl CheckState<'_> {
             &mut state.generics_tail
         })?;
 
+        // record the instantiations the committed bodies perform
+        if self.is_checking() {
+            self.record_instantiations();
+        }
+
         Ok(())
+    }
+
+    /// Record every instantiation the committed decisions and conversions perform.
+    fn record_instantiations(&mut self) {
+        // collect selections that bind generic arguments, with their governing template
+        let mut instantiations = Vec::new();
+        for (node, decision) in self.module.decisions.decision_entries() {
+            decision.for_each_selection(&mut |selection| {
+                if selection.arguments.is_empty() {
+                    return;
+                }
+
+                instantiations.push(dir::Instantiation {
+                    owner: self.governing_template_symbol(node),
+                    selection: selection.clone(),
+                    source: node,
+                });
+            });
+        }
+
+        // collect instantiating conversions behind callable references
+        for (node, coercion) in self.module.coercions.coercions() {
+            for adjustment in &coercion.adjustments {
+                let dir::CoercionAdjustment::Instantiate { arguments, .. } = adjustment else {
+                    continue;
+                };
+                let Some(dir::Decision::Function(dir::OperationResolution::One(value))) =
+                    self.module.decisions.decision(node)
+                else {
+                    continue;
+                };
+                let Some(symbol) = value.target.symbol() else {
+                    continue;
+                };
+
+                instantiations.push(dir::Instantiation {
+                    owner: self.governing_template_symbol(node),
+                    selection: dir::Selection::new(symbol, arguments.clone()),
+                    source: node,
+                });
+            }
+        }
+
+        // write the collected instantiations into this pass's segment
+        for instantiation in instantiations {
+            self.module.generics_tail.push_instantiation(instantiation);
+        }
+    }
+
+    /// Return the innermost parameterized declaration enclosing one node.
+    fn governing_template_symbol(&self, node: dir::GlobalNodeIdAny) -> Option<dir::GlobalSymbolId> {
+        // climb structural parents until a parameterized declaration owns the node
+        let tree = &self.module.parsed.tree;
+        let mut current = node.local_id.id;
+        while let Some(parent) = tree.get_parent(current) {
+            if let Some(symbol) = self.module.declaration_symbol(parent)
+                && let Some(template) = self.loaded_symbol_template(symbol)
+                && let Some(template) = self.generic_template(template)
+                && template.parameters.iter().any(|parameter| {
+                    !self.is_lifetime_parameter(parameter.into_global(symbol.module_id))
+                })
+            {
+                return Some(symbol);
+            }
+
+            current = parent.id;
+        }
+
+        None
     }
 
     /// Record the symbol uses this pass proved in the flow segment.
@@ -481,7 +555,7 @@ fn collect_member_target_uses(
         // record the declared member a symbol access selects
         dir::MemberTarget::Symbol(candidate) => uses.push(SymbolUse {
             node: Some(node),
-            symbol: candidate.symbol,
+            symbol: candidate.selection.symbol,
             binding,
         }),
         // walk grouped targets member by member
