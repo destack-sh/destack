@@ -1092,13 +1092,14 @@ impl BodyState<'_, '_> {
         Ok(result)
     }
 
-    /// Read one operand node's normalized input type.
+    /// Read one operand node's normalized input type, resolved through solutions.
     fn operand_type(
         &mut self,
         origin: Origin,
         site: FlowSite,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.infer_node_type(site, PlaceUse::Read)?;
+        let ty = self.deeply_resolve(origin, ty)?;
 
         self.normalize(origin, ty)
     }
