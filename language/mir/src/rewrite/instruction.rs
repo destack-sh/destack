@@ -41,6 +41,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::DynamicBind { .. }
         | mir::Instruction::DynamicPayload { .. }
         | mir::Instruction::DynamicType { .. }
+        | mir::Instruction::DynamicRead { .. }
         | mir::Instruction::DynamicFind { .. }
         | mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
@@ -232,6 +233,7 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::DynamicBind { .. }
         | mir::Instruction::DynamicPayload { .. }
         | mir::Instruction::DynamicType { .. }
+        | mir::Instruction::DynamicRead { .. }
         | mir::Instruction::DynamicFind { .. }
         | mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
@@ -838,6 +840,17 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::DynamicType {
             destination: *destination,
             dynamic: substitute(dynamic),
+        },
+        mir::Instruction::DynamicRead {
+            destination,
+            dynamic,
+            slot,
+            result_type,
+        } => mir::Instruction::DynamicRead {
+            destination: *destination,
+            dynamic: substitute(dynamic),
+            slot: *slot,
+            result_type: *result_type,
         },
         mir::Instruction::DynamicFind {
             destination,
@@ -2242,6 +2255,17 @@ pub fn instruction_map(
             destination: remap(*destination),
             dynamic: remap(*dynamic),
         },
+        mir::Instruction::DynamicRead {
+            destination,
+            dynamic,
+            slot,
+            result_type,
+        } => mir::Instruction::DynamicRead {
+            destination: remap(*destination),
+            dynamic: remap(*dynamic),
+            slot: *slot,
+            result_type: *result_type,
+        },
         mir::Instruction::DynamicFind {
             destination,
             dynamic,
@@ -3457,6 +3481,17 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::DynamicType {
             destination: remap(*destination),
             dynamic: remap(*dynamic),
+        },
+        mir::Instruction::DynamicRead {
+            destination,
+            dynamic,
+            slot,
+            result_type,
+        } => mir::Instruction::DynamicRead {
+            destination: remap(*destination),
+            dynamic: remap(*dynamic),
+            slot: *slot,
+            result_type: *result_type,
         },
         mir::Instruction::DynamicFind {
             destination,

@@ -7,8 +7,8 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
-    Constant, ConvertMode, CounterId, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic,
-    LocalId, Node, NodeType, SamplerId, TensorImmediateId, TensorIndexReduceOperator,
+    Constant, ConvertMode, CounterId, DispatchSlot, FenceAccess, FunctionId, GlobalId, IndexSlice,
+    Intrinsic, LocalId, Node, NodeType, SamplerId, TensorImmediateId, TensorIndexReduceOperator,
     TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode, Tree, TypeId, UnaryOperator,
     Value, ValueSlice, VectorReduceOperator,
 };
@@ -378,6 +378,17 @@ pub enum Instruction {
         destination: Value,
         /// The dynamic value whose concrete type is read.
         dynamic: Value,
+    },
+    /// Read one slot entry through a dynamic value's concrete table.
+    DynamicRead {
+        /// The SSA value to define with the entry value.
+        destination: Value,
+        /// The dynamic value whose entry is read.
+        dynamic: Value,
+        /// The dispatch slot selecting the constraint entry.
+        slot: DispatchSlot,
+        /// The result type carrying the read value.
+        result_type: TypeId,
     },
     /// Find one named entry through a dynamic value's concrete table.
     DynamicFind {
@@ -974,6 +985,7 @@ impl Instruction {
             Instruction::DynamicBind { destination, .. } => Some(*destination),
             Instruction::DynamicPayload { destination, .. } => Some(*destination),
             Instruction::DynamicType { destination, .. } => Some(*destination),
+            Instruction::DynamicRead { destination, .. } => Some(*destination),
             Instruction::DynamicFind { destination, .. } => Some(*destination),
             Instruction::VectorSplat { destination, .. } => Some(*destination),
             Instruction::VectorExtract { destination, .. } => Some(*destination),
@@ -1100,6 +1112,7 @@ impl Instruction {
             Instruction::DynamicBind { payload, .. } => smallvec![*payload],
             Instruction::DynamicPayload { dynamic, .. } => smallvec![*dynamic],
             Instruction::DynamicType { dynamic, .. } => smallvec![*dynamic],
+            Instruction::DynamicRead { dynamic, .. } => smallvec![*dynamic],
             Instruction::DynamicFind { dynamic, key, .. } => smallvec![*dynamic, *key],
             Instruction::VectorSplat { value, .. } => smallvec![*value],
             Instruction::VectorExtract { vector, index, .. } => smallvec![*vector, *index],

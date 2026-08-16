@@ -1,10 +1,10 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    BinaryOperator, ConvertMode, Instruction, LocalNodeId, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Tree, Type, TypeId, Value,
-    VectorReduceOperator,
+    BinaryOperator, ConvertMode, DispatchSlot, Instruction, LocalNodeId,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Tree, Type, TypeId,
+    Value, VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -280,6 +280,25 @@ impl<'a> FunctionBuilder<'a> {
             dynamic,
         });
         self.define_value(destination, type_id);
+        destination
+    }
+
+    /// Read one slot entry through a dynamic value's concrete table.
+    pub fn dynamic_read(
+        &mut self,
+        dynamic: Value,
+        slot: DispatchSlot,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::DynamicRead {
+            destination,
+            dynamic,
+            slot,
+            result_type: TypeId::from(result_type),
+        });
+        self.define_value(destination, result_type);
+
         destination
     }
 

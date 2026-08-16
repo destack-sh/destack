@@ -672,6 +672,19 @@ impl Parser {
                             dynamic,
                         }
                     }
+                    "dynamic.read" => {
+                        let dynamic = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let slot = self.parse_int_segment(&mut segment_spans)?;
+                        let slot = u32::try_from(slot)
+                            .map_err(|_| ParseError::invalid("dispatch slot", self.pos()))?;
+                        Instruction::DynamicRead {
+                            destination,
+                            dynamic,
+                            slot: DispatchSlot(slot),
+                            result_type: destination_type,
+                        }
+                    }
                     "dynamic.find" => {
                         let dynamic = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;

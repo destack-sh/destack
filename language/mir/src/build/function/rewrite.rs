@@ -165,6 +165,9 @@ impl<'a> FunctionBuilder<'a> {
                 } => {
                     Self::replace_value_in_slot(argument, from, to);
                 }
+                Instruction::DynamicRead { dynamic, .. } => {
+                    Self::replace_value_in_slot(dynamic, from, to);
+                }
                 Instruction::DynamicFind { dynamic, key, .. } => {
                     Self::replace_value_in_slot(dynamic, from, to);
                     Self::replace_value_in_slot(key, from, to);

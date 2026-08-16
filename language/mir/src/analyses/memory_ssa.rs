@@ -1053,6 +1053,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::DynamicBind { .. }
             | mir::Instruction::DynamicPayload { .. }
             | mir::Instruction::DynamicType { .. }
+            | mir::Instruction::DynamicRead { .. }
             | mir::Instruction::DynamicFind { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }
