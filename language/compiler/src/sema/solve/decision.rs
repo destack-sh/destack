@@ -28,9 +28,11 @@ impl CheckState<'_> {
 
         // record the selected declaration uses
         for (symbol, binding_use) in uses {
-            self.module_mut(node.module_id)
-                .flows
-                .record_use(node.local_id, symbol, binding_use);
+            self.module_mut(node.module_id).flows.record_binding_use(
+                node.local_id,
+                symbol,
+                binding_use,
+            );
         }
 
         // later derivations refine the same targets, the last settled payload stays
@@ -50,7 +52,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         // record one unambiguous lexical reference
         if let Some(symbol) = resolution.single_symbol() {
-            self.module_mut(node.module_id).flows.record_use(
+            self.module_mut(node.module_id).flows.record_binding_use(
                 node.local_id,
                 symbol,
                 dir::BindingUse::READ,

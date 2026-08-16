@@ -379,6 +379,7 @@ impl BodyState<'_, '_> {
         }
         if reads_storage && let Some(key) = index_key {
             self.commit_projected_access(node, receiver_node, key)?;
+            self.record_access_use(node, dir::BindingUse::READ);
         }
         let site = self.visit_site(node)?;
         let ty = self.flow_type_at(site, ty)?;

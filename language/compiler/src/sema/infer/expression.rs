@@ -476,6 +476,7 @@ impl BodyState<'_, '_> {
                 .is_some_and(dir::SymbolKind::is_binding)
             {
                 self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
+                self.record_access_use(site.node, dir::BindingUse::READ);
             }
             let ty = self.intern_type(dir::Type::Error)?;
             self.commit_node_type(site.node, ty)?;
@@ -496,6 +497,7 @@ impl BodyState<'_, '_> {
                     .report_value_read_not_fixed(site.node, parameter)?;
             }
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
+            self.record_access_use(site.node, dir::BindingUse::READ);
             let carrier = self.flow_type_at(site, carrier)?;
             self.commit_node_type(site.node, carrier)?;
 
@@ -526,6 +528,7 @@ impl BodyState<'_, '_> {
             .is_some_and(dir::SymbolKind::is_binding)
         {
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
+            self.record_access_use(site.node, dir::BindingUse::READ);
         }
 
         // record the selected function value for runtime consumers

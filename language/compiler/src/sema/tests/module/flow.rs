@@ -35,13 +35,19 @@ function run(): int32 {
     /// @flow.use symbol=counted uses=read+written+captured
 
     counted = 2;
+    /// @flow.access source=counted root=run.counted uses=written
+
     const idle = 3;
     const observe = () => counted;
+    /// @flow.access source=counted root=run.counted uses=read
+
     return counted;
     /// @flow.diverging source="return counted"
+    /// @flow.access source=counted root=run.counted uses=read
 
     counted;
     /// @flow.unreachable source=counted
+    /// @flow.access source=counted root=run.counted uses=read
 
 }
 "#,
@@ -118,9 +124,17 @@ function shift(point: &Point): int32 {
 /// @flow.use symbol=point uses=read
 
     point.x = point.x + 1;
+    /// @flow.access source=point root=shift.point uses=read
+    /// @flow.access source=point.x root=shift.point keys=[x] uses=written
+    /// @flow.access source=point root=shift.point uses=read
+    /// @flow.access source=point.x root=shift.point keys=[x] uses=read
 
     return max(point.x, point.y);
     /// @flow.diverging source="return max(point.x, point.y)"
+    /// @flow.access source=point root=shift.point uses=read
+    /// @flow.access source=point.x root=shift.point keys=[x] uses=read
+    /// @flow.access source=point root=shift.point uses=read
+    /// @flow.access source=point.y root=shift.point keys=[y] uses=read
 
 }
 
@@ -219,6 +233,8 @@ struct Counter {
     /// @flow.use symbol=increment#1 uses=read
 
         this.value += 1;
+        /// @flow.access source=this.value root=this keys=[value] uses=written+mutable
+
     }
 }
 
@@ -232,6 +248,8 @@ class Service {
     /// @flow.use symbol=increment#2 uses=read
 
         this.value += 1;
+        /// @flow.access source=this.value root=this keys=[value] uses=written+mutable
+
     }
 }
 
@@ -242,26 +260,32 @@ let borrowed: int32 = 0;
 /// @flow.use symbol=borrowed uses=read+mutable
 
 &borrowed;
+/// @flow.access source=borrowed root=borrowed uses=read+mutable
 
 let passed: int32 = 0;
 /// @flow.use symbol=passed uses=read+mutable
 
 modify(passed);
+/// @flow.access source=passed root=passed uses=read+mutable
 
 let field: Counter = Counter { value: 0 };
 /// @flow.use symbol=field uses=read+mutable
 
 field.value = 1;
+/// @flow.access source=field root=field uses=read
+/// @flow.access source=field.value root=field keys=[value] uses=written+mutable
 
 let called: Counter = Counter { value: 0 };
 /// @flow.use symbol=called uses=read+mutable
 
 called.increment();
+/// @flow.access source=called root=called uses=read+mutable
 
 let referenced: Service = new Service();
 /// @flow.use symbol=referenced uses=read
 
 referenced.increment();
+/// @flow.access source=referenced root=referenced uses=read
 "#,
         r#"
 "#,
@@ -310,11 +334,14 @@ function pick(flag: boolean): int32 {
 /// @flow.use symbol=flag uses=read
 
     if (flag) {
+    /// @flow.access source=flag root=pick.flag uses=read
+
         return 1;
         /// @flow.diverging source="return 1"
 
         flag;
         /// @flow.unreachable source=flag
+        /// @flow.access source=flag root=pick.flag uses=read
 
     }
 

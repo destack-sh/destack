@@ -62,7 +62,7 @@ impl CheckState<'_> {
 
         // capture the outer symbol
         self.flow.capture_symbol(symbol);
-        self.module_mut(source.module_id).flows.record_use(
+        self.module_mut(source.module_id).flows.record_binding_use(
             source.local_id,
             symbol,
             dir::BindingUse::CAPTURED,

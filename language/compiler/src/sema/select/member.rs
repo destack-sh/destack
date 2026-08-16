@@ -1363,6 +1363,7 @@ impl BodyState<'_, '_> {
         self.commit_decision(node, dir::Decision::Member(resolution))?;
         if let Some(key) = stored_key {
             self.commit_projected_access(node, receiver_node, key)?;
+            self.record_access_use(node, dir::BindingUse::READ);
         }
 
         // narrow the read through the flow state at this site

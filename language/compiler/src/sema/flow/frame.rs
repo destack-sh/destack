@@ -31,6 +31,8 @@ pub(in crate::sema) struct FunctionFrame {
 /// A structured control target currently visible to flow analysis.
 #[derive(Debug)]
 pub(in crate::sema) struct ControlTarget {
+    /// The expression that introduced this target.
+    pub(in crate::sema::flow) source: dir::GlobalNodeId<dir::Expression>,
     /// The optional source label.
     pub(in crate::sema::flow) label: Option<ControlLabel>,
     /// The source form that introduced this target.

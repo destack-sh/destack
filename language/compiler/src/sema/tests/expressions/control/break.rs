@@ -95,11 +95,13 @@ const value = loop {
 
         break 1;
         /// @type.node source="break 1" type=never
+        /// @resolution.transfer source="break 1" target=loop
         /// @type.node source=1 type=1
 
     }
     break 2;
     /// @type.node source="break 2" type=never
+    /// @resolution.transfer source="break 2" target=loop
     /// @type.node source=2 type=2
 
 };
@@ -168,6 +170,7 @@ while (true) {
 
     break 1;
     /// @type.node source="break 1" type=never
+    /// @resolution.transfer source="break 1" target=while
     /// @type.node source=1 type=1
 
 }
@@ -204,7 +207,7 @@ outer: loop {
 outer: loop {
     break outer;
     /// @type.node source="break outer" type=never
-    /// @resolution.label source="break outer" target=outer
+    /// @resolution.transfer source="break outer" target=outer
 
 }
 "#,
@@ -249,7 +252,7 @@ outer: while (running) {
 
     continue outer;
     /// @type.node source="continue outer" type=never
-    /// @resolution.label source="continue outer" target=outer
+    /// @resolution.transfer source="continue outer" target=outer
 
 }
 "#,

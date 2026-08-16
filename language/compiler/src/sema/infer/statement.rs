@@ -303,9 +303,9 @@ impl BodyState<'_, '_> {
         self.check_condition(module, condition)?;
 
         // check the body under true condition flow inside the loop target
-        let label = self.check.control_label(node, label)?;
+        let label = self.check.control_label(node.into_typed(), label)?;
         self.check
-            .enter_control_target(label, ControlTargetForm::Iteration);
+            .enter_control_target(node.into_typed(), label, ControlTargetForm::Iteration);
         let before_body = self.check.fork_flow();
         self.check
             .narrow_expression(condition, ConditionBranch::True)?;
@@ -344,9 +344,12 @@ impl BodyState<'_, '_> {
             .check
             .allocate_variable(origin, Widening::Never, VariableRole::Regular);
         let result = self.check.variable_type(variable)?;
-        let label = self.check.control_label(node, label)?;
-        self.check
-            .enter_control_target(label, ControlTargetForm::Loop { result });
+        let label = self.check.control_label(node.into_typed(), label)?;
+        self.check.enter_control_target(
+            node.into_typed(),
+            label,
+            ControlTargetForm::Loop { result },
+        );
 
         // check the body with isolated flow
         let before_body = self.check.fork_flow();
@@ -402,9 +405,9 @@ impl BodyState<'_, '_> {
         }
 
         // check the body under true condition flow inside the loop target
-        let label = self.check.control_label(node, label)?;
+        let label = self.check.control_label(node.into_typed(), label)?;
         self.check
-            .enter_control_target(label, ControlTargetForm::Iteration);
+            .enter_control_target(node.into_typed(), label, ControlTargetForm::Iteration);
         let before_body = self.check.fork_flow();
         if let Some(condition) = condition {
             self.check
@@ -464,10 +467,9 @@ impl BodyState<'_, '_> {
         match self.check.flow.break_target_index(label) {
             // bind the carried value to the resolved target
             Some(index) => {
-                // record the selected label target
-                if label.is_some() {
-                    self.check.commit_label_target(node.local_id, index)?;
-                }
+                // record the selected control target
+                self.check
+                    .commit_transfer_target(node.into_typed(), index)?;
 
                 let form = self.check.flow.control_target_form(index);
                 match (value, form) {
@@ -537,7 +539,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         let node = site.node;
         self.check
-            .continue_to_control_target(node.local_id, label)?;
+            .continue_to_control_target(node.into_typed(), label)?;
 
         // continues complete with never
         let never = self.check.intern_type(dir::Type::Never)?;

@@ -168,6 +168,7 @@ impl BodyState<'_, '_> {
             .map_or_else(|| resolution.write.ty(), dir::ReadResolution::ty);
         let source = resolution.target;
         self.commit_decision(source, dir::Decision::Assignment(Box::new(resolution)))?;
+        self.record_access_use(source, dir::BindingUse::WRITTEN);
         self.commit_node_type(source, source_type)?;
 
         // require the written place to be writable

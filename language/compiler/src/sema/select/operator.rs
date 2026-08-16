@@ -534,6 +534,7 @@ impl BodyState<'_, '_> {
                 let resolution = place.clone().resolution();
                 self.commit_node_type(source, operand)?;
                 self.commit_decision(source, dir::Decision::Assignment(Box::new(resolution)))?;
+                self.record_access_use(source, dir::BindingUse::WRITTEN);
                 let scope = self.origin_scope(origin)?;
                 self.push_obligation(
                     Obligation::WritableTarget(Box::new(WritableTargetObligation {

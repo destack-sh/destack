@@ -437,7 +437,7 @@ impl BodyState<'_, '_> {
         let scrutinee = self.infer_node_type(value_site, PlaceUse::Read)?;
         let before = self.check.fork_flow();
         self.check
-            .enter_control_target(None, ControlTargetForm::Switch);
+            .enter_control_target(node, None, ControlTargetForm::Switch);
 
         // evaluate selectors in source order and retain each equality branch
         let mut selectors = Vec::new();
@@ -794,9 +794,12 @@ impl BodyState<'_, '_> {
         )?;
 
         // check the loop body with the iteration bindings assigned
-        let label = self.check.control_label(site.node, label)?;
-        self.check
-            .enter_control_target(label, ControlTargetForm::Iteration);
+        let label = self.check.control_label(site.node.into_typed(), label)?;
+        self.check.enter_control_target(
+            site.node.into_typed(),
+            label,
+            ControlTargetForm::Iteration,
+        );
         let before_body = self.check.fork_flow();
         self.check.mark_bindings_assigned(pattern.into_any());
         let body_site = self.visit_site(body.into_global_any(module))?;

@@ -1161,6 +1161,19 @@ impl<'a> DirSnapshotBuilder<'a> {
         Some(source.to_string())
     }
 
+    /// Render the main source region for one node.
+    pub(crate) fn node_main_source(&self, node_id: dir::GlobalNodeIdAny) -> Option<String> {
+        // skip non-source nodes
+        if node_id.module_id != self.tree.module_id {
+            return None;
+        }
+        let span = self.tree.get_main_span_by_id(node_id.local_id.id)?;
+        let source = &self.source[span.start as usize..span.end as usize];
+        let source = source.trim();
+
+        (!source.is_empty()).then(|| source.to_string())
+    }
+
     /// Render source text for one name resolution row.
     pub(crate) fn name_resolution_source(&self, node_id: dir::GlobalNodeIdAny) -> Option<String> {
         if node_id.module_id != self.tree.module_id {

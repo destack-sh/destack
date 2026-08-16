@@ -5,8 +5,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Capture, ControlLabel, ControlTarget, ControlTargetForm, FunctionFrame, Receiver,
-    ReceiverBinding, TryTarget,
+    Capture, ControlTarget, ControlTargetForm, FunctionFrame, Receiver, ReceiverBinding, TryTarget,
 };
 
 /// Flow state while walking one module.
@@ -420,6 +419,14 @@ impl FlowState {
             })
     }
 
+    /// Return the expression that introduced one control target.
+    pub(in crate::sema) fn control_target_source(
+        &self,
+        index: usize,
+    ) -> dir::GlobalNodeId<dir::Expression> {
+        self.targets[index].source
+    }
+
     /// Return the control checkpoint chosen by one target index.
     pub(in crate::sema) fn control_target_checkpoint(&self, index: usize) -> FlowCheckpoint {
         let target = &self.targets[index];
@@ -432,11 +439,6 @@ impl FlowState {
         let target = &self.targets[index];
 
         target.form
-    }
-
-    /// Return the label attached to one chosen control target.
-    pub(in crate::sema) fn control_target_label(&self, index: usize) -> Option<ControlLabel> {
-        self.targets[index].label
     }
 
     /// Push one break branch onto a chosen control target.

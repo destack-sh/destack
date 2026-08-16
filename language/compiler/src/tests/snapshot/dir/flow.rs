@@ -1,5 +1,6 @@
 use destack_dir as dir;
 
+use super::resolution::add_access_path_fields;
 use super::{DirSnapshotBuilder, SnapshotTable};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
@@ -24,7 +25,7 @@ impl SnapshotTable for dir::FlowTable<'_> {
         }
 
         // render the recorded symbol uses
-        for (symbol, binding_use) in self.uses() {
+        for (symbol, binding_use) in self.binding_uses() {
             let symbol = dir::GlobalSymbolId {
                 module_id: self.module_id,
                 local_id: symbol,
@@ -32,6 +33,17 @@ impl SnapshotTable for dir::FlowTable<'_> {
             let row = SnapshotRow::new(builder.anchor_symbol(symbol), "flow", "use")
                 .field("symbol", builder.symbol_label(symbol))
                 .verbatim_field("uses", binding_use_label(binding_use));
+
+            builder.push(row);
+        }
+
+        // render the recorded stable access uses
+        for occurrence in self.access_occurrences() {
+            let node = occurrence.node.into_global(self.module_id);
+            let row = SnapshotRow::new(builder.anchor_node(node), "flow", "access")
+                .optional_field("source", builder.node_source(node));
+            let row = add_access_path_fields(builder, row, &occurrence.path)
+                .verbatim_field("uses", binding_use_label(occurrence.uses));
 
             builder.push(row);
         }

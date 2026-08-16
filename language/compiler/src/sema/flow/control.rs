@@ -9,7 +9,7 @@ impl CheckState<'_> {
     /// Return the exact binding for one optional control label.
     pub(in crate::sema) fn control_label(
         &self,
-        source: dir::GlobalNodeIdAny,
+        source: dir::GlobalNodeId<dir::Expression>,
         name: Option<dir::StringId>,
     ) -> CompilerResult<Option<ControlLabel>> {
         let Some(name) = name else {
@@ -18,12 +18,11 @@ impl CheckState<'_> {
 
         // require the binding declared for this labeled control target
         let module = self.module(source.module_id);
-        let symbol =
-            module
-                .declaration_symbol(source.local_id)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("control label {source:?} has no binding"),
-                })?;
+        let symbol = module
+            .declaration_symbol(source.local_id.into_any())
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("control label {source:?} has no binding"),
+            })?;
         let bindings = module.binding_table();
         let binding = bindings.get_symbol(symbol.local_id);
         if binding.kind != dir::SymbolKind::Label || binding.name() != Some(name) {
@@ -38,12 +37,14 @@ impl CheckState<'_> {
     /// Enter one break or continue target.
     pub(in crate::sema) fn enter_control_target(
         &mut self,
+        source: dir::GlobalNodeId<dir::Expression>,
         label: Option<ControlLabel>,
         form: ControlTargetForm,
     ) {
         // capture flow state before the control body
         let checkpoint = self.flow.fork();
         let target = ControlTarget {
+            source,
             label,
             form,
             break_branches: Vec::new(),
@@ -89,23 +90,21 @@ impl CheckState<'_> {
     /// Continue to one enclosing loop target.
     pub(in crate::sema) fn continue_to_control_target(
         &mut self,
-        source: dir::LocalNodeIdAny,
+        source: dir::GlobalNodeId<dir::Expression>,
         label: Option<dir::StringId>,
     ) -> CompilerResult<()> {
         // resolve the chosen loop target
         let Some(index) = self.flow.continue_target_index(label) else {
-            self.report_continue_outside_loop(self.module_id, source);
+            self.report_continue_outside_loop(source.module_id, source.local_id.into_any());
 
             // unbound jumps already emitted diagnostics
-            self.flow.mark_unbound_jump(source);
+            self.flow.mark_unbound_jump(source.local_id.into_any());
 
             return Ok(());
         };
 
-        // record the selected label target
-        if label.is_some() {
-            self.commit_label_target(source, index)?;
-        }
+        // record the selected control target
+        self.commit_transfer_target(source, index)?;
 
         // capture branch flow at the continue site
         let checkpoint = self.flow.control_target_checkpoint(index);
@@ -116,21 +115,15 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Commit the target selected by one explicit control transfer.
-    pub(in crate::sema) fn commit_label_target(
+    /// Commit the target selected by one control transfer.
+    pub(in crate::sema) fn commit_transfer_target(
         &mut self,
-        source: dir::LocalNodeIdAny,
-        target: usize,
+        source: dir::GlobalNodeId<dir::Expression>,
+        index: usize,
     ) -> CompilerResult<()> {
-        let label =
-            self.flow
-                .control_target_label(target)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("labeled transfer {source:?} selected an unlabeled target"),
-                })?;
-        let source = source.into_global(self.module_id);
+        let target = self.flow.control_target_source(index);
 
-        self.commit_decision(source, dir::Decision::Label(label.symbol))
+        self.commit_decision(source.into_any(), dir::Decision::Transfer(target))
     }
 
     /// Take continue branches collected by the current control target.

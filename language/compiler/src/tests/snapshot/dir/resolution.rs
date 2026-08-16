@@ -45,8 +45,8 @@ impl SnapshotTable for dir::DecisionTable<'_> {
         // render each decided node through its family renderer
         for (node_id, resolution) in self.decision_entries() {
             match resolution {
-                dir::Decision::Label(target) => {
-                    add_label_decision_row(builder, node_id, *target);
+                dir::Decision::Transfer(target) => {
+                    add_transfer_decision_row(builder, node_id, *target);
                 }
                 dir::Decision::Receiver(resolution) => {
                     add_receiver_decision_row(builder, node_id, *resolution);
@@ -348,14 +348,20 @@ fn add_unresolved_reference_row(
     builder.push(row);
 }
 
-/// Add one label target decision row.
-fn add_label_decision_row(
+/// Add one control transfer target decision row.
+fn add_transfer_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    target: dir::GlobalSymbolId,
+    target: dir::GlobalNodeId<dir::Expression>,
 ) {
-    let target = builder.symbol_path_label(target);
-    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "label")
+    let target_node = target.into_any();
+    let target = builder
+        .bindings
+        .and_then(|bindings| bindings.declaration_symbol(target_node))
+        .map(|symbol| builder.symbol_path_label(symbol.into_global(target.module_id)))
+        .or_else(|| builder.node_main_source(target_node))
+        .expect("control target has no source label");
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "transfer")
         .optional_field("source", builder.node_source(node_id))
         .field("target", target);
     builder.push(row);
@@ -385,7 +391,19 @@ fn add_access_resolution_row(
     node_id: dir::GlobalNodeIdAny,
     resolution: &dir::AccessResolution,
 ) {
-    let path = resolution.path();
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "access")
+        .optional_field("source", builder.node_source(node_id));
+    let row = add_access_path_fields(builder, row, resolution.path());
+
+    builder.push(row);
+}
+
+/// Add one stable access path to a snapshot row.
+pub(super) fn add_access_path_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    path: &dir::AccessPath,
+) -> SnapshotRow {
     let root = match path.root() {
         dir::AccessRoot::Symbol(symbol) => builder.symbol_path_label(symbol),
         dir::AccessRoot::Receiver => "this".to_string(),
@@ -400,12 +418,8 @@ fn add_access_resolution_row(
 
         format!("[{keys}]")
     });
-    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "access")
-        .optional_field("source", builder.node_source(node_id))
-        .field("root", root)
-        .optional_field("keys", keys);
 
-    builder.push(row);
+    row.field("root", root).optional_field("keys", keys)
 }
 
 /// Add one member resolution row.

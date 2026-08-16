@@ -56,6 +56,8 @@ while (true) {
 === dir ===
 while (true) {
     break;
+    /// @resolution.transfer source=break target=while
+
 }
 "#,
         r#"
@@ -99,6 +101,8 @@ while (always) {
 /// @resolution.access source=always root=always
 
     break;
+    /// @resolution.transfer source=break target=while
+
 }
 "#,
         r#"
