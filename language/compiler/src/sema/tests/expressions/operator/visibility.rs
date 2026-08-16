@@ -133,10 +133,11 @@ export struct Force {
 }
 
 extension of Force implements Multiply<float64> {
+/// @generic.instance id=Multiply<float64> template=ops.multiply.Multiply arguments=(float64)
 /// @definition.extension symbol=<module>#2 form=local target=Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=Multiply<float64>
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
-/// @definition.method symbol=multiply slot=multiply type=<multiply.'a>(this: &multiply.'a readonly this, float64) => Force
+/// @definition.method symbol=multiply slot=multiply type=<multiply.'a>(this: &multiply.'a readonly Force, float64) => Force
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.multiply.Multiply.Output
 /// @definition.conformance symbol=<module>#2 member=multiply requirement=ops.multiply.Multiply.multiply
 /// @resolution.name source=Force target=Force
@@ -148,7 +149,7 @@ extension of Force implements Multiply<float64> {
 
     multiply(&readonly this, other: float64): Force {
     /// @generic.template symbol=multiply parent=template#0 parameters=('a)
-    /// @type.symbol symbol=multiply type=<multiply.'a>(this: &multiply.'a readonly this, float64) => Force
+    /// @type.symbol symbol=multiply type=<multiply.'a>(this: &multiply.'a readonly Force, float64) => Force
     /// @type.symbol symbol=multiply.this source="&readonly this" type=&multiply.'a readonly this
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=Force
@@ -275,10 +276,11 @@ import { Multiply } from "destack:ops";
 import { Force } from "./force.ds";
 
 extension of Force implements Multiply<float64> {
+/// @generic.instance id=Multiply<float64> template=ops.multiply.Multiply arguments=(float64)
 /// @definition.extension symbol=<module>#2 form=local target=force.Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=Multiply<float64>
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=force.Force
-/// @definition.method symbol=multiply slot=multiply type=(this: this, float64) => force.Force
+/// @definition.method symbol=multiply slot=multiply type=(this: force.Force, float64) => force.Force
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.multiply.Multiply.Output
 /// @definition.conformance symbol=<module>#2 member=multiply requirement=ops.multiply.Multiply.multiply
 /// @resolution.name source=Force target=force.Force
@@ -289,7 +291,7 @@ extension of Force implements Multiply<float64> {
     /// @resolution.name source=Force target=force.Force
 
     multiply(other: float64): Force {
-    /// @type.symbol symbol=multiply type=(this: this, float64) => force.Force
+    /// @type.symbol symbol=multiply type=(this: force.Force, float64) => force.Force
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=force.Force
 

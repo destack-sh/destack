@@ -44,6 +44,7 @@ declare const channel: Topic<"orders">.Channel;
 /// @resolution.pattern source=channel kind=binding target=channel
 /// @resolution.name source="Topic<\"orders\">.Channel" target=Topic.Channel
 /// @resolution.name source=Topic target=Topic
+/// @generic.instance id="Topic<\"orders\">" template=Topic arguments=("orders") evaluated=(`topic:${T}` => "topic:orders")
 
 channel satisfies `topic:${"orders"}`;
 /// @resolution.name source=channel target=channel
@@ -129,6 +130,8 @@ declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
 /// @resolution.pattern source=handlers kind=binding target=handlers
 /// @resolution.name source="Bus<{ ready: boolean; message: string }>.Handlers" target=EventShape.Handlers
 /// @resolution.name source=Bus target=Bus
+/// @generic.instance id="Bus<{ ready: boolean; message: string }>" template=Bus arguments=({ ready: boolean; message: string })
+/// @generic.instance id="EventShape<{ ready: boolean; message: string }>" template=EventShape arguments=({ ready: boolean; message: string })
 
 handlers["on-ready"] satisfies boolean;
 /// @resolution.name source=handlers target=handlers
@@ -194,6 +197,7 @@ declare const kind: EventName<"evt:login">.Kind;
 /// @resolution.pattern source=kind kind=binding target=kind
 /// @resolution.name source="EventName<\"evt:login\">.Kind" target=EventName.Kind
 /// @resolution.name source=EventName target=EventName
+/// @generic.instance id="EventName<\"evt:login\">" template=EventName arguments=("evt:login") evaluated=(T extends `evt:${infer Name}` ? EventName.Kind.Name : never => "login")
 
 kind satisfies "login";
 /// @resolution.name source=kind target=kind

@@ -151,6 +151,7 @@ const number = value().open();
 /// @generic.instantiation id=value.Wrapper.open<int32> template=value.Wrapper.open arguments=(int32)
 /// @generic.instance id=value.Sealed<int32> template=value.Sealed arguments=(int32)
 /// @generic.instance id=value.Wrapper.open<int32> template=value.Wrapper.open arguments=(int32)
+/// @generic.instance id=value.Wrapper<int32> template=value.Wrapper arguments=(int32)
 
 number satisfies int32;
 /// @resolution.name source=number target=number

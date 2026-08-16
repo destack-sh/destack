@@ -137,11 +137,11 @@ found satisfies boolean;
 class Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
-/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a>(this: this, &Bag.has.'a readonly string) => boolean
+/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a>(this: Bag, &Bag.has.'a readonly string) => boolean
 
     has(key: &readonly string): boolean {
     /// @generic.template symbol=Bag.has parameters=('a)
-    /// @type.symbol symbol=Bag.has type=<Bag.has.'a>(this: this, &Bag.has.'a readonly string) => boolean
+    /// @type.symbol symbol=Bag.has type=<Bag.has.'a>(this: Bag, &Bag.has.'a readonly string) => boolean
     /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=&Bag.has.'a readonly string
 
         return true;

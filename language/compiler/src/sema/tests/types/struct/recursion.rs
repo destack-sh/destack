@@ -167,14 +167,14 @@ export class Player {
 /// @type.symbol symbol=Player type=Player
 /// @definition.class symbol=Player
 /// @definition.field symbol=Player.world source="world: World" key=world type=world.World
-/// @definition.method symbol=Player.constructor slot=constructor role=constructor type=(world.World) => this
+/// @definition.method symbol=Player.constructor slot=constructor role=constructor type=(world.World) => Player
 
     world: World;
     /// @type.symbol symbol=Player.world source="world: World" type=world.World
     /// @resolution.name source=World target=world.World
 
     constructor(world: World) {
-    /// @type.symbol symbol=Player.constructor type=(world.World) => this
+    /// @type.symbol symbol=Player.constructor type=(world.World) => Player
     /// @type.symbol symbol=Player.constructor.world source="world: World" type=world.World
     /// @resolution.name source=World target=world.World
 
@@ -212,14 +212,14 @@ export class World {
 /// @type.symbol symbol=World type=World
 /// @definition.class symbol=World
 /// @definition.field symbol=World.player source="player: Player" key=player type=player.Player
-/// @definition.method symbol=World.constructor slot=constructor role=constructor type=(player.Player) => this
+/// @definition.method symbol=World.constructor slot=constructor role=constructor type=(player.Player) => World
 
     player: Player;
     /// @type.symbol symbol=World.player source="player: Player" type=player.Player
     /// @resolution.name source=Player target=player.Player
 
     constructor(player: Player) {
-    /// @type.symbol symbol=World.constructor type=(player.Player) => this
+    /// @type.symbol symbol=World.constructor type=(player.Player) => World
     /// @type.symbol symbol=World.constructor.player source="player: Player" type=player.Player
     /// @resolution.name source=Player target=player.Player
 

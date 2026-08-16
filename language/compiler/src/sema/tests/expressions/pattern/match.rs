@@ -1098,13 +1098,13 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => this
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=User.constructor type=(string) => this
+    /// @type.symbol symbol=User.constructor type=(string) => User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -1202,6 +1202,10 @@ match (values) {
     /// @resolution.pattern source=head kind=binding target=head
     /// @type.symbol symbol=tail source=tail type=Owned<Array<int32>>
     /// @resolution.pattern source=tail kind=binding target=tail
+    /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+    /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 
         head satisfies int32;
         /// @type.node source="head satisfies int32" type=int32

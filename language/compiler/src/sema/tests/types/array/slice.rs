@@ -32,9 +32,11 @@ const slice = bytes[1..3];
 /// @resolution.access source=bytes root=bytes
 /// @resolution.subscript source=bytes[1..3] type=Slice<uint8> kind=call target="collections.fixed-array.index#2(parameters=(Range<isize>), arguments=(provided(1..3) as Range<isize>), return=&'static readonly Slice<uint8>)"
 /// @generic.instantiation id="collections.fixed-array.index#2<uint8, 4, Range<isize>, \"readonly\">" template=collections.fixed-array.index#2 arguments=(uint8, 4, Range<isize>, "readonly")
+/// @generic.instance id="FixedArray<uint8, 4>" template=collections.fixed-array.FixedArray arguments=(uint8, 4)
 /// @generic.instance id="collections.fixed-array.index#2<uint8, 4, Range<isize>, \"readonly\">" template=collections.fixed-array.index#2 arguments=(uint8, 4, Range<isize>, "readonly")
 /// @type.node source=1 type=1
 /// @type.node source=1..3 type=Range<isize>
+/// @generic.instance id=Range<isize> template=range.range.Range arguments=(isize)
 /// @type.node source=3 type=3
 "#,
     );

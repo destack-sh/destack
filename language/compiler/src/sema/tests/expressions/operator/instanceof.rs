@@ -123,7 +123,7 @@ if (value instanceof User) {
 
     value.name satisfies string;
     /// @type.node source="value.name satisfies string" type=string
-    /// @type.node source=value type=Narrow<User | Team, User>
+    /// @type.node source=value type=User
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.name receiver=Narrow<User | Team, User> type=string kind=field target_receiver=Narrow<User | Team, User> key=name target=User.name target_type=string

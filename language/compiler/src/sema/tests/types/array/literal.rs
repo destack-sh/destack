@@ -243,6 +243,7 @@ const values: Slice<float64> = [1, 2, 3] as Slice<float64>;
 const values = [1, 2, 3] as Slice<_>;
 /// @type.symbol symbol=values source=values type=Slice<float64>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 /// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
 /// @type.node source=1 type=1
@@ -396,6 +397,7 @@ declare function make(): Slice<float64>;
 const values = make();
 /// @type.symbol symbol=values source=values type=Slice<float64>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 /// @type.node source=make type=() => Slice<float64>
 /// @type.node source=make() type=Slice<float64>
 /// @resolution.name source=make target=make
@@ -423,6 +425,11 @@ const items: Dynamic<Iterable<int32, void>> = [1, 2];
 const items: Iterable<int32> = [1, 2];
 /// @type.symbol symbol=items source=items type=Dynamic<Iterable<int32, void>>
 /// @resolution.pattern source=items kind=binding target=items
+/// @generic.instance id="Iterable<int32, void>" template=iter.iterator.Iterable arguments=(int32, void)
+/// @generic.instance id="iter.iterator.Iterator<int32, void>" template=iter.iterator.Iterator arguments=(int32, void)
+/// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
+/// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
+/// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
 /// @resolution.name source=Iterable target=iter.iterator.Iterable
 "#,
     );

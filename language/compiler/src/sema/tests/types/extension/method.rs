@@ -56,12 +56,12 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
+/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a readonly Point) => int32
 /// @resolution.name source=Point target=Point
 
     sum(&readonly this): int32 {
     /// @generic.template symbol=sum parameters=('a)
-    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
+    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly Point) => int32
     /// @type.symbol symbol=sum.this source="&readonly this" type=&sum.'a readonly this
 
         return this.x + this.y;

@@ -39,21 +39,25 @@ import { Atomic, AtomicSafe } from "destack:sync";
 declare const ready: Atomic<boolean>;
 /// @type.symbol symbol=ready source=ready type=sync.atomic.Atomic<boolean>
 /// @resolution.pattern source=ready kind=binding target=ready
+/// @generic.instance id=sync.atomic.Atomic<boolean> template=sync.atomic.Atomic arguments=(boolean)
 /// @resolution.name source=Atomic target=sync.atomic.Atomic
 
 declare const count: Atomic<uint32>;
 /// @type.symbol symbol=count source=count type=sync.atomic.Atomic<uint32>
 /// @resolution.pattern source=count kind=binding target=count
+/// @generic.instance id=sync.atomic.Atomic<uint32> template=sync.atomic.Atomic arguments=(uint32)
 /// @resolution.name source=Atomic target=sync.atomic.Atomic
 
 declare const index: Atomic<usize>;
 /// @type.symbol symbol=index source=index type=sync.atomic.Atomic<usize>
 /// @resolution.pattern source=index kind=binding target=index
+/// @generic.instance id=sync.atomic.Atomic<usize> template=sync.atomic.Atomic arguments=(usize)
 /// @resolution.name source=Atomic target=sync.atomic.Atomic
 
 declare const ratio: Atomic<float64>;
 /// @type.symbol symbol=ratio source=ratio type=sync.atomic.Atomic<float64>
 /// @resolution.pattern source=ratio kind=binding target=ratio
+/// @generic.instance id=sync.atomic.Atomic<float64> template=sync.atomic.Atomic arguments=(float64)
 /// @resolution.name source=Atomic target=sync.atomic.Atomic
 
 function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {

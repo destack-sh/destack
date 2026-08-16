@@ -49,11 +49,13 @@ struct Vector<T: Numeric> {
 const ints = Vector { x: 1 as int32 };
 /// @type.symbol symbol=ints source=ints type=Vector<int32>
 /// @resolution.pattern source=ints kind=binding target=ints
+/// @generic.instance id=Vector<int32> template=Vector arguments=(int32)
 /// @resolution.name source=Vector target=Vector
 
 const floats = Vector { x: 1.5 as float32 };
 /// @type.symbol symbol=floats source=floats type=Vector<float32>
 /// @resolution.pattern source=floats kind=binding target=floats
+/// @generic.instance id=Vector<float32> template=Vector arguments=(float32)
 /// @resolution.name source=Vector target=Vector
 "#,
     );

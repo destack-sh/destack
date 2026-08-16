@@ -443,9 +443,10 @@ struct Badge {
 }
 
 extension of Badge implements PartialEqual<Badge> {
+/// @generic.instance id=PartialEqual<Badge> template=ops.equality.PartialEqual arguments=(Badge)
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=PartialEqual<Badge>
-/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a readonly this, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a readonly Badge, Badge) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=ops.equality.PartialEqual.equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
@@ -453,7 +454,7 @@ extension of Badge implements PartialEqual<Badge> {
 
     equal(&readonly this, other: Badge): boolean {
     /// @generic.template symbol=equal parent=template#0 parameters=('a)
-    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a readonly this, Badge) => boolean
+    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a readonly Badge, Badge) => boolean
     /// @type.symbol symbol=equal.this source="&readonly this" type=&equal.'a readonly this
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
@@ -555,16 +556,17 @@ struct Measure {
 }
 
 extension of Measure implements PartialEqual<float64> {
+/// @generic.instance id=PartialEqual<float64> template=ops.equality.PartialEqual arguments=(float64)
 /// @definition.extension symbol=<module>#2 form=local target=Measure
 /// @definition.implements symbol=<module>#2 source=PartialEqual<float64> target=PartialEqual<float64>
-/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a readonly this, float64) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a readonly Measure, float64) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=ops.equality.PartialEqual.equal
 /// @resolution.name source=Measure target=Measure
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 
     equal(&readonly this, other: float64): boolean {
     /// @generic.template symbol=equal parent=template#0 parameters=('a)
-    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a readonly this, float64) => boolean
+    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a readonly Measure, float64) => boolean
     /// @type.symbol symbol=equal.this source="&readonly this" type=&equal.'a readonly this
     /// @type.symbol symbol=equal.other source="other: float64" type=float64
 

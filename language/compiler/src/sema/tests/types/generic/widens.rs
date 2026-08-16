@@ -58,12 +58,14 @@ struct Holder<T> {
 declare const circles: Holder<Circle>;
 /// @type.symbol symbol=circles source=circles type=Holder<Circle>
 /// @resolution.pattern source=circles kind=binding target=circles
+/// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const shapes: Holder<Shape> = circles;
 /// @type.symbol symbol=shapes source=shapes type=Holder<Shape>
 /// @resolution.pattern source=shapes kind=binding target=shapes
+/// @generic.instance id=Holder<Shape> template=Holder arguments=(Shape)
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
@@ -431,13 +433,17 @@ struct Holder<T> {
 declare const makers: Holder<() => Circle>;
 /// @type.symbol symbol=makers source=makers type=Holder<Function<(), Circle>>
 /// @resolution.pattern source=makers kind=binding target=makers
+/// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
 /// @resolution.name source=Holder target=Holder
+/// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
 /// @resolution.name source=Circle target=Circle
 
 const widened: Holder<() => Shape> = makers;
 /// @type.symbol symbol=widened source=widened type=Holder<Function<(), Shape>>
 /// @resolution.pattern source=widened kind=binding target=widened
+/// @generic.instance id="Holder<Function<(), Shape>>" template=Holder arguments=(Function<(), Shape>)
 /// @resolution.name source=Holder target=Holder
+/// @generic.instance id="Holder<Function<(), Shape>>" template=Holder arguments=(Function<(), Shape>)
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=makers target=makers
 /// @resolution.place source=makers placement="local" lifetime="static" access="readonly"
@@ -671,12 +677,14 @@ declare class Label<T> {
 declare const labeled: Label<Circle>;
 /// @type.symbol symbol=labeled source=labeled type=Label<Circle>
 /// @resolution.pattern source=labeled kind=binding target=labeled
+/// @generic.instance id=Label<Circle> template=Label arguments=(Circle)
 /// @resolution.name source=Label target=Label
 /// @resolution.name source=Circle target=Circle
 
 const widened: Label<Shape> = labeled;
 /// @type.symbol symbol=widened source=widened type=Label<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
+/// @generic.instance id=Label<Shape> template=Label arguments=(Shape)
 /// @resolution.name source=Label target=Label
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=labeled target=labeled
@@ -744,12 +752,14 @@ declare class Box<T> {
 declare const boxed: ^Box<Circle>;
 /// @type.symbol symbol=boxed source=boxed type=Owned<Box<Circle>>
 /// @resolution.pattern source=boxed kind=binding target=boxed
+/// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Circle target=Circle
 
 const widened: ^Box<Shape> = boxed;
 /// @type.symbol symbol=widened source=widened type=Owned<Box<Shape>>
 /// @resolution.pattern source=widened kind=binding target=widened
+/// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
@@ -1066,12 +1076,14 @@ extension<T> of Stack<T> {
 declare const circles: Stack<Circle>;
 /// @type.symbol symbol=circles source=circles type=Stack<Circle>
 /// @resolution.pattern source=circles kind=binding target=circles
+/// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Circle target=Circle
 
 const view: readonly Stack<Shape> = circles;
 /// @type.symbol symbol=view source=view type=Readonly<Stack<Shape>>
 /// @resolution.pattern source=view kind=binding target=view
+/// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
@@ -1233,12 +1245,14 @@ newtype Handle<out T> = intrinsic;
 declare const handle: Handle<Circle>;
 /// @type.symbol symbol=handle source=handle type=Handle<Circle>
 /// @resolution.pattern source=handle kind=binding target=handle
+/// @generic.instance id=Handle<Circle> template=Handle arguments=(Circle)
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Circle target=Circle
 
 const widened: Handle<Shape> = handle;
 /// @type.symbol symbol=widened source=widened type=Handle<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
+/// @generic.instance id=Handle<Shape> template=Handle arguments=(Shape)
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=handle target=handle

@@ -1106,6 +1106,18 @@ impl TestSession {
             .artifacts()
             .artifact::<DirElaborated>(&elaborated_version)
             .expect("test elaborated artifact should exist");
+
+        // install the final cumulative table so stage rows dedup against overrides
+        if materialized {
+            let materialized = self.dir_materialized(entry);
+            builder.set_effective_types(materialized.type_table(
+                &bound,
+                &expanded,
+                &declared,
+                &elaborated,
+                &checked,
+            ));
+        }
         builder.add_checked(
             selection,
             &bound,

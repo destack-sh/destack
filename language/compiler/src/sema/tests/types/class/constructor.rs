@@ -85,13 +85,13 @@ class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
 /// @definition.field symbol=Base.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Base.constructor slot=constructor role=constructor type=(int32) => this
+/// @definition.method symbol=Base.constructor slot=constructor role=constructor type=(int32) => Base
 
     value: int32;
     /// @type.symbol symbol=Base.value source="value: int32" type=int32
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Base.constructor type=(int32) => this
+    /// @type.symbol symbol=Base.constructor type=(int32) => Base
     /// @type.symbol symbol=Base.constructor.value source="value: int32" type=int32
 
         this.value = value;
@@ -165,13 +165,13 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => this
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => Counter
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Counter.constructor type=(int32) => this
+    /// @type.symbol symbol=Counter.constructor type=(int32) => Counter
     /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
 
         this.value = value;
@@ -249,14 +249,14 @@ class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
-/// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=(string) => this
-/// @definition.method symbol=Box.constructor#2 slot=constructor role=constructor type=(int32) => this
+/// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=(string) => Box
+/// @definition.method symbol=Box.constructor#2 slot=constructor role=constructor type=(int32) => Box
 
     value: string | int32;
     /// @type.symbol symbol=Box.value source="value: string | int32" type=string | int32
 
     constructor(value: string) {
-    /// @type.symbol symbol=Box.constructor#1 type=(string) => this
+    /// @type.symbol symbol=Box.constructor#1 type=(string) => Box
     /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
         this.value = value;
@@ -277,7 +277,7 @@ class Box {
     }
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Box.constructor#2 type=(int32) => this
+    /// @type.symbol symbol=Box.constructor#2 type=(int32) => Box
     /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
         this.value = value;
@@ -455,18 +455,18 @@ declare class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
-/// @definition.method symbol=Box.constructor#1 source="constructor(value: string)" slot=constructor role=constructor type=(string) => this
-/// @definition.method symbol=Box.constructor#2 source="constructor(value: int32)" slot=constructor role=constructor type=(int32) => this
+/// @definition.method symbol=Box.constructor#1 source="constructor(value: string)" slot=constructor role=constructor type=(string) => Box
+/// @definition.method symbol=Box.constructor#2 source="constructor(value: int32)" slot=constructor role=constructor type=(int32) => Box
 
     value: string | int32;
     /// @type.symbol symbol=Box.value source="value: string | int32" type=string | int32
 
     constructor(value: string);
-    /// @type.symbol symbol=Box.constructor#1 source="constructor(value: string)" type=(string) => this
+    /// @type.symbol symbol=Box.constructor#1 source="constructor(value: string)" type=(string) => Box
     /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
     constructor(value: int32);
-    /// @type.symbol symbol=Box.constructor#2 source="constructor(value: int32)" type=(int32) => this
+    /// @type.symbol symbol=Box.constructor#2 source="constructor(value: int32)" type=(int32) => Box
     /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
 }
@@ -566,13 +566,13 @@ class Animal {
 /// @type.symbol symbol=Animal type=Animal
 /// @definition.class symbol=Animal
 /// @definition.field symbol=Animal.name source="name: string" key=name type=string
-/// @definition.method symbol=Animal.constructor slot=constructor role=constructor type=(string) => this
+/// @definition.method symbol=Animal.constructor slot=constructor role=constructor type=(string) => Animal
 
     name: string;
     /// @type.symbol symbol=Animal.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=Animal.constructor type=(string) => this
+    /// @type.symbol symbol=Animal.constructor type=(string) => Animal
     /// @type.symbol symbol=Animal.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -594,14 +594,14 @@ class Dog extends Animal {
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
 /// @definition.field symbol=Dog.tricks source="tricks: int32" key=tricks type=int32
-/// @definition.method symbol=Dog.constructor slot=constructor role=constructor type=(string, int32) => this
+/// @definition.method symbol=Dog.constructor slot=constructor role=constructor type=(string, int32) => Dog
 /// @resolution.name source=Animal target=Animal
 
     tricks: int32;
     /// @type.symbol symbol=Dog.tricks source="tricks: int32" type=int32
 
     constructor(name: string, tricks: int32) {
-    /// @type.symbol symbol=Dog.constructor type=(string, int32) => this
+    /// @type.symbol symbol=Dog.constructor type=(string, int32) => Dog
     /// @type.symbol symbol=Dog.constructor.name source="name: string" type=string
     /// @type.symbol symbol=Dog.constructor.tricks source="tricks: int32" type=int32
 
@@ -680,6 +680,7 @@ import { Animal } from "./base.ds";
 
 class Dog extends Animal<string> {}
 /// @type.symbol symbol=Dog source="class Dog extends Animal<string> {}" type=Dog
+/// @generic.instance id=base.Animal<string> template=base.Animal arguments=(string)
 /// @definition.class symbol=Dog source="class Dog extends Animal<string> {}"
 /// @definition.extends symbol=Dog source=Animal<string> target=base.Animal<string>
 /// @resolution.name source=Animal target=base.Animal

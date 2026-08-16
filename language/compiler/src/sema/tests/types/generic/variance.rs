@@ -977,6 +977,7 @@ declare const circle: Circle;
 const exact: Box<Circle> = Box { value: circle };
 /// @type.symbol symbol=exact source=exact type=Box<Circle>
 /// @resolution.pattern source=exact kind=binding target=exact
+/// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Box target=Box
@@ -987,6 +988,7 @@ const exact: Box<Circle> = Box { value: circle };
 const widened: Box<Shape> = exact;
 /// @type.symbol symbol=widened source=widened type=Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
+/// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact
@@ -1063,6 +1065,7 @@ declare const circle: Circle;
 const exact: Box<Circle> = Box { value: circle };
 /// @type.symbol symbol=exact source=exact type=Box<Circle>
 /// @resolution.pattern source=exact kind=binding target=exact
+/// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Box target=Box
@@ -1073,6 +1076,7 @@ const exact: Box<Circle> = Box { value: circle };
 const widened: &readonly Box<Shape> = &readonly exact;
 /// @type.symbol symbol=widened source=widened type=&'static readonly Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
+/// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact

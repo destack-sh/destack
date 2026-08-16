@@ -46,6 +46,7 @@ const value = use(() => {});
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => {})" parameters=(Function<(), void | Box<void>>) arguments=(provided(() => {}) as Function<(), void | Box<void>>) return=void kind=symbol target=use instance=use<void>
 /// @generic.instantiation id=use<void> template=use arguments=(void)
+/// @generic.instance id=Box<void> template=Box arguments=(void)
 /// @generic.instance id=use<void> template=use arguments=(void)
 /// @type.symbol symbol=symbol6 source="() => {}" type=Function<(), void | Box<void>>
 /// @type.node source="() => {}" type=Function<(), void | Box<void>>
@@ -90,6 +91,7 @@ declare function use(callback: () => int32 | Box<int32>): int32;
 /// @type.symbol symbol=use source="declare function use(callback: () => int32 | Box<int32>): int32" type=(Function<(), int32 | Box<int32>>) => int32
 /// @type.symbol symbol=use.callback source="callback: () => int32 | Box<int32>" type=Function<(), int32 | Box<int32>>
 /// @resolution.name source=Box target=Box
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
 
 const value = use(() => load());
 /// @type.symbol symbol=value source=value type=int32
@@ -284,6 +286,7 @@ declare class Box<T> {
 declare const box: Box<int32>;
 /// @type.symbol symbol=box source=box type=Box<int32>
 /// @resolution.pattern source=box kind=binding target=box
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
 /// @resolution.name source=Box target=Box
 
 const mapped = box.map((value) => value);
@@ -363,6 +366,7 @@ const value = map(1, (item) => item);
 /// @resolution.call source="map(1, (item) => item)" parameters=(float64, Function<(float64,), float64 | Box<float64>>) arguments=(provided(1) as float64, provided((item) => item) as Function<(float64,), float64 | Box<float64>>) return=float64 kind=symbol target=map instance="map<float64, float64>"
 /// @generic.instantiation id="map<float64, float64>" template=map arguments=(float64, float64)
 /// @generic.instance id="map<float64, float64>" template=map arguments=(float64, float64)
+/// @generic.instance id=Box<float64> template=Box arguments=(float64)
 /// @type.node source=1 type=1
 /// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(float64,), float64>
 /// @type.node source="(item) => item" type=Function<(float64,), float64>
@@ -425,6 +429,7 @@ declare class Box<T> {
 declare const box: Box<int32>;
 /// @type.symbol symbol=box source=box type=Box<int32>
 /// @resolution.pattern source=box kind=binding target=box
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
 /// @resolution.name source=Box target=Box
 
 const value = box.map((item) => item);

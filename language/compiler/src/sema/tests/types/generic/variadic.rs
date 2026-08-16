@@ -171,7 +171,6 @@ import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 declare function mesh<T, ...Xs: Axis[]>(
 /// @generic.template symbol=mesh parameters=(T#1, ...Xs#1: Array<sharding.Axis>, 'a)
 /// @type.symbol symbol=mesh type=<T#1, ...Xs#1: Array<sharding.Axis>, mesh.'a>(&mesh.'a readonly <error>) => int32
-/// @type.symbol symbol=mesh type=<T#1, ...Xs#1: Array<sharding.Axis>, mesh.'a>(&mesh.'a readonly sharding.Grid<T#1, sharding.Wrap<Xs#1>>) => int32
 /// @type.symbol symbol=mesh.T source=T type=T#1
 /// @type.symbol symbol=mesh.Xs source="...Xs: Axis[]" type=Xs#1
 /// @resolution.name source=Axis target=sharding.Axis

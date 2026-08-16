@@ -62,7 +62,7 @@ extension of Charge implements Negate {
 /// @definition.extension symbol=<module>#2 form=local target=Charge
 /// @definition.implements symbol=<module>#2 source=Negate target=Negate
 /// @definition.associated.type symbol=Output source="type Output = Charge" key=Output value=Charge
-/// @definition.method symbol=negate slot=negate type=<negate.'a>(this: &negate.'a readonly this) => Charge
+/// @definition.method symbol=negate slot=negate type=<negate.'a>(this: &negate.'a readonly Charge) => Charge
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.negate.Negate.Output
 /// @definition.conformance symbol=<module>#2 member=negate requirement=ops.negate.Negate.negate
 /// @resolution.name source=Charge target=Charge
@@ -74,7 +74,7 @@ extension of Charge implements Negate {
 
     negate(&readonly this): Charge {
     /// @generic.template symbol=negate parent=template#0 parameters=('a)
-    /// @type.symbol symbol=negate type=<negate.'a>(this: &negate.'a readonly this) => Charge
+    /// @type.symbol symbol=negate type=<negate.'a>(this: &negate.'a readonly Charge) => Charge
     /// @type.symbol symbol=negate.this source="&readonly this" type=&negate.'a readonly this
     /// @resolution.name source=Charge target=Charge
 

@@ -433,6 +433,14 @@ type Bag = Record<string, int32>;
 declare const map: Map<string, int32>;
 /// @type.symbol symbol=map source=map type=Map<string, int32>
 /// @resolution.pattern source=map kind=binding target=map
+/// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
+/// @generic.instance id="collections.map.MapEntry<string, int32>" template=collections.map.MapEntry arguments=(string, int32)
+/// @generic.instance id="collections.map.MapSlot<string, int32>" template=collections.map.MapSlot arguments=(string, int32)
+/// @generic.instance id="memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>" template=memory.init.MaybeUninit arguments=(collections.map.MapSlot<string, int32>)
+/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>)
+/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>)
+/// @generic.instance id=memory.unique.Unique<Slice<uint32>> template=memory.unique.Unique arguments=(Slice<uint32>)
+/// @generic.instance id=memory.unique.empty<uint32> template=memory.unique.empty arguments=(uint32)
 /// @resolution.name source=Map target=collections.map.Map
 
 const bag: Bag = map;

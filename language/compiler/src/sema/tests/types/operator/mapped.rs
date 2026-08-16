@@ -476,7 +476,7 @@ function build(): float64 {
     /// @resolution.name source=first target=first
     /// @resolution.call source="first({ x: 1, y: 2 }, { x: 3, y: 4 })" parameters=({ [K in keyof { x: float64; y: float64 }]: { x: float64; y: float64 }[K] }, { x: float64; y: float64 }) arguments=(provided({ x: 1, y: 2 }) as { [K in keyof { x: float64; y: float64 }]: { x: float64; y: float64 }[K] }, provided({ x: 3, y: 4 }) as { x: float64; y: float64 }) return={ x: float64; y: float64 } kind=symbol target=first instance="first<{ x: float64; y: float64 }>"
     /// @generic.instantiation id="first<{ x: float64; y: float64 }>" template=first arguments=({ x: float64; y: float64 })
-    /// @generic.instance id="first<{ x: float64; y: float64 }>" template=first arguments=({ x: float64; y: float64 }) evaluated=(T => { x: float64; y: float64 })
+    /// @generic.instance id="first<{ x: float64; y: float64 }>" template=first arguments=({ x: float64; y: float64 })
 
     return point.x;
     /// @resolution.name source=point target=build.point

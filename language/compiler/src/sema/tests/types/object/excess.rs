@@ -146,7 +146,7 @@ const value = keep({ name: "Ada", extra: true });
 /// @resolution.name source=keep target=keep
 /// @resolution.call source="keep({ name: \"Ada\", extra: true })" parameters=({ name: string; extra: boolean }) arguments=(provided({ name: "Ada", extra: true }) as { name: string; extra: boolean }) return={ name: string; extra: boolean } kind=symbol target=keep instance="keep<{ name: string; extra: boolean }>"
 /// @generic.instantiation id="keep<{ name: string; extra: boolean }>" template=keep arguments=({ name: string; extra: boolean })
-/// @generic.instance id="keep<{ name: string; extra: boolean }>" template=keep arguments=({ name: string; extra: boolean }) evaluated=(T => { name: string; extra: boolean })
+/// @generic.instance id="keep<{ name: string; extra: boolean }>" template=keep arguments=({ name: string; extra: boolean })
 /// @type.node source={ name: "Ada", extra: true } type={ name: string; extra: boolean }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true

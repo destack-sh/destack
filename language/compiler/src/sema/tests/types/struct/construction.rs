@@ -340,14 +340,14 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a readonly this) => Counter
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a readonly Counter) => Counter
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): Counter {
     /// @generic.template symbol=Counter.increment parameters=('a)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a readonly this) => Counter
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a readonly Counter) => Counter
     /// @resolution.name source=Counter target=Counter
 
         Counter { value: this.value + 1 }
@@ -579,14 +579,14 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(&exclusive this): int32 {
     /// @generic.template symbol=Counter.increment parameters=('a)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => int32
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => int32
     /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'a exclusive this
 
         this.value = this.value + 1;

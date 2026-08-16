@@ -226,22 +226,22 @@ shape.draw();
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly this) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void
 
     draw(): void {}
     /// @generic.template symbol=Rectangle.draw parameters=('a)
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly this) => void
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a readonly this) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void
 
     draw(): void {}
     /// @generic.template symbol=Circle.draw parameters=('a)
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a readonly this) => void
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void
 
 }
 
@@ -304,22 +304,22 @@ function draw(shape: Rectangle | Circle): void {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly this) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void
 
     draw(): void {}
     /// @generic.template symbol=Rectangle.draw parameters=('a)
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly this) => void
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a readonly this) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void
 
     draw(): void {}
     /// @generic.template symbol=Circle.draw parameters=('a)
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a readonly this) => void
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void
 
 }
 
@@ -331,7 +331,6 @@ type Shape = Rectangle | Circle;
 
 function draw(shape: Shape): void {
 /// @type.symbol symbol=draw type=(Rectangle | Circle) => void
-/// @type.symbol symbol=draw type=(Shape) => void
 /// @type.symbol symbol=draw.shape source="shape: Shape" type=Rectangle | Circle
 /// @resolution.name source=Shape target=Shape
 
@@ -407,12 +406,12 @@ const result: "left-integer" | "right-integer" = parser.parse(1);
 struct Left {
 /// @type.symbol symbol=Left type=Left
 /// @definition.struct symbol=Left
-/// @definition.method symbol=Left.parse#1 slot=parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly this, string) => "left-string"
-/// @definition.method symbol=Left.parse#2 slot=parse type=<Left.parse#2.'a>(this: &Left.parse#2.'a readonly this, int32) => "left-integer"
+/// @definition.method symbol=Left.parse#1 slot=parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string"
+/// @definition.method symbol=Left.parse#2 slot=parse type=<Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer"
 
     parse(value: string): "left-string" {
     /// @generic.template symbol=Left.parse#1 parameters=('a)
-    /// @type.symbol symbol=Left.parse#1 type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly this, string) => "left-string"
+    /// @type.symbol symbol=Left.parse#1 type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string"
     /// @type.symbol symbol=Left.parse.value#1 source="value: string" type=string
 
         return "left-string";
@@ -420,7 +419,7 @@ struct Left {
 
     parse(value: int32): "left-integer" {
     /// @generic.template symbol=Left.parse#2 parameters=('a)
-    /// @type.symbol symbol=Left.parse#2 type=<Left.parse#2.'a>(this: &Left.parse#2.'a readonly this, int32) => "left-integer"
+    /// @type.symbol symbol=Left.parse#2 type=<Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer"
     /// @type.symbol symbol=Left.parse.value#2 source="value: int32" type=int32
 
         return "left-integer";
@@ -430,12 +429,12 @@ struct Left {
 struct Right {
 /// @type.symbol symbol=Right type=Right
 /// @definition.struct symbol=Right
-/// @definition.method symbol=Right.parse#1 slot=parse type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly this, string) => "right-string"
-/// @definition.method symbol=Right.parse#2 slot=parse type=<Right.parse#2.'a>(this: &Right.parse#2.'a readonly this, int32) => "right-integer"
+/// @definition.method symbol=Right.parse#1 slot=parse type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string"
+/// @definition.method symbol=Right.parse#2 slot=parse type=<Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer"
 
     parse(value: string): "right-string" {
     /// @generic.template symbol=Right.parse#1 parameters=('a)
-    /// @type.symbol symbol=Right.parse#1 type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly this, string) => "right-string"
+    /// @type.symbol symbol=Right.parse#1 type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string"
     /// @type.symbol symbol=Right.parse.value#1 source="value: string" type=string
 
         return "right-string";
@@ -443,7 +442,7 @@ struct Right {
 
     parse(value: int32): "right-integer" {
     /// @generic.template symbol=Right.parse#2 parameters=('a)
-    /// @type.symbol symbol=Right.parse#2 type=<Right.parse#2.'a>(this: &Right.parse#2.'a readonly this, int32) => "right-integer"
+    /// @type.symbol symbol=Right.parse#2 type=<Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer"
     /// @type.symbol symbol=Right.parse.value#2 source="value: int32" type=int32
 
         return "right-integer";
@@ -502,6 +501,14 @@ const first = values[0];
 /// @generic.instantiation id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
 /// @generic.instance id="collections.array.index#1<int32, \"readonly\">" template=collections.array.index#1 arguments=(int32, "readonly")
 /// @generic.instance id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=Array<string> template=collections.array.Array arguments=(string)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<string> template=memory.init.MaybeUninit arguments=(string)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<string>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<string>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<string>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<string>)
 "#,
     );
 }

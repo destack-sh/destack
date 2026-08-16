@@ -170,6 +170,35 @@ impl<'a> DirSnapshotBuilder<'a> {
         self
     }
 
+    /// Install the final cumulative type table stage rows dedup against.
+    pub(crate) fn set_effective_types(&mut self, types: dir::TypeTable<'static>) {
+        self.types = Some(types);
+    }
+
+    /// Return whether one node type row survives later segment overrides.
+    pub(crate) fn is_effective_node_type(
+        &self,
+        node: dir::GlobalNodeIdAny,
+        ty: dir::GlobalTypeId,
+    ) -> bool {
+        match &self.types {
+            Some(types) => types.get_node_type_id(node) == Some(ty),
+            None => true,
+        }
+    }
+
+    /// Return whether one symbol type row survives later segment overrides.
+    pub(crate) fn is_effective_symbol_type(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> bool {
+        match &self.types {
+            Some(types) => types.get_symbol_type_id(symbol) == Some(ty),
+            None => true,
+        }
+    }
+
     /// Add rows for one table.
     pub(crate) fn add_table<T>(&mut self, table: &T)
     where
@@ -266,7 +295,10 @@ impl<'a> DirSnapshotBuilder<'a> {
 
             let types = checked.type_table(bound, expanded, declared, elaborated);
             let statics = checked.static_table(bound, expanded, declared, elaborated);
-            self.types = Some(types.clone());
+            // keep an installed final table, which stage rows dedup against
+            if self.types.is_none() {
+                self.types = Some(types.clone());
+            }
             self.statics = Some(statics.clone());
             self.add_static_labels(&statics);
             self.add_type_labels(&types);

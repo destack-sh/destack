@@ -288,12 +288,12 @@ newtype Box<T> = T;
 const value: Box<int32> = _(1);
 /// @type.symbol symbol=value source=value type=Box<int32>
 /// @resolution.pattern source=value kind=binding target=value
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
 /// @resolution.name source=Box target=Box
 /// @type.node source=_ type=Box
 /// @type.node source=_(1) type=Box<int32>
 /// @resolution.construct source=_(1) parameters=(int32) arguments=(provided(1) as int32) return=Box<int32> kind=newtype target=Box backing=int32 instance=Box<int32>
 /// @generic.instantiation id=Box<int32> template=Box arguments=(int32)
-/// @generic.instance id=Box<int32> template=Box arguments=(int32)
 /// @type.node source=1 type=1
 "#,
     );

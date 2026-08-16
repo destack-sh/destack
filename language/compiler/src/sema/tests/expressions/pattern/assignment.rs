@@ -236,6 +236,10 @@ declare const values: int32[];
 /// @resolution.pattern.assign source=tail kind=place
 /// @resolution.access source=tail root=tail
 /// @resolution.assignment source=tail write=binding(tail) type=Array<int32>
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"

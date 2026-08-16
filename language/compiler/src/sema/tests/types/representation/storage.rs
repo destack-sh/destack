@@ -444,6 +444,10 @@ const first = shapes[0];
 /// @resolution.subscript source=shapes[0] type=Shape kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
 /// @generic.instance id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
+/// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
+/// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Shape>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Shape>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Shape>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Shape>)
 
 first satisfies Shape;
 /// @resolution.name source=first target=first

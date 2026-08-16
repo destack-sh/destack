@@ -658,7 +658,7 @@ declare const user: User;
 const name = get(user, "name");
 /// @type.symbol symbol=name source=name type=User["name"]
 /// @resolution.pattern source=name kind=binding target=name
-/// @type.node source="get(user, \"name\")" type=User["name"]
+/// @type.node source="get(user, \"name\")" type=string
 /// @type.node source=get type=(User, "name") => User["name"]
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"name\")" parameters=(User, "name") arguments=(provided(user) as User, provided("name") as "name") return=User["name"] kind=symbol target=get instance="get<\"name\">"
@@ -673,7 +673,7 @@ const name = get(user, "name");
 const age = get(user, "age");
 /// @type.symbol symbol=age source=age type=User["age"]
 /// @resolution.pattern source=age kind=binding target=age
-/// @type.node source="get(user, \"age\")" type=User["age"]
+/// @type.node source="get(user, \"age\")" type=int32
 /// @type.node source=get type=(User, "age") => User["age"]
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"age\")" parameters=(User, "age") arguments=(provided(user) as User, provided("age") as "age") return=User["age"] kind=symbol target=get instance="get<\"age\">"
@@ -686,15 +686,15 @@ const age = get(user, "age");
 /// @type.node source="\"age\"" type="age"
 
 name satisfies string;
-/// @type.node source="name satisfies string" type=User["name"]
-/// @type.node source=name type=User["name"]
+/// @type.node source="name satisfies string" type=string
+/// @type.node source=name type=string
 /// @resolution.name source=name target=name
 /// @resolution.place source=name placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=name root=name
 
 age satisfies int32;
-/// @type.node source="age satisfies int32" type=User["age"]
-/// @type.node source=age type=User["age"]
+/// @type.node source="age satisfies int32" type=int32
+/// @type.node source=age type=int32
 /// @resolution.name source=age target=age
 /// @resolution.place source=age placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=age root=age

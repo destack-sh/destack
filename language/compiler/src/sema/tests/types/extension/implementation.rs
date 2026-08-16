@@ -331,9 +331,11 @@ struct Badge {}
 /// @definition.struct symbol=Badge source="struct Badge {}"
 
 extension of Badge implements Equal<Badge> {
+/// @generic.instance id=Equal<Badge> template=Equal arguments=(Badge)
+/// @generic.instance id=PartialEqual<Badge> template=PartialEqual arguments=(Badge)
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=Equal<Badge> target=Equal<Badge>
-/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a readonly this, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a readonly Badge, Badge) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=PartialEqual.equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=Equal target=Equal
@@ -341,7 +343,7 @@ extension of Badge implements Equal<Badge> {
 
     equal(other: Badge): boolean {
     /// @generic.template symbol=equal parent=template#2 parameters=('a)
-    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a readonly this, Badge) => boolean
+    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a readonly Badge, Badge) => boolean
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 
@@ -631,12 +633,12 @@ interface Doubling {
 /// @type.symbol symbol=Doubling type=Doubling
 /// @definition.interface symbol=Doubling
 /// @definition.associated.type symbol=Doubling.Output source="type Output" key=Output
-/// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=(this: this) => this.Output
+/// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=(this: Doubling) => Doubling.Output
 
     type Output;
 
     double(): this.Output;
-    /// @type.symbol symbol=Doubling.double source="double(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Doubling.double source="double(): this.Output" type=(this: Doubling) => Doubling.Output
 
 }
 
@@ -644,7 +646,7 @@ extension of int32 implements Doubling {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Doubling target=Doubling
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a readonly this) => this.Output
+/// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a readonly int32) => int32.Output
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Doubling.Output
 /// @definition.conformance symbol=<module>#2 member=double requirement=Doubling.double
 /// @resolution.name source=Doubling target=Doubling
@@ -654,7 +656,7 @@ extension of int32 implements Doubling {
 
     double(): this.Output {
     /// @generic.template symbol=double parent=template#1 parameters=('a)
-    /// @type.symbol symbol=double type=<double.'a>(this: &double.'a readonly this) => this.Output
+    /// @type.symbol symbol=double type=<double.'a>(this: &double.'a readonly int32) => int32.Output
 
         todo("double")
         /// @resolution.name source=todo target=error.panic.todo
@@ -717,12 +719,12 @@ interface Container {
 /// @type.symbol symbol=Container type=Container
 /// @definition.interface symbol=Container
 /// @definition.associated.type symbol=Container.Item source="type Item" key=Item
-/// @definition.method symbol=Container.get source="get(): this.Item" slot=get type=(this: this) => this.Item
+/// @definition.method symbol=Container.get source="get(): this.Item" slot=get type=(this: Container) => Container.Item
 
     type Item;
 
     get(): this.Item;
-    /// @type.symbol symbol=Container.get source="get(): this.Item" type=(this: this) => this.Item
+    /// @type.symbol symbol=Container.get source="get(): this.Item" type=(this: Container) => Container.Item
 
 }
 
@@ -864,6 +866,7 @@ interface Container<S> {
         Container<string>.Item,
         /// @resolution.name source=Container target=Container
         /// @resolution.name source=Container<string>.Item target=Container.Item
+        /// @generic.instance id=Container<string> template=Container arguments=(string)
 
         Container<S, type Item = string>.Item,
         /// @resolution.name source=Container target=Container
@@ -1084,12 +1087,12 @@ interface Halving {
 /// @type.symbol symbol=Halving type=Halving
 /// @definition.interface symbol=Halving
 /// @definition.associated.type symbol=Halving.Output source="type Output" key=Output
-/// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=(this: this) => this.Output
+/// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=(this: Halving) => Halving.Output
 
     type Output;
 
     halve(): this.Output;
-    /// @type.symbol symbol=Halving.halve source="halve(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Halving.halve source="halve(): this.Output" type=(this: Halving) => Halving.Output
 
 }
 
@@ -1097,7 +1100,7 @@ extension of int32 implements Halving {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Halving target=Halving
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=halve slot=halve type=<halve.'a>(this: &halve.'a readonly this) => this.Output
+/// @definition.method symbol=halve slot=halve type=<halve.'a>(this: &halve.'a readonly int32) => int32.Output
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Halving.Output
 /// @definition.conformance symbol=<module>#2 member=halve requirement=Halving.halve
 /// @resolution.name source=Halving target=Halving
@@ -1107,7 +1110,7 @@ extension of int32 implements Halving {
 
     halve(&readonly this): this.Output {
     /// @generic.template symbol=halve parent=template#1 parameters=('a)
-    /// @type.symbol symbol=halve type=<halve.'a>(this: &halve.'a readonly this) => this.Output
+    /// @type.symbol symbol=halve type=<halve.'a>(this: &halve.'a readonly int32) => int32.Output
     /// @type.symbol symbol=halve.this source="&readonly this" type=&halve.'a readonly this
 
         todo("halve")
@@ -1199,12 +1202,12 @@ interface Reading {
 /// @type.symbol symbol=Reading type=Reading
 /// @definition.interface symbol=Reading
 /// @definition.associated.type symbol=Reading.Output source="type Output" key=Output
-/// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=(this: this) => this.Output
+/// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=(this: Reading) => Reading.Output
 
     type Output;
 
     read(): this.Output;
-    /// @type.symbol symbol=Reading.read source="read(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Reading.read source="read(): this.Output" type=(this: Reading) => Reading.Output
 
 }
 
@@ -1212,12 +1215,12 @@ interface Writing {
 /// @type.symbol symbol=Writing type=Writing
 /// @definition.interface symbol=Writing
 /// @definition.associated.type symbol=Writing.Output source="type Output" key=Output
-/// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=(this: this) => this.Output
+/// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=(this: Writing) => Writing.Output
 
     type Output;
 
     write(): this.Output;
-    /// @type.symbol symbol=Writing.write source="write(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Writing.write source="write(): this.Output" type=(this: Writing) => Writing.Output
 
 }
 
@@ -1235,7 +1238,7 @@ extension of Cell implements Reading {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
 /// @definition.implements symbol=<module>#2 source=Reading target=Reading
 /// @definition.associated.type symbol=Output#1 source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=read slot=read type=<read.'a>(this: &read.'a readonly this) => this.Output
+/// @definition.method symbol=read slot=read type=<read.'a>(this: &read.'a readonly Cell) => int32
 /// @definition.conformance symbol=<module>#2 member=Output#1 requirement=Reading.Output
 /// @definition.conformance symbol=<module>#2 member=read requirement=Reading.read
 /// @resolution.name source=Cell target=Cell
@@ -1246,7 +1249,7 @@ extension of Cell implements Reading {
 
     read(): this.Output {
     /// @generic.template symbol=read parent=template#2 parameters=('a)
-    /// @type.symbol symbol=read type=<read.'a>(this: &read.'a readonly this) => this.Output
+    /// @type.symbol symbol=read type=<read.'a>(this: &read.'a readonly Cell) => int32
 
         todo("read")
         /// @resolution.name source=todo target=error.panic.todo
@@ -1259,7 +1262,7 @@ extension of Cell implements Writing {
 /// @definition.extension symbol=<module>#3 form=local target=Cell
 /// @definition.implements symbol=<module>#3 source=Writing target=Writing
 /// @definition.associated.type symbol=Output#2 source="type Output = float64" key=Output value=float64
-/// @definition.method symbol=write slot=write type=<write.'a>(this: &write.'a readonly this) => this.Output
+/// @definition.method symbol=write slot=write type=<write.'a>(this: &write.'a readonly Cell) => float64
 /// @definition.conformance symbol=<module>#3 member=Output#2 requirement=Writing.Output
 /// @definition.conformance symbol=<module>#3 member=write requirement=Writing.write
 /// @resolution.name source=Cell target=Cell
@@ -1270,7 +1273,7 @@ extension of Cell implements Writing {
 
     write(): this.Output {
     /// @generic.template symbol=write parent=template#3 parameters=('a)
-    /// @type.symbol symbol=write type=<write.'a>(this: &write.'a readonly this) => this.Output
+    /// @type.symbol symbol=write type=<write.'a>(this: &write.'a readonly Cell) => float64
 
         todo("write")
         /// @resolution.name source=todo target=error.panic.todo
@@ -1914,20 +1917,20 @@ const greeter: Dynamic<Greeter> = robot as Dynamic<Greeter>;
 interface Greeter {
 /// @type.symbol symbol=Greeter type=Greeter
 /// @definition.interface symbol=Greeter
-/// @definition.method symbol=Greeter.greet source="greet(): string" slot=greet type=(this: this) => string
+/// @definition.method symbol=Greeter.greet source="greet(): string" slot=greet type=(this: Greeter) => string
 
     greet(): string;
-    /// @type.symbol symbol=Greeter.greet source="greet(): string" type=(this: this) => string
+    /// @type.symbol symbol=Greeter.greet source="greet(): string" type=(this: Greeter) => string
 
 }
 
 class Robot {
 /// @type.symbol symbol=Robot type=Robot
 /// @definition.class symbol=Robot
-/// @definition.method symbol=Robot.greet slot=greet type=(this: this) => string
+/// @definition.method symbol=Robot.greet slot=greet type=(this: Robot) => string
 
     greet(): string {
-    /// @type.symbol symbol=Robot.greet type=(this: this) => string
+    /// @type.symbol symbol=Robot.greet type=(this: Robot) => string
 
         return "beep";
     }

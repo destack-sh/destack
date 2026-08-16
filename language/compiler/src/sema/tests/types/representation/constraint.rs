@@ -31,15 +31,14 @@ function paint(item: Dynamic<Drawable>): void {
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
 
 }
 
 function paint(item: Drawable): void {
-/// @type.symbol symbol=paint type=(Drawable) => void
 /// @type.symbol symbol=paint type=(Dynamic<Drawable>) => void
 /// @type.symbol symbol=paint.item source="item: Drawable" type=Dynamic<Drawable>
 /// @resolution.name source=Drawable target=Drawable

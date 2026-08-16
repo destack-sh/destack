@@ -40,6 +40,10 @@ let [head, ...tail] = values;
 /// @resolution.pattern source=head kind=binding target=head
 /// @type.symbol symbol=tail source=tail type=Owned<Array<int32>>
 /// @resolution.pattern source=tail kind=binding target=tail
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
 /// @resolution.access source=values root=values

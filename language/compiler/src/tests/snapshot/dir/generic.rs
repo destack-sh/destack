@@ -99,8 +99,8 @@ impl SnapshotTable for dir::GenericSegment {
             // fold the types evaluation moved beyond substitution into the row
             let evaluated = self
                 .iter_instance_types()
-                .filter(|(id, ..)| *id == instance_id)
-                .map(|(_, source, resolved)| {
+                .filter(|(id, _, _, is_evaluated)| *id == instance_id && *is_evaluated)
+                .map(|(_, source, resolved, _)| {
                     format!(
                         "{} => {}",
                         builder.global_type_label(source),

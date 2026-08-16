@@ -33,7 +33,7 @@ newtype mark = (string,);
 interface Reader {
 /// @type.symbol symbol=Reader type=Reader
 /// @definition.interface symbol=Reader
-/// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(this: this, string) => string
+/// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(this: Reader, string) => string
 
     @mark("checked")
     /// @decorator.node source="@mark(\"checked\")" owner="read(@mark(\"parameter\") value: string): string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("checked") as string) newtype=mark backing=(string,) value="mark(\"checked\")"
@@ -42,7 +42,7 @@ interface Reader {
     /// @type.node source="\"checked\"" type="checked"
 
     read(@mark("parameter") value: string): string;
-    /// @type.symbol symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" type=(this: this, string) => string
+    /// @type.symbol symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" type=(this: Reader, string) => string
     /// @decorator.node source="@mark(\"parameter\")" owner="value: string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("parameter") as string) newtype=mark backing=(string,) value="mark(\"parameter\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -236,10 +236,10 @@ newtype mark = (string,);
 class Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.class symbol=Sink
-/// @definition.method symbol=Sink.constructor source="constructor(value: int32) {}" slot=constructor role=constructor type=(int32) => this
+/// @definition.method symbol=Sink.constructor source="constructor(value: int32) {}" slot=constructor role=constructor type=(int32) => Sink
 
     constructor(value: int32) {}
-    /// @type.symbol symbol=Sink.constructor source="constructor(value: int32) {}" type=(int32) => this
+    /// @type.symbol symbol=Sink.constructor source="constructor(value: int32) {}" type=(int32) => Sink
     /// @type.symbol symbol=Sink.constructor.value source="value: int32" type=int32
 
 }
@@ -522,6 +522,7 @@ newtype mark<T> = (T,);
 /// @resolution.name source=T target=mark.T
 
 @mark(1)
+/// @generic.instance id=mark<1> template=mark arguments=(1)
 /// @decorator.node source=@mark(1) owner="const value = 1" expression=mark target=mark type=mark<1> kind=newtype parameters=(1) arguments=(provided(1) as 1) newtype=mark backing=(1,) generic_arguments=(1) value=mark<1>(1)
 /// @type.node source=mark type=mark
 /// @resolution.name source=mark target=mark
@@ -565,6 +566,7 @@ newtype mark<T> = (T,);
 /// @resolution.name source=T target=mark.T
 
 @mark<int32>(1)
+/// @generic.instance id=mark<int32> template=mark arguments=(int32)
 /// @decorator.node source=@mark<int32>(1) owner="const value = 1" expression=mark target=mark type=mark<int32> kind=newtype parameters=(int32) arguments=(provided(1) as int32) newtype=mark backing=(int32,) generic_arguments=(int32) value=mark<int32>(1)
 /// @type.node source=mark type=mark
 /// @resolution.name source=mark target=mark

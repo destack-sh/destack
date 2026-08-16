@@ -576,13 +576,13 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => this
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=User.constructor type=(string) => this
+    /// @type.symbol symbol=User.constructor type=(string) => User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -807,14 +807,14 @@ const store: Dynamic<Store> = {
 interface Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.interface symbol=Store
-/// @definition.method symbol=Store.value#1 source="get value(): string" slot=value role=getter type=(this: this) => string
-/// @definition.method symbol=Store.value#2 source="set value(next: string | int32)" slot=value role=setter type=(this: this, string | int32) => void
+/// @definition.method symbol=Store.value#1 source="get value(): string" slot=value role=getter type=(this: Store) => string
+/// @definition.method symbol=Store.value#2 source="set value(next: string | int32)" slot=value role=setter type=(this: Store, string | int32) => void
 
     get value(): string;
-    /// @type.symbol symbol=Store.value#1 source="get value(): string" type=(this: this) => string
+    /// @type.symbol symbol=Store.value#1 source="get value(): string" type=(this: Store) => string
 
     set value(next: string | int32);
-    /// @type.symbol symbol=Store.value#2 source="set value(next: string | int32)" type=(this: this, string | int32) => void
+    /// @type.symbol symbol=Store.value#2 source="set value(next: string | int32)" type=(this: Store, string | int32) => void
     /// @type.symbol symbol=Store.value.next source="next: string | int32" type=string | int32
 
 }

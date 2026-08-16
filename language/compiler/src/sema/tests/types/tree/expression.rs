@@ -1416,13 +1416,13 @@ class Card {
 /// @type.symbol symbol=Card type=Card
 /// @definition.class symbol=Card
 /// @definition.field symbol=Card.heading source="heading: string" key=heading type=string
-/// @definition.method symbol=Card.constructor slot=constructor role=constructor type=({ heading: string }) => this
+/// @definition.method symbol=Card.constructor slot=constructor role=constructor type=({ heading: string }) => Card
 
     heading: string;
     /// @type.symbol symbol=Card.heading source="heading: string" type=string
 
     constructor(props: { heading: string }) {
-    /// @type.symbol symbol=Card.constructor type=({ heading: string }) => this
+    /// @type.symbol symbol=Card.constructor type=({ heading: string }) => Card
     /// @type.symbol symbol=Card.constructor.props source="props: { heading: string }" type={ heading: string }
 
         this.heading = props.heading;

@@ -61,11 +61,11 @@ const text: string = boxed.read<Document>();
 interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable
-/// @definition.method symbol=Readable.read source="read(&readonly this): string" slot=read type=<Readable.read.'a>(this: &Readable.read.'a readonly this) => string
+/// @definition.method symbol=Readable.read source="read(&readonly this): string" slot=read type=<Readable.read.'a>(this: &Readable.read.'a readonly Readable) => string
 
     read(&readonly this): string;
     /// @generic.template symbol=Readable.read parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Readable.read source="read(&readonly this): string" type=<Readable.read.'a>(this: &Readable.read.'a readonly this) => string
+    /// @type.symbol symbol=Readable.read source="read(&readonly this): string" type=<Readable.read.'a>(this: &Readable.read.'a readonly Readable) => string
     /// @type.symbol symbol=Readable.read.this source="&readonly this" type=&Readable.read.'a readonly this
 
 }
@@ -86,11 +86,11 @@ struct Box<T> {
 struct Document {
 /// @type.symbol symbol=Document type=Document
 /// @definition.struct symbol=Document
-/// @definition.method symbol=Document.read slot=read type=<Document.read.'a>(this: &Document.read.'a readonly this) => string
+/// @definition.method symbol=Document.read slot=read type=<Document.read.'a>(this: &Document.read.'a readonly Document) => string
 
     read(&readonly this): string {
     /// @generic.template symbol=Document.read parameters=('a)
-    /// @type.symbol symbol=Document.read type=<Document.read.'a>(this: &Document.read.'a readonly this) => string
+    /// @type.symbol symbol=Document.read type=<Document.read.'a>(this: &Document.read.'a readonly Document) => string
     /// @type.symbol symbol=Document.read.this source="&readonly this" type=&Document.read.'a readonly this
 
         return "ok";
@@ -129,6 +129,7 @@ extension<T> of Box<T> where T: Readable {
 declare const boxed: Box<Document>;
 /// @type.symbol symbol=boxed source=boxed type=Box<Document>
 /// @resolution.pattern source=boxed kind=binding target=boxed
+/// @generic.instance id=Box<Document> template=Box arguments=(Document)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Document target=Document
 

@@ -136,7 +136,7 @@ class Counter {
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 /// @definition.field symbol=Counter.version source="static version: int32" key=version static=true type=int32
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => this
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => Counter
 
     static version: int32;
     /// @type.symbol symbol=Counter.version source="static version: int32" type=int32
@@ -145,7 +145,7 @@ class Counter {
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Counter.constructor type=(int32) => this
+    /// @type.symbol symbol=Counter.constructor type=(int32) => Counter
     /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
 
         this.value = value;

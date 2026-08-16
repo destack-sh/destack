@@ -28,10 +28,10 @@ extension of Value implements ForeignProtocol {
 declare interface ForeignProtocol {
 /// @type.symbol symbol=ForeignProtocol type=ForeignProtocol
 /// @definition.interface symbol=ForeignProtocol
-/// @definition.method symbol=ForeignProtocol.snake_name source="snake_name(): void" slot=snake_name type=(this: this) => void
+/// @definition.method symbol=ForeignProtocol.snake_name source="snake_name(): void" slot=snake_name type=(this: ForeignProtocol) => void
 
     snake_name(): void;
-    /// @type.symbol symbol=ForeignProtocol.snake_name source="snake_name(): void" type=(this: this) => void
+    /// @type.symbol symbol=ForeignProtocol.snake_name source="snake_name(): void" type=(this: ForeignProtocol) => void
 
 }
 struct Value {}
@@ -41,14 +41,14 @@ struct Value {}
 extension of Value implements ForeignProtocol {
 /// @definition.extension symbol=<module>#2 form=local target=Value
 /// @definition.implements symbol=<module>#2 source=ForeignProtocol target=ForeignProtocol
-/// @definition.method symbol=snake_name source="snake_name(): void {}" slot=snake_name type=<snake_name.'a>(this: &snake_name.'a readonly this) => void
+/// @definition.method symbol=snake_name source="snake_name(): void {}" slot=snake_name type=<snake_name.'a>(this: &snake_name.'a readonly Value) => void
 /// @definition.conformance symbol=<module>#2 member=snake_name requirement=ForeignProtocol.snake_name
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=ForeignProtocol target=ForeignProtocol
 
     snake_name(): void {}
     /// @generic.template symbol=snake_name parent=template#1 parameters=('a)
-    /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a>(this: &snake_name.'a readonly this) => void
+    /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a>(this: &snake_name.'a readonly Value) => void
 
 }
 "#);
@@ -85,7 +85,7 @@ interface Person {
 /// @definition.interface symbol=Person
 /// @definition.field symbol=Person.id source="readonly id: string" key=id type=string
 /// @definition.field symbol=Person.name source="name?: string" key=name type=string
-/// @definition.method symbol=Person.rename source="rename(value: string): void" slot=rename type=(this: this, string) => void
+/// @definition.method symbol=Person.rename source="rename(value: string): void" slot=rename type=(this: Person, string) => void
 
     readonly id: string;
     /// @type.symbol symbol=Person.id source="readonly id: string" type=string
@@ -94,7 +94,7 @@ interface Person {
     /// @type.symbol symbol=Person.name source="name?: string" type=string
 
     rename(value: string): void;
-    /// @type.symbol symbol=Person.rename source="rename(value: string): void" type=(this: this, string) => void
+    /// @type.symbol symbol=Person.rename source="rename(value: string): void" type=(this: Person, string) => void
     /// @type.symbol symbol=Person.rename.value source="value: string" type=string
 
 }

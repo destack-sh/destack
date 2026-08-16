@@ -96,10 +96,11 @@ struct Vector {
 }
 
 extension of Vector implements Add<Vector> {
+/// @generic.instance id=Add<Vector> template=ops.plus.Add arguments=(Vector)
 /// @definition.extension symbol=<module>#2 form=local target=Vector
 /// @definition.implements symbol=<module>#2 source=Add<Vector> target=Add<Vector>
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
-/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly this, Vector) => Vector
+/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly Vector, Vector) => Vector
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
 /// @resolution.name source=Vector target=Vector
@@ -112,7 +113,7 @@ extension of Vector implements Add<Vector> {
 
     add(&readonly this, other: Vector): Vector {
     /// @generic.template symbol=add parent=template#0 parameters=('a)
-    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly this, Vector) => Vector
+    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly Vector, Vector) => Vector
     /// @type.symbol symbol=add.this source="&readonly this" type=&add.'a readonly this
     /// @type.symbol symbol=add.other source="other: Vector" type=Vector
     /// @resolution.name source=Vector target=Vector
@@ -380,10 +381,11 @@ struct Score {
 }
 
 extension of Score implements Add<Score> {
+/// @generic.instance id=Add<Score> template=ops.plus.Add arguments=(Score)
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add<Score> target=Add<Score>
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly this, Score) => Score
+/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly Score, Score) => Score
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
 /// @resolution.name source=Score target=Score
@@ -396,7 +398,7 @@ extension of Score implements Add<Score> {
 
     add(other: Score): Score {
     /// @generic.template symbol=add parent=template#0 parameters=('a)
-    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly this, Score) => Score
+    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly Score, Score) => Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score
@@ -504,7 +506,7 @@ extension of Score implements Add {
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add target=Add<this>
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly this, Score) => Score
+/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly Score, Score) => Score
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
 /// @resolution.name source=Score target=Score
@@ -516,7 +518,7 @@ extension of Score implements Add {
 
     add(other: Score): Score {
     /// @generic.template symbol=add parent=template#0 parameters=('a)
-    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly this, Score) => Score
+    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly Score, Score) => Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score

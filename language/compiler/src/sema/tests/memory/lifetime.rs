@@ -376,12 +376,12 @@ struct Cell { value: int32; }
 
 extension of Cell {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
-/// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly this) => &peek.'a readonly int32
+/// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly Cell) => &peek.'a readonly int32
 /// @resolution.name source=Cell target=Cell
 
     peek(&readonly this): &readonly int32 {
     /// @generic.template symbol=peek parameters=('a)
-    /// @type.symbol symbol=peek type=<peek.'a>(this: &peek.'a readonly this) => &peek.'a readonly int32
+    /// @type.symbol symbol=peek type=<peek.'a>(this: &peek.'a readonly Cell) => &peek.'a readonly int32
     /// @type.symbol symbol=peek.this source="&readonly this" type=&peek.'a readonly this
 
         todo("peek")
@@ -511,7 +511,6 @@ function log(options?: Options): void {}
 
 function warn(count?: int32, cause?: unknown): void {
 /// @type.symbol symbol=warn type=(int32 | undefined?, Dynamic<unknown> | undefined?) => void
-/// @type.symbol symbol=warn type=(int32 | undefined?, unknown | undefined?) => void
 /// @type.symbol symbol=warn.count source="count?: int32" type=int32 | undefined
 /// @type.symbol symbol=warn.cause source="cause?: unknown" type=Dynamic<unknown> | undefined
 

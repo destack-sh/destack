@@ -153,16 +153,18 @@ struct Point {
 extension of Point implements Display {
 /// @definition.extension symbol=<module>#2 form=local target=Point
 /// @definition.implements symbol=<module>#2 source=Display target=ops.format.Display
-/// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<string>
+/// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly Point) => memory.cow.cow.MaybeOwned<string>
 /// @definition.conformance symbol=<module>#2 member=display requirement=ops.format.Display.display
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Display target=ops.format.Display
 
     display(&readonly this): MaybeOwned<string> {
     /// @generic.template symbol=display parent=template#0 parameters=('a)
-    /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<string>
+    /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly Point) => memory.cow.cow.MaybeOwned<string>
     /// @type.symbol symbol=display.this source="&readonly this" type=&display.'a readonly this
     /// @resolution.name source=MaybeOwned target=memory.cow.cow.MaybeOwned
+    /// @generic.instance id=memory.cow.cow.Cow<string> template=memory.cow.cow.Cow arguments=(string)
+    /// @generic.instance id=memory.cow.cow.CowOwned<Owned<string>> template=memory.cow.cow.CowOwned arguments=(Owned<string>)
 
         return todo("Point.display");
         /// @type.node source="todo(\"Point.display\")" type=never

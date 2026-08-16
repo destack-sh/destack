@@ -293,7 +293,6 @@ interface Source {
 
 function read(source: Source): "ready" {
 /// @type.symbol symbol=read type=(Dynamic<Source>) => "ready"
-/// @type.symbol symbol=read type=(Source) => "ready"
 /// @type.symbol symbol=read.source source="source: Source" type=Dynamic<Source>
 /// @resolution.name source=Source target=Source
 
@@ -473,7 +472,6 @@ type State = Pending | Fulfilled;
 
 function read(state: State): int32 {
 /// @type.symbol symbol=read type=(Dynamic<Pending> | Dynamic<Fulfilled>) => int32
-/// @type.symbol symbol=read type=(State) => int32
 /// @type.symbol symbol=read.state source="state: State" type=Dynamic<Pending> | Dynamic<Fulfilled>
 /// @resolution.name source=State target=State
 
@@ -605,7 +603,6 @@ type State = Pending | Fulfilled;
 
 function read(state: State): int32 {
 /// @type.symbol symbol=read type=(Dynamic<Pending> | Dynamic<Fulfilled>) => int32
-/// @type.symbol symbol=read type=(State) => int32
 /// @type.symbol symbol=read.state source="state: State" type=Dynamic<Pending> | Dynamic<Fulfilled>
 /// @resolution.name source=State target=State
 
@@ -747,7 +744,6 @@ type State = Pending | Fulfilled;
 
 function read(initial: State, next: State): int32 {
 /// @type.symbol symbol=read type=(Dynamic<Pending> | Dynamic<Fulfilled>, Dynamic<Pending> | Dynamic<Fulfilled>) => int32
-/// @type.symbol symbol=read type=(State, State) => int32
 /// @type.symbol symbol=read.initial source="initial: State" type=Dynamic<Pending> | Dynamic<Fulfilled>
 /// @resolution.name source=State target=State
 /// @type.symbol symbol=read.next source="next: State" type=Dynamic<Pending> | Dynamic<Fulfilled>
@@ -1248,11 +1244,11 @@ class Child extends Base {
 /// @type.symbol symbol=Child type=Child
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
-/// @definition.method symbol=Child.read slot=read type=(this: this, string | undefined) => string | undefined
+/// @definition.method symbol=Child.read slot=read type=(this: Child, string | undefined) => string | undefined
 /// @resolution.name source=Base target=Base
 
     read(next: string | undefined): string | undefined {
-    /// @type.symbol symbol=Child.read type=(this: this, string | undefined) => string | undefined
+    /// @type.symbol symbol=Child.read type=(this: Child, string | undefined) => string | undefined
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         if (super.label == undefined) {
@@ -1366,11 +1362,11 @@ class Child extends Base {
 /// @type.symbol symbol=Child type=Child
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
-/// @definition.method symbol=Child.read slot=read type=(this: this, string | undefined) => string | undefined
+/// @definition.method symbol=Child.read slot=read type=(this: Child, string | undefined) => string | undefined
 /// @resolution.name source=Base target=Base
 
     read(next: string | undefined): string | undefined {
-    /// @type.symbol symbol=Child.read type=(this: this, string | undefined) => string | undefined
+    /// @type.symbol symbol=Child.read type=(this: Child, string | undefined) => string | undefined
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         if (this.label == undefined) {
@@ -1487,11 +1483,11 @@ class Child extends Base {
 /// @type.symbol symbol=Child type=Child
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
-/// @definition.method symbol=Child.read slot=read type=(this: this, string | undefined) => Function<(), string | undefined>
+/// @definition.method symbol=Child.read slot=read type=(this: Child, string | undefined) => Function<(), string | undefined>
 /// @resolution.name source=Base target=Base
 
     read(next: string | undefined): () => string | undefined {
-    /// @type.symbol symbol=Child.read type=(this: this, string | undefined) => Function<(), string | undefined>
+    /// @type.symbol symbol=Child.read type=(this: Child, string | undefined) => Function<(), string | undefined>
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         return () => {
@@ -1842,7 +1838,6 @@ type Frame = Header | Trailer;
 /// @resolution.name source=Trailer target=Trailer
 
 function read(frame: Frame): int32 {
-/// @type.symbol symbol=read type=(Frame) => int32
 /// @type.symbol symbol=read type=(Header | Trailer) => int32
 /// @type.symbol symbol=read.frame source="frame: Frame" type=Header | Trailer
 /// @resolution.name source=Frame target=Frame
@@ -1971,7 +1966,6 @@ type Outcome = Success | Failure;
 /// @resolution.name source=Failure target=Failure
 
 function read(outcome: Outcome): int32 {
-/// @type.symbol symbol=read type=(Outcome) => int32
 /// @type.symbol symbol=read type=(Success | Failure) => int32
 /// @type.symbol symbol=read.outcome source="outcome: Outcome" type=Success | Failure
 /// @resolution.name source=Outcome target=Outcome
@@ -2366,7 +2360,6 @@ type State = Pending | Ready;
 function read(state: &readonly State): int32 {
 /// @generic.template symbol=read parameters=('a)
 /// @type.symbol symbol=read type=<read.'a>(&read.'a readonly Pending | Ready) => int32
-/// @type.symbol symbol=read type=<read.'a>(&read.'a readonly State) => int32
 /// @type.symbol symbol=read.state source="state: &readonly State" type=&read.'a readonly Pending | Ready
 /// @resolution.name source=State target=State
 
@@ -2495,7 +2488,6 @@ type State = Pending | Fulfilled;
 
 function read(state: State): int32 {
 /// @type.symbol symbol=read type=(Dynamic<Pending> | Dynamic<Fulfilled>) => int32
-/// @type.symbol symbol=read type=(State) => int32
 /// @type.symbol symbol=read.state source="state: State" type=Dynamic<Pending> | Dynamic<Fulfilled>
 /// @resolution.name source=State target=State
 

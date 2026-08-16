@@ -95,14 +95,14 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a readonly this) => int32
+/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     length(&readonly this): int32 {
     /// @generic.template symbol=Point.length parameters=('a)
-    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a readonly this) => int32
+    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
     /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'a readonly this
 
         return this.x;
@@ -229,7 +229,11 @@ const length = values.length;
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 "#,
     );
 }
@@ -275,7 +279,11 @@ const length = values.length;
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values.values
 /// @generic.instantiation id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 "#,
     );
 }

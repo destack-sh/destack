@@ -115,6 +115,7 @@ extension<T, E> of Result<T, E> {
 const result = Result<int32, string>.ok(42);
 /// @type.symbol symbol=result source=result type=Result<int32, string>
 /// @resolution.pattern source=result kind=binding target=result
+/// @generic.instance id="Result<int32, string>" template=Result arguments=(int32, string)
 /// @resolution.name source=Result target=Result
 /// @resolution.member source="Result<int32, string>.ok" receiver=Result<int32, string> type=(int32) => Result<int32, string> kind=symbol target_receiver=Result<int32, string> target=ok
 /// @resolution.call source="Result<int32, string>.ok(42)" parameters=(int32) arguments=(provided(42) as int32) return=Result<int32, string> kind=symbol target=ok instance="Result<int32, string>.<extension#1>.ok"
@@ -122,7 +123,6 @@ const result = Result<int32, string>.ok(42);
 /// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
 /// @generic.instantiation id="ok<int32, string>" template=ok arguments=(int32, string)
 /// @generic.instantiation id="ok<int32, string>" template=ok arguments=(int32, string)
-/// @generic.instance id="Result<int32, string>" template=Result arguments=(int32, string)
 /// @generic.instance id="ok<int32, string>" template=ok arguments=(int32, string)
 "#,
     );

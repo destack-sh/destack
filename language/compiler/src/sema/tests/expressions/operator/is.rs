@@ -37,8 +37,8 @@ if (value is string) {
 /// @resolution.access source=value root=value
 
     value satisfies string;
-    /// @type.node source="value satisfies string" type=Narrow<Dynamic<unknown>, string>
-    /// @type.node source=value type=Narrow<Dynamic<unknown>, string>
+    /// @type.node source="value satisfies string" type=string
+    /// @type.node source=value type=string
     /// @resolution.name source=value target=value
     /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
@@ -133,8 +133,8 @@ if (value is string) {
 /// @resolution.access source=value root=value
 
     value satisfies string;
-    /// @type.node source="value satisfies string" type=Narrow<string | int32, string>
-    /// @type.node source=value type=Narrow<string | int32, string>
+    /// @type.node source="value satisfies string" type=string
+    /// @type.node source=value type=string
     /// @resolution.name source=value target=value
     /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
@@ -252,7 +252,7 @@ if (value is &readonly Node) {
 
     value.id satisfies int32;
     /// @type.node source="value.id satisfies int32" type=int32
-    /// @type.node source=value type=Narrow<Dynamic<unknown>, &'frame readonly Node>
+    /// @type.node source=value type=&'frame readonly Node
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.id receiver=Narrow<Dynamic<unknown>, &'frame readonly Node> type=int32 kind=field target_receiver=Narrow<Dynamic<unknown>, &'frame readonly Node> key=id target=Node.id target_type=int32
@@ -291,7 +291,6 @@ function check<T>(value: Dynamic<unknown>): void {
 function check<T>(value: unknown): void {
 /// @generic.template symbol=check parameters=(T)
 /// @type.symbol symbol=check type=<T>(Dynamic<unknown>) => void
-/// @type.symbol symbol=check type=<T>(unknown) => void
 /// @type.symbol symbol=check.T source=T type=T
 /// @type.symbol symbol=check.value source="value: unknown" type=Dynamic<unknown>
 

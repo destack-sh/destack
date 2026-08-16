@@ -59,15 +59,15 @@ empty satisfies boolean;
 newtype interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized nominal=true
-/// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: this) => boolean
-/// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: this) => int32
+/// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: Sized) => boolean
+/// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: Sized) => int32
 
     length(this): int32;
-    /// @type.symbol symbol=Sized.length source="length(this): int32" type=(this: this) => int32
+    /// @type.symbol symbol=Sized.length source="length(this): int32" type=(this: Sized) => int32
     /// @type.symbol symbol=Sized.length.this source=this type=this
 
     isEmpty(this): boolean {
-    /// @type.symbol symbol=Sized.isEmpty type=(this: this) => boolean
+    /// @type.symbol symbol=Sized.isEmpty type=(this: Sized) => boolean
     /// @type.symbol symbol=Sized.isEmpty.this source=this type=this
 
         return this.length() == 0;
@@ -87,14 +87,14 @@ struct Buffer {
 extension of Buffer implements Sized {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
 /// @definition.implements symbol=<module>#2 source=Sized target=Sized
-/// @definition.method symbol=length slot=length type=(this: this) => int32
+/// @definition.method symbol=length slot=length type=(this: Buffer) => int32
 /// @definition.conformance symbol=<module>#2 member=Sized.isEmpty requirement=Sized.isEmpty
 /// @definition.conformance symbol=<module>#2 member=length requirement=Sized.length
 /// @resolution.name source=Buffer target=Buffer
 /// @resolution.name source=Sized target=Sized
 
     length(this): int32 {
-    /// @type.symbol symbol=length type=(this: this) => int32
+    /// @type.symbol symbol=length type=(this: Buffer) => int32
     /// @type.symbol symbol=length.this source=this type=this
 
         return this.length;
@@ -197,15 +197,15 @@ empty satisfies boolean;
 newtype interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized nominal=true
-/// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: this) => boolean
-/// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: this) => int32
+/// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: Sized) => boolean
+/// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: Sized) => int32
 
     length(this): int32;
-    /// @type.symbol symbol=Sized.length source="length(this): int32" type=(this: this) => int32
+    /// @type.symbol symbol=Sized.length source="length(this): int32" type=(this: Sized) => int32
     /// @type.symbol symbol=Sized.length.this source=this type=this
 
     isEmpty(this): boolean {
-    /// @type.symbol symbol=Sized.isEmpty type=(this: this) => boolean
+    /// @type.symbol symbol=Sized.isEmpty type=(this: Sized) => boolean
     /// @type.symbol symbol=Sized.isEmpty.this source=this type=this
 
         return this.length() == 0;
@@ -225,15 +225,15 @@ struct Buffer {
 extension of Buffer implements Sized {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
 /// @definition.implements symbol=<module>#2 source=Sized target=Sized
-/// @definition.method symbol=isEmpty slot=isEmpty type=(this: this) => boolean
-/// @definition.method symbol=length slot=length type=(this: this) => int32
+/// @definition.method symbol=isEmpty slot=isEmpty type=(this: Buffer) => boolean
+/// @definition.method symbol=length slot=length type=(this: Buffer) => int32
 /// @definition.conformance symbol=<module>#2 member=isEmpty requirement=Sized.isEmpty
 /// @definition.conformance symbol=<module>#2 member=length requirement=Sized.length
 /// @resolution.name source=Buffer target=Buffer
 /// @resolution.name source=Sized target=Sized
 
     length(this): int32 {
-    /// @type.symbol symbol=length type=(this: this) => int32
+    /// @type.symbol symbol=length type=(this: Buffer) => int32
     /// @type.symbol symbol=length.this source=this type=this
 
         return this.length;
@@ -247,7 +247,7 @@ extension of Buffer implements Sized {
     }
 
     isEmpty(this): boolean {
-    /// @type.symbol symbol=isEmpty type=(this: this) => boolean
+    /// @type.symbol symbol=isEmpty type=(this: Buffer) => boolean
     /// @type.symbol symbol=isEmpty.this source=this type=this
 
         return false;

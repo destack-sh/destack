@@ -48,14 +48,14 @@ local class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => this
-/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly this) => void
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => Counter
+/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly Counter) => void
 
     readonly name: string;
     /// @type.symbol symbol=Counter.name source="readonly name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=Counter.constructor type=(string) => this
+    /// @type.symbol symbol=Counter.constructor type=(string) => Counter
     /// @type.symbol symbol=Counter.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -73,7 +73,7 @@ local class Counter {
 
     describe(&readonly this): void {
     /// @generic.template symbol=Counter.describe parameters=('a)
-    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly this) => void
+    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly Counter) => void
     /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=&Counter.describe.'a readonly this
 
         label(this.name)
@@ -185,7 +185,6 @@ local class Meter {
 
     constructor(sink: Sink) {
     /// @type.symbol symbol=Meter.constructor type=(Dynamic<Sink>) => this
-    /// @type.symbol symbol=Meter.constructor type=(Sink) => this
     /// @type.symbol symbol=Meter.constructor.sink source="sink: Sink" type=Dynamic<Sink>
     /// @resolution.name source=Sink target=Sink
 
@@ -289,14 +288,14 @@ local class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => this
-/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly this) => void
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => Counter
+/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly Counter) => void
 
     readonly name: string;
     /// @type.symbol symbol=Counter.name source="readonly name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=Counter.constructor type=(string) => this
+    /// @type.symbol symbol=Counter.constructor type=(string) => Counter
     /// @type.symbol symbol=Counter.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -314,7 +313,7 @@ local class Counter {
 
     describe(&readonly this): void {
     /// @generic.template symbol=Counter.describe parameters=('a)
-    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly this) => void
+    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly Counter) => void
     /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=&Counter.describe.'a readonly this
 
         label(this.name)
@@ -445,10 +444,10 @@ function consume(value: Dynamic<Sink>): void {}
 interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink
-/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: this, string) => void
+/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: Sink, string) => void
 
     write(value: string): void;
-    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(this: this, string) => void
+    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(this: Sink, string) => void
     /// @type.symbol symbol=Sink.write.value source="value: string" type=string
 
 }

@@ -33,10 +33,10 @@ ok satisfies (string, number);
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(string, float64) => this
+/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(string, float64) => User
 
     constructor(name: string, age: number) {}
-    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(string, float64) => this
+    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(string, float64) => User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
     /// @type.symbol symbol=User.constructor.age source="age: number" type=float64
 

@@ -341,14 +341,14 @@ shared class Service {
 /// @type.symbol symbol=Service type=Service
 /// @definition.class symbol=Service
 /// @definition.field symbol=Service.user source="user!: User" key=user type=User
-/// @definition.method symbol=Service.accept source="accept(user: local User): void {}" slot=accept type=(this: this, Placed<User, "local">) => void
+/// @definition.method symbol=Service.accept source="accept(user: local User): void {}" slot=accept type=(this: Service, Placed<User, "local">) => void
 
     user!: User;
     /// @type.symbol symbol=Service.user source="user!: User" type=User
     /// @resolution.name source=User target=User
 
     accept(user: local User): void {}
-    /// @type.symbol symbol=Service.accept source="accept(user: local User): void {}" type=(this: this, Placed<User, "local">) => void
+    /// @type.symbol symbol=Service.accept source="accept(user: local User): void {}" type=(this: Service, Placed<User, "local">) => void
     /// @type.symbol symbol=Service.accept.user source="user: local User" type=Placed<User, "local">
     /// @resolution.name source=User target=User
 

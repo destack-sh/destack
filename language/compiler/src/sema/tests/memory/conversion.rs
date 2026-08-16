@@ -880,6 +880,7 @@ class State {
     boxed!: Box<User>;
     /// @type.symbol symbol=State.boxed source="boxed!: Box<User>" type=Box<User>
     /// @resolution.name source=Box target=Box
+    /// @generic.instance id=Box<User> template=Box arguments=(User)
     /// @resolution.name source=User target=User
 
     users!: User[];
@@ -938,6 +939,10 @@ inspect(state.users[0]);
 /// @resolution.subscript source=state.users[0] type=User kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static User, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<User, \"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
 /// @generic.instance id="collections.array.index#1<User, \"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
+/// @generic.instance id=Array<User> template=collections.array.Array arguments=(User)
+/// @generic.instance id=memory.init.MaybeUninit<User> template=memory.init.MaybeUninit arguments=(User)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<User>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<User>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<User>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<User>)
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 "#,
     );

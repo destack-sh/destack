@@ -191,7 +191,6 @@ export extension<T: Compare<T>> of Pack<T> {
 
     static from(values: Iterable<T>): ^Pack<T> {
     /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>>
-    /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Owned<Pack<T#2>>
     /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#1
@@ -220,7 +219,6 @@ export extension<T: Compare<T>> of ^Pack<T> {
 
     static from(values: Iterable<T>): ^Pack<T> {
     /// @type.symbol symbol=from#2 type=(Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>>
-    /// @type.symbol symbol=from#2 type=(Iterable<T#3>) => Owned<Pack<T#3>>
     /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Dynamic<Iterable<T#3>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#2

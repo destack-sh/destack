@@ -31,10 +31,10 @@ interface Drawable extends Named {
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
-/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
+/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
 
     name(): string;
-    /// @type.symbol symbol=Named.name source="name(): string" type=(this: this) => string
+    /// @type.symbol symbol=Named.name source="name(): string" type=(this: Named) => string
 
 }
 
@@ -42,11 +42,11 @@ interface Drawable extends Named {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 /// @resolution.name source=Named target=Named
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
 
 }
 "#,

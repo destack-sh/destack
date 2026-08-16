@@ -7,7 +7,9 @@ impl SnapshotTable for dir::TypeSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         // render effective checked node types
         for (node_id, type_id) in self.node_types() {
-            if !builder.should_render_type_node(node_id, type_id) {
+            if !builder.should_render_type_node(node_id, type_id)
+                || !builder.is_effective_node_type(node_id, type_id)
+            {
                 continue;
             }
 
@@ -19,6 +21,10 @@ impl SnapshotTable for dir::TypeSegment {
 
         // render solved symbol types
         for (symbol_id, type_id) in self.symbol_types() {
+            if !builder.is_effective_symbol_type(symbol_id, type_id) {
+                continue;
+            }
+
             let row = SnapshotRow::new(builder.anchor_symbol(symbol_id), "type", "symbol")
                 .field("symbol", builder.symbol_path_label(symbol_id))
                 .optional_field("source", builder.symbol_source(symbol_id))

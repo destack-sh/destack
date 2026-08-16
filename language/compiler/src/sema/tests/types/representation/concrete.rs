@@ -182,10 +182,10 @@ size satisfies usize;
 interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer
-/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" slot=write type=(this: this, readonly Array<uint8>) => uint64
+/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" slot=write type=(this: Writer, readonly Array<uint8>) => uint64
 
     write(bytes: readonly uint8[]): uint;
-    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(this: this, readonly Array<uint8>) => uint64
+    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(this: Writer, readonly Array<uint8>) => uint64
     /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly Array<uint8>
 
 }
@@ -198,6 +198,7 @@ const size = const sizeOf<Dynamic<Writer>>();
 /// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 /// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
+/// @generic.instance id=Dynamic<Writer> template=memory.dynamic.Dynamic arguments=(Writer)
 /// @resolution.name source=Writer target=Writer
 
 size satisfies usize;
@@ -251,6 +252,7 @@ const size = const sizeOf<Dynamic<Writer>>();
 /// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 /// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
+/// @generic.instance id=Dynamic<Writer> template=memory.dynamic.Dynamic arguments=(Writer)
 /// @resolution.name source=Writer target=Writer
 
 size satisfies usize;

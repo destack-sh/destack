@@ -56,11 +56,11 @@ interface Doubles {
 /// @type.symbol symbol=Doubles type=Doubles
 /// @definition.interface symbol=Doubles
 /// @definition.associated.type symbol=Doubles.Output source="type Output" key=Output
-/// @definition.method symbol=Doubles.double source="double(): this.Output" slot=double type=(this: this) => this.Output
+/// @definition.method symbol=Doubles.double source="double(): this.Output" slot=double type=(this: Doubles) => Doubles.Output
 
     type Output;
     double(): this.Output;
-    /// @type.symbol symbol=Doubles.double source="double(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Doubles.double source="double(): this.Output" type=(this: Doubles) => Doubles.Output
 
 }
 

@@ -33,6 +33,9 @@ try {
 declare function read(): Result<string, { code: int32; message: string }>;
 /// @type.symbol symbol=read source="declare function read(): Result<string, { code: int32; message: string }>" type=() => Result<string, { code: int32; message: string }>
 /// @resolution.name source=Result target=error.result.Result
+/// @generic.instance id="Result<string, { code: int32; message: string }>" template=error.result.Result arguments=(string, { code: int32; message: string })
+/// @generic.instance id="error.result.Err<{ code: int32; message: string }>" template=error.result.Err arguments=({ code: int32; message: string })
+/// @generic.instance id=error.result.Ok<string> template=error.result.Ok arguments=(string)
 
 try {
 /// @type.node type=string | void
@@ -43,6 +46,8 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, { code: int32; message: string }> kind=symbol target=read
+    /// @generic.instance id="Result<string, { code: int32; message: string }>" template=error.result.Result arguments=(string, { code: int32; message: string })
+    /// @generic.instance id="error.result.Err<{ code: int32; message: string }>" template=error.result.Err arguments=({ code: int32; message: string })
 
 } catch ({ code, message }) {
 /// @resolution.pattern source={ code, message } kind=object fields={ code, message }
@@ -99,6 +104,9 @@ try {
 declare function read(): Result<string, string>;
 /// @type.symbol symbol=read source="declare function read(): Result<string, string>" type=() => Result<string, string>
 /// @resolution.name source=Result target=error.result.Result
+/// @generic.instance id="Result<string, string>" template=error.result.Result arguments=(string, string)
+/// @generic.instance id=error.result.Err<string> template=error.result.Err arguments=(string)
+/// @generic.instance id=error.result.Ok<string> template=error.result.Ok arguments=(string)
 
 try {
 /// @type.node type=string | void
@@ -152,6 +160,9 @@ try {
 declare function read(): Result<string, { message: string }>;
 /// @type.symbol symbol=read source="declare function read(): Result<string, { message: string }>" type=() => Result<string, { message: string }>
 /// @resolution.name source=Result target=error.result.Result
+/// @generic.instance id="Result<string, { message: string }>" template=error.result.Result arguments=(string, { message: string })
+/// @generic.instance id="error.result.Err<{ message: string }>" template=error.result.Err arguments=({ message: string })
+/// @generic.instance id=error.result.Ok<string> template=error.result.Ok arguments=(string)
 
 try {
 /// @type.node type=string | void
@@ -162,6 +173,8 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, { message: string }> kind=symbol target=read
+    /// @generic.instance id="Result<string, { message: string }>" template=error.result.Result arguments=(string, { message: string })
+    /// @generic.instance id="error.result.Err<{ message: string }>" template=error.result.Err arguments=({ message: string })
 
 } catch (error) {
 /// @type.symbol symbol=error source=error type=TryResidual<Result<string, { message: string }>>
@@ -169,7 +182,7 @@ try {
 
     error.message satisfies string;
     /// @type.node source="error.message satisfies string" type=string
-    /// @type.node source=error type=TryResidual<Result<string, { message: string }>>
+    /// @type.node source=error type={ message: string }
     /// @type.node source=error.message type=string
     /// @resolution.name source=error target=error
     /// @resolution.member source=error.message receiver=TryResidual<Result<string, { message: string }>> type=string kind=field target_receiver=TryResidual<Result<string, { message: string }>> key=message target_type=string

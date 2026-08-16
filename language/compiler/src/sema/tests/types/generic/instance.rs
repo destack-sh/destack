@@ -227,6 +227,10 @@ function positive(values: int32[]): int32[] {
     /// @generic.instantiation id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
     /// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
     /// @generic.instance id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
+    /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+    /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
     /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32,), int32>
     /// @type.symbol symbol=positive.symbol3.value source=value type=int32
     /// @resolution.name source=value target=positive.symbol3.value
@@ -304,6 +308,7 @@ const chosen = tag("name");
 /// @resolution.name source=tag target=tag
 /// @resolution.call source="tag(\"name\")" parameters=(string) arguments=(provided("name") as string) return=int32 kind=symbol target=tag instance=tag<string>
 /// @generic.instantiation id=tag<string> template=tag arguments=(string)
+/// @generic.instance id=Choice<string> template=Choice arguments=(string) evaluated=(T#1 extends string ? int32 : boolean => int32)
 /// @generic.instance id=choose<string> template=choose arguments=(string)
 /// @generic.instance id=tag<string> template=tag arguments=(string) evaluated=(Choice<T#3> => int32)
 "#);

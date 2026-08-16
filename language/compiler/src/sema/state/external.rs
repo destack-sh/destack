@@ -26,6 +26,10 @@ pub(in crate::sema) struct CheckExternalModuleState {
     pub(in crate::sema) statics: dir::StaticTable<'static>,
     /// The committed generic table.
     pub(in crate::sema) generics: dir::GenericTable<'static>,
+    /// The committed decision table, populated while materializing.
+    pub(in crate::sema) decisions: dir::DecisionTable<'static>,
+    /// The committed coercion table, populated while materializing.
+    pub(in crate::sema) coercions: dir::CoercionTable<'static>,
     /// The committed definition table.
     pub(in crate::sema) definitions: dir::DefinitionTable<'static>,
     /// The committed member table, elaborated while checking.
@@ -310,7 +314,7 @@ impl CheckState<'_> {
         // each pass loads external modules up to the stage its reads may reach
         match self.pass {
             Pass::Declare | Pass::Elaborate => Ok(Self::declared_external(
-                parsed, bound, expanded, resolved, declared,
+                module, parsed, bound, expanded, resolved, declared,
             )),
             Pass::Check => {
                 let elaborated = self
@@ -319,7 +323,7 @@ impl CheckState<'_> {
                     .map_err(CompilerError::from)?;
 
                 Ok(Self::elaborated_external(
-                    parsed, bound, expanded, resolved, declared, elaborated,
+                    module, parsed, bound, expanded, resolved, declared, elaborated,
                 ))
             }
             Pass::Materialize => {
@@ -341,6 +345,7 @@ impl CheckState<'_> {
 
     /// Build external state over declared faces, for the elaborating passes.
     fn declared_external(
+        module: ModuleId,
         parsed: Arc<DirParsed>,
         bound: Arc<DirBound>,
         expanded: Arc<DirExpanded>,
@@ -352,6 +357,8 @@ impl CheckState<'_> {
             types: declared.type_table(bound.as_ref(), expanded.as_ref()),
             statics: declared.static_table(bound.as_ref(), expanded.as_ref()),
             generics: declared.generic_table(),
+            decisions: Self::empty_decisions(module),
+            coercions: Self::empty_coercions(module),
             definitions: declared.definition_table(),
             members: declared.member_table(),
             references: declared.references.clone(),
@@ -360,8 +367,19 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return an empty decision table for the passes below materialize.
+    fn empty_decisions(module: ModuleId) -> dir::DecisionTable<'static> {
+        dir::DecisionTable::from_segment(Arc::new(dir::DecisionSegment::new(module)))
+    }
+
+    /// Return an empty coercion table for the passes below materialize.
+    fn empty_coercions(module: ModuleId) -> dir::CoercionTable<'static> {
+        dir::CoercionTable::from_segment(Arc::new(dir::CoercionSegment::new(module)))
+    }
+
     /// Build external state over elaborated faces, for the checking pass.
     fn elaborated_external(
+        module: ModuleId,
         parsed: Arc<DirParsed>,
         bound: Arc<DirBound>,
         expanded: Arc<DirExpanded>,
@@ -377,6 +395,8 @@ impl CheckState<'_> {
             types: elaborated.type_table(bound.as_ref(), expanded.as_ref(), &declared),
             statics: elaborated.static_table(bound.as_ref(), expanded.as_ref(), &declared),
             generics: elaborated.generic_table(&declared),
+            decisions: Self::empty_decisions(module),
+            coercions: Self::empty_coercions(module),
             definitions: elaborated.definition_table(),
             members: elaborated.member_table(),
             references,
@@ -414,6 +434,8 @@ impl CheckState<'_> {
                 &elaborated,
             ),
             generics: checked.generic_table(&declared, &elaborated),
+            decisions: checked.decision_table(&declared, &elaborated),
+            coercions: checked.coercion_table(),
             definitions: checked.definition_table(&elaborated),
             members: checked.member_table(),
             references,

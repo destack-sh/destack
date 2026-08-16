@@ -137,6 +137,10 @@ const first = values[0];
 /// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 /// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 "#,
     );
 }
@@ -215,6 +219,7 @@ declare function take(values: Slice<float64>): void;
 take([1, 2]);
 /// @resolution.name source=take target=take
 /// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
+/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 "#,
     );
 }
@@ -378,7 +383,11 @@ const kind = values[0].kind;
 /// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
 /// @resolution.access source=values[0].kind root=values keys=[0, kind]
 /// @generic.instantiation id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
+/// @generic.instance id="Array<{ readonly kind: \"ready\" }>" template=collections.array.Array arguments=({ readonly kind: "ready" })
 /// @generic.instance id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
+/// @generic.instance id="memory.init.MaybeUninit<{ readonly kind: \"ready\" }>" template=memory.init.MaybeUninit arguments=({ readonly kind: "ready" })
+/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<{ readonly kind: "ready" }>>)
+/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
 "#,
     );
 }
@@ -1289,10 +1298,10 @@ function twice<T>(value: T): int32 where T: Doubling {
 interface Doubling {
 /// @type.symbol symbol=Doubling type=Doubling
 /// @definition.interface symbol=Doubling
-/// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=(this: this) => int32
+/// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=(this: Doubling) => int32
 
     double(): int32;
-    /// @type.symbol symbol=Doubling.double source="double(): int32" type=(this: this) => int32
+    /// @type.symbol symbol=Doubling.double source="double(): int32" type=(this: Doubling) => int32
 
 }
 
@@ -1594,10 +1603,10 @@ function build<T: Makeable>(): T {
 interface Makeable {
 /// @type.symbol symbol=Makeable type=Makeable
 /// @definition.interface symbol=Makeable
-/// @definition.method symbol=Makeable.make source="static make(): this" slot=make static=true type=() => this
+/// @definition.method symbol=Makeable.make source="static make(): this" slot=make static=true type=() => Makeable
 
     static make(): this;
-    /// @type.symbol symbol=Makeable.make source="static make(): this" type=() => this
+    /// @type.symbol symbol=Makeable.make source="static make(): this" type=() => Makeable
 
 }
 
@@ -1656,10 +1665,10 @@ function zero<T: Numeric>(): T {
 interface Zero {
 /// @type.symbol symbol=Zero type=Zero
 /// @definition.interface symbol=Zero
-/// @definition.method symbol=Zero.zero source="static zero(): this" slot=zero static=true type=() => this
+/// @definition.method symbol=Zero.zero source="static zero(): this" slot=zero static=true type=() => Zero
 
     static zero(): this;
-    /// @type.symbol symbol=Zero.zero source="static zero(): this" type=() => this
+    /// @type.symbol symbol=Zero.zero source="static zero(): this" type=() => Zero
 
 }
 

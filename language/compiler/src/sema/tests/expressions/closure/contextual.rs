@@ -207,12 +207,12 @@ function capture(): void {
     let cell = new Cell<int32>((inner) => {
     /// @type.symbol symbol=capture.cell source=cell type=Cell<int32>
     /// @resolution.pattern source=cell kind=binding target=capture.cell
+    /// @generic.instance id=Cell<int32> template=Cell arguments=(int32)
     /// @type.node type=Cell<int32>
     /// @resolution.construct parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=Cell<int32> kind=class target=Cell constructor=Cell.constructor instance=Cell<int32>
     /// @generic.instantiation id=Cell.constructor<int32> template=Cell.constructor arguments=(int32)
     /// @generic.instantiation id=Cell<int32> template=Cell arguments=(int32)
     /// @generic.instance id=Cell.constructor<int32> template=Cell.constructor arguments=(int32)
-    /// @generic.instance id=Cell<int32> template=Cell arguments=(int32)
     /// @resolution.name source=Cell target=Cell
     /// @type.symbol symbol=capture.symbol9 type=Function<(int32,), void>
     /// @type.node type=Function<(int32,), void>

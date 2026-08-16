@@ -52,10 +52,11 @@ struct Token {}
 /// @definition.struct symbol=Token source="struct Token {}"
 
 extension of Token implements Add<Token> {
+/// @generic.instance id=ops.plus.Add<Token> template=ops.plus.Add arguments=(Token)
 /// @definition.extension symbol=<module>#2 form=local target=Token
 /// @definition.implements symbol=<module>#2 source=Add<Token> target=ops.plus.Add<Token>
 /// @definition.associated.type symbol=Output source="type Output = string" key=Output value=string
-/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly this, Token) => string
+/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly Token, Token) => string
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
 /// @resolution.name source=Token target=Token
@@ -67,7 +68,7 @@ extension of Token implements Add<Token> {
 
     add(other: Token): string {
     /// @generic.template symbol=add parent=template#0 parameters=('a)
-    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly this, Token) => string
+    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly Token, Token) => string
     /// @type.symbol symbol=add.other source="other: Token" type=Token
     /// @resolution.name source=Token target=Token
 
@@ -181,7 +182,7 @@ extension of Attempt implements Try {
 /// @definition.implements symbol=<module>#2 source=Try target=ops.try.Try
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.associated.type symbol=Residual source="type Residual = string" key=Residual value=string
-/// @definition.method symbol=branch slot=branch type=<branch.'a>(this: &branch.'a readonly this) => ops.try.ControlFlow<string, int32>
+/// @definition.method symbol=branch slot=branch type=<branch.'a>(this: &branch.'a readonly Attempt) => ops.try.ControlFlow<string, int32>
 /// @definition.method symbol=fromOutput slot=fromOutput static=true type=(int32) => Attempt
 /// @definition.method symbol=fromResidual slot=fromResidual static=true type=(string) => Attempt
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.try.Try.Output
@@ -223,8 +224,11 @@ extension of Attempt implements Try {
 
     branch(): ControlFlow<string, int32> {
     /// @generic.template symbol=branch parent=template#0 parameters=('a)
-    /// @type.symbol symbol=branch type=<branch.'a>(this: &branch.'a readonly this) => ops.try.ControlFlow<string, int32>
+    /// @type.symbol symbol=branch type=<branch.'a>(this: &branch.'a readonly Attempt) => ops.try.ControlFlow<string, int32>
     /// @resolution.name source=ControlFlow target=ops.try.ControlFlow
+    /// @generic.instance id="ops.try.ControlFlow<string, int32>" template=ops.try.ControlFlow arguments=(string, int32)
+    /// @generic.instance id=ops.try.Break<string> template=ops.try.Break arguments=(string)
+    /// @generic.instance id=ops.try.Continue<int32> template=ops.try.Continue arguments=(int32)
 
         return ControlFlow.continue(this.value);
         /// @resolution.name source=ControlFlow target=ops.try.ControlFlow

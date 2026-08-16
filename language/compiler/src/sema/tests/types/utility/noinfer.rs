@@ -42,6 +42,7 @@ const ok = choose(["red", "blue"], "red");
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=(Array<"red" | "blue">, "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("red") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
+/// @generic.instance id="NoInfer<\"red\" | \"blue\">" template=types.object.NoInfer arguments=("red" | "blue")
 /// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 
 ok satisfies "red" | "blue";

@@ -186,10 +186,10 @@ class Document implements Printable {
 interface Printable {
 /// @type.symbol symbol=Printable type=Printable
 /// @definition.interface symbol=Printable
-/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: this) => void
+/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: Printable) => void
 
     print(): void;
-    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: this) => void
+    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: Printable) => void
 
 }
 
@@ -198,12 +198,12 @@ class Document implements Printable {
 /// @definition.class symbol=Document
 /// @definition.where symbol=Document source=Printable relation=satisfies left=this right=Printable
 /// @definition.implements symbol=Document source=Printable target=Printable
-/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: this) => void
+/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
 /// @definition.conformance symbol=Document member=Document.print requirement=Printable.print
 /// @resolution.name source=Printable target=Printable
 
     print(): void {}
-    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: this) => void
+    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: Document) => void
 
 }
 "#,
@@ -970,7 +970,7 @@ class Child extends Base {
 === dir ===
 class Base {
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.describe slot=describe abstraction=virtual type=(this: this) => string
+/// @definition.method symbol=Base.describe slot=describe abstraction=virtual type=(this: Base) => string
 
     virtual describe(): string {
         return "base";
@@ -980,7 +980,7 @@ class Base {
 class Child extends Base {
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
-/// @definition.method symbol=Child.describe slot=describe override=true overrides=Base.describe type=(this: this) => string
+/// @definition.method symbol=Child.describe slot=describe override=true overrides=Base.describe type=(this: Child) => string
 
     override describe(): string {
         return "child";
@@ -1029,10 +1029,10 @@ class Dog extends Animal {
 class Animal {
 /// @type.symbol symbol=Animal type=Animal
 /// @definition.class symbol=Animal
-/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=(this: this) => string
+/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=(this: Animal) => string
 
     virtual speak(): string {
-    /// @type.symbol symbol=Animal.speak type=(this: this) => string
+    /// @type.symbol symbol=Animal.speak type=(this: Animal) => string
 
         return "sound";
     }
@@ -1042,11 +1042,11 @@ class Dog extends Animal {
 /// @type.symbol symbol=Dog type=Dog
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
-/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=(this: this) => string
+/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=(this: Dog) => string
 /// @resolution.name source=Animal target=Animal
 
     override speak(): string {
-    /// @type.symbol symbol=Dog.speak type=(this: this) => string
+    /// @type.symbol symbol=Dog.speak type=(this: Dog) => string
 
         return super.speak();
         /// @resolution.member source=super.speak receiver=Animal type=(this: Animal) => string kind=symbol target_receiver=Animal target=Animal.speak
@@ -1104,10 +1104,10 @@ class Dog extends Animal {
 class Animal {
 /// @type.symbol symbol=Animal type=Animal
 /// @definition.class symbol=Animal
-/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=(this: this) => string
+/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=(this: Animal) => string
 
     virtual speak(): string {
-    /// @type.symbol symbol=Animal.speak type=(this: this) => string
+    /// @type.symbol symbol=Animal.speak type=(this: Animal) => string
     /// @capture.function function=Animal.speak bindings=0
 
         return "sound";
@@ -1118,11 +1118,11 @@ class Dog extends Animal {
 /// @type.symbol symbol=Dog type=Dog
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
-/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=(this: this) => string
+/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=(this: Dog) => string
 /// @resolution.name source=Animal target=Animal
 
     override speak(): string {
-    /// @type.symbol symbol=Dog.speak type=(this: this) => string
+    /// @type.symbol symbol=Dog.speak type=(this: Dog) => string
     /// @capture.function function=Dog.speak bindings=0
 
         const inherited = () => super.speak();

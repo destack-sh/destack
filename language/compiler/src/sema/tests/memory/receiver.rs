@@ -72,18 +72,18 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
-/// @definition.method symbol=Counter.borrow slot=borrow type=<Counter.borrow.'a>(this: &Counter.borrow.'a this) => int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => void
-/// @definition.method symbol=Counter.inspect slot=inspect type=<Counter.inspect.'a>(this: &Counter.inspect.'a readonly this) => int32
-/// @definition.method symbol=Counter.peek slot=peek type=(this: Readonly<this>) => int32
-/// @definition.method symbol=Counter.read slot=read type=(this: this) => int32
+/// @definition.method symbol=Counter.borrow slot=borrow type=<Counter.borrow.'a>(this: &Counter.borrow.'a Counter) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => void
+/// @definition.method symbol=Counter.inspect slot=inspect type=<Counter.inspect.'a>(this: &Counter.inspect.'a readonly Counter) => int32
+/// @definition.method symbol=Counter.peek slot=peek type=(this: Readonly<Counter>) => int32
+/// @definition.method symbol=Counter.read slot=read type=(this: Counter) => int32
 /// @definition.method symbol=Counter.zero slot=zero static=true type=() => Counter
 
     value: int32 = 0;
     /// @type.symbol symbol=Counter.value source="value: int32 = 0" type=int32
 
     read(this): int32 {
-    /// @type.symbol symbol=Counter.read type=(this: this) => int32
+    /// @type.symbol symbol=Counter.read type=(this: Counter) => int32
     /// @type.symbol symbol=Counter.read.this source=this type=this
 
         return this.value;
@@ -97,7 +97,7 @@ class Counter {
     }
 
     peek(readonly this): int32 {
-    /// @type.symbol symbol=Counter.peek type=(this: Readonly<this>) => int32
+    /// @type.symbol symbol=Counter.peek type=(this: Readonly<Counter>) => int32
     /// @type.symbol symbol=Counter.peek.this source="readonly this" type=Readonly<this>
 
         return this.value;
@@ -112,7 +112,7 @@ class Counter {
 
     borrow(&this): int32 {
     /// @generic.template symbol=Counter.borrow parameters=('a)
-    /// @type.symbol symbol=Counter.borrow type=<Counter.borrow.'a>(this: &Counter.borrow.'a this) => int32
+    /// @type.symbol symbol=Counter.borrow type=<Counter.borrow.'a>(this: &Counter.borrow.'a Counter) => int32
     /// @type.symbol symbol=Counter.borrow.this source=&this type=&Counter.borrow.'a this
 
         return this.value;
@@ -127,7 +127,7 @@ class Counter {
 
     inspect(&readonly this): int32 {
     /// @generic.template symbol=Counter.inspect parameters=('a)
-    /// @type.symbol symbol=Counter.inspect type=<Counter.inspect.'a>(this: &Counter.inspect.'a readonly this) => int32
+    /// @type.symbol symbol=Counter.inspect type=<Counter.inspect.'a>(this: &Counter.inspect.'a readonly Counter) => int32
     /// @type.symbol symbol=Counter.inspect.this source="&readonly this" type=&Counter.inspect.'a readonly this
 
         return this.value;
@@ -142,7 +142,7 @@ class Counter {
 
     increment(&exclusive this): void {
     /// @generic.template symbol=Counter.increment parameters=('a)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => void
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => void
     /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'a exclusive this
 
         this.value = this.value + 1;
@@ -223,11 +223,11 @@ class Message {}
 newtype interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink nominal=true
-/// @definition.method symbol=Sink.write source="write(&readonly this, value: Message): Message" slot=write type=<Sink.write.'a>(this: &Sink.write.'a readonly this, Message) => Message
+/// @definition.method symbol=Sink.write source="write(&readonly this, value: Message): Message" slot=write type=<Sink.write.'a>(this: &Sink.write.'a readonly Sink, Message) => Message
 
     write(&readonly this, value: Message): Message;
     /// @generic.template symbol=Sink.write parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Sink.write source="write(&readonly this, value: Message): Message" type=<Sink.write.'a>(this: &Sink.write.'a readonly this, Message) => Message
+    /// @type.symbol symbol=Sink.write source="write(&readonly this, value: Message): Message" type=<Sink.write.'a>(this: &Sink.write.'a readonly Sink, Message) => Message
     /// @type.symbol symbol=Sink.write.this source="&readonly this" type=&Sink.write.'a readonly this
     /// @type.symbol symbol=Sink.write.value source="value: Message" type=Message
     /// @resolution.name source=Message target=Message
@@ -687,14 +687,14 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a readonly this) => int32
+/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     length(&readonly this): int32 {
     /// @generic.template symbol=Point.length parameters=('a)
-    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a readonly this) => int32
+    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
     /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'a readonly this
 
         return this.x;
@@ -757,14 +757,14 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.current slot=current role=getter type=<Counter.current.'a>(this: &Counter.current.'a readonly this) => int32
+/// @definition.method symbol=Counter.current slot=current role=getter type=<Counter.current.'a>(this: &Counter.current.'a readonly Counter) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     get current(): int32 {
     /// @generic.template symbol=Counter.current parameters=('a)
-    /// @type.symbol symbol=Counter.current type=<Counter.current.'a>(this: &Counter.current.'a readonly this) => int32
+    /// @type.symbol symbol=Counter.current type=<Counter.current.'a>(this: &Counter.current.'a readonly Counter) => int32
 
         this.value
         /// @resolution.member source=this.value receiver=&Counter.current.'a readonly Counter type=int32 kind=field target_receiver=&Counter.current.'a readonly Counter key=value target=Counter.value target_type=int32
@@ -820,13 +820,13 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
-/// @definition.method symbol=Counter.current slot=current role=getter type=(this: Readonly<this>) => int32
+/// @definition.method symbol=Counter.current slot=current role=getter type=(this: Readonly<Counter>) => int32
 
     value: int32 = 0;
     /// @type.symbol symbol=Counter.value source="value: int32 = 0" type=int32
 
     get current(): int32 {
-    /// @type.symbol symbol=Counter.current type=(this: Readonly<this>) => int32
+    /// @type.symbol symbol=Counter.current type=(this: Readonly<Counter>) => int32
 
         this.value
         /// @resolution.member source=this.value receiver=Readonly<Counter> type=int32 kind=field target_receiver=Readonly<Counter> key=value target=Counter.value target_type=int32

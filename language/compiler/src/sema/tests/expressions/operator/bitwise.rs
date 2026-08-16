@@ -180,10 +180,11 @@ struct Flags {
 }
 
 extension of Flags implements And<Flags> {
+/// @generic.instance id=And<Flags> template=ops.bitwise.And arguments=(Flags)
 /// @definition.extension symbol=<module>#2 form=local target=Flags
 /// @definition.implements symbol=<module>#2 source=And<Flags> target=And<Flags>
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags
-/// @definition.method symbol=and slot=and type=<and.'a>(this: &and.'a readonly this, Flags) => Flags
+/// @definition.method symbol=and slot=and type=<and.'a>(this: &and.'a readonly Flags, Flags) => Flags
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.bitwise.And.Output
 /// @definition.conformance symbol=<module>#2 member=and requirement=ops.bitwise.And.and
 /// @resolution.name source=Flags target=Flags
@@ -196,7 +197,7 @@ extension of Flags implements And<Flags> {
 
     and(&readonly this, other: Flags): Flags {
     /// @generic.template symbol=and parent=template#0 parameters=('a)
-    /// @type.symbol symbol=and type=<and.'a>(this: &and.'a readonly this, Flags) => Flags
+    /// @type.symbol symbol=and type=<and.'a>(this: &and.'a readonly Flags, Flags) => Flags
     /// @type.symbol symbol=and.this source="&readonly this" type=&and.'a readonly this
     /// @type.symbol symbol=and.other source="other: Flags" type=Flags
     /// @resolution.name source=Flags target=Flags

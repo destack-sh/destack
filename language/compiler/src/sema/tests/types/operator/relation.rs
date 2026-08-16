@@ -236,10 +236,10 @@ const plain: false = false;
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
 
 }
 
@@ -249,7 +249,7 @@ struct DrawnPoint implements Drawable {
 /// @definition.where symbol=DrawnPoint source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=DrawnPoint source=Drawable target=Drawable
 /// @definition.field symbol=DrawnPoint.x source="x: int32" key=x type=int32
-/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly this) => void
+/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => void
 /// @definition.conformance symbol=DrawnPoint member=DrawnPoint.draw requirement=Drawable.draw
 /// @resolution.name source=Drawable target=Drawable
 
@@ -258,7 +258,7 @@ struct DrawnPoint implements Drawable {
 
     draw(): void {}
     /// @generic.template symbol=DrawnPoint.draw parent=template#1 parameters=('a)
-    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly this) => void
+    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => void
 
 }
 

@@ -403,6 +403,7 @@ struct Box<T> {
 declare const localBox: local Box<User>;
 /// @type.symbol symbol=localBox source=localBox type=Placed<Box<User>, "local">
 /// @resolution.pattern source=localBox kind=binding target=localBox
+/// @generic.instance id=Box<User> template=Box arguments=(User)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 
@@ -415,6 +416,7 @@ declare const sharedBox: shared Box<User>;
 declare const mixedBox: local Box<shared User>;
 /// @type.symbol symbol=mixedBox source=mixedBox type=Placed<Box<Placed<User, "shared">>, "local">
 /// @resolution.pattern source=mixedBox kind=binding target=mixedBox
+/// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 
@@ -732,13 +734,13 @@ declare const sharedUser: shared User;
 const localBox: local Box<User> = new Box(localUser);
 /// @type.symbol symbol=localBox source=localBox type=Placed<Box<User>, "local">
 /// @resolution.pattern source=localBox kind=binding target=localBox
+/// @generic.instance id=Box<User> template=Box arguments=(User)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new Box(localUser)" parameters=(User) arguments=(provided(localUser) as User) return=Placed<Box<User>, "local"> kind=class target=Box constructor=Box.constructor instance=Box<User>
 /// @generic.instantiation id=Box.constructor<User> template=Box.constructor arguments=(User)
 /// @generic.instantiation id=Box<User> template=Box arguments=(User)
 /// @generic.instance id=Box.constructor<User> template=Box.constructor arguments=(User)
-/// @generic.instance id=Box<User> template=Box arguments=(User)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=localUser target=localUser
 /// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
@@ -760,13 +762,13 @@ const sharedBox: shared Box<User> = new Box(sharedUser);
 const mixedBox: local Box<shared User> = new Box(sharedUser);
 /// @type.symbol symbol=mixedBox source=mixedBox type=Placed<Box<Placed<User, "shared">>, "local">
 /// @resolution.pattern source=mixedBox kind=binding target=mixedBox
+/// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new Box(sharedUser)" parameters=(Placed<User, "shared">) arguments=(provided(sharedUser) as Placed<User, "shared">) return=Placed<Box<Placed<User, "shared">>, "local"> kind=class target=Box constructor=Box.constructor instance="Box<Placed<User, \"shared\">>"
 /// @generic.instantiation id="Box.constructor<Placed<User, \"shared\">>" template=Box.constructor arguments=(Placed<User, "shared">)
 /// @generic.instantiation id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
 /// @generic.instance id="Box.constructor<Placed<User, \"shared\">>" template=Box.constructor arguments=(Placed<User, "shared">)
-/// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=sharedUser target=sharedUser
 /// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
@@ -885,12 +887,14 @@ class User {}
 declare const localBox: local Box<User>;
 /// @type.symbol symbol=localBox source=localBox type=Placed<Dynamic<Box<User>>, "local">
 /// @resolution.pattern source=localBox kind=binding target=localBox
+/// @generic.instance id=Box<User> template=Box arguments=(User)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 
 declare const mixedBox: local Box<shared User>;
 /// @type.symbol symbol=mixedBox source=mixedBox type=Placed<Dynamic<Box<Placed<User, "shared">>>, "local">
 /// @resolution.pattern source=mixedBox kind=binding target=mixedBox
+/// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 

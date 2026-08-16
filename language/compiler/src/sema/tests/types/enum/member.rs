@@ -299,7 +299,7 @@ enum Status {
 /// @definition.enum symbol=Status
 /// @definition.variant symbol=Status.Active source="Active = 1" key=Active value=1
 /// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive value=2
-/// @definition.method symbol=Status.isActive slot=isActive type=<Status.isActive.'a>(this: &Status.isActive.'a readonly this) => boolean
+/// @definition.method symbol=Status.isActive slot=isActive type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status) => boolean
 
     Active = 1,
     /// @type.symbol symbol=Status.Active source="Active = 1" type=Status.Active
@@ -311,7 +311,7 @@ enum Status {
 
     isActive(): boolean {
     /// @generic.template symbol=Status.isActive parameters=('a)
-    /// @type.symbol symbol=Status.isActive type=<Status.isActive.'a>(this: &Status.isActive.'a readonly this) => boolean
+    /// @type.symbol symbol=Status.isActive type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status) => boolean
 
         return this == Status.Active;
         /// @type.node source="this == Status.Active" type=boolean

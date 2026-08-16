@@ -49,6 +49,7 @@ declare const value: Box<string>.Item;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Box<string>.Item target=Box.Item
+/// @generic.instance id=Box<string> template=Box arguments=(string)
 "#,
     );
 }
@@ -134,12 +135,12 @@ interface Iterator {
 /// @type.symbol symbol=Iterator type=Iterator
 /// @definition.interface symbol=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item" key=Item
-/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: Iterator) => Iterator.Item
 
     type Item;
 
     next(): this.Item;
-    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: this) => this.Item
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: Iterator) => Iterator.Item
 
 }
 
@@ -215,12 +216,12 @@ interface Producing {
 /// @type.symbol symbol=Producing type=Producing
 /// @definition.interface symbol=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
-/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: this) => this.Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: Producing) => Producing.Output
 
     type Output;
 
     produce(): this.Output;
-    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: Producing) => Producing.Output
 
 }
 
@@ -230,7 +231,7 @@ class Factory implements Producing {
 /// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
 /// @definition.implements symbol=Factory source=Producing target=Producing
 /// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=Factory.produce slot=produce type=(this: this) => this.Output
+/// @definition.method symbol=Factory.produce slot=produce type=(this: Factory) => int32
 /// @definition.conformance symbol=Factory member=Factory.Output requirement=Producing.Output
 /// @definition.conformance symbol=Factory member=Factory.produce requirement=Producing.produce
 /// @resolution.name source=Producing target=Producing
@@ -239,7 +240,7 @@ class Factory implements Producing {
     /// @type.symbol symbol=Factory.Output source="type Output = int32" type=int32
 
     produce(): this.Output {
-    /// @type.symbol symbol=Factory.produce type=(this: this) => this.Output
+    /// @type.symbol symbol=Factory.produce type=(this: Factory) => int32
 
         return 7;
     }
@@ -441,6 +442,8 @@ type EventLabel = Message<"orders">.Label<"created">;
 /// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value="orders:created"
 /// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=Envelope.Label
 /// @resolution.name source=Message target=Message
+/// @generic.instance id="Envelope<\"orders\">" template=Envelope arguments=("orders")
+/// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
 "#,
     );
 }
@@ -498,6 +501,8 @@ type EventLabel = Message<"orders">.Label<"created">;
 /// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value="orders:created"
 /// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=envelope.Envelope.Label
 /// @resolution.name source=Message target=Message
+/// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
+/// @generic.instance id="envelope.Envelope<\"orders\">" template=envelope.Envelope arguments=("orders")
 "#,
     );
 }
