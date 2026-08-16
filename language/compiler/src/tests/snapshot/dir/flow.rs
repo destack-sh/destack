@@ -3,7 +3,7 @@ use destack_dir as dir;
 use super::{DirSnapshotBuilder, SnapshotTable};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
-impl SnapshotTable for dir::FlowSegment {
+impl SnapshotTable for dir::FlowTable<'_> {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         // render the nodes flow proves unreachable
         for node in self.unreachable_nodes() {
@@ -36,6 +36,16 @@ impl SnapshotTable for dir::FlowSegment {
             builder.push(row);
         }
 
+        // render the recorded taint domains
+        for taint in self.taints() {
+            let node = taint.node.into_global(self.module_id);
+            let row = SnapshotRow::new(builder.anchor_node(node), "flow", "taint")
+                .optional_field("source", builder.node_source(node))
+                .field("tag", builder.strings.get(taint.tag).to_string());
+
+            builder.push(row);
+        }
+
         // render the recorded foreign symbol uses
         for (symbol, binding_use) in self.foreign_uses() {
             let row = SnapshotRow::new(SnapshotAnchor::End, "flow", "foreign")
@@ -58,6 +68,9 @@ fn binding_use_label(binding_use: dir::BindingUse) -> String {
     }
     if binding_use.contains(dir::BindingUse::CAPTURED) {
         labels.push("captured");
+    }
+    if binding_use.contains(dir::BindingUse::MUTABLE) {
+        labels.push("mutable");
     }
 
     labels.join("+")
