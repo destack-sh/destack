@@ -225,6 +225,14 @@ impl TypeLowerer<'_, '_> {
             let specialization = self
                 .lowerer
                 .specialization_of(symbol, &arguments.type_arguments)?;
+            if specialization.is_none() && !arguments.type_arguments.is_empty() {
+                let path = self.lowerer.symbol_path(symbol)?;
+                self.lowerer.nominal_states.shift_remove(&arguments.key);
+
+                return Err(CompilerError::Internal {
+                    message: format!("an instance of '{path}' was never materialized"),
+                });
+            }
             let mut types = self
                 .lowerer
                 .type_lowerer(

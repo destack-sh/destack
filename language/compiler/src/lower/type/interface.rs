@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::{NominalField, TypeLowerer};
-use crate::{CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One named member of a flattened interface.
 enum InterfaceMember {
@@ -106,9 +106,20 @@ impl TypeLowerer<'_, '_> {
                 .to_vec();
             let base_instance = match arguments.is_empty() {
                 true => None,
-                false => self
-                    .lowerer
-                    .specialization_of(application.symbol, &arguments)?,
+                false => {
+                    let specialization = self
+                        .lowerer
+                        .specialization_of(application.symbol, &arguments)?;
+                    if specialization.is_none() {
+                        let path = self.lowerer.symbol_path(application.symbol)?;
+
+                        return Err(CompilerError::Internal {
+                            message: format!("an instance of '{path}' was never materialized"),
+                        });
+                    }
+
+                    specialization
+                }
             };
             self.nested(base_instance).collect_interface_members(
                 application.symbol,
