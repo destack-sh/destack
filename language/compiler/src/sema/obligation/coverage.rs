@@ -404,32 +404,49 @@ impl CheckState<'_> {
 
                     return self.decide_fields_cover(origin, module, &fields, payload);
                 }
-                let dir::PatternDecision::Destructure(resolution) = resolution else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "nominal coverage pattern {pattern:?} has non-nominal resolution: {resolution:?}"
-                        ),
-                    });
-                };
-                let dir::PatternDestructureResolution::Nominal(nominal) = resolution.as_ref()
-                else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "nominal coverage pattern {pattern:?} has non-nominal destructuring"
-                        ),
-                    });
+
+                // newtype patterns project their payload, nominal patterns destructure it
+                let selection = match &resolution {
+                    dir::PatternDecision::Destructure(resolution) => {
+                        let dir::PatternDestructureResolution::Nominal(nominal) =
+                            resolution.as_ref()
+                        else {
+                            return Err(CompilerError::Internal {
+                                message: format!(
+                                    "nominal coverage pattern {pattern:?} has non-nominal destructuring"
+                                ),
+                            });
+                        };
+
+                        nominal.selection.clone()
+                    }
+                    dir::PatternDecision::Project(projection)
+                        if let dir::OperationResolution::One(dir::Projection::NewtypePayload {
+                            selection,
+                            ..
+                        }) = &projection.projection =>
+                    {
+                        selection.clone()
+                    }
+                    resolution => {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "nominal coverage pattern {pattern:?} has non-nominal resolution: {resolution:?}"
+                            ),
+                        });
+                    }
                 };
 
                 // cover every instantiation of a symbol with one constructor
                 match self.ty(value)? {
                     dir::Type::Application(value_instance) => {
                         // inherited constructors cover through heritage
-                        if value_instance.symbol != nominal.selection.symbol {
+                        if value_instance.symbol != selection.symbol {
                             let closure = self.heritage_closure(origin, value)?;
                             let mut inherits = false;
                             for application in &closure.applications {
                                 let (_, instance) = self.nominal_application(application.ty)?;
-                                if instance.symbol == nominal.selection.symbol {
+                                if instance.symbol == selection.symbol {
                                     inherits = true;
                                     break;
                                 }

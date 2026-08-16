@@ -1014,8 +1014,8 @@ match (packet) {
         /// @resolution.pattern source=[first, second] kind=sequence element=string arity=2 fields=(first, second)
         /// @generic.instantiation id="collections.fixed-array.index#1<string, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(string, 2, "exclusive")
         /// @generic.instance id="collections.fixed-array.index#1<string, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(string, 2, "exclusive")
-        /// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a FixedArray<string, 2>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a FixedArray<string, 2>, "exclusive")
-        /// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a string, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a string, "exclusive")
+        /// @generic.instance id="memory.type.WithAccess<&'frame FixedArray<string, 2>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame FixedArray<string, 2>, "exclusive")
+        /// @generic.instance id="memory.type.WithAccess<&'frame string, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame string, "exclusive")
         /// @type.symbol symbol=first source=first type=string
         /// @resolution.pattern source=first kind=binding target=first
         /// @type.symbol symbol=second source=second type=string
@@ -1203,8 +1203,8 @@ match (values) {
     /// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
     /// @generic.instantiation id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
     /// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-    /// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<int32>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<int32>, "exclusive")
-    /// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a int32, "exclusive")
+    /// @generic.instance id="memory.type.WithAccess<&'frame Array<int32>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<int32>, "exclusive")
+    /// @generic.instance id="memory.type.WithAccess<&'frame int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32, "exclusive")
     /// @generic.instance id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
     /// @type.symbol symbol=head source=head type=int32
     /// @resolution.pattern source=head kind=binding target=head
@@ -1336,6 +1336,130 @@ const label = match (status) {
     /// @resolution.access source=status root=status
 
 };
+"#,
+    );
+}
+
+#[test]
+fn test_match_covers_newtype_patterns() {
+    let session = TestSession::single(
+        r#"
+newtype Count = (int32,);
+
+function isSmall(count: Count): boolean {
+    return match (count) {
+        Count(0) | Count(1) => true
+        _ => false
+    };
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype Count = (int32,);
+
+function isSmall(count: Count): boolean {
+    return match (count) {
+        Count(0) | Count(1) => true
+        _ => false
+    };
+}
+
+=== dir ===
+newtype Count = (int32,);
+/// @type.symbol symbol=Count source="newtype Count = (int32,)" type=Count
+/// @definition.newtype symbol=Count source="newtype Count = (int32,)" backing=(int32,) constructors=[(int32) => Count]
+
+function isSmall(count: Count): boolean {
+/// @type.symbol symbol=isSmall type=(Count) => boolean
+/// @type.symbol symbol=isSmall.count source="count: Count" type=Count
+/// @resolution.name source=Count target=Count
+
+    return match (count) {
+    /// @resolution.name source=count target=isSmall.count
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=isSmall.count
+
+        Count(0) | Count(1) => true
+        /// @resolution.name source=Count target=Count
+        /// @resolution.pattern source="Count(0) | Count(1)" kind=union patterns=[pattern, pattern]
+        /// @resolution.pattern source=Count(0) kind=newtype projection="newtype.payload(Count, (int32,))" pattern=pattern
+        /// @resolution.pattern source=0 kind=literal value=0
+        /// @resolution.name source=Count target=Count
+        /// @resolution.pattern source=Count(1) kind=newtype projection="newtype.payload(Count, (int32,))" pattern=pattern
+        /// @resolution.pattern source=1 kind=literal value=1
+
+        _ => false
+        /// @resolution.pattern source=_ kind=wildcard
+
+    };
+}
+"#,
+    );
+}
+
+#[test]
+fn test_match_reports_uncovered_newtype_payloads() {
+    let session = TestSession::single(
+        r#"
+newtype Count = (int32,);
+
+function isSmall(count: Count): boolean {
+    return match (count) {
+        Count(0) | Count(1) => true
+    };
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype Count = (int32,);
+
+function isSmall(count: Count): boolean {
+    return match (count) {
+        Count(0) | Count(1) => true
+    };
+}
+
+=== dir ===
+newtype Count = (int32,);
+/// @type.symbol symbol=Count source="newtype Count = (int32,)" type=Count
+/// @definition.newtype symbol=Count source="newtype Count = (int32,)" backing=(int32,) constructors=[(int32) => Count]
+
+function isSmall(count: Count): boolean {
+/// @type.symbol symbol=isSmall type=(Count) => boolean
+/// @type.symbol symbol=isSmall.count source="count: Count" type=Count
+/// @resolution.name source=Count target=Count
+
+    return match (count) {
+    /// @resolution.name source=count target=isSmall.count
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=isSmall.count
+
+        Count(0) | Count(1) => true
+        /// @resolution.name source=Count target=Count
+        /// @resolution.pattern source="Count(0) | Count(1)" kind=union patterns=[pattern, pattern]
+        /// @resolution.pattern source=Count(0) kind=newtype projection="newtype.payload(Count, (int32,))" pattern=pattern
+        /// @resolution.pattern source=0 kind=literal value=0
+        /// @resolution.name source=Count target=Count
+        /// @resolution.pattern source=Count(1) kind=newtype projection="newtype.payload(Count, (int32,))" pattern=pattern
+        /// @resolution.pattern source=1 kind=literal value=1
+
+    };
+}
+"#,
+        r#"
+/// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: '(int32)' is not covered"
+/// @diagnostic.label line=5 column=12 span="match" line_source="return match (count) {"
+/// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );
 }
