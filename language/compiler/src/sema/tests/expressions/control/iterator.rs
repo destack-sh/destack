@@ -616,3 +616,55 @@ for (const key in target) {
 "#,
     );
 }
+
+#[test]
+fn test_for_of_binding_accepts_compound_assignment() {
+    let session = TestSession::single(
+        r#"
+function visit(values: int32[]): void {
+    for (let value of values) {
+        value += 1;
+    }
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function visit(values: int32[]): void {
+    for (let value of values) {
+        value += 1;
+    }
+}
+
+=== dir ===
+function visit(values: int32[]): void {
+/// @type.symbol symbol=visit type=(Array<int32>) => void
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
+/// @type.symbol symbol=visit.values source="values: int32[]" type=Array<int32>
+
+    for (let value of values) {
+    /// @type.symbol symbol=visit.value source=value type=int32
+    /// @resolution.pattern source=value kind=binding target=visit.value
+    /// @resolution.name source=values target=visit.values
+    /// @resolution.access source=values root=visit.values
+
+        value += 1;
+        /// @resolution.name source=value target=visit.value
+        /// @resolution.operator source="value += 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
+        /// @resolution.pattern.assign source=value kind=place
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=value read=binding(visit.value) write=binding(visit.value) type=int32
+        /// @resolution.access source=value root=visit.value
+
+    }
+}
+"#,
+    );
+}

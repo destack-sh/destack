@@ -262,3 +262,108 @@ export extension<T> of Tag<T> {
 "#,
     );
 }
+
+#[test]
+fn test_destructured_callback_parameter_reads_contextual_fields() {
+    let session = TestSession::single(
+        r#"
+function values(entries: { value: int32 }[]): int32[] {
+    return entries.map(({ value }) => value);
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function values(entries: { value: int32 }[]): int32[] {
+    return entries.map<{ value: int32 }, int32>(({ value }): int32 => value) as int32[];
+}
+
+=== dir ===
+function values(entries: { value: int32 }[]): int32[] {
+/// @type.symbol symbol=values type=(Array<{ value: int32 }>) => Array<int32>
+/// @generic.instance id="Array<{ value: int32 }>" template=collections.array.Array arguments=({ value: int32 })
+/// @generic.instance id="memory.init.MaybeUninit<{ value: int32 }>" template=memory.init.MaybeUninit arguments=({ value: int32 })
+/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<{ value: int32 }>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<{ value: int32 }>>)
+/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<{ value: int32 }>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<{ value: int32 }>)
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
+/// @type.symbol symbol=values.entries source="entries: { value: int32 }[]" type=Array<{ value: int32 }>
+
+    return entries.map(({ value }) => value);
+    /// @resolution.name source=entries target=values.entries
+    /// @resolution.member source=entries.map receiver=Array<{ value: int32 }> type=<collections.array.map.U#2>(this: Array<{ value: int32 }>, Function<({ value: int32 }, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=symbol target_receiver=Array<{ value: int32 }> target=collections.array.map#2
+    /// @resolution.call source="entries.map(({ value }) => value)" parameters=(Function<({ value: int32 }, isize), int32>) arguments=(provided(({ value }) => value) as Function<({ value: int32 }, isize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#2 receiver=Array<{ value: int32 }> instance="Array<{ value: int32 }>.<extension#3>.map#2<int32>"
+    /// @resolution.place source=entries placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=entries root=values.entries
+    /// @generic.instantiation id="collections.array.map#2<{ value: int32 }, int32>" template=collections.array.map#2 arguments=({ value: int32 }, int32)
+    /// @generic.instantiation id="collections.array.map#2<{ value: int32 }>" template=collections.array.map#2 arguments=({ value: int32 })
+    /// @generic.instance id="collections.array.map#2<{ value: int32 }, int32>" template=collections.array.map#2 arguments=({ value: int32 }, int32)
+    /// @type.symbol symbol=values.symbol5 source="({ value }) => value" type=Function<({ value: int32 },), int32>
+    /// @resolution.pattern source={ value } kind=object fields={ value }
+    /// @type.symbol symbol=values.symbol5.value source=value type=int32
+    /// @resolution.name source=value target=values.symbol5.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=values.symbol5.value
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_must_callback_result_infers_the_unwrapped_element() {
+    let session = TestSession::single(
+        r#"
+function unwrap(values: (int32 | undefined)[]): int32[] {
+    return values.map((value) => value!);
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function unwrap(values: (int32 | undefined)[]): int32[] {
+    return values.map<int32 | undefined, int32>((value: int32 | undefined) => value!) as int32[];
+}
+
+=== dir ===
+function unwrap(values: (int32 | undefined)[]): int32[] {
+/// @type.symbol symbol=unwrap type=(Array<int32 | undefined>) => Array<int32>
+/// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
+/// @generic.instance id="memory.init.MaybeUninit<int32 | undefined>" template=memory.init.MaybeUninit arguments=(int32 | undefined)
+/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<int32 | undefined>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32 | undefined>>)
+/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32 | undefined>)
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
+/// @type.symbol symbol=unwrap.values source="values: (int32 | undefined)[]" type=Array<int32 | undefined>
+
+    return values.map((value) => value!);
+    /// @resolution.name source=values target=unwrap.values
+    /// @resolution.member source=values.map receiver=Array<int32 | undefined> type=<collections.array.map.U#2>(this: Array<int32 | undefined>, Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=symbol target_receiver=Array<int32 | undefined> target=collections.array.map#2
+    /// @resolution.call source="values.map((value) => value!)" parameters=(Function<(int32 | undefined, isize), int32>) arguments=(provided((value) => value!) as Function<(int32 | undefined, isize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#2 receiver=Array<int32 | undefined> instance="Array<int32 | undefined>.<extension#3>.map#2<int32>"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=unwrap.values
+    /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32>" template=collections.array.map#2 arguments=(int32 | undefined, int32)
+    /// @generic.instantiation id="collections.array.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined)
+    /// @generic.instance id="collections.array.map#2<int32 | undefined, int32>" template=collections.array.map#2 arguments=(int32 | undefined, int32)
+    /// @type.symbol symbol=unwrap.symbol3 source="(value) => value!" type=Function<(int32 | undefined,), TryOutput<int32 | undefined>>
+    /// @type.symbol symbol=unwrap.symbol3.value source=value type=int32 | undefined
+    /// @resolution.name source=value target=unwrap.symbol3.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=unwrap.symbol3.value
+
+}
+"#,
+    );
+}

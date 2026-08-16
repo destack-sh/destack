@@ -169,7 +169,8 @@ impl BodyState<'_, '_> {
             return Ok(source);
         }
 
-        // let an open slot take the inferred candidate
+        // let an open slot take the inferred candidate, resolving a solved one
+        let slot = self.deeply_resolve(origin, slot)?;
         if self.type_flags(slot)?.has_variable() {
             return self.inference_candidate_type(source, mode);
         }

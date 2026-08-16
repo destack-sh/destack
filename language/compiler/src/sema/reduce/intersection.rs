@@ -63,8 +63,11 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // collect the elements this intersection merges
-        let mut closed = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(elements);
+        // collect the elements this intersection merges, resolving solved spellings
+        let mut closed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        for element in elements {
+            closed.push(self.shallow_resolve(*element)?);
+        }
 
         // exact key members absorb the string primitive
         let has_exact_key = closed.iter().any(|element| {

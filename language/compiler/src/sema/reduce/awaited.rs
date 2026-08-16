@@ -85,6 +85,8 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // resolve the solved operand before judging its head
+        let target = self.shallow_resolve(target)?;
         if !active.insert(target) {
             return Ok(Some(target));
         }
@@ -151,6 +153,15 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(inner) = inner {
+            // a carrier unwrap accepts its open payload as final
+            let inner = self.shallow_resolve(inner)?;
+            if matches!(
+                self.ty(inner)?,
+                dir::Type::Variable(_) | dir::Type::Parameter(_)
+            ) {
+                return Ok(Some(inner));
+            }
+
             return self.reduce_awaited_guarded(origin, inner, active);
         }
 
@@ -163,6 +174,14 @@ impl CheckState<'_> {
                 Some(awaited) if awaited != backing => Ok(Some(awaited)),
                 _ => Ok(Some(target)),
             };
+        }
+
+        // open heads stay stuck until they close
+        if matches!(
+            self.ty(target)?,
+            dir::Type::Variable(_) | dir::Type::Parameter(_)
+        ) {
+            return Ok(None);
         }
 
         Ok(Some(target))

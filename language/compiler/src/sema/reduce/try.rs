@@ -21,6 +21,9 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         projection: TryProjection,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // resolve the solved operand before splitting its arms
+        let value = self.shallow_resolve(value)?;
+
         // split nullish members from the remaining value arms
         let mut nullish = Vec::new();
         let mut values = Vec::new();
@@ -32,6 +35,7 @@ impl CheckState<'_> {
             _ => SmallVec::from_slice(&[value]),
         };
         for element in elements {
+            let element = self.shallow_resolve(element)?;
             match self.ty(element)? {
                 dir::Type::Null
                 | dir::Type::Undefined

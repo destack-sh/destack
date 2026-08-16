@@ -905,7 +905,7 @@ impl BodyState<'_, '_> {
 
         // reuse a settled commit; one still open re-walks fresh
         if let Some(committed) = self.check.committed_node_type(node)
-            && !self.check.type_flags(committed)?.has_variable()
+            && self.check.open_type_variables([committed])?.is_empty()
         {
             return Ok(());
         }

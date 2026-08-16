@@ -60,6 +60,10 @@ impl BodyState<'_, '_> {
         let node = site.node;
         let origin = site.origin();
 
+        // resolve solved variables out of the operands before judging them
+        let left = self.deeply_resolve(origin, left)?;
+        let right = self.deeply_resolve(origin, right)?;
+
         // poison the node when either operand carries a reported error
         if matches!(self.ty(left)?, dir::Type::Error) || matches!(self.ty(right)?, dir::Type::Error)
         {
@@ -70,7 +74,11 @@ impl BodyState<'_, '_> {
 
         // open operands defer selection to their settle point with a hole
         if (self.type_flags(left)? | self.type_flags(right)?).has_variable() {
-            let stalled_on = self.open_type_variables([left, right])?.first().copied();
+            let Some(stalled_on) = self.open_type_variables([left, right])?.first().copied() else {
+                return Err(CompilerError::Internal {
+                    message: "an operator selection deferred without an open operand".to_string(),
+                });
+            };
             self.defer_operator_selection(site, stalled_on)?;
 
             return Ok(());
@@ -459,7 +467,7 @@ impl BodyState<'_, '_> {
     fn defer_operator_selection(
         &mut self,
         site: FlowSite,
-        stalled_on: Option<dir::TypeVariableId>,
+        stalled_on: dir::TypeVariableId,
     ) -> CompilerResult<()> {
         let node = site.node;
         if self.committed_node_type(node).is_none() {
@@ -471,7 +479,7 @@ impl BodyState<'_, '_> {
         self.check.register_check(Check::Selection(SelectionCheck {
             site,
             use_: PlaceUse::Read,
-            stalled_on,
+            stalled_on: Some(stalled_on),
         }));
 
         Ok(())

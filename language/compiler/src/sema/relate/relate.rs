@@ -390,7 +390,7 @@ impl CheckState<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
-        match self.ty(id)? {
+        match self.ty(self.shallow_resolve(id)?)? {
             dir::Type::Variable(variable) => self.open_variable(variable),
             _ => Ok(None),
         }

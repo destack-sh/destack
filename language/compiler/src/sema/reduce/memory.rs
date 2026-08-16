@@ -301,7 +301,8 @@ impl CheckState<'_> {
         place: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // open types retain the complete placement supplied by their solution
-        if self.ty(ty)?.is_open() || !self.ty(ty)?.is_placeable() {
+        let resolved = self.shallow_resolve(ty)?;
+        if self.ty(resolved)?.is_open() || !self.ty(resolved)?.is_placeable() {
             return Ok(ty);
         }
 

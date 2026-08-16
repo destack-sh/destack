@@ -722,7 +722,11 @@ impl CheckState<'_> {
         let mut place = None;
 
         // absorb each value form exposed by alias reduction
-        while let dir::Type::Form(payload) = self.ty(value)? {
+        loop {
+            value = self.shallow_resolve(value)?;
+            let dir::Type::Form(payload) = self.ty(value)? else {
+                break;
+            };
             match payload.form {
                 // readonly payloads clamp the borrow access
                 dir::Form::Readonly => {
@@ -834,6 +838,7 @@ impl CheckState<'_> {
         } else {
             self.normalize_graph(origin, rebuilt, memo, active)?
         };
+
         memo.insert(original, rebuilt);
 
         Ok(rebuilt)

@@ -186,6 +186,19 @@ impl BodyState<'_, '_> {
         Ok(target_type)
     }
 
+    /// Return whether one pattern destructures its input.
+    pub(in crate::sema) fn pattern_destructures(pattern: &dir::Pattern) -> bool {
+        !matches!(
+            pattern,
+            dir::Pattern::Wildcard | dir::Pattern::Binding { .. }
+        )
+    }
+
+    /// Return whether one assignment pattern destructures its input.
+    pub(in crate::sema) fn assign_pattern_destructures(pattern: &dir::AssignPattern) -> bool {
+        !matches!(pattern, dir::AssignPattern::Place { .. })
+    }
+
     /// Select the pattern meaning of one pattern node.
     pub(in crate::sema) fn select_pattern(
         &mut self,
@@ -199,10 +212,7 @@ impl BodyState<'_, '_> {
 
         // reduce inputs only for patterns that inspect their value
         let pattern = self.module(module).view().get(node.local_id).clone();
-        let needs_reduced_input = !matches!(
-            &pattern,
-            dir::Pattern::Wildcard | dir::Pattern::Binding { .. }
-        );
+        let needs_reduced_input = Self::pattern_destructures(&pattern);
         let input = if needs_reduced_input {
             self.check.normalize(origin, input)?
         } else {

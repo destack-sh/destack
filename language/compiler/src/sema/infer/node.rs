@@ -244,6 +244,28 @@ impl BodyState<'_, '_> {
                 self.check_block(site, node.into_typed().local_id, expectation)?
             }
             dir::NodeType::Pattern => {
+                // stall destructuring patterns until their input closes
+                let pattern = self
+                    .module(node.module_id)
+                    .view()
+                    .get(node.into_typed::<dir::Pattern>().local_id)
+                    .clone();
+                let open = match Self::pattern_destructures(&pattern) {
+                    true => self.open_type_variables([target])?,
+                    false => Default::default(),
+                };
+                if !open.is_empty() {
+                    self.check.register_check_stalled(
+                        Check::Node(NodeCheck { site, expectation }),
+                        &open,
+                    );
+
+                    return Ok(ValueCheck {
+                        source: target,
+                        outcome: CheckOutcome::Holds,
+                        target,
+                    });
+                }
                 self.check_pattern(node.into_typed(), site.flow, site.scope, target)?;
 
                 ValueCheck {
@@ -253,6 +275,28 @@ impl BodyState<'_, '_> {
                 }
             }
             dir::NodeType::AssignPattern => {
+                // stall destructuring targets until their input closes
+                let pattern = self
+                    .module(node.module_id)
+                    .view()
+                    .get(node.into_typed::<dir::AssignPattern>().local_id)
+                    .clone();
+                let open = match Self::assign_pattern_destructures(&pattern) {
+                    true => self.open_type_variables([target])?,
+                    false => Default::default(),
+                };
+                if !open.is_empty() {
+                    self.check.register_check_stalled(
+                        Check::Node(NodeCheck { site, expectation }),
+                        &open,
+                    );
+
+                    return Ok(ValueCheck {
+                        source: target,
+                        outcome: CheckOutcome::Holds,
+                        target,
+                    });
+                }
                 self.check_assign_pattern(
                     node.into_typed(),
                     site.flow,
