@@ -27,9 +27,9 @@ impl BitSet {
         self.length
     }
 
-    /// Return whether the set holds no bits.
+    /// Return whether no bits are set.
     pub fn is_empty(&self) -> bool {
-        self.length == 0
+        self.words.iter().all(|word| *word == 0)
     }
 
     /// Return whether the bit at `index` is set.
@@ -67,6 +67,59 @@ impl BitSet {
             .iter()
             .map(|word| word.count_ones() as usize)
             .sum()
+    }
+
+    /// Insert every bit from another equally sized set.
+    pub fn union_with(&mut self, other: &Self) -> bool {
+        debug_assert_eq!(self.length, other.length);
+        let mut changed = false;
+
+        for (word, other) in self.words.iter_mut().zip(&other.words) {
+            let merged = *word | *other;
+            changed |= merged != *word;
+            *word = merged;
+        }
+
+        changed
+    }
+
+    /// Retain every bit contained in another equally sized set.
+    pub fn intersect_with(&mut self, other: &Self) {
+        debug_assert_eq!(self.length, other.length);
+
+        for (word, other) in self.words.iter_mut().zip(&other.words) {
+            *word &= *other;
+        }
+    }
+
+    /// Remove every bit contained in another equally sized set.
+    pub fn subtract(&mut self, other: &Self) {
+        debug_assert_eq!(self.length, other.length);
+
+        for (word, other) in self.words.iter_mut().zip(&other.words) {
+            *word &= !*other;
+        }
+    }
+
+    /// Iterate set bit indices in ascending order.
+    pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        self.words
+            .iter()
+            .enumerate()
+            .flat_map(|(word_index, word)| {
+                let mut word = *word;
+
+                std::iter::from_fn(move || {
+                    if word == 0 {
+                        return None;
+                    }
+
+                    let bit = word.trailing_zeros() as usize;
+                    word &= word - 1;
+
+                    Some(word_index * WORD_BITS + bit)
+                })
+            })
     }
 }
 
