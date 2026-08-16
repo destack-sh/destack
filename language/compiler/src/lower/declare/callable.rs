@@ -3,7 +3,6 @@ use destack_mir as mir;
 
 use crate::lower::{
     FunctionDeclaration, FunctionDefinition, GenericInstanceKey, LifetimeParameters, ModuleLowerer,
-    ReceiverBinding, TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -26,7 +25,6 @@ impl ModuleLowerer<'_> {
         };
         let declared = self.symbol_type(symbol)?;
         let lifetime_parameters = self.lifetime_parameters(declared)?;
-        let type_substitution = TypeSubstitution::default();
 
         // resolve the parameter types alongside their symbols
         let dir::Declaration::Function(function) = self.local().tree().get(declaration) else {
@@ -47,8 +45,7 @@ impl ModuleLowerer<'_> {
         }
 
         // lower the signature through the shared callable path
-        let signature =
-            self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
+        let signature = self.lower_signature(builder, declared, None, &lifetime_parameters)?;
         if signature.parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
                 message: "function parameters disagree with the declared signature".to_string(),
@@ -72,7 +69,7 @@ impl ModuleLowerer<'_> {
             symbol,
             has_this: false,
             parameters: symbols,
-            type_substitution,
+            instance: None,
             lifetime_parameters,
             source: self.module,
             expression,
@@ -154,22 +151,6 @@ impl ModuleLowerer<'_> {
         let declared = self.symbol_type(symbol)?;
         let lifetime_parameters = self.lifetime_parameters(declared)?;
 
-        // read the extension target when the owner is an extension
-        let extension_target = match self.definition(owner)? {
-            Some(dir::Definition::Extension(extension)) => Some(extension.target),
-            _ => None,
-        };
-
-        // receive at the extension target, or at the nominal itself
-        let receiver = match extension_target {
-            Some(target) => ReceiverBinding::Type(target.r#type()),
-            None => ReceiverBinding::Application(dir::GenericApplication {
-                symbol: owner,
-                arguments: dir::TypeListId::EMPTY,
-            }),
-        };
-        let type_substitution = TypeSubstitution::default().with_receiver(receiver);
-
         // read the declared receiver before borrowing the member signature
         let (signature, signature_module) = self.signature(declared)?;
         let declared_this = self
@@ -195,12 +176,7 @@ impl ModuleLowerer<'_> {
             // receive an exclusive borrow in constructors
             Some(dir::FunctionRole::Constructor) => {
                 let nominal = self
-                    .type_lowerer(
-                        builder.tree_mut(),
-                        pointer_bytes,
-                        &type_substitution,
-                        &lifetime_parameters,
-                    )
+                    .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
                     .lower_nominal(owner, &[])?;
 
                 Some(builder.tree_mut().intern_type(mir::Type::Reference {
@@ -221,13 +197,8 @@ impl ModuleLowerer<'_> {
                 };
 
                 Some(
-                    self.type_lowerer(
-                        builder.tree_mut(),
-                        pointer_bytes,
-                        &type_substitution,
-                        &lifetime_parameters,
-                    )
-                    .lower(this_type)?,
+                    self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
+                        .lower(this_type)?,
                 )
             }
         };
@@ -249,8 +220,7 @@ impl ModuleLowerer<'_> {
         }
 
         // lower the signature and prepend its receiver
-        let signature =
-            self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
+        let signature = self.lower_signature(builder, declared, None, &lifetime_parameters)?;
         if signature.parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
                 message: "method parameters disagree with the declared signature".to_string(),
@@ -268,9 +238,13 @@ impl ModuleLowerer<'_> {
         };
 
         // qualify anonymous extensions by their target root
+        let extension_root = match self.definition(owner)? {
+            Some(dir::Definition::Extension(extension)) => extension.target.root(),
+            _ => None,
+        };
         let mut owner_name = self.symbol_name(owner)?;
         if owner_name.is_none()
-            && let Some(root) = extension_target.and_then(|target| target.root())
+            && let Some(root) = extension_root
         {
             owner_name = self.symbol_name(root)?;
         }
@@ -310,7 +284,7 @@ impl ModuleLowerer<'_> {
             symbol,
             has_this: !is_static,
             parameters: symbols,
-            type_substitution,
+            instance: None,
             lifetime_parameters,
             source: self.module,
             expression,

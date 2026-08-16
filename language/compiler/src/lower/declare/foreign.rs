@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 
 use crate::lower::{
     CallableImplementation, FunctionDeclaration, GenericInstanceKey, LifetimeParameters,
-    ModuleLowerer, ReceiverBinding, TypeSubstitution,
+    ModuleLowerer,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -46,15 +46,6 @@ impl ModuleLowerer<'_> {
 
         // lead member callables with their receiver and qualify by owner
         let member = self.imported_member(symbol)?;
-        let type_substitution = match &member {
-            Some(member) => TypeSubstitution::default().with_receiver(
-                ReceiverBinding::Application(dir::GenericApplication {
-                    symbol: member.owner,
-                    arguments: dir::TypeListId::EMPTY,
-                }),
-            ),
-            None => TypeSubstitution::default(),
-        };
         let (name, receiver) = match &member {
             Some(member) => {
                 let (name, receiver) = self.imported_member_header(
@@ -63,7 +54,6 @@ impl ModuleLowerer<'_> {
                     member,
                     signature,
                     owner,
-                    &type_substitution,
                     &lifetime_parameters,
                 )?;
 
@@ -81,8 +71,7 @@ impl ModuleLowerer<'_> {
         };
 
         // lower the signature, prepending the receiver of a method import
-        let signature =
-            self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
+        let signature = self.lower_signature(builder, declared, None, &lifetime_parameters)?;
         let mut parameters = signature.parameters;
         if let Some(receiver) = receiver {
             parameters.insert(0, receiver);
@@ -119,11 +108,10 @@ impl ModuleLowerer<'_> {
 
         // declare the import at the constant's lowered type and dotted name
         let pointer_bytes = builder.pointer_bytes();
-        let substitution = TypeSubstitution::default();
         let lifetimes = LifetimeParameters::default();
         let declared = self.symbol_type(symbol)?;
         let ty = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
+            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
             .lower(declared)?;
         let name = self.constant_name(symbol)?;
         let global = builder.external_global(&name, ty, mir::Mutability::Immutable);
@@ -165,10 +153,8 @@ impl ModuleLowerer<'_> {
         }
 
         // lower the signature outside any instance bindings
-        let type_substitution = TypeSubstitution::default();
         let lifetime_parameters = self.lifetime_parameters(declared)?;
-        let signature =
-            self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
+        let signature = self.lower_signature(builder, declared, None, &lifetime_parameters)?;
 
         // declare the header as a host binding under the dotted extern name
         let name = self.strings.get(binding.name);
@@ -194,17 +180,11 @@ impl ModuleLowerer<'_> {
         member: &ImportedMember,
         signature: dir::FunctionSignatureId,
         owner: ModuleId,
-        type_substitution: &TypeSubstitution,
         lifetime_parameters: &LifetimeParameters,
     ) -> CompilerResult<(String, Option<mir::LocalNodeId<mir::Type>>)> {
         let pointer_bytes = builder.pointer_bytes();
         let value = self
-            .type_lowerer(
-                builder.tree_mut(),
-                pointer_bytes,
-                type_substitution,
-                lifetime_parameters,
-            )
+            .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
             .lower_nominal(member.owner, &[])?;
         let pointee = value.storage;
         let receiver = match member.role {
@@ -231,13 +211,8 @@ impl ModuleLowerer<'_> {
                 };
 
                 Some(
-                    self.type_lowerer(
-                        builder.tree_mut(),
-                        pointer_bytes,
-                        type_substitution,
-                        lifetime_parameters,
-                    )
-                    .lower(declared)?,
+                    self.type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+                        .lower(declared)?,
                 )
             }
         };

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{ModuleLowerer, ReceiverBinding, TypeLowerer, TypeSubstitution};
+use crate::lower::{ModuleLowerer, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One indirect layer peeled from a value type.
@@ -71,18 +71,13 @@ impl TypeLowerer<'_, '_> {
             }
 
             // fuse owned fat references into one unique carrier
-            dir::Form::Owned
-                if self
-                    .lowerer
-                    .is_reference_carrier(form.value, self.type_substitution)? =>
-            {
-                self.lower_reference(
+            dir::Form::Owned if self.lowerer.is_reference_carrier(form.value)? => self
+                .lower_reference(
                     mir::ReferenceKind::Unique,
                     mir::Lifetime::empty(),
                     access.unwrap_or(mir::Access::Exclusive),
                     form.value,
-                )
-            }
+                ),
 
             // hold storage directly for owned value families
             dir::Form::Owned => self.lower_pointee(form.value),
@@ -193,8 +188,10 @@ impl TypeLowerer<'_, '_> {
         }
 
         match ty {
-            // store contextual this as the receiver's storage representation
-            dir::Type::This => self.lower_receiver_storage(),
+            // reject contextual this, which materialization resolves before lowering
+            dir::Type::This => Err(CompilerError::Internal {
+                message: "a contextual this was never materialized".to_string(),
+            }),
             // store nominals as their declared type
             dir::Type::Application(instance) => {
                 let arguments = self
@@ -220,10 +217,7 @@ impl TypeLowerer<'_, '_> {
         access: Option<mir::Access>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // reference families receive the access on their implicit managed layer
-        if self
-            .lowerer
-            .has_indirect_representation(id, self.type_substitution)?
-        {
+        if self.lowerer.has_indirect_representation(id)? {
             return self.lower_reference(
                 mir::ReferenceKind::Managed,
                 mir::Lifetime::empty(),
@@ -241,15 +235,12 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn peel_indirection(
         &self,
         id: dir::GlobalTypeId,
-        type_substitution: &TypeSubstitution,
     ) -> CompilerResult<Option<Indirection>> {
-        let id = type_substitution.resolve(self, id)?;
-
         match self.ty(id)? {
             // form layers select their indirection by constructor
             dir::Type::Form(form) => match form.form {
                 dir::Form::Managed | dir::Form::Raw => Ok(Some(Indirection {
-                    stored: type_substitution.resolve(self, form.value)?,
+                    stored: form.value,
                     access: mir::Access::Mutable,
                 })),
                 dir::Form::Borrowed(borrow) => {
@@ -261,13 +252,13 @@ impl ModuleLowerer<'_> {
                     let access = self.borrow_access(borrow.access)?;
 
                     Ok(Some(Indirection {
-                        stored: type_substitution.resolve(self, form.value)?,
+                        stored: form.value,
                         access,
                     }))
                 }
                 // narrow the layer beneath views
                 dir::Form::Readonly => {
-                    let layer = self.peel_indirection(form.value, type_substitution)?;
+                    let layer = self.peel_indirection(form.value)?;
 
                     Ok(layer.map(|layer| Indirection {
                         access: mir::Access::Readonly,
@@ -275,9 +266,9 @@ impl ModuleLowerer<'_> {
                     }))
                 }
                 // owned fat references carry one exclusive unique layer
-                dir::Form::Owned if self.is_reference_carrier(form.value, type_substitution)? => {
+                dir::Form::Owned if self.is_reference_carrier(form.value)? => {
                     Ok(Some(Indirection {
-                        stored: type_substitution.resolve(self, form.value)?,
+                        stored: form.value,
                         access: mir::Access::Exclusive,
                     }))
                 }
@@ -286,15 +277,13 @@ impl ModuleLowerer<'_> {
             },
 
             // nullable unions reference through their carrier
-            dir::Type::Union(union) => {
-                match self.decompose_nullish_union(id.module_id, &union, type_substitution)? {
-                    Some((_, carrier)) => self.peel_indirection(carrier, type_substitution),
-                    None => Ok(None),
-                }
-            }
+            dir::Type::Union(union) => match self.decompose_nullish_union(id.module_id, &union)? {
+                Some((_, carrier)) => self.peel_indirection(carrier),
+                None => Ok(None),
+            },
 
             // bare reference families carry an implicit managed layer
-            _ => match self.has_indirect_representation(id, type_substitution)? {
+            _ => match self.has_indirect_representation(id)? {
                 true => Ok(Some(Indirection {
                     stored: id,
                     access: mir::Access::Mutable,
@@ -308,16 +297,11 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn peel_owned(
         &self,
         id: dir::GlobalTypeId,
-        type_substitution: &TypeSubstitution,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let id = type_substitution.resolve(self, id)?;
-
         match self.ty(id)? {
             // store the payload of owners and views directly
             dir::Type::Form(form) => match form.form {
-                dir::Form::Owned | dir::Form::Readonly => {
-                    self.peel_owned(form.value, type_substitution)
-                }
+                dir::Form::Owned | dir::Form::Readonly => self.peel_owned(form.value),
                 _ => Ok(id),
             },
             _ => Ok(id),
@@ -328,38 +312,28 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn has_indirect_representation(
         &self,
         id: dir::GlobalTypeId,
-        type_substitution: &TypeSubstitution,
     ) -> CompilerResult<bool> {
-        let id = type_substitution.resolve(self, id)?;
-
         match self.ty(id)? {
             // answer form layers by their outermost constructor
             dir::Type::Form(form) => match form.form {
                 dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(true),
                 // intrinsic fat owners retain a unique reference carrier
-                dir::Form::Owned => self.is_reference_carrier(form.value, type_substitution),
+                dir::Form::Owned => self.is_reference_carrier(form.value),
                 // views and placement answer for the layer beneath
                 dir::Form::Readonly | dir::Form::Placed { .. } => {
-                    self.has_indirect_representation(form.value, type_substitution)
+                    self.has_indirect_representation(form.value)
                 }
             },
 
             // answer every bare base, unions included, by its family default
-            other => Ok(
-                self.base_default_ownership(id.module_id, &other, type_substitution)?
-                    == dir::Ownership::Managed,
-            ),
+            other => {
+                Ok(self.base_default_ownership(id.module_id, &other)? == dir::Ownership::Managed)
+            }
         }
     }
 
     /// Return whether one value has an intrinsic reference carrier.
-    fn is_reference_carrier(
-        &self,
-        id: dir::GlobalTypeId,
-        type_substitution: &TypeSubstitution,
-    ) -> CompilerResult<bool> {
-        let id = type_substitution.resolve(self, id)?;
-
+    fn is_reference_carrier(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
         Ok(match self.ty(id)? {
             dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_) => true,
             dir::Type::Application(instance) => matches!(
@@ -375,7 +349,6 @@ impl ModuleLowerer<'_> {
         &self,
         module: ModuleId,
         base: &dir::Type,
-        type_substitution: &TypeSubstitution,
     ) -> CompilerResult<dir::Ownership> {
         Ok(match base {
             // default reference families to managed
@@ -396,7 +369,7 @@ impl ModuleLowerer<'_> {
                 {
                     let value = self.ty(alias.value)?;
 
-                    self.base_default_ownership(alias.value.module_id, &value, type_substitution)?
+                    self.base_default_ownership(alias.value.module_id, &value)?
                 }
                 _ => dir::Ownership::Owned,
             },
@@ -421,49 +394,25 @@ impl ModuleLowerer<'_> {
             dir::Type::Variant(variant) => {
                 let owner = self.ty(variant.owner)?;
 
-                return self.base_default_ownership(
-                    variant.owner.module_id,
-                    &owner,
-                    type_substitution,
-                );
+                return self.base_default_ownership(variant.owner.module_id, &owner);
             }
 
             // follow the reference carrier of a nullish union, hold indexed unions directly
             dir::Type::Union(union) => {
-                let Some((_, carrier)) =
-                    self.decompose_nullish_union(module, union, type_substitution)?
-                else {
+                let Some((_, carrier)) = self.decompose_nullish_union(module, union)? else {
                     return Ok(dir::Ownership::Owned);
                 };
 
-                match self.has_indirect_representation(carrier, type_substitution)? {
+                match self.has_indirect_representation(carrier)? {
                     true => dir::Ownership::Managed,
                     false => dir::Ownership::Owned,
                 }
             }
 
-            // classify This through the receiver in scope
-            dir::Type::This => {
-                let Some(receiver) = type_substitution.receiver() else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.module.into(),
-                        construct: "a 'This' type outside a receiver context".to_string(),
-                    })?;
-                };
-
-                return match receiver {
-                    ReceiverBinding::Application(receiver) => self.base_default_ownership(
-                        receiver.symbol.module_id,
-                        &dir::Type::Application(receiver),
-                        type_substitution,
-                    ),
-                    ReceiverBinding::Type(ty) => {
-                        let receiver = self.ty(ty)?;
-
-                        self.base_default_ownership(ty.module_id, &receiver, type_substitution)
-                    }
-                };
-            }
+            // reject contextual this, which materialization resolves before lowering
+            dir::Type::This => Err(CompilerError::Internal {
+                message: "a contextual this was never materialized".to_string(),
+            })?,
 
             other => Err(LowerError::Unsupported {
                 anchor: self.module.into(),
@@ -477,7 +426,6 @@ impl ModuleLowerer<'_> {
         &self,
         module: ModuleId,
         union: &dir::UnionType,
-        type_substitution: &TypeSubstitution,
     ) -> CompilerResult<Option<(mir::Nullability, dir::GlobalTypeId)>> {
         let mut nullability = (false, false);
         let mut carriers = Vec::new();
@@ -491,11 +439,10 @@ impl ModuleLowerer<'_> {
         }
 
         // require one reference member to carry the union
-        let [carrier] = carriers.as_slice() else {
+        let &[carrier] = carriers.as_slice() else {
             return Ok(None);
         };
-        let carrier = type_substitution.resolve(self, *carrier)?;
-        if !self.has_indirect_representation(carrier, type_substitution)? {
+        if !self.has_indirect_representation(carrier)? {
             return Ok(None);
         }
         let nullability = match nullability {

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionLowerer, LifetimeParameters, ModuleLowerer, TypeSubstitution};
+use crate::lower::{FunctionLowerer, LifetimeParameters, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
@@ -203,17 +203,11 @@ impl ModuleLowerer<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let pointer_bytes = builder.pointer_bytes();
-        let type_substitution = TypeSubstitution::default();
         let lifetime_parameters = LifetimeParameters::default();
 
         // lower the constant's type outside any instance bindings
-        self.type_lowerer(
-            builder.tree_mut(),
-            pointer_bytes,
-            &type_substitution,
-            &lifetime_parameters,
-        )
-        .lower(ty)
+        self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
+            .lower(ty)
     }
 
     /// Build one scalar constant at its lowered carrier.

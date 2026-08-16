@@ -1,9 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{
-    AliasForm, GenericInstanceKey, LifetimeParameters, ModuleLowerer, TypeLowerer, TypeSubstitution,
-};
+use crate::lower::{AliasForm, GenericInstanceKey, LifetimeParameters, ModuleLowerer, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One lowered nominal declaration.
@@ -81,8 +79,6 @@ pub(in crate::lower) struct NominalInstance {
 struct NominalArguments {
     /// The runtime representation identity.
     key: GenericInstanceKey,
-    /// The concrete representation parameter bindings.
-    type_substitution: TypeSubstitution,
     /// The lifetime slots declared by the nominal representation.
     lifetime_parameters: LifetimeParameters,
     /// The lifetime terms applied at this use.
@@ -120,14 +116,8 @@ impl ModuleLowerer<'_> {
 
         // lower each concrete representation and its field dependencies
         let pointer_bytes = builder.pointer_bytes();
-        let type_substitution = TypeSubstitution::default();
         let lifetime_parameters = LifetimeParameters::default();
-        let mut types = self.type_lowerer(
-            builder.tree_mut(),
-            pointer_bytes,
-            &type_substitution,
-            &lifetime_parameters,
-        );
+        let mut types = self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters);
         for symbol in symbols {
             types.lower_nominal(symbol, &[])?;
         }
@@ -227,14 +217,19 @@ impl TypeLowerer<'_, '_> {
             NominalState::Declared { storage: ty, value },
         );
 
-        // fill the reserved representation under its own type substitution
+        // fill the reserved representation through the nominal's own rows
         let fields = {
-            let mut types = self.lowerer.type_lowerer(
-                self.tree,
-                self.pointer_bytes,
-                &arguments.type_substitution,
-                &arguments.lifetime_parameters,
-            );
+            let specialization = self
+                .lowerer
+                .specialization_of(symbol, &arguments.type_arguments)?;
+            let mut types = self
+                .lowerer
+                .type_lowerer(
+                    self.tree,
+                    self.pointer_bytes,
+                    &arguments.lifetime_parameters,
+                )
+                .with_instance(specialization);
             match definition {
                 dir::Definition::Struct(definition) => types.lower_struct(symbol, definition, ty),
                 dir::Definition::Newtype(definition) => {
@@ -312,7 +307,6 @@ impl TypeLowerer<'_, '_> {
 
             return Ok(NominalArguments {
                 key: GenericInstanceKey::non_generic(symbol),
-                type_substitution: TypeSubstitution::default(),
                 lifetime_parameters: LifetimeParameters::default(),
                 lifetimes: Vec::new(),
                 type_arguments: Vec::new(),
@@ -346,22 +340,12 @@ impl TypeLowerer<'_, '_> {
                 *kind != dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime)
             })
             .count();
-        let bound_parameters = parameters
-            .iter()
-            .filter(|(parameter, kind, _)| {
-                *kind == dir::GenericParameterKind::Type
-                    && self.type_substitution.binding(*parameter).is_some()
-            })
-            .count();
 
-        // accept the full, lifetime-elided, value-only, and receiver-substituted argument lists
+        // accept the full, lifetime-elided, and value-only argument lists
         let is_complete = arguments.len() == parameters.len();
         let elide_lifetimes = !is_complete && arguments.len() == value_parameters;
-        let is_substituted = !is_complete
-            && !elide_lifetimes
-            && arguments.is_empty()
-            && bound_parameters == value_parameters;
-        if !is_complete && !elide_lifetimes && !is_substituted && arguments.len() != written {
+        let is_elided = !is_complete && !elide_lifetimes && arguments.is_empty();
+        if !is_complete && !elide_lifetimes && !is_elided && arguments.len() != written {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a partially applied nominal argument list".to_string(),
@@ -371,32 +355,29 @@ impl TypeLowerer<'_, '_> {
 
         // pair every parameter with its argument, erasing elided lifetimes
         let mut type_arguments = Vec::new();
-        let mut concrete_types = Vec::new();
         let mut lifetimes = Vec::new();
         let mut supplied = arguments.iter();
         for (parameter, kind, is_induced) in parameters {
-            // erase lifetimes absent from the argument list
+            // fill in every parameter the argument list elides
             let is_lifetime =
                 kind == dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime);
-            if !is_complete
-                && ((is_lifetime && elide_lifetimes)
-                    || is_induced
-                    || (is_substituted && is_lifetime))
-            {
-                lifetimes.push(mir::Lifetime::default());
+            if !is_complete && ((is_lifetime && elide_lifetimes) || is_induced || is_elided) {
+                // erase lifetimes absent from the argument list
+                if is_lifetime || is_induced {
+                    lifetimes.push(mir::Lifetime::default());
 
-                continue;
-            }
+                    continue;
+                }
 
-            // fill elided receiver-context parameters through the substitution
-            if is_substituted && kind == dir::GenericParameterKind::Type {
-                let Some(argument) = self.type_substitution.binding(parameter) else {
-                    return Err(CompilerError::Internal {
-                        message: "an unbound substituted nominal parameter".to_string(),
-                    });
+                // take in-scope type parameters from the instance's own selection
+                let Some(argument) = self.instance_argument(parameter)? else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a partially applied nominal argument list".to_string(),
+                    }
+                    .into());
                 };
                 type_arguments.push(argument);
-                concrete_types.push(self.type_substitution.resolve(self.lowerer, argument)?);
 
                 continue;
             }
@@ -415,10 +396,7 @@ impl TypeLowerer<'_, '_> {
                             .lower_lifetime(*argument, self.lifetime_parameters)?,
                     );
                 }
-                dir::GenericParameterKind::Type => {
-                    type_arguments.push(*argument);
-                    concrete_types.push(self.type_substitution.resolve(self.lowerer, *argument)?);
-                }
+                dir::GenericParameterKind::Type => type_arguments.push(*argument),
                 dir::GenericParameterKind::Memory(_) => {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
@@ -429,22 +407,33 @@ impl TypeLowerer<'_, '_> {
             }
         }
         let template = template_id.into_global(template_module);
-        let type_substitution = TypeSubstitution::bind(
-            self.lowerer,
-            template,
-            &type_arguments,
-            self.type_substitution,
-        )?;
         let lifetime_parameters = LifetimeParameters::from_template(self.lowerer, template)?;
-        let key = self.generic_instance_key(symbol, &concrete_types)?;
+        let key = self.generic_instance_key(symbol, &type_arguments)?;
 
         Ok(NominalArguments {
             key,
-            type_substitution,
             lifetime_parameters,
             lifetimes,
-            type_arguments: concrete_types,
+            type_arguments,
         })
+    }
+
+    /// Return the argument the enclosing instance binds one parameter to.
+    fn instance_argument(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some((module, instance)) = self.instance else {
+            return Ok(None);
+        };
+        let row = self.lowerer.state(module)?.generics.get_instance(instance);
+
+        Ok(row
+            .selection
+            .arguments
+            .iter()
+            .find(|binding| binding.parameter == parameter)
+            .map(|binding| binding.argument))
     }
 
     /// Apply lifetime arguments without changing one nominal representation.

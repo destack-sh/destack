@@ -5,9 +5,7 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{
-    FunctionDeclaration, GenericInstanceKey, LifetimeParameters, ModuleLowerer, TypeSubstitution,
-};
+use crate::lower::{FunctionDeclaration, GenericInstanceKey, LifetimeParameters, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The concrete implementer behind one erasure.
@@ -32,10 +30,9 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<()> {
         // read the constraint from the erased target
         let pointer_bytes = builder.pointer_bytes();
-        let substitution = TypeSubstitution::default();
         let lifetimes = LifetimeParameters::default();
         let dynamic = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
+            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
             .lower(target)?;
         let mir::Type::Dynamic { constraint, .. } = *builder.tree().get(dynamic) else {
             return Err(CompilerError::Internal {
@@ -46,7 +43,7 @@ impl ModuleLowerer<'_> {
         // register the concrete object's written property names
         if let dir::Type::Object(shape) = self.ty(source)? {
             let reference = self
-                .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
+                .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
                 .lower(source)?;
             let mir::Type::Reference { pointee, .. } = *builder.tree().get(reference) else {
                 return Err(CompilerError::Internal {
@@ -82,7 +79,7 @@ impl ModuleLowerer<'_> {
             .type_ids(instance.arguments)
             .to_vec();
         let concrete = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
+            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
             .lower_nominal(instance.symbol, &arguments)?
             .storage;
         self.implementers

@@ -1,3 +1,4 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
 use destack_artifact::{DiagnosticLike, MirLowered};
@@ -11,12 +12,6 @@ use crate::lower::{
     LowerModuleState, NominalInstance, NominalState,
 };
 use crate::{CompilerError, CompilerResult};
-
-/// One resolved type under one instance's bindings.
-pub(in crate::lower) type ResolvedTypeKey = (
-    dir::GlobalTypeId,
-    Vec<(dir::GlobalGenericParameterId, dir::GlobalTypeId)>,
-);
 
 /// One lowering outcome a body reads: the lowered value, or the banked diagnostic of the first
 /// failure.
@@ -38,14 +33,17 @@ pub(crate) struct ModuleLowerer<'a> {
 
     /// The declaration outcome for each callable instance key.
     pub(in crate::lower) functions: FxIndexMap<GenericInstanceKey, FunctionDeclaration>,
+    /// The sema instance behind each closed selection, keyed by the arguments' structure.
+    pub(in crate::lower) specializations:
+        FxIndexMap<(dir::GlobalSymbolId, Vec<u64>), (ModuleId, dir::LocalInstanceId)>,
     /// The MIR representation behind each type the bodies read.
     pub(in crate::lower) representations:
-        FxIndexMap<ResolvedTypeKey, Lowered<mir::LocalNodeId<mir::Type>>>,
+        FxIndexMap<dir::GlobalTypeId, Lowered<mir::LocalNodeId<mir::Type>>>,
     /// The dispatch shape behind each constraint the bodies read.
     pub(in crate::lower) constraints:
-        FxIndexMap<ResolvedTypeKey, Lowered<mir::LocalNodeId<mir::Type>>>,
+        FxIndexMap<dir::GlobalTypeId, Lowered<mir::LocalNodeId<mir::Type>>>,
     /// The nominal instance behind each application type the bodies read.
-    pub(in crate::lower) stored_nominals: FxIndexMap<ResolvedTypeKey, Lowered<NominalInstance>>,
+    pub(in crate::lower) stored_nominals: FxIndexMap<dir::GlobalTypeId, Lowered<NominalInstance>>,
     /// The state of each nominal representation being lowered or already lowered.
     pub(in crate::lower) nominal_states: FxIndexMap<GenericInstanceKey, NominalState>,
     /// The global declared for each module constant.
@@ -84,6 +82,7 @@ impl<'a> ModuleLowerer<'a> {
             strings,
             modules,
             functions: FxIndexMap::default(),
+            specializations: FxIndexMap::default(),
             representations: FxIndexMap::default(),
             constraints: FxIndexMap::default(),
             stored_nominals: FxIndexMap::default(),
@@ -98,6 +97,123 @@ impl<'a> ModuleLowerer<'a> {
         }
     }
 
+    /// Index the instances sema closed by their structural selection.
+    fn index_specializations(&mut self) -> CompilerResult<()> {
+        // every loaded module contributes its own closed instances
+        let mut rows = Vec::new();
+        for (module, state) in &self.modules {
+            for (instance, row) in state.generics.iter_instances() {
+                let arguments: Vec<_> = row
+                    .selection
+                    .arguments
+                    .iter()
+                    .map(|binding| binding.argument)
+                    .collect();
+                rows.push((row.selection.symbol, arguments, *module, instance));
+            }
+        }
+
+        // key each instance by the structure of its arguments
+        let mut specializations = FxIndexMap::default();
+        for (symbol, arguments, module, instance) in rows {
+            let mut keys = Vec::with_capacity(arguments.len());
+            for argument in arguments {
+                keys.push(self.structural_type_key(argument)?);
+            }
+            specializations
+                .entry((symbol, keys))
+                .or_insert((module, instance));
+        }
+        self.specializations = specializations;
+
+        Ok(())
+    }
+
+    /// Return the sema instance behind one closed selection.
+    pub(in crate::lower) fn specialization_of(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<(ModuleId, dir::LocalInstanceId)>> {
+        let mut keys = Vec::with_capacity(arguments.len());
+        for argument in arguments {
+            keys.push(self.structural_type_key(*argument)?);
+        }
+
+        Ok(self.specializations.get(&(symbol, keys)).copied())
+    }
+
+    /// Hash one type's structure, stable across module interning.
+    pub(in crate::lower) fn structural_type_key(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<u64> {
+        let mut hasher = DefaultHasher::new();
+        let mut visiting = Vec::new();
+        self.hash_type_structure(ty, &mut hasher, &mut visiting)?;
+
+        Ok(hasher.finish())
+    }
+
+    /// Hash one type's head and children into the running structural key.
+    fn hash_type_structure(
+        &self,
+        ty: dir::GlobalTypeId,
+        hasher: &mut impl Hasher,
+        visiting: &mut Vec<dir::GlobalTypeId>,
+    ) -> CompilerResult<()> {
+        // close recursive structures at their first revisit
+        if visiting.contains(&ty) {
+            u8::MAX.hash(hasher);
+
+            return Ok(());
+        }
+        visiting.push(ty);
+
+        // hash the head and its non-type payload
+        let kind = self.ty(ty)?;
+        std::mem::discriminant(&kind).hash(hasher);
+        match &kind {
+            dir::Type::Primitive(primitive) => primitive.hash(hasher),
+            dir::Type::Literal(literal) => literal.hash(hasher),
+            dir::Type::Memory(memory) => memory.hash(hasher),
+            dir::Type::Application(application) => application.symbol.hash(hasher),
+            dir::Type::Reference(reference) => reference.symbol.hash(hasher),
+            dir::Type::Parameter(parameter) => parameter.hash(hasher),
+            dir::Type::FunctionSignature(signature) => {
+                (ty.module_id, *signature).hash(hasher);
+            }
+            _ => {}
+        }
+
+        // hash the children in structural order
+        let mut children = Vec::new();
+        self.types(ty.module_id)?
+            .for_each_child(&kind, |child| children.push(child));
+        for child in children {
+            self.hash_type_structure(child, hasher, visiting)?;
+        }
+        visiting.pop();
+
+        Ok(())
+    }
+
+    /// Resolve one template type through its instance's materialized types.
+    pub(in crate::lower) fn instance_type(
+        &self,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let Some((module, instance)) = instance else {
+            return Ok(ty);
+        };
+
+        match self.state(module)?.generics.instance_type(instance, ty) {
+            Some(resolved) => Ok(resolved),
+            None => Ok(ty),
+        }
+    }
+
     /// Lower the module, returning the artifact and its diagnostics.
     pub(crate) fn lower(
         &mut self,
@@ -108,6 +224,9 @@ impl<'a> ModuleLowerer<'a> {
 
         // scan the loaded modules for language items before any type lowering
         self.scan_language_items()?;
+
+        // index the instances sema closed by their structural selection
+        self.index_specializations()?;
 
         // declare identities: types, callable headers, globals, imports, instances
         let (bodies, mut errors) = self.declare_module(&mut builder)?;

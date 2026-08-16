@@ -2,7 +2,7 @@ use destack_core::{FxIndexMap, StringId};
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{NominalField, TypeLowerer, TypeSubstitution};
+use crate::lower::{NominalField, TypeLowerer};
 use crate::{CompilerResult, LowerError};
 
 /// One named member of a flattened interface.
@@ -98,25 +98,23 @@ impl TypeLowerer<'_, '_> {
                 }
             };
 
-            // bind the base template at the applied heritage arguments
+            // flatten the base members through the applied base instance's rows
             let arguments = self
                 .lowerer
                 .types(base.module_id)?
                 .type_ids(application.arguments)
                 .to_vec();
-            let substitution = match base_definition.template {
-                Some(template) => TypeSubstitution::bind(
-                    self.lowerer,
-                    template.into_global(application.symbol.module_id),
-                    &arguments,
-                    self.type_substitution,
-                )?,
-                None => self.type_substitution.clone(),
+            let base_instance = match arguments.is_empty() {
+                true => None,
+                false => self
+                    .lowerer
+                    .specialization_of(application.symbol, &arguments)?,
             };
-
-            // flatten the base members under its bound arguments
-            self.with_substitution(&substitution)
-                .collect_interface_members(application.symbol, &base_definition, entries)?;
+            self.nested(base_instance).collect_interface_members(
+                application.symbol,
+                &base_definition,
+                entries,
+            )?;
         }
 
         // lower each property into a field node and dispatch slot
@@ -157,7 +155,7 @@ impl TypeLowerer<'_, '_> {
                 .into());
             };
 
-            // reject a method with its own type parameters, which has no single slot
+            // skip methods with their own type parameters, which have no single slot
             let signature = *self.lowerer.types(declared.module_id)?.signature(signature);
             if let Some(template) = signature.template {
                 let generics = &self.lowerer.state(template.module_id)?.generics;
@@ -166,14 +164,11 @@ impl TypeLowerer<'_, '_> {
                     .parameters
                     .iter()
                     .any(|parameter| {
-                        generics.get_parameter(*parameter).kind == dir::GenericParameterKind::Type
+                        generics.get_parameter(*parameter).kind
+                            != dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime)
                     });
                 if is_generic {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a generic constraint method".to_string(),
-                    }
-                    .into());
+                    continue;
                 }
             }
 

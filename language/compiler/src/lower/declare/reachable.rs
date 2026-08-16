@@ -4,7 +4,7 @@ use destack_core::{FxIndexSet, StringId};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::lower::{CallableImplementation, LowerModuleState, ModuleLowerer, TypeSubstitution};
+use crate::lower::{CallableImplementation, LowerModuleState, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// Everything reachable from the bodies that lowering must declare.
@@ -76,7 +76,7 @@ impl ModuleLowerer<'_> {
         &self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
-        substitution: &TypeSubstitution,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         // walk the body subtree collecting every node
@@ -127,7 +127,7 @@ impl ModuleLowerer<'_> {
                 }
             }
 
-            // import plain foreign declared constructors; generic ones declare from instance rows
+            // import plain foreign declared constructors; generic ones declare from their instances
             if let Some(resolution) = state.decisions.construct_decision(node)
                 && let dir::ConstructTarget::Class {
                     selection,
@@ -166,7 +166,7 @@ impl ModuleLowerer<'_> {
 
             // collect the implementing methods required by erasing coercions
             if let Some(coercion) = state.coercions.coercion(node) {
-                self.collect_coercion(coercion, substitution, reachable)?;
+                self.collect_coercion(coercion, instance, reachable)?;
             }
 
             // collect instances behind value-position callable references
@@ -342,7 +342,7 @@ impl ModuleLowerer<'_> {
             None => {}
         }
 
-        // instantiated references declare from instance rows
+        // instantiated references declare from their instances
         if state
             .decisions
             .function_decision(node)
@@ -411,18 +411,18 @@ impl ModuleLowerer<'_> {
     fn collect_coercion(
         &self,
         coercion: &dir::Coercion,
-        substitution: &TypeSubstitution,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         // materialize widened const literals as immortal objects
-        let resolved_source = substitution.resolve(self, coercion.source)?;
+        let resolved_source = self.instance_type(instance, coercion.source)?;
         self.collect_literals(resolved_source, reachable)?;
 
         // walk the adjustment chain, collecting each erasing step
         let mut source = coercion.source;
         for adjustment in &coercion.adjustments {
             if let dir::CoercionAdjustment::Existential { target } = adjustment {
-                self.collect_existential(source, *target, substitution, reachable)?;
+                self.collect_existential(source, *target, instance, reachable)?;
             }
             source = adjustment.target();
         }
@@ -460,12 +460,12 @@ impl ModuleLowerer<'_> {
         &self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-        substitution: &TypeSubstitution,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         // record the resolved pair for its declared dispatch entries
-        let source = substitution.resolve(self, source)?;
-        let resolved_target = substitution.resolve(self, target)?;
+        let source = self.instance_type(instance, source)?;
+        let resolved_target = self.instance_type(instance, target)?;
         reachable.implementers.insert((source, resolved_target));
 
         // stop at structural sources, which supply properties
@@ -541,7 +541,7 @@ impl ModuleLowerer<'_> {
             None => {}
         }
 
-        // parameter-binding calls declare from instance rows; plain foreign calls import
+        // parameter-binding calls declare from their instances; plain foreign calls import
         if function.selection.symbol.module_id != self.module
             && !self.selects_parameters(&function.selection.arguments)?
         {
@@ -575,7 +575,7 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn instance_bindings(
         &self,
         generic_arguments: &[dir::GenericArgumentBinding],
-        substitution: &TypeSubstitution,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
         let mut bindings = Vec::new();
         for binding in generic_arguments {
@@ -595,7 +595,7 @@ impl ModuleLowerer<'_> {
             }
 
             // substitute arguments through the enclosing instance
-            let argument = substitution.resolve(self, binding.argument)?;
+            let argument = self.instance_type(instance, binding.argument)?;
             bindings.push(dir::GenericArgumentBinding {
                 parameter: binding.parameter,
                 argument,

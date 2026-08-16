@@ -18,13 +18,15 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = expression.into_global_any(self.source);
+        let ty =
+            self.source()
+                .types
+                .get_node_type_id(node)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("missing a type for node {}", node.local_id.id),
+                })?;
 
-        self.source()
-            .types
-            .get_node_type_id(node)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("missing a type for node {}", node.local_id.id),
-            })
+        self.lowerer.instance_type(self.instance, ty)
     }
 
     /// Return the written expectation one expression was checked against.

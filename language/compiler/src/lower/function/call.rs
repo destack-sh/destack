@@ -206,7 +206,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // resolve the declared function behind the selected method instance
         let bindings = self
             .lowerer
-            .instance_bindings(&function.selection.arguments, &self.type_substitution)?;
+            .instance_bindings(&function.selection.arguments, self.instance)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let key = self.generic_instance_key(function.selection.symbol, &arguments)?;
         let function = self.function(&key)?;
@@ -227,7 +227,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // select the declared instance from the substituted arguments
         let bindings = self
             .lowerer
-            .instance_bindings(&function.selection.arguments, &self.type_substitution)?;
+            .instance_bindings(&function.selection.arguments, self.instance)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let key = self.generic_instance_key(function.selection.symbol, &arguments)?;
         let function = self.function(&key)?;

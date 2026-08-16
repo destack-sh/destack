@@ -235,14 +235,10 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.node_type_id(expression)?;
-        let Some(layer) = self.lowerer.peel_indirection(ty, &self.type_substitution)? else {
+        let Some(layer) = self.lowerer.peel_indirection(ty)? else {
             return Ok(ty);
         };
-        if self
-            .lowerer
-            .peel_indirection(layer.stored, &self.type_substitution)?
-            .is_some()
-        {
+        if self.lowerer.peel_indirection(layer.stored)?.is_some() {
             return Ok(ty);
         }
 
@@ -277,12 +273,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut value = self.lower_expression(expression)?;
 
         // read inline values through their indirect carriers
-        if let Some(layer) = self
-            .lowerer
-            .peel_indirection(carrier, &self.type_substitution)?
-            && !self
-                .lowerer
-                .has_indirect_representation(layer.stored, &self.type_substitution)?
+        if let Some(layer) = self.lowerer.peel_indirection(carrier)?
+            && !self.lowerer.has_indirect_representation(layer.stored)?
         {
             carrier = layer.stored;
             let pointee = self.lower_type(carrier)?;

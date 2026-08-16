@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{LifetimeParameters, ModuleLowerer, TypeLowerer, TypeSubstitution};
+use crate::lower::{LifetimeParameters, ModuleLowerer, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The parameter and result types lowered from one callable signature.
@@ -16,6 +16,8 @@ pub(in crate::lower) struct LoweredSignature {
 impl TypeLowerer<'_, '_> {
     /// Lower one checked callable signature into MIR parameter and result types.
     fn lower_signature(&mut self, declared: dir::GlobalTypeId) -> CompilerResult<LoweredSignature> {
+        // resolve the written signature through its materialized types
+        let declared = self.lowerer.instance_type(self.instance, declared)?;
         let (signature, owner) = self.lowerer.signature(declared)?;
         let signature = self.lowerer.types(owner)?.signature(signature);
         let parameter_types = self
@@ -59,16 +61,13 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         declared: dir::GlobalTypeId,
-        type_substitution: &TypeSubstitution,
+        specialization: Option<(ModuleId, dir::LocalInstanceId)>,
         lifetime_parameters: &LifetimeParameters,
     ) -> CompilerResult<LoweredSignature> {
         let pointer_bytes = builder.pointer_bytes();
-        let mut lowerer = self.type_lowerer(
-            builder.tree_mut(),
-            pointer_bytes,
-            type_substitution,
-            lifetime_parameters,
-        );
+        let mut lowerer = self
+            .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+            .with_instance(specialization);
 
         lowerer.lower_signature(declared)
     }
@@ -124,12 +123,10 @@ impl TypeLowerer<'_, '_> {
             .to_vec();
 
         // lower the parameters and result under the signature scope
-        let mut types = self.lowerer.type_lowerer(
-            self.tree,
-            self.pointer_bytes,
-            self.type_substitution,
-            &lifetime_parameters,
-        );
+        let mut types = self
+            .lowerer
+            .type_lowerer(self.tree, self.pointer_bytes, &lifetime_parameters)
+            .with_instance(self.instance);
         let mut parameters = Vec::with_capacity(declared.len());
         for parameter in declared {
             let ty = types.lower(parameter.ty)?;

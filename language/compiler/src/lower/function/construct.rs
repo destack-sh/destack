@@ -105,7 +105,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 // select the declared instance from the substituted class arguments
                 let bindings = self
                     .lowerer
-                    .instance_bindings(generic_arguments, &self.type_substitution)?;
+                    .instance_bindings(generic_arguments, self.instance)?;
                 let instance: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
                 let key = self.generic_instance_key(*symbol, &instance)?;
                 let function = self.function(&key)?;
@@ -195,7 +195,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // lower the constructed nominal beneath its owner and view forms
         let ty = self.node_type_id(expression)?;
-        let ty = self.lowerer.peel_owned(ty, &self.type_substitution)?;
+        let ty = self.lowerer.peel_owned(ty)?;
         let dir::Type::Application(_) = self.lowerer.ty(ty)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),

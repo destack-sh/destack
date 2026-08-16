@@ -16,7 +16,6 @@ mod object;
 mod scalar;
 mod signature;
 mod r#struct;
-mod substitution;
 mod variant;
 
 pub(in crate::lower) use alias::AliasForm;
@@ -27,4 +26,3 @@ pub(in crate::lower) use lifetime::LifetimeParameters;
 pub(in crate::lower) use lower::TypeLowerer;
 pub(in crate::lower) use nominal::*;
 pub(in crate::lower) use signature::LoweredSignature;
-pub(in crate::lower) use substitution::{ReceiverBinding, TypeSubstitution};

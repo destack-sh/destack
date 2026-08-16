@@ -4,7 +4,7 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{LifetimeParameters, ModuleLowerer, NominalInstance, TypeSubstitution};
+use crate::lower::{LifetimeParameters, ModuleLowerer, NominalInstance};
 use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
@@ -176,15 +176,10 @@ impl ModuleLowerer<'_> {
         item: dir::LanguageItem,
     ) -> CompilerResult<NominalInstance> {
         let symbol = self.language_item_symbol(item)?;
-        let substitution = TypeSubstitution::default();
         let lifetime_parameters = LifetimeParameters::default();
         let pointer_bytes = builder.pointer_bytes();
-        let mut lowerer = self.type_lowerer(
-            builder.tree_mut(),
-            pointer_bytes,
-            &substitution,
-            &lifetime_parameters,
-        );
+        let mut lowerer =
+            self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters);
 
         lowerer.lower_nominal(symbol, &[])
     }

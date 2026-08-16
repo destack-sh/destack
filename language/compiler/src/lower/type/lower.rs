@@ -3,10 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{
-    GenericInstanceKey, LifetimeParameters, ModuleLowerer, NominalInstance, ReceiverBinding,
-    TypeSubstitution,
-};
+use crate::lower::{GenericInstanceKey, LifetimeParameters, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// Recursive type lowering into one tree.
@@ -17,10 +14,10 @@ pub(in crate::lower) struct TypeLowerer<'lower, 'module> {
     pub(in crate::lower) tree: &'lower mut mir::Tree,
     /// The target pointer width in bytes.
     pub(in crate::lower) pointer_bytes: u8,
-    /// The concrete type substitutions applied during lowering.
-    pub(in crate::lower) type_substitution: &'lower TypeSubstitution,
     /// The polymorphic lifetime parameters available during lowering.
     pub(in crate::lower) lifetime_parameters: &'lower LifetimeParameters,
+    /// The sema instance whose materialized rows resolve read types.
+    pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
     /// The compound types being lowered, with reservations for revisits.
     reservations: FxIndexMap<dir::GlobalTypeId, Option<mir::LocalNodeId<mir::Type>>>,
 }
@@ -31,30 +28,39 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         lowerer: &'lower mut ModuleLowerer<'module>,
         tree: &'lower mut mir::Tree,
         pointer_bytes: u8,
-        type_substitution: &'lower TypeSubstitution,
         lifetime_parameters: &'lower LifetimeParameters,
     ) -> Self {
         Self {
             lowerer,
             tree,
             pointer_bytes,
-            type_substitution,
             lifetime_parameters,
+            instance: None,
             reservations: FxIndexMap::default(),
         }
     }
 
-    /// Return a nested walker lowering under one bound substitution.
-    pub(in crate::lower) fn with_substitution<'nested>(
+    /// Return this walker resolving reads through one instance's rows.
+    pub(in crate::lower) fn with_instance(
+        mut self,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
+    ) -> Self {
+        self.instance = instance;
+
+        self
+    }
+
+    /// Return a nested walker resolving through another instance's rows.
+    pub(in crate::lower) fn nested<'nested>(
         &'nested mut self,
-        type_substitution: &'nested TypeSubstitution,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
     ) -> TypeLowerer<'nested, 'module> {
         TypeLowerer {
             lowerer: &mut *self.lowerer,
             tree: &mut *self.tree,
             pointer_bytes: self.pointer_bytes,
-            type_substitution,
             lifetime_parameters: self.lifetime_parameters,
+            instance,
             reservations: FxIndexMap::default(),
         }
     }
@@ -64,6 +70,10 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // resolve the written id through its materialized types
+        let id = self.lowerer.instance_type(self.instance, id)?;
+
+        // lower alias declarations through the nominal they name
         let alias = match self.lowerer.ty(id)? {
             dir::Type::Reference(reference) => Some((reference.symbol, None)),
             dir::Type::Application(instance) => Some((instance.symbol, Some(instance.arguments))),
@@ -181,23 +191,46 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(nominal.value)
             }
+            // lower bare references as their nominal applications
+            dir::Type::Reference(reference) => {
+                let nominal = self.lower_nominal(reference.symbol, &[])?;
+
+                Ok(nominal.value)
+            }
             // lower variants through their owning carrier
             dir::Type::Variant(member) => self.lower(member.owner),
-            // resolve generic parameters through instance substitutions
-            dir::Type::Parameter(_) => {
-                let argument = self.type_substitution.resolve(self.lowerer, id)?;
+            // reject parameters, which materialized rows resolve before lowering
+            dir::Type::Parameter(parameter) => {
+                let template = self
+                    .lowerer
+                    .state(parameter.module_id)?
+                    .generics
+                    .get_parameter(parameter.local_id)
+                    .template;
+                let declared = self
+                    .lowerer
+                    .state(parameter.module_id)?
+                    .generics
+                    .get_template(template)
+                    .symbol;
+                let path = match declared {
+                    Some(symbol) => self.lowerer.symbol_path(symbol)?,
+                    None => "an anonymous template".to_string(),
+                };
 
-                self.lower(argument)
+                Err(CompilerError::Internal {
+                    message: format!("a type parameter of '{path}' was never materialized"),
+                })
             }
-            // lower contextual this through the receiver substitution
-            dir::Type::This => self.lower_receiver_value(),
+            // reject contextual this, which materialization resolves before lowering
+            dir::Type::This => Err(CompilerError::Internal {
+                message: "a contextual this was never materialized".to_string(),
+            }),
             // ride the reference carrier's niches for nullable unions
             dir::Type::Union(union) => {
-                if let Some((nullability, carrier)) = self.lowerer.decompose_nullish_union(
-                    id.module_id,
-                    &union,
-                    self.type_substitution,
-                )? {
+                if let Some((nullability, carrier)) =
+                    self.lowerer.decompose_nullish_union(id.module_id, &union)?
+                {
                     let reference = self.lower(carrier)?;
 
                     return self.insert_nullability(reference, nullability);
@@ -329,16 +362,9 @@ impl<'module> ModuleLowerer<'module> {
         &'lower mut self,
         tree: &'lower mut mir::Tree,
         pointer_bytes: u8,
-        type_substitution: &'lower TypeSubstitution,
         lifetime_parameters: &'lower LifetimeParameters,
     ) -> TypeLowerer<'lower, 'module> {
-        TypeLowerer::new(
-            self,
-            tree,
-            pointer_bytes,
-            type_substitution,
-            lifetime_parameters,
-        )
+        TypeLowerer::new(self, tree, pointer_bytes, lifetime_parameters)
     }
 
     /// Return the wrapped argument when one instance is a storage carrier.
@@ -368,53 +394,6 @@ impl<'module> ModuleLowerer<'module> {
 }
 
 impl TypeLowerer<'_, '_> {
-    /// Lower the contextual receiver as a value type.
-    pub(in crate::lower) fn lower_receiver_value(
-        &mut self,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        match self.receiver_binding()? {
-            ReceiverBinding::Application(receiver) => {
-                Ok(self.lower_receiver_nominal(receiver)?.value)
-            }
-            ReceiverBinding::Type(ty) => self.lower(ty),
-        }
-    }
-
-    /// Lower the contextual receiver as reference storage.
-    pub(in crate::lower) fn lower_receiver_storage(
-        &mut self,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        match self.receiver_binding()? {
-            ReceiverBinding::Application(receiver) => {
-                Ok(self.lower_receiver_nominal(receiver)?.storage)
-            }
-            ReceiverBinding::Type(ty) => self.lower_pointee(ty),
-        }
-    }
-
-    /// Return the bound contextual receiver.
-    fn receiver_binding(&self) -> CompilerResult<ReceiverBinding> {
-        self.type_substitution
-            .receiver()
-            .ok_or_else(|| CompilerError::Internal {
-                message: "an unbound contextual receiver".to_string(),
-            })
-    }
-
-    /// Lower one nominal receiver application to its representation.
-    fn lower_receiver_nominal(
-        &mut self,
-        receiver: dir::GenericApplication,
-    ) -> CompilerResult<NominalInstance> {
-        let arguments = self
-            .lowerer
-            .types(receiver.symbol.module_id)?
-            .type_ids(receiver.arguments)
-            .to_vec();
-
-        self.lower_nominal(receiver.symbol, &arguments)
-    }
-
     /// Wrap one lowered value type in its storage carrier.
     fn insert_storage_carrier(
         &mut self,

@@ -26,9 +26,7 @@ impl FunctionLowerer<'_, '_, '_> {
         target: dir::GlobalTypeId,
         arguments: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<mir::Value> {
-        let bindings = self
-            .lowerer
-            .instance_bindings(arguments, &self.type_substitution)?;
+        let bindings = self.lowerer.instance_bindings(arguments, self.instance)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let key = self.generic_instance_key(symbol, &arguments)?;
         let ty = self.lower_type(target)?;
@@ -83,7 +81,7 @@ impl FunctionLowerer<'_, '_, '_> {
         {
             let bindings = self
                 .lowerer
-                .instance_bindings(&selection.arguments, &self.type_substitution)?;
+                .instance_bindings(&selection.arguments, self.instance)?;
             let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
             return self.generic_instance_key(symbol, &arguments);

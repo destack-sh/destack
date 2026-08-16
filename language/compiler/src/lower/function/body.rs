@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 
 use crate::lower::{
     GenericInstanceKey, LifetimeParameters, LowerModuleState, Lowered, ModuleLowerer,
-    NominalInstance, ResolvedTypeKey, TypeSubstitution, insert_local_reference,
+    NominalInstance, insert_local_reference,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -49,8 +49,8 @@ pub(in crate::lower) struct FunctionDefinition {
     pub(in crate::lower) has_this: bool,
     /// The parameter symbols in order.
     pub(in crate::lower) parameters: Vec<dir::LocalSymbolId>,
-    /// The concrete type substitutions of this definition.
-    pub(in crate::lower) type_substitution: TypeSubstitution,
+    /// The sema instance this definition specializes, when generic.
+    pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
     /// The polymorphic lifetime parameters of this definition.
     pub(in crate::lower) lifetime_parameters: LifetimeParameters,
     /// The module declaring this body.
@@ -67,8 +67,8 @@ pub(in crate::lower) struct FunctionLowerer<'lowerer, 'builder, 'module> {
     pub(in crate::lower) builder: mir::FunctionBuilder<'builder>,
     /// The module declaring this function.
     pub(in crate::lower) source: ModuleId,
-    /// The concrete type substitutions of this function.
-    pub(in crate::lower) type_substitution: TypeSubstitution,
+    /// The sema instance this function specializes, when generic.
+    pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
     /// The polymorphic lifetime parameters of this function.
     pub(in crate::lower) lifetime_parameters: LifetimeParameters,
     /// The lowered binding for each symbol.
@@ -93,7 +93,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             symbol,
             has_this,
             parameters,
-            type_substitution,
+            instance,
             lifetime_parameters,
             source,
             expression,
@@ -107,7 +107,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             lowerer,
             builder,
             source,
-            type_substitution,
+            instance,
             lifetime_parameters,
             values: FxIndexMap::default(),
             frames: FxIndexMap::default(),
@@ -170,7 +170,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             lowerer,
             builder,
             source,
-            type_substitution: TypeSubstitution::default(),
+            instance: None,
             lifetime_parameters: LifetimeParameters::default(),
             values: FxIndexMap::default(),
             frames: FxIndexMap::default(),
@@ -225,26 +225,25 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let id = self.type_substitution.resolve(self.lowerer, id)?;
-        let key = (id, self.type_substitution.bindings_key());
+        let id = self.lowerer.instance_type(self.instance, id)?;
 
         // lower the representation once for every body that reads it
-        if !self.lowerer.representations.contains_key(&key) {
+        if !self.lowerer.representations.contains_key(&id) {
             let pointer_bytes = self.builder.pointer_bytes();
             let outcome = self
                 .lowerer
                 .type_lowerer(
                     self.builder.tree_mut(),
                     pointer_bytes,
-                    &self.type_substitution,
                     &self.lifetime_parameters,
                 )
+                .with_instance(self.instance)
                 .lower(id);
-            Self::bank(&mut self.lowerer.representations, key.clone(), outcome)?;
+            Self::bank(&mut self.lowerer.representations, id, outcome)?;
         }
 
         // read the banked outcome, cascading the kept failure
-        match &self.lowerer.representations[&key] {
+        match &self.lowerer.representations[&id] {
             Ok(node) => Ok(*node),
             Err(diagnostic) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
         }
@@ -255,26 +254,26 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let id = self.type_substitution.resolve(self.lowerer, id)?;
-        let key = (id, self.type_substitution.bindings_key());
+        // resolve the written id through its materialized types
+        let id = self.lowerer.instance_type(self.instance, id)?;
 
         // lower the dispatch shape once for every body that reads it
-        if !self.lowerer.constraints.contains_key(&key) {
+        if !self.lowerer.constraints.contains_key(&id) {
             let pointer_bytes = self.builder.pointer_bytes();
             let outcome = self
                 .lowerer
                 .type_lowerer(
                     self.builder.tree_mut(),
                     pointer_bytes,
-                    &self.type_substitution,
                     &self.lifetime_parameters,
                 )
+                .with_instance(self.instance)
                 .lower_dynamic_constraint(id);
-            Self::bank(&mut self.lowerer.constraints, key.clone(), outcome)?;
+            Self::bank(&mut self.lowerer.constraints, id, outcome)?;
         }
 
         // read the banked outcome, cascading the kept failure
-        match &self.lowerer.constraints[&key] {
+        match &self.lowerer.constraints[&id] {
             Ok(shape) => Ok(*shape),
             Err(diagnostic) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
         }
@@ -304,14 +303,13 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<NominalInstance> {
-        let stored = match self.lowerer.peel_indirection(id, &self.type_substitution)? {
+        let stored = match self.lowerer.peel_indirection(id)? {
             Some(reference) => reference.stored,
-            None => self.lowerer.peel_owned(id, &self.type_substitution)?,
+            None => self.lowerer.peel_owned(id)?,
         };
-        let key = (stored, self.type_substitution.bindings_key());
 
         // lower the nominal instance once for every body that reads it
-        if !self.lowerer.stored_nominals.contains_key(&key) {
+        if !self.lowerer.stored_nominals.contains_key(&stored) {
             let dir::Type::Application(instance) = self.lowerer.ty(stored)? else {
                 return Err(CompilerError::Internal {
                     message: format!("a nominal read outside an application type {stored:?}"),
@@ -328,15 +326,15 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
                 .type_lowerer(
                     self.builder.tree_mut(),
                     pointer_bytes,
-                    &self.type_substitution,
                     &self.lifetime_parameters,
                 )
+                .with_instance(self.instance)
                 .lower_nominal(instance.symbol, &arguments);
-            Self::bank(&mut self.lowerer.stored_nominals, key.clone(), outcome)?;
+            Self::bank(&mut self.lowerer.stored_nominals, stored, outcome)?;
         }
 
         // read the banked outcome, cascading the kept failure
-        match &self.lowerer.stored_nominals[&key] {
+        match &self.lowerer.stored_nominals[&stored] {
             Ok(nominal) => Ok(nominal.clone()),
             Err(diagnostic) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
         }
@@ -344,8 +342,8 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
 
     /// Bank one lowering outcome under its key for every body that reads it.
     fn bank<T>(
-        outcomes: &mut FxIndexMap<ResolvedTypeKey, Lowered<T>>,
-        key: ResolvedTypeKey,
+        outcomes: &mut FxIndexMap<dir::GlobalTypeId, Lowered<T>>,
+        key: dir::GlobalTypeId,
         outcome: CompilerResult<T>,
     ) -> CompilerResult<()> {
         match outcome {

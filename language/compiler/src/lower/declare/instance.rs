@@ -1,11 +1,11 @@
 use destack_artifact::DiagnosticLike;
 use destack_dir as dir;
 use destack_mir as mir;
+use destack_source::ModuleId;
 
 use crate::lower::r#type::LoweredSignature;
 use crate::lower::{
     CallableImplementation, FunctionDefinition, LifetimeParameters, ModuleLowerer, Reachable,
-    ReceiverBinding, TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -36,6 +36,7 @@ impl GenericInstanceKey {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl ModuleLowerer<'_> {
     /// Declare every concrete generic instance reachable from the bodies.
     ///
@@ -53,6 +54,7 @@ impl ModuleLowerer<'_> {
             .state(self.module)?
             .generics
             .iter_instances()
+            .filter(|(_, instance)| instance.origin == dir::InstanceOrigin::Instantiation)
             .map(|(_, instance)| {
                 (
                     instance.selection.symbol,
@@ -85,12 +87,7 @@ impl ModuleLowerer<'_> {
 
         // collect calls from the concrete bodies queued for lowering
         for body in bodies {
-            match self.collect_body(
-                body.source,
-                body.expression,
-                &body.type_substitution,
-                &mut reachable,
-            ) {
+            match self.collect_body(body.source, body.expression, body.instance, &mut reachable) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),
@@ -98,14 +95,13 @@ impl ModuleLowerer<'_> {
         }
 
         // collect calls from the module initializer expressions
-        let substitution = TypeSubstitution::default();
         let expressions: Vec<_> = self
             .initializers
             .iter()
             .map(|(_, expression)| *expression)
             .collect();
         for expression in expressions {
-            match self.collect_body(self.module, expression, &substitution, &mut reachable) {
+            match self.collect_body(self.module, expression, None, &mut reachable) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),
@@ -131,7 +127,7 @@ impl ModuleLowerer<'_> {
             match self.collect_body(
                 symbol.module_id,
                 body.expression,
-                &body.type_substitution,
+                body.instance,
                 &mut reachable,
             ) {
                 Ok(()) => {}
@@ -151,23 +147,16 @@ impl ModuleLowerer<'_> {
         symbol: dir::GlobalSymbolId,
         bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Option<FunctionDefinition>> {
-        // build the substitution the instance arguments select
-        let mut type_substitution = TypeSubstitution::default();
-        for binding in bindings {
-            type_substitution.insert(binding.parameter, binding.argument);
-        }
+        // find the sema instance materializing this body's types
+        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
+        let specialization = self.specialization_of(symbol, &arguments)?;
 
         // key the instance by its runtime representation
         let pointer_bytes = builder.pointer_bytes();
-        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let lifetime_parameters = LifetimeParameters::default();
         let key = self
-            .type_lowerer(
-                builder.tree_mut(),
-                pointer_bytes,
-                &type_substitution,
-                &lifetime_parameters,
-            )
+            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
+            .with_instance(specialization)
             .generic_instance_key(symbol, &arguments)?;
         if self.functions.contains_key(&key) {
             return Ok(None);
@@ -176,7 +165,7 @@ impl ModuleLowerer<'_> {
         // declare under the instance's concrete types and polymorphic lifetimes
         let lifetime_parameters = self.lifetime_parameters(self.symbol_type(symbol)?)?;
         let declared =
-            self.declare_instance_header(builder, &key, &type_substitution, &lifetime_parameters);
+            self.declare_instance_header(builder, &key, specialization, &lifetime_parameters);
 
         declared.map(Some)
     }
@@ -186,7 +175,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         key: &GenericInstanceKey,
-        type_substitution: &TypeSubstitution,
+        specialization: Option<(ModuleId, dir::LocalInstanceId)>,
         lifetime_parameters: &LifetimeParameters,
     ) -> CompilerResult<FunctionDefinition> {
         let symbol = key.symbol;
@@ -208,7 +197,7 @@ impl ModuleLowerer<'_> {
             return self.declare_member_instance_header(
                 builder,
                 key,
-                type_substitution,
+                specialization,
                 lifetime_parameters,
                 member,
             );
@@ -243,9 +232,9 @@ impl ModuleLowerer<'_> {
             };
             symbols.push(parameter_symbol.local_id);
         }
-        let declared = self.symbol_type(symbol)?;
+        let declared = self.instance_type(specialization, self.symbol_type(symbol)?)?;
         let signature =
-            self.lower_signature(builder, declared, type_substitution, lifetime_parameters)?;
+            self.lower_signature(builder, declared, specialization, lifetime_parameters)?;
         if signature.parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
                 message: "instance parameters disagree with the declared signature".to_string(),
@@ -255,10 +244,10 @@ impl ModuleLowerer<'_> {
         self.declare_instance_function(
             builder,
             key,
+            specialization,
             signature,
             symbols,
             false,
-            type_substitution.clone(),
             lifetime_parameters,
             expression,
         )
@@ -269,7 +258,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         key: &GenericInstanceKey,
-        type_substitution: &TypeSubstitution,
+        specialization: Option<(ModuleId, dir::LocalInstanceId)>,
         lifetime_parameters: &LifetimeParameters,
         member: dir::LocalNodeId<dir::Member>,
     ) -> CompilerResult<FunctionDefinition> {
@@ -299,18 +288,6 @@ impl ModuleLowerer<'_> {
             None => false,
         };
 
-        // receive extension members at their target
-        let receiver = match self.definition(owner)? {
-            Some(dir::Definition::Extension(extension)) => {
-                ReceiverBinding::Type(extension.target.r#type())
-            }
-            _ => ReceiverBinding::Application(dir::GenericApplication {
-                symbol: owner,
-                arguments: dir::TypeListId::EMPTY,
-            }),
-        };
-        let type_substitution = type_substitution.clone().with_receiver(receiver);
-
         // resolve the member body and parameter symbols
         let state = self.state(symbol.module_id)?;
         let dir::Member::Method {
@@ -338,9 +315,9 @@ impl ModuleLowerer<'_> {
             };
             symbols.push(parameter_symbol.local_id);
         }
-        let declared = self.symbol_type(symbol)?;
+        let declared = self.instance_type(specialization, self.symbol_type(symbol)?)?;
         let mut signature =
-            self.lower_signature(builder, declared, &type_substitution, lifetime_parameters)?;
+            self.lower_signature(builder, declared, specialization, lifetime_parameters)?;
         if signature.parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
                 message: "instance parameters disagree with the declared signature".to_string(),
@@ -355,12 +332,8 @@ impl ModuleLowerer<'_> {
             // receive an exclusive borrow in constructors
             Some(dir::FunctionRole::Constructor) => {
                 let nominal = self
-                    .type_lowerer(
-                        builder.tree_mut(),
-                        pointer_bytes,
-                        &type_substitution,
-                        lifetime_parameters,
-                    )
+                    .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+                    .with_instance(specialization)
                     .lower_nominal(owner, &[])?;
 
                 Some(builder.tree_mut().intern_type(mir::Type::Reference {
@@ -386,13 +359,9 @@ impl ModuleLowerer<'_> {
                 };
 
                 Some(
-                    self.type_lowerer(
-                        builder.tree_mut(),
-                        pointer_bytes,
-                        &type_substitution,
-                        lifetime_parameters,
-                    )
-                    .lower(this_type)?,
+                    self.type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+                        .with_instance(specialization)
+                        .lower(this_type)?,
                 )
             }
         };
@@ -409,10 +378,10 @@ impl ModuleLowerer<'_> {
         self.declare_instance_function(
             builder,
             key,
+            specialization,
             signature,
             symbols,
             has_this,
-            type_substitution,
             lifetime_parameters,
             expression,
         )
@@ -423,10 +392,10 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         key: &GenericInstanceKey,
+        specialization: Option<(ModuleId, dir::LocalInstanceId)>,
         signature: LoweredSignature,
         symbols: Vec<dir::LocalSymbolId>,
         has_this: bool,
-        type_substitution: TypeSubstitution,
         lifetime_parameters: &LifetimeParameters,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<FunctionDefinition> {
@@ -451,7 +420,7 @@ impl ModuleLowerer<'_> {
             symbol,
             has_this,
             parameters: symbols,
-            type_substitution,
+            instance: specialization,
             lifetime_parameters: lifetime_parameters.clone(),
             source: symbol.module_id,
             expression,
