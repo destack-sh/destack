@@ -5,42 +5,28 @@ import { FromResidual } from "destack:ops";
 import { Promise } from "./promise.ds";
 import { Task } from "./task.ds";
 
-/// Async recoverable success or failure.
-@languageItem("error.AsyncResult")
-export newtype AsyncResult<T, E> = Task<Result<T, E>>;
-
-export extension<T, E> of AsyncResult<T, E> {
-    /// Create a successful async result.
-    static ok(value: T): AsyncResult<T, E> {
-        AsyncResult(Task.resolve(Result.ok(value)))
-    }
-
-    /// Create a failed async result.
-    static err(error: E): AsyncResult<T, E> {
-        AsyncResult(Task.resolve(Result.err(error)))
-    }
-
-    /// Wrap an already computed result.
-    static from(result: Result<T, E>): AsyncResult<T, E> {
-        AsyncResult(Task.resolve(result))
+export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<E> {
+    /// Create a failed result task from a propagated residual.
+    static fromResidual(residual: E): Task<Result<T, E>> {
+        Task.resolve(Result.err(residual))
     }
 
     /// Map the success value.
-    async map<U>(this, f: (value: T) => U): AsyncResult<U, E> {
+    async map<U>(this, f: (value: T) => U): Task<Result<U, E>> {
         const result = await this;
 
         result.map(f)
     }
 
     /// Map the failure value.
-    async mapErr<F>(this, f: (error: E) => F): AsyncResult<T, F> {
+    async mapErr<F>(this, f: (error: E) => F): Task<Result<T, F>> {
         const result = await this;
 
         result.mapErr(f)
     }
 
     /// Continue with another async result-returning operation.
-    async andThen<U, F>(this, f: (value: T) => AsyncResult<U, F>): AsyncResult<U, E | F> {
+    async andThen<U, F>(this, f: (value: T) => Task<Result<U, F>>): Task<Result<U, E | F>> {
         const result = await this;
 
         match (result) {
@@ -54,14 +40,14 @@ export extension<T, E> of AsyncResult<T, E> {
     }
 
     /// Continue with a synchronous result-returning operation.
-    async andThenSync<U, F>(this, f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
+    async andThenSync<U, F>(this, f: (value: T) => Result<U, F>): Task<Result<U, E | F>> {
         const result = await this;
 
         result.andThen(f)
     }
 
     /// Recover from a failure with another async result.
-    async orElse<F>(this, f: (error: E) => AsyncResult<T, F>): AsyncResult<T, F> {
+    async orElse<F>(this, f: (error: E) => Task<Result<T, F>>): Task<Result<T, F>> {
         const result = await this;
 
         match (result) {
@@ -78,14 +64,14 @@ export extension<T, E> of AsyncResult<T, E> {
     }
 
     /// Run a side effect on success and keep the original result.
-    async tap(this, f: (value: &readonly T) => void): AsyncResult<T, E> {
+    async tap(this, f: (value: &readonly T) => void): Task<Result<T, E>> {
         const result = await this;
 
         result.tap(f)
     }
 
     /// Run a side effect on failure and keep the original result.
-    async tapErr(this, f: (error: &readonly E) => void): AsyncResult<T, E> {
+    async tapErr(this, f: (error: &readonly E) => void): Task<Result<T, E>> {
         const result = await this;
 
         result.tapErr(f)
@@ -118,18 +104,14 @@ export extension<T, E> of AsyncResult<T, E> {
 
         result.unwrapOrElse(f)
     }
+
 }
 
-export extension<T, E> of AsyncResult<T, E> implements FromResidual<E> {
-    /// Create an async result from a propagated residual.
-    static fromResidual(residual: E): AsyncResult<T, E> {
-        AsyncResult.err(residual)
-    }
-}
-
-export extension<T: Copy, E> of AsyncResult<T, E> {
-    /// Lift an infallible promise into an async result task.
-    static async fromPromise(promise: Promise<T>): AsyncResult<T, E> {
-        Result.ok(await promise)
+export extension PromiseResult<T: Copy, E: Copy> of Promise<Result<T, E>>
+    implements
+        FromResidual<E> {
+    /// Create a failed result promise from a propagated residual.
+    static fromResidual(residual: E): Promise<Result<T, E>> {
+        Promise.resolve(Result.err(residual))
     }
 }

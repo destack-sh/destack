@@ -1,4 +1,3 @@
-import { AsyncResult } from "destack:async";
 import { Promise } from "destack:async";
 import { Error, Result } from "destack:error";
 import { Dynamic } from "destack:memory";
@@ -54,7 +53,7 @@ export type BodyResult =
     | void
     | Promise<void>
     | Result<void, Dynamic<Error>>
-    | AsyncResult<void, Dynamic<Error>>;
+    | Task<Result<void, Dynamic<Error>>>;
 
 /// Test callback.
 export type Body = (ctx: CaseContext) => BodyResult;

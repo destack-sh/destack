@@ -639,9 +639,6 @@ define_language_items! {
 
         /// `destack:error/result`.
         result {
-            /// Async result type.
-            AsyncResult => (Newtype, "error/result", "AsyncResult"),
-
             /// Err variant.
             Err => (Struct, "error/result", "Err"),
 

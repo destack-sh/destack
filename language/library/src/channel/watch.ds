@@ -1,4 +1,3 @@
-import { AsyncResult } from "destack:async";
 import { Result, todo } from "destack:error";
 import { Dispose, SharedSafe, WithAccess } from "destack:memory";
 import { Dereference } from "destack:ops";
@@ -53,7 +52,7 @@ export interface WatchReceiver<T> {
     hasChanged(): Result<boolean, ReceiveError>;
 
     /// Wait for a changed value.
-    changed(): AsyncResult<void, ReceiveError>;
+    changed(): Task<Result<void, ReceiveError>>;
 
     /// Close this receiver.
     close(): void;

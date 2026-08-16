@@ -238,7 +238,6 @@ global {
         AsyncGenerator,
         AsyncIterable,
         AsyncIterator,
-        AsyncResult,
         Generator,
         GeneratorResult,
         Promise,

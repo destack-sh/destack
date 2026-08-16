@@ -1,4 +1,4 @@
-import { AsyncResult, Promise, Task } from "destack:async";
+import { Promise, Task } from "destack:async";
 import { todo } from "destack:error";
 import { Panic } from "destack:error";
 import { SharedSafe } from "destack:memory";
@@ -15,7 +15,7 @@ export class Worker<T, R> {
     }
 
     /// Send one message and wait for a reply.
-    request(message: T): AsyncResult<R, WorkerError> {
+    request(message: T): Task<Result<R, WorkerError>> {
         todo("Worker.request")
     }
 
@@ -45,7 +45,7 @@ export local class WorkerPool<T, R> {
     workers: Worker<T, R>[] = [];
 
     /// Send one request to an available worker.
-    request(message: T): AsyncResult<R, WorkerError> {
+    request(message: T): Task<Result<R, WorkerError>> {
         todo("WorkerPool.request")
     }
 

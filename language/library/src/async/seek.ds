@@ -1,10 +1,8 @@
 import { IoError } from "destack:error";
 import { SeekFrom } from "destack:sync";
 
-import { AsyncResult } from "./result.ds";
-
 /// Asynchronous seekable byte stream.
 export interface AsyncSeeker {
     /// Seek to a new stream position.
-    seek(from: SeekFrom): AsyncResult<uint64, IoError>;
+    seek(from: SeekFrom): Task<Result<uint64, IoError>>;
 }
