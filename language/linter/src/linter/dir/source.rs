@@ -127,6 +127,56 @@ impl DirModule<'_> {
         Ok(has_comment)
     }
 
+    /// Return source text with indentation removed from continuation lines.
+    pub(crate) fn dedent_source(
+        &self,
+        span: Span,
+        indentation: u32,
+    ) -> Result<Option<String>, ProviderError> {
+        let source = self.source(span)?;
+        let prefix = " ".repeat(indentation as usize);
+        let mut dedented = String::with_capacity(source.len());
+
+        // remove the exact indentation from every nonempty continuation
+        for (index, line) in source.split('\n').enumerate() {
+            let line = if index == 0 || line.is_empty() {
+                line
+            } else {
+                let Some(line) = line.strip_prefix(&prefix) else {
+                    return Ok(None);
+                };
+
+                line
+            };
+            if index > 0 {
+                dedented.push('\n');
+            }
+            dedented.push_str(line);
+        }
+
+        Ok(Some(dedented))
+    }
+
+    /// Return the horizontal indentation of the source line containing one span.
+    pub(crate) fn source_indentation(&self, span: Span) -> Result<&str, ProviderError> {
+        let file = self.file(span.file)?;
+        let Some((line, _)) = file.get_position(span.start) else {
+            return Err(ProviderError::internal(format!(
+                "source span {span:?} is outside its authored source file"
+            )));
+        };
+        let line = file.get_line_span(line).ok_or_else(|| {
+            ProviderError::internal(format!("source line for span {span:?} is unavailable"))
+        })?;
+        let prefix = self.source(Span::new(span.file, line.start, span.start))?;
+        let indentation_end = prefix
+            .bytes()
+            .take_while(|byte| matches!(byte, b' ' | b'\t'))
+            .count();
+
+        Ok(&prefix[..indentation_end])
+    }
+
     /// Return the source span and trailing boundary for one DIR statement.
     pub fn statement_span(
         &self,

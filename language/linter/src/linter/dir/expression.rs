@@ -46,6 +46,81 @@ impl DirModule<'_> {
         }
     }
 
+    /// Return the nearest expression that contains one expression in value position.
+    pub(crate) fn enclosing_value_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        let view = self.view();
+        let mut current = expression.into_any();
+
+        // cross structural nodes until reaching an expression or body boundary
+        while let Some(parent) = view.get_parent_any(current) {
+            match parent.ty {
+                // cross an expression block only through its value tail
+                dir::NodeType::Block => {
+                    let block = dir::LocalNodeId::<dir::Block>::new(parent.id);
+                    let Ok(current_expression) = current.try_into_typed::<dir::Expression>() else {
+                        return None;
+                    };
+                    if view.get(block).value_expression() != Some(current_expression) {
+                        return None;
+                    }
+
+                    current = parent;
+                }
+                // stop at branch bodies, otherwise return the value parent
+                dir::NodeType::Expression => {
+                    let parent = dir::LocalNodeId::<dir::Expression>::new(parent.id);
+                    let is_body = match view.get(parent) {
+                        dir::Expression::If {
+                            form: dir::IfForm::If,
+                            then_expression,
+                            else_expression,
+                            ..
+                        } => {
+                            current == then_expression.into_any()
+                                || else_expression.is_some_and(|body| current == body.into_any())
+                        }
+                        dir::Expression::LetElse { else_branch, .. } => {
+                            current == else_branch.into_any()
+                        }
+                        dir::Expression::Try { body, finally, .. } => {
+                            current == body.into_any()
+                                || finally.is_some_and(|body| current == body.into_any())
+                        }
+                        _ => false,
+                    };
+                    if is_body {
+                        return None;
+                    }
+
+                    return Some(parent);
+                }
+                // stop at bindings and control branches
+                dir::NodeType::Declarator
+                | dir::NodeType::MatchArm
+                | dir::NodeType::Catch
+                | dir::NodeType::SwitchCase => return None,
+                _ => {
+                    // stop at callable ownership
+                    if current
+                        .try_into_typed::<dir::Expression>()
+                        .ok()
+                        .is_some_and(|body| self.callable_body(parent) == Some(body))
+                    {
+                        return None;
+                    }
+
+                    // cross transparent authored nodes
+                    current = parent;
+                }
+            }
+        }
+
+        None
+    }
+
     /// Return whether one checked expression can be evaluated without observable effects.
     pub fn is_repeatable_expression(
         &self,

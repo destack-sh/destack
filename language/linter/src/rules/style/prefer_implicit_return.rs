@@ -1,13 +1,188 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
+use destack_repository::ProviderError;
+use destack_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
 
-declare_lint_stub! {
-    /// Prefer implicit return for arrow functions.
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
+    /// Prefer expression bodies for lambdas that only return one value.
     pub PREFER_IMPLICIT_RETURN {
         id: "prefer-implicit-return",
-        summary: "Prefer implicit return for arrow functions",
+        summary: "Prefer expression bodies for lambdas that only return one value",
+        explanation: r#"
+A lambda block containing only `return value` adds a statement around its result.
+Instead, you SHOULD use `value` as the lambda body directly.
+"#,
+        example: {
+            reported: r#"
+function double(values: int32[]): int32[] {
+    return values.map((value) => {
+        return value * 2;
+    });
+}
+"#,
+            accepted: r#"
+function double(values: int32[]): int32[] {
+    return values.map((value) => value * 2);
+}
+"#,
+        },
         category: Style,
         level: Warning,
         fixable: Suggestion,
-        check: DirModule,
+        check: DirModule(check),
+    }
+}
+
+/// Report lambda blocks whose only statement returns one value.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect lambda declarations with explicit block bodies
+    for (declaration, node) in view.iter_nodes::<dir::Declaration>() {
+        let dir::Declaration::Function(function) = node else {
+            continue;
+        };
+        if function.signature.form != dir::FunctionForm::Lambda || function.signature.is_generator {
+            continue;
+        }
+        let Some(body) = function.body else {
+            continue;
+        };
+        let dir::Expression::Block(block) = view.get(body) else {
+            continue;
+        };
+        let Some(return_) = view.get(*block).only_expression() else {
+            continue;
+        };
+        let dir::Expression::Return { value: Some(value) } = view.get(return_) else {
+            continue;
+        };
+
+        // replace the complete block body when every comment is retained
+        let span = module.source_extent(body.into_any())?;
+        let mut diagnostic = lint.diagnostic("lambda only returns one expression", span);
+        if let Some(suggestion) = suggestion(module, lint, declaration, body, *value)? {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
+        output.report(diagnostic);
+    }
+
+    Ok(output)
+}
+
+/// Build one expression-body replacement.
+fn suggestion(
+    module: &DirModule<'_>,
+    lint: &Lint,
+    declaration: dir::LocalNodeId<dir::Declaration>,
+    body: dir::LocalNodeId<dir::Expression>,
+    value: dir::LocalNodeId<dir::Expression>,
+) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
+    let extent = module.source_extent(body.into_any())?;
+    let retained = module.source_extent(value.into_any())?;
+    if module.has_unretained_comment(extent, &[retained])? {
+        return Ok(None);
+    }
+
+    // retain grouping required for object literal lambda bodies
+    let source = module.source(retained)?;
+    let replacement = if matches!(
+        module.view().get(value),
+        dir::Expression::ObjectExpression { .. }
+    ) {
+        format!("({source})")
+    } else {
+        source.to_string()
+    };
+    let body = module.source_region(declaration.into_any(), NodeSpanRegion::Body)?;
+    let patch = Patch::replace(body, replacement);
+    let suggestion = lint.suggestion("use an expression body", patch)?;
+
+    Ok(Some(suggestion))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Replace a lambda block containing only one returned expression.
+    #[test]
+    fn test_replaces_single_return() {
+        let session = TestSession::dir(
+            &PREFER_IMPLICIT_RETURN,
+            PREFER_IMPLICIT_RETURN.example.reported(),
+        );
+
+        session.assert_suggestions(PREFER_IMPLICIT_RETURN.example.accepted());
+    }
+
+    /// Parenthesize an object literal used as the expression body.
+    #[test]
+    fn test_parenthesizes_object_literal() {
+        let session = TestSession::dir(
+            &PREFER_IMPLICIT_RETURN,
+            r#"
+const wrap = (value: int32) => {
+    return { value };
+};
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+const wrap = (value: int32) => ({ value });
+"#,
+        );
+    }
+
+    /// Accept a lambda block that performs work before returning.
+    #[test]
+    fn test_accepts_multiple_statements() {
+        let session = TestSession::dir(
+            &PREFER_IMPLICIT_RETURN,
+            r#"
+const double = (value: int32): int32 => {
+    value;
+    return value * 2;
+};
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report without a suggestion when removing the block would discard a comment.
+    #[test]
+    fn test_reports_commented_block_without_suggestion() {
+        let session = TestSession::dir(
+            &PREFER_IMPLICIT_RETURN,
+            r#"
+const double = (value: int32): int32 => {
+    // keep this explanation
+    return value * 2;
+};
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[prefer-implicit-return]: lambda only returns one expression
+ ──▶ main.ds:1:41
+  │
+1 │ const double = (value: int32): int32 => {
+  │                                         ^
+2 │     // keep this explanation
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^
+3 │     return value * 2;
+  │     ^^^^^^^^^^^^^^^^^
+4 │ };
+  │ ^
+  │
+"#,
+        );
     }
 }

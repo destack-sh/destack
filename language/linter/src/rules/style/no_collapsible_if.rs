@@ -1,13 +1,337 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
+use destack_repository::ProviderError;
+use destack_source::{DiagnosticSuggestion, Patch, Span};
 
-declare_lint_stub! {
-    /// Suggest merging nested if statements.
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
+    /// Prefer one condition over nested if statements without alternatives.
     pub NO_COLLAPSIBLE_IF {
         id: "no-collapsible-if",
-        summary: "Suggest merging nested if statements",
+        summary: "Prefer one condition over nested if statements without alternatives",
+        explanation: r#"
+Nested `if` statements without `else` branches require both conditions before running the same body.
+Instead, you SHOULD join the conditions with `&&` in one `if` statement.
+"#,
+        example: {
+            reported: r#"
+declare function run(): void;
+
+function runWhen(ready: boolean, enabled: boolean): void {
+    if (ready) {
+        if (enabled) {
+            run();
+        }
+    }
+}
+"#,
+            accepted: r#"
+declare function run(): void;
+
+function runWhen(ready: boolean, enabled: boolean): void {
+    if (ready && enabled) {
+        run();
+    }
+}
+"#,
+        },
         category: Style,
         level: Warning,
         fixable: Suggestion,
-        check: DirModule,
+        check: DirModule(check),
+    }
+}
+
+/// Report nested if statements that share one unconditional body path.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect regular if statements without alternatives
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+        let dir::Expression::If {
+            form: dir::IfForm::If,
+            then_expression,
+            else_expression: None,
+            ..
+        } = node
+        else {
+            continue;
+        };
+        let dir::Expression::Block(block) = view.get(*then_expression) else {
+            continue;
+        };
+        let Some(nested) = view.get(*block).only_expression() else {
+            continue;
+        };
+        let dir::Expression::If {
+            form: dir::IfForm::If,
+            then_expression: nested_body,
+            else_expression: None,
+            ..
+        } = view.get(nested)
+        else {
+            continue;
+        };
+
+        // report the nested conditional and offer one combined statement
+        let span = module.source_extent(expression.into_any())?;
+        let nested_span = module.source_extent(nested.into_any())?;
+        let mut diagnostic = lint.diagnostic("nested if conditions can be joined", nested_span);
+        if let Some(suggestion) = suggestion(
+            module,
+            lint,
+            expression,
+            *then_expression,
+            nested,
+            *nested_body,
+            span,
+        )? {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
+        output.report(diagnostic);
+    }
+
+    Ok(output)
+}
+
+/// Build one combined if statement.
+fn suggestion(
+    module: &DirModule<'_>,
+    lint: &Lint,
+    outer: dir::LocalNodeId<dir::Expression>,
+    outer_body: dir::LocalNodeId<dir::Expression>,
+    nested: dir::LocalNodeId<dir::Expression>,
+    nested_body: dir::LocalNodeId<dir::Expression>,
+    extent: Span,
+) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
+    let nested_extent = module.source_extent(nested.into_any())?;
+    let outer_body_extent = module.source_extent(outer_body.into_any())?;
+    if module.has_unretained_comment(outer_body_extent, &[nested_extent])? {
+        return Ok(None);
+    }
+
+    // retain both authored conditions
+    let Some(outer_condition) = condition_source(module, outer, outer_body)? else {
+        return Ok(None);
+    };
+    let Some(nested_condition) = condition_source(module, nested, nested_body)? else {
+        return Ok(None);
+    };
+
+    // dedent the surviving body to the outer statement column
+    let outer_position = module.file(extent.file)?.get_position(extent.start);
+    let nested_body_extent = module.source_extent(nested_body.into_any())?;
+    let nested_position = module.file(extent.file)?.get_position(nested_extent.start);
+    let (Some((_, outer_column)), Some((_, nested_column))) = (outer_position, nested_position)
+    else {
+        return Err(ProviderError::internal(
+            "collapsible if extent is outside its authored source file",
+        ));
+    };
+    let indentation = nested_column
+        .checked_sub(outer_column)
+        .ok_or_else(|| ProviderError::internal("nested if begins before the outer if"))?;
+    let Some(body) = module.dedent_source(nested_body_extent, indentation)? else {
+        return Ok(None);
+    };
+
+    // replace both conditionals with one statement
+    let replacement = format!("if ({outer_condition} && {nested_condition}) {body}");
+    let patch = Patch::replace(extent, replacement);
+    let suggestion = lint.suggestion("join the nested conditions", patch)?;
+
+    Ok(Some(suggestion))
+}
+
+/// Return one if statement's authored condition when its parentheses can be replaced.
+fn condition_source(
+    module: &DirModule<'_>,
+    expression: dir::LocalNodeId<dir::Expression>,
+    body: dir::LocalNodeId<dir::Expression>,
+) -> Result<Option<String>, ProviderError> {
+    let dir::Expression::If { condition, .. } = module.view().get(expression) else {
+        return Err(ProviderError::internal(
+            "collapsible condition source does not belong to an if expression",
+        ));
+    };
+
+    // extract text inside the authored condition parentheses
+    let keyword = module.main_span(expression.into_any())?;
+    let body = module.source_extent(body.into_any())?;
+    let span = Span::new(keyword.file, keyword.end, body.start);
+    let source = module.source(span)?.trim();
+    let Some(source) = source
+        .strip_prefix('(')
+        .and_then(|source| source.strip_suffix(')'))
+    else {
+        if module.has_unretained_comment(span, &[])? {
+            return Ok(None);
+        }
+
+        return Err(ProviderError::internal(
+            "if condition has no authored parentheses",
+        ));
+    };
+
+    // retain grouping around one expression weaker than logical conjunction
+    let source = source.trim();
+    let source = if condition.as_expression().is_some_and(|expression| {
+        module.view().get(expression).precedence() < dir::OperatorPrecedence::LogicalAnd
+    }) {
+        format!("({source})")
+    } else {
+        source.to_string()
+    };
+
+    Ok(Some(source))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Join two nested conditions.
+    #[test]
+    fn test_joins_nested_conditions() {
+        let session = TestSession::dir(&NO_COLLAPSIBLE_IF, NO_COLLAPSIBLE_IF.example.reported());
+
+        session.assert_suggestions(NO_COLLAPSIBLE_IF.example.accepted());
+    }
+
+    /// Accept a nested if with an alternative branch.
+    #[test]
+    fn test_accepts_nested_alternative() {
+        let session = TestSession::dir(
+            &NO_COLLAPSIBLE_IF,
+            r#"
+declare function run(): void;
+
+function runWhen(ready: boolean, enabled: boolean): void {
+    if (ready) {
+        if (enabled) {
+            run();
+        } else {
+            return;
+        }
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Preserve grouping around disjunctions in both conditions.
+    #[test]
+    fn test_groups_disjunctions() {
+        let session = TestSession::dir(
+            &NO_COLLAPSIBLE_IF,
+            r#"
+declare function run(): void;
+
+function runWhen(
+    ready: boolean,
+    fallback: boolean,
+    enabled: boolean,
+    forced: boolean,
+): void {
+    if (ready || fallback) {
+        if (enabled || forced) {
+            run();
+        }
+    }
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+declare function run(): void;
+
+function runWhen(
+    ready: boolean,
+    fallback: boolean,
+    enabled: boolean,
+    forced: boolean,
+): void {
+    if ((ready || fallback) && (enabled || forced)) {
+        run();
+    }
+}
+"#,
+        );
+    }
+
+    /// Preserve a condition binding across the joined inner condition.
+    #[test]
+    fn test_preserves_condition_binding_scope() {
+        let session = TestSession::dir(
+            &NO_COLLAPSIBLE_IF,
+            r#"
+declare function run(): void;
+
+function runWhen(user: { enabled: boolean } | null, ready: boolean): void {
+    if (let { enabled } = user) {
+        if (ready && enabled) {
+            run();
+        }
+    }
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+declare function run(): void;
+
+function runWhen(user: { enabled: boolean } | null, ready: boolean): void {
+    if (let { enabled } = user && ready && enabled) {
+        run();
+    }
+}
+"#,
+        );
+    }
+
+    /// Report without a suggestion when the outer block owns a comment.
+    #[test]
+    fn test_preserves_outer_comment() {
+        let session = TestSession::dir(
+            &NO_COLLAPSIBLE_IF,
+            r#"
+declare function run(): void;
+
+function runWhen(ready: boolean, enabled: boolean): void {
+    if (ready) {
+        // explain the second condition
+        if (enabled) {
+            run();
+        }
+    }
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-collapsible-if]: nested if conditions can be joined
+  ──▶ main.ds:6:9
+   │
+ 4 │     if (ready) {
+ 5 │         // explain the second condition
+ 6 │         if (enabled) {
+   │         ^^^^^^^^^^^^^^
+ 7 │             run();
+   │             ^^^^^^
+ 8 │         }
+   │         ^
+ 9 │     }
+10 │ }
+   │
+"#,
+        );
     }
 }

@@ -7,6 +7,7 @@ mod index;
 mod language;
 mod module;
 mod operation;
+mod pattern;
 mod program;
 mod scalar;
 mod source;
