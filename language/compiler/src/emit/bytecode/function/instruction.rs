@@ -251,6 +251,9 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 dynamic,
             } => self.emit_dynamic_type(*destination, *dynamic),
+            mir::Instruction::DynamicRead { .. } => {
+                Err(self.internal("dynamic slot reads await their bytecode encoding"))
+            }
             mir::Instruction::DynamicFind { .. } => {
                 Err(self
                     .internal("dynamic property lookup requires executable string representation"))

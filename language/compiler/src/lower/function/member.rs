@@ -220,6 +220,13 @@ impl FunctionLowerer<'_, '_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         field: &dir::FieldResolution,
     ) -> CompilerResult<mir::Value> {
+        // read erased receivers through their dispatch table
+        if let dir::MemberReceiver::Dynamic(dispatch) = &field.receiver {
+            let dispatch = dispatch.clone();
+
+            return self.lower_dynamic_member_read(expression, left, field, &dispatch);
+        }
+
         // lower the receiver the resolution selected
         let value = self.lower_member_receiver(left, &field.receiver)?;
 
@@ -239,10 +246,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let result_type = self.lower_type(self.node_type_id(expression)?)?;
 
         // load fields through addresses for reference receivers
-        if let Some(layer) = self
-            .lowerer
-            .peel_indirection(receiver, &self.type_substitution)?
-        {
+        if let Some(layer) = self.lowerer.peel_indirection(receiver)? {
             let address = self.emit_field_address(value, index, result_type, layer.access);
 
             return Ok(self.builder.load(address, result_type));
@@ -428,14 +432,9 @@ impl FunctionLowerer<'_, '_, '_> {
         field: &dir::FieldResolution,
     ) -> CompilerResult<u32> {
         // locate storage in the selected receiver
-        let mut stored = match self
-            .lowerer
-            .peel_indirection(field.receiver.ty(), &self.type_substitution)?
-        {
+        let mut stored = match self.lowerer.peel_indirection(field.receiver.ty())? {
             Some(layer) => layer.stored,
-            None => self
-                .lowerer
-                .peel_owned(field.receiver.ty(), &self.type_substitution)?,
+            None => self.lowerer.peel_owned(field.receiver.ty())?,
         };
 
         // follow transparent alias and newtype definitions, re-peeling their owners
@@ -445,7 +444,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 Some(dir::Definition::Newtype(newtype)) => newtype.backing,
                 _ => break,
             };
-            stored = self.lowerer.peel_owned(defined, &self.type_substitution)?;
+            stored = self.lowerer.peel_owned(defined)?;
         }
 
         // find the field's position in the storage the receiver declares

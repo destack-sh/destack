@@ -120,6 +120,79 @@ impl FunctionLowerer<'_, '_, '_> {
         ))
     }
 
+    /// Read one member through an erased receiver's dispatch table.
+    pub(in crate::lower) fn lower_dynamic_member_read(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
+        field: &dir::FieldResolution,
+        dispatch: &dir::DynamicDispatch,
+    ) -> CompilerResult<mir::Value> {
+        // read the member name the constraint slot declares
+        let dir::StaticKey::Name(name) = field.target.key() else {
+            return Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "a computed member read through dynamic dispatch".to_string(),
+            }
+            .into());
+        };
+
+        // select the slot behind the name in the constraint shape
+        let receiver = self.lower_adjusted_receiver(left, &dispatch.receiver)?;
+        let constraint = self.lower_constraint(dispatch.constraint)?;
+        let Some(shape) = self.lowerer.dynamic_shapes.get(&constraint) else {
+            return Err(CompilerError::Internal {
+                message: "a dynamic read reached an unregistered constraint shape".to_string(),
+            });
+        };
+        let Some((slot, signature)) =
+            shape
+                .slots
+                .iter()
+                .enumerate()
+                .find_map(|(index, slot)| match slot {
+                    mir::DynamicSlot::Field {
+                        name: slot_name, ..
+                    } if *slot_name == name => Some((index, None)),
+                    mir::DynamicSlot::Function {
+                        name: Some(slot_name),
+                        signature,
+                    } if *slot_name == name => Some((index, Some(*signature))),
+                    _ => None,
+                })
+        else {
+            return Err(CompilerError::Internal {
+                message: "a dynamic read of an undeclared constraint member".to_string(),
+            });
+        };
+        let result_type = self.lower_type(self.node_type_id(expression)?)?;
+
+        // call a getter slot at its declared signature
+        match signature {
+            Some(signature) => {
+                let value = self.builder.call(
+                    mir::Callee::Dynamic {
+                        receiver,
+                        constraint: mir::TypeId::from(constraint),
+                        slot: mir::DispatchSlot(slot as u32),
+                    },
+                    mir::TypeId::from(signature),
+                    Vec::new(),
+                );
+
+                value.ok_or_else(|| CompilerError::Internal {
+                    message: "the dispatched getter returned no value".to_string(),
+                })
+            }
+            // read a field slot through the dispatch table
+            None => {
+                Ok(self
+                    .builder
+                    .dynamic_read(receiver, mir::DispatchSlot(slot as u32), result_type))
+            }
+        }
+    }
+
     /// Find one computed key through the receiver's dynamic table.
     pub(in crate::lower) fn lower_dynamic_signature_read(
         &mut self,
