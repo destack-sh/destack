@@ -37,7 +37,7 @@ impl ModuleQueryContext<'_> {
         if let Some(resolution) = self.decisions()?.receiver_decision(node_id) {
             selections.push(vec![resolution.declaration]);
         }
-        if let Some(symbol) = self.decisions()?.label_decision(node_id) {
+        if let Some(symbol) = self.transfer_label_symbol(node_id)? {
             selections.push(vec![symbol]);
         }
 
@@ -49,6 +49,39 @@ impl ModuleQueryContext<'_> {
         }
 
         Ok(selections.pop())
+    }
+
+    /// Return the label symbol explicitly named by one control transfer.
+    pub(crate) fn transfer_label_symbol(
+        &self,
+        node_id: dir::GlobalNodeIdAny,
+    ) -> QueryResult<Option<dir::GlobalSymbolId>> {
+        // require a checked control transfer
+        let Some(target) = self.decisions()?.transfer_decision(node_id) else {
+            return Ok(None);
+        };
+
+        // require an explicitly authored label reference
+        let expression = node_id
+            .local_id
+            .try_into_typed::<dir::Expression>()
+            .map_err(|_| {
+                QueryError::invalid(format!(
+                    "control transfer source is not an expression: {node_id:?}"
+                ))
+            })?;
+        if self.view()?.get(expression).transfer_label().is_none() {
+            return Ok(None);
+        }
+
+        // read the binding introduced by the selected labeled target
+        let symbol = self
+            .bindings()?
+            .declaration_symbol(target.into_any())
+            .ok_or_else(|| QueryError::missing(format!("control label binding: {target:?}")))?;
+        let symbol = symbol.into_global(target.module_id);
+
+        Ok(Some(symbol))
     }
 
     /// Return the symbol declarations named by one dependency item.

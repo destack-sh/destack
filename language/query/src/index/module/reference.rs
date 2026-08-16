@@ -120,9 +120,38 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 dir::Decision::Receiver(resolution) => {
                     self.index_reference(resolution.declaration, source)?;
                 }
-                // index control label selections
-                dir::Decision::Label(symbol) => {
-                    self.index_reference(*symbol, source)?;
+                // index explicit labels selected by control transfers
+                dir::Decision::Transfer(target) => {
+                    // require an explicitly authored label reference
+                    let expression = source
+                        .local_id
+                        .try_into_typed::<dir::Expression>()
+                        .map_err(|_| {
+                            ProviderError::internal(format!(
+                                "control transfer source is not an expression: {source:?}"
+                            ))
+                        })?;
+                    if self
+                        .module
+                        .view()
+                        .get(expression)
+                        .transfer_label()
+                        .is_none()
+                    {
+                        continue;
+                    }
+
+                    // read the binding introduced by the selected labeled target
+                    let symbol = self
+                        .module
+                        .bindings()
+                        .declaration_symbol(target.into_any())
+                        .ok_or_else(|| {
+                            ProviderError::internal(format!(
+                                "control label target has no binding: {target:?}"
+                            ))
+                        })?;
+                    self.index_reference(symbol.into_global(target.module_id), source)?;
                 }
                 // index member selections not replaced by calls or constructions
                 dir::Decision::Member(resolution) => {

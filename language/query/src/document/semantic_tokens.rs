@@ -677,8 +677,9 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         &self,
         node_id: dir::GlobalNodeIdAny,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
-        // explicit label transfers carry their selected target directly
-        if self.module.decisions()?.label_decision(node_id).is_some() {
+        // explicit label transfers select a target with a label binding
+        let is_label = self.module.transfer_label_symbol(node_id)?.is_some();
+        if is_label {
             return Ok(Some((
                 SemanticTokenType::Label,
                 SemanticTokenModifiers::NONE,
