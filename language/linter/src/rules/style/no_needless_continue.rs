@@ -1,6 +1,10 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
+use destack_source::Patch;
 
-declare_lint_stub! {
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
     /// Disallow continue where control already proceeds to the same iteration.
     pub NO_NEEDLESS_CONTINUE {
         id: "no-needless-continue",
@@ -29,8 +33,49 @@ function visit(values: int32[]): void {
         category: Style,
         level: Warning,
         fixable: Automatic,
-        check: DirModule,
+        check: DirModule(check),
     }
+}
+
+/// Report continues that already occupy the end of their target iteration path.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect every authored continue with a checked target
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+        if !matches!(node, dir::Expression::Continue { .. }) {
+            continue;
+        }
+        let target = module.transfer_target(expression)?;
+        let Some(body) = module.iteration_body(target) else {
+            continue;
+        };
+        if !module.is_terminal_in(expression, body) {
+            continue;
+        }
+
+        // remove statements and preserve required value positions
+        let span = module.span(expression.into_any())?;
+        let patch = if view
+            .get_parent_for(expression)
+            .is_some_and(|parent| parent.ty == dir::NodeType::Block)
+        {
+            Patch::delete(module.statement_removal_span(expression)?)
+        } else {
+            Patch::replace(
+                module.source_extent(expression.into_any())?,
+                "{ /* intentionally empty */ }",
+            )
+        };
+        let suggestion = lint.fix("remove the redundant continue", patch)?;
+        let diagnostic = lint
+            .diagnostic("continue repeats the end of this iteration", span)
+            .suggestion(suggestion);
+        output.report(diagnostic);
+    }
+
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -39,14 +84,12 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
-    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&NO_NEEDLESS_CONTINUE);
     }
 
     /// Remove a continue at the end of a loop body.
-    #[ignore]
     #[test]
     fn test_removes_terminal_continue() {
         let session = TestSession::dir(
@@ -79,7 +122,6 @@ warning[no-needless-continue]: continue repeats the end of this iteration
     }
 
     /// Remove a continue at the end of one conditional path.
-    #[ignore]
     #[test]
     fn test_removes_terminal_conditional_continue() {
         let session = TestSession::dir(
@@ -109,8 +151,76 @@ function visit(values: int32[]): void {
         );
     }
 
+    /// Remove a continue from a terminal match arm.
+    #[test]
+    fn test_removes_terminal_match_continue() {
+        let session = TestSession::dir(
+            &NO_NEEDLESS_CONTINUE,
+            r#"
+function visit(values: int32[]): void {
+    for (const value of values) {
+        match (value) {
+            0 => {
+                value;
+                continue;
+            }
+            _ => {
+                value;
+            }
+        }
+    }
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function visit(values: int32[]): void {
+    for (const value of values) {
+        match (value) {
+            0 => {
+                value;
+            }
+            _ => {
+                value;
+            }
+        }
+    }
+}
+"#,
+        );
+    }
+
+    /// Replace a direct terminal match-arm continue with a commented empty block.
+    #[test]
+    fn test_replaces_terminal_match_value_continue_with_block() {
+        let session = TestSession::dir(
+            &NO_NEEDLESS_CONTINUE,
+            r#"
+function visit(values: int32[]): void {
+    for (const value of values) {
+        match (value) {
+            _ => continue
+        }
+    }
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function visit(values: int32[]): void {
+    for (const value of values) {
+        match (value) {
+            _ => { /* intentionally empty */ }
+        }
+    }
+}
+"#,
+        );
+    }
+
     /// Accept a continue that skips later work in the loop body.
-    #[ignore]
     #[test]
     fn test_accepts_continue_before_work() {
         let session = TestSession::dir(
@@ -131,7 +241,6 @@ function visit(values: int32[]): void {
     }
 
     /// Accept a continue targeting an outer loop with remaining work.
-    #[ignore]
     #[test]
     fn test_accepts_outer_continue_before_work() {
         let session = TestSession::dir(
@@ -152,7 +261,6 @@ function visit(rows: int32[][]): void {
     }
 
     /// Accept a continue that exits a nested loop before repeating the outer loop.
-    #[ignore]
     #[test]
     fn test_accepts_continue_across_nested_loop() {
         let session = TestSession::dir(

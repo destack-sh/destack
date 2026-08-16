@@ -1,6 +1,10 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
+use destack_source::Patch;
 
-declare_lint_stub! {
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
     /// Disallow bare returns where the function already ends.
     pub NO_USELESS_RETURN {
         id: "no-useless-return",
@@ -25,8 +29,51 @@ function record(value: int32): void {
         category: Suspicious,
         level: Warning,
         fixable: Automatic,
-        check: DirModule,
+        check: DirModule(check),
     }
+}
+
+/// Report bare returns on terminal paths through their callable body.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect every authored bare return
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+        if !matches!(node, dir::Expression::Return { value: None }) {
+            continue;
+        }
+        let Some(body) = module.enclosing_callable_body(expression.into_any()) else {
+            continue;
+        };
+        let dir::Expression::Block(body) = view.get(body) else {
+            continue;
+        };
+        if !module.is_terminal_in(expression, *body) {
+            continue;
+        }
+
+        // remove statements and preserve required value positions
+        let span = module.span(expression.into_any())?;
+        let patch = if view
+            .get_parent_for(expression)
+            .is_some_and(|parent| parent.ty == dir::NodeType::Block)
+        {
+            Patch::delete(module.statement_removal_span(expression)?)
+        } else {
+            Patch::replace(
+                module.source_extent(expression.into_any())?,
+                "{ /* intentionally empty */ }",
+            )
+        };
+        let suggestion = lint.fix("remove the redundant return", patch)?;
+        let diagnostic = lint
+            .diagnostic("return is redundant at the end of this function", span)
+            .suggestion(suggestion);
+        output.report(diagnostic);
+    }
+
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -35,14 +82,12 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
-    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&NO_USELESS_RETURN);
     }
 
     /// Remove a bare return at the end of a function body.
-    #[ignore]
     #[test]
     fn test_removes_final_return() {
         let session = TestSession::dir(&NO_USELESS_RETURN, NO_USELESS_RETURN.example.reported());
@@ -71,7 +116,6 @@ warning[no-useless-return]: return is redundant at the end of this function
     }
 
     /// Remove a bare return from a final conditional path.
-    #[ignore]
     #[test]
     fn test_removes_final_conditional_return() {
         let session = TestSession::dir(
@@ -97,8 +141,56 @@ function record(value: int32): void {
         );
     }
 
+    /// Remove a bare return from the final try body of a function.
+    #[test]
+    fn test_removes_return_from_final_try() {
+        let session = TestSession::dir(
+            &NO_USELESS_RETURN,
+            r#"
+function record(value: int32): void {
+    try {
+        value;
+        return;
+    } finally {
+        value;
+    }
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function record(value: int32): void {
+    try {
+        value;
+    } finally {
+        value;
+    }
+}
+"#,
+        );
+    }
+
+    /// Accept a return in finally because it may override an earlier transfer.
+    #[test]
+    fn test_accepts_return_from_finally() {
+        let session = TestSession::dir(
+            &NO_USELESS_RETURN,
+            r#"
+function record(value: int32): void {
+    try {
+        value;
+    } finally {
+        return;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Accept a return that skips later function work.
-    #[ignore]
     #[test]
     fn test_accepts_return_before_work() {
         let session = TestSession::dir(
@@ -117,7 +209,6 @@ function record(value: int32): void {
     }
 
     /// Accept a return that exits an iteration.
-    #[ignore]
     #[test]
     fn test_accepts_return_from_loop() {
         let session = TestSession::dir(
@@ -135,8 +226,49 @@ function record(values: int32[]): void {
         session.assert_no_diagnostics();
     }
 
+    /// Accept a return used as the selected value of a terminal match.
+    #[test]
+    fn test_accepts_return_from_match_value() {
+        let session = TestSession::dir(
+            &NO_USELESS_RETURN,
+            r#"
+function stop(): int32 {
+    match (return 1) {
+        _ => 0
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Replace a direct terminal match-arm return with a commented empty block.
+    #[test]
+    fn test_replaces_terminal_match_value_return_with_block() {
+        let session = TestSession::dir(
+            &NO_USELESS_RETURN,
+            r#"
+function stop(value: int32): void {
+    match (value) {
+        _ => return
+    }
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function stop(value: int32): void {
+    match (value) {
+        _ => { /* intentionally empty */ }
+    }
+}
+"#,
+        );
+    }
+
     /// Remove a bare return from the final switch case at function end.
-    #[ignore]
     #[test]
     fn test_removes_return_from_final_switch_case() {
         let session = TestSession::dir(
@@ -165,7 +297,6 @@ function record(value: int32): void {
     }
 
     /// Accept a return that prevents fallthrough into another switch case.
-    #[ignore]
     #[test]
     fn test_accepts_return_before_later_switch_case() {
         let session = TestSession::dir(
@@ -186,7 +317,6 @@ function record(value: int32): void {
     }
 
     /// Accept a return that produces a value.
-    #[ignore]
     #[test]
     fn test_accepts_return_value() {
         let session = TestSession::dir(

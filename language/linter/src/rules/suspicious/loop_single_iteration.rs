@@ -1,6 +1,9 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
 
-declare_lint_stub! {
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
     /// Disallow loops whose control flow cannot reach another iteration.
     pub LOOP_SINGLE_ITERATION {
         id: "loop-single-iteration",
@@ -31,8 +34,35 @@ if (ready()) {
         category: Suspicious,
         level: Warning,
         fixable: None,
-        check: DirModule,
+        check: DirModule(check),
     }
+}
+
+/// Report loops whose checked flow cannot reach another iteration.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect every authored iteration body
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
+        let Some(body) = module.iteration_body(expression) else {
+            continue;
+        };
+        let block = view.get(body);
+        let is_end_reachable = block
+            .iter_expressions()
+            .all(|expression| !module.flows.is_diverging(expression.into_any()));
+        if is_end_reachable || module.has_reachable_continue(expression)? {
+            continue;
+        }
+
+        // report the complete loop expression
+        let span = module.source_extent(expression.into_any())?;
+        let diagnostic = lint.diagnostic("loop cannot reach a second iteration", span);
+        output.report(diagnostic);
+    }
+
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -41,14 +71,12 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
-    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&LOOP_SINGLE_ITERATION);
     }
 
     /// Report a while loop that always breaks.
-    #[ignore]
     #[test]
     fn test_reports_breaking_while() {
         let session = TestSession::dir(
@@ -66,7 +94,7 @@ warning[loop-single-iteration]: loop cannot reach a second iteration
 4 │ while (ready()) {
   │ ^^^^^^^^^^^^^^^^^
 5 │     process();
-  │ ^^^^^^^^^^^^^^^^^
+  │     ^^^^^^^^^^
 6 │     break;
   │     ^^^^^^
 7 │ }
@@ -77,7 +105,6 @@ warning[loop-single-iteration]: loop cannot reach a second iteration
     }
 
     /// Report an unconditional loop that always returns.
-    #[ignore]
     #[test]
     fn test_reports_returning_loop() {
         let session = TestSession::dir(
@@ -110,7 +137,6 @@ warning[loop-single-iteration]: loop cannot reach a second iteration
     }
 
     /// Accept a loop whose body can complete normally.
-    #[ignore]
     #[test]
     fn test_accepts_repeating_loop() {
         let session = TestSession::dir(
@@ -129,7 +155,6 @@ while (ready()) {
     }
 
     /// Accept a loop whose terminal continue selects itself.
-    #[ignore]
     #[test]
     fn test_accepts_continuing_loop() {
         let session = TestSession::dir(
@@ -145,7 +170,6 @@ loop {
     }
 
     /// Report an inner loop that continues only its outer loop.
-    #[ignore]
     #[test]
     fn test_reports_outer_continue_from_inner_loop() {
         let session = TestSession::dir(
@@ -178,7 +202,6 @@ warning[loop-single-iteration]: loop cannot reach a second iteration
     }
 
     /// Ignore an unreachable continue when deciding whether the loop can repeat.
-    #[ignore]
     #[test]
     fn test_ignores_unreachable_continue() {
         let session = TestSession::dir(
@@ -205,6 +228,41 @@ warning[loop-single-iteration]: loop cannot reach a second iteration
   │         ^^^^^^^
 4 │         continue;
   │         ^^^^^^^^^
+5 │     }
+  │     ^
+6 │ }
+  │
+"#,
+        );
+    }
+
+    /// Report a stopped loop with a non-diverging unreachable body end.
+    #[test]
+    fn test_reports_loop_with_unreachable_body_end() {
+        let session = TestSession::dir(
+            &LOOP_SINGLE_ITERATION,
+            r#"
+function stop(): void {
+    loop {
+        return;
+        0;
+    }
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[loop-single-iteration]: loop cannot reach a second iteration
+ ──▶ main.ds:2:5
+  │
+1 │ function stop(): void {
+2 │     loop {
+  │     ^^^^^^
+3 │         return;
+  │         ^^^^^^^
+4 │         0;
+  │         ^^
 5 │     }
   │     ^
 6 │ }

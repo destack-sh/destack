@@ -1,6 +1,9 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
 
-declare_lint_stub! {
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
     /// Disallow assignment within an explicit or implicit return value.
     pub NO_RETURN_ASSIGN {
         id: "no-return-assign",
@@ -27,8 +30,33 @@ function reset(value: int32): int32 {
         category: Suspicious,
         level: Warning,
         fixable: None,
-        check: DirModule,
+        check: DirModule(check),
     }
+}
+
+/// Report assignments nested within explicit or implicit return values.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect every authored assignment expression
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+        if !matches!(node, dir::Expression::Assign { .. })
+            || !module.is_within_return_value(expression)
+        {
+            continue;
+        }
+
+        // report the complete grouped assignment
+        let span = match module.source_parentheses(expression.into_any()) {
+            Some(parentheses) => parentheses,
+            None => module.source_extent(expression.into_any())?,
+        };
+        let diagnostic = lint.diagnostic("return value is an assignment", span);
+        output.report(diagnostic);
+    }
+
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -37,14 +65,12 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
-    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&NO_RETURN_ASSIGN);
     }
 
     /// Accept an assignment followed by a separate return.
-    #[ignore]
     #[test]
     fn test_accepts_separate_assignment() {
         let session = TestSession::dir(
@@ -62,7 +88,6 @@ function reset(value: int32): int32 {
     }
 
     /// Report an assignment returned by an expression-bodied lambda.
-    #[ignore]
     #[test]
     fn test_reports_implicit_assignment() {
         let session = TestSession::dir(
@@ -87,7 +112,6 @@ warning[no-return-assign]: return value is an assignment
     }
 
     /// Report an assignment nested within an explicit return expression.
-    #[ignore]
     #[test]
     fn test_reports_nested_return_assignment() {
         let session = TestSession::dir(
@@ -116,7 +140,6 @@ warning[no-return-assign]: return value is an assignment
     }
 
     /// Report an assignment nested within an implicitly returned object.
-    #[ignore]
     #[test]
     fn test_reports_assignment_in_returned_object() {
         let session = TestSession::dir(
