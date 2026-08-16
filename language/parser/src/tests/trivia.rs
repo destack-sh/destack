@@ -1842,7 +1842,6 @@ if (base.endsWith(".js") || base === `/worker-entries`) a; // for dev"#,
     assert_eq!(comments(&parser).len(), 2);
 
     for (index, expression_id) in expressions.iter().copied().enumerate() {
-        let expression_id = expression_id;
         assert_node!(parser.tree, expression_id, Expression::If { .. });
 
         let trivia = comments(&parser)[index];
