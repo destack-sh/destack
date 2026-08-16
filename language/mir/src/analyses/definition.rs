@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use crate as mir;
 
-use super::{Analysis, FunctionCache, Mutation};
+use super::{Analysis, DominatorTable, FunctionCache, Mutation};
 
 /// Definitions for one MIR function.
 #[derive(Debug, Clone, Default)]
@@ -119,17 +117,23 @@ impl DefinitionTable {
         self.definition(value).and_then(ValueDefinition::block)
     }
 
-    /// Return the raw instruction definition map.
-    pub fn instruction_map(&self) -> HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> {
-        self.definitions
-            .iter()
-            .enumerate()
-            .filter_map(|(value, definition)| {
-                definition
-                    .and_then(ValueDefinition::instruction)
-                    .map(|instruction| (mir::Value(value as u32), instruction))
+    /// Return whether one value is available at a block exit.
+    pub fn is_available_at_exit(
+        &self,
+        value: impl Into<mir::Value>,
+        block: mir::LocalNodeId<mir::Block>,
+        dominators: &DominatorTable,
+    ) -> bool {
+        match self.definition(value) {
+            Some(ValueDefinition::FunctionParameter(_)) => true,
+            Some(ValueDefinition::BlockParameter {
+                block: definition, ..
             })
-            .collect()
+            | Some(ValueDefinition::Instruction {
+                block: definition, ..
+            }) => dominators.dominates(definition, block),
+            None => false,
+        }
     }
 
     /// Iterate over SSA values and their definition sites.

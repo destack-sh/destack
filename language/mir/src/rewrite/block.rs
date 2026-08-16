@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate as mir;
 
 use crate::{
-    ControlTable, DominatorTable, instruction_substitute_uses_in_tree,
+    ControlTable, DefinitionTable, DominatorTable, UseTable, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, terminator_remap,
 };
 
@@ -495,7 +495,7 @@ pub fn block_uses_available_in_predecessor(
     block: &mir::Block,
     tree: &mir::Tree,
     predecessor: mir::LocalNodeId<mir::Block>,
-    value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    definitions: &DefinitionTable,
     dominator: &DominatorTable,
 ) -> bool {
     // collect block parameter values
@@ -514,17 +514,17 @@ pub fn block_uses_available_in_predecessor(
         }
 
         // require a known definition
-        let Some(def_block) = value_def_blocks.get(&value) else {
+        let Some(definition) = definitions.definition(value) else {
             return false;
         };
 
-        // skip values defined inside the block
-        if *def_block == block_id {
+        // accept function parameters and values defined inside the block
+        let Some(definition_block) = definition.block() else {
             continue;
-        }
-
-        // require dominance at the predecessor
-        if !dominator.dominates(*def_block, predecessor) {
+        };
+        if definition_block != block_id
+            && !definitions.is_available_at_exit(value, predecessor, dominator)
+        {
             return false;
         }
     }
@@ -560,38 +560,22 @@ pub fn resolve_edge_value(
 pub fn value_available_in_block(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    function_params: &HashSet<mir::Value>,
+    definitions: &DefinitionTable,
     dominator: &DominatorTable,
 ) -> bool {
-    // accept function parameters
-    if function_params.contains(&value) {
-        return true;
-    }
-
-    // require a definition block for the value
-    let Some(def_block) = def_blocks.get(&value) else {
-        return false;
-    };
-
-    // ensure the definition dominates the block
-    dominator.dominates(*def_block, block_id)
+    definitions.is_available_at_exit(value, block_id, dominator)
 }
 
 /// Return true when block parameters are used outside the block.
 pub fn block_parameters_used_outside_block(
     block: &mir::Block,
-    use_blocks: &HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
+    uses: &UseTable,
     block_id: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // detect parameter uses outside of the defining block
     for param in &block.parameters {
         let param = param.value;
-        let Some(uses) = use_blocks.get(&param) else {
-            continue;
-        };
-
-        if uses.iter().any(|use_block| *use_block != block_id) {
+        if uses.is_used_outside(param, block_id) {
             return true;
         }
     }

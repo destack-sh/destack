@@ -32,6 +32,15 @@ pub enum ValueUse {
     },
 }
 
+impl ValueUse {
+    /// Return the block containing this use.
+    pub fn block(self) -> mir::LocalNodeId<mir::Block> {
+        match self {
+            Self::Instruction { block, .. } | Self::Terminator { block, .. } => block,
+        }
+    }
+}
+
 impl UseTable {
     /// Build operand uses for one function.
     pub fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
@@ -128,6 +137,23 @@ impl UseTable {
     /// Return how many operand occurrences read one value.
     pub fn count(&self, value: impl Into<mir::Value>) -> usize {
         self.uses(value).len()
+    }
+
+    /// Iterate over blocks containing uses of one value.
+    pub fn blocks(
+        &self,
+        value: impl Into<mir::Value>,
+    ) -> impl Iterator<Item = mir::LocalNodeId<mir::Block>> + '_ {
+        self.uses(value).iter().map(|value_use| value_use.block())
+    }
+
+    /// Return whether one value is used outside a block.
+    pub fn is_used_outside(
+        &self,
+        value: impl Into<mir::Value>,
+        block: mir::LocalNodeId<mir::Block>,
+    ) -> bool {
+        self.blocks(value).any(|use_block| use_block != block)
     }
 
     /// Return whether the value has at least one operand use.

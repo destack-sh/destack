@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate as mir;
 
-use crate::ConstantTable;
+use crate::{ConstantTable, DefinitionTable};
 
 /// Canonical pure expression for value numbering.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -313,45 +313,31 @@ impl PureExpression {
 /// Cached value equivalence for pure expressions.
 #[derive(Debug)]
 pub struct ValueEquivalence<'a> {
-    /// MIR function when block ownership is needed.
-    function: Option<&'a mir::Function>,
+    /// MIR function.
+    function: &'a mir::Function,
     /// MIR tree.
     tree: &'a mir::Tree,
-    /// Map from values to their defining instructions.
-    definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    /// Constant propagation results when available.
-    constants: Option<&'a ConstantTable>,
+    /// Value definitions.
+    definitions: &'a DefinitionTable,
+    /// Constant propagation results.
+    constants: &'a ConstantTable,
     /// Cache of pairwise equivalence results.
     cache: HashMap<(mir::Value, mir::Value), bool>,
 }
 
 impl<'a> ValueEquivalence<'a> {
-    /// Create a new value equivalence cache.
+    /// Create a value equivalence cache.
     pub fn new(
-        tree: &'a mir::Tree,
-        definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    ) -> Self {
-        Self {
-            function: None,
-            tree,
-            definitions,
-            constants: None,
-            cache: HashMap::new(),
-        }
-    }
-
-    /// Create a new value equivalence cache with constant propagation support.
-    pub fn new_with_constants(
         function: &'a mir::Function,
         tree: &'a mir::Tree,
-        definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+        definitions: &'a DefinitionTable,
         constants: &'a ConstantTable,
     ) -> Self {
         Self {
-            function: Some(function),
+            function,
             tree,
             definitions,
-            constants: Some(constants),
+            constants,
             cache: HashMap::new(),
         }
     }
@@ -391,15 +377,15 @@ impl<'a> ValueEquivalence<'a> {
             return left_constant == right_constant;
         }
 
-        let Some(left_inst_id) = self.definitions.get(&left) else {
+        let Some(left_inst_id) = self.definitions.instruction(left) else {
             return false;
         };
-        let Some(right_inst_id) = self.definitions.get(&right) else {
+        let Some(right_inst_id) = self.definitions.instruction(right) else {
             return false;
         };
 
-        let left_inst = self.tree.get(*left_inst_id);
-        let right_inst = self.tree.get(*right_inst_id);
+        let left_inst = self.tree.get(left_inst_id);
+        let right_inst = self.tree.get(right_inst_id);
 
         match (left_inst, right_inst) {
             (
@@ -537,13 +523,10 @@ impl<'a> ValueEquivalence<'a> {
                     ..
                 },
             ) => {
-                let Some(function) = self.function else {
+                let Some(left_type) = self.function.value_type(*left_destination) else {
                     return false;
                 };
-                let Some(left_type) = function.value_type(*left_destination) else {
-                    return false;
-                };
-                let Some(right_type) = function.value_type(*right_destination) else {
+                let Some(right_type) = self.function.value_type(*right_destination) else {
                     return false;
                 };
                 left_type == right_type && self.arguments_equivalent(*left_values, *right_values)
@@ -635,18 +618,9 @@ impl<'a> ValueEquivalence<'a> {
         left: mir::Value,
         right: mir::Value,
     ) -> Option<(&mir::Constant, &mir::Constant)> {
-        let function = self.function?;
-        let constants = self.constants?;
-        let left_inst_id = self.definitions.get(&left)?;
-        let right_inst_id = self.definitions.get(&right)?;
-        let left_block = function.instruction_block(*left_inst_id)?;
-        let right_block = function.instruction_block(*right_inst_id)?;
-        let left_constant = constants
-            .constant_at_exit(left_block, left)
-            .or_else(|| constants.constant_at_entry(left_block, left))?;
-        let right_constant = constants
-            .constant_at_exit(right_block, right)
-            .or_else(|| constants.constant_at_entry(right_block, right))?;
+        let left_constant = self.constants.constant(left)?;
+        let right_constant = self.constants.constant(right)?;
+
         Some((left_constant, right_constant))
     }
 }

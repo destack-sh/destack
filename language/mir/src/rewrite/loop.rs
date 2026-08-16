@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate as mir;
 
 use crate::{
-    ControlTable, DominatorTable, MemoryAccessEffect, MemoryNode, MemoryRegion, MemoryTable,
-    clone_instruction_tables, instruction_is_borrow_address, instruction_is_read_only_access,
-    instruction_is_speculatable, instruction_map,
+    ControlTable, DefinitionTable, DominatorTable, MemoryAccessEffect, MemoryNode, MemoryRegion,
+    MemoryTable, clone_instruction_tables, instruction_is_borrow_address,
+    instruction_is_read_only_access, instruction_is_speculatable, instruction_map,
 };
 
 /// Guard branch tables for loop headers.
@@ -164,11 +164,10 @@ pub fn loop_preheader(
 
 /// Collect control instructions in a latch block.
 pub fn control_instructions_for_latch(
-    function: &mir::Function,
     header: mir::LocalNodeId<mir::Block>,
     latch: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
 ) -> HashSet<mir::LocalNodeId<mir::Instruction>> {
     // collect control values from header and latch arguments
     let mut control_values = HashSet::new();
@@ -190,19 +189,19 @@ pub fn control_instructions_for_latch(
     let mut control_instructions = HashSet::new();
     let mut worklist: VecDeque<_> = control_values.into_iter().collect();
     while let Some(value) = worklist.pop_front() {
-        let Some(definition) = definitions.get(&value) else {
+        let Some(definition) = definitions.instruction(value) else {
             continue;
         };
 
-        if function.instruction_block(*definition) != Some(latch) {
+        if definitions.block(value) != Some(latch) {
             continue;
         }
 
-        if !control_instructions.insert(*definition) {
+        if !control_instructions.insert(definition) {
             continue;
         }
 
-        let instruction = tree.get(*definition);
+        let instruction = tree.get(definition);
         worklist.extend(instruction.uses());
     }
 

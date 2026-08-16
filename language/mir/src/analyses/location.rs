@@ -467,7 +467,7 @@ impl MemoryPlace {
 
 /// Builder for resolving memory regions by walking the def chain.
 #[derive(Debug)]
-pub struct MemoryRegionBuilder<'a> {
+pub(super) struct MemoryRegionBuilder<'a> {
     /// Cached region results.
     cache: HashMap<mir::Value, MemoryRegion>,
     /// Value definitions for address provenance.
@@ -482,7 +482,7 @@ pub struct MemoryRegionBuilder<'a> {
 
 impl<'a> MemoryRegionBuilder<'a> {
     /// Create a new region builder.
-    pub fn new(
+    pub(super) fn new(
         function: &'a mir::Function,
         definitions: &'a DefinitionTable,
         tree: &'a mir::Tree,
@@ -498,7 +498,7 @@ impl<'a> MemoryRegionBuilder<'a> {
     }
 
     /// Resolve an address-bearing value to a memory region.
-    pub fn region(&mut self, address: mir::Value) -> MemoryRegion {
+    pub(super) fn region(&mut self, address: mir::Value) -> MemoryRegion {
         // check cache
         if let Some(cached) = self.cache.get(&address) {
             return cached.clone();
@@ -507,18 +507,6 @@ impl<'a> MemoryRegionBuilder<'a> {
         let result = self.region_impl(address);
         self.cache.insert(address, result.clone());
         result
-    }
-
-    /// Resolve address provenance in a memory region.
-    pub fn resolve(&mut self, region: &MemoryRegion) -> MemoryRegion {
-        // resolve addressed regions through their defining value
-        if let Some(location) = region.location() {
-            self.region(location.address)
-        }
-        // preserve already resolved regions
-        else {
-            region.clone()
-        }
     }
 
     /// Resolve an address-bearing value to a memory region.

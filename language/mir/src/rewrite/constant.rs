@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate as mir;
+use crate::DefinitionTable;
 use destack_core::{float_from_bits, float_to_bits};
 
 use super::{
@@ -93,11 +94,11 @@ pub fn constant_matches_type(
 /// Extract a constant value from the given operand.
 pub fn constant_for_value(
     value: mir::Value,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
 ) -> Option<mir::Constant> {
     // find the instruction that defines the value
-    let inst_id = *definitions.get(&value)?;
+    let inst_id = definitions.instruction(value)?;
     let inst = tree.get(inst_id);
 
     // extract constants from direct constant instructions

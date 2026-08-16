@@ -4,7 +4,7 @@ use crate as mir;
 use smallvec::SmallVec;
 
 use crate::{
-    AliasTable, Analysis, ControlTable, DefinitionTable, DominatorTable, FunctionCache,
+    AliasTable, Analysis, ConstantTable, ControlTable, DominatorTable, FunctionCache,
     MemoryLocation, MemoryRegion, NodeTable, StorageRoot, TargetLayout, collect_reachable_blocks,
     compute_dominance_frontiers,
 };
@@ -451,7 +451,7 @@ impl MemoryTable {
         tree: &mir::Tree,
         cfg: &ControlTable,
         dominator: &DominatorTable,
-        definitions: &DefinitionTable,
+        constants: &ConstantTable,
         accesses: &mir::AccessTable,
         effect_table: &mir::EffectTable,
         target_layout: TargetLayout,
@@ -476,7 +476,7 @@ impl MemoryTable {
         let mut access_collector = MemoryAccessCollector::new(
             function,
             tree,
-            definitions,
+            constants,
             accesses,
             effect_table,
             target_layout,
@@ -681,6 +681,17 @@ impl MemoryTable {
     ) -> Option<&[MemoryAccessId]> {
         let accesses = self.terminator_access.get(block);
         (!accesses.is_empty()).then_some(accesses.as_slice())
+    }
+
+    /// Iterate memory effects for one block terminator.
+    pub fn terminator_effects(
+        &self,
+        block: mir::LocalNodeId<mir::Block>,
+    ) -> impl Iterator<Item = &MemoryAccessEffect> {
+        self.terminator_accesses(block)
+            .into_iter()
+            .flatten()
+            .filter_map(|access| self.access(*access).effect())
     }
 
     /// Return the memory phi for a block if present.
@@ -889,14 +900,14 @@ impl MemoryTable {
         // read dependencies
         let cfg = analyses.control(function, tree);
         let dominator = analyses.dominator(function, tree);
-        let definitions = analyses.definition(function, tree);
+        let constants = analyses.constant(function, tree);
 
         Self::build(
             function,
             tree,
             &cfg,
             &dominator,
-            &definitions,
+            &constants,
             accesses,
             effects,
             analyses.target_layout(),
@@ -937,8 +948,8 @@ struct MemoryAccessCollector<'a> {
     function: &'a mir::Function,
     /// MIR tree.
     tree: &'a mir::Tree,
-    /// Value definitions for address provenance.
-    definitions: DefinitionTable,
+    /// Constants available for memory ranges.
+    constants: &'a ConstantTable,
     /// Explicit memory access table.
     accesses: &'a mir::AccessTable,
     /// Explicit effect table.
@@ -952,7 +963,7 @@ impl<'a> MemoryAccessCollector<'a> {
     fn new(
         function: &'a mir::Function,
         tree: &'a mir::Tree,
-        definitions: &DefinitionTable,
+        constants: &'a ConstantTable,
         accesses: &'a mir::AccessTable,
         effect_table: &'a mir::EffectTable,
         target_layout: TargetLayout,
@@ -961,7 +972,7 @@ impl<'a> MemoryAccessCollector<'a> {
         Self {
             function,
             tree,
-            definitions: definitions.clone(),
+            constants,
             accesses,
             effect_table,
             target_layout,
@@ -1094,108 +1105,62 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::VectorCompare { .. }
             | mir::Instruction::VectorConvert { .. }
             | mir::Instruction::TensorSplat { .. }
-            | mir::Instruction::TensorExtract { .. }
-            | mir::Instruction::TensorReshape { .. }
-            | mir::Instruction::TensorBroadcast { .. }
-            | mir::Instruction::TensorTranspose { .. }
-            | mir::Instruction::TensorCast { .. }
             | mir::Instruction::TensorView { .. }
-            | mir::Instruction::TensorSlice { .. }
-            | mir::Instruction::TensorPad { .. }
-            | mir::Instruction::TensorConcat { .. }
-            | mir::Instruction::TensorReduce { .. }
-            | mir::Instruction::TensorIndexReduce { .. }
-            | mir::Instruction::TensorDot { .. }
-            | mir::Instruction::TensorConvolution { .. }
-            | mir::Instruction::TensorGather { .. }
-            | mir::Instruction::TensorScatter { .. }
-            | mir::Instruction::TensorCompare { .. }
-            | mir::Instruction::TensorSelect { .. }
-            | mir::Instruction::TensorConvert { .. }
             | mir::Instruction::NewComplete { .. }
             | mir::Instruction::Assume { .. }
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Breakpoint => SmallVec::new(),
+            mir::Instruction::TensorExtract { tensor, .. }
+            | mir::Instruction::TensorReshape { tensor, .. }
+            | mir::Instruction::TensorBroadcast { tensor, .. }
+            | mir::Instruction::TensorTranspose { tensor, .. }
+            | mir::Instruction::TensorCast { tensor, .. }
+            | mir::Instruction::TensorSlice { tensor, .. }
+            | mir::Instruction::TensorPad { tensor, .. }
+            | mir::Instruction::TensorReduce { tensor, .. }
+            | mir::Instruction::TensorIndexReduce { tensor, .. }
+            | mir::Instruction::TensorConvert { tensor, .. } => self.tensor_effects([*tensor]),
+            mir::Instruction::TensorConcat { tensors, .. } => {
+                self.tensor_effects(self.tree.get_values(*tensors).iter().copied())
+            }
+            mir::Instruction::TensorCompare { left, right, .. }
+            | mir::Instruction::TensorDot { left, right, .. } => {
+                self.tensor_effects([*left, *right])
+            }
+            mir::Instruction::TensorConvolution { input, kernel, .. } => {
+                self.tensor_effects([*input, *kernel])
+            }
+            mir::Instruction::TensorGather {
+                operand, indices, ..
+            } => self.tensor_effects([*operand, *indices]),
+            mir::Instruction::TensorScatter {
+                operand,
+                indices,
+                updates,
+                ..
+            } => self.tensor_effects([*operand, *indices, *updates]),
+            mir::Instruction::TensorSelect {
+                mask,
+                then_value,
+                else_value,
+                ..
+            } => self.tensor_effects([*mask, *then_value, *else_value]),
             mir::Instruction::TensorLoad { view, .. } => {
-                let view = *view;
+                let effect = self.address_effect(*view, mir::MemoryOperation::Read, false);
 
-                let value_type = self.address_value_type(view);
-                let reference_kind = self.reference_kind(view);
-                let reference_storage = self.reference_storage(view);
-                let mut effect = MemoryAccessEffect::read(
-                    MemoryRegion::from_address(
-                        view,
-                        value_type,
-                        reference_kind,
-                        reference_storage,
-                        self.target_layout.pointer_bits(),
-                        self.tree,
-                    ),
-                    false,
-                );
-                self.apply_address_region(&mut effect, view);
                 Self::single_effect(effect)
             }
             mir::Instruction::TensorStore { view, .. }
             | mir::Instruction::TensorFill { view, .. } => {
-                let view = *view;
+                let effect = self.address_effect(*view, mir::MemoryOperation::Write, false);
 
-                let value_type = self.address_value_type(view);
-                let reference_kind = self.reference_kind(view);
-                let reference_storage = self.reference_storage(view);
-                let mut effect = MemoryAccessEffect::write(
-                    MemoryRegion::from_address(
-                        view,
-                        value_type,
-                        reference_kind,
-                        reference_storage,
-                        self.target_layout.pointer_bits(),
-                        self.tree,
-                    ),
-                    false,
-                );
-                self.apply_address_region(&mut effect, view);
                 Self::single_effect(effect)
             }
             mir::Instruction::TensorCopy { target, source } => {
-                let target = *target;
-                let source = *source;
-
                 let mut effects = SmallVec::new();
-                let target_access = self.address_value_type(target);
-                let target_kind = self.reference_kind(target);
-                let target_storage = self.reference_storage(target);
-                let mut target_effect = MemoryAccessEffect::write(
-                    MemoryRegion::from_address(
-                        target,
-                        target_access,
-                        target_kind,
-                        target_storage,
-                        self.target_layout.pointer_bits(),
-                        self.tree,
-                    ),
-                    false,
-                );
-                self.apply_address_region(&mut target_effect, target);
-                effects.push(target_effect);
-
-                let source_access = self.address_value_type(source);
-                let source_kind = self.reference_kind(source);
-                let source_storage = self.reference_storage(source);
-                let mut source_effect = MemoryAccessEffect::read(
-                    MemoryRegion::from_address(
-                        source,
-                        source_access,
-                        source_kind,
-                        source_storage,
-                        self.target_layout.pointer_bits(),
-                        self.tree,
-                    ),
-                    false,
-                );
-                self.apply_address_region(&mut source_effect, source);
-                effects.push(source_effect);
+                effects.push(self.address_effect(*target, mir::MemoryOperation::Write, false));
+                effects.push(self.address_effect(*source, mir::MemoryOperation::Read, false));
 
                 effects
             }
@@ -1203,104 +1168,29 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::VariantTagLoad {
                 variant: pointer, ..
             } => {
-                let pointer = *pointer;
+                let effect = self.address_effect(*pointer, mir::MemoryOperation::Read, false);
 
-                let value_type = self.address_value_type(pointer);
-                let reference_kind = self.reference_kind(pointer);
-                let reference_storage = self.reference_storage(pointer);
-                let mut effect = MemoryAccessEffect::read(
-                    MemoryRegion::from_address(
-                        pointer,
-                        value_type,
-                        reference_kind,
-                        reference_storage,
-                        self.target_layout.pointer_bits(),
-                        self.tree,
-                    ),
-                    false,
-                );
-                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::Store { pointer, .. } => {
-                let pointer = *pointer;
+                let effect = self.address_effect(*pointer, mir::MemoryOperation::Write, false);
 
-                let value_type = self.address_value_type(pointer);
-                let reference_kind = self.reference_kind(pointer);
-                let reference_storage = self.reference_storage(pointer);
-                let mut effect = MemoryAccessEffect::write(
-                    MemoryRegion::from_address(
-                        pointer,
-                        value_type,
-                        reference_kind,
-                        reference_storage,
-                        self.target_layout.pointer_bits(),
-                        self.tree,
-                    ),
-                    false,
-                );
-                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicLoad { pointer, .. } => {
-                let pointer = *pointer;
+                let effect = self.address_effect(*pointer, mir::MemoryOperation::Read, true);
 
-                let value_type = self.address_value_type(pointer);
-                let reference_kind = self.reference_kind(pointer);
-                let reference_storage = self.reference_storage(pointer);
-                let mut effect = MemoryAccessEffect::read(
-                    MemoryRegion::from_address(
-                        pointer,
-                        value_type,
-                        reference_kind,
-                        reference_storage,
-                        self.target_layout.pointer_bits(),
-                        self.tree,
-                    ),
-                    true,
-                );
-                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicStore { pointer, .. } => {
-                let pointer = *pointer;
+                let effect = self.address_effect(*pointer, mir::MemoryOperation::Write, true);
 
-                let value_type = self.address_value_type(pointer);
-                let reference_kind = self.reference_kind(pointer);
-                let reference_storage = self.reference_storage(pointer);
-                let mut effect = MemoryAccessEffect::write(
-                    MemoryRegion::from_address(
-                        pointer,
-                        value_type,
-                        reference_kind,
-                        reference_storage,
-                        self.target_layout.pointer_bits(),
-                        self.tree,
-                    ),
-                    true,
-                );
-                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicCompareExchange { pointer, .. }
             | mir::Instruction::AtomicRmw { pointer, .. } => {
-                let pointer = *pointer;
+                let effect = self.address_effect(*pointer, mir::MemoryOperation::ReadWrite, true);
 
-                let value_type = self.address_value_type(pointer);
-                let reference_kind = self.reference_kind(pointer);
-                let reference_storage = self.reference_storage(pointer);
-                let mut effect = MemoryAccessEffect::read_write(
-                    MemoryRegion::from_address(
-                        pointer,
-                        value_type,
-                        reference_kind,
-                        reference_storage,
-                        self.target_layout.pointer_bits(),
-                        self.tree,
-                    ),
-                    true,
-                );
-                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicFence { .. } => {
@@ -1441,19 +1331,66 @@ impl<'a> MemoryAccessCollector<'a> {
         effect
     }
 
-    /// Apply address region tables to an effect.
-    fn apply_address_region(&mut self, effect: &mut MemoryAccessEffect, address: mir::Value) {
+    /// Build one memory effect over an address-bearing value.
+    fn address_effect(
+        &self,
+        address: mir::Value,
+        operation: mir::MemoryOperation,
+        is_volatile: bool,
+    ) -> MemoryAccessEffect {
+        let value_type = self.address_value_type(address);
+        let reference_kind = self.reference_kind(address);
+        let reference_storage = self.reference_storage(address);
+        let region = MemoryRegion::from_address(
+            address,
+            value_type,
+            reference_kind,
+            reference_storage,
+            self.target_layout.pointer_bits(),
+            self.tree,
+        );
+        let mut effect = match operation {
+            mir::MemoryOperation::Read => MemoryAccessEffect::read(region, is_volatile),
+            mir::MemoryOperation::Write => MemoryAccessEffect::write(region, is_volatile),
+            mir::MemoryOperation::ReadWrite => MemoryAccessEffect::read_write(region, is_volatile),
+        };
+
+        // constrain the region to the address storage
+        let spaces = self.address_storage_set(address);
+        effect.region.set_spaces(spaces);
+
+        effect
+    }
+
+    /// Constrain one memory effect to its address storage.
+    fn apply_address_region(&self, effect: &mut MemoryAccessEffect, address: mir::Value) {
         let spaces = self.address_storage_set(address);
         effect.region.set_spaces(spaces);
     }
 
+    /// Build read effects for reference-backed tensor operands.
+    fn tensor_effects(
+        &self,
+        tensors: impl IntoIterator<Item = mir::Value>,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        let mut effects = SmallVec::new();
+
+        // retain each operand as an independently aliasable memory read
+        for tensor in tensors {
+            let effect = self.address_effect(tensor, mir::MemoryOperation::Read, false);
+            effects.push(effect);
+        }
+
+        effects
+    }
+
     /// Apply local region tables to an effect.
-    fn apply_local_region(&mut self, effect: &mut MemoryAccessEffect) {
+    fn apply_local_region(&self, effect: &mut MemoryAccessEffect) {
         effect.region.set_spaces(mir::StorageSet::FRAME);
     }
 
     /// Resolve storage from an access target.
-    fn entry_storage_set(&mut self, access: &mir::MemoryAccess) -> mir::StorageSet {
+    fn entry_storage_set(&self, access: &mir::MemoryAccess) -> mir::StorageSet {
         match access.target {
             mir::MemoryTarget::Local(_) => mir::StorageSet::FRAME,
             mir::MemoryTarget::Global(global) => self.tree.get(global).storage.storage_set(),
@@ -1462,7 +1399,7 @@ impl<'a> MemoryAccessCollector<'a> {
     }
 
     /// Resolve the memory spaces for an address-bearing value.
-    fn address_storage_set(&mut self, address: mir::Value) -> mir::StorageSet {
+    fn address_storage_set(&self, address: mir::Value) -> mir::StorageSet {
         let Some(storage) = self.function.reference_storage(address, self.tree) else {
             return mir::StorageSet::ANY;
         };
@@ -1869,16 +1806,9 @@ impl<'a> MemoryAccessCollector<'a> {
 
     /// Resolve a constant byte size from a value when possible.
     fn constant_u64(&self, value: mir::Value) -> Option<u64> {
-        // look up the defining instruction
-        let instruction_id = self.definitions.instruction(value)?;
-        let instruction = self.tree.get(instruction_id);
+        let constant = self.constants.constant(value)?;
 
-        // extract integer constants only
-        let mir::Instruction::Const { value, .. } = instruction else {
-            return None;
-        };
-
-        match value {
+        match constant {
             mir::Constant::UInt { value, .. } => u64::try_from(*value).ok(),
             mir::Constant::Int { value, .. } => {
                 if *value >= 0 {

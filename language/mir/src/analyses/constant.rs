@@ -12,6 +12,8 @@ use super::{ControlTable, Lattice};
 /// Constant propagation for one function.
 #[derive(Debug)]
 pub struct ConstantTable {
+    /// Constants known at their SSA definitions.
+    values: Vec<Option<mir::Constant>>,
     /// Constants available at block entry indexed by block id.
     block_entry: NodeTable<mir::Block, Option<ConstantState>>,
     /// Constants available at block exit indexed by block id.
@@ -109,6 +111,7 @@ impl ConstantTable {
             Some(entry) => entry,
             None => {
                 return Self {
+                    values: vec![None; function.value_capacity()],
                     block_entry: NodeTable::new(),
                     block_exit: NodeTable::new(),
                 };
@@ -199,7 +202,10 @@ impl ConstantTable {
             }
         }
 
+        let values = Self::collect_values(function, tree, &block_entry, &block_exit);
+
         Self {
+            values,
             block_entry,
             block_exit,
         }
@@ -243,6 +249,13 @@ impl ConstantTable {
         self.exit(block).get(value)
     }
 
+    /// Return the constant known for one SSA value.
+    pub fn constant(&self, value: mir::Value) -> Option<&mir::Constant> {
+        self.values
+            .get(value.id() as usize)
+            .and_then(Option::as_ref)
+    }
+
     /// Build constant propagation with constant parameters seeded at entry.
     pub fn with_parameter_constants(
         function: &mir::Function,
@@ -260,6 +273,47 @@ impl ConstantTable {
         }
 
         Self::build_with_entry_constants(function, tree, &cfg, target_layout, entry_constants)
+    }
+
+    /// Collect constants at their canonical SSA definitions.
+    fn collect_values(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        block_entry: &NodeTable<mir::Block, Option<ConstantState>>,
+        block_exit: &NodeTable<mir::Block, Option<ConstantState>>,
+    ) -> Vec<Option<mir::Constant>> {
+        let mut values = vec![None; function.value_capacity()];
+
+        // retain seeded function parameters
+        if let Some(entry) = function.entry()
+            && let Some(constants) = block_entry.get(entry)
+        {
+            for parameter in &function.parameters {
+                values[parameter.value.id() as usize] = constants.get(parameter.value).cloned();
+            }
+        }
+
+        // retain block parameters and instruction results
+        for &block_id in function.blocks() {
+            let block = tree.get(block_id);
+            if let Some(constants) = block_entry.get(block_id) {
+                for parameter in &block.parameters {
+                    values[parameter.value.id() as usize] = constants.get(parameter.value).cloned();
+                }
+            }
+
+            let Some(constants) = block_exit.get(block_id) else {
+                continue;
+            };
+            for &instruction_id in &block.instructions {
+                let Some(destination) = tree.get(instruction_id).destination() else {
+                    continue;
+                };
+                values[destination.id() as usize] = constants.get(destination).cloned();
+            }
+        }
+
+        values
     }
 }
 
