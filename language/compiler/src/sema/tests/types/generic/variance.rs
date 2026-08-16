@@ -909,3 +909,348 @@ forEach(async (value) => value);
 "#,
     );
 }
+
+#[test]
+fn test_owned_struct_value_widens_covariantly() {
+    let session = TestSession::single(
+        r#"
+class Shape {}
+class Circle extends Shape {}
+
+struct Box<Value> {
+    value: Value;
+}
+
+declare const circle: Circle;
+
+const exact: Box<Circle> = Box { value: circle };
+const widened: Box<Shape> = exact;
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Shape {}
+class Circle extends Shape {}
+
+struct Box<out Value> {
+    value: Value;
+}
+
+declare const circle: Circle;
+
+const exact: Box<Circle> = Box<Circle> { value: circle };
+const widened: Box<Shape> = exact;
+
+=== dir ===
+class Shape {}
+/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @definition.class symbol=Shape source="class Shape {}"
+
+class Circle extends Shape {}
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @definition.class symbol=Circle source="class Circle extends Shape {}"
+/// @definition.extends symbol=Circle source=Shape target=Shape
+/// @resolution.name source=Shape target=Shape
+
+struct Box<Value> {
+/// @generic.template symbol=Box parameters=(out Value)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out Value)
+/// @definition.field symbol=Box.value source="value: Value" key=value type=Value
+/// @type.symbol symbol=Box.Value source=Value type=Value
+
+    value: Value;
+    /// @type.symbol symbol=Box.value source="value: Value" type=Value
+    /// @resolution.name source=Value target=Box.Value
+
+}
+
+declare const circle: Circle;
+/// @type.symbol symbol=circle source=circle type=Circle
+/// @resolution.pattern source=circle kind=binding target=circle
+/// @resolution.name source=Circle target=Circle
+
+const exact: Box<Circle> = Box { value: circle };
+/// @type.symbol symbol=exact source=exact type=Box<Circle>
+/// @resolution.pattern source=exact kind=binding target=exact
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Circle target=Circle
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=circle target=circle
+/// @resolution.place source=circle placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circle root=circle
+
+const widened: Box<Shape> = exact;
+/// @type.symbol symbol=widened source=widened type=Box<Shape>
+/// @resolution.pattern source=widened kind=binding target=widened
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Shape target=Shape
+/// @resolution.name source=exact target=exact
+/// @resolution.place source=exact placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=exact root=exact
+"#,
+    );
+}
+
+#[test]
+fn test_readonly_borrow_widens_the_struct_payload() {
+    let session = TestSession::single(
+        r#"
+class Shape {}
+class Circle extends Shape {}
+
+struct Box<Value> {
+    value: Value;
+}
+
+declare const circle: Circle;
+
+const exact: Box<Circle> = Box { value: circle };
+const widened: &readonly Box<Shape> = &exact;
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Shape {}
+class Circle extends Shape {}
+
+struct Box<out Value> {
+    value: Value;
+}
+
+declare const circle: Circle;
+
+const exact: Box<Circle> = Box<Circle> { value: circle };
+const widened: &'static readonly Box<Shape> = &exact;
+
+=== dir ===
+class Shape {}
+/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @definition.class symbol=Shape source="class Shape {}"
+
+class Circle extends Shape {}
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @definition.class symbol=Circle source="class Circle extends Shape {}"
+/// @definition.extends symbol=Circle source=Shape target=Shape
+/// @resolution.name source=Shape target=Shape
+
+struct Box<Value> {
+/// @generic.template symbol=Box parameters=(out Value)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out Value)
+/// @definition.field symbol=Box.value source="value: Value" key=value type=Value
+/// @type.symbol symbol=Box.Value source=Value type=Value
+
+    value: Value;
+    /// @type.symbol symbol=Box.value source="value: Value" type=Value
+    /// @resolution.name source=Value target=Box.Value
+
+}
+
+declare const circle: Circle;
+/// @type.symbol symbol=circle source=circle type=Circle
+/// @resolution.pattern source=circle kind=binding target=circle
+/// @resolution.name source=Circle target=Circle
+
+const exact: Box<Circle> = Box { value: circle };
+/// @type.symbol symbol=exact source=exact type=Box<Circle>
+/// @resolution.pattern source=exact kind=binding target=exact
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Circle target=Circle
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=circle target=circle
+/// @resolution.place source=circle placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circle root=circle
+
+const widened: &readonly Box<Shape> = &exact;
+/// @type.symbol symbol=widened source=widened type=&'static readonly Box<Shape>
+/// @resolution.pattern source=widened kind=binding target=widened
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Shape target=Shape
+/// @resolution.name source=exact target=exact
+/// @resolution.place source=exact placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=exact root=exact
+"#,
+    );
+}
+
+#[test]
+fn test_exclusive_borrow_rejects_struct_payload_widening() {
+    let session = TestSession::single(
+        r#"
+class Shape {}
+class Circle extends Shape {}
+
+struct Box<Value> {
+    value: Value;
+}
+
+declare const circle: Circle;
+
+let exact: Box<Circle> = Box { value: circle };
+const widened: &exclusive Box<Shape> = &exclusive exact;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Shape {}
+class Circle extends Shape {}
+
+struct Box<out Value> {
+    value: Value;
+}
+
+declare const circle: Circle;
+
+let exact: Box<Circle> = Box<Circle> { value: circle };
+const widened: &'static exclusive Box<Shape> = &exclusive exact;
+
+=== dir ===
+class Shape {}
+/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @definition.class symbol=Shape source="class Shape {}"
+
+class Circle extends Shape {}
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @definition.class symbol=Circle source="class Circle extends Shape {}"
+/// @definition.extends symbol=Circle source=Shape target=Shape
+/// @resolution.name source=Shape target=Shape
+
+struct Box<Value> {
+/// @generic.template symbol=Box parameters=(out Value)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out Value)
+/// @definition.field symbol=Box.value source="value: Value" key=value type=Value
+/// @type.symbol symbol=Box.Value source=Value type=Value
+
+    value: Value;
+    /// @type.symbol symbol=Box.value source="value: Value" type=Value
+    /// @resolution.name source=Value target=Box.Value
+
+}
+
+declare const circle: Circle;
+/// @type.symbol symbol=circle source=circle type=Circle
+/// @resolution.pattern source=circle kind=binding target=circle
+/// @resolution.name source=Circle target=Circle
+
+let exact: Box<Circle> = Box { value: circle };
+/// @type.symbol symbol=exact source=exact type=Box<Circle>
+/// @resolution.pattern source=exact kind=binding target=exact
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Circle target=Circle
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=circle target=circle
+/// @resolution.place source=circle placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circle root=circle
+
+const widened: &exclusive Box<Shape> = &exclusive exact;
+/// @type.symbol symbol=widened source=widened type=&'static exclusive Box<Shape>
+/// @resolution.pattern source=widened kind=binding target=widened
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Shape target=Shape
+/// @resolution.name source=exact target=exact
+/// @resolution.place source=exact placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=exact root=exact
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '&'static exclusive Box<Circle>' is not assignable to type '&'static exclusive Box<Shape>'"
+/// @diagnostic.label line=12 column=40 span="&exclusive exact" line_source="const widened: &exclusive Box<Shape> = &exclusive exact;"
+/// @diagnostic.related line=12 column=16 span="&" line_source="const widened: &exclusive Box<Shape> = &exclusive exact;" message="expected due to this annotation"
+"#,
+    );
+}
+
+#[test]
+fn test_managed_handle_rejects_struct_payload_widening() {
+    let session = TestSession::single(
+        r#"
+class Shape {}
+class Circle extends Shape {}
+
+struct Box<Value> {
+    value: Value;
+}
+
+declare const shared: Managed<Box<Circle>>;
+
+const widened: Managed<Box<Shape>> = shared;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Shape {}
+class Circle extends Shape {}
+
+struct Box<out Value> {
+    value: Value;
+}
+
+declare const shared: Box<Circle>;
+
+const widened: Box<Shape> = shared;
+
+=== dir ===
+class Shape {}
+/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @definition.class symbol=Shape source="class Shape {}"
+
+class Circle extends Shape {}
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @definition.class symbol=Circle source="class Circle extends Shape {}"
+/// @definition.extends symbol=Circle source=Shape target=Shape
+/// @resolution.name source=Shape target=Shape
+
+struct Box<Value> {
+/// @generic.template symbol=Box parameters=(out Value)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out Value)
+/// @definition.field symbol=Box.value source="value: Value" key=value type=Value
+/// @type.symbol symbol=Box.Value source=Value type=Value
+
+    value: Value;
+    /// @type.symbol symbol=Box.value source="value: Value" type=Value
+    /// @resolution.name source=Value target=Box.Value
+
+}
+
+declare const shared: Managed<Box<Circle>>;
+/// @type.symbol symbol=shared source=shared type=Managed<Box<Circle>>
+/// @resolution.pattern source=shared kind=binding target=shared
+/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Circle target=Circle
+
+const widened: Managed<Box<Shape>> = shared;
+/// @type.symbol symbol=widened source=widened type=Managed<Box<Shape>>
+/// @resolution.pattern source=widened kind=binding target=widened
+/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Shape target=Shape
+/// @resolution.name source=shared target=shared
+/// @resolution.place source=shared placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=shared root=shared
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
+/// @diagnostic.label line=11 column=38 span="shared" line_source="const widened: Managed<Box<Shape>> = shared;"
+/// @diagnostic.related line=11 column=16 span="Managed" line_source="const widened: Managed<Box<Shape>> = shared;" message="expected due to this annotation"
+"#,
+    );
+}
