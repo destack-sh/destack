@@ -2,7 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_dir::{TypeFold, WalkSelections};
 
-use crate::sema::{CheckModuleState, CheckState};
+use crate::sema::{CheckModuleState, CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -53,6 +53,10 @@ impl CheckState<'_> {
                 .map(|(k, v)| (*k, *v))
                 .expect("indexed entry");
             let resolved = self.fully_resolve(ty, &failed)?;
+            let resolved = match self.is_checking() {
+                true => self.deeply_resolve(Origin::Symbol(symbol), resolved)?,
+                false => resolved,
+            };
             self.declaration_types[index] = resolved;
             self.write_symbol_type(symbol, resolved);
         }
@@ -65,6 +69,10 @@ impl CheckState<'_> {
                 .map(|(k, v)| (*k, *v))
                 .expect("indexed entry");
             let resolved = self.fully_resolve(ty, &failed)?;
+            let resolved = match self.is_checking() {
+                true => self.deeply_resolve(Origin::Symbol(symbol), resolved)?,
+                false => resolved,
+            };
             self.binding_types[index] = resolved;
             self.write_symbol_type(symbol, resolved);
         }

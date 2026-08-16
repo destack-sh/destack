@@ -839,6 +839,17 @@ impl CheckState<'_> {
             self.normalize_graph(origin, rebuilt, memo, active)?
         };
 
+        // reduce a computation head once its operands close
+        let rebuilt = match self.ty(rebuilt)? {
+            dir::Type::Operation(operation) => {
+                let operation = self.type_operation(rebuilt.module_id, operation)?;
+                match self.reduce_operation(origin, rebuilt, &operation)? {
+                    Some(reduced) => self.normalize_graph(origin, reduced, memo, active)?,
+                    None => rebuilt,
+                }
+            }
+            _ => rebuilt,
+        };
         memo.insert(original, rebuilt);
 
         Ok(rebuilt)
