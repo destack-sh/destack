@@ -15,6 +15,7 @@ Beyond the basic set, Destack adds some more primitive types:
 - variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) 
 - concrete float formats (`float32`, `float64`)
 - pointer-sized integers (`isize` and `usize`)
+- the default-width aliases `int` for `int64`, `uint` for `uint64`, and `float` for `float64`
 - `char` as a single Unicode scalar value, distinct from `string`
 
 ```ds
@@ -38,7 +39,7 @@ const input: unknown = readInput();
 Builtin types like `string` and `bigint` are not really "special" in Destack in the same way they are in TypeScript, instead they are just aliases to the standard library `String` and `BigInt` classes.
 In general, Destack follows TypeScript behavior as exactly as possible for a *sound and strict* type system, including the exact same widening rules, infer and match, template inference, and all the other fun stuff.
 
-```
+```ds
 const s: string = "";
 s satisfies String;
 
@@ -276,10 +277,10 @@ extension<T> of Box<T> {
     }
 }
 
-// conditional conformance: Box<T> is Show only when T is too
-extension<T> of Box<T> implements Show where T: Show {
-    show(): string {
-        `Box(${this.value.show()})`
+// conditional conformance: Box<T> is Display only when T is too
+extension<T> of Box<T> implements Display where T: Display {
+    display(): MaybeOwned<string> {
+        `Box(${this.value})`
     }
 }
 ```
@@ -289,7 +290,7 @@ The target of a blanket decides the scope of the claims it may make:
 | Blanket | Example | Who may declare it |
 | --- | --- | --- |
 | Members over a bounded parameter | `extension Arithmetic<T: int> of T { ... }` | anyone |
-| `implements` over a nominal application | `extension<T> of Box<T> implements Show` | anyone |
+| `implements` over a nominal application | `extension<T> of Box<T> implements Display` | anyone |
 | `implements` over a bare bounded parameter | `extension<T: Equal> of T implements PartialEqual` | only the package declaring the interface |
 
 Member blankets are lexical like all extension members, so the bound just names the candidate domain and nothing can surprise code that didn't import it.
@@ -806,7 +807,7 @@ Sometimes, defining the constraints and relations for type parameters can become
 Destack supports explicit (type-space) `where` clauses to define additional constraints for complex types and signatures, very much like Rust:
 
 ```ds
-function merge<T: int, U>(): T where U: Comparable<T> {
+function merge<T: int, U>(): T where U: Compare<T> {
     // ...
 }
 ```
@@ -815,7 +816,7 @@ A `where` clause accepts the same constraint forms as inline bounds, plus a few 
 
 | Form | Example | Meaning |
 | --- | --- | --- |
-| Interface bound | `T: Comparable<U>` | a parameter must satisfy a constraint |
+| Interface bound | `T: Compare<U>` | a parameter must satisfy a constraint |
 | Associated member bound | `I.Item: Display` | an associated type must satisfy a constraint |
 | Equality constraint | `T.Output == U` | two static terms must normalize to the same type or value |
 

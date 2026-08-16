@@ -347,7 +347,7 @@ try {
     page.fill()?;
 
     return page;
-} catch (e: AllocationError) {
+} catch (e) { // e: AllocationError | FillError
     return null;
 }
 ```
@@ -485,7 +485,7 @@ Because module code runs on every Worker, shared bindings are initialized exactl
 
 ## Conversions
 
-Reference conversions follow directly from [the five memory rules](#memory), and borrowing from a live place works whenever the requested loan rules hold:
+Reference conversions follow directly from the four memory dimensions, and borrowing from a live place works whenever the requested [loan rules](#borrowing) hold:
 
 | Source | Borrow | Notes |
 | --- | --- | --- |

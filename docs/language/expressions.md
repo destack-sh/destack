@@ -67,7 +67,7 @@ next satisfies Function<(), number>;
 const read = () => count;
 ```
 
-`Function` is a repeatable fat pointer capable of capturing an environment by default, while `OnceFunction` is an affine fat pointer consumed by its first invocation.
+The type we get by default for function types like `(Parameters) => Return` is a `Function<Parameters, Return, const M: Multiplicity>`, which is a fat pointer that can (optionally) capture an environment. The "multiplicity" parameter decides how often it may be invoked: `"repeatable"` is the default, and `"once"` makes it an affine value consumed by its first invocation.
 When a true thin pointer is required, use `FunctionPointer`.
 Thus, `Function`s also behave more like `Dynamic` by default, and explicit generics are required to force monomorphisation:
 
@@ -128,11 +128,10 @@ class Client {
 ```
 
 Of course, closures with custom capture behavior must still follow general ownership rules - for example, if one closure moves a binding, later uses or captures of that binding are rejected.
-For a closure that consumes itself, we can use `OnceFunction` instead:
 
 ```ds
 @capture("move")
-let close: OnceFunction<(), Result<void, IOError>> = () => socket.close();
+let close: Function<(), Result<void, IOError>, "once"> = () => socket.close();
 ```
 
 ## Continuations
@@ -292,11 +291,12 @@ Dynamic computed keys are still valid against indexed sources, because those are
 
 Guards are boolean expressions that can refine types, like `"name" in value`, `instanceof`, and `value is T` checks:
  - `"name" in value` for object-shaped values.
- - `key in value` through `Has<K>` for custom containers.
  - `instanceof` for classes.
  - `value is T` for primitive tags, union cases, exact runtime types.
 
-Destack does not support the vague `typeof` check, and instead supports an additional precise `value is T` to check whether the current runtime representation of `value` carries the case, type identity, or registered relation for `T`:
+Unlike in TypeScript, the runtime `typeof` check cannot be used as a guard, since its just too vague to narrow anything useful with.
+(The `typeof` type operator is a separate feature and still queries the type of a value in type space, as in `PlaceOf<typeof buffer>`.)
+Instead, Destack supports an additional precise `value is T` to check whether the current runtime representation of `value` carries the case, type identity, or registered relation for `T`:
 
 ```ds
 struct User {
@@ -345,8 +345,6 @@ let status = outer: loop {
 };
 status satisfies "done";
 ```
-
-The `break` operand works like TypeScript labels by default, the break only get s a value when it is unambiguous via either `label: <expr>` or just `break <expr>` (where the `<expr>` cannot be identifier shaped).
 
 ## Using
 
@@ -405,7 +403,6 @@ Compound assignment operators like `+=` are desugared into their component opera
 | `>>>` | `a >>> b` | `ShiftRightUnsigned<T>` |
 | `==`, `!=` | `a == b` | `PartialEqual<T>` |
 | `<`, `<=`, `>`, `>=` | `a < b` | `Compare<T>` or `PartialCompare<T>` |
-| `in` | `key in value` | `Has<K>` for custom containers |
 | `[]` | `a[i]` | `Index<I>` |
 | `[] =` | `a[i] = v` | `IndexSet<I, V>` |
 | `*` | `*a` | `Dereference<"readonly">` |
@@ -627,7 +624,6 @@ dynamicCounts.set("apples", 3);
 dynamicCounts.has("apples") satisfies boolean;
 dynamicCounts satisfies Index<string>;
 dynamicCounts satisfies IndexSet<string, int32>;
-dynamicCounts satisfies Has<string>;
 ```
 
 ### Unions
@@ -674,7 +670,7 @@ Recoverable errors use `Result<T, E>`, integrate with `try` / `catch`, and can b
 (JavaScript exceptions remain valid _syntax_ because we need to integrate with JS targets directly, but in regular userland, exceptions are forbidden.)
 
 The same rule also extends to async code: a Destack `Promise<T>` never rejects, because rejection is just an asynchronous exception.
-Async failure travels as `AsyncResult<T, E>`, [panics](#panics) unwind the Worker, and rejection-capable host promises are adopted into `AsyncResult` (or panic) at the host binding boundary.
+Async failure travels as `Task<Result<T, E>>` or `Promise<Result<T, E>>`, [panics](#panics) unwind the Worker, and rejection-capable host promises are adopted into result carriers (or panic) at the host binding boundary.
 
 ### Error
 
@@ -682,7 +678,7 @@ Like in Rust, types that want to be handled as general errors explicitly impleme
 
 ```ds
 newtype interface Error {
-    display(): string;
+    display(): MaybeOwned<string>;
 
     source(): Dynamic<Error> | undefined {
         undefined
@@ -729,14 +725,12 @@ match (parsePort(input)) {
 }
 ```
 
-`Result` is great for synchronous error handling, and `AsyncResult` extends the exact same idea to `Promise`-based asynchronous errors with a convenient wrapper around `Promise<Result<T, E>>`.
+`Result` is great for synchronous error handling, and the exact same idea extends to asynchronous errors by composition: an async operation that can fail returns `Task<Result<T, E>>` or `Promise<Result<T, E>>`, and the standard library provides the result combinators and `?` propagation on those compositions directly.
 
 ```ds
-export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
+declare function fetchUser(id: UserId): Task<Result<User, NetworkError>>;
 
-declare function fetchUser(id: UserId): AsyncResult<User, NetworkError>;
-
-async function loadProfile(id: UserId): AsyncResult<Profile, NetworkError | DecodeError> {
+async function loadProfile(id: UserId): Task<Result<Profile, NetworkError | DecodeError>> {
     const user = await? fetchUser(id); // `await? expr` is sugar for `(await expr)?`
     const profile = decodeProfile(user)?;
     return Result.ok(profile);
@@ -815,32 +809,39 @@ This keeps the branches unambiguous in both directions: `flag ? -x : x` is a con
 
 ### Try
 
-The "try" operators `?`, `??` and `!` are all based on the builtin `Try` operator interface, much like in Rust,
-A carrier has success and failure types, can branch into either case, and can then rebuild itself from a success value:
+The "try" operators `?`, `??` and `!` are all based on the builtin `Try` operator interface, much like in Rust.
+The carrier has an output type and a residual type, can branch into either case, and can then rebuild itself from an output value:
 
 ```ds
-struct TryContinue<T> {
+struct Continue<C> {
     kind: "continue" = "continue";
-    value: T;
+    value: C;
 }
 
-struct TryFailure<F> {
-    kind: "failure" = "failure";
-    failure: F;
+struct Break<B> {
+    kind: "break" = "break";
+    residual: B;
 }
 
-type TryBranch<T, F> = TryContinue<T> | TryFailure<F>;
+newtype ControlFlow<B, C> = Break<B> | Continue<C>;
 
-newtype interface Try {
-    type Value;
-    type Failure;
+newtype interface FromResidual<R> {
+    static fromResidual(residual: R): this;
+}
 
-    static fromValue(value: this.Value): this;
-    branch(): TryBranch<this.Value, this.Failure>;
+newtype interface Try extends FromResidual<this.Residual> {
+    type Output;
+    type Residual;
+
+    static fromOutput(output: this.Output): this;
+    branch(): ControlFlow<this.Residual, this.Output>;
 }
 ```
 
-For `Result<T, E>`, `Ok { value }` branches to `TryContinue<T>` and `Err { error }` branches to `TryFailure<E>`.
+For `Result<T, E>`, `Output` is `T` and `Residual` is `E`: `Ok { value }` branches to `Continue<T>` and `Err { error }` branches to `Break<E>`.
+
+`FromResidual` is the half of the protocol that rebuilds a carrier, and `Try` extends it as a separate base interface so that `?` can propagate across carriers whose residual types differ.
+Propagating a residual `R` out of a function requires the function's return type to satisfy `FromResidual<R>`, so a `Result<T, IOError>` residual travels into a `Result<U, ConfigError>` return exactly when that return type implements `FromResidual<IOError>`.
 
 ### Try-Catch-Finally
 
@@ -866,7 +867,7 @@ For convenience, Destack also supports a nicer `catch match` form that can branc
 
 ```ds
 try {
-    let config = readConfig()?; // -> Result<RaConfig, MissingError>
+    let config = readConfig()?; // -> Result<RawConfig, MissingError>
     config satisfies RawConfig;
 
     let config = parseConfig(config)?; // -> Result<Config, FormatError>
@@ -1012,17 +1013,6 @@ Like in other languages, (some of) Destack's diagnostics can be tuned with scope
     otherwise: "deny",
     reason: "debug telemetry",
 })
-module {}
-```
-
-### Restrictions
-
-Relatedly, restrictions may be used to allow or disallow more fundamental reaching language behavior in certain scopes:
-
-```ds
-@noHeap
-@noUnsafe
-@noAliasingMutableBorrows
 module {}
 ```
 
