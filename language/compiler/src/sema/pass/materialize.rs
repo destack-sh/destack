@@ -38,6 +38,12 @@ impl CheckState<'_> {
             let origin = Origin::Node(source, None);
             let mut resolved = definition.clone();
             dir::TypeFold::map_types(&mut resolved, &mut |ty| -> CompilerResult<_> {
+                // keep open template types written; instances materialize them
+                let flags = self.type_flags(ty)?;
+                if flags.has_parameter() || flags.has_this() || flags.has_variable() {
+                    return Ok(ty);
+                }
+
                 // evaluate only computation results, keeping written alias spellings
                 let resolved = match self.type_reaches_computation(ty)? {
                     true => self.evaluate_type(origin, ty)?,

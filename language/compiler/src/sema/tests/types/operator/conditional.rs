@@ -223,7 +223,6 @@ type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 /// @generic.template symbol=Unbox parameters=(T#2)
 /// @type.symbol symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" type=T#2 extends Box<infer U> ? Unbox.U : never
-/// @generic.instance id="Box<infer U>" template=Box arguments=(infer U)
 /// @definition.type symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" template=(T#2) value=T#2 extends Box<infer U> ? Unbox.U : never
 /// @type.symbol symbol=Unbox.T source=T type=T#2
 /// @resolution.name source=T target=Unbox.T
@@ -278,7 +277,6 @@ newtype Vector<T, const N: int> = intrinsic;
 type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 /// @generic.template symbol=LaneCount parameters=(V)
 /// @type.symbol symbol=LaneCount source="type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never" type=V extends Vector<infer T, infer N> ? LaneCount.N : never
-/// @generic.instance id="Vector<infer T, infer N>" template=Vector arguments=(infer T, infer N)
 /// @definition.type symbol=LaneCount source="type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never" template=(V) value=V extends Vector<infer T, infer N> ? LaneCount.N : never
 /// @type.symbol symbol=LaneCount.V source=V type=V
 /// @resolution.name source=V target=LaneCount.V
@@ -398,7 +396,6 @@ type Box<T> = { value: T };
 type IsBox<T> = T extends Box<infer _> ? true : false;
 /// @generic.template symbol=IsBox parameters=(T#2)
 /// @type.symbol symbol=IsBox source="type IsBox<T> = T extends Box<infer _> ? true : false" type=T#2 extends Box<infer _> ? true : false
-/// @generic.instance id="Box<infer _>" template=Box arguments=(infer _)
 /// @definition.type symbol=IsBox source="type IsBox<T> = T extends Box<infer _> ? true : false" template=(T#2) value=T#2 extends Box<infer _> ? true : false
 /// @type.symbol symbol=IsBox.T source=T type=T#2
 /// @resolution.name source=T target=IsBox.T
@@ -464,7 +461,6 @@ type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 /// @generic.template symbol=Unbox parameters=(T#2)
 /// @type.symbol symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" type=T#2 extends Box<infer U> ? Unbox.U : never
-/// @generic.instance id="Box<infer U>" template=Box arguments=(infer U)
 /// @definition.type symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" template=(T#2) value=T#2 extends Box<infer U> ? Unbox.U : never
 /// @type.symbol symbol=Unbox.T source=T type=T#2
 /// @resolution.name source=T target=Unbox.T
