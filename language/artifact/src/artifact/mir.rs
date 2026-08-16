@@ -10,8 +10,6 @@ pub struct MirLowered {
     pub tree: mir::Tree,
     /// Target ABI layout.
     pub target: mir::TargetLayout,
-    /// Canonical MIR type table.
-    pub types: mir::TypeTable,
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
     /// Canonical MIR dispatch table.
@@ -34,7 +32,6 @@ impl MirLowered {
         Self {
             tree: mir::Tree::new(),
             target: mir::TargetLayout::default(),
-            types: mir::TypeTable::default(),
             layouts: mir::LayoutTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
@@ -66,8 +63,6 @@ pub struct MirElaborated {
     pub tree: mir::Tree,
     /// Target ABI layout.
     pub target: mir::TargetLayout,
-    /// Canonical MIR type table.
-    pub types: mir::TypeTable,
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
     /// Canonical MIR dispatch table.
@@ -89,8 +84,6 @@ pub struct MirOptimized {
     pub tree: mir::Tree,
     /// Target ABI layout.
     pub target: mir::TargetLayout,
-    /// Canonical MIR type table.
-    pub types: mir::TypeTable,
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
     /// Canonical MIR dispatch table.
@@ -111,7 +104,6 @@ impl MirOptimized {
         Self {
             tree: mir::Tree::new(),
             target: mir::TargetLayout::default(),
-            types: mir::TypeTable::default(),
             layouts: mir::LayoutTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
