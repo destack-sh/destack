@@ -452,7 +452,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Infer one expression that resolved to one lexical symbol.
-    fn infer_name_expression(
+    pub(in crate::sema) fn infer_name_expression(
         &mut self,
         site: FlowSite,
         resolution: &dir::NameResolution,

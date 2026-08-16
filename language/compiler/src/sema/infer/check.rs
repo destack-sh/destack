@@ -191,6 +191,9 @@ impl BodyState<'_, '_> {
 
                 Ok(CheckAttempt::Checked(check))
             }
+            dir::Expression::Identifier { name } => {
+                self.check_reference_expression(site, name, expectation)
+            }
             dir::Expression::ScalarLiteral(value) => {
                 let source = self.scalar_literal_type(node, value)?;
                 self.commit_node_type(site.node, source)?;
@@ -347,6 +350,80 @@ impl BodyState<'_, '_> {
 
             _ => Ok(CheckAttempt::NotApplicable),
         }
+    }
+
+    /// Check one plural reference by selecting the first overload its target accepts.
+    fn check_reference_expression(
+        &mut self,
+        site: FlowSite,
+        name: dir::StringId,
+        expectation: Expectation,
+    ) -> CompilerResult<CheckAttempt> {
+        let node = site.node.into_typed::<dir::Expression>();
+
+        // revisited references keep their committed value
+        if self.check.committed_node_type(site.node).is_some() {
+            return Ok(CheckAttempt::NotApplicable);
+        }
+
+        // reuse a committed resolution, or resolve the reference now
+        let resolution = match self
+            .resolutions(node.module_id)
+            .name_resolution(node.into_any())
+            .cloned()
+        {
+            Some(resolution) => resolution,
+            None => match self.decide_name_reference(node, name)? {
+                Some(resolution) => resolution,
+                None => return Ok(CheckAttempt::NotApplicable),
+            },
+        };
+
+        // leave singular references to their target-free inference
+        let symbols = resolution.symbols();
+        if symbols.len() < 2 {
+            return Ok(CheckAttempt::NotApplicable);
+        }
+
+        // accept the first declared overload the expected value admits
+        let mut selected = None;
+        for symbol in symbols.iter().copied() {
+            let source = self.symbol_type(symbol)?;
+            let verdict = self.probe_candidate(|state| {
+                let value = state.expression_value(site, source)?;
+                let conversion = state.convert_value(
+                    site,
+                    expectation.cause,
+                    expectation.relation,
+                    value,
+                    expectation.target,
+                    expectation.use_,
+                    expectation.mode,
+                )?;
+
+                Ok(match conversion.outcome {
+                    CheckOutcome::Holds | CheckOutcome::Pending => CandidateOutcome::Accepted(()),
+                    CheckOutcome::Fails(_) => CandidateOutcome::Rejected(()),
+                })
+            })?;
+            if matches!(verdict, CandidateVerdict::Viable) {
+                selected = Some(symbol);
+
+                break;
+            }
+        }
+
+        // leave references no overload admits to their plural rejection
+        let Some(symbol) = selected else {
+            return Ok(CheckAttempt::NotApplicable);
+        };
+
+        // commit the selected declaration and convert its value
+        self.infer_name_expression(site, &dir::NameResolution::new(symbol))?;
+        let source = self.require_node_type(site.node)?;
+        let check = self.check_value(site, source, expectation)?;
+
+        Ok(CheckAttempt::Checked(check))
     }
 
     /// Check one expression whose value is exactly its child value.

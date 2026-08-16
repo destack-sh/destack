@@ -16,7 +16,7 @@ const result = parse("id");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -33,7 +33,7 @@ function parse(value: "id"): "literal" {
 
 const result: "string" = parse("id");
 
-=== checked ===
+=== dir ===
 function parse(value: string): "string" {
 /// @type.symbol symbol=parse#1 type=(string) => "string"
 /// @type.symbol symbol=parse.value#1 source="value: string" type=string
@@ -79,7 +79,7 @@ const result: int32 = choose("x");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -96,7 +96,7 @@ function choose(value: string): int32 {
 
 const result: int32 = choose("x");
 
-=== checked ===
+=== dir ===
 function choose(value: string): string {
 /// @type.symbol symbol=choose#1 type=(string) => string
 /// @type.symbol symbol=choose.value#1 source="value: string" type=string
@@ -142,7 +142,7 @@ parse(true);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -154,7 +154,7 @@ declare function parse(value: int32): int32;
 
 parse(true);
 
-=== checked ===
+=== dir ===
 declare function parse(value: string): int32;
 /// @type.symbol symbol=parse#1 source="declare function parse(value: string): int32" type=(string) => int32
 /// @type.symbol symbol=parse.value#1 source="value: string" type=string
@@ -186,14 +186,14 @@ function parse(value: string): int32;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().without_reference_types(),
         r#"
 === annotated ===
 function parse(value: string): int32;
 
-=== checked ===
+=== dir ===
 function parse(value: string): int32;
 /// @type.symbol symbol=parse source="function parse(value: string): int32" type=(string) => int32
 /// @type.symbol symbol=parse.value source="value: string" type=string
@@ -222,7 +222,7 @@ extension of Buffer {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -238,7 +238,7 @@ extension of Buffer {
     trailing(): usize;
 }
 
-=== checked ===
+=== dir ===
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
@@ -289,7 +289,7 @@ const value = greet("hi");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -300,7 +300,7 @@ function greet(name: string, count: int32): string {
 
 const value = greet("hi");
 
-=== checked ===
+=== dir ===
 function greet(name: string, count: int32): string {
 /// @type.symbol symbol=greet type=(string, int32) => string
 /// @type.symbol symbol=greet.name source="name: string" type=string
@@ -343,7 +343,7 @@ const parser = parse;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -358,7 +358,7 @@ function parse(value: string): string {
 
 const parser = parse;
 
-=== checked ===
+=== dir ===
 function parse(value: int32): int32 {
 /// @type.symbol symbol=parse#1 type=(int32) => int32
 /// @type.symbol symbol=parse.value#1 source="value: int32" type=int32
@@ -389,6 +389,137 @@ const parser = parse;
         r#"
 /// @diagnostic.error id=ambiguous-overload message="overload 'parse' is ambiguous without a call"
 /// @diagnostic.label line=10 column=16 span="parse" line_source="const parser = parse;"
+"#,
+    );
+}
+
+#[test]
+fn test_annotated_reference_selects_first_conforming_overload() {
+    let session = TestSession::single(
+        r#"
+function render(value: int32): int32 {
+    return value;
+}
+
+function render(value: string): string {
+    return value;
+}
+
+const text: (value: string) => string = render;
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function render(value: int32): int32 {
+    return value;
+}
+
+function render(value: string): string {
+    return value;
+}
+
+const text: (arg0: string) => string = render;
+
+=== dir ===
+function render(value: int32): int32 {
+/// @type.symbol symbol=render#1 type=(int32) => int32
+/// @type.symbol symbol=render.value#1 source="value: int32" type=int32
+
+    return value;
+    /// @resolution.name source=value target=render.value#1
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=render.value#1
+
+}
+
+function render(value: string): string {
+/// @type.symbol symbol=render#2 type=(string) => string
+/// @type.symbol symbol=render.value#2 source="value: string" type=string
+
+    return value;
+    /// @resolution.name source=value target=render.value#2
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=render.value#2
+
+}
+
+const text: (value: string) => string = render;
+/// @type.symbol symbol=text source=text type=Function<(string,), string>
+/// @resolution.pattern source=text kind=binding target=text
+/// @type.symbol symbol=value source="value: string" type=string
+/// @resolution.name source=render target=[render#1, render#2]
+/// @resolution.function source=render type=(string) => string target=render#2
+"#,
+    );
+}
+
+#[test]
+fn test_reference_without_conforming_overload_reports_plural_group() {
+    let session = TestSession::single(
+        r#"
+function render(value: int32): int32 {
+    return value;
+}
+
+function render(value: string): string {
+    return value;
+}
+
+const chosen: (value: boolean) => boolean = render;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function render(value: int32): int32 {
+    return value;
+}
+
+function render(value: string): string {
+    return value;
+}
+
+const chosen: (arg0: boolean) => boolean = render;
+
+=== dir ===
+function render(value: int32): int32 {
+/// @type.symbol symbol=render#1 type=(int32) => int32
+/// @type.symbol symbol=render.value#1 source="value: int32" type=int32
+
+    return value;
+    /// @resolution.name source=value target=render.value#1
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=render.value#1
+
+}
+
+function render(value: string): string {
+/// @type.symbol symbol=render#2 type=(string) => string
+/// @type.symbol symbol=render.value#2 source="value: string" type=string
+
+    return value;
+    /// @resolution.name source=value target=render.value#2
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=render.value#2
+
+}
+
+const chosen: (value: boolean) => boolean = render;
+/// @type.symbol symbol=chosen source=chosen type=Function<(boolean,), boolean>
+/// @resolution.pattern source=chosen kind=binding target=chosen
+/// @type.symbol symbol=value source="value: boolean" type=boolean
+/// @resolution.name source=render target=[render#1, render#2]
+"#,
+        r#"
+/// @diagnostic.error id=ambiguous-overload message="overload 'render' is ambiguous without a call"
+/// @diagnostic.label line=10 column=45 span="render" line_source="const chosen: (value: boolean) => boolean = render;"
 "#,
     );
 }
