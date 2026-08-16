@@ -1,4 +1,5 @@
 import { Device, Mesh, Stream } from "destack:compute";
+import { Numeric } from "destack:math";
 
 import { Dense, MemoryOrder, TensorFormat } from "./layout.ds";
 import { ConvertMode, ScatterMode } from "./mode.ds";
@@ -33,7 +34,7 @@ export struct TensorCreateOptions<
 
 /// Output options for tensor operations.
 export struct TensorOutputOptions<
-    T,
+    T: Numeric | boolean,
     const Rank: usize,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
     P: Placement = Unsharded,
@@ -56,7 +57,7 @@ export struct TensorOutputOptions<
 
 /// Output options for tensor reductions.
 export struct TensorReduceOptions<
-    T,
+    T: Numeric | boolean,
     const Rank: usize,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
     P: Placement = Unsharded,
@@ -82,7 +83,7 @@ export struct TensorReduceOptions<
 
 /// Output options for tensor conversion.
 export struct TensorConvertOptions<
-    T,
+    T: Numeric | boolean,
     const Rank: usize,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
     P: Placement = Unsharded,
@@ -108,7 +109,7 @@ export struct TensorConvertOptions<
 
 /// Output options for tensor convolution.
 export struct TensorConvolutionOptions<
-    T,
+    T: Numeric | boolean,
     const Rank: usize,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
     P: Placement = Unsharded,
@@ -134,7 +135,7 @@ export struct TensorConvolutionOptions<
 
 /// Output options for tensor scatter.
 export struct TensorScatterOptions<
-    T,
+    T: Numeric | boolean,
     const Rank: usize,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
     P: Placement = Unsharded,

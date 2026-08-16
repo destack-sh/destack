@@ -21,15 +21,18 @@ export type LaneOf<V> = V extends Vector<infer T, infer N> ? T : never;
 ///
 /// Creates a vector with all lanes set to the same scalar value.
 @intrinsic("math.vector.splat")
-export declare function splat<T, const N: usize>(value: T): Vector<T, N>;
+export declare function splat<T: Numeric | boolean, const N: usize>(value: T): Vector<T, N>;
 
 /// Return the lane at `index`.
 @intrinsic("math.vector.extract")
-export declare function extract<T, const N: usize>(value: Vector<T, N>, index: uint32): T;
+export declare function extract<T: Numeric | boolean, const N: usize>(
+    value: Vector<T, N>,
+    index: uint32,
+): T;
 
 /// Return a vector with one lane replaced.
 @intrinsic("math.vector.insert")
-export declare function insert<T, const N: usize>(
+export declare function insert<T: Numeric | boolean, const N: usize>(
     vector: Vector<T, N>,
     index: uint32,
     value: T,
@@ -40,7 +43,12 @@ export declare function insert<T, const N: usize>(
 /// Rearranges elements from two input vectors according to a mask.
 /// Each element in the result comes from either `a` or `b` as specified by the mask.
 @intrinsic("math.vector.shuffle")
-export declare function shuffle<T, const N: usize, const M: usize, const Pattern: [uint32; M]>(
+export declare function shuffle<
+    T: Numeric | boolean,
+    const N: usize,
+    const M: usize,
+    const Pattern: [uint32; M],
+>(
     a: Vector<T, N>,
     b: Vector<T, N>,
 ): Vector<T, M>;
@@ -49,7 +57,7 @@ export declare function shuffle<T, const N: usize, const M: usize, const Pattern
 ///
 /// Returns a[i] if mask[i] is true, otherwise b[i], for each lane.
 @intrinsic("math.vector.select")
-export declare function select<T, const N: usize>(
+export declare function select<T: Numeric | boolean, const N: usize>(
     mask: Vector<boolean, N>,
     a: Vector<T, N>,
     b: Vector<T, N>,
@@ -57,10 +65,12 @@ export declare function select<T, const N: usize>(
 
 /// Convert vector lanes to `U`.
 @intrinsic("math.vector.convert")
-export declare function convert<U, T, const N: usize>(value: Vector<T, N>): Vector<U, N>;
+export declare function convert<U: Numeric | boolean, T: Numeric | boolean, const N: usize>(
+    value: Vector<T, N>,
+): Vector<U, N>;
 
 /// Load `N` contiguous values from `source`.
-export function load<T, const N: usize>(source: &readonly [T]): Vector<T, N> {
+export function load<T: Numeric | boolean, const N: usize>(source: &readonly [T]): Vector<T, N> {
     let result = splat<T, N>(source[0]);
 
     for (let lane: usize = 1; lane < N; lane += 1) {
@@ -71,7 +81,10 @@ export function load<T, const N: usize>(source: &readonly [T]): Vector<T, N> {
 }
 
 /// Store `value` into `destination`.
-export function store<T, const N: usize>(destination: &exclusive [T], value: Vector<T, N>): void {
+export function store<T: Numeric | boolean, const N: usize>(
+    destination: &exclusive [T],
+    value: Vector<T, N>,
+): void {
     for (let lane: usize = 0; lane < N; lane += 1) {
         destination[lane as isize] = extract(value, lane as uint32);
     }
@@ -79,55 +92,61 @@ export function store<T, const N: usize>(destination: &exclusive [T], value: Vec
 
 /// Return a lane mask for equality.
 @intrinsic("math.vector.equal")
-export declare function equal<T, const N: usize>(left: Vector<T, N>, right: Vector<T, N>): Mask<N>;
+export declare function equal<T: Numeric | boolean, const N: usize>(
+    left: Vector<T, N>,
+    right: Vector<T, N>,
+): Mask<N>;
 
 /// Return a lane mask for inequality.
 @intrinsic("math.vector.notEqual")
-export declare function notEqual<T, const N: usize>(
+export declare function notEqual<T: Numeric | boolean, const N: usize>(
     left: Vector<T, N>,
     right: Vector<T, N>,
 ): Mask<N>;
 
 /// Return a lane mask for less-than comparison.
 @intrinsic("math.vector.less")
-export declare function less<T, const N: usize>(left: Vector<T, N>, right: Vector<T, N>): Mask<N>;
+export declare function less<T: Numeric | boolean, const N: usize>(
+    left: Vector<T, N>,
+    right: Vector<T, N>,
+): Mask<N>;
 
 /// Return a lane mask for less-than-or-equal comparison.
 @intrinsic("math.vector.lessEqual")
-export declare function lessEqual<T, const N: usize>(
+export declare function lessEqual<T: Numeric | boolean, const N: usize>(
     left: Vector<T, N>,
     right: Vector<T, N>,
 ): Mask<N>;
 
 /// Return a lane mask for greater-than comparison.
 @intrinsic("math.vector.greater")
-export declare function greater<T, const N: usize>(
+export declare function greater<T: Numeric | boolean, const N: usize>(
     left: Vector<T, N>,
     right: Vector<T, N>,
 ): Mask<N>;
 
 /// Return a lane mask for greater-than-or-equal comparison.
 @intrinsic("math.vector.greaterEqual")
-export declare function greaterEqual<T, const N: usize>(
+export declare function greaterEqual<T: Numeric | boolean, const N: usize>(
     left: Vector<T, N>,
     right: Vector<T, N>,
 ): Mask<N>;
 
 /// Horizontal reduction: sum all lanes.
 @intrinsic("math.vector.reduce.add")
-export declare function reduceAdd<T, const N: usize>(v: Vector<T, N>): T;
+export declare function reduceAdd<T: Numeric, const N: usize>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: multiply all lanes.
 @intrinsic("math.vector.reduce.mul")
-export declare function reduceMul<T, const N: usize>(v: Vector<T, N>): T;
+export declare function reduceMul<T: Numeric, const N: usize>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: minimum of all lanes.
 @intrinsic("math.vector.reduce.min")
-export declare function reduceMin<T, const N: usize>(v: Vector<T, N>): T;
+export declare function reduceMin<T: Numeric, const N: usize>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: maximum of all lanes.
 @intrinsic("math.vector.reduce.max")
-export declare function reduceMax<T, const N: usize>(v: Vector<T, N>): T;
+export declare function reduceMax<T: Numeric, const N: usize>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: bitwise AND of all lanes.
 @intrinsic("math.vector.reduce.and")

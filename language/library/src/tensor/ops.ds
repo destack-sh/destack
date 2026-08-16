@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Float, Numeric } from "destack:math";
+import { Float, Integer, Numeric } from "destack:math";
 
 import { ConvolutionAxes, DotAxes, GatherAxes, ScatterAxes } from "./axes.ds";
 import { TensorViewFormat } from "./layout.ds";
@@ -19,7 +19,7 @@ import { ConvolutionWindow, Padding, SliceWindow } from "./window.ds";
 
 /// Build a tensor by repeating `value`.
 @intrinsic("tensor.splat")
-export declare function splat<T, const Rank: usize>(
+export declare function splat<T: Numeric | boolean, const Rank: usize>(
     value: T,
     shape: Shape<Rank>,
     options?: TensorOutputOptions<T, Rank>,
@@ -27,7 +27,11 @@ export declare function splat<T, const Rank: usize>(
 
 /// Broadcast `tensor` to `shape`.
 @intrinsic("tensor.broadcast")
-export declare function broadcast<T, const InRank: usize, const OutRank: usize>(
+export declare function broadcast<
+    T: Numeric | boolean,
+    const InRank: usize,
+    const OutRank: usize,
+>(
     tensor: Tensor<T, InRank>,
     shape: Shape<OutRank>,
     options?: TensorOutputOptions<T, OutRank>,
@@ -35,7 +39,7 @@ export declare function broadcast<T, const InRank: usize, const OutRank: usize>(
 
 /// Reshape `tensor` to `shape`.
 @intrinsic("tensor.reshape")
-export declare function reshape<T, const Rank: usize, const OutRank: usize>(
+export declare function reshape<T: Numeric | boolean, const Rank: usize, const OutRank: usize>(
     tensor: Tensor<T, Rank>,
     shape: Shape<OutRank>,
     options?: TensorOutputOptions<T, OutRank>,
@@ -43,7 +47,7 @@ export declare function reshape<T, const Rank: usize, const OutRank: usize>(
 
 /// Transpose `tensor` by `permutation`.
 @intrinsic("tensor.transpose")
-export declare function transpose<T, const Rank: usize>(
+export declare function transpose<T: Numeric | boolean, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     permutation: Permutation<Rank>,
     options?: TensorOutputOptions<T, Rank>,
@@ -51,7 +55,7 @@ export declare function transpose<T, const Rank: usize>(
 
 /// Slice `tensor` by `window`.
 @intrinsic("tensor.slice")
-export declare function slice<T, const Rank: usize>(
+export declare function slice<T: Numeric | boolean, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     window: SliceWindow<Rank>,
     options?: TensorOutputOptions<T, Rank>,
@@ -59,7 +63,7 @@ export declare function slice<T, const Rank: usize>(
 
 /// Pad `tensor`.
 @intrinsic("tensor.pad")
-export declare function pad<T, const Rank: usize>(
+export declare function pad<T: Numeric | boolean, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     value: T,
     padding: Padding<Rank>,
@@ -68,14 +72,14 @@ export declare function pad<T, const Rank: usize>(
 
 /// Concatenate tensors along `axis`.
 @intrinsic("tensor.concat")
-export declare function concat<T, const Rank: usize>(
+export declare function concat<T: Numeric | boolean, const Rank: usize>(
     tensors: &[Tensor<T, Rank>],
     axis: Axis,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
 
 /// Stack tensors along a new axis.
-export function stack<T, const Rank: usize, const OutRank: usize>(
+export function stack<T: Numeric | boolean, const Rank: usize, const OutRank: usize>(
     tensors: &[Tensor<T, Rank>],
     axis: Axis,
     options?: TensorOutputOptions<T, OutRank>,
@@ -84,7 +88,7 @@ export function stack<T, const Rank: usize, const OutRank: usize>(
 }
 
 /// Insert a length-one axis.
-export function expandDims<T, const Rank: usize, const OutRank: usize>(
+export function expandDims<T: Numeric | boolean, const Rank: usize, const OutRank: usize>(
     tensor: Tensor<T, Rank>,
     axis: Axis,
     options?: TensorOutputOptions<T, OutRank>,
@@ -93,7 +97,12 @@ export function expandDims<T, const Rank: usize, const OutRank: usize>(
 }
 
 /// Remove length-one axes.
-export function squeeze<T, const Rank: usize, const OutRank: usize, const AxisCount: usize>(
+export function squeeze<
+    T: Numeric | boolean,
+    const Rank: usize,
+    const OutRank: usize,
+    const AxisCount: usize,
+>(
     tensor: Tensor<T, Rank>,
     axisSet: AxisSet<AxisCount>,
     options?: TensorOutputOptions<T, OutRank>,
@@ -103,7 +112,7 @@ export function squeeze<T, const Rank: usize, const OutRank: usize, const AxisCo
 
 /// Select tensor elements from `thenValue` or `elseValue`.
 @intrinsic("tensor.select")
-export declare function select<T, const Rank: usize>(
+export declare function select<T: Numeric | boolean, const Rank: usize>(
     mask: Tensor<boolean, Rank>,
     thenValue: Tensor<T, Rank>,
     elseValue: Tensor<T, Rank>,
@@ -168,7 +177,7 @@ export declare function tan<T: Float, const Rank: usize>(
 
 /// Return elementwise equality.
 @intrinsic("tensor.compare.eq")
-export declare function equal<T, const Rank: usize>(
+export declare function equal<T: Numeric | boolean, const Rank: usize>(
     left: Tensor<T, Rank>,
     right: Tensor<T, Rank>,
     options?: TensorOutputOptions<boolean, Rank>,
@@ -176,7 +185,7 @@ export declare function equal<T, const Rank: usize>(
 
 /// Return elementwise inequality.
 @intrinsic("tensor.compare.ne")
-export declare function notEqual<T, const Rank: usize>(
+export declare function notEqual<T: Numeric | boolean, const Rank: usize>(
     left: Tensor<T, Rank>,
     right: Tensor<T, Rank>,
     options?: TensorOutputOptions<boolean, Rank>,
@@ -184,7 +193,7 @@ export declare function notEqual<T, const Rank: usize>(
 
 /// Return elementwise less-than comparison.
 @intrinsic("tensor.compare.lt")
-export declare function less<T, const Rank: usize>(
+export declare function less<T: Numeric, const Rank: usize>(
     left: Tensor<T, Rank>,
     right: Tensor<T, Rank>,
     options?: TensorOutputOptions<boolean, Rank>,
@@ -192,7 +201,7 @@ export declare function less<T, const Rank: usize>(
 
 /// Return elementwise less-than-or-equal comparison.
 @intrinsic("tensor.compare.le")
-export declare function lessEqual<T, const Rank: usize>(
+export declare function lessEqual<T: Numeric, const Rank: usize>(
     left: Tensor<T, Rank>,
     right: Tensor<T, Rank>,
     options?: TensorOutputOptions<boolean, Rank>,
@@ -200,7 +209,7 @@ export declare function lessEqual<T, const Rank: usize>(
 
 /// Return elementwise greater-than comparison.
 @intrinsic("tensor.compare.gt")
-export declare function greater<T, const Rank: usize>(
+export declare function greater<T: Numeric, const Rank: usize>(
     left: Tensor<T, Rank>,
     right: Tensor<T, Rank>,
     options?: TensorOutputOptions<boolean, Rank>,
@@ -208,7 +217,7 @@ export declare function greater<T, const Rank: usize>(
 
 /// Return elementwise greater-than-or-equal comparison.
 @intrinsic("tensor.compare.ge")
-export declare function greaterEqual<T, const Rank: usize>(
+export declare function greaterEqual<T: Numeric, const Rank: usize>(
     left: Tensor<T, Rank>,
     right: Tensor<T, Rank>,
     options?: TensorOutputOptions<boolean, Rank>,
@@ -217,7 +226,7 @@ export declare function greaterEqual<T, const Rank: usize>(
 /// Sum `tensor` along the axes in `axisSet`.
 @intrinsic("tensor.reduce.add")
 export declare function sum<
-    T,
+    T: Numeric,
     const Rank: usize,
     const AxisCount: usize,
     const OutRank: usize = Rank - AxisCount,
@@ -243,7 +252,7 @@ export declare function mean<
 /// Multiply elements of `tensor` along the axes in `axisSet`.
 @intrinsic("tensor.reduce.mul")
 export declare function product<
-    T,
+    T: Numeric,
     const Rank: usize,
     const AxisCount: usize,
     const OutRank: usize = Rank - AxisCount,
@@ -319,7 +328,7 @@ export declare function bitXor<
 /// Return minimum values of `tensor` along the axes in `axisSet`.
 @intrinsic("tensor.reduce.min")
 export declare function min<
-    T,
+    T: Numeric,
     const Rank: usize,
     const AxisCount: usize,
     const OutRank: usize = Rank - AxisCount,
@@ -331,7 +340,7 @@ export declare function min<
 
 /// Return indices of minimum values along `axis`.
 @intrinsic("tensor.reduce.argmin")
-export declare function argmin<T, const Rank: usize>(
+export declare function argmin<T: Numeric, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     axis: Axis,
     options?: TensorOutputOptions<usize, Rank - 1>,
@@ -340,7 +349,7 @@ export declare function argmin<T, const Rank: usize>(
 /// Return maximum values of `tensor` along the axes in `axisSet`.
 @intrinsic("tensor.reduce.max")
 export declare function max<
-    T,
+    T: Numeric,
     const Rank: usize,
     const AxisCount: usize,
     const OutRank: usize = Rank - AxisCount,
@@ -352,7 +361,7 @@ export declare function max<
 
 /// Return indices of maximum values along `axis`.
 @intrinsic("tensor.reduce.argmax")
-export declare function argmax<T, const Rank: usize>(
+export declare function argmax<T: Numeric, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     axis: Axis,
     options?: TensorOutputOptions<usize, Rank - 1>,
@@ -361,7 +370,7 @@ export declare function argmax<T, const Rank: usize>(
 /// Multiply and reduce two tensors over configured axes.
 @intrinsic("tensor.dot")
 export declare function dot<
-    T,
+    T: Numeric,
     const LeftRank: usize,
     const RightRank: usize,
     const OutRank: usize,
@@ -376,7 +385,7 @@ export declare function dot<
 
 /// Matrix multiply rank-two tensors.
 @intrinsic("tensor.matmul")
-export declare function matmul<T>(
+export declare function matmul<T: Numeric>(
     left: Tensor<T, 2>,
     right: Tensor<T, 2>,
     options?: TensorOutputOptions<T, 2>,
@@ -385,7 +394,7 @@ export declare function matmul<T>(
 /// Convolve `input` with `kernel`.
 @intrinsic("tensor.convolution")
 export declare function convolution<
-    T,
+    T: Numeric,
     const InputRank: usize,
     const KernelRank: usize,
     const OutRank: usize,
@@ -401,7 +410,7 @@ export declare function convolution<
 /// Gather slices from `operand`.
 @intrinsic("tensor.gather")
 export declare function gather<
-    T,
+    T: Numeric | boolean,
     const OperandRank: usize,
     const IndexRank: usize,
     const OutRank: usize,
@@ -419,7 +428,7 @@ export declare function gather<
 /// Scatter `updates` into `operand`.
 @intrinsic("tensor.scatter")
 export declare function scatter<
-    T,
+    T: Numeric | boolean,
     const OperandRank: usize,
     const IndexRank: usize,
     const UpdateRank: usize,
@@ -436,28 +445,41 @@ export declare function scatter<
 
 /// Cast tensor elements to `U` by bit reinterpretation.
 @intrinsic("tensor.cast")
-export declare function cast<U, T, const Rank: usize>(
+export declare function cast<
+    U: Numeric | boolean,
+    T: Numeric | boolean,
+    const Rank: usize,
+>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<U, Rank>,
 ): Tensor<U, Rank>;
 
 /// Convert tensor elements to `U`.
 @intrinsic("tensor.convert")
-export declare function convert<U, T, const Rank: usize>(
+export declare function convert<
+    U: Numeric | boolean,
+    T: Numeric | boolean,
+    const Rank: usize,
+>(
     tensor: Tensor<T, Rank>,
     options?: TensorConvertOptions<U, Rank>,
 ): Tensor<U, Rank>;
 
 /// Copy tensor data into a new format.
 @intrinsic("tensor.reformat")
-export declare function reformat<T, const Rank: usize>(
+export declare function reformat<T: Numeric | boolean, const Rank: usize>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
 
 /// Fill `view` with `value`.
 @intrinsic("tensor.fill")
-export declare function fill<T, const Rank: usize, F: TensorViewFormat, P: Placement>(
+export declare function fill<
+    T: Numeric | boolean,
+    const Rank: usize,
+    F: TensorViewFormat,
+    P: Placement,
+>(
     view: TensorView<T, Rank, F, P, "exclusive">,
     value: T,
     options?: TensorExecutionOptions,
@@ -465,7 +487,12 @@ export declare function fill<T, const Rank: usize, F: TensorViewFormat, P: Place
 
 /// Load one tensor element from `view`.
 @intrinsic("tensor.load")
-export declare function load<T, const Rank: usize, F: TensorViewFormat, P: Placement>(
+export declare function load<
+    T: Numeric | boolean,
+    const Rank: usize,
+    F: TensorViewFormat,
+    P: Placement,
+>(
     view: TensorView<T, Rank, F, P, "readonly">,
     coordinate: Coordinate<Rank>,
     options?: TensorExecutionOptions,
@@ -473,7 +500,12 @@ export declare function load<T, const Rank: usize, F: TensorViewFormat, P: Place
 
 /// Store one tensor element into `view`.
 @intrinsic("tensor.store")
-export declare function store<T, const Rank: usize, F: TensorViewFormat, P: Placement>(
+export declare function store<
+    T: Numeric | boolean,
+    const Rank: usize,
+    F: TensorViewFormat,
+    P: Placement,
+>(
     view: TensorView<T, Rank, F, P, "exclusive">,
     coordinate: Coordinate<Rank>,
     value: T,

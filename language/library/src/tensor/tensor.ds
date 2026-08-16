@@ -34,7 +34,8 @@ export newtype Tensor<
     P: Placement = Unsharded,
 > = intrinsic;
 
-export extension<T, const Rank: usize, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> {
+export extension<T: Numeric | boolean, const Rank: usize, F: TensorFormat, P: Placement> of
+    Tensor<T, Rank, F, P> {
     /// Return the tensor shape.
     get shape(): Shape<Rank> {
         return tensorShape<T, Rank, F, P>(this);
@@ -102,7 +103,8 @@ export extension<T, const Rank: usize, F: TensorFormat, P: Placement> of Tensor<
     }
 }
 
-export extension<T, const Rank: usize, F: TensorFormat> of Tensor<T, Rank, F, Unsharded> {
+export extension<T: Numeric | boolean, const Rank: usize, F: TensorFormat> of
+    Tensor<T, Rank, F, Unsharded> {
     /// Return the device that owns the tensor storage.
     get device(): Device {
         return tensorDevice<T, Rank, F>(this);
@@ -122,7 +124,12 @@ export extension<T, const Rank: usize, F: TensorFormat> of Tensor<T, Rank, F, Un
     }
 }
 
-export extension<T, const Rank: usize, F: TensorFormat, const ...Axes: ShardingAxis> of
+export extension<
+    T: Numeric | boolean,
+    const Rank: usize,
+    F: TensorFormat,
+    const ...Axes: ShardingAxis,
+> of
     Tensor<T, Rank, F, Sharding<...Axes>> {
     /// Return the mesh that owns the tensor shards.
     get mesh(): Mesh {
@@ -229,8 +236,8 @@ export extension<T: int | boolean, const Rank: usize, F: TensorFormat, P: Placem
     }
 }
 
-export extension<T, const Rank: usize, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P>
-    implements
+export extension<T: Numeric | boolean, const Rank: usize, F: TensorFormat, P: Placement> of
+    Tensor<T, Rank, F, P> implements
         Index<Coordinate<Rank>>,
         IndexSet<Coordinate<Rank>, T> {
     /// The indexed output type.
@@ -269,32 +276,52 @@ export extension<T, const Rank: usize, F: TensorFormat, P: Placement> of Tensor<
 
 /// Return one tensor's shape.
 @intrinsic("tensor.shape")
-export declare function tensorShape<T, const Rank: usize, F: TensorFormat, P: Placement>(
+export declare function tensorShape<
+    T: Numeric | boolean,
+    const Rank: usize,
+    F: TensorFormat,
+    P: Placement,
+>(
     tensor: &readonly Tensor<T, Rank, F, P>,
 ): Shape<Rank>;
 
 /// Return one tensor's format.
 @intrinsic("tensor.format")
-export declare function tensorFormat<T, const Rank: usize, F: TensorFormat, P: Placement>(
+export declare function tensorFormat<
+    T: Numeric | boolean,
+    const Rank: usize,
+    F: TensorFormat,
+    P: Placement,
+>(
     tensor: &readonly Tensor<T, Rank, F, P>,
 ): F;
 
 /// Return one tensor's placement.
 @intrinsic("tensor.placement")
-export declare function tensorPlacement<T, const Rank: usize, F: TensorFormat, P: Placement>(
+export declare function tensorPlacement<
+    T: Numeric | boolean,
+    const Rank: usize,
+    F: TensorFormat,
+    P: Placement,
+>(
     tensor: &readonly Tensor<T, Rank, F, P>,
 ): P;
 
 /// Return one tensor's size.
 @intrinsic("tensor.size")
-export declare function tensorSize<T, const Rank: usize, F: TensorFormat, P: Placement>(
+export declare function tensorSize<
+    T: Numeric | boolean,
+    const Rank: usize,
+    F: TensorFormat,
+    P: Placement,
+>(
     tensor: &readonly Tensor<T, Rank, F, P>,
 ): usize;
 
 /// Return one tensor's elementByteLength.
 @intrinsic("tensor.elementByteLength")
 export declare function tensorElementByteLength<
-    T,
+    T: Numeric | boolean,
     const Rank: usize,
     F: TensorFormat,
     P: Placement,
@@ -302,26 +329,31 @@ export declare function tensorElementByteLength<
 
 /// Return one tensor's byteLength.
 @intrinsic("tensor.byteLength")
-export declare function tensorByteLength<T, const Rank: usize, F: TensorFormat, P: Placement>(
+export declare function tensorByteLength<
+    T: Numeric | boolean,
+    const Rank: usize,
+    F: TensorFormat,
+    P: Placement,
+>(
     tensor: &readonly Tensor<T, Rank, F, P>,
 ): usize;
 
 /// Return the device that owns one tensor's storage.
 @intrinsic("tensor.device")
-export declare function tensorDevice<T, const Rank: usize, F: TensorFormat>(
+export declare function tensorDevice<T: Numeric | boolean, const Rank: usize, F: TensorFormat>(
     tensor: &readonly Tensor<T, Rank, F, Unsharded>,
 ): Device;
 
 /// Return the compute buffer backing one tensor.
 @intrinsic("tensor.buffer")
-export declare function tensorBuffer<T, const Rank: usize, F: TensorFormat>(
+export declare function tensorBuffer<T: Numeric | boolean, const Rank: usize, F: TensorFormat>(
     tensor: &readonly Tensor<T, Rank, F, Unsharded>,
 ): Buffer<T>;
 
 /// Return the mesh that owns one sharded tensor's shards.
 @intrinsic("tensor.mesh")
 export declare function tensorMesh<
-    T,
+    T: Numeric | boolean,
     const Rank: usize,
     F: TensorFormat,
     const ...Axes: ShardingAxis,

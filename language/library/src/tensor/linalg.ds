@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Float } from "destack:math";
+import { Float, Numeric } from "destack:math";
 
 import { TensorOutputOptions, TensorReduceOptions } from "./options.ds";
 import { AxisSet } from "./shape.ds";
@@ -14,7 +14,7 @@ export enum FactorizationMode {
 }
 
 /// Options for matrix factorizations.
-export struct FactorizationOptions<T, const Rank: usize> {
+export struct FactorizationOptions<T: Float, const Rank: usize> {
     /// Factorization mode.
     mode: FactorizationMode = FactorizationMode.Reduced;
 
@@ -26,7 +26,7 @@ export struct FactorizationOptions<T, const Rank: usize> {
 }
 
 /// Return the inner product of two vectors.
-export function inner<T>(
+export function inner<T: Numeric>(
     left: Tensor<T, 1>,
     right: Tensor<T, 1>,
     options?: TensorOutputOptions<T, 0>,
@@ -35,7 +35,7 @@ export function inner<T>(
 }
 
 /// Return the outer product of two vectors.
-export function outer<T>(
+export function outer<T: Numeric>(
     left: Tensor<T, 1>,
     right: Tensor<T, 1>,
     options?: TensorOutputOptions<T, 2>,
@@ -44,7 +44,7 @@ export function outer<T>(
 }
 
 /// Return the diagonal of a matrix.
-export function diagonal<T>(
+export function diagonal<T: Numeric>(
     matrix: Tensor<T, 2>,
     options?: TensorOutputOptions<T, 1>,
 ): Tensor<T, 1> {
@@ -52,7 +52,10 @@ export function diagonal<T>(
 }
 
 /// Return the trace of a matrix.
-export function trace<T>(matrix: Tensor<T, 2>, options?: TensorOutputOptions<T, 0>): Tensor<T, 0> {
+export function trace<T: Numeric>(
+    matrix: Tensor<T, 2>,
+    options?: TensorOutputOptions<T, 0>,
+): Tensor<T, 0> {
     todo("tensor.trace")
 }
 

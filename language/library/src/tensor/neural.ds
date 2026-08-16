@@ -7,7 +7,7 @@ import { Tensor } from "./tensor.ds";
 import { PoolWindow } from "./window.ds";
 
 /// Options for softmax-like operations.
-export struct SoftmaxOptions<T, const Rank: usize> {
+export struct SoftmaxOptions<T: Float, const Rank: usize> {
     /// Axis to normalize over.
     axis: Axis;
 
@@ -16,7 +16,7 @@ export struct SoftmaxOptions<T, const Rank: usize> {
 }
 
 /// Options for normalization operations.
-export struct NormalizationOptions<T, const Rank: usize, const AxisCount: usize> {
+export struct NormalizationOptions<T: Float, const Rank: usize, const AxisCount: usize> {
     /// Axes to normalize over.
     axes: AxisSet<AxisCount>;
 
@@ -28,7 +28,7 @@ export struct NormalizationOptions<T, const Rank: usize, const AxisCount: usize>
 }
 
 /// Window options for pooling.
-export struct PoolOptions<T, const Rank: usize> {
+export struct PoolOptions<T: Numeric, const Rank: usize> {
     /// Window size.
     window: PoolWindow<Rank>;
 
