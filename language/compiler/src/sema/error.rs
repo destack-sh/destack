@@ -1368,14 +1368,14 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Break carries a value outside a `loop` or labeled block.
+    /// Break carries a value outside a `loop`.
     ///
     /// ```ds
     /// while (true) { break 1; }
     /// ```
     #[diagnostic(
         id = "break-value-outside-loop",
-        message = "break with a value can only target a `loop` or labeled block"
+        message = "break with a value can only target a `loop`"
     )]
     BreakValueOutsideLoop {
         /// Report the break expression.

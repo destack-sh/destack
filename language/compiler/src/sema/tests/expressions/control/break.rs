@@ -175,7 +175,7 @@ while (true) {
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
 /// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
-/// @diagnostic.error id=break-value-outside-loop message="break with a value can only target a `loop` or labeled block"
+/// @diagnostic.error id=break-value-outside-loop message="break with a value can only target a `loop`"
 /// @diagnostic.label line=3 column=5 span="break 1" line_source="break 1;"
 "#,
     );
