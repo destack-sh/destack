@@ -276,7 +276,7 @@ pub struct GenericSegment {
     /// Instantiations the checked bodies perform, open while they mention parameters.
     pub(crate) instantiations: Vec<Instantiation>,
     /// Materialized types keyed by instance and template type.
-    pub(crate) instance_types: IndexMap<(LocalInstanceId, GlobalTypeId), GlobalTypeId>,
+    pub(crate) instance_types: IndexMap<(LocalInstanceId, GlobalTypeId), (GlobalTypeId, bool)>,
 }
 
 impl GenericSegment {
@@ -520,8 +520,10 @@ impl GenericSegment {
         instance: LocalInstanceId,
         source: GlobalTypeId,
         resolved: GlobalTypeId,
+        is_evaluated: bool,
     ) {
-        self.instance_types.insert((instance, source), resolved);
+        self.instance_types
+            .insert((instance, source), (resolved, is_evaluated));
     }
 
     /// Return the materialized type of one template type under one instance.
@@ -530,16 +532,20 @@ impl GenericSegment {
         instance: LocalInstanceId,
         source: GlobalTypeId,
     ) -> Option<GlobalTypeId> {
-        self.instance_types.get(&(instance, source)).copied()
+        self.instance_types
+            .get(&(instance, source))
+            .map(|(resolved, _)| *resolved)
     }
 
     /// Iterate the materialized types recorded by this segment.
     pub fn iter_instance_types(
         &self,
-    ) -> impl Iterator<Item = (LocalInstanceId, GlobalTypeId, GlobalTypeId)> + '_ {
+    ) -> impl Iterator<Item = (LocalInstanceId, GlobalTypeId, GlobalTypeId, bool)> + '_ {
         self.instance_types
             .iter()
-            .map(|((instance, source), resolved)| (*instance, *source, *resolved))
+            .map(|((instance, source), (resolved, is_evaluated))| {
+                (*instance, *source, *resolved, *is_evaluated)
+            })
     }
 
     /// Record one instantiation a checked body performs.
@@ -626,7 +632,7 @@ impl TypeFold for GenericSegment {
         }
         // instance type keys reference sealed template types and stay as written
         for resolved in self.instance_types.values_mut() {
-            *resolved = map(*resolved)?;
+            resolved.0 = map(resolved.0)?;
         }
         for instantiation in &mut self.instantiations {
             instantiation.map_types(map)?;
