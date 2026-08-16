@@ -31,6 +31,99 @@ export struct IteratorReturn<R = void> {
 export newtype interface Iterator<T, R = void> {
     /// Advance and return the next yield or completion.
     next(): IteratorResult<T, R>;
+
+    /// Pair each yielded value with its index.
+    enumerate(this): EnumeratedIterator<this> {
+        todo("Iterator.enumerate")
+    }
+
+    /// Map each yielded value lazily.
+    map<U>(this, map: (value: T, index: isize) => U): MapIterator<this, T, U> {
+        todo("Iterator.map")
+    }
+
+    /// Retain yielded values accepted by `predicate`.
+    filter(this, predicate: (value: &readonly T, index: isize) => boolean): FilterIterator<this, T> {
+        todo("Iterator.filter")
+    }
+
+    /// Yield at most `limit` values.
+    take(this, limit: isize): TakeIterator<this> {
+        todo("Iterator.take")
+    }
+
+    /// Skip the first `count` values.
+    drop(this, count: isize): DropIterator<this> {
+        todo("Iterator.drop")
+    }
+
+    /// Map each yielded value to an iterable and yield its values.
+    flatMap<U, Q, V: Iterable<U, Q>>(
+        this,
+        map: (value: T, index: isize) => V,
+    ): FlatMapIterator<this, T, V, V.Iterator> {
+        todo("Iterator.flatMap")
+    }
+
+    /// Reduce yielded values using the first value as the initial accumulator.
+    reduce(this, reduce: (accumulator: T, value: T, index: isize) => T): T {
+        todo("Iterator.reduce")
+    }
+
+    /// Reduce yielded values from `initial`.
+    reduce<U>(this, reduce: (accumulator: U, value: T, index: isize) => U, initial: U): U {
+        todo("Iterator.reduce")
+    }
+
+    /// Collect yielded values into an array.
+    toArray(this): ^T[] {
+        todo("Iterator.toArray")
+    }
+
+    /// Consume every yielded value with `visit`.
+    forEach(this, visit: (value: T, index: isize) => void): void {
+        todo("Iterator.forEach");
+    }
+
+    /// Return whether any yielded value is accepted by `predicate`.
+    some(this, predicate: (value: T, index: isize) => boolean): boolean {
+        todo("Iterator.some")
+    }
+
+    /// Return whether every yielded value is accepted by `predicate`.
+    every(this, predicate: (value: T, index: isize) => boolean): boolean {
+        todo("Iterator.every")
+    }
+
+    /// Return the first value accepted by `predicate`.
+    find(this, predicate: (value: &readonly T, index: isize) => boolean): T | undefined {
+        todo("Iterator.find")
+    }
+
+    /// Collect this iterator into `C`.
+    collect<C>(this): C where C: FromIterator<T> {
+        C.fromIterator(this)
+    }
+
+    /// Return the first mapped value that is present.
+    findMap<U>(this, map: (value: T) => U | undefined): U | undefined {
+        todo("Iterator.findMap")
+    }
+
+    /// Fold values until the returned carrier breaks.
+    tryFold<F: Try>(this, initial: F.Output, fold: (accumulator: F.Output, value: T) => F): F {
+        todo("Iterator.tryFold")
+    }
+
+    /// Observe each yielded value without changing the sequence.
+    inspect(this, observe: (value: &readonly T) => void): InspectIterator<this, T> {
+        todo("Iterator.inspect")
+    }
+
+    /// Add one value of lookahead.
+    peekable(this): PeekableIterator<this, T, R> {
+        todo("Iterator.peekable")
+    }
 }
 
 /// A value that can produce an iterator.
@@ -68,13 +161,31 @@ export newtype interface Extend<T, const A: Access = "exclusive"> {
     extend(this: WithAccess<&this, A>, values: Iterable<T>): void;
 }
 
+/// Iterator that pairs each yielded value with its index.
+export struct EnumeratedIterator<I> {
+    /// The source iterator.
+    private iterator: I;
+
+    /// The index of the next source value.
+    private index: isize = 0;
+}
+
+export extension<T, R, I: Iterator<T, R>> of EnumeratedIterator<I>
+    implements
+        Iterator<(isize, T), R> {
+    /// Advance and pair the next yielded value with its index.
+    next(): IteratorResult<(isize, T), R> {
+        todo("EnumeratedIterator.next")
+    }
+}
+
 /// Iterator that maps each yielded value.
 export struct MapIterator<I, T, U> {
     /// The source iterator.
     private iterator: I;
 
     /// The transformation applied to each yielded value.
-    private map: (value: T, index: isize) => U;
+    private transform: (value: T, index: isize) => U;
 
     /// The index of the next source value.
     private index: isize = 0;
@@ -144,7 +255,7 @@ export struct FlatMapIterator<I, T, V, J> {
     private iterator: I;
 
     /// The transformation applied to each yielded value.
-    private map: (value: T, index: isize) => V;
+    private transform: (value: T, index: isize) => V;
 
     /// The nested iterator currently being consumed.
     private nested?: J;
@@ -207,7 +318,10 @@ export extension<T, R, I: Iterator<T, R>> of PeekableIterator<I, T, R> implement
 }
 
 /// Iterator that copies borrowed values.
-export newtype CopyIterator<I> = I;
+export struct CopyIterator<I> {
+    /// The source iterator.
+    private iterator: I;
+}
 
 export extension<T: Copy, R, I: Iterator<&readonly T, R>> of CopyIterator<I>
     implements
@@ -219,7 +333,10 @@ export extension<T: Copy, R, I: Iterator<&readonly T, R>> of CopyIterator<I>
 }
 
 /// Iterator that clones borrowed values.
-export newtype CloneIterator<I> = I;
+export struct CloneIterator<I> {
+    /// The source iterator.
+    private iterator: I;
+}
 
 export extension<T: Clone, R, I: Iterator<&readonly T, R>> of CloneIterator<I>
     implements
@@ -227,96 +344,6 @@ export extension<T: Clone, R, I: Iterator<&readonly T, R>> of CloneIterator<I>
     /// Advance and clone the next yielded value.
     next(): IteratorResult<T, R> {
         todo("CloneIterator.next")
-    }
-}
-
-export extension<T, R, I: Iterator<T, R>> of I {
-    /// Map each yielded value lazily.
-    map<U>(this, map: (value: T, index: isize) => U): MapIterator<I, T, U> {
-        todo("Iterator.map")
-    }
-
-    /// Retain yielded values accepted by `predicate`.
-    filter(this, predicate: (value: &readonly T, index: isize) => boolean): FilterIterator<I, T> {
-        todo("Iterator.filter")
-    }
-
-    /// Yield at most `limit` values.
-    take(this, limit: isize): TakeIterator<I> {
-        todo("Iterator.take")
-    }
-
-    /// Skip the first `count` values.
-    drop(this, count: isize): DropIterator<I> {
-        todo("Iterator.drop")
-    }
-
-    /// Map each yielded value to an iterable and yield its values.
-    flatMap<U, Q, V: Iterable<U, Q>>(
-        this,
-        map: (value: T, index: isize) => V,
-    ): FlatMapIterator<I, T, V, V.Iterator> {
-        todo("Iterator.flatMap")
-    }
-
-    /// Reduce yielded values using the first value as the initial accumulator.
-    reduce(this, reduce: (accumulator: T, value: T, index: isize) => T): T {
-        todo("Iterator.reduce")
-    }
-
-    /// Reduce yielded values from `initial`.
-    reduce<U>(this, reduce: (accumulator: U, value: T, index: isize) => U, initial: U): U {
-        todo("Iterator.reduce")
-    }
-
-    /// Collect yielded values into an array.
-    toArray(this): ^T[] {
-        todo("Iterator.toArray")
-    }
-
-    /// Consume every yielded value with `visit`.
-    forEach(this, visit: (value: T, index: isize) => void): void {
-        todo("Iterator.forEach");
-    }
-
-    /// Return whether any yielded value is accepted by `predicate`.
-    some(this, predicate: (value: T, index: isize) => boolean): boolean {
-        todo("Iterator.some")
-    }
-
-    /// Return whether every yielded value is accepted by `predicate`.
-    every(this, predicate: (value: T, index: isize) => boolean): boolean {
-        todo("Iterator.every")
-    }
-
-    /// Return the first value accepted by `predicate`.
-    find(this, predicate: (value: &readonly T, index: isize) => boolean): T | undefined {
-        todo("Iterator.find")
-    }
-
-    /// Collect this iterator into `C`.
-    collect<C>(this): C where C: FromIterator<T> {
-        C.fromIterator(this)
-    }
-
-    /// Return the first mapped value that is present.
-    findMap<U>(this, map: (value: T) => U | undefined): U | undefined {
-        todo("Iterator.findMap")
-    }
-
-    /// Fold values until the returned carrier breaks.
-    tryFold<F: Try>(this, initial: F.Output, fold: (accumulator: F.Output, value: T) => F): F {
-        todo("Iterator.tryFold")
-    }
-
-    /// Observe each yielded value without changing the sequence.
-    inspect(this, observe: (value: &readonly T) => void): InspectIterator<I, T> {
-        todo("Iterator.inspect")
-    }
-
-    /// Add one value of lookahead.
-    peekable(this): PeekableIterator<I, T, R> {
-        todo("Iterator.peekable")
     }
 }
 
