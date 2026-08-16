@@ -289,11 +289,11 @@ const same = left === right;
 /// @type.node source="left === right" type=<error>
 /// @type.node source=left type=Badge
 /// @resolution.name source=left target=left
-/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=left placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=left root=left
 /// @type.node source=right type=Badge
 /// @resolution.name source=right target=right
-/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=right placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=right root=right
 "#,
         r#"
@@ -341,7 +341,7 @@ const isReady = value === "ready";
 /// @type.node source=value type=string | User
 /// @resolution.name source=value target=value
 /// @resolution.operator source="value === \"ready\"" type=boolean operator="===" kind=builtin operands=[value as string | User, "ready" as string | User]
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @type.node source="\"ready\"" type="ready"
 "#,
@@ -379,7 +379,7 @@ const isPending = kind == "pending";
 /// @type.node source=kind type="pending" | "fulfilled"
 /// @resolution.name source=kind target=kind
 /// @resolution.operator source="kind == \"pending\"" type=boolean operator="==" kind=builtin operands=[kind as "pending" | "fulfilled" families=(string), "pending" as "pending" families=(string)]
-/// @resolution.place source=kind placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=kind placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=kind root=kind
 /// @type.node source="\"pending\"" type="pending"
 "#,
@@ -397,7 +397,7 @@ struct Badge {
 }
 
 extension of Badge implements PartialEqual<Badge> {
-    equal(other: Badge): boolean {
+    equal(&readonly this, other: Badge): boolean {
         this.id == other.id
     }
 }
@@ -420,7 +420,7 @@ struct Badge {
 }
 
 extension of Badge implements PartialEqual<Badge> {
-    equal(other: Badge): boolean {
+    equal(&readonly this, other: Badge): boolean {
         this.id == other.id
     }
 }
@@ -445,25 +445,26 @@ struct Badge {
 extension of Badge implements PartialEqual<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=PartialEqual<Badge>
-/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a readonly this, Badge) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=ops.equality.PartialEqual.equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 /// @resolution.name source=Badge target=Badge
 
-    equal(other: Badge): boolean {
+    equal(&readonly this, other: Badge): boolean {
     /// @generic.template symbol=equal parent=template#0 parameters=('a)
-    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
+    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a readonly this, Badge) => boolean
+    /// @type.symbol symbol=equal.this source="&readonly this" type=&equal.'a readonly this
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 
         this.id == other.id
-        /// @resolution.member source=this.id receiver=&equal.'a exclusive Badge type=float64 kind=field target_receiver=&equal.'a exclusive Badge key=id target=Badge.id target_type=float64
+        /// @resolution.member source=this.id receiver=&equal.'a readonly Badge type=float64 kind=field target_receiver=&equal.'a readonly Badge key=id target=Badge.id target_type=float64
         /// @resolution.operator source="this.id == other.id" type=boolean operator="==" kind=builtin operands=[this.id as float64 families=(float), other.id as float64 families=(float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a exclusive Badge
-        /// @resolution.place source=this placement="local" lifetime=equal.'a access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a readonly Badge
+        /// @resolution.place source=this placement="local" lifetime=equal.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.id placement="local" lifetime=equal.'a access="exclusive"
+        /// @resolution.place source=this.id placement="local" lifetime=equal.'a access="readonly"
         /// @resolution.access source=this.id root=this keys=[id]
         /// @resolution.name source=other target=equal.other
         /// @resolution.member source=other.id receiver=Badge type=float64 kind=field target_receiver=Badge key=id target=Badge.id target_type=float64
@@ -489,11 +490,11 @@ const same = left == right;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left == right" type=boolean operator="==" kind=call parameters=(Badge) arguments=(provided(right) as Badge) return=boolean kind=symbol target=equal receiver=Badge adjustments=(borrow(&'static exclusive Badge))
-/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.operator source="left == right" type=boolean operator="==" kind=call parameters=(Badge) arguments=(provided(right) as Badge) return=boolean kind=symbol target=equal receiver=Badge adjustments=(borrow(&'static readonly Badge))
+/// @resolution.place source=left placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=left root=left
 /// @resolution.name source=right target=right
-/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=right placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=right root=right
 "#,
     );
@@ -510,7 +511,7 @@ struct Measure {
 }
 
 extension of Measure implements PartialEqual<float64> {
-    equal(other: float64): boolean {
+    equal(&readonly this, other: float64): boolean {
         return this.value == other;
     }
 }
@@ -532,7 +533,7 @@ struct Measure {
 }
 
 extension of Measure implements PartialEqual<float64> {
-    equal(other: float64): boolean {
+    equal(&readonly this, other: float64): boolean {
         return this.value == other;
     }
 }
@@ -556,23 +557,24 @@ struct Measure {
 extension of Measure implements PartialEqual<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=Measure
 /// @definition.implements symbol=<module>#2 source=PartialEqual<float64> target=PartialEqual<float64>
-/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, float64) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a readonly this, float64) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=ops.equality.PartialEqual.equal
 /// @resolution.name source=Measure target=Measure
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 
-    equal(other: float64): boolean {
+    equal(&readonly this, other: float64): boolean {
     /// @generic.template symbol=equal parent=template#0 parameters=('a)
-    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a exclusive this, float64) => boolean
+    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a readonly this, float64) => boolean
+    /// @type.symbol symbol=equal.this source="&readonly this" type=&equal.'a readonly this
     /// @type.symbol symbol=equal.other source="other: float64" type=float64
 
         return this.value == other;
-        /// @resolution.member source=this.value receiver=&equal.'a exclusive Measure type=float64 kind=field target_receiver=&equal.'a exclusive Measure key=value target=Measure.value target_type=float64
+        /// @resolution.member source=this.value receiver=&equal.'a readonly Measure type=float64 kind=field target_receiver=&equal.'a readonly Measure key=value target=Measure.value target_type=float64
         /// @resolution.operator source="this.value == other" type=boolean operator="==" kind=builtin operands=[this.value as float64 families=(float), other as float64 families=(float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a exclusive Measure
-        /// @resolution.place source=this placement="local" lifetime=equal.'a access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a readonly Measure
+        /// @resolution.place source=this placement="local" lifetime=equal.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime=equal.'a access="exclusive"
+        /// @resolution.place source=this.value placement="local" lifetime=equal.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=equal.other
         /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
@@ -590,8 +592,8 @@ const same = measure == -0.0;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=measure target=measure
-/// @resolution.operator source="measure == -0.0" type=boolean operator="==" kind=call parameters=(float64) arguments=(provided(-0.0) as float64) return=boolean kind=symbol target=equal receiver=Measure adjustments=(borrow(&'static exclusive Measure))
-/// @resolution.place source=measure placement="local" lifetime="static" access="exclusive"
+/// @resolution.operator source="measure == -0.0" type=boolean operator="==" kind=call parameters=(float64) arguments=(provided(-0.0) as float64) return=boolean kind=symbol target=equal receiver=Measure adjustments=(borrow(&'static readonly Measure))
+/// @resolution.place source=measure placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=measure root=measure
 /// @resolution.operator source=-0.0 type=-0 operator="-" kind=builtin operands=[0.0 as 0 families=(float)]
 "#,

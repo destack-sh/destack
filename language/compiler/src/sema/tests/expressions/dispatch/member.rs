@@ -50,7 +50,7 @@ const x = point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @resolution.access source=point.x root=point keys=[x]
 "#,
@@ -64,7 +64,7 @@ fn test_struct_member_call_selects_method_symbol() {
 struct Point {
     x: int32;
 
-    length(): int32 {
+    length(&readonly this): int32 {
         return this.x;
     }
 }
@@ -82,7 +82,7 @@ const length = point.length();
 struct Point {
     x: int32;
 
-    length(): int32 {
+    length(&readonly this): int32 {
         return this.x;
     }
 }
@@ -95,23 +95,24 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a exclusive this) => int32
+/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a readonly this) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
-    length(): int32 {
+    length(&readonly this): int32 {
     /// @generic.template symbol=Point.length parameters=('a)
-    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a exclusive this) => int32
+    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a readonly this) => int32
+    /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'a readonly this
 
         return this.x;
-        /// @type.node source=this type=&Point.length.'a exclusive Point
+        /// @type.node source=this type=&Point.length.'a readonly Point
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=&Point.length.'a exclusive Point type=int32 kind=field target_receiver=&Point.length.'a exclusive Point key=x target=Point.x target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'a exclusive Point
-        /// @resolution.place source=this placement="local" lifetime=Point.length.'a access="exclusive"
+        /// @resolution.member source=this.x receiver=&Point.length.'a readonly Point type=int32 kind=field target_receiver=&Point.length.'a readonly Point key=x target=Point.x target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'a readonly Point
+        /// @resolution.place source=this placement="local" lifetime=Point.length.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement="local" lifetime=Point.length.'a access="exclusive"
+        /// @resolution.place source=this.x placement="local" lifetime=Point.length.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
 
     }
@@ -128,12 +129,12 @@ const length = point.length();
 /// @type.symbol symbol=length source=length type=int32
 /// @resolution.pattern source=length kind=binding target=length
 /// @type.node source=point type=Point
-/// @type.node source=point.length type=<Point.length.'a>(this: &Point.length.'a exclusive Point) => int32
+/// @type.node source=point.length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
 /// @type.node source=point.length() type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.length receiver=Point type=<Point.length.'a>(this: &Point.length.'a exclusive Point) => int32 kind=symbol target_receiver=Point target=Point.length
-/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point adjustments=(borrow(&'static exclusive Point))
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.member source=point.length receiver=Point type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32 kind=symbol target_receiver=Point target=Point.length
+/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point adjustments=(borrow(&'static readonly Point))
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 "#,
     );
@@ -188,7 +189,7 @@ const x = point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=geometry.Point type=int32 kind=field target_receiver=geometry.Point key=x target=geometry.Point.x target_type=int32
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @resolution.access source=point.x root=point keys=[x]
 "#,
@@ -329,9 +330,9 @@ function read(): int32 {
     /// @type.node source=state.value type=int32
     /// @resolution.name source=state target=state
     /// @resolution.member source=state.value receiver=State type=int32 kind=field target_receiver=State key=value target=State.value target_type=int32
-    /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=state placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=state root=state
-    /// @resolution.place source=state.value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=state.value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=state.value root=state keys=[value]
 
 }
@@ -499,7 +500,7 @@ const first = handler.run(1);
 /// @resolution.name source=handler target=handler
 /// @resolution.member source=handler.run receiver=Handler type=Function<(int32,), int32> kind=field target_receiver=Handler key=run target=Handler.run target_type=Function<(int32,), int32>
 /// @resolution.call source=handler.run(1) parameters=(int32) arguments=(provided(1) as int32) return=int32 kind=expression target=expression
-/// @resolution.place source=handler placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handler placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=handler root=handler
 /// @resolution.access source=handler.run root=handler keys=[run]
 /// @type.node source=1 type=1
@@ -513,7 +514,7 @@ const second = handler.run(2);
 /// @resolution.name source=handler target=handler
 /// @resolution.member source=handler.run receiver=Handler type=Function<(int32,), int32> kind=field target_receiver=Handler key=run target=Handler.run target_type=Function<(int32,), int32>
 /// @resolution.call source=handler.run(2) parameters=(int32) arguments=(provided(2) as int32) return=int32 kind=expression target=expression
-/// @resolution.place source=handler placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handler placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=handler root=handler
 /// @resolution.access source=handler.run root=handler keys=[run]
 /// @type.node source=2 type=2
@@ -571,7 +572,7 @@ const x = point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @resolution.access source=point.x root=point keys=[x]
 "#,

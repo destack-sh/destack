@@ -29,11 +29,11 @@ type Point {
     y: int32;
 }
 
-function test.main.Point.length<'a>(v0: ref<Point, borrowed, 'a, exclusive>): int32 {
-entry(v0: ref<Point, borrowed, 'a, exclusive>):
-    v1: ref<int32, borrowed, exclusive> = field.address v0, 0
+function test.main.Point.length<'a>(v0: ref<Point, borrowed, 'a, readonly>): int32 {
+entry(v0: ref<Point, borrowed, 'a, readonly>):
+    v1: ref<int32, borrowed, readonly> = field.address v0, 0
     v2: int32 = load v1
-    v3: ref<int32, borrowed, exclusive> = field.address v0, 1
+    v3: ref<int32, borrowed, readonly> = field.address v0, 1
     v4: int32 = load v3
     v5: int32 = int.add v2, v4
     return v5
@@ -47,8 +47,8 @@ entry:
     v1: int32 = 4
     v2: Point = aggregate (v0, v1)
     local.set l0, v2
-    v3: ref<Point, borrowed, 'frame, exclusive> = local.address l0
-    v4: int32 = call test.main.Point.length(v3): <'a>(ref<Point, borrowed, 'a, exclusive>) => int32
+    v3: ref<Point, borrowed, 'frame, readonly> = local.address l0
+    v4: int32 = call test.main.Point.length(v3): <'a>(ref<Point, borrowed, 'a, readonly>) => int32
     return v4
 }
 /// @layout.struct name=Point size=8 align=4
@@ -65,7 +65,7 @@ fn test_lower_struct_method_mutation_through_implicit_this() {
 struct Counter {
     count: int32;
 
-    bump(by: int32): void {
+    bump(&exclusive this, by: int32): void {
         this.count += by;
     }
 }
@@ -182,8 +182,8 @@ function probe(status: Status): boolean {
 @copy
 type Status = variant<int64> { 1int64 = void; 2int64 = void; };
 
-function test.main.Status.isActive<'a>(v0: ref<Status, borrowed, 'a, exclusive>): boolean {
-entry(v0: ref<Status, borrowed, 'a, exclusive>):
+function test.main.Status.isActive<'a>(v0: ref<Status, borrowed, 'a, readonly>): boolean {
+entry(v0: ref<Status, borrowed, 'a, readonly>):
     v1: Status = load v0
     v2: int64 = variant.tag v1
     v3: Status = variant.new 0
@@ -197,8 +197,8 @@ function test.main.probe(v0: Status): boolean {
 
 entry(v0: Status):
     local.set l0, v0
-    v1: ref<Status, borrowed, 'frame, exclusive> = local.address l0
-    v2: boolean = call test.main.Status.isActive(v1): <'a>(ref<Status, borrowed, 'a, exclusive>) => boolean
+    v1: ref<Status, borrowed, 'frame, readonly> = local.address l0
+    v2: boolean = call test.main.Status.isActive(v1): <'a>(ref<Status, borrowed, 'a, readonly>) => boolean
     return v2
 }
 /// @layout.variant name=Status size=8 align=8

@@ -10,7 +10,7 @@ struct Point {
 }
 
 extension of Point {
-    sum(): int32 {
+    sum(&readonly this): int32 {
         return this.x + this.y;
     }
 }
@@ -31,7 +31,7 @@ struct Point {
 }
 
 extension of Point {
-    sum(): int32 {
+    sum(&readonly this): int32 {
         return this.x + this.y;
     }
 }
@@ -56,31 +56,32 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a exclusive this) => int32
+/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
 /// @resolution.name source=Point target=Point
 
-    sum(): int32 {
+    sum(&readonly this): int32 {
     /// @generic.template symbol=sum parameters=('a)
-    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a exclusive this) => int32
+    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
+    /// @type.symbol symbol=sum.this source="&readonly this" type=&sum.'a readonly this
 
         return this.x + this.y;
         /// @type.node source="this.x + this.y" type=int32
-        /// @type.node source=this type=&sum.'a exclusive Point
+        /// @type.node source=this type=&sum.'a readonly Point
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=&sum.'a exclusive Point type=int32 kind=field target_receiver=&sum.'a exclusive Point key=x target=Point.x target_type=int32
+        /// @resolution.member source=this.x receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=x target=Point.x target_type=int32
         /// @resolution.operator source="this.x + this.y" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), this.y as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a exclusive Point
-        /// @resolution.place source=this placement="local" lifetime=sum.'a access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
+        /// @resolution.place source=this placement="local" lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement="local" lifetime=sum.'a access="exclusive"
+        /// @resolution.place source=this.x placement="local" lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
-        /// @type.node source=this type=&sum.'a exclusive Point
+        /// @type.node source=this type=&sum.'a readonly Point
         /// @type.node source=this.y type=int32
-        /// @resolution.member source=this.y receiver=&sum.'a exclusive Point type=int32 kind=field target_receiver=&sum.'a exclusive Point key=y target=Point.y target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a exclusive Point
-        /// @resolution.place source=this placement="local" lifetime=sum.'a access="exclusive"
+        /// @resolution.member source=this.y receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=y target=Point.y target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
+        /// @resolution.place source=this placement="local" lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.y placement="local" lifetime=sum.'a access="exclusive"
+        /// @resolution.place source=this.y placement="local" lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.y root=this keys=[y]
 
     }
@@ -95,12 +96,12 @@ const value = point.sum();
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=point type=Point
-/// @type.node source=point.sum type=<sum.'a>(this: &sum.'a exclusive Point) => int32
+/// @type.node source=point.sum type=<sum.'a>(this: &sum.'a readonly Point) => int32
 /// @type.node source=point.sum() type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.sum receiver=Point type=<sum.'a>(this: &sum.'a exclusive Point) => int32 kind=symbol target_receiver=Point target=sum
-/// @resolution.call source=point.sum() parameters=() return=int32 kind=symbol target=sum receiver=Point adjustments=(borrow(&'static exclusive Point))
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.member source=point.sum receiver=Point type=<sum.'a>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Point target=sum
+/// @resolution.call source=point.sum() parameters=() return=int32 kind=symbol target=sum receiver=Point adjustments=(borrow(&'static readonly Point))
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 "#);
 }
@@ -161,31 +162,31 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a exclusive this) => int32
+/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
 /// @resolution.name source=Point target=Point
 
     sum(): int32 {
     /// @generic.template symbol=sum parameters=('a)
-    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a exclusive this) => int32
+    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
 
         return this.x + this.y;
         /// @type.node source="this.x + this.y" type=int32
-        /// @type.node source=this type=&sum.'a exclusive Point
+        /// @type.node source=this type=&sum.'a readonly Point
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=&sum.'a exclusive Point type=int32 kind=field target_receiver=&sum.'a exclusive Point key=x target=Point.x target_type=int32
+        /// @resolution.member source=this.x receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=x target=Point.x target_type=int32
         /// @resolution.operator source="this.x + this.y" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), this.y as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a exclusive Point
-        /// @resolution.place source=this placement="local" lifetime=sum.'a access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
+        /// @resolution.place source=this placement="local" lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement="local" lifetime=sum.'a access="exclusive"
+        /// @resolution.place source=this.x placement="local" lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
-        /// @type.node source=this type=&sum.'a exclusive Point
+        /// @type.node source=this type=&sum.'a readonly Point
         /// @type.node source=this.y type=int32
-        /// @resolution.member source=this.y receiver=&sum.'a exclusive Point type=int32 kind=field target_receiver=&sum.'a exclusive Point key=y target=Point.y target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a exclusive Point
-        /// @resolution.place source=this placement="local" lifetime=sum.'a access="exclusive"
+        /// @resolution.member source=this.y receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=y target=Point.y target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
+        /// @resolution.place source=this placement="local" lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.y placement="local" lifetime=sum.'a access="exclusive"
+        /// @resolution.place source=this.y placement="local" lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.y root=this keys=[y]
 
     }
@@ -201,7 +202,7 @@ point.length();
 /// @type.node source=point.length type=<error>
 /// @type.node source=point.length() type=<error>
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @resolution.rejected source=point.length
 /// @resolution.rejected source=point.length()
@@ -309,6 +310,7 @@ extension<T> of Slice<T> {
 }
 "#,
         r#"
+
 "#,
     );
 }

@@ -71,7 +71,7 @@ export extension of IoError implements Error {
     }
 
     /// Return the underlying cause.
-    source(): Dynamic<Error> | undefined {
+    source(): readonly Dynamic<Error> | undefined {
         this.cause
     }
 }
@@ -95,7 +95,7 @@ export extension of PathError implements Error {
     }
 
     /// Return the underlying I/O error.
-    source(): Dynamic<Error> | undefined {
+    source(): readonly Dynamic<Error> | undefined {
         this.error
     }
 }

@@ -132,6 +132,143 @@ function shift(point: &Point): int32 {
 }
 
 #[test]
+fn test_record_mutable_binding_storage_uses() {
+    let session = TestSession::single(
+        r#"
+struct Counter {
+    value: int32;
+
+    increment(&exclusive this): void {
+        this.value += 1;
+    }
+}
+
+class Service {
+    value: int32 = 0;
+
+    increment(&exclusive this): void {
+        this.value += 1;
+    }
+}
+
+declare function modify(value: &int32): void;
+
+let borrowed: int32 = 0;
+&borrowed;
+
+let passed: int32 = 0;
+modify(passed);
+
+let field: Counter = Counter { value: 0 };
+field.value = 1;
+
+let called: Counter = Counter { value: 0 };
+called.increment();
+
+let referenced: Service = new Service();
+referenced.increment();
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::none().with_flows(),
+        r#"
+=== annotated ===
+struct Counter {
+    value: int32;
+
+    increment(&exclusive this): void {
+        this.value += 1;
+    }
+}
+
+class Service {
+    value: int32 = 0;
+
+    increment(&exclusive this): void {
+        this.value += 1;
+    }
+}
+
+declare function modify<'a>(value: &'a int32): void;
+
+let borrowed: int32 = 0;
+&borrowed;
+
+let passed: int32 = 0;
+modify(passed as &'static int32);
+
+let field: Counter = Counter { value: 0 };
+field.value = 1;
+
+let called: Counter = Counter { value: 0 };
+called.increment();
+
+let referenced: Service = new Service();
+referenced.increment();
+
+=== dir ===
+struct Counter {
+/// @flow.use symbol=Counter uses=read
+
+    value: int32;
+    /// @flow.use symbol=value#1 uses=read+written
+
+    increment(&exclusive this): void {
+    /// @flow.use symbol=increment#1 uses=read
+
+        this.value += 1;
+    }
+}
+
+class Service {
+/// @flow.use symbol=Service uses=read
+
+    value: int32 = 0;
+    /// @flow.use symbol=value#2 uses=read+written
+
+    increment(&exclusive this): void {
+    /// @flow.use symbol=increment#2 uses=read
+
+        this.value += 1;
+    }
+}
+
+declare function modify(value: &int32): void;
+/// @flow.use symbol=modify uses=read
+
+let borrowed: int32 = 0;
+/// @flow.use symbol=borrowed uses=read+mutable
+
+&borrowed;
+
+let passed: int32 = 0;
+/// @flow.use symbol=passed uses=read+mutable
+
+modify(passed);
+
+let field: Counter = Counter { value: 0 };
+/// @flow.use symbol=field uses=read+mutable
+
+field.value = 1;
+
+let called: Counter = Counter { value: 0 };
+/// @flow.use symbol=called uses=read+mutable
+
+called.increment();
+
+let referenced: Service = new Service();
+/// @flow.use symbol=referenced uses=read
+
+referenced.increment();
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
 fn test_record_unreachable_branches_in_the_flow_segment() {
     let session = TestSession::single(
         r#"

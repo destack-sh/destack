@@ -1047,7 +1047,7 @@ impl WalkState<'_, '_> {
 
     /// Synthesize the implicit receiver form shared by signature and body.
     ///
-    /// Getters receive readonly views, while other bare value receivers borrow exclusively.
+    /// Getters and bare value receivers receive readonly views, while setters borrow exclusively.
     /// Explicit receiver forms retain their declared form.
     fn implicit_receiver_form(
         &mut self,
@@ -1087,14 +1087,16 @@ impl WalkState<'_, '_> {
             return Ok(Some(self.intern_borrow(lifetime, access)?));
         }
 
-        // bare value methods borrow exclusively
+        // bare value methods borrow readonly, setters exclusively
         if scope.ownership != Some(dir::Ownership::Owned) {
             return Ok(None);
         }
+        let requested = match signature.role {
+            Some(dir::FunctionRole::Setter) => dir::Access::Exclusive,
+            _ => dir::Access::Readonly,
+        };
         let lifetime = self.generated_receiver_borrow_lifetime(id.into_any())?;
-        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-            dir::Access::Exclusive,
-        )))?;
+        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(requested)))?;
 
         Ok(Some(self.intern_borrow(lifetime, access)?))
     }

@@ -356,6 +356,126 @@ sharedBuffer.clear();
 }
 
 #[test]
+fn test_restrict_borrowed_receivers_of_immutable_direct_storage() {
+    let session = TestSession::single(
+        r#"
+struct Counter {
+    value: int32;
+
+    read(&readonly this): int32 {
+        return this.value;
+    }
+
+    increment(&exclusive this): void {
+        this.value = this.value + 1;
+    }
+}
+
+declare const counter: Counter;
+
+counter.read();
+counter.increment();
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Counter {
+    value: int32;
+
+    read(&readonly this): int32 {
+        return this.value;
+    }
+
+    increment(&exclusive this): void {
+        this.value = this.value + 1;
+    }
+}
+
+declare const counter: Counter;
+
+counter.read();
+counter.increment();
+
+=== dir ===
+struct Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.struct symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => void
+/// @definition.method symbol=Counter.read slot=read type=<Counter.read.'a>(this: &Counter.read.'a readonly this) => int32
+
+    value: int32;
+    /// @type.symbol symbol=Counter.value source="value: int32" type=int32
+
+    read(&readonly this): int32 {
+    /// @generic.template symbol=Counter.read parameters=('a)
+    /// @type.symbol symbol=Counter.read type=<Counter.read.'a>(this: &Counter.read.'a readonly this) => int32
+    /// @type.symbol symbol=Counter.read.this source="&readonly this" type=&Counter.read.'a readonly this
+
+        return this.value;
+        /// @resolution.member source=this.value receiver=&Counter.read.'a readonly Counter type=int32 kind=field target_receiver=&Counter.read.'a readonly Counter key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.read.'a readonly Counter
+        /// @resolution.place source=this placement="local" lifetime=Counter.read.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=Counter.read.'a access="readonly"
+        /// @resolution.access source=this.value root=this keys=[value]
+
+    }
+
+    increment(&exclusive this): void {
+    /// @generic.template symbol=Counter.increment parameters=('a)
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => void
+    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'a exclusive this
+
+        this.value = this.value + 1;
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
+        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
+        /// @resolution.assignment source=this.value write="receiver=&Counter.increment.'a exclusive Counter, target=field(receiver=&Counter.increment.'a exclusive Counter, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
+        /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
+        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
+
+    }
+}
+
+declare const counter: Counter;
+/// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
+/// @resolution.name source=Counter target=Counter
+
+counter.read();
+/// @resolution.name source=counter target=counter
+/// @resolution.member source=counter.read receiver=Counter type=<Counter.read.'a>(this: &Counter.read.'a readonly Counter) => int32 kind=symbol target_receiver=Counter target=Counter.read
+/// @resolution.call source=counter.read() parameters=() return=int32 kind=symbol target=Counter.read receiver=Counter adjustments=(borrow(&'static readonly Counter))
+/// @resolution.place source=counter placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=counter root=counter
+
+counter.increment();
+/// @resolution.name source=counter target=counter
+/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => void kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.call source=counter.increment() parameters=() return=void kind=symbol target=Counter.increment receiver=Counter
+/// @resolution.place source=counter placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=counter root=counter
+"#,
+        r#"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'Counter' is not assignable to the method's 'this' type '&exclusive Counter'"
+/// @diagnostic.label line=17 column=1 span="counter.increment()" line_source="counter.increment();"
+"#,
+    );
+}
+
+#[test]
 fn test_reject_readonly_view_calling_an_implicit_struct_method() {
     let session = TestSession::single(
         r#"
@@ -395,29 +515,29 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.scale slot=scale type=<Point.scale.'a>(this: &Point.scale.'a exclusive this, int32) => void
+/// @definition.method symbol=Point.scale slot=scale type=<Point.scale.'a>(this: &Point.scale.'a readonly this, int32) => void
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     scale(by: int32): void {
     /// @generic.template symbol=Point.scale parameters=('a)
-    /// @type.symbol symbol=Point.scale type=<Point.scale.'a>(this: &Point.scale.'a exclusive this, int32) => void
+    /// @type.symbol symbol=Point.scale type=<Point.scale.'a>(this: &Point.scale.'a readonly this, int32) => void
     /// @type.symbol symbol=Point.scale.by source="by: int32" type=int32
 
         this.x = this.x * by;
-        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'a exclusive Point
-        /// @resolution.place source=this placement="local" lifetime=Point.scale.'a access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'a readonly Point
+        /// @resolution.place source=this placement="local" lifetime=Point.scale.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.x kind=place
         /// @resolution.access source=this.x root=this keys=[x]
-        /// @resolution.assignment source=this.x write="receiver=&Point.scale.'a exclusive Point, target=field(receiver=&Point.scale.'a exclusive Point, target=Point.x, type=int32), type=int32" type=int32
-        /// @resolution.member source=this.x receiver=&Point.scale.'a exclusive Point type=int32 kind=field target_receiver=&Point.scale.'a exclusive Point key=x target=Point.x target_type=int32
+        /// @resolution.assignment source=this.x write="receiver=Readonly<&Point.scale.'a readonly Point>, target=field(receiver=Readonly<&Point.scale.'a readonly Point>, target=Point.x, type=int32), type=int32" type=int32
+        /// @resolution.member source=this.x receiver=&Point.scale.'a readonly Point type=int32 kind=field target_receiver=&Point.scale.'a readonly Point key=x target=Point.x target_type=int32
         /// @resolution.operator source="this.x * by" type=int32 operator="*" kind=builtin operands=[this.x as int32 families=(integer), by as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'a exclusive Point
-        /// @resolution.place source=this placement="local" lifetime=Point.scale.'a access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'a readonly Point
+        /// @resolution.place source=this placement="local" lifetime=Point.scale.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement="local" lifetime=Point.scale.'a access="exclusive"
+        /// @resolution.place source=this.x placement="local" lifetime=Point.scale.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
         /// @resolution.name source=by target=Point.scale.by
         /// @resolution.place source=by placement="local" lifetime="frame" access="exclusive"
@@ -433,16 +553,16 @@ function freeze(point: readonly Point): void {
 
     point.scale(2);
     /// @resolution.name source=point target=freeze.point
-    /// @resolution.member source=point.scale receiver=Readonly<Point> type=<Point.scale.'a>(this: &Point.scale.'a exclusive Point, int32) => void kind=symbol target_receiver=Readonly<Point> target=Point.scale
-    /// @resolution.call source=point.scale(2) parameters=(int32) arguments=(provided(2) as int32) return=void kind=symbol target=Point.scale receiver=Readonly<Point>
+    /// @resolution.member source=point.scale receiver=Readonly<Point> type=<Point.scale.'a>(this: &Point.scale.'a readonly Point, int32) => void kind=symbol target_receiver=Readonly<Point> target=Point.scale
+    /// @resolution.call source=point.scale(2) parameters=(int32) arguments=(provided(2) as int32) return=void kind=symbol target=Point.scale receiver=Readonly<Point> adjustments=(Readonly<Point> => direct -> Point, borrow(&'frame readonly Point))
     /// @resolution.place source=point placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=point root=freeze.point
 
 }
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type 'readonly Point' is not assignable to the method's 'this' type '&exclusive Point'"
-/// @diagnostic.label line=11 column=5 span="point.scale(2)" line_source="point.scale(2);"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'x'"
+/// @diagnostic.label line=6 column=14 span="x" line_source="this.x = this.x * by;"
 "#,
     );
 }
