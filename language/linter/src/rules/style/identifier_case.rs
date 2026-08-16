@@ -118,6 +118,7 @@ impl IdentifierCase {
             | dir::SymbolKind::Variant => Some(Self::Pascal),
             dir::SymbolKind::AssociatedConst
             | dir::SymbolKind::Function
+            | dir::SymbolKind::GenericConstParameter
             | dir::SymbolKind::GenericLifetimeParameter
             | dir::SymbolKind::Import
             | dir::SymbolKind::Label

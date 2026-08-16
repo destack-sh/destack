@@ -93,6 +93,7 @@ impl From<dir::SymbolKind> for CompletionItemKind {
             dir::SymbolKind::TypeAlias => CompletionItemKind::TypeAlias,
             dir::SymbolKind::AssociatedType => CompletionItemKind::AssociatedType,
             dir::SymbolKind::GenericTypeParameter => CompletionItemKind::TypeParameter,
+            dir::SymbolKind::GenericConstParameter => CompletionItemKind::Variable,
             dir::SymbolKind::Newtype => CompletionItemKind::Newtype,
         }
     }

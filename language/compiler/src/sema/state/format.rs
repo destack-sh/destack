@@ -882,6 +882,7 @@ impl CheckState<'_> {
             || symbol.role == dir::SymbolRole::Namespace
             || symbol.kind == dir::SymbolKind::TypeAlias
             || symbol.kind == dir::SymbolKind::GenericTypeParameter
+            || symbol.kind == dir::SymbolKind::GenericConstParameter
             || symbol.kind == dir::SymbolKind::GenericLifetimeParameter
     }
 

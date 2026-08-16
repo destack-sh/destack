@@ -71,6 +71,7 @@ impl TryFrom<dir::SymbolKind> for SymbolKind {
             dir::SymbolKind::TypeAlias => Ok(Self::TypeAlias),
             dir::SymbolKind::Variable => Ok(Self::Variable),
             dir::SymbolKind::GenericTypeParameter
+            | dir::SymbolKind::GenericConstParameter
             | dir::SymbolKind::GenericLifetimeParameter
             | dir::SymbolKind::Parameter
             | dir::SymbolKind::Label

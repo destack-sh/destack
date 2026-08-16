@@ -49,7 +49,12 @@ impl GenericParameter {
     /// Return the symbol kind introduced by this generic parameter.
     pub fn symbol_kind(&self) -> Option<SymbolKind> {
         match self {
-            Self::Type { .. } | Self::VariadicType { .. } => Some(SymbolKind::GenericTypeParameter),
+            Self::Type { is_const, .. } | Self::VariadicType { is_const, .. } => {
+                Some(match is_const {
+                    true => SymbolKind::GenericConstParameter,
+                    false => SymbolKind::GenericTypeParameter,
+                })
+            }
             Self::Lifetime { .. } => Some(SymbolKind::GenericLifetimeParameter),
             Self::Error => None,
         }

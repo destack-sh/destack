@@ -47,8 +47,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if !matches!(
             symbol.kind,
             dir::SymbolKind::AssociatedConst
-                | dir::SymbolKind::GenericLifetimeParameter
-                | dir::SymbolKind::GenericTypeParameter
+                | dir::SymbolKind::GenericConstParameter
                 | dir::SymbolKind::Parameter
                 | dir::SymbolKind::Variable
         ) {
@@ -64,11 +63,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // read the declared value or const constraint type
         let symbol_id = symbol_id.into_global(module.id);
-        let is_generic = matches!(
-            symbol.kind,
-            dir::SymbolKind::GenericLifetimeParameter | dir::SymbolKind::GenericTypeParameter
-        );
-        let type_id = if is_generic {
+        let is_const_parameter = symbol.kind == dir::SymbolKind::GenericConstParameter;
+        let type_id = if is_const_parameter {
             let parameter_id = module
                 .generics
                 .parameter_by_symbol(symbol_id)
@@ -78,11 +74,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                     ))
                 })?;
             let binding = module.generics.get_parameter(parameter_id);
-
-            // only const parameters name runtime values
-            if symbol.kind == dir::SymbolKind::GenericTypeParameter && !binding.is_const {
-                continue;
-            }
             let Some(constraint) = binding.constraint else {
                 continue;
             };

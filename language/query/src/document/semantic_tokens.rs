@@ -80,6 +80,7 @@ impl TryFrom<dir::SymbolKind> for SemanticTokenType {
             | dir::SymbolKind::TypeAlias
             | dir::SymbolKind::Newtype => Ok(Self::Type),
             dir::SymbolKind::GenericTypeParameter => Ok(Self::TypeParameter),
+            dir::SymbolKind::GenericConstParameter => Ok(Self::Variable),
             dir::SymbolKind::ExportAlias => Err(QueryError::invalid(
                 "export alias has no selected declaration classification",
             )),
@@ -795,7 +796,9 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
             None => SemanticTokenModifiers::NONE,
         };
         let modifiers = match symbol.kind {
-            dir::SymbolKind::GenericLifetimeParameter => SemanticTokenModifiers::READONLY,
+            dir::SymbolKind::GenericLifetimeParameter | dir::SymbolKind::GenericConstParameter => {
+                SemanticTokenModifiers::READONLY
+            }
             dir::SymbolKind::Variable
                 if symbol.binding_mutability == Some(dir::Mutability::Immutable) =>
             {
@@ -1142,6 +1145,11 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
                 let parameter = view.get::<dir::GenericParameter>(parameter_id);
                 let (token_type, modifiers) = match parameter {
+                    dir::GenericParameter::Type { is_const: true, .. }
+                    | dir::GenericParameter::VariadicType { is_const: true, .. } => (
+                        SemanticTokenType::Variable,
+                        SemanticTokenModifiers::DECLARATION.union(SemanticTokenModifiers::READONLY),
+                    ),
                     dir::GenericParameter::Type { .. }
                     | dir::GenericParameter::VariadicType { .. } => (
                         SemanticTokenType::TypeParameter,

@@ -46,7 +46,9 @@ impl Symbol {
     pub fn is_generic_parameter(&self) -> bool {
         matches!(
             self.kind,
-            SymbolKind::GenericTypeParameter | SymbolKind::GenericLifetimeParameter
+            SymbolKind::GenericTypeParameter
+                | SymbolKind::GenericConstParameter
+                | SymbolKind::GenericLifetimeParameter
         )
     }
 }
@@ -226,6 +228,8 @@ pub enum SymbolKind {
     TypeAlias,
     /// Generic type parameter symbol.
     GenericTypeParameter,
+    /// Generic const parameter symbol.
+    GenericConstParameter,
     /// Generic lifetime parameter symbol.
     GenericLifetimeParameter,
     /// Associated type declaration symbol.
