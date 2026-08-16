@@ -1290,6 +1290,7 @@ const kept = values
     /// @type.symbol symbol=symbol4 source="(value) => value !== undefined" type=Function<(&type_expression.'a readonly int32,), boolean>
     /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a readonly int32
     /// @resolution.name source=value target=symbol4.value
+    /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 families=(integer), undefined as undefined families=(undefined)]
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=symbol4.value
 
@@ -1298,6 +1299,8 @@ const kept = values
 /// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.map#1<int32> template=collections.array.map#1 arguments=(int32, int32)
 "#,
         r#"
+/// @diagnostic.error id=invalid-strict-equality message="this comparison is unintentional: types '&'a readonly int32' and 'undefined' have no overlap"
+/// @diagnostic.label line=6 column=30 span="!==" line_source=".filter((value) => value !== undefined);"
 "#,
     );
 }
@@ -1399,7 +1402,8 @@ declare const values: (int32 | undefined)[];
 const defined: ^Array<int32 | undefined> = values.map<int32 | undefined, int32 | undefined>(
     (value: int32 | undefined): int32 | undefined => value,
 ).filter<int32 | undefined>(
-    (value: &'a readonly (int32 | undefined)): boolean => value !== undefined,
+    (value: &'a readonly (int32 | undefined)): boolean =>
+        value !== (undefined as int32 | undefined),
 );
 
 === checked ===
@@ -1427,6 +1431,7 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @type.symbol symbol=symbol4 source="(value) => value !== undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>
 /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a readonly int32 | undefined
 /// @resolution.name source=value target=symbol4.value
+/// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol4.value
 
@@ -2817,5 +2822,151 @@ extension<T, E> of AsyncResult<T, E> {
 /// @generic.instance id="Result<U#3, F#2>" template=Result arguments=(U#3, F#2)
 /// @generic.instance id="result<U#2, E#4 | F#1>" template=result arguments=(U#2, E#4 | F#1)
 /// @generic.instance id=Promise<U#1> template=Promise arguments=(U#1)
+"#);
+}
+
+/// Commit operator decisions inside every callback of a chained generic call.
+#[test]
+fn test_chained_callback_operators_commit_decisions() {
+    let session = TestSession::single(
+        r#"
+function positive(values: int32[]): int32[] {
+    return values.map((value) => value + 1).filter((value) => value > 0);
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+function positive(values: int32[]): int32[] {
+    return values.map<int32, int32>((value: int32): int32 => value + 1).filter<int32>(
+        (value: &'a readonly int32): boolean => (value as int32) > 0,
+    ) as int32[];
+}
+
+=== checked ===
+function positive(values: int32[]): int32[] {
+/// @type.symbol symbol=positive type=(Array<int32>) => Array<int32>
+/// @type.symbol symbol=positive.values source="values: int32[]" type=Array<int32>
+
+    return values.map((value) => value + 1).filter((value) => value > 0);
+    /// @type.node source="values.map((value) => value + 1)" type=Owned<Array<int32>>
+    /// @type.node source="values.map((value) => value + 1).filter" type=(this: Owned<Array<int32>>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<Array<int32>> & (this: Owned<Array<int32>>, Function<(int32, isize), boolean>) => Owned<Array<int32>>
+    /// @type.node source="values.map((value) => value + 1).filter((value) => value > 0)" type=Owned<Array<int32>>
+    /// @type.node source=values type=Array<int32>
+    /// @type.node source=values.map type=<collections.array.map.U#2>(this: Array<int32>, Function<(int32, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>>
+    /// @resolution.name source=values target=positive.values
+    /// @resolution.member source="values.map((value) => value + 1).filter" receiver=Owned<Array<int32>> type=(this: Owned<Array<int32>>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<Array<int32>> & (this: Owned<Array<int32>>, Function<(int32, isize), boolean>) => Owned<Array<int32>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
+    /// @resolution.member source=values.map receiver=Array<int32> type=<collections.array.map.U#2>(this: Array<int32>, Function<(int32, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=symbol target_receiver=Array<int32> target=collections.array.map#2
+    /// @resolution.call source="values.map((value) => value + 1)" parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value + 1) as Function<(int32, isize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#2 receiver=Array<int32> instance=Array<int32>.<extension#3>.map#2<int32>
+    /// @resolution.call source="values.map((value) => value + 1).filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=positive.values
+    /// @generic.instance source="values.map((value) => value + 1)" id=Array<int32>
+    /// @generic.instance source="values.map((value) => value + 1)" id=Array<int32>.<extension#3>.map#2<int32>
+    /// @generic.instance source="values.map((value) => value + 1).filter" id=Array<int32>
+    /// @generic.instance source="values.map((value) => value + 1).filter((value) => value > 0)" id=Array<int32>
+    /// @generic.instance source="values.map((value) => value + 1).filter((value) => value > 0)" id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+    /// @generic.instance source=values.map id=Array<collections.array.map.U#2>
+    /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32,), int32>
+    /// @type.node source="(value) => value + 1" type=Function<(int32,), int32>
+    /// @type.symbol symbol=positive.symbol3.value source=value type=int32
+    /// @type.node source="value + 1" type=int32
+    /// @type.node source=value type=int32
+    /// @resolution.name source=value target=positive.symbol3.value
+    /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=positive.symbol3.value
+    /// @type.node source=1 type=1
+    /// @type.symbol symbol=positive.symbol5 source="(value) => value > 0" type=Function<(&type_expression.'a readonly int32,), boolean>
+    /// @type.node source="(value) => value > 0" type=Function<(&type_expression.'a readonly int32,), boolean>
+    /// @type.symbol symbol=positive.symbol5.value source=value type=&type_expression.'a readonly int32
+    /// @type.node source="value > 0" type=boolean
+    /// @type.node source=value type=&type_expression.'a readonly int32
+    /// @resolution.name source=value target=positive.symbol5.value
+    /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=positive.symbol5.value
+    /// @type.node source=0 type=0
+
+}
+
+/// @generic.instance id=Array<collections.array.map.U#2> template=collections.array.Array arguments=(collections.array.map.U#2)
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=Array<int32>.<extension#3>.map#2<int32> template=collections.array.map#2 arguments=(int32, int32)
+/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32)
+"#);
+}
+
+/// Commit the inequality decision inside the second callback of a chain.
+#[test]
+fn test_chained_callback_inequality_commits_its_decision() {
+    let session = TestSession::single(
+        r#"
+function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
+    return values.map((value) => value).filter((value) => value !== undefined);
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+=== annotated ===
+function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
+    return values.map<int32 | undefined, int32 | undefined>(
+        (value: int32 | undefined): int32 | undefined => value,
+    ).filter<int32 | undefined>(
+        (value: &'a readonly (int32 | undefined)): boolean =>
+            value !== (undefined as int32 | undefined),
+    ) as (int32 | undefined)[];
+}
+
+=== checked ===
+function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
+/// @type.symbol symbol=defined type=(Array<int32 | undefined>) => Array<int32 | undefined>
+/// @type.symbol symbol=defined.values source="values: (int32 | undefined)[]" type=Array<int32 | undefined>
+
+    return values.map((value) => value).filter((value) => value !== undefined);
+    /// @type.node source="values.map((value) => value)" type=Owned<Array<int32 | undefined>>
+    /// @type.node source="values.map((value) => value).filter" type=(this: Owned<Array<int32 | undefined>>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>> & (this: Owned<Array<int32 | undefined>>, Function<(int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>>
+    /// @type.node source="values.map((value) => value).filter((value) => value !== undefined)" type=Owned<Array<int32 | undefined>>
+    /// @type.node source=values type=Array<int32 | undefined>
+    /// @type.node source=values.map type=<collections.array.map.U#2>(this: Array<int32 | undefined>, Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>>
+    /// @resolution.name source=values target=defined.values
+    /// @resolution.member source="values.map((value) => value).filter" receiver=Owned<Array<int32 | undefined>> type=(this: Owned<Array<int32 | undefined>>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>> & (this: Owned<Array<int32 | undefined>>, Function<(int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
+    /// @resolution.member source=values.map receiver=Array<int32 | undefined> type=<collections.array.map.U#2>(this: Array<int32 | undefined>, Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=symbol target_receiver=Array<int32 | undefined> target=collections.array.map#2
+    /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.map#2 receiver=Array<int32 | undefined> instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
+    /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32 | undefined>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=defined.values
+    /// @generic.instance source="values.map((value) => value)" id="Array<int32 | undefined>"
+    /// @generic.instance source="values.map((value) => value)" id="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
+    /// @generic.instance source="values.map((value) => value).filter" id="Array<int32 | undefined>"
+    /// @generic.instance source="values.map((value) => value).filter((value) => value !== undefined)" id="Array<int32 | undefined>"
+    /// @generic.instance source="values.map((value) => value).filter((value) => value !== undefined)" id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+    /// @generic.instance source=values.map id=Array<collections.array.map.U#2>
+    /// @type.symbol symbol=defined.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
+    /// @type.node source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
+    /// @type.symbol symbol=defined.symbol3.value source=value type=int32 | undefined
+    /// @type.node source=value type=int32 | undefined
+    /// @resolution.name source=value target=defined.symbol3.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=defined.symbol3.value
+    /// @type.symbol symbol=defined.symbol5 source="(value) => value !== undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>
+    /// @type.node source="(value) => value !== undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>
+    /// @type.symbol symbol=defined.symbol5.value source=value type=&type_expression.'a readonly int32 | undefined
+    /// @type.node source="value !== undefined" type=boolean
+    /// @type.node source=value type=&type_expression.'a readonly int32 | undefined
+    /// @resolution.name source=value target=defined.symbol5.value
+    /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=defined.symbol5.value
+    /// @type.node source=undefined type=undefined
+
+}
+
+/// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
+/// @generic.instance id="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
+/// @generic.instance id=Array<collections.array.map.U#2> template=collections.array.Array arguments=(collections.array.map.U#2)
+/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32 | undefined)
 "#);
 }

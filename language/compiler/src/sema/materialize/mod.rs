@@ -1,4 +1,5 @@
 mod error;
+mod instance;
 mod provide;
 mod warning;
 

@@ -4,6 +4,7 @@ mod cardinality;
 mod closure;
 mod conditional;
 mod r#const;
+mod instance;
 mod method;
 mod module;
 mod parameter;

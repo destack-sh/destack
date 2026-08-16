@@ -267,6 +267,15 @@ impl CheckState<'_> {
         Ok(id)
     }
 
+    /// Evaluate one closed type graph, reducing every head that decides.
+    pub(in crate::sema) fn evaluate_type(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.substitute_graph(self.module_id, id, SubstitutionRule::Normalize { origin })
+    }
+
     /// Translate the declared types into semantic types, normal by construction.
     pub(in crate::sema) fn translate_declared_types(&mut self) -> CompilerResult<()> {
         // rebuild each declared symbol type over normalized heads
