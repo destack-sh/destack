@@ -188,8 +188,8 @@ impl CallItem {
                 "call hierarchy construction: {source:?}"
             )))?;
         let selected = match &resolution.target {
-            dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
-            dir::ConstructTarget::Class(_) => return Self::from_symbol(program, entry.callee),
+            dir::ConstructTarget::Newtype { selection, .. } => selection.symbol,
+            dir::ConstructTarget::Class { .. } => return Self::from_symbol(program, entry.callee),
             // skip dynamic constructions, they index no declaration edge
             dir::ConstructTarget::Dynamic { .. } => {
                 return Err(QueryError::invalid(format!(
@@ -215,12 +215,12 @@ impl CallItem {
 
         // format only the exact generated constructor selected at this call
         match &resolution.target {
-            dir::ConstructTarget::Newtype(candidate) => {
-                let call = ConstructorCall::new(&candidate.generic_arguments, resolution);
+            dir::ConstructTarget::Newtype { selection, .. } => {
+                let call = ConstructorCall::new(&selection.arguments, resolution);
 
                 module.newtype_call_item(program, entry.callee, Some(call))
             }
-            dir::ConstructTarget::Class(_) | dir::ConstructTarget::Dynamic { .. } => {
+            dir::ConstructTarget::Class { .. } | dir::ConstructTarget::Dynamic { .. } => {
                 Err(QueryError::invalid("construct call item"))
             }
         }
@@ -377,13 +377,16 @@ impl CallableSelection<'_> {
     /// Return the callable represented by one construction.
     fn from_resolution(resolution: &dir::ConstructDecision) -> QueryResult<CallableSelection<'_>> {
         match &resolution.target {
-            dir::ConstructTarget::Class(candidate) => match candidate.constructor.call_symbol() {
+            dir::ConstructTarget::Class {
+                selection,
+                constructor,
+            } => match constructor.call_symbol() {
                 Some(symbol) => Ok(CallableSelection::Symbol(symbol)),
-                None => Ok(CallableSelection::Symbol(candidate.symbol)),
+                None => Ok(CallableSelection::Symbol(selection.symbol)),
             },
-            dir::ConstructTarget::Newtype(candidate) => Ok(CallableSelection::Newtype {
-                symbol_id: candidate.symbol,
-                call: ConstructorCall::new(&candidate.generic_arguments, resolution),
+            dir::ConstructTarget::Newtype { selection, .. } => Ok(CallableSelection::Newtype {
+                symbol_id: selection.symbol,
+                call: ConstructorCall::new(&selection.arguments, resolution),
             }),
             dir::ConstructTarget::Dynamic { .. } => Ok(CallableSelection::DeclarationFree),
         }

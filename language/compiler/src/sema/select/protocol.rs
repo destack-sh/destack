@@ -812,10 +812,9 @@ impl BodyState<'_, '_> {
             receiver: candidate.receiver.resolve(receiver),
             space: candidate.space,
             owner: candidate.owner,
-            symbol,
             access_type: candidate.access_type,
             callable_type: candidate.callable,
-            generic_arguments: generic_arguments.clone(),
+            selection: dir::Selection::new(symbol, generic_arguments.clone()),
         });
         let access = dir::MemberAccess::new(receiver, target, candidate.access_type);
         let resolution = dir::OperationResolution::One(access);

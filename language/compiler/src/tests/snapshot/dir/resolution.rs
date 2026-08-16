@@ -7,8 +7,10 @@ use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::ResolutionSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
-        let stacked = dir::ResolutionTable::from_segments(Vec::new());
-        stacked.with_tail(self).add_snapshot_rows(builder);
+        let base = dir::SegmentView::from_segments(Vec::new());
+        let table = dir::ResolutionTable::from_view(base.with_tail(self));
+
+        table.add_snapshot_rows(builder);
     }
 }
 
@@ -31,8 +33,10 @@ impl SnapshotTable for dir::ResolutionTable<'_> {
 
 impl SnapshotTable for dir::DecisionSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
-        let stacked = dir::DecisionTable::from_segments(Vec::new());
-        stacked.with_tail(self).add_snapshot_rows(builder);
+        let base = dir::SegmentView::from_segments(Vec::new());
+        let table = dir::DecisionTable::from_view(base.with_tail(self));
+
+        table.add_snapshot_rows(builder);
     }
 }
 
@@ -365,11 +369,11 @@ fn add_label_decision_row(
 fn add_instantiation_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::InstantiationDecision,
+    resolution: &dir::Selection,
 ) {
     let anchor = builder.anchor_node(node_id);
     let source = builder.node_source(node_id);
-    let arguments = generic_argument_values(&resolution.generic_arguments);
+    let arguments = generic_argument_values(&resolution.arguments);
     let instance = builder.generic_instance_label(resolution.symbol, &arguments);
     let row = SnapshotRow::new(anchor, "resolution", "instantiation")
         .optional_field("source", source.clone())
@@ -382,7 +386,7 @@ fn add_instantiation_decision_row(
         anchor,
         source,
         resolution.symbol,
-        &resolution.generic_arguments,
+        &resolution.arguments,
     );
 }
 
@@ -471,9 +475,17 @@ fn add_member_access_fields(
     access: &dir::MemberAccess,
 ) -> SnapshotRow {
     match &access.target {
-        dir::MemberTarget::Projection { projection, .. } => row
+        dir::MemberTarget::Projection {
+            receiver,
+            projection,
+            ..
+        } => row
             .field("kind", "projection")
-            .field("target", projection_label(builder, projection)),
+            .field("target", projection_label(builder, projection))
+            .optional_field(
+                "adjustments",
+                receiver_adjustments_label(builder, &receiver.adjustments),
+            ),
         dir::MemberTarget::Field(field) => {
             let row =
                 add_member_receiver_fields(builder, row.field("kind", "field"), &field.receiver);
@@ -512,7 +524,11 @@ fn add_member_access_fields(
             row.field("target", builder.member_candidate_label(candidate))
                 .optional_field(
                     "instance",
-                    generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
+                    generic_instance_label(
+                        builder,
+                        candidate.selection.symbol,
+                        &candidate.selection.arguments,
+                    ),
                 )
         }
         dir::MemberTarget::Existential(candidates) => row.field("kind", "existential").list_field(
@@ -868,16 +884,12 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
                 builder.global_type_label(*ty)
             )
         }
-        dir::Projection::NewtypePayload {
-            symbol,
-            generic_arguments,
-            ty,
-        } => {
-            let arguments = projection_generic_arguments_label(builder, generic_arguments);
+        dir::Projection::NewtypePayload { selection, ty } => {
+            let arguments = projection_generic_arguments_label(builder, &selection.arguments);
 
             format!(
                 "newtype.payload({}{}, {})",
-                builder.symbol_path_label(*symbol),
+                builder.symbol_path_label(selection.symbol),
                 arguments,
                 builder.global_type_label(*ty)
             )
@@ -1044,7 +1056,17 @@ fn dereference_label(builder: &DirSnapshotBuilder<'_>, dereference: &dir::Derefe
 /// Return one member target snapshot label.
 fn member_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::MemberTarget) -> String {
     match target {
-        dir::MemberTarget::Projection { projection, .. } => projection_label(builder, projection),
+        dir::MemberTarget::Projection {
+            receiver,
+            projection,
+            ..
+        } => {
+            let projection = projection_label(builder, projection);
+            match receiver_adjustments_label(builder, &receiver.adjustments) {
+                Some(adjustments) => format!("{projection} adjustments={adjustments}"),
+                None => projection,
+            }
+        }
         dir::MemberTarget::Field(field) => field_resolution_label(builder, field),
         dir::MemberTarget::Call(call) => call_label(builder, call),
         dir::MemberTarget::Index(index) => {
@@ -1330,11 +1352,14 @@ fn add_construct_decision_row(
         .type_field("return", builder.global_type_label(resolution.return_type));
 
     let row = match &resolution.target {
-        dir::ConstructTarget::Class(candidate) => {
-            add_class_construct_candidate_fields(builder, row.field("kind", "class"), candidate)
+        dir::ConstructTarget::Class {
+            selection,
+            constructor,
+        } => {
+            add_class_construct_fields(builder, row.field("kind", "class"), selection, constructor)
         }
-        dir::ConstructTarget::Newtype(candidate) => {
-            add_construct_candidate_fields(builder, row.field("kind", "newtype"), candidate)
+        dir::ConstructTarget::Newtype { selection, backing } => {
+            add_newtype_construct_fields(builder, row.field("kind", "newtype"), selection, *backing)
         }
         dir::ConstructTarget::Dynamic { dispatch, function } => row
             .field("kind", "dynamic")
@@ -1423,8 +1448,10 @@ fn construct_target_label(
     target: &dir::ConstructTarget,
 ) -> String {
     match target {
-        dir::ConstructTarget::Class(candidate) => builder.symbol_path_label(candidate.symbol),
-        dir::ConstructTarget::Newtype(candidate) => builder.symbol_path_label(candidate.symbol),
+        dir::ConstructTarget::Class { selection, .. }
+        | dir::ConstructTarget::Newtype { selection, .. } => {
+            builder.symbol_path_label(selection.symbol)
+        }
         dir::ConstructTarget::Dynamic { function, .. } => dynamic_function_label(builder, function),
     }
 }
@@ -1631,10 +1658,17 @@ fn add_pattern_destructure_fields(
                     .map(|rest| pattern_rest_label(builder, segment, rest)),
             ),
         dir::PatternDestructureResolution::Nominal(nominal) => row
-            .field("target", builder.symbol_path_label(nominal.symbol))
+            .field(
+                "target",
+                builder.symbol_path_label(nominal.selection.symbol),
+            )
             .optional_field(
                 "instance",
-                generic_instance_label(builder, nominal.symbol, &nominal.generic_arguments),
+                generic_instance_label(
+                    builder,
+                    nominal.selection.symbol,
+                    &nominal.selection.arguments,
+                ),
             )
             .object_field(
                 "fields",
@@ -1811,9 +1845,9 @@ fn receiver_adjustment_label(
             format!("borrow({})", builder.global_type_label(*ty))
         }
         dir::ReceiverAdjustment::Dereference(resolution) => dereference_label(builder, resolution),
-        dir::ReceiverAdjustment::NewtypePayload { symbol, ty, .. } => format!(
+        dir::ReceiverAdjustment::NewtypePayload { selection, ty } => format!(
             "newtype.payload({}, {})",
-            builder.symbol_path_label(*symbol),
+            builder.symbol_path_label(selection.symbol),
             builder.global_type_label(*ty)
         ),
         dir::ReceiverAdjustment::UnionPayload { union, arm, ty } => format!(
@@ -1844,20 +1878,18 @@ fn dynamic_function_label(
     format!("{operation}({source})")
 }
 
-/// Add direct class construct candidate fields.
-fn add_class_construct_candidate_fields(
+/// Add direct class construct fields.
+fn add_class_construct_fields(
     builder: &DirSnapshotBuilder<'_>,
     row: SnapshotRow,
-    candidate: &dir::ClassConstructCandidate,
+    selection: &dir::Selection,
+    constructor: &dir::ClassConstructor,
 ) -> SnapshotRow {
-    row.field("target", builder.symbol_path_label(candidate.symbol))
-        .optional_field(
-            "constructor",
-            class_constructor_label(builder, &candidate.constructor),
-        )
+    row.field("target", builder.symbol_path_label(selection.symbol))
+        .optional_field("constructor", class_constructor_label(builder, constructor))
         .optional_field(
             "instance",
-            generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
+            generic_instance_label(builder, selection.symbol, &selection.arguments),
         )
 }
 
@@ -1879,17 +1911,18 @@ fn class_constructor_label(
     }
 }
 
-/// Add direct newtype construct candidate fields.
-fn add_construct_candidate_fields(
+/// Add direct newtype construct fields.
+fn add_newtype_construct_fields(
     builder: &DirSnapshotBuilder<'_>,
     row: SnapshotRow,
-    candidate: &dir::NewtypeSelection,
+    selection: &dir::Selection,
+    backing: dir::GlobalTypeId,
 ) -> SnapshotRow {
-    row.field("target", builder.symbol_path_label(candidate.symbol))
-        .type_field("backing", builder.global_type_label(candidate.backing))
+    row.field("target", builder.symbol_path_label(selection.symbol))
+        .type_field("backing", builder.global_type_label(backing))
         .optional_field(
             "instance",
-            generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
+            generic_instance_label(builder, selection.symbol, &selection.arguments),
         )
 }
 
@@ -1908,8 +1941,8 @@ fn add_member_target_generic_instances(
                 builder,
                 anchor,
                 source,
-                candidate.symbol,
-                &candidate.generic_arguments,
+                candidate.selection.symbol,
+                &candidate.selection.arguments,
             );
         }
         dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
@@ -2063,22 +2096,14 @@ fn add_construct_target_generic_instances(
     let source = builder.node_source(node_id);
 
     match target {
-        dir::ConstructTarget::Class(candidate) => {
+        dir::ConstructTarget::Class { selection, .. }
+        | dir::ConstructTarget::Newtype { selection, .. } => {
             add_generic_instance(
                 builder,
                 anchor,
                 source,
-                candidate.symbol,
-                &candidate.generic_arguments,
-            );
-        }
-        dir::ConstructTarget::Newtype(candidate) => {
-            add_generic_instance(
-                builder,
-                anchor,
-                source,
-                candidate.symbol,
-                &candidate.generic_arguments,
+                selection.symbol,
+                &selection.arguments,
             );
         }
         dir::ConstructTarget::Dynamic { .. } => {}
@@ -2190,12 +2215,14 @@ fn add_projection_generic_instance(
     projection: &dir::Projection,
 ) {
     match projection {
-        dir::Projection::NewtypePayload {
-            symbol,
-            generic_arguments,
-            ..
-        } => {
-            add_generic_instance(builder, anchor, source, *symbol, generic_arguments);
+        dir::Projection::NewtypePayload { selection, .. } => {
+            add_generic_instance(
+                builder,
+                anchor,
+                source,
+                selection.symbol,
+                &selection.arguments,
+            );
         }
         dir::Projection::Absent { .. }
         | dir::Projection::Field(_)
@@ -2227,8 +2254,8 @@ fn add_destructure_generic_instance(
                 builder,
                 anchor,
                 source,
-                nominal.symbol,
-                &nominal.generic_arguments,
+                nominal.selection.symbol,
+                &nominal.selection.arguments,
             );
         }
         dir::PatternDestructureResolution::Tuple(_)
@@ -2270,12 +2297,19 @@ fn function_target_instance_label(
     function: &dir::FunctionTarget,
 ) -> Option<String> {
     let Some(owner) = function.generic_scope else {
-        return generic_instance_label(builder, function.symbol, &function.generic_arguments);
+        return generic_instance_label(
+            builder,
+            function.selection.symbol,
+            &function.selection.arguments,
+        );
     };
 
-    let owner_arguments = generic_instance_arguments(builder, owner, &function.generic_arguments);
-    let member_arguments =
-        generic_instance_arguments(builder, function.symbol, &function.generic_arguments);
+    let owner_arguments = generic_instance_arguments(builder, owner, &function.selection.arguments);
+    let member_arguments = generic_instance_arguments(
+        builder,
+        function.selection.symbol,
+        &function.selection.arguments,
+    );
     if owner_arguments.is_empty() && member_arguments.is_empty() {
         return None;
     }
@@ -2284,9 +2318,9 @@ fn function_target_instance_label(
         builder,
         owner,
         &owner_arguments,
-        &function.generic_arguments,
+        &function.selection.arguments,
     );
-    let member_label = function_target_member_label(builder, owner, function.symbol);
+    let member_label = function_target_member_label(builder, owner, function.selection.symbol);
     let member_label = match member_arguments.as_slice() {
         [] => member_label,
         _ => format!(
@@ -2409,9 +2443,9 @@ fn add_function_target_generic_instance(
     let Some(label) = function_target_instance_label(builder, function) else {
         return;
     };
-    let arguments = generic_argument_values(&function.generic_arguments);
+    let arguments = generic_argument_values(&function.selection.arguments);
     let arguments = builder.generic_instance_arguments_label(&arguments);
-    let template = builder.symbol_path_label(function.symbol);
+    let template = builder.symbol_path_label(function.selection.symbol);
 
     builder.add_generic_instance_row(
         anchor,

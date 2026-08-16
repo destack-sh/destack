@@ -84,15 +84,15 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         };
-        let key = match function.generic_arguments.is_empty() {
-            true => GenericInstanceKey::non_generic(function.symbol),
+        let key = match function.selection.arguments.is_empty() {
+            true => GenericInstanceKey::non_generic(function.selection.symbol),
             false => {
                 let bindings = self
                     .lowerer
-                    .instance_bindings(&function.generic_arguments, &self.type_substitution)?;
+                    .instance_bindings(&function.selection.arguments, &self.type_substitution)?;
                 let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
-                self.generic_instance_key(function.symbol, &arguments)?
+                self.generic_instance_key(function.selection.symbol, &arguments)?
             }
         };
         let id = self.function(&key)?;
@@ -258,7 +258,11 @@ impl FunctionLowerer<'_, '_, '_> {
         construct: &dir::ConstructDecision,
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
-        let dir::ConstructTarget::Class(candidate) = &construct.target else {
+        let dir::ConstructTarget::Class {
+            selection,
+            constructor,
+        } = &construct.target
+        else {
             return Err(CompilerError::Internal {
                 message: "tree component constructed a non-class target".to_string(),
             });
@@ -273,8 +277,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
         self.lower_class_instance(
             construct.return_type,
-            &candidate.constructor,
-            &candidate.generic_arguments,
+            constructor,
+            &selection.arguments,
             vec![props],
         )
     }

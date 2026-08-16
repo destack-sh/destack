@@ -21,8 +21,7 @@ impl NewtypeInstance {
         ty: dir::GlobalTypeId,
     ) -> dir::ReceiverAdjustment {
         dir::ReceiverAdjustment::NewtypePayload {
-            symbol: self.symbol,
-            generic_arguments: self.generic_arguments,
+            selection: dir::Selection::new(self.symbol, self.generic_arguments),
             ty,
         }
     }
@@ -30,8 +29,7 @@ impl NewtypeInstance {
     /// Convert this application into a runtime payload projection.
     pub(in crate::sema) fn into_projection(self) -> dir::Projection {
         dir::Projection::NewtypePayload {
-            symbol: self.symbol,
-            generic_arguments: self.generic_arguments,
+            selection: dir::Selection::new(self.symbol, self.generic_arguments),
             ty: self.backing,
         }
     }

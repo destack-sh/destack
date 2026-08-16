@@ -1233,7 +1233,7 @@ impl BodyState<'_, '_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
                     "selected IndexSet member {:?} has no callable type",
-                    candidate.symbol
+                    candidate.selection.symbol
                 ),
             })?;
         let Some((callable, signature)) = self.callable_signature_type(origin, callable_type)?
@@ -1263,7 +1263,7 @@ impl BodyState<'_, '_> {
             return Err(CompilerError::Internal {
                 message: format!(
                     "selected IndexSet member {:?} has no checked return type",
-                    candidate.symbol
+                    candidate.selection.symbol
                 ),
             });
         };
@@ -1272,15 +1272,14 @@ impl BodyState<'_, '_> {
                 function: dir::FunctionTarget {
                     receiver: Some(receiver.clone()),
                     generic_scope: Some(candidate.owner),
-                    symbol: candidate.symbol,
-                    generic_arguments: candidate.generic_arguments.clone(),
+                    selection: candidate.selection.clone(),
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },
             dir::MemberReceiver::Dynamic(dispatch) => dir::CallableTarget::Dynamic {
                 dispatch: dispatch.clone(),
-                function: dir::DynamicFunction::Symbol(candidate.symbol),
-                generic_arguments: candidate.generic_arguments.clone(),
+                function: dir::DynamicFunction::Symbol(candidate.selection.symbol),
+                generic_arguments: candidate.selection.arguments.clone(),
             },
         };
 

@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Dereference, GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, TypeFold};
+use crate::{Dereference, GlobalSymbolId, GlobalTypeId, Selection, TypeFold, WalkSelections};
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
 ///
@@ -10,7 +10,9 @@ use crate::{Dereference, GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, T
 /// this.name      // declaration: the enclosing class, ty: its instance type
 /// super.render() // declaration: the enclosing class, ty: its superclass type
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub struct ReceiverDecision {
     /// The receiver syntax kind.
     pub kind: ReceiverKind,
@@ -27,7 +29,19 @@ pub struct ReceiverDecision {
 /// this
 /// super
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    TypeFold,
+    WalkSelections,
+)]
 pub enum ReceiverKind {
     /// The active `this` receiver.
     ///
@@ -46,7 +60,9 @@ pub enum ReceiverKind {
 }
 
 /// One receiver and its ordered implicit transformations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub struct AdjustedReceiver {
     /// The receiver type before adjustment.
     pub source: GlobalTypeId,
@@ -78,7 +94,9 @@ impl AdjustedReceiver {
 }
 
 /// Receiver selected for one member access.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub enum MemberReceiver {
     /// Member selected directly from the adjusted receiver.
     Direct(AdjustedReceiver),
@@ -134,7 +152,9 @@ impl MemberReceiver {
 }
 
 /// Erased receiver selected for dynamic dispatch.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub struct DynamicDispatch {
     /// The erased receiver.
     pub receiver: AdjustedReceiver,
@@ -151,7 +171,9 @@ pub struct DynamicDispatch {
 /// userId.length        // NewtypePayload, when the backing string exposes `length`
 /// shape.radius         // UnionPayload, after narrowing selects one union arm
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub enum ReceiverAdjustment {
     /// Borrow the receiver for one method call.
     Borrow {
@@ -162,10 +184,8 @@ pub enum ReceiverAdjustment {
     Dereference(Dereference),
     /// Project the payload of one newtype receiver.
     NewtypePayload {
-        /// The selected newtype symbol.
-        symbol: GlobalSymbolId,
-        /// The selected generic argument bindings.
-        generic_arguments: Vec<GenericArgumentBinding>,
+        /// The selected newtype declaration and its generic arguments.
+        selection: Selection,
         /// The adjusted receiver type.
         ty: GlobalTypeId,
     },

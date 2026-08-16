@@ -28,12 +28,15 @@ impl FunctionLowerer<'_, '_, '_> {
                 dispatch: dir::FunctionDispatch::Direct,
             } => {
                 // route intrinsic and binding callables before declared functions
-                match self.lowerer.callable_implementation(function.symbol)? {
+                match self
+                    .lowerer
+                    .callable_implementation(function.selection.symbol)?
+                {
                     Some(CallableImplementation::Intrinsic { name }) => {
                         return self.lower_intrinsic_call(name, call);
                     }
                     Some(CallableImplementation::Binding { .. }) => {
-                        return self.lower_binding_call(function.symbol, call);
+                        return self.lower_binding_call(function.selection.symbol, call);
                     }
                     None => {}
                 }
@@ -48,7 +51,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 // local or imported (...)
                 else {
-                    self.lower_function_call(function.symbol, call)
+                    self.lower_function_call(function.selection.symbol, call)
                 }
             }
             // value(...)
@@ -68,7 +71,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return whether one function target binds generic arguments beyond lifetimes.
     fn has_instance_arguments(&self, function: &dir::FunctionTarget) -> CompilerResult<bool> {
-        for binding in &function.generic_arguments {
+        for binding in &function.selection.arguments {
             let parameter = binding.parameter;
             let generics = &self.lowerer.state(parameter.module_id)?.generics;
             let declared = generics.get_parameter(parameter.local_id);
@@ -203,9 +206,9 @@ impl FunctionLowerer<'_, '_, '_> {
         // resolve the declared function behind the selected method instance
         let bindings = self
             .lowerer
-            .instance_bindings(&function.generic_arguments, &self.type_substitution)?;
+            .instance_bindings(&function.selection.arguments, &self.type_substitution)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let key = self.generic_instance_key(function.symbol, &arguments)?;
+        let key = self.generic_instance_key(function.selection.symbol, &arguments)?;
         let function = self.function(&key)?;
 
         // bind the arguments after the receiver
@@ -224,9 +227,9 @@ impl FunctionLowerer<'_, '_, '_> {
         // select the declared instance from the substituted arguments
         let bindings = self
             .lowerer
-            .instance_bindings(&function.generic_arguments, &self.type_substitution)?;
+            .instance_bindings(&function.selection.arguments, &self.type_substitution)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let key = self.generic_instance_key(function.symbol, &arguments)?;
+        let key = self.generic_instance_key(function.selection.symbol, &arguments)?;
         let function = self.function(&key)?;
         let values = self.lower_provided_arguments(resolution)?;
 

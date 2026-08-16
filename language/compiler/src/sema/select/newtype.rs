@@ -39,8 +39,10 @@ pub(in crate::sema) enum NewtypeMatch {
 /// One selected newtype backing signature.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct NewtypeSignature {
-    /// The selected newtype backing.
-    pub(in crate::sema) selection: dir::NewtypeSelection,
+    /// The selected newtype declaration and its generic arguments.
+    pub(in crate::sema) selection: dir::Selection,
+    /// The selected instantiated backing alternative.
+    pub(in crate::sema) backing: dir::GlobalTypeId,
     /// The selected backing signature.
     pub(in crate::sema) signature: SignatureSelection,
 }
@@ -278,15 +280,11 @@ impl BodyState<'_, '_> {
             receiver: None,
         };
         let backing = self.substitute_type(candidate.backing, &substitution)?;
-        let selection = dir::NewtypeSelection {
-            symbol,
-            backing,
-            generic_arguments: signature.generic_arguments.clone(),
-        };
 
         // build the selected signature over the substituted backing
         let signature = NewtypeSignature {
-            selection,
+            selection: dir::Selection::new(symbol, signature.generic_arguments.clone()),
+            backing,
             signature,
         };
 
@@ -360,7 +358,7 @@ impl BodyState<'_, '_> {
         // collect every type the selection embeds
         let mut types = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         types.push(signature.signature.return_type);
-        types.push(signature.selection.backing);
+        types.push(signature.backing);
         types.extend(
             signature
                 .signature
@@ -369,7 +367,7 @@ impl BodyState<'_, '_> {
                 .map(|parameter| parameter.parameter.ty),
         );
         types.extend(dir::GenericArgumentBinding::values(
-            &signature.selection.generic_arguments,
+            &signature.selection.arguments,
         ));
 
         // keep the whole selection open for one open variable

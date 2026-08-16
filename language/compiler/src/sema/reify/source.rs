@@ -518,12 +518,12 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         else {
             return Ok(());
         };
-        let dir::ConstructTarget::Newtype(candidate) = &resolution.target else {
+        let dir::ConstructTarget::Newtype { selection, .. } = &resolution.target else {
             return Ok(());
         };
 
         self.anchor((*left).into_any());
-        let Some(reified) = self.types.reify_symbol_expression(candidate.symbol) else {
+        let Some(reified) = self.types.reify_symbol_expression(selection.symbol) else {
             return Ok(());
         };
         let dir::Expression::Call { left, .. } = self.types.tree.get_mut(expression_id) else {
@@ -584,7 +584,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             dir::Call {
                 target: dir::CallableTarget::Symbol { function, .. },
                 ..
-            } => function.generic_arguments.as_slice(),
+            } => function.selection.arguments.as_slice(),
         };
         if arguments.is_empty() {
             return Ok(());
@@ -653,8 +653,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         };
 
         let arguments = match &resolution.target {
-            dir::ConstructTarget::Class(candidate) => candidate.generic_arguments.as_slice(),
-            dir::ConstructTarget::Newtype(candidate) => candidate.generic_arguments.as_slice(),
+            dir::ConstructTarget::Class { selection, .. }
+            | dir::ConstructTarget::Newtype { selection, .. } => selection.arguments.as_slice(),
             dir::ConstructTarget::Dynamic { .. } => &[],
         };
         if arguments.is_empty() {

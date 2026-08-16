@@ -28,7 +28,7 @@ impl CheckState<'_> {
 
         let value = match &resolution.selection {
             dir::DecoratorSelection::Newtype {
-                newtype, arguments, ..
+                backing, arguments, ..
             } => {
                 let expression = self
                     .module_view(module)
@@ -38,7 +38,7 @@ impl CheckState<'_> {
                     module,
                     expression,
                     arguments,
-                    newtype.backing,
+                    *backing,
                     resolution.ty,
                 )? {
                     Ok(value) => value,
@@ -234,7 +234,7 @@ impl CheckState<'_> {
 
                 // evaluate selected newtype constructors nominally
                 if let Some(dir::ConstructDecision {
-                    target: dir::ConstructTarget::Newtype(candidate),
+                    target: dir::ConstructTarget::Newtype { backing, .. },
                     arguments,
                     return_type,
                 }) = resolution
@@ -243,7 +243,7 @@ impl CheckState<'_> {
                         module,
                         expression,
                         &arguments,
-                        candidate.backing,
+                        backing,
                         return_type,
                     )
                 }

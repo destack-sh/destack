@@ -112,8 +112,7 @@ impl SignatureSelection {
                 function: dir::FunctionTarget {
                     receiver: Some(receiver),
                     generic_scope: Some(owner),
-                    symbol,
-                    generic_arguments,
+                    selection: dir::Selection::new(symbol, generic_arguments),
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },

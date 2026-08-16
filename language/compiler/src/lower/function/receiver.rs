@@ -133,17 +133,17 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a protocol dereference selected no direct method".to_string(),
                     });
                 };
-                let key = match function.generic_arguments.is_empty() {
-                    true => GenericInstanceKey::non_generic(function.symbol),
+                let key = match function.selection.arguments.is_empty() {
+                    true => GenericInstanceKey::non_generic(function.selection.symbol),
                     false => {
                         let bindings = self.lowerer.instance_bindings(
-                            &function.generic_arguments,
+                            &function.selection.arguments,
                             &self.type_substitution,
                         )?;
                         let arguments: Vec<_> =
                             bindings.iter().map(|binding| binding.argument).collect();
 
-                        self.generic_instance_key(function.symbol, &arguments)?
+                        self.generic_instance_key(function.selection.symbol, &arguments)?
                     }
                 };
                 let target = self.function(&key)?;

@@ -111,8 +111,7 @@ impl BodyState<'_, '_> {
                 dir::Decision::Instantiation(resolution) => {
                     let resolution = &resolution;
                     let arguments =
-                        dir::GenericArgumentBinding::values(&resolution.generic_arguments)
-                            .collect();
+                        dir::GenericArgumentBinding::values(&resolution.arguments).collect();
 
                     Some((resolution.symbol, Some(arguments)))
                 }

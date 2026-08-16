@@ -59,7 +59,7 @@ impl FunctionLowerer<'_, '_, '_> {
         if let Some(instantiation) = instantiation {
             let bindings = self
                 .lowerer
-                .instance_bindings(&instantiation.generic_arguments, &self.type_substitution)?;
+                .instance_bindings(&instantiation.arguments, &self.type_substitution)?;
             let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
             return self.generic_instance_key(symbol, &arguments);

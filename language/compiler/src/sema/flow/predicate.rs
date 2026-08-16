@@ -462,10 +462,10 @@ impl CheckState<'_> {
             dir::PatternDecision::Destructure(destructure) => match destructure.as_ref() {
                 dir::PatternDestructureResolution::Nominal(nominal) => {
                     let arguments: Vec<dir::GlobalTypeId> =
-                        dir::GenericArgumentBinding::values(&nominal.generic_arguments).collect();
+                        dir::GenericArgumentBinding::values(&nominal.selection.arguments).collect();
                     let arguments = self.intern_type_ids(&arguments)?;
                     let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
-                        symbol: nominal.symbol,
+                        symbol: nominal.selection.symbol,
                         arguments,
                     }))?;
 

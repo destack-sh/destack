@@ -743,6 +743,7 @@ impl BodyState<'_, '_> {
         let module = origin.module();
         let NewtypeSignature {
             selection,
+            backing,
             signature,
         } = signature;
 
@@ -750,7 +751,9 @@ impl BodyState<'_, '_> {
         for (source, coercion) in &signature.coercions {
             self.commit_coercion(*source, coercion.clone())?;
         }
-        let target = dir::ConstructTarget::Newtype(selection);
+
+        // record the construction over the selected newtype backing
+        let target = dir::ConstructTarget::Newtype { selection, backing };
         let resolution = dir::ConstructDecision::new(
             target,
             self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
@@ -793,11 +796,14 @@ impl BodyState<'_, '_> {
         for (source, coercion) in &signature.coercions {
             self.commit_coercion(*source, coercion.clone())?;
         }
-        let target = dir::ConstructTarget::Class(dir::ClassConstructCandidate {
-            symbol: instance.symbol,
+
+        // select the class and the constructor this construction runs
+        let target = dir::ConstructTarget::Class {
+            selection: dir::Selection::new(instance.symbol, generic_arguments),
             constructor,
-            generic_arguments,
-        });
+        };
+
+        // wrap the produced instance type in the selected forms
         let mut produced = signature.return_type;
         for form in forms.iter().rev().copied() {
             produced = self.intern_type(dir::Type::Form(dir::FormType {
@@ -805,13 +811,14 @@ impl BodyState<'_, '_> {
                 value: produced,
             }))?;
         }
+
+        // record the construction over the selected class constructor
         let resolution = dir::ConstructDecision::new(
             target,
             self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
             produced,
         );
         self.commit_decision(node, dir::Decision::Construct(resolution))?;
-
         self.commit_node_type(node, produced)?;
 
         Ok(produced)
@@ -1128,11 +1135,10 @@ impl BodyState<'_, '_> {
 
         // initialize this through a super call, which produces no value
         let produced = self.intern_type(dir::Type::Void)?;
-        let target = dir::ConstructTarget::Class(dir::ClassConstructCandidate {
-            symbol: instance.symbol,
+        let target = dir::ConstructTarget::Class {
+            selection: dir::Selection::new(instance.symbol, generic_arguments),
             constructor,
-            generic_arguments,
-        });
+        };
         let resolution = dir::ConstructDecision::new(
             target,
             self.selected_argument_bindings(node, module, argument_nodes, &signature)?,

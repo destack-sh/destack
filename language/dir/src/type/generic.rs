@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeIdAny, LocalScopeId,
-    StringId, TypeFold, VarianceModifier, WhereRelation,
+    Selection, StringId, TypeFold, VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -354,27 +354,12 @@ pub struct GlobalInstanceId {
 /// pick<float64>(30.5, 40.5)  // template: pick, arguments: (float64)
 /// Array<int32>               // template: Array, arguments: (int32)
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Instance {
-    /// The generic declaration this instance closes.
-    pub template: GlobalSymbolId,
-    /// The complete selected generic argument bindings, in parameter order.
-    pub arguments: Vec<GenericArgumentBinding>,
+    /// The closed declaration and its generic arguments, in parameter order.
+    pub selection: Selection,
     /// One source node that closes this instance.
     pub source: GlobalNodeIdAny,
-}
-
-impl TypeFold for Instance {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        for binding in &mut self.arguments {
-            binding.map_types(map)?;
-        }
-
-        Ok(())
-    }
 }
 
 /// One instantiation a checked body performs, open while it mentions parameters.
@@ -387,29 +372,14 @@ impl TypeFold for Instance {
 ///
 /// const chosen = outer(true);  // owner: none, template: outer, arguments: (true)
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Instantiation {
     /// The enclosing template whose instances close this instantiation, module-level when none.
     pub owner: Option<GlobalSymbolId>,
-    /// The instantiated generic declaration.
-    pub template: GlobalSymbolId,
-    /// The instantiated generic argument bindings.
-    pub arguments: Vec<GenericArgumentBinding>,
+    /// The instantiated declaration and its generic arguments.
+    pub selection: Selection,
     /// The source node performing the instantiation.
     pub source: GlobalNodeIdAny,
-}
-
-impl TypeFold for Instantiation {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        for binding in &mut self.arguments {
-            binding.map_types(map)?;
-        }
-
-        Ok(())
-    }
 }
 
 /// How many inhabitants one parameter's argument type may have.

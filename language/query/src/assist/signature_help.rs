@@ -153,8 +153,8 @@ impl ModuleQueryContext<'_> {
             let signature = match &call.target {
                 dir::CallableTarget::Symbol { function, .. } => self.call_signature_item(
                     program,
-                    function.symbol,
-                    &function.generic_arguments,
+                    function.selection.symbol,
+                    &function.selection.arguments,
                     &call.arguments,
                     call.return_type,
                 )?,
@@ -371,9 +371,10 @@ impl ModuleQueryContext<'_> {
         resolution: &dir::ConstructDecision,
     ) -> QueryResult<Vec<SignatureItem>> {
         let item = match &resolution.target {
-            dir::ConstructTarget::Class(candidate) => {
-                self.class_signature_item(program, candidate, resolution)?
-            }
+            dir::ConstructTarget::Class {
+                selection,
+                constructor,
+            } => self.class_signature_item(program, selection, constructor, resolution)?,
             dir::ConstructTarget::Dynamic { function, .. } => self.signature_node_item(
                 program,
                 function,
@@ -381,11 +382,11 @@ impl ModuleQueryContext<'_> {
                 &resolution.arguments,
                 resolution.return_type,
             )?,
-            dir::ConstructTarget::Newtype(candidate) => {
-                let Some(name) = program.symbol_name(candidate.symbol)? else {
+            dir::ConstructTarget::Newtype { selection, .. } => {
+                let Some(name) = program.symbol_name(selection.symbol)? else {
                     return Err(QueryError::missing(format!(
                         "newtype constructor name: {:?}",
-                        candidate.symbol
+                        selection.symbol
                     )));
                 };
                 let parameter_names = vec![None; resolution.arguments.len()];
@@ -393,9 +394,9 @@ impl ModuleQueryContext<'_> {
 
                 self.signature_item(
                     program,
-                    program.symbol_callable_documentation(candidate.symbol)?,
+                    program.symbol_callable_documentation(selection.symbol)?,
                     &name,
-                    &candidate.generic_arguments,
+                    &selection.arguments,
                     &parameter_names,
                     &parameter_documentation,
                     &resolution.arguments,
@@ -411,21 +412,22 @@ impl ModuleQueryContext<'_> {
     fn class_signature_item(
         &self,
         program: &ProgramQueryContext<'_>,
-        candidate: &dir::ClassConstructCandidate,
+        selection: &dir::Selection,
+        constructor: &dir::ClassConstructor,
         resolution: &dir::ConstructDecision,
     ) -> QueryResult<SignatureItem> {
-        let Some(name) = program.symbol_name(candidate.symbol)? else {
+        let Some(name) = program.symbol_name(selection.symbol)? else {
             return Err(QueryError::missing(format!(
                 "class constructor name: {:?}",
-                candidate.symbol
+                selection.symbol
             )));
         };
-        let Some(constructor_symbol) = candidate.constructor.call_symbol() else {
+        let Some(constructor_symbol) = constructor.call_symbol() else {
             return self.signature_item(
                 program,
-                program.symbol_callable_documentation(candidate.symbol)?,
+                program.symbol_callable_documentation(selection.symbol)?,
                 &name,
-                &candidate.generic_arguments,
+                &selection.arguments,
                 &[],
                 &[],
                 &resolution.arguments,
@@ -453,7 +455,7 @@ impl ModuleQueryContext<'_> {
             documentation_owner,
             &name,
             parameters,
-            &candidate.generic_arguments,
+            &selection.arguments,
             &resolution.arguments,
             resolution.return_type,
         )

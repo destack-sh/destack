@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, Argument, ArgumentBinding, AutoInterface, Decorator, Expression, GenericArgument,
     GlobalNodeId, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem,
-    LocalNodeId, NewtypeSelection, SegmentView, TypeFold,
+    LocalNodeId, SegmentView, Selection, TypeFold,
 };
 
 /// Cumulative decorator applications for one DIR module.
@@ -345,8 +345,10 @@ impl DecoratorTarget {
 pub enum DecoratorSelection {
     /// Arguments matched against one newtype backing.
     Newtype {
-        /// The selected newtype backing.
-        newtype: NewtypeSelection,
+        /// The selected newtype declaration and its generic arguments.
+        selection: Selection,
+        /// The selected instantiated backing alternative.
+        backing: GlobalTypeId,
         /// The source arguments bound to the selected parameters.
         arguments: Vec<ArgumentBinding>,
     },

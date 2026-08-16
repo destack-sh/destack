@@ -85,8 +85,7 @@ impl CallableCandidate {
         Ok(dir::FunctionTarget {
             receiver,
             generic_scope: self.generic_scope,
-            symbol: *symbol,
-            generic_arguments: signature.generic_arguments.clone(),
+            selection: dir::Selection::new(*symbol, signature.generic_arguments.clone()),
         })
     }
 }
@@ -364,7 +363,7 @@ impl BodyState<'_, '_> {
             receiver,
             member_space: Some(candidate.space),
             ty,
-            generic_arguments: candidate.generic_arguments.clone(),
+            generic_arguments: candidate.selection.arguments.clone(),
         };
 
         Ok(Some(candidate))
@@ -375,13 +374,13 @@ impl BodyState<'_, '_> {
         &mut self,
         candidate: &dir::MemberCandidate,
     ) -> CompilerResult<CallableTarget> {
-        match self.symbol_kind(candidate.symbol)? {
+        match self.symbol_kind(candidate.selection.symbol)? {
             dir::SymbolKind::AssociatedConst => Ok(CallableTarget::Expression),
-            dir::SymbolKind::Function => Ok(CallableTarget::Symbol(candidate.symbol)),
+            dir::SymbolKind::Function => Ok(CallableTarget::Symbol(candidate.selection.symbol)),
             kind => Err(CompilerError::Internal {
                 message: format!(
                     "callable member {:?} has non-callable symbol kind {kind:?}",
-                    candidate.symbol
+                    candidate.selection.symbol
                 ),
             }),
         }
@@ -806,8 +805,7 @@ impl BodyState<'_, '_> {
                 function: dir::FunctionTarget {
                     receiver: None,
                     generic_scope: candidate.generic_scope,
-                    symbol: *symbol,
-                    generic_arguments: candidate.generic_arguments.clone(),
+                    selection: dir::Selection::new(*symbol, candidate.generic_arguments.clone()),
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },

@@ -355,7 +355,7 @@ impl BodyState<'_, '_> {
         };
 
         let arguments = self.symbol_generic_argument_bindings(symbol, &applied)?;
-        let resolution = dir::InstantiationDecision::new(symbol, arguments);
+        let resolution = dir::Selection::new(symbol, arguments);
         self.commit_decision(node, dir::Decision::Instantiation(resolution))?;
         self.commit_node_type(node, specialized)?;
 

@@ -21,11 +21,12 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         match &resolution.target {
             // Meters(5)
-            dir::ConstructTarget::Newtype(_) => self.lower_newtype_construct(resolution),
+            dir::ConstructTarget::Newtype { .. } => self.lower_newtype_construct(resolution),
             // new User("ada")
-            dir::ConstructTarget::Class(candidate) => {
-                self.lower_class_construct(resolution, candidate)
-            }
+            dir::ConstructTarget::Class {
+                selection,
+                constructor,
+            } => self.lower_class_construct(resolution, selection, constructor),
             // new factory(1)
             dir::ConstructTarget::Dynamic { .. } => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -39,7 +40,8 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_class_construct(
         &mut self,
         resolution: &dir::ConstructDecision,
-        candidate: &dir::ClassConstructCandidate,
+        selection: &dir::Selection,
+        constructor: &dir::ClassConstructor,
     ) -> CompilerResult<mir::Value> {
         // lower the constructor arguments in declaration order
         let mut values = Vec::with_capacity(resolution.arguments.len());
@@ -56,8 +58,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
         self.lower_class_instance(
             resolution.return_type,
-            &candidate.constructor,
-            &candidate.generic_arguments,
+            constructor,
+            &selection.arguments,
             values,
         )
     }

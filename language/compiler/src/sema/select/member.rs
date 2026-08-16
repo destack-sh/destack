@@ -668,10 +668,9 @@ impl MemberCandidate {
             receiver: self.receiver.resolve(receiver),
             space: self.space,
             owner: self.owner,
-            symbol: self.symbol,
             access_type: ty,
             callable_type: self.callable,
-            generic_arguments: self.generic_arguments.clone(),
+            selection: dir::Selection::new(self.symbol, self.generic_arguments.clone()),
         }
     }
 

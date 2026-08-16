@@ -7,6 +7,7 @@ mod projection;
 mod receiver;
 mod resolution;
 mod scalar;
+mod selection;
 mod r#type;
 
 pub use access::*;
@@ -18,4 +19,5 @@ pub use projection::*;
 pub use receiver::*;
 pub use resolution::*;
 pub use scalar::*;
+pub use selection::*;
 pub use r#type::*;

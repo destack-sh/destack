@@ -538,8 +538,7 @@ impl BodyState<'_, '_> {
                     function: dir::FunctionTarget {
                         receiver: None,
                         generic_scope: None,
-                        symbol: *symbol,
-                        generic_arguments: Vec::new(),
+                        selection: dir::Selection::new(*symbol, Vec::new()),
                     },
                     dispatch: dir::FunctionDispatch::Direct,
                 },

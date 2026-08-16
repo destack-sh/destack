@@ -2,9 +2,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution,
-    GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, MemberAccess, MemberDecision,
-    OperationResolution, ScalarLiteral, StaticKey, Subscript, SubscriptDecision, TypeFold,
+    Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution, GlobalTypeId,
+    MemberAccess, MemberDecision, OperationResolution, ScalarLiteral, Selection, StaticKey,
+    Subscript, SubscriptDecision, TypeFold, WalkSelections,
 };
 
 /// Value projection selected during checking.
@@ -27,7 +27,9 @@ use crate::{
 /// ^value                // Move
 /// *box                  // Dereference
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub enum Projection {
     /// Produce `undefined` for one statically absent destructuring field.
     ///
@@ -138,10 +140,8 @@ pub enum Projection {
     /// match id { UserId(raw) => raw }
     /// ```
     NewtypePayload {
-        /// The selected newtype symbol.
-        symbol: GlobalSymbolId,
-        /// The selected generic argument bindings for the selected newtype.
-        generic_arguments: Vec<GenericArgumentBinding>,
+        /// The selected newtype declaration and its generic arguments.
+        selection: Selection,
         /// The projected payload type.
         ty: GlobalTypeId,
     },
@@ -190,7 +190,9 @@ pub enum Projection {
 }
 
 /// One source property value encoded by a union arm.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub struct DiscriminantCase {
     /// The physical union arm selected by this value.
     pub arm: GlobalTypeId,
@@ -308,7 +310,9 @@ impl From<MemberDecision> for ProjectionResolution {
 }
 
 /// One source field used to materialize an object rest value.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub struct ObjectRestField {
     /// The materialized field key.
     pub key: StaticKey,

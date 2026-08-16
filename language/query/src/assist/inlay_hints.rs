@@ -203,7 +203,7 @@ impl ModuleQueryContext<'_> {
         for selected in resolution.arms() {
             let names = match &selected.target {
                 dir::CallableTarget::Symbol { function, .. } => {
-                    self.symbol_call_parameter_names(program, call, function.symbol)?
+                    self.symbol_call_parameter_names(program, call, function.selection.symbol)?
                 }
                 dir::CallableTarget::Dynamic {
                     function: dir::DynamicFunction::Symbol(symbol),
@@ -297,14 +297,14 @@ impl ModuleQueryContext<'_> {
         resolution: &dir::ConstructDecision,
     ) -> QueryResult<Vec<Option<String>>> {
         match &resolution.target {
-            dir::ConstructTarget::Class(candidate) => {
-                let Some(symbol_id) = candidate.constructor.call_symbol() else {
+            dir::ConstructTarget::Class { constructor, .. } => {
+                let Some(symbol_id) = constructor.call_symbol() else {
                     return Ok(Vec::new());
                 };
 
                 self.symbol_call_parameter_names(program, call, symbol_id)
             }
-            dir::ConstructTarget::Newtype(_) => Ok(vec![None; resolution.arguments.len()]),
+            dir::ConstructTarget::Newtype { .. } => Ok(vec![None; resolution.arguments.len()]),
             // read dynamic construction names from their construct signature
             dir::ConstructTarget::Dynamic {
                 function:
