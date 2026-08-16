@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantState, ConstantTable, InstructionRef, Mutation, ValueTypeTable,
-    build_value_instruction_refs, fold_binary,
+    ConstantState, ConstantTable, InstructionRef, Mutation, build_value_instruction_refs,
+    fold_binary,
 };
 
 declare_pass! {
@@ -51,10 +51,9 @@ impl FunctionPass for ReassociateExpressions {
 
         // collect constant propagation state
         let constants = { analyses.constant(function, tree).clone() };
-        let value_types = analyses.value_type(function, tree);
 
         // run reassociation
-        let changed = run_reassociate(function, tree, &constants, &value_types);
+        let changed = run_reassociate(function, tree, &constants);
 
         // report what this pass changed
         if changed {
@@ -70,7 +69,6 @@ fn run_reassociate(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     constants: &ConstantTable,
-    value_types: &ValueTypeTable,
 ) -> bool {
     // build lookup for value definitions
     let mut value_to_instruction = build_value_instruction_refs(function, tree);
@@ -103,7 +101,7 @@ fn run_reassociate(
             } = instruction
             {
                 // build a reassociation plan
-                let ty = value_types.expect_value_type(left);
+                let ty = function.expect_value_type(left);
                 let plan = if tree.get(ty).is_float(tree) {
                     None
                 } else {
@@ -126,7 +124,7 @@ fn run_reassociate(
                     // resolve or insert the combined constant
                     let resolved = resolve_constant_value(
                         plan.constant.clone(),
-                        value_types.expect_value_type(destination),
+                        function.expect_value_type(destination),
                         function,
                         tree,
                         &block_constants,
@@ -149,7 +147,7 @@ fn run_reassociate(
                         tree,
                         operator,
                         &operands,
-                        value_types.expect_value_type(destination),
+                        function.expect_value_type(destination),
                         &mut new_instructions,
                     ) else {
                         new_instructions.push(*instruction_id);

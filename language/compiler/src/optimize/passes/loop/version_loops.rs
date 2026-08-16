@@ -143,7 +143,6 @@ fn run_version_loops(
 
     // track whether we rewrote any loops
     let use_def = build_use_def_maps(function, tree);
-    let value_types = analyses.value_type(function, tree);
     let mut changed = false;
     function.recompute_next_value_id(tree);
 
@@ -192,25 +191,19 @@ fn run_version_loops(
         }
 
         // require consistent unsigned integer types
-        let Some(bound_width) = value_types.unsigned_int_width(
-            resolved_bound,
-            ctx.target_layout().pointer_bits(),
-            tree,
-        ) else {
+        let Some(bound_width) =
+            function.unsigned_int_width(resolved_bound, ctx.target_layout().pointer_bits(), tree)
+        else {
             continue;
         };
-        let Some(length_width) = value_types.unsigned_int_width(
-            resolved_length,
-            ctx.target_layout().pointer_bits(),
-            tree,
-        ) else {
+        let Some(length_width) =
+            function.unsigned_int_width(resolved_length, ctx.target_layout().pointer_bits(), tree)
+        else {
             continue;
         };
-        let Some(induction_width) = value_types.unsigned_int_width(
-            guard.induction,
-            ctx.target_layout().pointer_bits(),
-            tree,
-        ) else {
+        let Some(induction_width) =
+            function.unsigned_int_width(guard.induction, ctx.target_layout().pointer_bits(), tree)
+        else {
             continue;
         };
         if bound_width != length_width || bound_width != induction_width {

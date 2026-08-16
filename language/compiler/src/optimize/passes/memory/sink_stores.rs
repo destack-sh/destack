@@ -120,16 +120,9 @@ fn run_sink_stores(
     let memory = analyses.memory(function, tree, accesses, effects);
     let alias = analyses.alias(function, tree).clone();
     let definitions = analyses.definition(function, tree);
-    let value_types = analyses.value_type(function, tree);
 
     // resolve reference provenance once for all candidates
-    let mut regions = MemoryRegionBuilder::new(
-        &definitions,
-        tree,
-        &function.parameters,
-        &value_types,
-        ctx.target_layout(),
-    );
+    let mut regions = MemoryRegionBuilder::new(function, &definitions, tree, ctx.target_layout());
 
     // collect store candidates
     let candidates =

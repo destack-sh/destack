@@ -111,19 +111,8 @@ impl TestProgram {
         {
             panic!("failed to parse MIR: {:?}", parsed.diagnostics);
         }
-        let (
-            mut tree,
-            target,
-            mut types,
-            layouts,
-            dispatch,
-            drops,
-            accesses,
-            effects,
-            profile,
-            strings,
-            _,
-        ) = parsed.into_parts();
+        let (mut tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
+            parsed.into_parts();
 
         // mirror the primitive universe guaranteed by MIR lowering
         let primitive_types = std::iter::once(mir::Type::TypeId).chain(
@@ -145,7 +134,6 @@ impl TestProgram {
                 tree.intern_type(ty);
             }
         }
-        types.rebuild_primitive_types(&tree);
         let strings_pool = StringPool::new();
 
         // copy parser strings for passes that intern through context
@@ -155,7 +143,6 @@ impl TestProgram {
             optimized: MirOptimized {
                 tree,
                 target,
-                types,
                 layouts,
                 dispatch,
                 drops,
@@ -658,7 +645,11 @@ impl TestProgram {
     /// A test module is a standalone program, so its exported symbols are the roots.
     fn module_program_analysis(&self) -> Arc<destack_artifact::ProgramAnalysis> {
         let mut analyses = self.analysis_cache();
-        let links = analyses.link(&self.optimized.tree, &self.optimized.effects);
+        let links = analyses.link(
+            &self.optimized.tree,
+            &self.optimized.effects,
+            &self.optimized.dispatch,
+        );
         let roots: Vec<_> = links
             .nodes()
             .filter(|(_, node)| node.linkage().is_exported())

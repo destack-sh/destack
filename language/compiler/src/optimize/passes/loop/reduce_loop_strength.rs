@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlTable, DominatorTable, EvolutionTable, Loop, LoopTable, Mutation, RangeTable, Scev,
-    TargetLayout, ValueRange, ValueTypeTable, clone_instruction_tables, constant_is_zero,
+    TargetLayout, ValueRange, clone_instruction_tables, constant_is_zero,
     instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -82,7 +82,6 @@ impl FunctionPass for ReduceLoopStrength {
         let domtree = analyses.dominator(function, tree).clone();
         let scev = analyses.evolution(function, tree).clone();
         let ranges = analyses.range(function, tree).clone();
-        let value_types = analyses.value_type(function, tree);
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
@@ -95,7 +94,6 @@ impl FunctionPass for ReduceLoopStrength {
             cfg: &cfg,
             domtree: &domtree,
             scev: &scev,
-            value_types: &value_types,
             ranges: &ranges,
             target_layout: ctx.target_layout(),
         };
@@ -278,8 +276,6 @@ struct StrengthReduceContext<'a> {
     domtree: &'a DominatorTable,
     /// Scalar evolution analysis.
     scev: &'a EvolutionTable,
-    /// Value type lookup for the function.
-    value_types: &'a ValueTypeTable,
     /// Range analysis for loop invariants.
     ranges: &'a RangeTable,
     /// Type context for layout sensitive operations.
@@ -298,8 +294,8 @@ struct CandidateContext<'a> {
     domtree: &'a DominatorTable,
     /// Scalar evolution analysis.
     scev: &'a EvolutionTable,
-    /// Value type lookup for the function.
-    value_types: &'a ValueTypeTable,
+    /// The function being transformed.
+    function: &'a mir::Function,
     /// Value definition tables.
     definitions: &'a DefinitionTable,
     /// Value use tables.
@@ -380,7 +376,7 @@ impl<'a> CandidateContext<'a> {
                             *right,
                             block_id,
                             self.ranges,
-                            self.value_types,
+                            self.function,
                             self.target_layout.pointer_bits(),
                             self.tree,
                         )
@@ -389,7 +385,7 @@ impl<'a> CandidateContext<'a> {
                     }
 
                     // require an integer type for the value
-                    let value_type = self.value_types.expect_value_type(destination);
+                    let value_type = self.function.expect_value_type(destination);
                     if !type_is_integer(value_type, self.target_layout.pointer_bits(), self.tree) {
                         continue;
                     }
@@ -480,7 +476,7 @@ fn run_reduce_loop_strength(
         cfg: context.cfg,
         domtree: context.domtree,
         scev: context.scev,
-        value_types: context.value_types,
+        function,
         definitions: &definitions,
         uses: &uses,
         ranges: context.ranges,
@@ -526,7 +522,6 @@ fn run_reduce_loop_strength(
             accesses,
             &loop_candidates,
             &definitions,
-            context.value_types,
             context.ranges,
             context.domtree,
             context.target_layout,
@@ -590,7 +585,6 @@ fn apply_candidates_for_loop(
     accesses: &mut mir::AccessTable,
     candidates: &[StrengthReductionCandidate],
     definitions: &DefinitionTable,
-    value_types: &ValueTypeTable,
     ranges: &RangeTable,
     domtree: &DominatorTable,
     target_layout: TargetLayout,
@@ -613,7 +607,6 @@ fn apply_candidates_for_loop(
         preheader,
         loop_blocks,
         definitions,
-        value_types,
         ranges,
         domtree,
         target_layout,
@@ -760,11 +753,11 @@ fn division_is_safe(
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeTable,
-    value_types: &ValueTypeTable,
+    function: &mir::Function,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> bool {
-    let operand_type = value_types.expect_value_type(left);
+    let operand_type = function.expect_value_type(left);
     let Some(is_signed) = tree.get(operand_type).integer_signedness() else {
         return false;
     };
@@ -776,7 +769,7 @@ fn division_is_safe(
                 right,
                 block_id,
                 ranges,
-                value_types,
+                function,
                 pointer_width_bits,
                 tree,
             )
@@ -794,7 +787,7 @@ fn signed_division_is_safe(
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeTable,
-    value_types: &ValueTypeTable,
+    function: &mir::Function,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> bool {
@@ -814,7 +807,7 @@ fn signed_division_is_safe(
             return false;
         };
 
-        let Some(min_value) = signed_min_for_value(left, value_types, pointer_width_bits, tree)
+        let Some(min_value) = signed_min_for_value(left, function, pointer_width_bits, tree)
             .or_else(|| signed_min_from_range(&left_range))
         else {
             return false;
@@ -925,11 +918,11 @@ fn integer_range_excludes_minus_one(range: &IntegerRange) -> bool {
 /// Extract the signed minimum for a value type.
 fn signed_min_for_value(
     value: mir::Value,
-    value_types: &ValueTypeTable,
+    function: &mir::Function,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> Option<i128> {
-    let ty = value_types.expect_value_type(value);
+    let ty = function.expect_value_type(value);
     let (width, is_signed) = tree
         .get(ty)
         .int_info_with_pointer_width(pointer_width_bits)?;
@@ -1176,8 +1169,6 @@ struct ScevMaterializer<'a> {
     loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
     /// Value definitions for the function.
     definitions: &'a DefinitionTable,
-    /// Value type lookup for the function.
-    value_types: &'a ValueTypeTable,
     /// Range analysis for invariant checks.
     ranges: &'a RangeTable,
     /// Dominator tree for availability checks.
@@ -1204,7 +1195,6 @@ impl<'a> ScevMaterializer<'a> {
         preheader: mir::LocalNodeId<mir::Block>,
         loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
         definitions: &'a DefinitionTable,
-        value_types: &'a ValueTypeTable,
         ranges: &'a RangeTable,
         domtree: &'a DominatorTable,
         target_layout: TargetLayout,
@@ -1231,7 +1221,6 @@ impl<'a> ScevMaterializer<'a> {
             preheader,
             loop_blocks,
             definitions,
-            value_types,
             ranges,
             domtree,
             constant_cache,
@@ -1375,7 +1364,7 @@ impl<'a> ScevMaterializer<'a> {
             }
             Scev::Truncate { value, width } => {
                 let argument = self.materialize(function, value)?;
-                let signed = self.truncate_signedness(argument)?;
+                let signed = self.truncate_signedness(function, argument)?;
                 let to_type = self.int_type(*width, signed)?;
                 self.insert_cast(function, mir::CastOperator::Truncate, argument, to_type)
             }
@@ -1695,9 +1684,9 @@ impl<'a> ScevMaterializer<'a> {
     }
 
     /// Determine signedness for a truncate operation.
-    fn truncate_signedness(&self, argument: mir::Value) -> Option<bool> {
+    fn truncate_signedness(&self, function: &mir::Function, argument: mir::Value) -> Option<bool> {
         // read the argument type
-        let ty_id = self.value_types.expect_value_type(argument);
+        let ty_id = function.expect_value_type(argument);
         let ty = self.tree.get(ty_id);
         let (_, signed) = ty.int_info_with_pointer_width(self.target_layout.pointer_bits())?;
         Some(signed)

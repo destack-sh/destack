@@ -21,8 +21,8 @@ impl ModulePass for Devirtualize {
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
-        let dispatch = analyses.resolution(tree, &optimized.dispatch);
-        let rewrites = Devirtualization::collect(tree, &dispatch);
+        let resolution = analyses.resolution(tree, &optimized.dispatch);
+        let rewrites = Devirtualization::collect(tree, &resolution);
         let changed = rewrites.apply(tree);
 
         if changed {
@@ -44,13 +44,13 @@ struct Devirtualization {
 
 impl Devirtualization {
     /// Collect all statically proven call rewrites.
-    fn collect(tree: &mir::Tree, dispatch: &ResolutionTable) -> Self {
+    fn collect(tree: &mir::Tree, resolution: &ResolutionTable) -> Self {
         let mut devirtualization = Self::default();
 
         // scan defined functions
         for (_, function) in tree.iter_nodes::<mir::Function>() {
             if function.is_defined() {
-                devirtualization.collect_function(tree, dispatch, function);
+                devirtualization.collect_function(tree, resolution, function);
             }
         }
 
@@ -79,22 +79,27 @@ impl Devirtualization {
     fn collect_function(
         &mut self,
         tree: &mir::Tree,
-        dispatch: &ResolutionTable,
+        resolution: &ResolutionTable,
         function: &mir::Function,
     ) {
         for &block in function.blocks() {
-            self.collect_block(tree, dispatch, block);
+            self.collect_block(tree, resolution, block);
         }
     }
 
     /// Collect rewrites in one block.
-    fn collect_block(&mut self, tree: &mir::Tree, dispatch: &ResolutionTable, block: mir::BlockId) {
+    fn collect_block(
+        &mut self,
+        tree: &mir::Tree,
+        resolution: &ResolutionTable,
+        block: mir::BlockId,
+    ) {
         let node = tree.get(block);
 
         // collect instruction calls
         for &instruction in &node.instructions {
             let callsite = mir::CallSite::Instruction(instruction);
-            let Some(function) = dispatch.target(callsite) else {
+            let Some(function) = resolution.target(callsite) else {
                 continue;
             };
 
@@ -105,7 +110,7 @@ impl Devirtualization {
 
         // collect terminator calls
         let callsite = mir::CallSite::Terminator(block);
-        let Some(function) = dispatch.target(callsite) else {
+        let Some(function) = resolution.target(callsite) else {
             return;
         };
 

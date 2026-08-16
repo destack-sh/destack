@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasTable, DominatorTable, MemoryAccessEffect, MemoryAccessId, MemoryNode, MemoryRegion,
-    MemoryTable, Mutation, TargetLayout, ValueTypeTable, apply_substitutions_in_function,
+    MemoryTable, Mutation, TargetLayout, apply_substitutions_in_function,
     resolve_substitution_chains,
 };
 
@@ -81,8 +81,6 @@ impl FunctionPass for ForwardStoredValues {
             (aa, memory, dom_children)
         };
 
-        let value_types = analyses.value_type(function, tree);
-
         // run load store forwarding
         let changed = run_forward_stored_values(
             entry,
@@ -92,7 +90,6 @@ impl FunctionPass for ForwardStoredValues {
             &aa,
             memory.as_ref(),
             &dom_children,
-            &value_types,
             ctx.target_layout(),
         );
 
@@ -114,17 +111,16 @@ fn run_forward_stored_values(
     aa: &AliasTable,
     memory: &MemoryTable,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    value_types: &ValueTypeTable,
     target_layout: TargetLayout,
 ) -> bool {
     // run forwarding using dominator tree traversal
     let (substitutions, to_remove) = find_forwardable_loads(
         entry,
+        function,
         tree,
         aa,
         memory,
         dom_children,
-        value_types,
         target_layout,
     );
 
@@ -284,11 +280,11 @@ impl AvailableMemory {
 /// Find loads that can be forwarded using dominator tree traversal.
 fn find_forwardable_loads(
     entry: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
     aa: &AliasTable,
     memory: &MemoryTable,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    value_types: &ValueTypeTable,
     target_layout: TargetLayout,
 ) -> (
     HashMap<mir::Value, mir::Value>,
@@ -316,10 +312,10 @@ fn find_forwardable_loads(
                 // process instructions in this block
                 process_block(
                     block_id,
+                    function,
                     tree,
                     aa,
                     memory,
-                    value_types,
                     target_layout,
                     &mut available,
                     &mut substitutions,
@@ -348,10 +344,10 @@ fn find_forwardable_loads(
 /// Process a single block, tracking available values and finding forwardable loads.
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
     aa: &AliasTable,
     memory: &MemoryTable,
-    value_types: &ValueTypeTable,
     _target_layout: TargetLayout,
     available: &mut AvailableMemory,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
@@ -419,7 +415,7 @@ fn process_block(
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa)
-                    && value_types.can_substitute(destination, existing)
+                    && function.can_substitute(destination, existing)
                 {
                     substitutions.insert(destination, existing);
                     to_remove.insert(instruction_id);
@@ -458,7 +454,7 @@ fn process_block(
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa)
-                    && value_types.can_substitute(destination, existing)
+                    && function.can_substitute(destination, existing)
                 {
                     substitutions.insert(destination, existing);
                     to_remove.insert(instruction_id);
@@ -1224,7 +1220,7 @@ entry:
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let callsite = mir::CallSite::Instruction(call_inst);
-        test.optimized.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
+        test.optimized.effects.upsert_call(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);

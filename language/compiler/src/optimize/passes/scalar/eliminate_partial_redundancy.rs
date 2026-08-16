@@ -6,8 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlTable, DominatorTable, EdgeSplitPolicy, ExpressionTable, Mutation, PureExpression,
-    UseDefMaps, ValueTypeTable, append_edge_arguments, apply_substitutions_in_function,
-    build_use_def_maps, collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
+    UseDefMaps, append_edge_arguments, apply_substitutions_in_function, build_use_def_maps,
+    collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
     instruction_has_side_effects, instruction_is_speculatable,
 };
 
@@ -69,19 +69,9 @@ impl FunctionPass for EliminatePartialRedundancy {
         let cfg = analyses.control(function, tree).clone();
         let domtree = analyses.dominator(function, tree).clone();
         let available = analyses.expression(function, tree);
-        let value_types = analyses.value_type(function, tree);
 
         // run PRE
-        let changed = run_pre(
-            entry,
-            function,
-            tree,
-            accesses,
-            &cfg,
-            &domtree,
-            &available,
-            &value_types,
-        );
+        let changed = run_pre(entry, function, tree, accesses, &cfg, &domtree, &available);
 
         // report what this pass changed
         if changed {
@@ -141,7 +131,6 @@ fn run_pre(
     cfg: &ControlTable,
     domtree: &DominatorTable,
     available: &ExpressionTable,
-    value_types: &ValueTypeTable,
 ) -> bool {
     // collect reachable blocks
     let reachable = collect_reachable_blocks(function, tree, entry);
@@ -175,7 +164,7 @@ fn run_pre(
             let Some(destination) = instruction.destination() else {
                 continue;
             };
-            let value_type = value_types.expect_value_type(destination);
+            let value_type = function.expect_value_type(destination);
 
             // track whether the expression can be speculated
             let is_speculatable = instruction_is_speculatable(instruction, function, tree);
@@ -467,7 +456,10 @@ fn phi_is_fillable(
 ) -> bool {
     // every predecessor must either have the expression available or be able to compute it
     for &pred in cfg.predecessors(*block) {
-        if available.exit(pred).contains(key) {
+        if available
+            .exit(pred)
+            .is_some_and(|state| state.contains(key))
+        {
             continue;
         }
 

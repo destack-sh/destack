@@ -720,7 +720,7 @@ external function readOnly(): void
         let join_block = function.block(3);
         let call_inst = test.instructions_in_block(join_block)[0];
         let callsite = mir::CallSite::Instruction(call_inst);
-        let tables = test.optimized.effects.call_mut(callsite);
+        let tables = test.optimized.effects.upsert_call(callsite);
         tables.memory = mir::MemoryEffect::read_only(mir::StorageSet::ANY);
         tables.behavior = mir::FunctionBehavior::none();
 

@@ -6,9 +6,9 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlTable, DefinitionTable, EvolutionTable, Mutation, RangeTable,
-    Scev, UseDefMaps, ValueRange, ValueTypeTable, build_use_def_maps, build_value_use_counts,
-    constant_for_value, constant_is_zero, instruction_has_side_effects,
-    instruction_is_borrow_address, instruction_is_speculatable,
+    Scev, UseDefMaps, ValueRange, build_use_def_maps, build_value_use_counts, constant_for_value,
+    constant_is_zero, instruction_has_side_effects, instruction_is_borrow_address,
+    instruction_is_speculatable,
 };
 
 declare_pass! {
@@ -124,7 +124,6 @@ fn run_recognize_loop_idioms(
         let use_def = build_use_def_maps(function, tree);
         let value_definitions = DefinitionTable::build(function, tree).instruction_map();
         let use_counts = build_value_use_counts(function, tree);
-        let value_types = analyses.value_type(function, tree);
 
         // refresh value ids and track per iteration changes
         let mut changed_this_iteration = false;
@@ -179,28 +178,24 @@ fn run_recognize_loop_idioms(
             };
 
             // require consistent unsigned types for induction and bound
-            let Some(induction_width) = value_types.unsigned_int_width(
+            let Some(induction_width) = function.unsigned_int_width(
                 guard.induction,
                 ctx.target_layout().pointer_bits(),
                 tree,
             ) else {
                 continue;
             };
-            let Some(bound_width) = value_types.unsigned_int_width(
-                bound_value,
-                ctx.target_layout().pointer_bits(),
-                tree,
-            ) else {
+            let Some(bound_width) =
+                function.unsigned_int_width(bound_value, ctx.target_layout().pointer_bits(), tree)
+            else {
                 continue;
             };
             if induction_width != bound_width {
                 continue;
             }
-            let Some(start_width) = value_types.unsigned_int_width(
-                start_value,
-                ctx.target_layout().pointer_bits(),
-                tree,
-            ) else {
+            let Some(start_width) =
+                function.unsigned_int_width(start_value, ctx.target_layout().pointer_bits(), tree)
+            else {
                 continue;
             };
             if start_width != induction_width {
@@ -247,7 +242,7 @@ fn run_recognize_loop_idioms(
                     continue;
                 }
 
-                if !array_is_u8(pattern.array, &value_types, tree) {
+                if !array_is_u8(pattern.array, function, tree) {
                     continue;
                 }
 
@@ -376,12 +371,10 @@ fn run_recognize_loop_idioms(
             }
 
             // resolve the element type for both arrays
-            let Some(dest_element) = array_element_type(pattern.dest_array, &value_types, tree)
-            else {
+            let Some(dest_element) = array_element_type(pattern.dest_array, function, tree) else {
                 continue;
             };
-            let Some(src_element) = array_element_type(pattern.src_array, &value_types, tree)
-            else {
+            let Some(src_element) = array_element_type(pattern.src_array, function, tree) else {
                 continue;
             };
 
@@ -448,7 +441,7 @@ fn run_recognize_loop_idioms(
             };
 
             let use_memcpy =
-                arrays_are_value_types(pattern.dest_array, pattern.src_array, &value_types, tree)
+                arrays_are_value_types(pattern.dest_array, pattern.src_array, function, tree)
                     || aa.addresses_no_alias(pattern.store_pointer, pattern.load_pointer);
             let intrinsic = if use_memcpy {
                 mir::Intrinsic::Memcpy
@@ -746,9 +739,9 @@ fn element_addr_for_pointer(
 }
 
 /// Check whether the array element type is u8.
-fn array_is_u8(array: mir::Value, value_types: &ValueTypeTable, tree: &mir::Tree) -> bool {
+fn array_is_u8(array: mir::Value, function: &mir::Function, tree: &mir::Tree) -> bool {
     // resolve the array element type
-    let Some(element) = array_element_type(array, value_types, tree) else {
+    let Some(element) = array_element_type(array, function, tree) else {
         return false;
     };
     let element_ty = tree.get(element);
@@ -764,11 +757,11 @@ fn array_is_u8(array: mir::Value, value_types: &ValueTypeTable, tree: &mir::Tree
 /// Return the element type for an array or array reference value.
 fn array_element_type(
     array: mir::Value,
-    value_types: &ValueTypeTable,
+    function: &mir::Function,
     tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     // resolve the fixed array type
-    let ty_id = value_types.expect_value_type(array);
+    let ty_id = function.expect_value_type(array);
     let ty = tree.get(ty_id);
 
     match ty {
@@ -787,15 +780,15 @@ fn array_element_type(
 fn arrays_are_value_types(
     dest_array: mir::Value,
     src_array: mir::Value,
-    value_types: &ValueTypeTable,
+    function: &mir::Function,
     tree: &mir::Tree,
 ) -> bool {
     if dest_array == src_array {
         return false;
     }
 
-    let dest_ty = value_types.expect_value_type(dest_array);
-    let src_ty = value_types.expect_value_type(src_array);
+    let dest_ty = function.expect_value_type(dest_array);
+    let src_ty = function.expect_value_type(src_array);
 
     matches!(tree.get(dest_ty), mir::Type::FixedArray { .. })
         && matches!(tree.get(src_ty), mir::Type::FixedArray { .. })

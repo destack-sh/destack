@@ -160,11 +160,12 @@ fn run_specialize_arguments(
             layouts,
             accesses,
             effects,
+            dispatch,
             ..
         } = optimized;
 
         let call_data = collect_call_data(tree);
-        let callgraph = analyses.call(tree, effects);
+        let callgraph = analyses.call(tree, dispatch);
         let constants_by_function = build_constant_maps(tree, ctx.target_layout());
 
         let mut changed = false;
@@ -589,7 +590,7 @@ fn removable_constant_parameters(
         }
 
         // skip required parameters
-        if required.contains(&index) {
+        if required.contains(index) {
             continue;
         }
 
@@ -661,9 +662,8 @@ fn update_callsite(
     tree.set(callsite.call_instruction, updated);
 
     let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);
-    if let Some(tables) = effects.calls.get_mut(&callsite_id) {
+    if let Some(tables) = effects.call_mut(callsite_id) {
         tables.arguments = remap.filter_by_index(&tables.arguments);
-        tables.target = Some(new_callee);
     }
 
     true
@@ -765,7 +765,7 @@ entry:
         let root_id = test.function_id_by_name("root");
         let (call_id, _callee_id) = test.first_call_in_entry(root_id);
         let callsite = mir::CallSite::Instruction(call_id);
-        test.optimized.effects.call_mut(callsite).arguments =
+        test.optimized.effects.upsert_call(callsite).arguments =
             vec![mir::CallArgumentEffect::default(); 2];
 
         test.run_module_pass(&SpecializeArguments);

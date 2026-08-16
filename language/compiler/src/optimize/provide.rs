@@ -94,7 +94,6 @@ impl Compiler {
         let mut optimized = MirOptimized {
             tree: elaborated.tree.clone(),
             target: elaborated.target,
-            types: elaborated.types.clone(),
             layouts: elaborated.layouts.clone(),
             dispatch: elaborated.dispatch.clone(),
             drops: elaborated.drops.clone(),

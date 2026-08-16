@@ -93,9 +93,9 @@ mod tests {
     #[test]
     fn test_eliminate_interprocedural_dead_code_removes_dead_items() {
         let input = r#"
-readonly global dead: int32 = 1
+readonly global deadGlobal: int32 = 1
 
-function dead(): int32 {
+function deadFunction(): int32 {
 entry:
     v0: int32 = 2
     return v0
@@ -110,9 +110,9 @@ entry:
 "#;
 
         let expected = r#"
-external readonly global dead: int32
+external readonly global deadGlobal: int32
 
-external function dead(): int32
+external function deadFunction(): int32
 
 export function root(): int32 {
 entry:

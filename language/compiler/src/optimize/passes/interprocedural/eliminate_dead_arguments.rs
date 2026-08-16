@@ -202,7 +202,7 @@ fn unused_parameter_indices(function: &mir::Function, tree: &mir::Tree) -> Vec<u
     // collect parameters that have no uses
     let mut unused = Vec::new();
     for (index, param) in function.parameters.iter().enumerate() {
-        if required.contains(&index) {
+        if required.contains(index) {
             continue;
         }
 
@@ -286,7 +286,7 @@ fn update_call_sites(
                 *tree.get_mut(instruction_id) = updated;
 
                 // preserve tables when the callsite carries it
-                if let Some(tables) = effects.calls.get_mut(&callsite) {
+                if let Some(tables) = effects.call_mut(callsite) {
                     tables.arguments = remap.filter_by_index(&tables.arguments);
                 }
             }
@@ -332,7 +332,7 @@ fn update_call_sites(
 
                 // preserve tables when the terminator carries it
                 let callsite = mir::CallSite::Terminator(block_id);
-                if let Some(tables) = effects.calls.get_mut(&callsite) {
+                if let Some(tables) = effects.call_mut(callsite) {
                     tables.arguments = remap.filter_by_index(&tables.arguments);
                 }
             }
@@ -541,7 +541,7 @@ entry(v0: int32):
             .expect("missing call instruction");
 
         let callsite = mir::CallSite::Instruction(call_id);
-        test.optimized.effects.call_mut(callsite).arguments = vec![
+        test.optimized.effects.upsert_call(callsite).arguments = vec![
             mir::CallArgumentEffect::default(),
             mir::CallArgumentEffect::default(),
         ];

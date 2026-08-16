@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{
-    CallTable, DefinitionTable, Hotness, Mutation, ValueTypeTable, clone_instruction_tables,
-    constant_for_value, instruction_map_with_locals, instruction_substitute_uses_in_tree,
+    CallTable, DefinitionTable, Hotness, Mutation, clone_instruction_tables, constant_for_value,
+    instruction_map_with_locals, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, terminator_remap, terminator_substitute_uses,
 };
 
@@ -54,9 +54,9 @@ impl ModulePass for InlineFunctions {
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let accesses = &mut optimized.accesses;
-        let effects = &mut optimized.effects;
+        let dispatch = &optimized.dispatch;
 
-        let changed = run_inline(tree, accesses, effects, ctx, analyses);
+        let changed = run_inline(tree, accesses, dispatch, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -128,12 +128,12 @@ const INLINE_ALWAYS_INLINE_COST: u64 = 40;
 fn run_inline(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
-    effects: &mir::EffectTable,
+    dispatch: &mir::DispatchTable,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::AnalysisCache,
 ) -> bool {
     // load module analysis state
-    let callgraph = analyses.call(tree, effects);
+    let callgraph = analyses.call(tree, dispatch);
     let inline_budget_scale_percent = ctx.inline_budget_scale_percent();
     let mut module_budget =
         inline_budget_for_module(tree, ctx.profile(), inline_budget_scale_percent);
@@ -171,8 +171,9 @@ fn run_inline(
             inline_budget_scale_percent,
         );
         let component = callgraph.component(function_id);
-        let mut component_budget = component
-            .and_then(|id| component_budgets.get(&id).copied())
+        let mut component_budget = component_budgets
+            .get(&component)
+            .copied()
             .unwrap_or(INLINE_COMPONENT_BUDGET_BASE);
         let analyses = function_analyses
             .entry(function_id)
@@ -214,14 +215,7 @@ fn run_inline(
             };
 
             // attempt to inline the selected callsite
-            let did_inline = inline_callsite(
-                &mut function,
-                tree,
-                accesses,
-                &site.site,
-                ctx,
-                &mut function_analyses,
-            );
+            let did_inline = inline_callsite(&mut function, tree, accesses, &site.site);
             if !did_inline {
                 break;
             }
@@ -239,9 +233,7 @@ fn run_inline(
             changed = true;
         }
 
-        if let Some(component) = component {
-            component_budgets.insert(component, component_budget);
-        }
+        component_budgets.insert(component, component_budget);
 
         // commit the updated function back into the tree
         *tree.get_mut(function_id) = function;
@@ -608,8 +600,6 @@ fn inline_callsite(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     site: &InlineFunctionsSite,
-    ctx: &PipelineContext<'_>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
 ) -> bool {
     // load the callee and entry block
     let callee = tree.get(site.callee_id).clone();
@@ -653,12 +643,7 @@ fn inline_callsite(
 
     // clone locals and blocks before rewriting the caller
     let local_map = clone_locals(caller, tree, &callee);
-    let callee_analyses = function_analyses
-        .entry(site.callee_id)
-        .or_insert_with(|| mir::FunctionCache::with_options(ctx.options.analysis));
-    let callee_value_types = callee_analyses.value_type(&callee, tree);
-    let (block_map, value_map) =
-        clone_callee_blocks(caller, tree, &callee, &argument_map, &callee_value_types);
+    let (block_map, value_map) = clone_callee_blocks(caller, tree, &callee, &argument_map);
 
     // split the caller block and jump into the inlined entry
     let inline_entry = block_map[&entry_block];
@@ -739,7 +724,6 @@ fn clone_callee_blocks(
     tree: &mut mir::Tree,
     callee: &mir::Function,
     argument_map: &HashMap<mir::Value, mir::Value>,
-    callee_value_types: &ValueTypeTable,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
@@ -773,7 +757,7 @@ fn clone_callee_blocks(
         for &instruction_id in &original.instructions {
             let instruction = tree.get(instruction_id);
             if let Some(destination) = instruction.destination() {
-                let destination_type = callee_value_types.expect_value_type(destination);
+                let destination_type = callee.expect_value_type(destination);
                 let new_value = caller.next_typed_value(destination_type);
                 value_map.insert(destination, new_value);
             }
@@ -1005,15 +989,8 @@ fn is_recursive_call(
     callee: mir::LocalNodeId<mir::Function>,
     callgraph: &CallTable,
 ) -> bool {
-    // load the caller component
-    let Some(caller_component) = callgraph.component(caller) else {
-        return false;
-    };
-
-    // load the callee component
-    let Some(callee_component) = callgraph.component(callee) else {
-        return false;
-    };
+    let caller_component = callgraph.component(caller);
+    let callee_component = callgraph.component(callee);
 
     // short circuit when the functions are in different components
     if caller_component != callee_component {
@@ -1195,9 +1172,7 @@ fn inline_component_budgets(
     let mut components = HashSet::new();
 
     for (function_id, _) in tree.iter_nodes::<mir::Function>() {
-        let Some(component) = callgraph.component(function_id) else {
-            continue;
-        };
+        let component = callgraph.component(function_id);
         components.insert(component);
 
         let entry = profile

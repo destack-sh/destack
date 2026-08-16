@@ -7,7 +7,6 @@ use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasTable, ByteRange, DefinitionTable, MemoryAccessId, MemoryNode, MemoryPlace, MemoryRegion,
     MemoryRegionBuilder, MemoryTable, Mutation, PostdominatorTable, RangeRelation, TargetLayout,
-    ValueTypeTable,
 };
 
 declare_pass! {
@@ -70,7 +69,6 @@ impl FunctionPass for EliminateDeadStores {
         let aa = analyses.alias(function, tree).clone();
         let memory = analyses.memory(function, tree, accesses, effects);
         let postdom = analyses.postdominator(function, tree);
-        let value_types = analyses.value_type(function, tree);
 
         // run dead store elimination
         let changed = run_eliminate_dead_stores(
@@ -78,7 +76,6 @@ impl FunctionPass for EliminateDeadStores {
             tree,
             &aa,
             memory.as_ref(),
-            &value_types,
             &postdom,
             ctx.target_layout(),
         );
@@ -98,7 +95,6 @@ fn run_eliminate_dead_stores(
     tree: &mut mir::Tree,
     aa: &AliasTable,
     memory: &MemoryTable,
-    value_types: &ValueTypeTable,
     postdom: &PostdominatorTable,
     target_layout: TargetLayout,
 ) -> bool {
@@ -118,13 +114,7 @@ fn run_eliminate_dead_stores(
 
     // build reusable reference provenance
     let value_definitions = DefinitionTable::build(function, tree);
-    let mut regions = MemoryRegionBuilder::new(
-        &value_definitions,
-        tree,
-        &function.parameters,
-        value_types,
-        target_layout,
-    );
+    let mut regions = MemoryRegionBuilder::new(function, &value_definitions, tree, target_layout);
 
     // determine dead stores
     let mut dead_stores = HashSet::new();
@@ -741,7 +731,7 @@ entry:
         };
 
         let call = mir::CallSite::Instruction(call_inst);
-        let tables = test.optimized.effects.call_mut(call);
+        let tables = test.optimized.effects.upsert_call(call);
         tables.memory = mir::MemoryEffect::none();
         tables.arguments = vec![arg0];
 

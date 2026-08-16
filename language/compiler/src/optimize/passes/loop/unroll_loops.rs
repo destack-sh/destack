@@ -6,8 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlTable, DominatorTable, EvolutionTable, Hotness, Loop, LoopTable,
-    Mutation, Scev, ValueTypeTable, build_use_def_maps, clone_instruction_tables,
-    clone_loop_blocks, instruction_is_speculatable, instruction_map, terminator_remap,
+    Mutation, Scev, build_use_def_maps, clone_instruction_tables, clone_loop_blocks,
+    instruction_is_speculatable, instruction_map, terminator_remap,
 };
 
 declare_pass! {
@@ -436,7 +436,6 @@ fn run_unroll_loops_and_jam(
         let cfg = analyses.control(function, tree).clone();
         let scev = analyses.evolution(function, tree).clone();
         let domtree = analyses.dominator(function, tree).clone();
-        let value_types = analyses.value_type(function, tree);
 
         // bail out when no loops exist
         if loops.num_loops() == 0 {
@@ -511,15 +510,7 @@ fn run_unroll_loops_and_jam(
         // apply transformation
         function.recompute_next_value_id(tree);
         if !unroll_and_jam_loop(
-            function,
-            tree,
-            accesses,
-            ctx,
-            &candidate,
-            plan,
-            &cfg,
-            &domtree,
-            &value_types,
+            function, tree, accesses, ctx, &candidate, plan, &cfg, &domtree,
         ) {
             break;
         }
@@ -1507,7 +1498,6 @@ fn unroll_and_jam_loop(
     plan: JamPlan,
     cfg: &ControlTable,
     domtree: &DominatorTable,
-    value_types: &ValueTypeTable,
 ) -> bool {
     // reject degenerate factors
     if plan.factor < 2 {
@@ -1537,7 +1527,7 @@ fn unroll_and_jam_loop(
     };
 
     // update the outer latch induction step
-    if !rewrite_outer_latch_step(function, tree, ctx, candidate, plan.factor, value_types) {
+    if !rewrite_outer_latch_step(function, tree, ctx, candidate, plan.factor) {
         return false;
     }
 
@@ -1550,7 +1540,6 @@ fn unroll_and_jam_loop(
         candidate,
         plan.factor,
         &update_info,
-        value_types,
     ) {
         return false;
     }
@@ -1775,10 +1764,9 @@ fn rewrite_outer_latch_step(
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
-    value_types: &ValueTypeTable,
 ) -> bool {
     // resolve the outer induction type
-    let outer_type = value_types.expect_value_type(candidate.outer_induction);
+    let outer_type = function.expect_value_type(candidate.outer_induction);
 
     let pointer_width_bits = ctx.target_layout().pointer_bits();
     let scaled_constant = match scaled_step_constant(
@@ -1849,10 +1837,9 @@ fn jam_inner_body(
     candidate: &JamCandidate,
     factor: u64,
     update_info: &InnerUpdateInfo,
-    value_types: &ValueTypeTable,
 ) -> bool {
     // resolve the outer induction type
-    let outer_type = value_types.expect_value_type(candidate.outer_induction);
+    let outer_type = function.expect_value_type(candidate.outer_induction);
 
     let pointer_width_bits = ctx.target_layout().pointer_bits();
     let mut new_instructions = Vec::new();

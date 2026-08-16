@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasTable, ConstantTable, DominatorTable, MemoryAccessEffect, MemoryAccessId, MemoryNode,
-    MemoryRegion, MemoryTable, Mutation, PureExpression, TargetLayout, ValueTypeTable,
+    MemoryRegion, MemoryTable, Mutation, PureExpression, TargetLayout,
     apply_substitutions_in_function, instruction_has_side_effects, resolve_substitution_chains,
 };
 
@@ -67,7 +67,6 @@ impl FunctionPass for EliminateRedundantExpressions {
         let memory = analyses.memory(function, tree, accesses, effects);
         let constants = analyses.constant(function, tree);
         let dom_children = build_dominator_children(function, domtree.as_ref());
-        let value_types = analyses.value_type(function, tree);
 
         // run redundant-expression elimination
         let changed = run_eliminate_redundant_expressions(
@@ -79,7 +78,6 @@ impl FunctionPass for EliminateRedundantExpressions {
             &alias,
             memory.as_ref(),
             constants.as_ref(),
-            &value_types,
             ctx.target_layout(),
         );
 
@@ -102,18 +100,17 @@ fn run_eliminate_redundant_expressions(
     alias: &AliasTable,
     memory: &MemoryTable,
     constants: &ConstantTable,
-    value_types: &ValueTypeTable,
     target_layout: TargetLayout,
 ) -> bool {
     // run redundant-expression elimination using dominator tree traversal
     let (substitutions, to_remove) = find_redundant_expressions(
         entry,
+        function,
         tree,
         dom_children,
         alias,
         memory,
         constants,
-        value_types,
         target_layout,
     );
 
@@ -350,12 +347,12 @@ impl ScopedValueTable {
 /// Returns a tuple of (substitutions, instructions_to_remove).
 fn find_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasTable,
     memory: &MemoryTable,
     constants: &ConstantTable,
-    value_types: &ValueTypeTable,
     target_layout: TargetLayout,
 ) -> (
     HashMap<mir::Value, mir::Value>,
@@ -384,11 +381,11 @@ fn find_redundant_expressions(
                 // process instructions in this block
                 process_block(
                     block_id,
+                    function,
                     tree,
                     alias,
                     memory,
                     constants,
-                    value_types,
                     target_layout,
                     &mut value_table,
                     &mut substitutions,
@@ -420,11 +417,11 @@ fn find_redundant_expressions(
 /// Process a single block, recording expressions and finding redundancies.
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
     alias: &AliasTable,
     memory: &MemoryTable,
     _constants: &ConstantTable,
-    value_types: &ValueTypeTable,
     _target_layout: TargetLayout,
     value_table: &mut ScopedValueTable,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
@@ -480,7 +477,7 @@ fn process_block(
 
         // apply aggregate forwarding when available
         if let Some((dest, replacement, inst_id)) = aggregate_simplification {
-            if value_types.can_substitute(dest, replacement) {
+            if function.can_substitute(dest, replacement) {
                 substitutions.insert(dest, replacement);
                 to_remove.insert(inst_id);
             }
@@ -493,7 +490,7 @@ fn process_block(
             let local = *local;
 
             if let Some(existing) = value_table.get_local(local)
-                && value_types.can_substitute(destination, existing)
+                && function.can_substitute(destination, existing)
             {
                 substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
@@ -543,7 +540,7 @@ fn process_block(
 
             // forward from an existing load when possible
             if let Some(existing) = value_table.get_memory(clobber, &use_access.effect, alias)
-                && value_types.can_substitute(destination, existing)
+                && function.can_substitute(destination, existing)
             {
                 substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
@@ -578,7 +575,7 @@ fn process_block(
         // check if we've seen this expression in any dominating scope
         if let Some(existing_value) = value_table.get(&key) {
             // found a match: mark for substitution and removal
-            if value_types.can_substitute(destination, existing_value) {
+            if function.can_substitute(destination, existing_value) {
                 substitutions.insert(destination, existing_value);
                 to_remove.insert(instruction_id);
             }
@@ -1388,7 +1385,7 @@ entry:
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let callsite = mir::CallSite::Instruction(call_inst);
-        test.optimized.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
+        test.optimized.effects.upsert_call(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);

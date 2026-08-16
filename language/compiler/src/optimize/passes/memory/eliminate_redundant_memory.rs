@@ -773,7 +773,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.optimized.effects.function_mut(callee).memory =
+        test.optimized.effects.upsert_function(callee).memory =
             mir::MemoryEffect::read_only(mir::StorageSet::ANY);
 
         test.run_pass(&EliminateRedundantMemory);
@@ -805,7 +805,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.optimized.effects.function_mut(callee).memory =
+        test.optimized.effects.upsert_function(callee).memory =
             mir::MemoryEffect::read_write(mir::StorageSet::ANY);
 
         test.run_pass(&EliminateRedundantMemory);
@@ -854,7 +854,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.optimized.effects.function_mut(callee).memory =
+        test.optimized.effects.upsert_function(callee).memory =
             mir::MemoryEffect::write_only(mir::StorageSet::LOCAL);
 
         test.run_pass(&EliminateRedundantMemory);
@@ -903,7 +903,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.optimized.effects.function_mut(callee).memory =
+        test.optimized.effects.upsert_function(callee).memory =
             mir::MemoryEffect::write_only(mir::StorageSet::SHARED);
 
         test.run_pass(&EliminateRedundantMemory);

@@ -119,7 +119,11 @@ mod tests {
     /// Build a program analysis treating the module as a standalone program.
     fn module_analysis(test: &TestProgram) -> ProgramAnalysis {
         let mut analyses = test.analysis_cache();
-        let links = analyses.link(&test.optimized.tree, &test.optimized.effects);
+        let links = analyses.link(
+            &test.optimized.tree,
+            &test.optimized.effects,
+            &test.optimized.dispatch,
+        );
         let roots: Vec<_> = links
             .nodes()
             .filter(|(_, node)| node.linkage().is_exported())

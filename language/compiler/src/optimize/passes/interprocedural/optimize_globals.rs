@@ -44,9 +44,11 @@ impl ModulePass for OptimizeGlobals {
         let tree = &mut optimized.tree;
         let accesses = &optimized.accesses;
         let effects = &mut optimized.effects;
+        let dispatch = &optimized.dispatch;
 
-        let function_effects = analyses.effect(tree, accesses, effects);
-        let changed = run_optimize_globals(tree, effects, &function_effects);
+        let resolution = analyses.resolution(tree, dispatch);
+        let function_effects = analyses.effect(tree, accesses, effects, dispatch);
+        let changed = run_optimize_globals(tree, effects, &resolution, &function_effects);
 
         // report what this pass changed
         if changed {
@@ -62,6 +64,7 @@ impl ModulePass for OptimizeGlobals {
 fn run_optimize_globals(
     tree: &mut mir::Tree,
     effects: &mir::EffectTable,
+    resolution: &mir::ResolutionTable,
     function_effects: &EffectTable,
 ) -> bool {
     // collect global address definitions and pointer uses
@@ -69,7 +72,8 @@ fn run_optimize_globals(
     let use_maps = build_value_use_maps(tree);
 
     // identify globals that are written
-    let written_globals = collect_written_globals(tree, &addr_info, effects, function_effects);
+    let written_globals =
+        collect_written_globals(tree, &addr_info, effects, resolution, function_effects);
 
     // track whether anything changed
     let mut changed = false;
@@ -251,6 +255,7 @@ fn collect_written_globals(
     tree: &mir::Tree,
     addr_info: &GlobalAddrInfo,
     effects: &mir::EffectTable,
+    resolution: &mir::ResolutionTable,
     function_effects: &EffectTable,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
     // prepare the written set
@@ -316,7 +321,13 @@ fn collect_written_globals(
 
                 // detect calls that may write memory
                 if let mir::Instruction::Call { call, .. } = instruction
-                    && call_writes_memory(instruction_id, instruction, effects, function_effects)
+                    && call_writes_memory(
+                        instruction_id,
+                        instruction,
+                        effects,
+                        resolution,
+                        function_effects,
+                    )
                     && any_argument_global(&call.arguments, &definitions, addr_info, tree)
                 {
                     written.extend(globals_from_arguments(
@@ -331,8 +342,13 @@ fn collect_written_globals(
 
             // detect invokes and tail calls that may write memory
             let terminator = tree.get(block.terminator);
-            let terminator_arguments =
-                terminator_write_arguments(tree, block_id, terminator, effects, function_effects);
+            let terminator_arguments = terminator_write_arguments(
+                tree,
+                block_id,
+                terminator,
+                resolution,
+                function_effects,
+            );
             if let Some(arguments) = terminator_arguments
                 && any_argument_global_values(&arguments, &definitions, addr_info, tree)
             {
@@ -469,6 +485,7 @@ fn call_writes_memory(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
     effects: &mir::EffectTable,
+    resolution: &mir::ResolutionTable,
     function_effects: &EffectTable,
 ) -> bool {
     let callsite = mir::CallSite::Instruction(instruction_id);
@@ -481,7 +498,7 @@ fn call_writes_memory(
 
     let function = instruction
         .call_direct_target()
-        .or_else(|| tables.and_then(|tables| tables.target));
+        .or_else(|| resolution.target(callsite));
     let Some(function) = function else {
         return true;
     };
@@ -494,15 +511,16 @@ fn terminator_write_arguments(
     tree: &mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
-    effects: &mir::EffectTable,
+    resolution: &mir::ResolutionTable,
     function_effects: &EffectTable,
 ) -> Option<Vec<mir::Value>> {
     match terminator {
         mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
-            let target = effects
-                .call(mir::CallSite::Terminator(block_id))
-                .and_then(|effect| effect.target)
-                .or_else(|| call.callee.function());
+            let callsite = mir::CallSite::Terminator(block_id);
+            let target = call
+                .callee
+                .function()
+                .or_else(|| resolution.target(callsite));
 
             let may_write = target
                 .map(|function| function_memory_writes(function_effects, function))

@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{Mutation, RangeState, RangeTable, ValueRange, ValueTypeTable};
+use destack_mir::{Mutation, RangeState, RangeTable, ValueRange};
 
 /// Integer widths supported by the textual MIR primitive type grammar.
 const SUPPORTED_INTEGER_WIDTHS: [u16; 6] = [8, 16, 32, 64, 128, 256];
@@ -52,10 +52,9 @@ impl FunctionPass for NarrowValues {
 
         // gather analyses
         let ranges = analyses.range(function, tree).clone();
-        let value_types = analyses.value_type(function, tree);
 
         // apply narrowing
-        let changed = run_narrow(function, tree, &ranges, &value_types);
+        let changed = run_narrow(function, tree, &ranges);
         if changed {
             Mutation::VALUE
         } else {
@@ -76,12 +75,7 @@ struct IntegerInfo {
 }
 
 /// Run narrowing on a single function and report whether it changed.
-fn run_narrow(
-    function: &mut mir::Function,
-    tree: &mut mir::Tree,
-    ranges: &RangeTable,
-    value_types: &ValueTypeTable,
-) -> bool {
+fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &RangeTable) -> bool {
     // refresh value ids before inserting casts
     function.recompute_next_value_id(tree);
 
@@ -126,7 +120,6 @@ fn run_narrow(
                     &mut type_cache,
                     &mut value_cast_width,
                     block_ranges,
-                    value_types,
                 )
             {
                 instruction = mir::Instruction::Binary {
@@ -175,7 +168,6 @@ fn run_narrow(
                     &mut type_cache,
                     &mut value_cast_width,
                     block_ranges,
-                    value_types,
                 )
             {
                 updated_constraint = mir::CheckConstraint::Bounds {
@@ -260,7 +252,7 @@ fn supported_integer_width(required_width: u16, original_width: u16) -> Option<u
 fn integer_info_for_value(
     value: mir::Value,
     ranges: &RangeState,
-    value_types: &ValueTypeTable,
+    function: &mir::Function,
     tree: &mut mir::Tree,
 ) -> Option<IntegerInfo> {
     // fetch the integer range for this value
@@ -276,7 +268,7 @@ fn integer_info_for_value(
     };
 
     // require a matching integer type
-    let type_id = value_types.expect_value_type(value);
+    let type_id = function.expect_value_type(value);
     let original = tree.get(type_id);
     let mir::Type::Int {
         width: original_width,
@@ -315,11 +307,10 @@ fn narrow_pair(
     type_cache: &mut HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
     value_cast_width: &mut HashMap<mir::Value, u16>,
     ranges: &RangeState,
-    value_types: &ValueTypeTable,
 ) -> Option<(mir::Value, mir::Value)> {
     // compute range info for both operands
-    let left_info = integer_info_for_value(left, ranges, value_types, tree)?;
-    let right_info = integer_info_for_value(right, ranges, value_types, tree)?;
+    let left_info = integer_info_for_value(left, ranges, function, tree)?;
+    let right_info = integer_info_for_value(right, ranges, function, tree)?;
 
     // require compatible operand types
     if left_info.signed != right_info.signed
