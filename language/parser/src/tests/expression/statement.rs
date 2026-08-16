@@ -5,7 +5,7 @@ use destack_dir::{
     ExportKind, Expression, GenericArgument, Pattern, ScalarLiteral, TypeDeclaration,
     TypeExpression, TypeLiteral,
 };
-use destack_source::{NodeSpanBoundary, NodeSpanType};
+use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 /// Parse labeled statements when the target statement starts on a new line.
 #[test]
@@ -505,4 +505,10 @@ fn test_parse_labeled_statement_span() {
         .get_main_span(expr_id)
         .expect("expected statement label span");
     assert_eq!(parser.span_str(main_span), "label");
+
+    let keyword_span = parser
+        .tree
+        .get_side_span(expr_id, NodeSpanType::Region(NodeSpanRegion::Keyword))
+        .expect("expected loop keyword span");
+    assert_eq!(parser.span_str(keyword_span), "loop");
 }

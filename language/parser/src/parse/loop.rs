@@ -35,7 +35,7 @@ impl Parser {
             },
             self.range_since(&start),
         );
-        self.tree.set_main_range(loop_id, keyword_range);
+        self.set_node_keyword_range(loop_id, keyword_range);
 
         Ok(loop_id)
     }
@@ -127,7 +127,7 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
-            self.tree.set_main_range(for_id, keyword_range);
+            self.set_node_keyword_range(for_id, keyword_range);
 
             Ok(for_id)
         }
@@ -176,7 +176,7 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
-            self.tree.set_main_range(for_id, keyword_range);
+            self.set_node_keyword_range(for_id, keyword_range);
 
             Ok(for_id)
         }
@@ -322,7 +322,7 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
-            self.tree.set_main_range(while_id, keyword_range);
+            self.set_node_keyword_range(while_id, keyword_range);
 
             Ok(while_id)
         }
@@ -351,7 +351,7 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
-            self.tree.set_main_range(while_id, keyword_range);
+            self.set_node_keyword_range(while_id, keyword_range);
 
             Ok(while_id)
         }

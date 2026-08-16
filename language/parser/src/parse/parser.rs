@@ -610,6 +610,19 @@ impl Parser {
         self.tree.insert_parsed(node, range)
     }
 
+    /// Record one node's defining keyword as its main and keyword ranges.
+    pub(crate) fn set_node_keyword_range<T>(&mut self, node_id: LocalNodeId<T>, range: ByteRange)
+    where
+        T: Node,
+    {
+        self.tree.set_main_range(node_id, range);
+        self.tree.set_side_range(
+            node_id,
+            NodeSpanType::Region(NodeSpanRegion::Keyword),
+            range,
+        );
+    }
+
     /// Attach one child-owned leading boundary range.
     pub(crate) fn set_node_leading_range<T>(&mut self, node_id: LocalNodeId<T>, boundary_start: u32)
     where
