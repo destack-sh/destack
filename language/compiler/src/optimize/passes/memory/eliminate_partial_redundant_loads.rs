@@ -5,11 +5,11 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasTable, ControlTable, DominatorTable, EdgeSplitPolicy, MemoryAccessId, MemoryNode,
-    MemoryTable, Mutation, append_edge_arguments, apply_substitutions_in_function,
-    build_use_def_maps, ensure_edge_block, instruction_allows_read_only_motion,
-    instruction_has_side_effects, instruction_is_read_only_access, instruction_is_speculatable,
-    resolve_edge_value, value_available_in_block,
+    AliasTable, ControlTable, DefinitionTable, DominatorTable, EdgeSplitPolicy, MemoryAccessId,
+    MemoryNode, MemoryTable, Mutation, append_edge_arguments, apply_substitutions_in_function,
+    ensure_edge_block, instruction_allows_read_only_motion, instruction_has_side_effects,
+    instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
+    value_available_in_block,
 };
 
 declare_pass! {
@@ -130,13 +130,8 @@ fn run_eliminate_partial_redundant_loads(
     let memory = analyses.memory(function, tree, accesses, effects);
     let alias = analyses.alias(function, tree);
 
-    // build value definition info
-    let use_def = build_use_def_maps(function, tree);
-    let function_params: HashSet<_> = function
-        .parameters
-        .iter()
-        .map(|param| param.value)
-        .collect();
+    // snapshot value definitions
+    let definitions = DefinitionTable::build(function, tree);
 
     // ensure fresh value allocation
     function.recompute_next_value_id(tree);
@@ -200,8 +195,7 @@ fn run_eliminate_partial_redundant_loads(
                 &cfg,
                 &domtree,
                 tree,
-                &use_def.def_block,
-                &function_params,
+                &definitions,
                 &param_indices,
                 memory.as_ref(),
                 &alias,
@@ -386,8 +380,7 @@ fn collect_edge_insertions(
     cfg: &ControlTable,
     domtree: &DominatorTable,
     tree: &mir::Tree,
-    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    function_params: &HashSet<mir::Value>,
+    definitions: &DefinitionTable,
     param_indices: &HashMap<mir::Value, usize>,
     memory: &MemoryTable,
     alias: &AliasTable,
@@ -413,9 +406,7 @@ fn collect_edge_insertions(
 
     // reject pointers defined in the load block
     if !param_indices.contains_key(&load.pointer)
-        && def_blocks
-            .get(&load.pointer)
-            .is_some_and(|def_block| *def_block == load.block)
+        && definitions.block(load.pointer) == Some(load.block)
     {
         return None;
     }
@@ -433,7 +424,7 @@ fn collect_edge_insertions(
         )?;
 
         // ensure the reference value is available on this edge
-        if !value_available_in_block(pointer, predecessor, def_blocks, function_params, domtree) {
+        if !value_available_in_block(pointer, predecessor, definitions, domtree) {
             return None;
         }
 

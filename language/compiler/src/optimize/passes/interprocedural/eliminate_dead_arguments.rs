@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
-use destack_mir::{Mutation, ParameterRemap, SignatureKey, build_use_def_maps};
+use destack_mir::{Mutation, ParameterRemap, SignatureKey, UseTable};
 
 declare_pass! {
     /// Remove unused parameters from local functions and their callsites.
@@ -194,7 +194,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 /// Collect unused parameter indices for a function body.
 fn unused_parameter_indices(function: &mir::Function, tree: &mir::Tree) -> Vec<usize> {
     // collect uses without treating parameters as implicitly used
-    let use_def = build_use_def_maps(function, tree);
+    let uses = UseTable::build(function, tree);
 
     // collect parameters required by signature obligations
     let required = ParameterRemap::required_indices(function, tree);
@@ -208,7 +208,7 @@ fn unused_parameter_indices(function: &mir::Function, tree: &mir::Tree) -> Vec<u
 
         let value = param.value;
 
-        if !use_def.use_blocks.contains_key(&value) {
+        if !uses.is_used(value) {
             unused.push(index);
         }
     }

@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    Mutation, TargetLayout, build_use_def_maps, fold_binary, fold_cast, fold_intrinsic, fold_unary,
+    Mutation, TargetLayout, UseTable, fold_binary, fold_cast, fold_intrinsic, fold_unary,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     terminator_substitute_uses,
 };
@@ -84,12 +84,11 @@ fn run_propagate_sparse_constants(
         None => return (false, false),
     };
 
-    // build use def data
-    let use_def = build_use_def_maps(function, tree);
+    // snapshot value uses
+    let uses = UseTable::build(function, tree);
 
     // run sparse conditional constant propagation analysis
-    let mut state =
-        PropagateSparseConstantsState::new(tree, &use_def.use_blocks, entry, target_layout);
+    let mut state = PropagateSparseConstantsState::new(tree, &uses, entry, target_layout);
     let result = state.run();
 
     // apply constant folding and reachability
@@ -187,8 +186,8 @@ impl PropagateSparseConstantsResult {
 struct PropagateSparseConstantsState<'a> {
     /// The MIR tree for instruction lookup.
     tree: &'a mir::Tree,
-    /// Blocks that use a given value.
-    use_blocks: &'a HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
+    /// Operand uses for SSA values.
+    uses: &'a UseTable,
     /// The entry block.
     entry: mir::LocalNodeId<mir::Block>,
     /// Current lattice values for SSA values.
@@ -211,14 +210,14 @@ impl<'a> PropagateSparseConstantsState<'a> {
     /// Create a new SCCP analysis state.
     fn new(
         tree: &'a mir::Tree,
-        use_blocks: &'a HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
+        uses: &'a UseTable,
         entry: mir::LocalNodeId<mir::Block>,
         target_layout: TargetLayout,
     ) -> Self {
         // initialize the analysis state
         Self {
             tree,
-            use_blocks,
+            uses,
             entry,
             value_states: HashMap::new(),
             executable_blocks: HashSet::new(),
@@ -596,10 +595,8 @@ impl<'a> PropagateSparseConstantsState<'a> {
         self.value_states.insert(value, merged);
 
         // enqueue blocks that use this value
-        if let Some(blocks) = self.use_blocks.get(&value) {
-            for &block_id in blocks {
-                self.enqueue_block(block_id);
-            }
+        for block_id in self.uses.blocks(value) {
+            self.enqueue_block(block_id);
         }
 
         // enqueue blocks that use this value in edge arguments

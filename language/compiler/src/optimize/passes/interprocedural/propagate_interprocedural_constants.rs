@@ -221,24 +221,20 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
     data
 }
 
-/// Build definition maps for each function with a body.
+/// Build definition tables for functions with bodies.
 fn build_definition_cache(
     tree: &mir::Tree,
-) -> HashMap<mir::LocalNodeId<mir::Function>, HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>>
-{
+) -> HashMap<mir::LocalNodeId<mir::Function>, DefinitionTable> {
     // prepare the cache container
     let mut cache = HashMap::new();
 
-    // build definition maps per function
+    // build one definition table per function
     for (function_id, function) in tree.iter_nodes::<mir::Function>() {
         if function.entry().is_none() {
             continue;
         }
 
-        cache.insert(
-            function_id,
-            DefinitionTable::build(function, tree).instruction_map(),
-        );
+        cache.insert(function_id, DefinitionTable::build(function, tree));
     }
 
     cache
@@ -248,10 +244,7 @@ fn build_definition_cache(
 fn constant_parameters(
     function: &mir::Function,
     callsites: &[DirectCallArgs],
-    definitions_by_function: &HashMap<
-        mir::LocalNodeId<mir::Function>,
-        HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    >,
+    definitions_by_function: &HashMap<mir::LocalNodeId<mir::Function>, DefinitionTable>,
     tree: &mir::Tree,
     pointer_width_bits: u16,
 ) -> Vec<Option<mir::Constant>> {

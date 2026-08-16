@@ -6,7 +6,7 @@ use destack_mir as mir;
 use destack_core::StringPool;
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
-use destack_mir::{Mutation, clone_instruction_tables};
+use destack_mir::{DefinitionTable, Mutation, clone_instruction_tables};
 
 declare_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
@@ -792,10 +792,13 @@ fn find_accumulator_patterns(
     tree: &mir::Tree,
     current_function_id: mir::LocalNodeId<mir::Function>,
 ) -> Vec<AccumulatorPattern> {
+    let definitions = DefinitionTable::build(function, tree);
     let mut patterns = Vec::new();
 
     for &block_id in function.blocks() {
-        if let Some(pattern) = detect_accumulator_pattern(block_id, tree, current_function_id) {
+        if let Some(pattern) =
+            detect_accumulator_pattern(block_id, tree, current_function_id, &definitions)
+        {
             patterns.push(pattern);
         }
     }
@@ -810,6 +813,7 @@ fn detect_accumulator_pattern(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     current_function_id: mir::LocalNodeId<mir::Function>,
+    definitions: &DefinitionTable,
 ) -> Option<AccumulatorPattern> {
     let block = tree.get(block_id);
     let terminator = tree.get(block.terminator);
@@ -849,14 +853,10 @@ fn detect_accumulator_pattern(
 
     let (binary_idx, (operator, left, right)) = binary_index.zip(binary_info)?;
 
-    // collect recursive call results and definition indices
+    // collect recursive call results
     let mut recursive_call_results: HashSet<mir::Value> = HashSet::new();
-    let mut definition_indices: HashMap<mir::Value, usize> = HashMap::new();
-    for (idx, &instr_id) in block.instructions.iter().enumerate() {
+    for &instr_id in &block.instructions {
         let instr = tree.get(instr_id);
-        if let Some(destination) = instr.destination() {
-            definition_indices.insert(destination, idx);
-        }
         if let mir::Instruction::Call {
             destination: Some(destination),
             call,
@@ -900,8 +900,9 @@ fn detect_accumulator_pattern(
             }
 
             // the other operand must be available before the call
-            if let Some(def_index) = definition_indices.get(&other_operand)
-                && *def_index > idx
+            if let Some(definition) = definitions.instruction(other_operand)
+                && definitions.block(other_operand) == Some(block_id)
+                && !block.instructions[..idx].contains(&definition)
             {
                 continue;
             }

@@ -159,7 +159,7 @@ fn run_distribute_loops(
     alias: &AliasTable,
 ) -> bool {
     // build value definition info
-    let definitions = DefinitionTable::build(function, tree).instruction_map();
+    let definitions = DefinitionTable::build(function, tree);
 
     // select a candidate loop
     let candidate = loops.loops().iter().find_map(|lp| {
@@ -193,7 +193,7 @@ fn build_candidate(
     domtree: &DominatorTable,
     memory: &MemoryTable,
     alias: &AliasTable,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
 ) -> Option<DistributeCandidate> {
     // require a single latch and exit
     if !lp.has_single_latch() || !lp.has_single_exit() {
@@ -246,8 +246,7 @@ fn build_candidate(
     }
 
     // collect control instructions in the latch
-    let control_instructions =
-        control_instructions_for_latch(function, lp.header, latch, tree, definitions);
+    let control_instructions = control_instructions_for_latch(lp.header, latch, tree, definitions);
 
     // collect store groups in the latch
     let groups = collect_store_groups(
@@ -286,7 +285,7 @@ fn collect_store_groups(
     accesses: &mir::AccessTable,
     memory: &MemoryTable,
     alias: &AliasTable,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     control_instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<Vec<StoreGroup>> {
     // set up latch scanning state
@@ -411,7 +410,7 @@ fn collect_group_instructions(
     latch: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     tree: &mir::Tree,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     control_instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<HashSet<mir::LocalNodeId<mir::Instruction>>> {
     // seed the worklist with store operands
@@ -427,27 +426,27 @@ fn collect_group_instructions(
 
     while let Some(next_value) = worklist.pop_front() {
         // resolve the defining instruction
-        let Some(definition) = definitions.get(&next_value) else {
+        let Some(definition) = definitions.instruction(next_value) else {
             continue;
         };
 
         // skip values defined outside the latch
-        if function.instruction_block(*definition) != Some(latch) {
+        if definitions.block(next_value) != Some(latch) {
             continue;
         }
 
         // skip control instructions
-        if control_instructions.contains(definition) {
+        if control_instructions.contains(&definition) {
             continue;
         }
 
         // skip already recorded instructions
-        if !instructions.insert(*definition) {
+        if !instructions.insert(definition) {
             continue;
         }
 
         // reject unsupported instruction kinds
-        let instruction = tree.get(*definition);
+        let instruction = tree.get(definition);
         if !matches!(
             instruction,
             mir::Instruction::Store { .. }

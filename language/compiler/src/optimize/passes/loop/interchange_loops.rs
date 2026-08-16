@@ -1,13 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlTable, DominatorTable, LoopEffectPolicy, LoopTable, MemoryTable, Mutation,
-    build_value_definition_blocks, collect_loop_effects, loop_guard_branch, loop_preheader,
-    value_available_in_block,
+    ControlTable, DefinitionTable, DominatorTable, LoopEffectPolicy, LoopTable, MemoryTable,
+    Mutation, collect_loop_effects, loop_guard_branch, loop_preheader, value_available_in_block,
 };
 
 declare_pass! {
@@ -140,12 +139,7 @@ fn run_interchange_loops(
     memory: &MemoryTable,
 ) -> bool {
     // build definition info
-    let def_blocks = build_value_definition_blocks(function, tree);
-    let function_params: HashSet<_> = function
-        .parameters
-        .iter()
-        .map(|param| param.value)
-        .collect();
+    let definitions = DefinitionTable::build(function, tree);
 
     // scan nested loops
     let candidate = loops.loops().iter().find_map(|inner| {
@@ -161,8 +155,7 @@ fn run_interchange_loops(
             tree,
             accesses,
             memory,
-            &def_blocks,
-            &function_params,
+            &definitions,
         )
     });
     let Some(candidate) = candidate else {
@@ -183,8 +176,7 @@ fn build_interchange_candidate(
     tree: &mir::Tree,
     accesses: &mir::AccessTable,
     memory: &MemoryTable,
-    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    function_params: &HashSet<mir::Value>,
+    definitions: &DefinitionTable,
 ) -> Option<InterchangeCandidate> {
     // require canonical loops
     if !outer.has_single_latch() || !inner.has_single_latch() {
@@ -270,20 +262,14 @@ fn build_interchange_candidate(
 
     // ensure inner header args are available at the outer preheader
     for value in &inner_header_args {
-        if !value_available_in_block(
-            *value,
-            outer_preheader,
-            def_blocks,
-            function_params,
-            domtree,
-        ) {
+        if !value_available_in_block(*value, outer_preheader, definitions, domtree) {
             return None;
         }
     }
 
     // ensure outer preheader args are available at the inner header
     for value in &outer_preheader_args {
-        if !value_available_in_block(*value, inner.header, def_blocks, function_params, domtree) {
+        if !value_available_in_block(*value, inner.header, definitions, domtree) {
             return None;
         }
     }

@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlTable, DominatorTable, EdgeSplitPolicy, Hotness, Mutation,
-    block_parameters_used_outside_block, block_uses_available_in_predecessor, build_use_def_maps,
+    ControlTable, DefinitionTable, DominatorTable, EdgeSplitPolicy, Hotness, Mutation, UseTable,
+    block_parameters_used_outside_block, block_uses_available_in_predecessor,
     clone_instruction_tables, collect_reachable_blocks, ensure_edge_block,
     instruction_is_speculatable, instruction_map, terminator_substitute_uses,
 };
@@ -318,9 +318,9 @@ fn duplicate_hot_edges(
     domtree: &DominatorTable,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
-    // build definition tables
-    let use_def = build_use_def_maps(function, tree);
-    let value_def_blocks = &use_def.def_block;
+    // snapshot value definitions and uses
+    let definitions = DefinitionTable::build(function, tree);
+    let uses = UseTable::build(function, tree);
 
     // collect edge predecessors keyed by target
     let mut predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<EdgePredecessor>> =
@@ -419,7 +419,7 @@ fn duplicate_hot_edges(
         }
 
         // skip blocks with parameters used outside the block
-        if block_parameters_used_outside_block(&block, &use_def.use_blocks, target) {
+        if block_parameters_used_outside_block(&block, &uses, target) {
             continue;
         }
 
@@ -452,7 +452,7 @@ fn duplicate_hot_edges(
                 &block,
                 tree,
                 pred.pred,
-                value_def_blocks,
+                &definitions,
                 domtree,
             ) {
                 continue;

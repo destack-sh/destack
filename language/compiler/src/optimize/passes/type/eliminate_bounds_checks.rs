@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, ConstantTable, DominatorTable, Mutation, RangeState, RangeTable,
-    ValueRange, fold_binary,
+    BlockParamForwarding, ConstantTable, DefinitionTable, DominatorTable, Mutation, RangeState,
+    RangeTable, ValueDefinition, ValueRange, fold_binary,
 };
 
 declare_pass! {
@@ -180,73 +180,6 @@ impl FunctionPass for EliminateBoundsChecks {
         } else {
             Mutation::NONE
         }
-    }
-}
-
-/// Definition kind for an SSA value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ValueDefinition {
-    /// Block parameter definition.
-    Parameter {
-        /// Block that owns the parameter.
-        block: mir::LocalNodeId<mir::Block>,
-        /// Parameter index within the block.
-        index: usize,
-    },
-    /// Instruction definition.
-    Instruction {
-        /// Instruction id that defines the value.
-        instruction: mir::LocalNodeId<mir::Instruction>,
-    },
-}
-
-/// Definition map for SSA values.
-#[derive(Debug)]
-struct DefinitionTable {
-    /// Mapping from SSA value to its definition.
-    definitions: HashMap<mir::Value, ValueDefinition>,
-}
-
-impl DefinitionTable {
-    /// Build the definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
-        // seed value definitions from parameters and instructions
-        let mut definitions = HashMap::new();
-        for &block_id in function.blocks() {
-            // record block parameter definitions
-            let block = tree.get(block_id);
-            for (index, param) in block.parameters.iter().enumerate() {
-                let value = param.value;
-
-                definitions.insert(
-                    value,
-                    ValueDefinition::Parameter {
-                        block: block_id,
-                        index,
-                    },
-                );
-            }
-
-            // record instruction definitions
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
-                    definitions.insert(
-                        destination,
-                        ValueDefinition::Instruction {
-                            instruction: instruction_id,
-                        },
-                    );
-                }
-            }
-        }
-
-        Self { definitions }
-    }
-
-    /// Return the definition for an SSA value.
-    fn get(&self, value: mir::Value) -> Option<ValueDefinition> {
-        self.definitions.get(&value).copied()
     }
 }
 
@@ -1047,9 +980,9 @@ fn condition_truth_value(
     }
 
     // attempt to evaluate derived boolean expressions
-    let definition = definitions.get(condition)?;
+    let definition = definitions.definition(condition)?;
     match definition {
-        ValueDefinition::Instruction { instruction } => {
+        ValueDefinition::Instruction { instruction, .. } => {
             let instruction = tree.get(instruction);
             match instruction {
                 mir::Instruction::Binary {
@@ -1082,7 +1015,7 @@ fn condition_truth_value(
                 _ => None,
             }
         }
-        ValueDefinition::Parameter { .. } => None,
+        ValueDefinition::FunctionParameter(_) | ValueDefinition::BlockParameter { .. } => None,
     }
 }
 
@@ -1187,11 +1120,11 @@ fn constraints_for_condition(
     ranges: &RangeState,
 ) -> Option<Vec<BoundsConstraint>> {
     // resolve the condition definition
-    let definition = definitions.get(condition)?;
+    let definition = definitions.definition(condition)?;
 
     // derive constraints based on the definition kind
     match definition {
-        ValueDefinition::Instruction { instruction } => {
+        ValueDefinition::Instruction { instruction, .. } => {
             let instruction = tree.get(instruction);
             match instruction {
                 mir::Instruction::Binary {
@@ -1366,7 +1299,7 @@ fn constraints_for_condition(
                 _ => None,
             }
         }
-        ValueDefinition::Parameter { .. } => None,
+        ValueDefinition::FunctionParameter(_) | ValueDefinition::BlockParameter { .. } => None,
     }
 }
 
@@ -1436,9 +1369,9 @@ fn bound_key_for_value(
     }
 
     // fall back to local constants
-    if let Some(constant_key) = definitions.get(value).and_then(|definition| {
+    if let Some(constant_key) = definitions.definition(value).and_then(|definition| {
         // require instruction based values
-        let ValueDefinition::Instruction { instruction } = definition else {
+        let ValueDefinition::Instruction { instruction, .. } = definition else {
             return None;
         };
 

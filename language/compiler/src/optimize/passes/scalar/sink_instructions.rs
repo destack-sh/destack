@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasTable, ControlTable, DefinitionTable, DominatorTable, LoopTable, MemoryLocation,
-    MemoryTable, Mutation, build_use_def_maps, instruction_is_memory_read,
+    MemoryTable, Mutation, UseTable, ValueDefinition, instruction_is_memory_read,
     instruction_is_speculatable,
 };
 
@@ -102,9 +102,9 @@ fn run_sink(
         .flat_map(|loop_info| loop_info.blocks.iter().copied())
         .collect();
 
-    // build value->uses map and value->defining-block map
-    let use_def = build_use_def_maps(function, tree);
-    let definition_map = DefinitionTable::build(function, tree).instruction_map();
+    // snapshot value uses and definitions before moving instructions
+    let uses = UseTable::build(function, tree);
+    let definitions = DefinitionTable::build(function, tree);
 
     // collect sinking work
     let mut work: Vec<SinkInstructionsWork> = Vec::new();
@@ -159,19 +159,14 @@ fn run_sink(
             }
 
             // check where the value is used
-            let uses = use_def
-                .use_blocks
-                .get(&destination_value)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]);
-            if uses.is_empty() {
+            if !uses.is_used(destination_value) {
                 // no uses, DCE will remove this
                 continue;
             }
 
             // find the unique successor that uses this value
             let mut target_successor: Option<mir::LocalNodeId<mir::Block>> = None;
-            for &use_block in uses {
+            for use_block in uses.blocks(destination_value) {
                 // skip uses in the same block (instructions after this one)
                 if use_block == block_id {
                     target_successor = None;
@@ -223,20 +218,25 @@ fn run_sink(
             let operands_ok = instruction.uses().iter().all(|&operand| {
                 let operand_value = operand;
 
-                if let Some(def_id) = definition_map.get(&operand_value)
-                    && function.instruction_block(*def_id) == Some(successor)
-                {
+                if definitions.block(operand_value) == Some(successor) {
                     return false;
                 }
 
                 // check if operand is defined in a block that dominates successor
-                match use_def.def_block.get(&operand_value) {
-                    Some(&operand_block) => {
+                match definitions.definition(operand_value) {
+                    Some(ValueDefinition::FunctionParameter(_)) => true,
+                    Some(ValueDefinition::BlockParameter {
+                        block: operand_block,
+                        ..
+                    })
+                    | Some(ValueDefinition::Instruction {
+                        block: operand_block,
+                        ..
+                    }) => {
                         domtree.dominates(operand_block, successor)
                             || domtree.dominates(operand_block, block_id)
                     }
-                    // function parameter, always available
-                    None => true,
+                    None => false,
                 }
             });
 

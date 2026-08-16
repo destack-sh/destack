@@ -162,12 +162,11 @@ fn run_eliminate_redundant_memory(
         return false;
     }
 
-    // build definition map for value equivalence checks
-    let definitions = DefinitionTable::build(function, tree).instruction_map();
+    // build value definitions for equivalence checks
+    let definitions = DefinitionTable::build(function, tree);
 
     // prepare value equivalence
-    let mut equivalence =
-        ValueEquivalence::new_with_constants(function, tree, &definitions, constants);
+    let mut equivalence = ValueEquivalence::new(function, tree, &definitions, constants);
 
     // collect redundant stores
     let mut redundant = HashSet::new();

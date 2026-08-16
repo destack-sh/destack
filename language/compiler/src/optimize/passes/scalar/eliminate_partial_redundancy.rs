@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlTable, DominatorTable, EdgeSplitPolicy, ExpressionTable, Mutation, PureExpression,
-    UseDefMaps, append_edge_arguments, apply_substitutions_in_function, build_use_def_maps,
+    ControlTable, DefinitionTable, DominatorTable, EdgeSplitPolicy, ExpressionTable, Mutation,
+    PureExpression, append_edge_arguments, apply_substitutions_in_function,
     collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
     instruction_has_side_effects, instruction_is_speculatable,
 };
@@ -202,7 +202,7 @@ fn run_pre(
     let frontiers = compute_dominance_frontiers(&reachable, cfg, domtree);
 
     // build maps for value availability checks
-    let use_def = build_use_def_maps(function, tree);
+    let definitions = DefinitionTable::build(function, tree);
     // plan phi placements per block
     let mut phi_map: HashMap<mir::LocalNodeId<mir::Block>, Vec<PhiPlacement>> = HashMap::new();
     let mut changed = false;
@@ -248,7 +248,7 @@ fn run_pre(
                 continue;
             }
 
-            if !phi_is_fillable(&phi_block, key, function, cfg, domtree, available, &use_def) {
+            if !phi_is_fillable(&phi_block, key, cfg, domtree, available, &definitions) {
                 continue;
             }
 
@@ -352,7 +352,7 @@ fn run_pre(
                         function,
                         tree,
                         templates.get(&placement.key),
-                        &use_def,
+                        &definitions,
                         domtree,
                     );
 
@@ -448,11 +448,10 @@ fn phi_is_useful(
 fn phi_is_fillable(
     block: &mir::LocalNodeId<mir::Block>,
     key: &PureExpression,
-    function: &mir::Function,
     cfg: &ControlTable,
     domtree: &DominatorTable,
     available: &ExpressionTable,
-    use_def: &UseDefMaps,
+    definitions: &DefinitionTable,
 ) -> bool {
     // every predecessor must either have the expression available or be able to compute it
     for &pred in cfg.predecessors(*block) {
@@ -463,7 +462,7 @@ fn phi_is_fillable(
             continue;
         }
 
-        if !operands_available_in_block(key, pred, function, domtree, use_def) {
+        if !operands_available_in_block(key, pred, domtree, definitions) {
             return false;
         }
     }
@@ -475,43 +474,17 @@ fn phi_is_fillable(
 fn operands_available_in_block(
     key: &PureExpression,
     block: mir::LocalNodeId<mir::Block>,
-    function: &mir::Function,
     domtree: &DominatorTable,
-    use_def: &UseDefMaps,
+    definitions: &DefinitionTable,
 ) -> bool {
     // collect operands for the expression
     let operands = expression_operands(key);
 
     for operand in operands {
-        if value_available_in_block(operand, block, function, domtree, use_def) {
+        if definitions.is_available_at_exit(operand, block, domtree) {
             continue;
         }
 
-        return false;
-    }
-
-    true
-}
-
-/// Check that a value is available at the end of a block.
-fn value_available_in_block(
-    value: mir::Value,
-    block: mir::LocalNodeId<mir::Block>,
-    function: &mir::Function,
-    domtree: &DominatorTable,
-    use_def: &UseDefMaps,
-) -> bool {
-    // function parameters are always available
-    if function.parameters.iter().any(|param| param.value == value) {
-        return true;
-    }
-
-    // block parameters and instruction destinations must dominate
-    let Some(def_block) = use_def.def_block.get(&value).copied() else {
-        return false;
-    };
-
-    if !domtree.dominates(def_block, block) {
         return false;
     }
 
@@ -636,14 +609,14 @@ fn insert_expression_in_block(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     template: Option<&ExpressionTemplate>,
-    use_def: &UseDefMaps,
+    definitions: &DefinitionTable,
     domtree: &DominatorTable,
 ) -> Option<mir::Value> {
     // require a template describing how to rebuild the expression
     let template = template?;
 
     // require operands to be available at the insertion point
-    if !operands_available_in_block(&key, availability_block, function, domtree, use_def) {
+    if !operands_available_in_block(&key, availability_block, domtree, definitions) {
         return None;
     }
 

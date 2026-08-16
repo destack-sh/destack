@@ -4,10 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{
-    ConstantState, ConstantTable, InstructionRef, Mutation, build_value_instruction_refs,
-    fold_binary,
-};
+use destack_mir::{ConstantState, ConstantTable, DefinitionTable, Mutation, fold_binary};
 
 declare_pass! {
     /// ReassociateExpressions associative expressions to expose constant folding.
@@ -70,8 +67,8 @@ fn run_reassociate(
     tree: &mut mir::Tree,
     constants: &ConstantTable,
 ) -> bool {
-    // build lookup for value definitions
-    let mut value_to_instruction = build_value_instruction_refs(function, tree);
+    // snapshot value definitions before rewriting instructions
+    let definitions = DefinitionTable::build(function, tree);
 
     // track whether any changes were made
     let mut changed = false;
@@ -88,7 +85,7 @@ fn run_reassociate(
         let instruction_ids = block.instructions.clone();
 
         // iterate in order so constant state is accurate
-        for (instruction_index, instruction_id) in instruction_ids.iter().enumerate() {
+        for instruction_id in &instruction_ids {
             // read the current instruction
             let instruction = tree.get(*instruction_id).clone();
 
@@ -110,9 +107,9 @@ fn run_reassociate(
                         left,
                         right,
                         block_id,
-                        instruction_index,
                         &block_constants,
-                        &value_to_instruction,
+                        tree,
+                        &definitions,
                     )
                 };
 
@@ -162,14 +159,6 @@ fn run_reassociate(
                         right: last,
                     };
                     tree.set(*instruction_id, new_instruction.clone());
-                    value_to_instruction.insert(
-                        destination,
-                        InstructionRef {
-                            instruction: new_instruction,
-                            block: block_id,
-                            index: instruction_index,
-                        },
-                    );
                     changed = true;
 
                     // update operand tracking for constant propagation
@@ -234,12 +223,12 @@ struct CollectContext<'a> {
     operator: mir::BinaryOperator,
     /// Block containing the current instruction.
     block_id: mir::LocalNodeId<mir::Block>,
-    /// Instruction index within the block.
-    instruction_index: usize,
     /// Constant information for the current block.
     constants: &'a ConstantState,
-    /// Definition lookup for values.
-    value_to_instruction: &'a HashMap<mir::Value, InstructionRef>,
+    /// The current MIR tree.
+    tree: &'a mir::Tree,
+    /// Definition sites for SSA values.
+    definitions: &'a DefinitionTable,
 }
 
 /// Decide whether a binary instruction can be reassociated.
@@ -248,9 +237,9 @@ fn reassociate_binary(
     left: mir::Value,
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
-    instruction_index: usize,
     constants: &ConstantState,
-    value_to_instruction: &HashMap<mir::Value, InstructionRef>,
+    tree: &mir::Tree,
+    definitions: &DefinitionTable,
 ) -> Option<ReassociateExpressionsPlan> {
     // only reassociate associative and commutative operators
     if !binary_operator_is_associative(operator) {
@@ -264,9 +253,9 @@ fn reassociate_binary(
     let context = CollectContext {
         operator,
         block_id,
-        instruction_index,
         constants,
-        value_to_instruction,
+        tree,
+        definitions,
     };
     collect_associative_operands(
         &context,
@@ -323,24 +312,28 @@ fn collect_associative_operands(
     }
 
     // walk nested associative instructions within the block
-    let Some(definition) = context.value_to_instruction.get(&value) else {
+    let Some(definition) = context.definitions.definition(value) else {
         non_constants.push(value);
         return;
     };
 
-    // stop when the definition is outside the current prefix
-    if definition.block != context.block_id || definition.index >= context.instruction_index {
+    // stop when the definition is outside the current block
+    if definition.block() != Some(context.block_id) {
         non_constants.push(value);
         return;
     }
 
     // extract nested operands when the operator matches
+    let Some(instruction) = definition.instruction() else {
+        non_constants.push(value);
+        return;
+    };
     let mir::Instruction::Binary {
         operator: nested,
         left,
         right,
         ..
-    } = &definition.instruction
+    } = context.tree.get(instruction)
     else {
         non_constants.push(value);
         return;
@@ -388,22 +381,26 @@ fn associative_subtree_contains_constant(
     }
 
     // require an in block definition before checking nested operands
-    let Some(definition) = context.value_to_instruction.get(&value) else {
+    let Some(definition) = context.definitions.definition(value) else {
         constant_cache.insert(value, false);
         return false;
     };
-    if definition.block != context.block_id || definition.index >= context.instruction_index {
+    if definition.block() != Some(context.block_id) {
         constant_cache.insert(value, false);
         return false;
     }
 
     // only recurse on matching associative operators
+    let Some(instruction) = definition.instruction() else {
+        constant_cache.insert(value, false);
+        return false;
+    };
     let mir::Instruction::Binary {
         operator: nested,
         left,
         right,
         ..
-    } = &definition.instruction
+    } = context.tree.get(instruction)
     else {
         constant_cache.insert(value, false);
         return false;

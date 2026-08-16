@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantState, ConstantTable, Mutation, RangeState, RangeTable, TargetLayout,
+    ConstantState, ConstantTable, DefinitionTable, Mutation, RangeState, RangeTable, TargetLayout,
     constant_all_ones_like, constant_is_all_ones, constant_is_one, constant_is_zero,
     constant_zero_like, fold_binary, fold_cast, fold_unary, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
@@ -104,7 +104,7 @@ fn run_combine_instructions(
     ranges: &RangeTable,
     target_layout: TargetLayout,
 ) -> bool {
-    let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
+    let definitions = DefinitionTable::build(function, tree);
     let mut aggregate_operands: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
     let mut field_sets: HashMap<mir::Value, FieldSetEntry> = HashMap::new();
     let mut field_gets: HashMap<mir::Value, FieldGetEntry> = HashMap::new();
@@ -167,11 +167,6 @@ fn run_combine_instructions(
                 }
                 _ => {}
             }
-
-            // track all instructions by destination
-            if let Some(dest) = instruction.destination() {
-                value_to_instruction.insert(dest, instruction.clone());
-            }
         }
     }
 
@@ -220,7 +215,8 @@ fn run_combine_instructions(
                         *destination,
                         *operator,
                         *argument,
-                        &value_to_instruction,
+                        tree,
+                        &definitions,
                     ),
 
                     mir::Instruction::FieldGet {
@@ -264,7 +260,6 @@ fn run_combine_instructions(
                             value: value.clone(),
                         };
                         block_constants.insert(dest, value);
-                        value_to_instruction.insert(dest, new_instruction.clone());
                         tree.set(instruction_id, new_instruction);
                     }
                     Simplification::Substitute(replacement) => {
@@ -704,15 +699,17 @@ fn simplify_unary_operator(
     _destination: mir::Value,
     operator: mir::UnaryOperator,
     argument: mir::Value,
-    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
+    tree: &mir::Tree,
+    definitions: &DefinitionTable,
 ) -> Option<Simplification> {
     // look for double negation: !!x = x
+    let instruction = definitions.instruction(argument).map(|id| tree.get(id));
     if operator == mir::UnaryOperator::Not
         && let Some(mir::Instruction::Unary {
             operator: mir::UnaryOperator::Not,
             argument: inner,
             ..
-        }) = value_to_instruction.get(&argument)
+        }) = instruction
     {
         // !!x = x
         return Some(Simplification::Substitute(*inner));

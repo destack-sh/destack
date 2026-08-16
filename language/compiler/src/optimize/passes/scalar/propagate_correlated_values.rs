@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantTable, ControlTable, DominatorTable, Mutation, ValueRange,
-    apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
+    ConstantTable, ControlTable, DefinitionTable, DominatorTable, Mutation, ValueRange,
+    apply_substitutions_in_dominated_blocks,
 };
 
 declare_pass! {
@@ -91,11 +91,8 @@ fn run_propagate_correlated_values(
     cfg: &ControlTable,
     constants: &ConstantTable,
 ) -> bool {
-    // build definition map for dominance checks
-    let use_def = build_use_def_maps(function, tree);
-
-    // build a lookup for condition instructions
-    let value_to_instruction = build_value_instruction_map(function, tree);
+    // snapshot value definitions
+    let definitions = DefinitionTable::build(function, tree);
 
     // track changes across the function
     let mut changed = false;
@@ -122,8 +119,7 @@ fn run_propagate_correlated_values(
         };
 
         // extract an equality condition
-        if let Some(equality) = equality_condition(condition, function, tree, &value_to_instruction)
-        {
+        if let Some(equality) = equality_condition(condition, function, tree, &definitions) {
             // decide which successor is the equality path
             let equality_block = if equality.is_equal_on_then {
                 then_target
@@ -146,7 +142,7 @@ fn run_propagate_correlated_values(
                         equality.left,
                         equality.right,
                         equality_block,
-                        &use_def.def_block,
+                        &definitions,
                         domtree,
                     )
                 };
@@ -172,8 +168,7 @@ fn run_propagate_correlated_values(
         }
 
         // apply range constraints derived from the branch condition
-        let range_constraints =
-            range_constraints_for_condition(condition, &value_to_instruction, tree);
+        let range_constraints = range_constraints_for_condition(condition, &definitions, tree);
         let mut range_changed = false;
 
         // apply the constraint on the then edge
@@ -186,7 +181,7 @@ fn run_propagate_correlated_values(
                     domtree,
                     then_target,
                     &constraint,
-                    &value_to_instruction,
+                    &definitions,
                 );
             }
         }
@@ -201,7 +196,7 @@ fn run_propagate_correlated_values(
                     domtree,
                     else_target,
                     &constraint,
-                    &value_to_instruction,
+                    &definitions,
                 );
             }
         }
@@ -244,10 +239,10 @@ fn equality_condition(
     condition: mir::Value,
     function: &mir::Function,
     tree: &mir::Tree,
-    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
+    definitions: &DefinitionTable,
 ) -> Option<EqualityCondition> {
     // look up the defining instruction
-    let instruction = value_to_instruction.get(&condition)?;
+    let instruction = tree.get(definitions.instruction(condition)?);
 
     // handle direct comparisons
     if let mir::Instruction::Binary {
@@ -287,7 +282,7 @@ fn equality_condition(
         argument,
         ..
     } = instruction
-        && let Some(nested) = value_to_instruction.get(argument)
+        && let Some(nested) = definitions.instruction(*argument).map(|id| tree.get(id))
         && let mir::Instruction::Binary {
             operator,
             left,
@@ -325,7 +320,7 @@ fn equality_condition(
 /// Extract range constraints from a comparison condition.
 fn range_constraints_for_condition(
     condition: mir::Value,
-    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
 ) -> RangeConstraintPair {
     // default to no constraints
@@ -335,7 +330,7 @@ fn range_constraints_for_condition(
     };
 
     // find the defining instruction
-    let Some(instruction) = value_to_instruction.get(&condition) else {
+    let Some(instruction) = definitions.instruction(condition).map(|id| tree.get(id)) else {
         return constraints;
     };
 
@@ -351,8 +346,8 @@ fn range_constraints_for_condition(
     };
 
     // detect a constant operand
-    let left_constant = constant_from_value(left, value_to_instruction, tree);
-    let right_constant = constant_from_value(right, value_to_instruction, tree);
+    let left_constant = constant_from_value(left, definitions, tree);
+    let right_constant = constant_from_value(right, definitions, tree);
 
     // pick the non constant value to constrain
     let (value, constant, is_swapped) = match (left_constant, right_constant) {
@@ -383,11 +378,11 @@ fn range_constraints_for_condition(
 /// Extract a constant value for a SSA value if it is defined by a constant.
 fn constant_from_value(
     value: mir::Value,
-    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
-    _tree: &mir::Tree,
+    definitions: &DefinitionTable,
+    tree: &mir::Tree,
 ) -> Option<mir::Constant> {
     // look up the defining instruction
-    let instruction = value_to_instruction.get(&value)?;
+    let instruction = tree.get(definitions.instruction(value)?);
 
     // map constants to their values
     match instruction {
@@ -524,7 +519,7 @@ fn apply_range_constraint(
     domtree: &DominatorTable,
     root: mir::LocalNodeId<mir::Block>,
     constraint: &RangeConstraint,
-    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
+    definitions: &DefinitionTable,
 ) -> bool {
     // collect dominated blocks
     let mut blocks = Vec::new();
@@ -560,14 +555,8 @@ fn apply_range_constraint(
             let right = *right;
 
             // fold the comparison when constrained
-            let comparison = comparison_from_range(
-                *operator,
-                left,
-                right,
-                constraint,
-                value_to_instruction,
-                tree,
-            );
+            let comparison =
+                comparison_from_range(*operator, left, right, constraint, definitions, tree);
 
             // replace with a constant when the outcome is known
             if let Some(result) = comparison {
@@ -590,19 +579,19 @@ fn comparison_from_range(
     left: mir::Value,
     right: mir::Value,
     constraint: &RangeConstraint,
-    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
 ) -> Option<bool> {
     // identify the constrained operand
     let (is_left, constant_value) = if left == constraint.value {
         (
             true,
-            constant_to_i128(constant_from_value(right, value_to_instruction, tree)?)?,
+            constant_to_i128(constant_from_value(right, definitions, tree)?)?,
         )
     } else if right == constraint.value {
         (
             false,
-            constant_to_i128(constant_from_value(left, value_to_instruction, tree)?)?,
+            constant_to_i128(constant_from_value(left, definitions, tree)?)?,
         )
     } else {
         return None;
@@ -696,13 +685,13 @@ fn choose_replacement(
     left: mir::Value,
     right: mir::Value,
     block: mir::LocalNodeId<mir::Block>,
-    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    definitions: &DefinitionTable,
     domtree: &DominatorTable,
 ) -> Option<(mir::Value, mir::Value)> {
     // treat parameters as available at function entry
     let entry_block = entry?;
-    let left_def = def_blocks.get(&left).copied().unwrap_or(entry_block);
-    let right_def = def_blocks.get(&right).copied().unwrap_or(entry_block);
+    let left_def = definitions.block(left).unwrap_or(entry_block);
+    let right_def = definitions.block(right).unwrap_or(entry_block);
 
     // determine availability in the dominated region
     let left_available = domtree.dominates(left_def, block);

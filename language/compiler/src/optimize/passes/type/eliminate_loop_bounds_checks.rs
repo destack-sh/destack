@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, DominatorTable, EvolutionTable, Loop, LoopTable, Mutation, RangeState,
-    RangeTable, Scev, ValueRange, constant_zero_like,
+    BlockParamForwarding, DefinitionTable, DominatorTable, EvolutionTable, Loop, LoopTable,
+    Mutation, RangeState, RangeTable, Scev, ValueDefinition, ValueRange, constant_zero_like,
 };
 
 declare_pass! {
@@ -110,78 +110,6 @@ impl FunctionPass for EliminateLoopBoundsChecks {
         } else {
             Mutation::NONE
         }
-    }
-}
-
-/// Definition kind for a value.
-#[derive(Debug, Clone, Copy)]
-enum ValueDefinitionKind {
-    /// Block parameter definition.
-    Parameter,
-    /// Instruction definition.
-    Instruction {
-        instruction: mir::LocalNodeId<mir::Instruction>,
-    },
-}
-
-/// Definition tables for a value.
-#[derive(Debug, Clone, Copy)]
-struct ValueDefinition {
-    /// Definition kind.
-    kind: ValueDefinitionKind,
-}
-
-/// Map of values to definitions.
-#[derive(Debug)]
-struct DefinitionTable {
-    /// Definitions keyed by value.
-    definitions: HashMap<mir::Value, ValueDefinition>,
-}
-
-impl DefinitionTable {
-    /// Build a definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
-        // collect parameter and instruction definitions
-        let mut definitions = HashMap::new();
-
-        // scan blocks for definitions
-        for &block_id in function.blocks() {
-            let block = tree.get(block_id);
-
-            // record block parameters
-            for param in block.parameters.iter() {
-                let value = param.value;
-
-                definitions.insert(
-                    value,
-                    ValueDefinition {
-                        kind: ValueDefinitionKind::Parameter,
-                    },
-                );
-            }
-
-            // record instruction destinations
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
-                    definitions.insert(
-                        destination,
-                        ValueDefinition {
-                            kind: ValueDefinitionKind::Instruction {
-                                instruction: instruction_id,
-                            },
-                        },
-                    );
-                }
-            }
-        }
-
-        Self { definitions }
-    }
-
-    /// Get the definition tables for a value.
-    fn definition_for(&self, value: mir::Value) -> Option<ValueDefinition> {
-        self.definitions.get(&value).copied()
     }
 }
 
@@ -467,8 +395,8 @@ fn guard_comparison(
     tree: &mir::Tree,
 ) -> Option<(mir::BinaryOperator, mir::Value, mir::Value, bool)> {
     // resolve the condition instruction
-    let definition = definitions.definition_for(condition)?;
-    let ValueDefinitionKind::Instruction { instruction } = definition.kind else {
+    let definition = definitions.definition(condition)?;
+    let ValueDefinition::Instruction { instruction, .. } = definition else {
         return None;
     };
     let instruction = tree.get(instruction);
@@ -495,8 +423,8 @@ fn guard_comparison(
     } = instruction
     {
         let argument = *argument;
-        let nested_definition = definitions.definition_for(argument)?;
-        let ValueDefinitionKind::Instruction { instruction } = nested_definition.kind else {
+        let nested_definition = definitions.definition(argument)?;
+        let ValueDefinition::Instruction { instruction, .. } = nested_definition else {
             return None;
         };
         let nested = tree.get(instruction);

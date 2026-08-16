@@ -360,7 +360,7 @@ fn find_unswitchable_loop(
         preheader_values.insert(*arg);
     }
 
-    let value_definitions = DefinitionTable::build(function, tree).instruction_map();
+    let definitions = DefinitionTable::build(function, tree);
 
     // scan all loop blocks for an invariant branch (prefer header first for stability)
     let mut sorted_blocks: Vec<_> = lp.blocks.iter().copied().collect();
@@ -402,7 +402,7 @@ fn find_unswitchable_loop(
         } else {
             try_hoist_invariant_condition(
                 condition,
-                &value_definitions,
+                &definitions,
                 &header_param_rewrites,
                 &preheader_values,
                 function,
@@ -492,15 +492,15 @@ fn collect_base_invariant_values(
 /// Hoist a loop invariant condition into the preheader when possible.
 fn try_hoist_invariant_condition(
     condition: mir::Value,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     header_param_rewrites: &HashMap<mir::Value, mir::Value>,
     invariant_values: &HashSet<mir::Value>,
     function: &mir::Function,
     tree: &mir::Tree,
 ) -> Option<HoistedCondition> {
     // resolve the instruction defining the condition
-    let instruction_id = value_definitions.get(&condition)?;
-    let instruction = tree.get(*instruction_id);
+    let instruction_id = definitions.instruction(condition)?;
+    let instruction = tree.get(instruction_id);
     if !instruction_is_speculatable(instruction, function, tree) {
         return None;
     }
@@ -524,7 +524,7 @@ fn try_hoist_invariant_condition(
     Some(HoistedCondition {
         instruction: instruction.clone(),
         destination: condition,
-        instruction_id: *instruction_id,
+        instruction_id,
         value_map,
     })
 }

@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, ControlTable, DominatorTable, EvolutionTable, Hotness, Loop, LoopTable,
-    Mutation, Scev, build_use_def_maps, clone_instruction_tables, clone_loop_blocks,
+    BlockParamForwarding, ControlTable, DefinitionTable, DominatorTable, EvolutionTable, Hotness,
+    Loop, LoopTable, Mutation, Scev, clone_instruction_tables, clone_loop_blocks,
     instruction_is_speculatable, instruction_map, terminator_remap,
 };
 
@@ -1109,7 +1109,7 @@ fn outer_step_from_latch(
 
     // locate the defining instruction
     let definitions = DefinitionTable::build(function, tree);
-    let instruction_id = definitions.definition_for(update_value)?;
+    let instruction_id = definitions.instruction(update_value)?;
     let instruction = tree.get(instruction_id);
 
     // decode the step from a simple add or sub
@@ -1202,9 +1202,8 @@ fn inner_body_is_jammable(
     tree: &mir::Tree,
     domtree: &DominatorTable,
 ) -> bool {
-    // gather definition maps for dependency checks
-    let def_maps = build_use_def_maps(function, tree);
-    let def_map = mir::DefinitionTable::build(function, tree).instruction_map();
+    // snapshot value definitions for dependency checks
+    let definitions = DefinitionTable::build(function, tree);
 
     // cache outer block parameters for dependency checks
     let outer_block_params: HashSet<_> = outer
@@ -1220,8 +1219,8 @@ fn inner_body_is_jammable(
         .collect();
 
     // locate the outer induction definition block
-    let outer_def_block = match def_maps.def_block.get(&outer_induction) {
-        Some(block) => *block,
+    let outer_def_block = match definitions.block(outer_induction) {
+        Some(block) => block,
         None => return false,
     };
 
@@ -1243,8 +1242,7 @@ fn inner_body_is_jammable(
                 Some(inner_induction),
                 Some(inner_outer_param),
                 &outer_block_params,
-                &def_maps.def_block,
-                &def_map,
+                &definitions,
                 outer_induction,
                 tree,
             ) {
@@ -1260,8 +1258,7 @@ fn inner_body_is_jammable(
                     Some(inner_induction),
                     Some(inner_outer_param),
                     &outer_block_params,
-                    &def_maps.def_block,
-                    &def_map,
+                    &definitions,
                     outer_induction,
                     tree,
                 ) {
@@ -1278,8 +1275,7 @@ fn inner_body_is_jammable(
             Some(inner_induction),
             Some(inner_outer_param),
             &outer_block_params,
-            &def_maps.def_block,
-            &def_map,
+            &definitions,
             outer_induction,
             tree,
         ) {
@@ -1298,8 +1294,7 @@ fn inner_uses_are_safe(
     inner_induction: Option<mir::Value>,
     inner_outer_param: Option<mir::Value>,
     outer_block_params: &HashSet<mir::Value>,
-    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     outer_induction: mir::Value,
     tree: &mir::Tree,
 ) -> bool {
@@ -1357,7 +1352,7 @@ fn inner_uses_are_safe(
             value,
             outer_induction,
             inner_outer_param,
-            def_map,
+            definitions,
             tree,
             &mut HashSet::new(),
         ) {
@@ -1365,9 +1360,9 @@ fn inner_uses_are_safe(
         }
 
         // allow values defined within the inner loop
-        if def_blocks
-            .get(&value)
-            .is_some_and(|block| inner.blocks.contains(block))
+        if definitions
+            .block(value)
+            .is_some_and(|block| inner.blocks.contains(&block))
         {
             continue;
         }
@@ -1381,7 +1376,7 @@ fn value_depends_on(
     value: mir::Value,
     outer_induction: mir::Value,
     inner_outer_param: Option<mir::Value>,
-    def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
     visiting: &mut HashSet<mir::Value>,
 ) -> bool {
@@ -1403,7 +1398,7 @@ fn value_depends_on(
     }
 
     // stop at values without defining instructions
-    let Some(&instruction_id) = def_map.get(&value) else {
+    let Some(instruction_id) = definitions.instruction(value) else {
         return false;
     };
 
@@ -1415,7 +1410,7 @@ fn value_depends_on(
             use_value,
             outer_induction,
             inner_outer_param,
-            def_map,
+            definitions,
             tree,
             visiting,
         ) {
@@ -1430,7 +1425,7 @@ fn value_depends_on(
                 arg,
                 outer_induction,
                 inner_outer_param,
-                def_map,
+                definitions,
                 tree,
                 visiting,
             ) {
@@ -1521,8 +1516,8 @@ fn unroll_and_jam_loop(
     }
 
     // locate the inner update instruction
-    let def_map = mir::DefinitionTable::build(function, tree).instruction_map();
-    let Some(update_info) = inner_update_info(candidate, function, tree, &def_map) else {
+    let definitions = DefinitionTable::build(function, tree);
+    let Some(update_info) = inner_update_info(candidate, function, tree, &definitions) else {
         return false;
     };
 
@@ -1678,7 +1673,7 @@ fn inner_update_info(
     candidate: &JamCandidate,
     function: &mir::Function,
     tree: &mir::Tree,
-    def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
 ) -> Option<InnerUpdateInfo> {
     // find the update value passed to the header
     let latch_block = tree.get(candidate.inner_latch);
@@ -1691,7 +1686,7 @@ fn inner_update_info(
     let update_value = arguments.get(candidate.inner_param_index)?;
 
     // locate the defining instruction
-    let update_instruction = *def_map.get(update_value)?;
+    let update_instruction = definitions.instruction(*update_value)?;
     let update_index = latch_block
         .instructions
         .iter()
@@ -1721,7 +1716,7 @@ fn inner_update_info(
                     value,
                     candidate.outer_induction,
                     Some(candidate.inner_outer_param),
-                    def_map,
+                    definitions,
                     tree,
                     &mut HashSet::new(),
                 ) {
@@ -1739,7 +1734,7 @@ fn inner_update_info(
                         value,
                         candidate.outer_induction,
                         Some(candidate.inner_outer_param),
-                        def_map,
+                        definitions,
                         tree,
                         &mut HashSet::new(),
                     ) {
@@ -2409,7 +2404,7 @@ fn guard_from_condition(
 
     // look up the instruction defining the condition
     let definitions = DefinitionTable::build(function, tree);
-    let instruction_id = definitions.definition_for(condition)?;
+    let instruction_id = definitions.instruction(condition)?;
     let instruction = tree.get(instruction_id);
 
     // require a comparison instruction
@@ -2553,9 +2548,9 @@ fn constant_value_for(
     // resolve forwarded values
     let value = forwarding.resolve(value);
 
-    // build a definition map for constants
+    // resolve the defining instruction
     let definitions = DefinitionTable::build(function, tree);
-    let instruction_id = definitions.definition_for(value)?;
+    let instruction_id = definitions.instruction(value)?;
     let instruction = tree.get(instruction_id);
 
     match instruction {
@@ -2678,38 +2673,6 @@ fn trip_count_unsigned(start: u128, bound: u128, step: u128, is_strict: bool) ->
     };
 
     u64::try_from(count).ok()
-}
-
-/// Map from values to the instructions that define them.
-#[derive(Debug)]
-struct DefinitionTable {
-    /// Definition sites by value.
-    definitions: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-}
-
-impl DefinitionTable {
-    /// Build a value definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
-        let mut definitions = HashMap::new();
-
-        // scan all instruction destinations
-        for &block_id in function.blocks() {
-            let block = tree.get(block_id);
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
-                    definitions.insert(destination, instruction_id);
-                }
-            }
-        }
-
-        Self { definitions }
-    }
-
-    /// Get the instruction defining a value.
-    fn definition_for(&self, value: mir::Value) -> Option<mir::LocalNodeId<mir::Instruction>> {
-        self.definitions.get(&value).copied()
-    }
 }
 
 /// Extract exit arguments for a guard terminator.

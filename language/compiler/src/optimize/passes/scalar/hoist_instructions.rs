@@ -5,9 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlTable, DominatorTable, Mutation, PureExpression,
-    apply_substitutions_in_dominated_blocks, build_use_def_maps, clone_instruction_tables,
-    instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
+    ControlTable, DefinitionTable, DominatorTable, Mutation, PureExpression,
+    apply_substitutions_in_dominated_blocks, clone_instruction_tables, instruction_is_speculatable,
+    instruction_map, instruction_substitute_uses_in_tree,
 };
 
 declare_pass! {
@@ -92,8 +92,8 @@ fn run_hoist_instructions(
     cfg: &ControlTable,
     domtree: &DominatorTable,
 ) -> bool {
-    // build definition tables
-    let use_def = build_use_def_maps(function, tree);
+    // snapshot value definitions
+    let definitions = DefinitionTable::build(function, tree);
 
     // track whether any changes were made
     let mut changed = false;
@@ -137,7 +137,7 @@ fn run_hoist_instructions(
             tree,
             accesses,
             domtree,
-            &use_def.def_block,
+            &definitions,
             block_id,
             then_block,
             else_block,
@@ -158,7 +158,7 @@ fn hoist_common_prefix(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     domtree: &DominatorTable,
-    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    definitions: &DefinitionTable,
     header: mir::LocalNodeId<mir::Block>,
     then_block: mir::LocalNodeId<mir::Block>,
     else_block: mir::LocalNodeId<mir::Block>,
@@ -251,7 +251,7 @@ fn hoist_common_prefix(
             if !instruction_operands_available(
                 &normalized,
                 header,
-                def_blocks,
+                definitions,
                 domtree,
                 &hoisted_values,
             ) {
@@ -355,7 +355,7 @@ fn build_param_rewrites(
 fn instruction_operands_available(
     instruction: &mir::Instruction,
     header: mir::LocalNodeId<mir::Block>,
-    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    definitions: &DefinitionTable,
     domtree: &DominatorTable,
     hoisted_values: &HashSet<mir::Value>,
 ) -> bool {
@@ -371,12 +371,12 @@ fn instruction_operands_available(
         }
 
         // skip values with no known definition block
-        let Some(def_block) = def_blocks.get(&value) else {
+        let Some(def_block) = definitions.block(value) else {
             continue;
         };
 
         // require the definition to dominate the header
-        if !domtree.dominates(*def_block, header) {
+        if !domtree.dominates(def_block, header) {
             return false;
         }
     }

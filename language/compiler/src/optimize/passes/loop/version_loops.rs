@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, ControlTable, EvolutionTable, Mutation, RangeTable, Scev, UseDefMaps,
-    ValueRange, build_use_def_maps, clone_loop_blocks, terminator_remap,
+    BlockParamForwarding, ControlTable, DefinitionTable, EvolutionTable, Mutation, RangeTable,
+    Scev, ValueRange, clone_loop_blocks, terminator_remap,
 };
 
 declare_pass! {
@@ -142,7 +142,7 @@ fn run_version_loops(
     }
 
     // track whether we rewrote any loops
-    let use_def = build_use_def_maps(function, tree);
+    let definitions = DefinitionTable::build(function, tree);
     let mut changed = false;
     function.recompute_next_value_id(tree);
 
@@ -166,7 +166,8 @@ fn run_version_loops(
         };
 
         // extract the loop guard from the header
-        let Some(guard) = guard_from_header(header, &lp.blocks, function, tree, &use_def) else {
+        let Some(guard) = guard_from_header(header, &lp.blocks, function, tree, &definitions)
+        else {
             continue;
         };
 
@@ -184,8 +185,8 @@ fn run_version_loops(
         let resolved_length = forwarding.resolve(length);
         let resolved_bound = forwarding.resolve(guard.bound);
 
-        if !value_is_loop_invariant(resolved_length, lp, &use_def, &forwarding)
-            || !value_is_loop_invariant(resolved_bound, lp, &use_def, &forwarding)
+        if !value_is_loop_invariant(resolved_length, lp, &definitions, &forwarding)
+            || !value_is_loop_invariant(resolved_bound, lp, &definitions, &forwarding)
         {
             continue;
         }
@@ -333,7 +334,7 @@ fn guard_from_header(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mir::Function,
     tree: &mir::Tree,
-    use_def: &UseDefMaps,
+    definitions: &DefinitionTable,
 ) -> Option<GuardInfo> {
     // read the header terminator
     let header_block = tree.get(header);
@@ -354,13 +355,8 @@ fn guard_from_header(
     }
 
     // locate the guard instruction that produces the condition
-    let definition = use_def.def_block.get(condition)?;
-    let block = tree.get(*definition);
-    let inst_id = block
-        .instructions
-        .iter()
-        .find(|&&inst_id| tree.get(inst_id).destination() == (*condition).into())?;
-    let inst = tree.get(*inst_id);
+    let instruction = definitions.instruction(*condition)?;
+    let inst = tree.get(instruction);
 
     let mir::Instruction::Binary {
         operator,
@@ -468,14 +464,14 @@ fn bounds_check_in_loop(
 fn value_is_loop_invariant(
     value: mir::Value,
     lp: &mir::Loop,
-    use_def: &UseDefMaps,
+    definitions: &DefinitionTable,
     forwarding: &BlockParamForwarding,
 ) -> bool {
     // resolve forwarded block parameters
     let value = forwarding.resolve(value);
 
     // values without a definition block are treated as invariant
-    let Some(def_block) = use_def.def_block.get(&value).copied() else {
+    let Some(def_block) = definitions.block(value) else {
         return true;
     };
 

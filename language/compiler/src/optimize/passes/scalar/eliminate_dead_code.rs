@@ -1,11 +1,12 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasTable, MemoryLocation, MemoryTable, Mutation, instruction_has_side_effects,
+    AliasTable, DefinitionTable, MemoryLocation, MemoryTable, Mutation,
+    instruction_has_side_effects,
 };
 
 declare_pass! {
@@ -70,22 +71,8 @@ fn run_dead_code_elimination(
     // drop dead stores before liveness
     let mut changed = remove_dead_stores(function, tree, accesses, alias, memory);
 
-    // build value to defining instruction map
-    let mut value_to_instruction: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> =
-        HashMap::new();
-    for &block_id in function.blocks() {
-        // scan block instructions for definitions
-        let block = tree.get(block_id);
-        for &instruction_id in &block.instructions {
-            // record the defining instruction
-            let instruction = tree.get(instruction_id);
-            if let Some(dest) = instruction.destination()
-                && true
-            {
-                value_to_instruction.insert(dest, instruction_id);
-            }
-        }
-    }
+    // snapshot value definitions before tracing liveness
+    let definitions = DefinitionTable::build(function, tree);
 
     // seed live roots and worklist
     let mut live: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
@@ -109,7 +96,7 @@ fn run_dead_code_elimination(
         // record terminator uses as live
         let terminator = tree.get(block.terminator);
         for value in terminator.uses(tree) {
-            if let Some(&instruction_id) = value_to_instruction.get(&value)
+            if let Some(instruction_id) = definitions.instruction(value)
                 && live.insert(instruction_id)
             {
                 worklist.push_back(instruction_id);
@@ -123,7 +110,7 @@ fn run_dead_code_elimination(
 
         // mark operands as live
         for value in instruction.uses() {
-            if let Some(&def_instruction_id) = value_to_instruction.get(&value)
+            if let Some(def_instruction_id) = definitions.instruction(value)
                 && live.insert(def_instruction_id)
             {
                 worklist.push_back(def_instruction_id);
@@ -133,7 +120,7 @@ fn run_dead_code_elimination(
         // mark external argument uses as live
         if let Some(args_slice) = instruction.argument_slice() {
             for &arg in tree.get_values(args_slice) {
-                if let Some(&def_instruction_id) = value_to_instruction.get(&arg)
+                if let Some(def_instruction_id) = definitions.instruction(arg)
                     && live.insert(def_instruction_id)
                 {
                     worklist.push_back(def_instruction_id);

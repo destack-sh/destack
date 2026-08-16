@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasTable, EdgeSplitPolicy, MemoryAccessId, MemoryNode, MemoryRegionBuilder, MemoryTable,
-    Mutation, ensure_edge_block,
+    AliasTable, EdgeSplitPolicy, MemoryAccessId, MemoryNode, MemoryTable, Mutation,
+    ensure_edge_block,
 };
 
 declare_pass! {
@@ -54,7 +54,7 @@ impl FunctionPass for SinkStores {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
@@ -67,7 +67,7 @@ impl FunctionPass for SinkStores {
         }
 
         // run store sinking
-        let changed = run_sink_stores(function, tree, accesses, effects, ctx, analyses);
+        let changed = run_sink_stores(function, tree, accesses, effects, analyses);
 
         // report what this pass changed
         if changed {
@@ -112,21 +112,15 @@ fn run_sink_stores(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     effects: &mir::EffectTable,
-    ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
 ) -> bool {
     // gather analyses
     let cfg = analyses.control(function, tree).clone();
     let memory = analyses.memory(function, tree, accesses, effects);
     let alias = analyses.alias(function, tree).clone();
-    let definitions = analyses.definition(function, tree);
-
-    // resolve reference provenance once for all candidates
-    let mut regions = MemoryRegionBuilder::new(function, &definitions, tree, ctx.target_layout());
 
     // collect store candidates
-    let candidates =
-        collect_store_candidates(function, tree, accesses, memory.as_ref(), &mut regions);
+    let candidates = collect_store_candidates(function, tree, accesses, memory.as_ref(), &alias);
     if candidates.is_empty() {
         return false;
     }
@@ -221,7 +215,7 @@ fn collect_store_candidates(
     tree: &mir::Tree,
     accesses: &mir::AccessTable,
     memory: &MemoryTable,
-    regions: &mut MemoryRegionBuilder<'_>,
+    alias: &AliasTable,
 ) -> Vec<StoreCandidate> {
     // scan blocks for store candidates
     let mut candidates = Vec::new();
@@ -283,7 +277,7 @@ fn collect_store_candidates(
             }
 
             // require frame-owned storage
-            let region = regions.resolve(&def_access.effect.region);
+            let region = alias.resolve(&def_access.effect.region);
             if !region.is_frame_storage() {
                 continue;
             }

@@ -193,7 +193,7 @@ fn run_inline(
             }
 
             // build value definitions for constant argument detection
-            let value_definitions = DefinitionTable::build(&function, tree).instruction_map();
+            let definitions = DefinitionTable::build(&function, tree);
             let available_budget = inline_budget.min(module_budget).min(component_budget);
 
             // find the next candidate callsite
@@ -205,7 +205,7 @@ fn run_inline(
                 ctx,
                 ctx.profile(),
                 inline_budget_scale_percent,
-                &value_definitions,
+                &definitions,
                 &mut function_analyses,
                 execution_counts.blocks(),
                 available_budget,
@@ -285,7 +285,7 @@ fn find_inline_site(
     ctx: &PipelineContext<'_>,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     inline_budget: u64,
@@ -316,7 +316,7 @@ fn find_inline_site(
                 arguments.len(),
                 profile,
                 inline_budget_scale_percent,
-                value_definitions,
+                definitions,
                 function_analyses,
                 block_counts,
                 InlineFunctionsSite {
@@ -359,7 +359,7 @@ fn inline_candidate(
     argument_count: usize,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     site: InlineFunctionsSite,
@@ -374,7 +374,7 @@ fn inline_candidate(
         argument_count,
         profile,
         inline_budget_scale_percent,
-        value_definitions,
+        definitions,
         function_analyses,
         block_count,
         &site.arguments,
@@ -420,7 +420,7 @@ fn inline_score(
     argument_count: usize,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
     block_count: u64,
     arguments: &[mir::Value],
@@ -473,7 +473,7 @@ fn inline_score(
     let benefit = inline_benefit(
         hotness,
         arguments,
-        value_definitions,
+        definitions,
         tree,
         &callee_cost,
         entry_count,
@@ -1081,7 +1081,7 @@ fn inline_budget_for_function(
 fn inline_benefit(
     hotness: Hotness,
     arguments: &[mir::Value],
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
     callee_cost: &mir::OperationCost,
     entry_count: u64,
@@ -1091,7 +1091,7 @@ fn inline_benefit(
 
     let mut const_count = 0u64;
     for argument in arguments {
-        if constant_for_value(*argument, value_definitions, tree).is_some() {
+        if constant_for_value(*argument, definitions, tree).is_some() {
             const_count += 1;
         }
     }

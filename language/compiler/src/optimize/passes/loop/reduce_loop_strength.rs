@@ -5,10 +5,11 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlTable, DominatorTable, EvolutionTable, Loop, LoopTable, Mutation, RangeTable, Scev,
-    TargetLayout, ValueRange, clone_instruction_tables, constant_is_zero,
-    instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
+    ControlTable, DefinitionTable, DominatorTable, EvolutionTable, Loop, LoopTable, Mutation,
+    RangeTable, Scev, TargetLayout, UseTable, ValueDefinition, ValueRange,
+    clone_instruction_tables, constant_is_zero, instruction_is_speculatable, instruction_map,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -140,130 +141,6 @@ struct StrengthReductionPlanItem {
     step_value: mir::Value,
     /// Next value computed in the latch.
     next_value: mir::Value,
-}
-
-/// Definition kind for a value.
-#[derive(Debug, Clone, Copy)]
-enum ValueDefinitionKind {
-    /// Block parameter definition.
-    Parameter,
-    /// Instruction definition.
-    Instruction {
-        /// Instruction that defines the value.
-        instruction: mir::LocalNodeId<mir::Instruction>,
-    },
-}
-
-/// Definition tables for a value.
-#[derive(Debug, Clone, Copy)]
-struct ValueDefinition {
-    /// Block where the value is defined.
-    block: mir::LocalNodeId<mir::Block>,
-    /// Definition kind.
-    kind: ValueDefinitionKind,
-}
-
-/// Map of values to their definitions.
-#[derive(Debug)]
-struct DefinitionTable {
-    /// Definitions keyed by value.
-    definitions: HashMap<mir::Value, ValueDefinition>,
-}
-
-impl DefinitionTable {
-    /// Build a definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
-        // collect parameter and instruction definitions
-        let mut definitions = HashMap::new();
-
-        // scan blocks for definitions
-        for &block_id in function.blocks() {
-            // record block parameters
-            let block = tree.get(block_id);
-            for param in block.parameters.iter() {
-                let value = param.value;
-
-                definitions.insert(
-                    value,
-                    ValueDefinition {
-                        block: block_id,
-                        kind: ValueDefinitionKind::Parameter,
-                    },
-                );
-            }
-
-            // record instruction destinations
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
-                    definitions.insert(
-                        destination,
-                        ValueDefinition {
-                            block: block_id,
-                            kind: ValueDefinitionKind::Instruction {
-                                instruction: instruction_id,
-                            },
-                        },
-                    );
-                }
-            }
-        }
-
-        Self { definitions }
-    }
-
-    /// Get the definition for a value.
-    fn definition_for(&self, value: mir::Value) -> Option<ValueDefinition> {
-        self.definitions.get(&value).copied()
-    }
-}
-
-/// Map of values to the blocks where they are used.
-#[derive(Debug)]
-struct UseTable {
-    /// Use sites keyed by value.
-    uses: HashMap<mir::Value, HashSet<mir::LocalNodeId<mir::Block>>>,
-}
-
-impl UseTable {
-    /// Build a use map for a function.
-    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
-        // collect value uses per block
-        let mut uses: HashMap<mir::Value, HashSet<mir::LocalNodeId<mir::Block>>> = HashMap::new();
-
-        // scan blocks for uses
-        for &block_id in function.blocks() {
-            let block = tree.get(block_id);
-
-            // scan instructions for uses
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                for value in instruction.uses() {
-                    uses.entry(value).or_default().insert(block_id);
-                }
-
-                // scan external argument slices
-                if let Some(args) = instruction.argument_slice() {
-                    for &value in tree.get_values(args) {
-                        uses.entry(value).or_default().insert(block_id);
-                    }
-                }
-            }
-
-            // scan terminator uses
-            let terminator = tree.get(block.terminator);
-            for value in terminator.uses(tree) {
-                uses.entry(value).or_default().insert(block_id);
-            }
-        }
-
-        Self { uses }
-    }
-
-    /// Get the blocks where a value is used.
-    fn blocks_for(&self, value: mir::Value) -> Option<&HashSet<mir::LocalNodeId<mir::Block>>> {
-        self.uses.get(&value)
-    }
 }
 
 /// Shared context for strength reduction.
@@ -422,15 +299,18 @@ impl<'a> CandidateContext<'a> {
                     }
 
                     // require loop local definition
-                    let Some(definition) = self.definitions.definition_for(destination) else {
+                    let Some(definition) = self.definitions.definition(destination) else {
                         continue;
                     };
-                    if !lp.blocks.contains(&definition.block) {
+                    let Some(definition_block) = definition.block() else {
+                        continue;
+                    };
+                    if !lp.blocks.contains(&definition_block) {
                         continue;
                     }
 
                     // skip parameters that are already induction variables
-                    if matches!(definition.kind, ValueDefinitionKind::Parameter) {
+                    if matches!(definition, ValueDefinition::BlockParameter { .. }) {
                         continue;
                     }
 
@@ -958,13 +838,13 @@ fn uses_within_loop(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     uses: &UseTable,
 ) -> bool {
-    // skip values with no uses
-    let Some(use_blocks) = uses.blocks_for(value) else {
+    // require at least one use
+    if !uses.is_used(value) {
         return false;
-    };
+    }
 
     // ensure all uses stay inside the loop body
-    for &block_id in use_blocks {
+    for block_id in uses.blocks(value) {
         if !loop_blocks.contains(&block_id) {
             return false;
         }
@@ -1405,12 +1285,14 @@ impl<'a> ScevMaterializer<'a> {
 
     /// Get the range for a value at the preheader.
     fn range_for_value_at_preheader(&self, value: mir::Value) -> Option<&ValueRange> {
-        let definition = self.definitions.definition_for(value)?;
+        let definition = self.definitions.definition(value)?;
 
-        let ranges = match definition.kind {
-            ValueDefinitionKind::Parameter => self.ranges.entry(self.preheader),
-            ValueDefinitionKind::Instruction { .. } => {
-                if definition.block == self.preheader {
+        let ranges = match definition {
+            ValueDefinition::FunctionParameter(_) | ValueDefinition::BlockParameter { .. } => {
+                self.ranges.entry(self.preheader)
+            }
+            ValueDefinition::Instruction { block, .. } => {
+                if block == self.preheader {
                     self.ranges.exit(self.preheader)
                 } else {
                     self.ranges.entry(self.preheader)
@@ -1497,17 +1379,17 @@ impl<'a> ScevMaterializer<'a> {
         self.value_in_progress.insert(value);
 
         // require a definition for the value
-        let definition = self.definitions.definition_for(value);
+        let definition = self.definitions.definition(value);
         let Some(definition) = definition else {
             self.value_in_progress.remove(&value);
             return None;
         };
 
         // handle instruction defined values inside the loop
-        let new_value = match definition.kind {
-            ValueDefinitionKind::Parameter => None,
-            ValueDefinitionKind::Instruction { instruction } => {
-                if !self.loop_blocks.contains(&definition.block) {
+        let new_value = match definition {
+            ValueDefinition::FunctionParameter(_) | ValueDefinition::BlockParameter { .. } => None,
+            ValueDefinition::Instruction { block, instruction } => {
+                if !self.loop_blocks.contains(&block) {
                     None
                 } else {
                     let instruction_data = self.tree.get(instruction).clone();
@@ -1656,17 +1538,20 @@ impl<'a> ScevMaterializer<'a> {
 
     /// Check if a value is available in the preheader.
     fn value_available_in_preheader(&self, value: mir::Value) -> bool {
-        // check definition tables first
-        let Some(definition) = self.definitions.definition_for(value) else {
+        // resolve the value definition
+        let Some(definition) = self.definitions.definition(value) else {
             return false;
+        };
+        let Some(block) = definition.block() else {
+            return matches!(definition, ValueDefinition::FunctionParameter(_));
         };
 
         // reject values defined inside the loop
-        if self.loop_blocks.contains(&definition.block) {
+        if self.loop_blocks.contains(&block) {
             return false;
         }
 
-        self.domtree.dominates(definition.block, self.preheader)
+        self.domtree.dominates(block, self.preheader)
     }
 
     /// Get or create an integer type.

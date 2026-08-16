@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasTable, ByteRange, DefinitionTable, MemoryAccessId, MemoryNode, MemoryPlace, MemoryRegion,
-    MemoryRegionBuilder, MemoryTable, Mutation, PostdominatorTable, RangeRelation, TargetLayout,
+    AliasTable, ByteRange, MemoryAccessId, MemoryNode, MemoryPlace, MemoryRegion, MemoryTable,
+    Mutation, PostdominatorTable, RangeRelation,
 };
 
 declare_pass! {
@@ -52,7 +52,7 @@ impl FunctionPass for EliminateDeadStores {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
@@ -71,14 +71,7 @@ impl FunctionPass for EliminateDeadStores {
         let postdom = analyses.postdominator(function, tree);
 
         // run dead store elimination
-        let changed = run_eliminate_dead_stores(
-            function,
-            tree,
-            &aa,
-            memory.as_ref(),
-            &postdom,
-            ctx.target_layout(),
-        );
+        let changed = run_eliminate_dead_stores(function, tree, &aa, memory.as_ref(), &postdom);
 
         // report what this pass changed
         if changed {
@@ -96,7 +89,6 @@ fn run_eliminate_dead_stores(
     aa: &AliasTable,
     memory: &MemoryTable,
     postdom: &PostdominatorTable,
-    target_layout: TargetLayout,
 ) -> bool {
     // collect store candidates
     let store_candidates = collect_store_candidates(function, tree, memory);
@@ -111,10 +103,6 @@ fn run_eliminate_dead_stores(
 
     // collect live definitions from memory reads
     let live_defs = collect_live_defs(function, tree, memory, aa);
-
-    // build reusable reference provenance
-    let value_definitions = DefinitionTable::build(function, tree);
-    let mut regions = MemoryRegionBuilder::new(function, &value_definitions, tree, target_layout);
 
     // determine dead stores
     let mut dead_stores = HashSet::new();
@@ -137,21 +125,14 @@ fn run_eliminate_dead_stores(
         }
 
         // remove unread stores owned by this frame
-        let resolved_region = regions.resolve(&store.region);
+        let resolved_region = aa.resolve(&store.region);
         if resolved_region.is_frame_storage() {
             dead_stores.insert(store.instruction);
             continue;
         }
 
         // remove stores clobbered along all paths
-        if store_is_postdominated_by_clobber(
-            &store,
-            &def_accesses,
-            memory,
-            aa,
-            postdom,
-            &mut regions,
-        ) {
+        if store_is_postdominated_by_clobber(&store, &def_accesses, memory, aa, postdom) {
             dead_stores.insert(store.instruction);
         }
     }
@@ -395,7 +376,6 @@ fn store_is_postdominated_by_clobber(
     memory: &MemoryTable,
     aa: &AliasTable,
     postdom: &PostdominatorTable,
-    regions: &mut MemoryRegionBuilder<'_>,
 ) -> bool {
     // search for clobbering defs that postdominate the store
     for def in def_accesses {
@@ -422,7 +402,7 @@ fn store_is_postdominated_by_clobber(
 
         // return once a clobbering def is found
         if let Some(overwrites) =
-            def_fully_overwrites_store(&def_access.effect.region, &store.region, regions)
+            def_fully_overwrites_store(&def_access.effect.region, &store.region, aa)
         {
             if overwrites && memory.def_clobbers_access(def.access, store.access, aa) {
                 return true;
@@ -445,7 +425,7 @@ fn store_is_postdominated_by_clobber(
 fn def_fully_overwrites_store(
     overwrite_region: &MemoryRegion,
     store_region: &MemoryRegion,
-    regions: &mut MemoryRegionBuilder<'_>,
+    alias: &AliasTable,
 ) -> Option<bool> {
     let MemoryRegion::Address {
         location: overwrite_location,
@@ -465,8 +445,8 @@ fn def_fully_overwrites_store(
     let overwrite_size = overwrite_location.size?;
     let store_size = store_location.size?;
 
-    let overwrite_region = regions.region(overwrite_location.address);
-    let store_region = regions.region(store_location.address);
+    let overwrite_region = alias.region(overwrite_location.address);
+    let store_region = alias.region(store_location.address);
 
     let MemoryRegion::Place(overwrite_place) = overwrite_region else {
         return None;
@@ -476,7 +456,7 @@ fn def_fully_overwrites_store(
     };
 
     // require constant offsets and identical field paths
-    if !place_is_constant(&overwrite_place) || !place_is_constant(&store_place) {
+    if !place_is_constant(overwrite_place) || !place_is_constant(store_place) {
         return None;
     }
     if overwrite_place.fields != store_place.fields {

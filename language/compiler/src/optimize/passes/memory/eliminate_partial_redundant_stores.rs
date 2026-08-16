@@ -7,8 +7,8 @@ use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasTable, ControlTable, DefinitionTable, DominatorTable, EdgeSplitPolicy, MemoryAccessEffect,
     MemoryAccessId, MemoryNode, MemoryRegion, MemoryTable, Mutation, ValueEquivalence,
-    build_use_def_maps, ensure_edge_block, instruction_is_read_only_access,
-    instruction_is_speculatable, resolve_edge_value, value_available_in_block,
+    ensure_edge_block, instruction_is_read_only_access, instruction_is_speculatable,
+    resolve_edge_value, value_available_in_block,
 };
 
 declare_pass! {
@@ -143,14 +143,8 @@ fn run_eliminate_partial_redundant_stores(
     let alias = analyses.alias(function, tree).clone();
     let constants = analyses.constant(function, tree);
 
-    // build value definition info
-    let use_def = build_use_def_maps(function, tree);
-    let definitions = DefinitionTable::build(function, tree).instruction_map();
-    let function_params: HashSet<_> = function
-        .parameters
-        .iter()
-        .map(|param| param.value)
-        .collect();
+    // snapshot value definitions
+    let definitions = DefinitionTable::build(function, tree);
 
     // track modifications
     let mut edge_blocks: HashMap<
@@ -208,20 +202,15 @@ fn run_eliminate_partial_redundant_stores(
 
             // build edge insertions for each predecessor
             let edge_plan = {
-                let mut equivalence = ValueEquivalence::new_with_constants(
-                    function,
-                    tree,
-                    &definitions,
-                    constants.as_ref(),
-                );
+                let mut equivalence =
+                    ValueEquivalence::new(function, tree, &definitions, constants.as_ref());
 
                 collect_edge_insertions(
                     &candidate,
                     &cfg,
                     &domtree,
                     tree,
-                    &use_def.def_block,
-                    &function_params,
+                    &definitions,
                     &param_indices,
                     accesses,
                     memory.as_ref(),
@@ -407,8 +396,7 @@ fn collect_edge_insertions(
     cfg: &ControlTable,
     domtree: &DominatorTable,
     tree: &mir::Tree,
-    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    function_params: &HashSet<mir::Value>,
+    definitions: &DefinitionTable,
     param_indices: &HashMap<mir::Value, usize>,
     accesses: &mir::AccessTable,
     memory: &MemoryTable,
@@ -458,13 +446,13 @@ fn collect_edge_insertions(
 
         // ensure the reference value is available on this edge
         if let Some(ptr) = pointer
-            && !value_available_in_block(ptr, predecessor, def_blocks, function_params, domtree)
+            && !value_available_in_block(ptr, predecessor, definitions, domtree)
         {
             return None;
         }
 
         // ensure the stored value is available on this edge
-        if !value_available_in_block(value, predecessor, def_blocks, function_params, domtree) {
+        if !value_available_in_block(value, predecessor, definitions, domtree) {
             return None;
         }
 

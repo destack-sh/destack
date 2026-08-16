@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -6,9 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlTable, DefinitionTable, EvolutionTable, Mutation, RangeTable,
-    Scev, UseDefMaps, ValueRange, build_use_def_maps, build_value_use_counts, constant_for_value,
-    constant_is_zero, instruction_has_side_effects, instruction_is_borrow_address,
-    instruction_is_speculatable,
+    Scev, UseTable, ValueRange, constant_for_value, constant_is_zero, instruction_has_side_effects,
+    instruction_is_borrow_address, instruction_is_speculatable,
 };
 
 declare_pass! {
@@ -120,10 +119,9 @@ fn run_recognize_loop_idioms(
             break;
         }
 
-        // build use def and definition maps
-        let use_def = build_use_def_maps(function, tree);
-        let value_definitions = DefinitionTable::build(function, tree).instruction_map();
-        let use_counts = build_value_use_counts(function, tree);
+        // snapshot value definitions and uses
+        let definitions = DefinitionTable::build(function, tree);
+        let uses = UseTable::build(function, tree);
 
         // refresh value ids and track per iteration changes
         let mut changed_this_iteration = false;
@@ -149,7 +147,7 @@ fn run_recognize_loop_idioms(
             };
 
             // extract the loop guard from the header
-            let Some(guard) = guard_from_header(header, &lp.blocks, function, tree, &use_def)
+            let Some(guard) = guard_from_header(header, &lp.blocks, function, tree, &definitions)
             else {
                 continue;
             };
@@ -203,22 +201,17 @@ fn run_recognize_loop_idioms(
             }
 
             // require the guard bound to be loop invariant
-            if !value_is_loop_invariant(bound_value, lp, &use_def, &forwarding) {
+            if !value_is_loop_invariant(bound_value, lp, &definitions, &forwarding) {
                 continue;
             }
-            if !value_is_loop_invariant(start_value, lp, &use_def, &forwarding) {
+            if !value_is_loop_invariant(start_value, lp, &definitions, &forwarding) {
                 continue;
             }
 
             // attempt to replace the loop with memset
-            if let Some(pattern) = match_memset_pattern(
-                lp,
-                guard.induction,
-                function,
-                tree,
-                accesses,
-                &value_definitions,
-            ) {
+            if let Some(pattern) =
+                match_memset_pattern(lp, guard.induction, function, tree, accesses, &definitions)
+            {
                 // require the store to be in this loop, not a nested one
                 let Some(inner_loop) = loops.innermost_loop(pattern.store_block) else {
                     continue;
@@ -238,7 +231,7 @@ fn run_recognize_loop_idioms(
                 };
 
                 // ensure the array element type is u8
-                if !value_is_loop_invariant(pattern.array, lp, &use_def, &forwarding) {
+                if !value_is_loop_invariant(pattern.array, lp, &definitions, &forwarding) {
                     continue;
                 }
 
@@ -252,7 +245,7 @@ fn run_recognize_loop_idioms(
                     induction_width,
                     preheader,
                     &ranges,
-                    &value_definitions,
+                    &definitions,
                     tree,
                 );
 
@@ -280,7 +273,7 @@ fn run_recognize_loop_idioms(
                     should_guard,
                     &ranges,
                     preheader,
-                    &value_definitions,
+                    &definitions,
                     function,
                     tree,
                     &mut mem_block_data,
@@ -339,8 +332,8 @@ fn run_recognize_loop_idioms(
                 function,
                 tree,
                 accesses,
-                &value_definitions,
-                &use_counts,
+                &definitions,
+                &uses,
             ) else {
                 continue;
             };
@@ -364,8 +357,8 @@ fn run_recognize_loop_idioms(
             }
 
             // require invariant arrays
-            if !value_is_loop_invariant(pattern.dest_array, lp, &use_def, &forwarding)
-                || !value_is_loop_invariant(pattern.src_array, lp, &use_def, &forwarding)
+            if !value_is_loop_invariant(pattern.dest_array, lp, &definitions, &forwarding)
+                || !value_is_loop_invariant(pattern.src_array, lp, &definitions, &forwarding)
             {
                 continue;
             }
@@ -404,7 +397,7 @@ fn run_recognize_loop_idioms(
                 induction_width,
                 preheader,
                 &ranges,
-                &value_definitions,
+                &definitions,
                 tree,
             );
 
@@ -432,7 +425,7 @@ fn run_recognize_loop_idioms(
                 should_guard,
                 &ranges,
                 preheader,
-                &value_definitions,
+                &definitions,
                 function,
                 tree,
                 &mut mem_block_data,
@@ -540,7 +533,7 @@ fn match_memset_pattern(
     function: &mir::Function,
     tree: &mir::Tree,
     accesses: &mir::AccessTable,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
 ) -> Option<MemsetPattern> {
     // scan loop blocks for a single store with a speculatable body
     let mut store_reference = None;
@@ -590,14 +583,14 @@ fn match_memset_pattern(
     // require a single store and resolve its address
     let store_reference = store_reference?;
     let (array, index, element_addr_type) =
-        element_addr_for_pointer(store_reference, tree, value_definitions)?;
+        element_addr_for_pointer(store_reference, tree, definitions)?;
     if index != induction {
         return None;
     }
 
     // extract a constant fill value when possible
     let value = store_value?;
-    let value_const = constant_for_value(value, value_definitions, tree);
+    let value_const = constant_for_value(value, definitions, tree);
     Some(MemsetPattern {
         array,
         element_addr_type,
@@ -613,8 +606,8 @@ fn match_memcpy_pattern(
     function: &mir::Function,
     tree: &mir::Tree,
     accesses: &mir::AccessTable,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    use_counts: &HashMap<mir::Value, usize>,
+    definitions: &DefinitionTable,
+    uses: &UseTable,
 ) -> Option<MemcpyPattern> {
     // scan loop blocks for a single load and store
     let mut store_reference = None;
@@ -691,15 +684,15 @@ fn match_memcpy_pattern(
     }
 
     // require the load value to be used only by the store
-    if use_counts.get(&load_value).copied().unwrap_or(0) != 1 {
+    if uses.count(load_value) != 1 {
         return None;
     }
 
     // resolve both addresses back to element.address
     let (dest_array, dest_index, dest_element_addr_type) =
-        element_addr_for_pointer(store_reference, tree, value_definitions)?;
+        element_addr_for_pointer(store_reference, tree, definitions)?;
     let (src_array, src_index, src_element_addr_type) =
-        element_addr_for_pointer(load_reference, tree, value_definitions)?;
+        element_addr_for_pointer(load_reference, tree, definitions)?;
 
     if dest_index != induction || src_index != induction {
         return None;
@@ -721,10 +714,10 @@ fn match_memcpy_pattern(
 fn element_addr_for_pointer(
     pointer: mir::Value,
     tree: &mir::Tree,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
 ) -> Option<(mir::Value, mir::Value, mir::LocalNodeId<mir::Type>)> {
     // find the instruction that defines the pointer
-    let inst_id = *value_definitions.get(&pointer)?;
+    let inst_id = definitions.instruction(pointer)?;
 
     // require a direct element address computation
     match tree.get(inst_id) {
@@ -809,34 +802,24 @@ fn should_guard_copy_bounds(
     bound_width: u16,
     preheader: mir::LocalNodeId<mir::Block>,
     ranges: &RangeTable,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
 ) -> bool {
     // skip guards when the start is definitely zero
-    let start_const = constant_for_value(start, value_definitions, tree);
+    let start_const = constant_for_value(start, definitions, tree);
     if constant_is_zero(start_const.as_ref()) {
         return false;
     }
 
     // require ranges that prove start is always below the bound
-    let Some((_start_min, start_max)) = unsigned_bounds_for_value(
-        start,
-        bound_width,
-        ranges,
-        preheader,
-        value_definitions,
-        tree,
-    ) else {
+    let Some((_start_min, start_max)) =
+        unsigned_bounds_for_value(start, bound_width, ranges, preheader, definitions, tree)
+    else {
         return true;
     };
-    let Some((bound_min, _bound_max)) = unsigned_bounds_for_value(
-        bound,
-        bound_width,
-        ranges,
-        preheader,
-        value_definitions,
-        tree,
-    ) else {
+    let Some((bound_min, _bound_max)) =
+        unsigned_bounds_for_value(bound, bound_width, ranges, preheader, definitions, tree)
+    else {
         return true;
     };
 
@@ -980,7 +963,7 @@ fn unsigned_bounds_for_value(
     bound_width: u16,
     ranges: &RangeTable,
     preheader: mir::LocalNodeId<mir::Block>,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     tree: &mir::Tree,
 ) -> Option<(i128, i128)> {
     // use range information when available
@@ -999,7 +982,7 @@ fn unsigned_bounds_for_value(
     }
 
     // fall back to a constant value range
-    let constant = constant_for_value(value, value_definitions, tree)?;
+    let constant = constant_for_value(value, definitions, tree)?;
     match constant {
         mir::Constant::UInt { value, width } => {
             if width == bound_width {
@@ -1034,13 +1017,13 @@ fn emit_copy_length(
     guarded: bool,
     ranges: &RangeTable,
     preheader: mir::LocalNodeId<mir::Block>,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     block: &mut mir::Block,
 ) -> Option<mir::Value> {
     // skip length materialization when byte sized with zero start
-    let start_const = constant_for_value(start, value_definitions, tree);
+    let start_const = constant_for_value(start, definitions, tree);
     let mut start_is_zero = constant_is_zero(start_const.as_ref());
     if element_size == 1 && start_is_zero {
         return Some(bound);
@@ -1049,22 +1032,10 @@ fn emit_copy_length(
     // collect range bounds when needed for safety
     let mut bounds = None;
     if element_size > 1 || !guarded {
-        let bound_range = unsigned_bounds_for_value(
-            bound,
-            bound_width,
-            ranges,
-            preheader,
-            value_definitions,
-            tree,
-        )?;
-        let start_range = unsigned_bounds_for_value(
-            start,
-            bound_width,
-            ranges,
-            preheader,
-            value_definitions,
-            tree,
-        )?;
+        let bound_range =
+            unsigned_bounds_for_value(bound, bound_width, ranges, preheader, definitions, tree)?;
+        let start_range =
+            unsigned_bounds_for_value(start, bound_width, ranges, preheader, definitions, tree)?;
         bounds = Some((bound_range, start_range));
     }
 
@@ -1149,14 +1120,14 @@ fn emit_copy_length(
 fn value_is_loop_invariant(
     value: mir::Value,
     lp: &mir::Loop,
-    use_def: &UseDefMaps,
+    definitions: &DefinitionTable,
     forwarding: &BlockParamForwarding,
 ) -> bool {
     // resolve forwarded parameters
     let value = forwarding.resolve(value);
 
     // values without a definition block are treated as invariant
-    let Some(def_block) = use_def.def_block.get(&value).copied() else {
+    let Some(def_block) = definitions.block(value) else {
         return true;
     };
 
@@ -1243,7 +1214,7 @@ fn guard_from_header(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mir::Function,
     tree: &mir::Tree,
-    use_def: &UseDefMaps,
+    definitions: &DefinitionTable,
 ) -> Option<GuardInfo> {
     let header_block = tree.get(header);
     let header_terminator = tree.get(header_block.terminator);
@@ -1262,13 +1233,8 @@ fn guard_from_header(
     }
 
     // locate the guard instruction that produces the condition
-    let def_block = use_def.def_block.get(condition)?;
-    let block = tree.get(*def_block);
-    let inst_id = block
-        .instructions
-        .iter()
-        .find(|&&inst_id| tree.get(inst_id).destination() == Some(*condition))?;
-    let inst = tree.get(*inst_id);
+    let instruction = definitions.instruction(*condition)?;
+    let inst = tree.get(instruction);
     let mir::Instruction::Binary {
         operator,
         left,

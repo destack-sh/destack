@@ -5,10 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantTable, DominatorTable, Mutation, RangeState, RangeTable, ValueRange,
-    apply_substitutions_in_dominated_blocks, block_parameters_used_outside_block,
-    block_uses_available_in_predecessor, build_use_def_maps, build_value_instruction_map,
-    build_value_use_counts, clone_instruction_tables, function_thread_jumps,
+    ConstantTable, DefinitionTable, DominatorTable, Mutation, RangeState, RangeTable, UseTable,
+    ValueRange, apply_substitutions_in_dominated_blocks, block_parameters_used_outside_block,
+    block_uses_available_in_predecessor, clone_instruction_tables, function_thread_jumps,
     instruction_is_speculatable, instruction_map, substitute_values, terminator_remap,
     terminator_substitute_uses,
 };
@@ -248,7 +247,7 @@ fn fold_branches(
     let mut changed = false;
 
     // build value definitions for boolean detection
-    let value_definitions = build_value_instruction_map(function, tree);
+    let definitions = DefinitionTable::build(function, tree);
 
     // snapshot block list to avoid borrow conflicts
     let block_ids = function.blocks().to_vec();
@@ -335,7 +334,7 @@ fn fold_branches(
                 } else {
                     None
                 };
-                let is_boolean_value = value_is_boolean(*value, range_value, &value_definitions);
+                let is_boolean_value = value_is_boolean(*value, range_value, tree, &definitions);
                 if let Some(new_terminator) =
                     fold_switch(tree, *value, default, &cases, constant_value, range_value)
                 {
@@ -414,12 +413,9 @@ fn thread_edge_conditions(
     domtree: &DominatorTable,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
-    // build definition tables
-    let value_def_blocks = build_use_def_maps(function, tree).def_block;
-
-    // build value definition and use maps
-    let value_definitions = build_value_instruction_map(function, tree);
-    let value_use_counts = build_value_use_counts(function, tree);
+    // snapshot value definitions and uses before rewriting edges
+    let definitions = DefinitionTable::build(function, tree);
+    let uses = UseTable::build(function, tree);
 
     // track whether any changes were made
     let mut changed = false;
@@ -448,9 +444,8 @@ fn thread_edge_conditions(
                     tree,
                     constants,
                     ranges,
-                    &value_definitions,
-                    &value_use_counts,
-                    &value_def_blocks,
+                    &definitions,
+                    &uses,
                     domtree,
                 );
                 let else_edge = resolve_edge_if_available(
@@ -461,9 +456,8 @@ fn thread_edge_conditions(
                     tree,
                     constants,
                     ranges,
-                    &value_definitions,
-                    &value_use_counts,
-                    &value_def_blocks,
+                    &definitions,
+                    &uses,
                     domtree,
                 );
 
@@ -484,25 +478,7 @@ fn thread_edge_conditions(
                     None
                 }
             }
-            mir::Terminator::Check {
-                constraint,
-                success,
-                failure,
-            } => {
-                let _ = (
-                    constraint,
-                    success,
-                    failure,
-                    block_id,
-                    constants,
-                    ranges,
-                    &value_definitions,
-                    &value_use_counts,
-                    &value_def_blocks,
-                    domtree,
-                );
-                None
-            }
+            mir::Terminator::Check { .. } => None,
             _ => None,
         };
 
@@ -525,9 +501,8 @@ fn resolve_edge_if_available(
     tree: &mut mir::Tree,
     constants: &ConstantTable,
     ranges: &RangeTable,
-    value_definitions: &HashMap<mir::Value, mir::Instruction>,
-    value_use_counts: &HashMap<mir::Value, usize>,
-    value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    definitions: &DefinitionTable,
+    uses: &UseTable,
     domtree: &DominatorTable,
 ) -> Option<mir::BlockTarget> {
     // resolve the edge target
@@ -539,13 +514,13 @@ fn resolve_edge_if_available(
         tree,
         constants,
         ranges,
-        value_definitions,
-        value_use_counts,
+        definitions,
+        uses,
     )?;
 
     // require values to be available at the source block
     let resolved_arguments = resolved.arguments(tree);
-    if !values_available_in_block(source_block, resolved_arguments, value_def_blocks, domtree) {
+    if !values_available_in_block(source_block, resolved_arguments, definitions, domtree) {
         return None;
     }
 
@@ -561,8 +536,8 @@ fn resolve_edge_target(
     tree: &mut mir::Tree,
     constants: &ConstantTable,
     ranges: &RangeTable,
-    value_definitions: &HashMap<mir::Value, mir::Instruction>,
-    value_use_counts: &HashMap<mir::Value, usize>,
+    definitions: &DefinitionTable,
+    uses: &UseTable,
 ) -> Option<mir::BlockTarget> {
     // fetch the edge target block
     let target_block = target.block;
@@ -570,7 +545,7 @@ fn resolve_edge_target(
     let terminator = tree.get(block.terminator).clone();
 
     // require an empty or condition only block
-    if !is_threadable_condition_block(&block, &terminator, tree, value_use_counts) {
+    if !is_threadable_condition_block(&block, &terminator, tree, uses) {
         return None;
     }
 
@@ -595,9 +570,10 @@ fn resolve_edge_target(
         source_block,
         condition,
         is_true,
+        tree,
         ranges,
         constants,
-        value_definitions,
+        definitions,
     );
     let mut target_ranges = edge_ranges.clone();
     apply_block_param_ranges_for_edge(&block, &target_arguments, &edge_ranges, &mut target_ranges);
@@ -614,7 +590,8 @@ fn resolve_edge_target(
                 target_block,
                 &target_ranges,
                 constants,
-                value_definitions,
+                tree,
+                definitions,
             )?;
             // choose the resolved branch target
             let target = if condition_value {
@@ -677,7 +654,7 @@ fn is_threadable_condition_block(
     block: &mir::Block,
     terminator: &mir::Terminator,
     tree: &mir::Tree,
-    value_use_counts: &HashMap<mir::Value, usize>,
+    uses: &UseTable,
 ) -> bool {
     // accept empty blocks
     if block.instructions.is_empty() {
@@ -710,8 +687,7 @@ fn is_threadable_condition_block(
     }
 
     // require that the condition is used only by the terminator
-    let use_count = value_use_counts.get(&condition_value).copied().unwrap_or(0);
-    use_count == 1
+    uses.count(condition_value) == 1
 }
 
 /// Build edge specific ranges for a branch condition.
@@ -719,9 +695,10 @@ fn edge_ranges_for_condition(
     block_id: mir::LocalNodeId<mir::Block>,
     condition: mir::Value,
     is_true: bool,
+    tree: &mir::Tree,
     ranges: &RangeTable,
     constants: &ConstantTable,
-    value_definitions: &HashMap<mir::Value, mir::Instruction>,
+    definitions: &DefinitionTable,
 ) -> RangeState {
     // seed ranges from the source block exit
     let mut edge_ranges = ranges.exit(block_id).clone();
@@ -738,8 +715,9 @@ fn edge_ranges_for_condition(
         condition,
         is_true,
         block_id,
+        tree,
         constants,
-        value_definitions,
+        definitions,
         &mut edge_ranges,
     );
 
@@ -751,14 +729,16 @@ fn apply_comparison_constraint(
     condition: mir::Value,
     is_true: bool,
     block_id: mir::LocalNodeId<mir::Block>,
+    tree: &mir::Tree,
     constants: &ConstantTable,
-    value_definitions: &HashMap<mir::Value, mir::Instruction>,
+    definitions: &DefinitionTable,
     edge_ranges: &mut RangeState,
 ) {
     // look up the condition definition
-    let Some(instruction) = value_definitions.get(&condition) else {
+    let Some(instruction) = definitions.instruction(condition) else {
         return;
     };
+    let instruction = tree.get(instruction);
     let mir::Instruction::Binary {
         operator,
         left,
@@ -814,7 +794,8 @@ fn resolve_condition_value(
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeState,
     constants: &ConstantTable,
-    value_definitions: &HashMap<mir::Value, mir::Instruction>,
+    tree: &mir::Tree,
+    definitions: &DefinitionTable,
 ) -> Option<bool> {
     // check constant propagation state
     let constant = constants
@@ -833,7 +814,7 @@ fn resolve_condition_value(
     }
 
     // evaluate comparison conditions from operand ranges
-    let instruction = value_definitions.get(&condition)?;
+    let instruction = tree.get(definitions.instruction(condition)?);
     let mir::Instruction::Binary {
         operator,
         left,
@@ -1164,7 +1145,8 @@ fn resolve_switch_case(
 fn value_is_boolean(
     value: mir::Value,
     range_value: Option<&ValueRange>,
-    value_definitions: &HashMap<mir::Value, mir::Instruction>,
+    tree: &mir::Tree,
+    definitions: &DefinitionTable,
 ) -> bool {
     // prefer range information when available
     if matches!(range_value, Some(ValueRange::Boolean { .. })) {
@@ -1172,9 +1154,10 @@ fn value_is_boolean(
     }
 
     // fall back to instruction based detection
-    let Some(instruction) = value_definitions.get(&value) else {
+    let Some(instruction) = definitions.instruction(value) else {
         return false;
     };
+    let instruction = tree.get(instruction);
 
     match instruction {
         mir::Instruction::Const {
@@ -1962,9 +1945,9 @@ fn tail_duplicate_blocks(
     domtree: &DominatorTable,
     profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
-    // build definition tables
-    let use_def = build_use_def_maps(function, tree);
-    let value_def_blocks = &use_def.def_block;
+    // snapshot value definitions and uses before duplicating blocks
+    let definitions = DefinitionTable::build(function, tree);
+    let uses = UseTable::build(function, tree);
     let execution_counts = mir::ExecutionCounts::new(function, tree, profile, analyses);
 
     // collect predecessor counts and jump predecessors
@@ -2030,7 +2013,7 @@ fn tail_duplicate_blocks(
         }
 
         // skip blocks whose parameters are used outside the block
-        if block_parameters_used_outside_block(&block, &use_def.use_blocks, block_id) {
+        if block_parameters_used_outside_block(&block, &uses, block_id) {
             continue;
         }
 
@@ -2069,7 +2052,7 @@ fn tail_duplicate_blocks(
                 &block,
                 tree,
                 pred.pred,
-                value_def_blocks,
+                &definitions,
                 domtree,
             ) {
                 continue;
@@ -2162,21 +2145,12 @@ fn tail_duplicate_blocks(
 fn values_available_in_block(
     block_id: mir::LocalNodeId<mir::Block>,
     values: &[mir::Value],
-    value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    definitions: &DefinitionTable,
     domtree: &DominatorTable,
 ) -> bool {
-    // ensure each value definition dominates the block
-    for value in values {
-        let Some(def_block) = value_def_blocks.get(value) else {
-            return false;
-        };
-
-        if !domtree.dominates(*def_block, block_id) {
-            return false;
-        }
-    }
-
-    true
+    values
+        .iter()
+        .all(|value| definitions.is_available_at_exit(*value, block_id, domtree))
 }
 
 /// Select jump predecessors to duplicate using profile guidance when available.
@@ -2520,7 +2494,7 @@ fn merge_blocks(
     entry: mir::LocalNodeId<mir::Block>,
     domtree: &DominatorTable,
 ) -> bool {
-    let value_def_blocks = build_use_def_maps(function, tree).def_block;
+    let definitions = DefinitionTable::build(function, tree);
 
     // build predecessor count for each block
     let mut predecessor_count: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
@@ -2598,7 +2572,7 @@ fn merge_blocks(
                     target_block,
                     tree,
                     block_id,
-                    &value_def_blocks,
+                    &definitions,
                     domtree,
                 ) {
                     continue;

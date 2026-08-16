@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
-use destack_mir::{DefinitionTable, EffectTable, Mutation};
+use destack_mir::{DefinitionTable, EffectTable, Mutation, UseTable, ValueUse};
 
 declare_pass! {
     /// Mark private globals readonly when no write can reach them.
@@ -69,7 +69,11 @@ fn run_optimize_globals(
 ) -> bool {
     // collect global address definitions and pointer uses
     let addr_info = collect_global_addr_info(tree);
-    let use_maps = build_value_use_maps(tree);
+    let use_tables: HashMap<_, _> = tree
+        .iter_nodes::<mir::Function>()
+        .filter(|(_, function)| function.entry().is_some())
+        .map(|(function_id, function)| (function_id, UseTable::build(function, tree)))
+        .collect();
 
     // identify globals that are written
     let written_globals =
@@ -100,22 +104,20 @@ fn run_optimize_globals(
 
         // ensure all global.address uses are direct loads
         if !addr_entries.iter().all(|entry| {
-            let uses = use_maps.get(&entry.function_id).unwrap_or_else(|| {
+            let uses = use_tables.get(&entry.function_id).unwrap_or_else(|| {
                 panic!(
-                    "missing global address use map for function: {:?}",
+                    "missing global address use table for function: {:?}",
                     entry.function_id
                 )
             });
 
-            if uses.terminator_uses.contains(&entry.destination) {
-                return false;
-            }
-
-            uses.instruction_uses
-                .get(&entry.destination)
-                .is_none_or(|uses| {
-                    uses.iter()
-                        .all(|use_id| matches!(tree.get(*use_id), mir::Instruction::Load { .. }))
+            uses.uses(entry.destination)
+                .iter()
+                .all(|value_use| match value_use {
+                    ValueUse::Instruction { instruction, .. } => {
+                        matches!(tree.get(*instruction), mir::Instruction::Load { .. })
+                    }
+                    ValueUse::Terminator { .. } => false,
                 })
         }) {
             continue;
@@ -189,67 +191,6 @@ fn collect_global_addr_info(tree: &mir::Tree) -> GlobalAddrInfo {
     info
 }
 
-/// Build value use maps for each function.
-fn build_value_use_maps(
-    tree: &mir::Tree,
-) -> HashMap<mir::LocalNodeId<mir::Function>, ValueUseInfo> {
-    // prepare the cache container
-    let mut cache = HashMap::new();
-
-    // build use maps per function
-    for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-        if function.entry().is_none() {
-            continue;
-        }
-
-        let mut uses: HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Instruction>>> = HashMap::new();
-        let mut terminator_uses = HashSet::new();
-
-        for &block_id in function.blocks() {
-            let block = tree.get(block_id);
-
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-
-                for value in instruction.uses().into_iter() {
-                    uses.entry(value).or_default().push(instruction_id);
-                }
-
-                if let Some(args) = instruction.argument_slice() {
-                    for arg in tree.get_values(args).iter().copied() {
-                        uses.entry(arg).or_default().push(instruction_id);
-                    }
-                }
-            }
-
-            // collect terminator uses
-            let terminator = tree.get(block.terminator);
-            for value in terminator.uses(tree) {
-                terminator_uses.insert(value);
-            }
-        }
-
-        cache.insert(
-            function_id,
-            ValueUseInfo {
-                instruction_uses: uses,
-                terminator_uses,
-            },
-        );
-    }
-
-    cache
-}
-
-/// Use information for a function's values.
-#[derive(Debug, Default)]
-struct ValueUseInfo {
-    /// Instruction uses keyed by value.
-    instruction_uses: HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Instruction>>>,
-    /// Terminator uses keyed by value.
-    terminator_uses: HashSet<mir::Value>,
-}
-
 /// Collect globals that are written by stores or memory effects.
 fn collect_written_globals(
     tree: &mir::Tree,
@@ -267,7 +208,7 @@ fn collect_written_globals(
             continue;
         }
 
-        let definitions = DefinitionTable::build(function, tree).instruction_map();
+        let definitions = DefinitionTable::build(function, tree);
 
         for &block_id in function.blocks() {
             let block = tree.get(block_id);
@@ -368,7 +309,7 @@ fn collect_written_globals(
 /// Return true when any argument is derived from a global pointer.
 fn any_argument_global(
     arguments: &mir::ValueSlice,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> bool {
@@ -381,7 +322,7 @@ fn any_argument_global(
 /// Return true when any value is derived from a global pointer.
 fn any_argument_global_values(
     arguments: &[mir::Value],
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> bool {
@@ -394,7 +335,7 @@ fn any_argument_global_values(
 /// Collect globals referenced by argument slice values.
 fn globals_from_arguments(
     arguments: &mir::ValueSlice,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
@@ -404,7 +345,7 @@ fn globals_from_arguments(
 /// Collect globals referenced by value list.
 fn globals_from_values(
     values: &[mir::Value],
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
@@ -422,7 +363,7 @@ fn globals_from_values(
 /// Return the base global for a derived pointer, if any.
 fn global_addr_base(
     value: mir::Value,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Global>> {
@@ -439,8 +380,8 @@ fn global_addr_base(
             return Some(*global);
         }
 
-        let instruction_id = definitions.get(&current)?;
-        let instruction = tree.get(*instruction_id);
+        let instruction_id = definitions.instruction(current)?;
+        let instruction = tree.get(instruction_id);
 
         match instruction {
             mir::Instruction::FieldAddr { aggregate, .. } => {

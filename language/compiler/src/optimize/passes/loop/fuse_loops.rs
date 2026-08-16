@@ -178,13 +178,12 @@ fn run_fuse_loops(
     alias: &AliasTable,
     constants: &ConstantTable,
 ) -> bool {
-    // build definition maps
-    let definitions = DefinitionTable::build(function, tree).instruction_map();
+    // build value definitions
+    let definitions = DefinitionTable::build(function, tree);
     let forwarding = BlockParamForwarding::build(function, tree, cfg);
 
     // locate a fusion candidate
-    let mut equivalence =
-        ValueEquivalence::new_with_constants(function, tree, &definitions, constants);
+    let mut equivalence = ValueEquivalence::new(function, tree, &definitions, constants);
 
     let candidate = loops.loops().iter().enumerate().find_map(|(index, lp)| {
         build_fusion_candidate(
@@ -226,7 +225,7 @@ fn build_fusion_candidate(
     alias: &AliasTable,
     constants: &ConstantTable,
     forwarding: &BlockParamForwarding,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> Option<FusionCandidate> {
     // require a single latch and exit
@@ -276,8 +275,7 @@ fn build_fusion_candidate(
     }
 
     // collect loop body data
-    let control_instructions =
-        control_instructions_for_latch(function, lp.header, latch, tree, definitions);
+    let control_instructions = control_instructions_for_latch(lp.header, latch, tree, definitions);
     let body_instructions = latch_body_instructions(latch, tree, &control_instructions);
     let body_effects = collect_loop_effects(
         &lp.blocks,
@@ -390,7 +388,6 @@ fn build_fusion_candidate(
 
     // collect second loop body data
     let second_control = control_instructions_for_latch(
-        function,
         second_loop.header,
         *second_loop.latches.first()?,
         tree,
@@ -449,7 +446,7 @@ fn guard_info(
     tree: &mir::Tree,
     constants: &ConstantTable,
     forwarding: &BlockParamForwarding,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
 ) -> Option<GuardInfo> {
     // resolve the guard condition
     let header_block = tree.get(header);
@@ -460,8 +457,8 @@ fn guard_info(
     };
 
     // resolve the comparison instruction
-    let condition_def = definitions.get(condition)?;
-    let instruction = tree.get(*condition_def);
+    let condition_def = definitions.instruction(*condition)?;
+    let instruction = tree.get(condition_def);
     let mir::Instruction::Binary {
         operator,
         left,
@@ -527,7 +524,7 @@ fn induction_step(
     tree: &mir::Tree,
     constants: &ConstantTable,
     forwarding: &BlockParamForwarding,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
 ) -> Option<i64> {
     // locate the latch jump argument
     let latch_block = tree.get(latch);
@@ -549,8 +546,8 @@ fn induction_step(
     }
 
     // resolve the step from the latch argument
-    let definition = definitions.get(&arg)?;
-    let instruction = tree.get(*definition);
+    let definition = definitions.instruction(arg)?;
+    let instruction = tree.get(definition);
     let mir::Instruction::Binary {
         operator,
         left,
@@ -746,7 +743,7 @@ fn apply_fusion(
     accesses: &mut mir::AccessTable,
     cfg: &ControlTable,
     candidate: &FusionCandidate,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &DefinitionTable,
 ) -> bool {
     // prepare new values
     function.recompute_next_value_id(tree);
@@ -816,11 +813,11 @@ fn apply_fusion(
                 continue;
             }
 
-            let Some(definition) = definitions.get(&value) else {
+            if definitions.instruction(value).is_none() {
                 continue;
-            };
+            }
 
-            if function.instruction_block(*definition) == Some(candidate.second.header) {
+            if definitions.block(value) == Some(candidate.second.header) {
                 return false;
             }
         }
