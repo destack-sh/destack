@@ -149,11 +149,16 @@ impl CheckState<'_> {
             coercions,
             captures,
             flows,
+            references,
             ..
         } = self.module;
 
+        // store the foreign modules the pass observed
+        let references = references.iter().copied().collect::<Vec<_>>();
+
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
             module,
+            &references,
             &bindings,
             &decorators,
             &controls,
@@ -174,6 +179,7 @@ impl CheckState<'_> {
 
         Ok(DirChecked {
             fingerprint,
+            references,
             bindings: Arc::new(bindings),
             decorators: Arc::new(decorators),
             controls: Arc::new(controls),

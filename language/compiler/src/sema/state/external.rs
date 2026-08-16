@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactProjectionKey, DirBound, DirDeclared, DirElaborated, DirExpanded, DirResolved,
+    ArtifactProjectionKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
+    DirParsed, DirResolved,
 };
 use destack_core::FxIndexSet;
 use destack_dir as dir;
@@ -13,6 +14,8 @@ use crate::{CompilerError, CompilerResult};
 
 /// Committed tables loaded for one external module.
 pub(in crate::sema) struct CheckExternalModuleState {
+    /// The parsed module tree.
+    pub(in crate::sema) parsed: Arc<DirParsed>,
     /// The resolved external module holding the import alias targets.
     pub(in crate::sema) resolved: Arc<DirResolved>,
     /// The committed binding table.
@@ -27,7 +30,7 @@ pub(in crate::sema) struct CheckExternalModuleState {
     pub(in crate::sema) definitions: dir::DefinitionTable<'static>,
     /// The committed member table, elaborated while checking.
     pub(in crate::sema) members: dir::MemberTable<'static>,
-    /// The modules the elaborated entries mention, empty while elaborating.
+    /// The modules the loaded entries mention, empty while elaborating.
     pub(in crate::sema) references: Vec<ModuleId>,
 }
 
@@ -95,6 +98,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // load each external module once
         if !self.external_modules.contains_key(&module) {
             let external = self.import_external_module_state(module)?;
             self.external_modules.insert(module, external);
@@ -156,8 +160,8 @@ impl CheckState<'_> {
 
     /// Return one import binder's resolved target symbol, when one exists.
     ///
-    /// Binder symbols carry no declarations of their own; their targets live
-    /// in the module's import resolutions or its resolved global names.
+    /// A binder's target lives in the module's import resolutions or in its
+    /// resolved global names.
     pub(in crate::sema) fn import_binder_target(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -220,11 +224,32 @@ impl CheckState<'_> {
             return Ok(());
         }
 
+        // seed with every module the own stage rows mention
+        let mut visible = visible;
+        if self.pass == Pass::Materialize {
+            let state = self.module(module);
+            let mentions = [
+                state.declared.as_ref().map(|stage| &stage.references),
+                state.elaborated.as_ref().map(|stage| &stage.references),
+                state.checked.as_ref().map(|stage| &stage.references),
+            ];
+            for stage in mentions.into_iter().flatten() {
+                visible.extend(
+                    stage
+                        .iter()
+                        .copied()
+                        .filter(|mentioned| *mentioned != module),
+                );
+            }
+        }
+
         // load the modules the loaded tables mention, to a fixpoint
         let mut queue = visible.iter().copied().collect::<Vec<_>>();
         for external in &visible {
             self.import_external_module(*external)?;
         }
+
+        // follow each loaded module's own references
         while let Some(loaded) = queue.pop() {
             for referenced in self.external_module(loaded).references.clone() {
                 if referenced == self.module_id || self.external_modules.contains_key(&referenced) {
@@ -258,6 +283,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<CheckExternalModuleState> {
+        // read the stages every pass reaches
         let bound = self
             .artifacts
             .read_content::<DirBound>((module, self.profile))
@@ -271,60 +297,128 @@ impl CheckState<'_> {
             .read_content::<DirResolved>((module, self.profile))
             .map_err(CompilerError::from)?;
 
-        // read the module's declared artifact
+        // read the parsed tree and the module's declared artifact
+        let parsed = self
+            .artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
         let declared = self
             .artifacts
             .read_projection::<DirDeclared>((module, self.profile), ArtifactProjectionKey::Declared)
             .map_err(CompilerError::from)?;
 
-        // read stored member bindings while checking; elaborate reads none
-        let elaborated = match self.pass {
-            Pass::Check => Some(
-                self.artifacts
+        // each pass loads external modules up to the stage its reads may reach
+        match self.pass {
+            Pass::Declare | Pass::Elaborate => Ok(Self::declared_external(
+                parsed, bound, expanded, resolved, declared,
+            )),
+            Pass::Check => {
+                let elaborated = self
+                    .artifacts
                     .read::<DirElaborated>((module, self.profile))
-                    .map_err(CompilerError::from)?,
-            ),
-            _ => None,
-        };
-        let members = match &elaborated {
-            Some(elaborated) => elaborated.member_table(),
-            None => declared.member_table(),
-        };
-        let mut references = declared.references.clone();
-        if let Some(elaborated) = &elaborated {
-            references.extend(elaborated.references.iter().copied());
-        }
-        let types = match &elaborated {
-            Some(elaborated) => elaborated.type_table(bound.as_ref(), expanded.as_ref(), &declared),
-            None => declared.type_table(bound.as_ref(), expanded.as_ref()),
-        };
-        let bindings = match &elaborated {
-            Some(elaborated) => {
-                elaborated.binding_table(bound.as_ref(), expanded.as_ref(), &declared)
-            }
-            None => declared.binding_table(bound.as_ref(), expanded.as_ref()),
-        };
+                    .map_err(CompilerError::from)?;
 
-        Ok(CheckExternalModuleState {
-            bindings,
-            types,
-            statics: match &elaborated {
-                Some(elaborated) => {
-                    elaborated.static_table(bound.as_ref(), expanded.as_ref(), &declared)
-                }
-                None => declared.static_table(bound.as_ref(), expanded.as_ref()),
-            },
-            generics: match &elaborated {
-                Some(elaborated) => elaborated.generic_table(&declared),
-                None => declared.generic_table(),
-            },
-            definitions: match &elaborated {
-                Some(elaborated) => elaborated.definition_table(),
-                None => declared.definition_table(),
-            },
-            members,
+                Ok(Self::elaborated_external(
+                    parsed, bound, expanded, resolved, declared, elaborated,
+                ))
+            }
+            Pass::Materialize => {
+                let elaborated = self
+                    .artifacts
+                    .read::<DirElaborated>((module, self.profile))
+                    .map_err(CompilerError::from)?;
+                let checked = self
+                    .artifacts
+                    .read::<DirChecked>((module, self.profile))
+                    .map_err(CompilerError::from)?;
+
+                Ok(Self::checked_external(
+                    parsed, bound, expanded, resolved, declared, elaborated, checked,
+                ))
+            }
+        }
+    }
+
+    /// Build external state over declared faces, for the elaborating passes.
+    fn declared_external(
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        expanded: Arc<DirExpanded>,
+        resolved: Arc<DirResolved>,
+        declared: Arc<DirDeclared>,
+    ) -> CheckExternalModuleState {
+        CheckExternalModuleState {
+            bindings: declared.binding_table(bound.as_ref(), expanded.as_ref()),
+            types: declared.type_table(bound.as_ref(), expanded.as_ref()),
+            statics: declared.static_table(bound.as_ref(), expanded.as_ref()),
+            generics: declared.generic_table(),
+            definitions: declared.definition_table(),
+            members: declared.member_table(),
+            references: declared.references.clone(),
+            resolved,
+            parsed,
+        }
+    }
+
+    /// Build external state over elaborated faces, for the checking pass.
+    fn elaborated_external(
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        expanded: Arc<DirExpanded>,
+        resolved: Arc<DirResolved>,
+        declared: Arc<DirDeclared>,
+        elaborated: Arc<DirElaborated>,
+    ) -> CheckExternalModuleState {
+        let mut references = declared.references.clone();
+        references.extend(elaborated.references.iter().copied());
+
+        CheckExternalModuleState {
+            bindings: elaborated.binding_table(bound.as_ref(), expanded.as_ref(), &declared),
+            types: elaborated.type_table(bound.as_ref(), expanded.as_ref(), &declared),
+            statics: elaborated.static_table(bound.as_ref(), expanded.as_ref(), &declared),
+            generics: elaborated.generic_table(&declared),
+            definitions: elaborated.definition_table(),
+            members: elaborated.member_table(),
             references,
             resolved,
-        })
+            parsed,
+        }
+    }
+
+    /// Build external state over checked bodies, for the materializing pass.
+    fn checked_external(
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        expanded: Arc<DirExpanded>,
+        resolved: Arc<DirResolved>,
+        declared: Arc<DirDeclared>,
+        elaborated: Arc<DirElaborated>,
+        checked: Arc<DirChecked>,
+    ) -> CheckExternalModuleState {
+        let mut references = declared.references.clone();
+        references.extend(elaborated.references.iter().copied());
+        references.extend(checked.references.iter().copied());
+
+        CheckExternalModuleState {
+            bindings: checked.binding_table(
+                bound.as_ref(),
+                expanded.as_ref(),
+                &declared,
+                &elaborated,
+            ),
+            types: checked.type_table(bound.as_ref(), expanded.as_ref(), &declared, &elaborated),
+            statics: checked.static_table(
+                bound.as_ref(),
+                expanded.as_ref(),
+                &declared,
+                &elaborated,
+            ),
+            generics: checked.generic_table(&declared, &elaborated),
+            definitions: checked.definition_table(&elaborated),
+            members: checked.member_table(),
+            references,
+            resolved,
+            parsed,
+        }
     }
 }

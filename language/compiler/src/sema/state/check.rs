@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirDeclared, DirElaborated, DirExpanded, DirParsed, DirResolved, EnvironmentBound,
-    EnvironmentDeclared,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed, DirResolved,
+    EnvironmentBound, EnvironmentDeclared,
 };
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
@@ -29,6 +29,8 @@ pub(in crate::sema) enum Pass {
     Elaborate,
     /// Infer the module's bodies.
     Check,
+    /// Close the module's instances and evaluate settled types.
+    Materialize,
 }
 
 /// Committed node types in dense module columns, rolled back under open probes.
@@ -275,8 +277,12 @@ impl<'a> CheckState<'a> {
             .then(|| artifacts.read::<DirDeclared>((module_id, profile)))
             .transpose()
             .map_err(CompilerError::from)?;
-        let elaborated = (pass == Pass::Check)
+        let elaborated = matches!(pass, Pass::Check | Pass::Materialize)
             .then(|| artifacts.read::<DirElaborated>((module_id, profile)))
+            .transpose()
+            .map_err(CompilerError::from)?;
+        let checked = (pass == Pass::Materialize)
+            .then(|| artifacts.read::<DirChecked>((module_id, profile)))
             .transpose()
             .map_err(CompilerError::from)?;
 
@@ -291,6 +297,7 @@ impl<'a> CheckState<'a> {
             Arc::clone(&expanded),
             declared,
             elaborated,
+            checked,
         );
 
         // open every decision, inference, and trace table empty

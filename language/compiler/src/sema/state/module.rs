@@ -2,8 +2,8 @@ use std::slice::from_ref;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirDeclared, DirElaborated, DirExpanded,
-    DirParsed, DirResolved, ProfileKey,
+    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirChecked, DirDeclared, DirElaborated,
+    DirExpanded, DirParsed, DirResolved, ProfileKey,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -41,6 +41,8 @@ pub(in crate::sema) struct CheckModuleState {
     pub(in crate::sema) declared: Option<Arc<DirDeclared>>,
     /// The elaborated stage backing this check, when elaborating is done.
     pub(in crate::sema) elaborated: Option<Arc<DirElaborated>>,
+    /// The checked artifact materialization layers over.
+    pub(in crate::sema) checked: Option<Arc<DirChecked>>,
     /// The cumulative binding table built once at load.
     pub(in crate::sema) bindings: dir::BindingTable<'static>,
     /// Checked symbols synthesized from resolved language features.
@@ -54,7 +56,7 @@ pub(in crate::sema) struct CheckModuleState {
     /// The committed base static table.
     pub(in crate::sema) statics: dir::StaticTable<'static>,
     /// The committed definitions this pass shadows.
-    pub(in crate::sema) definitions: Option<Arc<dir::DefinitionSegment>>,
+    pub(in crate::sema) definitions: Vec<Arc<dir::DefinitionSegment>>,
     /// The committed member entries this pass shadows.
     pub(in crate::sema) members: Option<Arc<dir::MemberSegment>>,
 
@@ -128,68 +130,108 @@ impl CheckModuleState {
         expanded: Arc<DirExpanded>,
         declared: Option<Arc<DirDeclared>>,
         elaborated: Option<Arc<DirElaborated>>,
+        checked: Option<Arc<DirChecked>>,
     ) -> Self {
+        // stack materialization over the checked segments when present
+        let checked_layer = checked.as_ref().map(|checked| {
+            let declared = declared
+                .as_ref()
+                .expect("materialization layers over declared");
+            let elaborated = elaborated
+                .as_ref()
+                .expect("materialization layers over elaborated");
+
+            (
+                checked.binding_table(&bound, &expanded, declared, elaborated),
+                checked.type_table(&bound, &expanded, declared, elaborated),
+                checked.static_table(&bound, &expanded, declared, elaborated),
+                dir::TypeTail::over(vec![
+                    Arc::clone(&declared.types),
+                    Arc::clone(&elaborated.types),
+                    Arc::clone(&checked.types),
+                ]),
+                dir::GenericSegment::from_base(&checked.generics),
+                dir::StaticSegment::from_base(&checked.statics),
+                dir::DecoratorSegment::from_base(&checked.decorators),
+            )
+        });
+
         // stack this check's overlays over the declared segments, else the expanded base
         let (bindings, types, statics, types_tail, generics_tail, statics_tail, decorators_tail) =
-            match &declared {
-                Some(declared) => (
-                    match &elaborated {
-                        Some(elaborated) => elaborated.binding_table(&bound, &expanded, declared),
-                        None => declared.binding_table(&bound, &expanded),
-                    },
-                    match &elaborated {
-                        Some(elaborated) => elaborated.type_table(&bound, &expanded, declared),
-                        None => declared.type_table(&bound, &expanded),
-                    },
-                    match &elaborated {
-                        Some(elaborated) => elaborated.static_table(&bound, &expanded, declared),
-                        None => declared.static_table(&bound, &expanded),
-                    },
-                    match &elaborated {
-                        Some(elaborated) => dir::TypeTail::over(vec![
-                            Arc::clone(&declared.types),
-                            Arc::clone(&elaborated.types),
-                        ]),
-                        None => dir::TypeTail::over_base(Arc::clone(&declared.types)),
-                    },
-                    match &elaborated {
-                        Some(elaborated) => dir::GenericSegment::from_base(&elaborated.generics),
-                        None => dir::GenericSegment::from_base(&declared.generics),
-                    },
-                    match &elaborated {
-                        Some(elaborated) => dir::StaticSegment::from_base(&elaborated.statics),
-                        None => dir::StaticSegment::from_base(&declared.statics),
-                    },
-                    match &elaborated {
-                        Some(elaborated) => {
-                            dir::DecoratorSegment::from_base(&elaborated.decorators)
-                        }
-                        None => dir::DecoratorSegment::from_base(&declared.decorators),
-                    },
-                ),
-                None => (
-                    expanded.binding_table(&bound),
-                    expanded.type_table(&bound),
-                    expanded.static_table(&bound),
-                    dir::TypeTail::from_base(&expanded.types),
-                    dir::GenericSegment::new(module.id),
-                    dir::StaticSegment::from_base(&expanded.statics),
-                    dir::DecoratorSegment::new(module.id),
-                ),
+            if let Some(layer) = checked_layer {
+                layer
+            } else {
+                match &declared {
+                    Some(declared) => (
+                        match &elaborated {
+                            Some(elaborated) => {
+                                elaborated.binding_table(&bound, &expanded, declared)
+                            }
+                            None => declared.binding_table(&bound, &expanded),
+                        },
+                        match &elaborated {
+                            Some(elaborated) => elaborated.type_table(&bound, &expanded, declared),
+                            None => declared.type_table(&bound, &expanded),
+                        },
+                        match &elaborated {
+                            Some(elaborated) => {
+                                elaborated.static_table(&bound, &expanded, declared)
+                            }
+                            None => declared.static_table(&bound, &expanded),
+                        },
+                        match &elaborated {
+                            Some(elaborated) => dir::TypeTail::over(vec![
+                                Arc::clone(&declared.types),
+                                Arc::clone(&elaborated.types),
+                            ]),
+                            None => dir::TypeTail::over_base(Arc::clone(&declared.types)),
+                        },
+                        match &elaborated {
+                            Some(elaborated) => {
+                                dir::GenericSegment::from_base(&elaborated.generics)
+                            }
+                            None => dir::GenericSegment::from_base(&declared.generics),
+                        },
+                        match &elaborated {
+                            Some(elaborated) => dir::StaticSegment::from_base(&elaborated.statics),
+                            None => dir::StaticSegment::from_base(&declared.statics),
+                        },
+                        match &elaborated {
+                            Some(elaborated) => {
+                                dir::DecoratorSegment::from_base(&elaborated.decorators)
+                            }
+                            None => dir::DecoratorSegment::from_base(&declared.decorators),
+                        },
+                    ),
+                    None => (
+                        expanded.binding_table(&bound),
+                        expanded.type_table(&bound),
+                        expanded.static_table(&bound),
+                        dir::TypeTail::from_base(&expanded.types),
+                        dir::GenericSegment::new(module.id),
+                        dir::StaticSegment::from_base(&expanded.statics),
+                        dir::DecoratorSegment::new(module.id),
+                    ),
+                }
             };
         let bindings_tail = dir::BindingSegment::from_table(&bindings);
 
         // shadow the committed definitions and member entries, which key by symbol and site
-        let definitions = match (&elaborated, &declared) {
-            (Some(elaborated), _) => Some(elaborated.definitions.clone()),
-            (None, Some(declared)) => Some(declared.definitions.clone()),
-            (None, None) => None,
-        };
+        let mut definitions = Vec::new();
+        if let Some(checked) = &checked {
+            definitions.push(checked.definitions.clone());
+        }
+        match (&elaborated, &declared) {
+            (Some(elaborated), _) => definitions.push(elaborated.definitions.clone()),
+            (None, Some(declared)) => definitions.push(declared.definitions.clone()),
+            (None, None) => {}
+        }
         let definitions_tail = dir::DefinitionSegment::new(module.id);
-        let members = match (&elaborated, &declared) {
-            (Some(elaborated), _) => Some(Arc::clone(&elaborated.members)),
-            (None, Some(declared)) => Some(Arc::clone(&declared.members)),
-            (None, None) => None,
+        let members = match (&checked, &elaborated, &declared) {
+            (Some(checked), _, _) => Some(Arc::clone(&checked.members)),
+            (None, Some(elaborated), _) => Some(Arc::clone(&elaborated.members)),
+            (None, None, Some(declared)) => Some(Arc::clone(&declared.members)),
+            (None, None, None) => None,
         };
         let members_tail = dir::MemberSegment::new(module.id);
 
@@ -200,9 +242,10 @@ impl CheckModuleState {
         let coercions = dir::CoercionSegment::new(module.id);
         let captures = dir::CaptureSegment::new(module.id);
         let flows = dir::FlowSegment::new(module.id);
-        let controls = match &elaborated {
-            Some(elaborated) => (*elaborated.controls).clone(),
-            None => {
+        let controls = match (&checked, &elaborated) {
+            (Some(checked), _) => (*checked.controls).clone(),
+            (None, Some(elaborated)) => (*elaborated.controls).clone(),
+            (None, None) => {
                 let files = parsed.files.iter().map(|file| file.file_id).collect();
 
                 DiagnosticControlTable::new(module.id, files)
@@ -220,6 +263,7 @@ impl CheckModuleState {
             references: FxIndexSet::default(),
             declared,
             elaborated,
+            checked,
             bindings,
             bindings_tail,
             types,
@@ -377,8 +421,8 @@ impl CheckModuleState {
         }
 
         self.definitions
-            .as_ref()
-            .and_then(|base| base.definition(symbol))
+            .iter()
+            .find_map(|base| base.definition(symbol))
     }
 
     /// Return one definition for rewriting, copying the committed base in once.
@@ -388,7 +432,10 @@ impl CheckModuleState {
     ) -> Option<&mut dir::Definition> {
         // copy the committed definition into the pass tail on first write
         if self.definitions_tail.definition(symbol).is_none() {
-            let base = self.definitions.as_ref()?;
+            let base = self
+                .definitions
+                .iter()
+                .find(|base| base.definition(symbol).is_some())?;
             let definition = base.definition(symbol)?.clone();
             let source = base.definition_source_maybe(symbol)?;
             self.definitions_tail
@@ -409,20 +456,27 @@ impl CheckModuleState {
         }
 
         self.definitions
-            .as_ref()
-            .and_then(|base| base.definition_source_maybe(symbol))
+            .iter()
+            .find_map(|base| base.definition_source_maybe(symbol))
     }
 
     /// Iterate definitions with pass entries shadowing the committed base.
     pub(in crate::sema) fn iter_definitions(
         &self,
     ) -> impl Iterator<Item = (dir::GlobalSymbolId, &dir::Definition)> + '_ {
-        // drop the base entries this pass redefined
+        // drop the base entries this pass or a newer base redefined
         let shadowed = self
             .definitions
             .iter()
-            .flat_map(|base| base.iter_definitions())
-            .filter(|(symbol, _)| self.definitions_tail.definition(*symbol).is_none());
+            .enumerate()
+            .flat_map(|(depth, base)| base.iter_definitions().map(move |entry| (depth, entry)))
+            .filter(|(depth, (symbol, _))| {
+                self.definitions_tail.definition(*symbol).is_none()
+                    && !self.definitions[..*depth]
+                        .iter()
+                        .any(|newer| newer.definition(*symbol).is_some())
+            })
+            .map(|(_, entry)| entry);
 
         shadowed.chain(self.definitions_tail.iter_definitions())
     }
@@ -539,17 +593,22 @@ impl CheckModuleState {
             &mut self.definitions_tail,
             dir::DefinitionSegment::new(module),
         );
-        let Some(base) = self.definitions.take() else {
+        let bases = std::mem::take(&mut self.definitions);
+        if bases.is_empty() {
             return tail;
-        };
+        }
 
-        // carry unshadowed base definitions beneath the pass entries
+        // carry unshadowed base definitions beneath the pass entries, newest base first
         let mut merged = dir::DefinitionSegment::new(tail.module_id);
-        for (symbol, definition) in base.iter_definitions() {
-            if tail.definition(symbol).is_none()
-                && let Some(source) = base.definition_source_maybe(symbol)
-            {
-                merged.insert_definition(symbol, source, definition.clone());
+        for (depth, base) in bases.iter().enumerate() {
+            for (symbol, definition) in base.iter_definitions() {
+                let is_shadowed = tail.definition(symbol).is_some()
+                    || bases[..depth]
+                        .iter()
+                        .any(|newer| newer.definition(symbol).is_some());
+                if !is_shadowed && let Some(source) = base.definition_source_maybe(symbol) {
+                    merged.insert_definition(symbol, source, definition.clone());
+                }
             }
         }
 

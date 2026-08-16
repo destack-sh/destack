@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirExpanded, DirImported, DirMaterialized, DirParsed, Output, Script,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirMaterialized,
+    DirParsed, Output, Script,
 };
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
@@ -23,6 +24,12 @@ pub(crate) struct ScriptGenerator<'a> {
     imported: Arc<DirImported>,
     /// The current expanded DIR artifact.
     expanded: Arc<DirExpanded>,
+    /// The current declared DIR artifact.
+    declared: Arc<DirDeclared>,
+    /// The current elaborated DIR artifact.
+    elaborated: Arc<DirElaborated>,
+    /// The current checked DIR artifact.
+    checked: Arc<DirChecked>,
     /// The current materialized DIR artifact.
     materialized: Arc<DirMaterialized>,
     /// The shared string pool.
@@ -39,6 +46,9 @@ impl<'a> ScriptGenerator<'a> {
         bound: Arc<DirBound>,
         imported: Arc<DirImported>,
         expanded: Arc<DirExpanded>,
+        declared: Arc<DirDeclared>,
+        elaborated: Arc<DirElaborated>,
+        checked: Arc<DirChecked>,
         materialized: Arc<DirMaterialized>,
         strings: Arc<StringPool>,
         target: &'a Target,
@@ -49,6 +59,9 @@ impl<'a> ScriptGenerator<'a> {
             bound,
             imported,
             expanded,
+            declared,
+            elaborated,
+            checked,
             materialized,
             strings,
             target,
@@ -68,6 +81,9 @@ impl<'a> ScriptGenerator<'a> {
         let bound = self.bound.as_ref();
         let imported = self.imported.as_ref();
         let expanded = self.expanded.as_ref();
+        let declared = self.declared.as_ref();
+        let elaborated = self.elaborated.as_ref();
+        let checked = self.checked.as_ref();
         let materialized = self.materialized.as_ref();
 
         // asset modules are linked directly in the JS linker
@@ -86,6 +102,9 @@ impl<'a> ScriptGenerator<'a> {
             bound,
             imported,
             expanded,
+            declared,
+            elaborated,
+            checked,
             materialized,
         );
 
