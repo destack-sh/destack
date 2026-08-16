@@ -22,7 +22,7 @@ const narrowMeta = segment.narrow;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_statics(),
         r#"
@@ -43,7 +43,7 @@ class Segment {
 declare const segment: Segment;
 const narrowMeta: NarrowMeta = segment.narrow;
 
-=== checked ===
+=== dir ===
 struct NarrowMeta {}
 /// @type.symbol symbol=NarrowMeta source="struct NarrowMeta {}" type=NarrowMeta
 /// @definition.struct symbol=NarrowMeta source="struct NarrowMeta {}"
@@ -116,7 +116,7 @@ segment.wide;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_statics(),
         r#"
@@ -137,7 +137,7 @@ class Segment {
 declare const segment: Segment;
 segment.wide;
 
-=== checked ===
+=== dir ===
 struct NarrowMeta {}
 /// @type.symbol symbol=NarrowMeta source="struct NarrowMeta {}" type=NarrowMeta
 /// @definition.struct symbol=NarrowMeta source="struct NarrowMeta {}"
@@ -208,7 +208,7 @@ class Packet<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_statics(),
         r#"
@@ -226,7 +226,7 @@ class Packet<in out T> {
     }
 }
 
-=== checked ===
+=== dir ===
 struct TextMeta {}
 /// @type.symbol symbol=TextMeta source="struct TextMeta {}" type=TextMeta
 /// @definition.struct symbol=TextMeta source="struct TextMeta {}"
@@ -262,7 +262,6 @@ class Packet<T> {
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Packet<T>, target=field(receiver=Packet<T>, target=Packet.value, type=T), type=T" type=T
-        /// @generic.instance source=this id=Packet<T>
         /// @type.node source=value type=T
         /// @resolution.name source=value target=Packet.constructor.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -270,8 +269,6 @@ class Packet<T> {
 
     }
 }
-
-/// @generic.instance id=Packet<T> template=Packet arguments=(T)
 "#,
         r#"
 /// @diagnostic.error id=undecidable-static-condition message="static @if condition must be statically decidable"

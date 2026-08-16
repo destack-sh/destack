@@ -12,7 +12,7 @@ segment satisfies "users";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -23,7 +23,7 @@ const segment: "users" = parse<"users">("id:users");
 
 segment satisfies "users";
 
-=== checked ===
+=== dir ===
 declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
@@ -37,14 +37,13 @@ const segment = parse("id:users");
 /// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"id:users\")" parameters=(`id:${"users"}`) arguments=(provided("id:users") as `id:${"users"}`) return="users" kind=symbol target=parse instance="parse<\"users\">"
-/// @generic.instance source="parse(\"id:users\")" id="parse<\"users\">"
+/// @generic.instantiation id="parse<\"users\">" template=parse arguments=("users")
+/// @generic.instance id="parse<\"users\">" template=parse arguments=("users")
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
 /// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=segment root=segment
-
-/// @generic.instance id="parse<\"users\">" template=parse arguments=("users")
 "#,
     );
 }
@@ -61,7 +60,7 @@ key satisfies "id:users";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -72,7 +71,7 @@ const key = build<"users">("users");
 
 key satisfies "id:users";
 
-=== checked ===
+=== dir ===
 declare function build<T: string>(value: T): `id:${T}`;
 /// @generic.template symbol=build parameters=(T: string)
 /// @type.symbol symbol=build source="declare function build<T: string>(value: T): `id:${T}`" type=<T: string>(T) => `id:${T}`
@@ -86,14 +85,13 @@ const key = build("users");
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=build target=build
 /// @resolution.call source="build(\"users\")" parameters=("users") arguments=(provided("users") as "users") return=`id:${"users"}` kind=symbol target=build instance="build<\"users\">"
-/// @generic.instance source="build(\"users\")" id="build<\"users\">"
+/// @generic.instantiation id="build<\"users\">" template=build arguments=("users")
+/// @generic.instance id="build<\"users\">" template=build arguments=("users")
 
 key satisfies "id:users";
 /// @resolution.name source=key target=key
 /// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=key root=key
-
-/// @generic.instance id="build<\"users\">" template=build arguments=("users")
 "#,
     );
 }
@@ -112,7 +110,7 @@ text satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -125,7 +123,7 @@ const text: string = identity<string>(value);
 
 text satisfies string;
 
-=== checked ===
+=== dir ===
 declare function identity<T: string>(value: `${T}`): T;
 /// @generic.template symbol=identity parameters=(T: string)
 /// @type.symbol symbol=identity source="declare function identity<T: string>(value: `${T}`): T" type=<T: string>(`${T}`) => T
@@ -143,7 +141,8 @@ const text = identity(value);
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(value) parameters=(`${string}`) arguments=(provided(value) as `${string}`) return=string kind=symbol target=identity instance=identity<string>
-/// @generic.instance source=identity(value) id=identity<string>
+/// @generic.instantiation id=identity<string> template=identity arguments=(string)
+/// @generic.instance id=identity<string> template=identity arguments=(string)
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
@@ -152,8 +151,6 @@ text satisfies string;
 /// @resolution.name source=text target=text
 /// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=text root=text
-
-/// @generic.instance id=identity<string> template=identity arguments=(string)
 "#,
     );
 }
@@ -170,7 +167,7 @@ parse(key);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -181,7 +178,7 @@ let key: string = "id:users";
 
 parse(key);
 
-=== checked ===
+=== dir ===
 declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
@@ -197,12 +194,10 @@ let key = "id:users";
 parse(key);
 /// @resolution.name source=parse target=parse
 /// @resolution.call source=parse(key) parameters=(`id:${<error>}`) arguments=(provided(key) as `id:${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
-/// @generic.instance source=parse(key) id=parse<<error>>
+/// @generic.instantiation id=parse<<error>> template=parse arguments=(<error>)
 /// @resolution.name source=key target=key
 /// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=key root=key
-
-/// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'string' is not assignable to parameter of type '`id:${_}`'"
@@ -224,7 +219,7 @@ segment satisfies "";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -235,7 +230,7 @@ const segment: "" = parse<"">("id:");
 
 segment satisfies "";
 
-=== checked ===
+=== dir ===
 declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
@@ -249,14 +244,13 @@ const segment = parse("id:");
 /// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"id:\")" parameters=(`id:${""}`) arguments=(provided("id:") as `id:${""}`) return="" kind=symbol target=parse instance="parse<\"\">"
-/// @generic.instance source="parse(\"id:\")" id="parse<\"\">"
+/// @generic.instantiation id="parse<\"\">" template=parse arguments=("")
+/// @generic.instance id="parse<\"\">" template=parse arguments=("")
 
 segment satisfies "";
 /// @resolution.name source=segment target=segment
 /// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=segment root=segment
-
-/// @generic.instance id="parse<\"\">" template=parse arguments=("")
 "#,
     );
 }
@@ -273,7 +267,7 @@ value satisfies 42;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -284,7 +278,7 @@ const value: 42 = parse<42>("42");
 
 value satisfies 42;
 
-=== checked ===
+=== dir ===
 declare function parse<T: number>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: float64)
 /// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
@@ -298,14 +292,13 @@ const value = parse("42");
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"42\")" parameters=(`${42}`) arguments=(provided("42") as `${42}`) return=42 kind=symbol target=parse instance=parse<42>
-/// @generic.instance source="parse(\"42\")" id=parse<42>
+/// @generic.instantiation id=parse<42> template=parse arguments=(42)
+/// @generic.instance id=parse<42> template=parse arguments=(42)
 
 value satisfies 42;
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id=parse<42> template=parse arguments=(42)
 "#,
     );
 }
@@ -320,7 +313,7 @@ parse("no");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -329,7 +322,7 @@ declare function parse<T: number>(value: `${T}`): T;
 
 parse("no");
 
-=== checked ===
+=== dir ===
 declare function parse<T: number>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: float64)
 /// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
@@ -341,9 +334,7 @@ declare function parse<T: number>(value: `${T}`): T;
 parse("no");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"no\")" parameters=(`${<error>}`) arguments=(provided("no") as `${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
-/// @generic.instance source="parse(\"no\")" id=parse<<error>>
-
-/// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
+/// @generic.instantiation id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"no\"' is not assignable to parameter of type '`${_}`'"

@@ -81,6 +81,17 @@ impl TestSessionBuilder {
     }
 }
 
+/// The pipeline depth one DIR snapshot renders.
+#[derive(Debug, Clone, Copy)]
+enum DirStage {
+    /// One early stage's own rows.
+    Stage,
+    /// The checked stack, for modules whose diagnostics stop materialization.
+    Checked,
+    /// The checked stack with the materialized tail.
+    Materialized,
+}
+
 /// A compiler test session.
 #[derive(Debug)]
 pub(crate) struct TestSession {
@@ -344,60 +355,43 @@ impl TestSession {
     /// Assert bound DIR rows for one module.
     #[track_caller]
     pub(crate) fn assert_dir_bound(&self, path: &str, rows: DirRows, expected: &str) {
-        self.assert_dir(path, rows, expected, Self::dir_bound_key, false);
+        self.assert_dir_stage(path, rows, expected, Self::dir_bound_key);
     }
 
     /// Assert imported DIR rows for one module.
     #[track_caller]
     pub(crate) fn assert_dir_imported(&self, path: &str, rows: DirRows, expected: &str) {
-        self.assert_dir(path, rows, expected, Self::dir_imported_key, false);
+        self.assert_dir_stage(path, rows, expected, Self::dir_imported_key);
     }
 
     /// Assert imported DIR rows for multiple modules.
     #[track_caller]
     pub(crate) fn assert_dir_imported_many(&self, paths: &[&str], rows: DirRows, expected: &str) {
-        self.assert_dir_many(paths, rows, expected, Self::dir_imported_key, false);
+        self.assert_dir_stage_many(paths, rows, expected, Self::dir_imported_key);
     }
 
     /// Assert expanded DIR rows for one module.
     #[track_caller]
     pub(crate) fn assert_dir_expanded(&self, path: &str, rows: DirRows, expected: &str) {
-        self.assert_dir(path, rows, expected, Self::dir_expanded_key, false);
+        self.assert_dir_stage(path, rows, expected, Self::dir_expanded_key);
     }
 
     /// Assert exported DIR rows for one module.
     #[track_caller]
     pub(crate) fn assert_dir_exported(&self, path: &str, rows: DirRows, expected: &str) {
-        self.assert_dir(path, rows, expected, Self::dir_exported_key, false);
+        self.assert_dir_stage(path, rows, expected, Self::dir_exported_key);
     }
 
     /// Assert resolved DIR rows for one module.
     #[track_caller]
     pub(crate) fn assert_dir_resolved(&self, path: &str, rows: DirRows, expected: &str) {
-        self.assert_dir(path, rows, expected, Self::dir_resolved_key, false);
+        self.assert_dir_stage(path, rows, expected, Self::dir_resolved_key);
     }
 
-    /// Assert checked DIR rows for one module.
+    /// Assert DIR rows for one module, through the materialized artifact.
     #[track_caller]
-    pub(crate) fn assert_dir_checked(&self, path: &str, rows: DirRows, expected: &str) {
-        self.assert_dir(path, rows, expected, Self::dir_checked_key, true);
-    }
-
-    /// Assert materialized DIR rows for one module.
-    #[track_caller]
-    pub(crate) fn assert_dir_materialized(&self, path: &str, rows: DirRows, expected: &str) {
-        let rows = rows.with_environment();
-        let entry = self.module_entry(path);
-        let dir = self.render_materialized_module_snapshot(entry, rows);
-
-        // require the artifact without diagnostics
-        assert_snapshot(
-            self.diagnostic_snapshot(self.dir_materialized_key(path)),
-            "",
-        );
-        self.print_trace_if_requested(path);
-
-        assert_snapshot(dir, expected);
+    pub(crate) fn assert_dir(&self, path: &str, rows: DirRows, expected: &str) {
+        self.assert_dir_modules(&[path], rows, expected);
     }
 
     /// Assert lowered MIR for one module.
@@ -678,14 +672,14 @@ impl TestSession {
 
     /// Assert checked DIR rows and diagnostics for one module.
     #[track_caller]
-    pub(crate) fn assert_dir_checked_and_diagnostics(
+    pub(crate) fn assert_dir_and_diagnostics(
         &self,
         path: &str,
         rows: DirRows,
         expected_dir: &str,
         expected_diagnostics: &str,
     ) {
-        let dir = self.render_dir_snapshots(&[path], rows, true);
+        let dir = self.render_dir_snapshots(&[path], rows, DirStage::Checked);
         let keys = [self.dir_declared_key(path), self.dir_checked_key(path)];
         let diagnostics = self.diagnostic_snapshot_for(&keys);
         self.print_trace_if_requested(path);
@@ -703,7 +697,7 @@ impl TestSession {
         expected_dir: &str,
         expected_diagnostics: &str,
     ) {
-        let dir = self.render_dir_snapshots(&[path], rows, false);
+        let dir = self.render_dir_snapshots(&[path], rows, DirStage::Stage);
         let diagnostics = self.diagnostic_snapshot(self.dir_resolved_key(path));
         self.print_trace_if_requested(path);
 
@@ -729,7 +723,7 @@ impl TestSession {
 
     /// Assert checked DIR diagnostics for one module.
     #[track_caller]
-    pub(crate) fn assert_dir_checked_diagnostics(&self, path: &str, expected: &str) {
+    pub(crate) fn assert_dir_diagnostics(&self, path: &str, expected: &str) {
         self.print_trace_if_requested("diagnostics");
 
         // stack checked diagnostics over the declared stage's own
@@ -758,10 +752,30 @@ impl TestSession {
         assert_snapshot(self.diagnostic_snapshot(key), expected);
     }
 
-    /// Assert checked DIR rows for multiple modules.
+    /// Assert DIR rows for multiple modules, through the materialized artifacts.
     #[track_caller]
-    pub(crate) fn assert_dir_checked_many(&self, paths: &[&str], rows: DirRows, expected: &str) {
-        self.assert_dir_many(paths, rows, expected, Self::dir_checked_key, true);
+    pub(crate) fn assert_dir_many(&self, paths: &[&str], rows: DirRows, expected: &str) {
+        self.assert_dir_modules(paths, rows, expected);
+    }
+
+    /// Assert rendered DIR snapshots through the materialized artifacts.
+    #[track_caller]
+    fn assert_dir_modules(&self, paths: &[&str], rows: DirRows, expected: &str) {
+        let rows = rows.with_environment();
+        let dir = self.render_dir_snapshots(paths, rows, DirStage::Materialized);
+
+        // require every stage without diagnostics
+        for path in paths {
+            let keys = [
+                self.dir_declared_key(path),
+                self.dir_checked_key(path),
+                self.dir_materialized_key(path),
+            ];
+            assert_snapshot(self.diagnostic_snapshot_for(&keys), "");
+        }
+        self.print_trace_if_requested(&paths.join(","));
+
+        assert_snapshot(dir, expected);
     }
 
     /// Build code module entries.
@@ -955,66 +969,59 @@ impl TestSession {
         builder.render()
     }
 
-    /// Assert one rendered DIR snapshot.
+    /// Assert rendered stage DIR snapshots for multiple modules.
     #[track_caller]
-    fn assert_dir(
-        &self,
-        path: &str,
-        rows: DirRows,
-        expected: &str,
-        artifact_key: fn(&Self, &str) -> ArtifactKey,
-        is_checked: bool,
-    ) {
-        self.assert_dir_many(&[path], rows, expected, artifact_key, is_checked);
-    }
-
-    /// Assert rendered DIR snapshots.
-    #[track_caller]
-    fn assert_dir_many(
+    fn assert_dir_stage_many(
         &self,
         paths: &[&str],
         rows: DirRows,
         expected: &str,
         artifact_key: fn(&Self, &str) -> ArtifactKey,
-        is_checked: bool,
     ) {
         let rows = rows.with_environment();
-        let dir = self.render_dir_snapshots(paths, rows, is_checked);
+        let dir = self.render_dir_snapshots(paths, rows, DirStage::Stage);
 
-        // require artifacts without diagnostics by default
+        // require artifacts without diagnostics
         for path in paths {
-            let key = if is_checked {
-                self.dir_checked_key(path)
-            } else {
-                artifact_key(self, path)
-            };
-            assert_snapshot(self.diagnostic_snapshot(key), "");
+            assert_snapshot(self.diagnostic_snapshot(artifact_key(self, path)), "");
         }
         self.print_trace_if_requested(&paths.join(","));
 
         assert_snapshot(dir, expected);
     }
 
+    /// Assert one rendered stage DIR snapshot.
+    #[track_caller]
+    fn assert_dir_stage(
+        &self,
+        path: &str,
+        rows: DirRows,
+        expected: &str,
+        artifact_key: fn(&Self, &str) -> ArtifactKey,
+    ) {
+        let rows = rows.with_environment();
+        let dir = self.render_dir_snapshots(&[path], rows, DirStage::Stage);
+
+        // require the artifact without diagnostics
+        assert_snapshot(self.diagnostic_snapshot(artifact_key(self, path)), "");
+        self.print_trace_if_requested(path);
+
+        assert_snapshot(dir, expected);
+    }
+
     /// Render selected DIR snapshots.
-    fn render_dir_snapshots(&self, paths: &[&str], rows: DirRows, is_checked: bool) -> String {
+    fn render_dir_snapshots(&self, paths: &[&str], rows: DirRows, stage: DirStage) -> String {
         if paths.len() == 1 {
             let entry = self.module_entry(paths[0]);
-            if is_checked {
-                return self.render_checked_module_snapshot(paths[0], entry, rows);
-            }
 
-            return self.render_module_snapshot(paths[0], entry, rows);
+            return self.render_dir_module_snapshot(paths[0], entry, rows, stage);
         }
 
         paths
             .iter()
             .map(|path| {
                 let entry = self.module_entry(path);
-                let body = if is_checked {
-                    self.render_checked_module_snapshot(path, entry, rows)
-                } else {
-                    self.render_module_snapshot(path, entry, rows)
-                };
+                let body = self.render_dir_module_snapshot(path, entry, rows, stage);
 
                 format!("=== {path} ===\n\n{body}")
             })
@@ -1022,12 +1029,28 @@ impl TestSession {
             .join("\n\n")
     }
 
-    /// Render one checked module snapshot.
+    /// Render one module snapshot at the requested stage.
+    fn render_dir_module_snapshot(
+        &self,
+        path: &str,
+        entry: &TestModule,
+        rows: DirRows,
+        stage: DirStage,
+    ) -> String {
+        match stage {
+            DirStage::Stage => self.render_module_snapshot(path, entry, rows),
+            DirStage::Checked => self.render_checked_module_snapshot(path, entry, rows, false),
+            DirStage::Materialized => self.render_checked_module_snapshot(path, entry, rows, true),
+        }
+    }
+
+    /// Render one checked module snapshot, layering the materialized tail on request.
     fn render_checked_module_snapshot(
         &self,
         path: &str,
         entry: &TestModule,
         selection: DirRows,
+        materialized: bool,
     ) -> String {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
@@ -1092,6 +1115,20 @@ impl TestSession {
             &checked,
         );
 
+        // layer the materialized tail over the checked rows
+        if materialized {
+            let materialized = self.dir_materialized(entry);
+            builder.add_materialized(
+                selection,
+                &bound,
+                &expanded,
+                &declared,
+                &elaborated,
+                &checked,
+                &materialized,
+            );
+        }
+
         if selection.includes_metadata() {
             let metadata_rows = selection.metadata_rows();
 
@@ -1128,61 +1165,7 @@ impl TestSession {
         let annotated = self.annotated_snapshot(path, entry);
         let rows = builder.render();
 
-        format!("=== annotated ===\n{annotated}\n\n=== checked ===\n{rows}")
-    }
-
-    /// Render one materialized module snapshot.
-    fn render_materialized_module_snapshot(
-        &self,
-        entry: &TestModule,
-        selection: DirRows,
-    ) -> String {
-        let parsed = self.dir_parsed(entry);
-        let bound = self.dir_bound(entry);
-        let expanded = self.dir_expanded(entry);
-        let declared = self.dir_declared_module(entry.module.id, entry.profile);
-        let elaborated = self.dir_elaborated(entry);
-        let checked = self.dir_checked(entry);
-        let materialized = self.dir_materialized(entry);
-        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
-        let foreign_artifacts = self.foreign_artifacts_for(entry, true);
-        let foreign_bindings = foreign_artifacts
-            .iter()
-            .map(|(bound, expanded)| expanded.binding_table(bound))
-            .collect::<Vec<_>>();
-        let foreign_tables = if selection.uses_type_labels() {
-            self.foreign_checked_tables_for(entry)
-        } else {
-            Vec::new()
-        };
-        let mut builder = DirSnapshotBuilder::new(
-            &entry.source,
-            &parsed.tree,
-            self.repository.string_pool().as_ref(),
-        )
-        .with_bindings(&bindings)
-        .with_module_paths(&self.module_path_by_id)
-        .with_foreign_bindings(foreign_bindings)
-        .with_foreign_tables(foreign_tables);
-
-        // load resolved imports when semantic labels need import names
-        if selection.uses_type_labels() {
-            let resolved = self.dir_resolved(entry);
-            builder.add_global_names(&resolved.imports);
-            builder.add_language_items(&resolved.imports);
-        }
-
-        builder.add_materialized(
-            selection,
-            &bound,
-            &expanded,
-            &declared,
-            &elaborated,
-            &checked,
-            &materialized,
-        );
-
-        builder.render()
+        format!("=== annotated ===\n{annotated}\n\n=== dir ===\n{rows}")
     }
 
     /// Return the annotated source render for one checked module.

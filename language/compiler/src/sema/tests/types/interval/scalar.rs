@@ -10,7 +10,7 @@ declare const count: Count;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ type Count = 0..5;
 
 declare const count: 0..5;
 
-=== checked ===
+=== dir ===
 type Count = 0..5;
 /// @type.symbol symbol=Count source="type Count = 0..5" type=0..5
 /// @definition.type symbol=Count source="type Count = 0..5" value=0..5
@@ -44,7 +44,7 @@ value satisfies IntegerDomain;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -55,7 +55,7 @@ declare const value: 0..=255;
 
 value satisfies IntegerDomain;
 
-=== checked ===
+=== dir ===
 import { IntegerDomain } from "destack:math";
 
 declare const value: 0..=255;

@@ -11,7 +11,7 @@ ok.id satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Receiver = ThisParameterType<(this: { id: string }, value: float64) => void
 const ok: { id: string } = { id: "u1" };
 ok.id satisfies string;
 
-=== checked ===
+=== dir ===
 type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>;
 /// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" type={ id: string }
 /// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" value={ id: string }
@@ -55,7 +55,7 @@ const ok: Receiver = { anything: true };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -64,7 +64,7 @@ type Receiver = ThisParameterType<(value: float64) => void>;
 
 const ok: Dynamic<unknown> = { anything: true } as Dynamic<unknown>;
 
-=== checked ===
+=== dir ===
 type Receiver = ThisParameterType<(value: number) => void>;
 /// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" type=unknown
 /// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" value=unknown
@@ -90,7 +90,7 @@ fn("one") satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -100,7 +100,7 @@ type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
 const fn: (arg0: string) => string = (value: string): string => `${value}`;
 fn("one") satisfies string;
 
-=== checked ===
+=== dir ===
 type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
 /// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" type=Function<(string,), string>
 /// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" value=Function<(string,), string>
@@ -138,7 +138,7 @@ fn("bad");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -148,7 +148,7 @@ type Fn = OmitThisParameter<(this: { id: string }, value: float64) => string>;
 declare const fn: (arg0: float64) => string;
 fn("bad");
 
-=== checked ===
+=== dir ===
 type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
 /// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" type=Function<(float64,), string>
 /// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" value=Function<(float64,), string>

@@ -12,7 +12,7 @@ const tree: TreeB = source;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -23,7 +23,7 @@ type TreeB = { value: float64; child: TreeB | null };
 declare const source: { value: float64; child: TreeA | null };
 const tree: { value: float64; child: TreeB | null } = source;
 
-=== checked ===
+=== dir ===
 type TreeA = { value: float64; child: TreeA | null };
 /// @type.symbol symbol=TreeA source="type TreeA = { value: float64; child: TreeA | null }" type={ value: float64; child: TreeA | null }
 /// @definition.type symbol=TreeA source="type TreeA = { value: float64; child: TreeA | null }" value={ value: float64; child: TreeA | null }
@@ -65,7 +65,7 @@ struct Right {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -78,7 +78,7 @@ struct Right {
     left: Left;
 }
 
-=== checked ===
+=== dir ===
 struct Left {
 /// @type.symbol symbol=Left type=Left
 /// @definition.struct symbol=Left
@@ -143,7 +143,7 @@ export class World {
         )
         .build();
 
-    compiler.assert_dir_checked_many(
+    compiler.assert_dir_many(
         &["player.ds", "world.ds"],
         DirRows::checked(),
         r#"
@@ -160,7 +160,7 @@ export class Player {
     }
 }
 
-=== checked ===
+=== dir ===
 import { World } from "./world.ds";
 
 export class Player {
@@ -205,7 +205,7 @@ export class World {
     }
 }
 
-=== checked ===
+=== dir ===
 import { Player } from "./player.ds";
 
 export class World {

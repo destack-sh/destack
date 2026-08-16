@@ -18,7 +18,7 @@ function describe(mode: Mode): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -35,7 +35,7 @@ function describe(mode: Mode): int32 {
     }
 }
 
-=== checked ===
+=== dir ===
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
@@ -93,7 +93,7 @@ function describe(mode: Mode): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -109,7 +109,7 @@ function describe(mode: Mode): int32 {
     }
 }
 
-=== checked ===
+=== dir ===
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
@@ -171,7 +171,7 @@ match (status) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 enum Status {
     Ready = 1,
@@ -188,7 +188,7 @@ match (status) {
     Other.Ready => 0
 }
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
@@ -252,7 +252,7 @@ match (status) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -268,7 +268,7 @@ match (status) {
     Status.Done => 0
 }
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
@@ -326,7 +326,7 @@ const value = match (mode) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -343,7 +343,7 @@ const value: 10 | 20 = match (mode) {
     Mode.Write => 20
 };
 
-=== checked ===
+=== dir ===
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode

@@ -14,7 +14,7 @@ if (route != undefined) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -27,7 +27,7 @@ if (route != undefined) {
     route satisfies Route;
 }
 
-=== checked ===
+=== dir ===
 type Route = `api:${string}`;
 /// @type.symbol symbol=Route source="type Route = `api:${string}`" type=`api:${string}`
 /// @definition.type symbol=Route source="type Route = `api:${string}`" value=`api:${string}`
@@ -70,7 +70,7 @@ if (route == "api:users") {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -85,7 +85,7 @@ if (route == "api:users") {
     route satisfies Route;
 }
 
-=== checked ===
+=== dir ===
 type Route = `api:${string}`;
 /// @type.symbol symbol=Route source="type Route = `api:${string}`" type=`api:${string}`
 /// @definition.type symbol=Route source="type Route = `api:${string}`" value=`api:${string}`
@@ -136,7 +136,7 @@ section satisfies "users" | "posts";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -152,7 +152,7 @@ const section: "users" | "posts" = match (route) {
 
 section satisfies "users" | "posts";
 
-=== checked ===
+=== dir ===
 type Route = `api:${"users" | "posts"}`;
 /// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type="api:users" | "api:posts"
 /// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value="api:users" | "api:posts"

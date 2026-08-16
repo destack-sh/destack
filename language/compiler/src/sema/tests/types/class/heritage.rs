@@ -10,7 +10,7 @@ class Document extends Base {}
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ class Base {}
 
 class Document extends Base {}
 
-=== checked ===
+=== dir ===
 class Base {}
 /// @type.symbol symbol=Base source="class Base {}" type=Base
 /// @definition.class symbol=Base source="class Base {}"
@@ -43,7 +43,7 @@ class Document extends Drawable {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -52,7 +52,7 @@ interface Drawable {}
 
 class Document extends Drawable {}
 
-=== checked ===
+=== dir ===
 interface Drawable {}
 /// @type.symbol symbol=Drawable source="interface Drawable {}" type=Drawable
 /// @definition.interface symbol=Drawable source="interface Drawable {}"
@@ -80,7 +80,7 @@ class Document extends Alias {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -90,7 +90,7 @@ type Alias = Base;
 
 class Document extends Alias {}
 
-=== checked ===
+=== dir ===
 class Base {}
 /// @type.symbol symbol=Base source="class Base {}" type=Base
 /// @definition.class symbol=Base source="class Base {}"
@@ -123,7 +123,7 @@ class Document extends Base | Other {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -133,7 +133,7 @@ class Other {}
 
 class Document extends Base | Other {}
 
-=== checked ===
+=== dir ===
 class Base {}
 /// @type.symbol symbol=Base source="class Base {}" type=Base
 /// @definition.class symbol=Base source="class Base {}"
@@ -169,7 +169,7 @@ class Document implements Printable {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -182,7 +182,7 @@ class Document implements Printable {
     print(): void {}
 }
 
-=== checked ===
+=== dir ===
 interface Printable {
 /// @type.symbol symbol=Printable type=Printable
 /// @definition.interface symbol=Printable
@@ -224,7 +224,7 @@ class User implements Named {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -237,7 +237,7 @@ class User implements Named {
     name: int32 = 0;
 }
 
-=== checked ===
+=== dir ===
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
@@ -283,7 +283,7 @@ class Document implements Alias {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -297,7 +297,7 @@ class Document implements Alias {
     print(): void {}
 }
 
-=== checked ===
+=== dir ===
 interface Printable {
 /// @type.symbol symbol=Printable type=Printable
 /// @definition.interface symbol=Printable
@@ -344,7 +344,7 @@ class Point implements Drawable {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -357,7 +357,7 @@ class Point implements Drawable {
     x: int32 = 0;
 }
 
-=== checked ===
+=== dir ===
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
@@ -406,7 +406,7 @@ class Point implements Drawable {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -423,7 +423,7 @@ class Point implements Drawable {
     draw(): void {}
 }
 
-=== checked ===
+=== dir ===
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
@@ -475,7 +475,7 @@ class Right extends Left {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -483,7 +483,7 @@ class Right extends Left {}
 class Left extends Right {}
 class Right extends Left {}
 
-=== checked ===
+=== dir ===
 class Left extends Right {}
 /// @type.symbol symbol=Left source="class Left extends Right {}" type=Left
 /// @definition.class symbol=Left source="class Left extends Right {}"
@@ -515,7 +515,7 @@ class Document {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -524,7 +524,7 @@ class Document {
     override print(): void {}
 }
 
-=== checked ===
+=== dir ===
 class Document {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
@@ -556,7 +556,7 @@ class Document extends Base {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -569,7 +569,7 @@ class Document extends Base {
     print(): void {}
 }
 
-=== checked ===
+=== dir ===
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
@@ -614,7 +614,7 @@ class Document extends Base {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -627,7 +627,7 @@ class Document extends Base {
     override print(): void {}
 }
 
-=== checked ===
+=== dir ===
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
@@ -668,7 +668,7 @@ class Header extends Packet {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -677,7 +677,7 @@ final class Packet {}
 
 class Header extends Packet {}
 
-=== checked ===
+=== dir ===
 final class Packet {}
 /// @type.symbol symbol=Packet source="final class Packet {}" type=Packet
 /// @definition.class symbol=Packet source="final class Packet {}" final=true
@@ -705,7 +705,7 @@ class Writer {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -714,7 +714,7 @@ class Writer {
     abstract write(value: string): void;
 }
 
-=== checked ===
+=== dir ===
 class Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.class symbol=Writer
@@ -745,7 +745,7 @@ class FileWriter extends Writer {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -756,7 +756,7 @@ abstract class Writer {
 
 class FileWriter extends Writer {}
 
-=== checked ===
+=== dir ===
 abstract class Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.class symbol=Writer abstract=true
@@ -791,7 +791,7 @@ const map: Map<string, int32> = record;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -799,7 +799,7 @@ const map: Map<string, int32> = record;
 declare const record: Record<string, int32>;
 const map: Map<string, int32> = record;
 
-=== checked ===
+=== dir ===
 declare const record: Record<string, int32>;
 /// @type.symbol symbol=record source=record type={ [P: string]: int32 }
 /// @resolution.pattern source=record kind=binding target=record
@@ -812,8 +812,6 @@ const map: Map<string, int32> = record;
 /// @resolution.name source=record target=record
 /// @resolution.place source=record placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=record root=record
-
-/// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ [P: string]: int32 }' is not assignable to type 'Map<string, int32>'"
@@ -833,7 +831,7 @@ new Writer();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -842,7 +840,7 @@ abstract class Writer {}
 
 new Writer();
 
-=== checked ===
+=== dir ===
 abstract class Writer {}
 /// @type.symbol symbol=Writer source="abstract class Writer {}" type=Writer
 /// @definition.class symbol=Writer source="abstract class Writer {}" abstract=true
@@ -877,7 +875,7 @@ class Parser extends Base {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -894,7 +892,7 @@ class Parser extends Base {
     }
 }
 
-=== checked ===
+=== dir ===
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
@@ -952,7 +950,7 @@ class Child extends Base {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::none().with_definitions(),
         r#"
@@ -969,7 +967,7 @@ class Child extends Base {
     }
 }
 
-=== checked ===
+=== dir ===
 class Base {
 /// @definition.class symbol=Base
 /// @definition.method symbol=Base.describe slot=describe abstraction=virtual type=(this: this) => string
@@ -1010,7 +1008,7 @@ class Dog extends Animal {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1027,7 +1025,7 @@ class Dog extends Animal {
     }
 }
 
-=== checked ===
+=== dir ===
 class Animal {
 /// @type.symbol symbol=Animal type=Animal
 /// @definition.class symbol=Animal
@@ -1083,7 +1081,7 @@ class Dog extends Animal {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_capture(),
         r#"
@@ -1102,7 +1100,7 @@ class Dog extends Animal {
     }
 }
 
-=== checked ===
+=== dir ===
 class Animal {
 /// @type.symbol symbol=Animal type=Animal
 /// @definition.class symbol=Animal

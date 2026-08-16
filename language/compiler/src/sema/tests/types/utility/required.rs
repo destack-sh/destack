@@ -16,7 +16,7 @@ person.age satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -31,7 +31,7 @@ declare const person: { name: string; age: int32 };
 person.name satisfies string;
 person.age satisfies int32;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -84,7 +84,7 @@ const person: Required<Person> = { name: "Ada" };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -96,7 +96,7 @@ interface Person {
 
 const person: { name: string; age: int32 } = { name: "Ada" };
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -138,7 +138,7 @@ person.name satisfies string | undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -150,7 +150,7 @@ interface Person {
 const person: { name: string | undefined } = { name: undefined as string | undefined };
 person.name satisfies string | undefined;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -191,7 +191,7 @@ person.name = "Grace";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -203,7 +203,7 @@ interface Person {
 const person: { readonly name: string } = { name: "Ada" };
 person.name = "Grace";
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person

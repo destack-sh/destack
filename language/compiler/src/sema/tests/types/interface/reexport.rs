@@ -34,7 +34,7 @@ const sized: Sized = box;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -50,7 +50,7 @@ struct Box implements Sized {
 declare const box: Box;
 const sized: Dynamic<Sized> = box as Dynamic<Sized>;
 
-=== checked ===
+=== dir ===
 import { Sized } from "./reexport.ds";
 
 struct Box implements Sized {

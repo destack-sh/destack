@@ -20,7 +20,7 @@ handlers["on-message"] satisfies (value: string) => void;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -42,7 +42,7 @@ declare const handlers: {
 handlers["on-ready"] satisfies (value: boolean) => void;
 handlers["on-message"] satisfies (value: string) => void;
 
-=== checked ===
+=== dir ===
 type Handlers<T> = {
 /// @generic.template symbol=Handlers parameters=(T)
 /// @type.symbol symbol=Handlers type={ [K in keyof T as `on-${K}`]: Function<(T[K],), void> }
@@ -115,7 +115,7 @@ getters.getAge satisfies () => int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -134,7 +134,7 @@ declare const getters: { getName: () => Person["name"]; getAge: () => Person["ag
 getters.getName satisfies () => string;
 getters.getAge satisfies () => int32;
 
-=== checked ===
+=== dir ===
 type Getters<T> = {
 /// @generic.template symbol=Getters parameters=(T)
 /// @type.symbol symbol=Getters type={ [K in keyof T as `get${Capitalize<string & K>}`]: Function<(), T[K]> }
@@ -181,8 +181,6 @@ getters.getAge satisfies () => int32;
 /// @resolution.access source=getters root=getters
 /// @resolution.place source=getters.getAge placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=getters.getAge root=getters keys=[getAge]
-
-/// @generic.instance id="Capitalize<string & K>" template=types.string.Capitalize arguments=(string & K)
 "#,
     );
 }
@@ -202,7 +200,7 @@ value satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -216,7 +214,7 @@ type Value = Handlers<{ name: string }>["on-name"];
 declare const value: string;
 value satisfies string;
 
-=== checked ===
+=== dir ===
 type Handlers<T> = {
 /// @generic.template symbol=Handlers parameters=(T)
 /// @type.symbol symbol=Handlers type={ [K in keyof T as `on-${K}`]: T[K] }
@@ -270,7 +268,7 @@ names.user satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -288,7 +286,7 @@ declare const names: { user: string };
 
 names.user satisfies string;
 
-=== checked ===
+=== dir ===
 type Events = {
 /// @type.symbol symbol=Events type={ userCreated: string; orderPaid: int32 }
 /// @definition.type symbol=Events value={ userCreated: string; orderPaid: int32 }
@@ -349,7 +347,7 @@ const missing = names.orderPaid;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -366,7 +364,7 @@ type Names<T> = {
 declare const names: { user: string };
 const missing = names.orderPaid;
 
-=== checked ===
+=== dir ===
 type Events = {
 /// @type.symbol symbol=Events type={ userCreated: string; orderPaid: int32 }
 /// @definition.type symbol=Events value={ userCreated: string; orderPaid: int32 }
@@ -430,7 +428,7 @@ handlers["on-open"] satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -446,7 +444,7 @@ const handlers: { on-open: true; on-close: false } = {
 
 handlers["on-open"] satisfies boolean;
 
-=== checked ===
+=== dir ===
 type HandlerMap<T> = {
 /// @generic.template symbol=HandlerMap parameters=(T)
 /// @type.symbol symbol=HandlerMap type={ [K in keyof T as `on-${K}`]: T[K] }

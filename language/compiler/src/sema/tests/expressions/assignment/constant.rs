@@ -9,7 +9,7 @@ value = 2;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -17,7 +17,7 @@ value = 2;
 const value: int32 = 1;
 value = 2;
 
-=== checked ===
+=== dir ===
 const value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -50,7 +50,7 @@ value += 2;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -58,7 +58,7 @@ value += 2;
 const value: int32 = 1;
 value += 2;
 
-=== checked ===
+=== dir ===
 const value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -93,7 +93,7 @@ state.count = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -101,7 +101,7 @@ state.count = 1;
 const state: { count: int32 } = { count: 0 };
 state.count = 1;
 
-=== checked ===
+=== dir ===
 const state: { count: int32 } = { count: 0 };
 /// @type.symbol symbol=state source=state type={ count: int32 }
 /// @resolution.pattern source=state kind=binding target=state

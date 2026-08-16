@@ -11,7 +11,7 @@ ok satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Value = ReturnType<() => string>;
 const ok: string = "ready";
 ok satisfies string;
 
-=== checked ===
+=== dir ===
 type Value = ReturnType<() => string>;
 /// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
 /// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string
@@ -51,7 +51,7 @@ const second: Value = "b";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -61,7 +61,7 @@ type Value = ReturnType<() => "a" | "b">;
 const first: "a" | "b" = "a" as "a" | "b";
 const second: "a" | "b" = "b" as "a" | "b";
 
-=== checked ===
+=== dir ===
 type Value = ReturnType<() => "a" | "b">;
 /// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type="a" | "b"
 /// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value="a" | "b"
@@ -90,7 +90,7 @@ const bad: Value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -99,7 +99,7 @@ type Value = ReturnType<() => string>;
 
 const bad: string = 1;
 
-=== checked ===
+=== dir ===
 type Value = ReturnType<() => string>;
 /// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
 /// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string

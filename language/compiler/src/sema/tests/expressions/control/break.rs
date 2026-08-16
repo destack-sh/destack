@@ -12,7 +12,7 @@ while (true) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -23,7 +23,7 @@ while (true) {
     };
 }
 
-=== checked ===
+=== dir ===
 while (true) {
 /// @type.node source=true type=true
 
@@ -63,7 +63,7 @@ const value = loop {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -77,7 +77,7 @@ const value: 1 | 2 = loop {
     break 2 as 1 | 2;
 };
 
-=== checked ===
+=== dir ===
 declare const flag: boolean;
 /// @type.symbol symbol=flag source=flag type=boolean
 /// @resolution.pattern source=flag kind=binding target=flag
@@ -120,7 +120,7 @@ function spin(): never {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -129,7 +129,7 @@ function spin(): never {
     loop {}
 }
 
-=== checked ===
+=== dir ===
 function spin(): never {
 /// @type.symbol symbol=spin type=() => never
 
@@ -153,7 +153,7 @@ while (true) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -162,7 +162,7 @@ while (true) {
     break 1;
 }
 
-=== checked ===
+=== dir ===
 while (true) {
 /// @type.node source=true type=true
 
@@ -191,7 +191,7 @@ outer: loop {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -200,7 +200,7 @@ outer: loop {
     break outer;
 }
 
-=== checked ===
+=== dir ===
 outer: loop {
     break outer;
     /// @type.node source="break outer" type=never
@@ -225,7 +225,7 @@ outer: while (running) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -236,7 +236,7 @@ outer: while (running) {
     continue outer;
 }
 
-=== checked ===
+=== dir ===
 declare const running: boolean;
 /// @type.symbol symbol=running source=running type=boolean
 /// @resolution.pattern source=running kind=binding target=running

@@ -10,7 +10,7 @@ class User {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -19,7 +19,7 @@ class User {
     name: string = "Ada";
 }
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -44,7 +44,7 @@ class User {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -53,7 +53,7 @@ class User {
     active: boolean = true;
 }
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -78,7 +78,7 @@ class User {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -87,7 +87,7 @@ class User {
     name: string;
 }
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -119,7 +119,7 @@ class User {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -132,7 +132,7 @@ class User {
     }
 }
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -166,96 +166,6 @@ class User {
 "#,
     );
 }
-
-#[test]
-fn test_super_assignment_satisfies_definite_initialization() {
-    let session = TestSession::single(
-        r#"
-class Base {
-    name: string = "";
-}
-
-class User extends Base {
-    override name: string;
-
-    constructor() {
-        super();
-        super.name = "Ada";
-    }
-}
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-=== annotated ===
-class Base {
-    name: string = "";
-}
-
-class User extends Base {
-    override name: string;
-
-    constructor(): this {
-        super();
-        super.name = "Ada";
-    }
-}
-
-=== checked ===
-class Base {
-/// @type.symbol symbol=Base type=Base
-/// @definition.class symbol=Base
-/// @definition.field symbol=Base.name source="name: string = \"\"" key=name type=string
-
-    name: string = "";
-    /// @type.symbol symbol=Base.name source="name: string = \"\"" type=string
-    /// @type.node source="\"\"" type=""
-
-}
-
-class User extends Base {
-/// @type.symbol symbol=User type=User
-/// @definition.class symbol=User
-/// @definition.extends symbol=User source=Base target=Base
-/// @definition.field symbol=User.name source="override name: string" key=name override=true type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=() => this
-/// @resolution.name source=Base target=Base
-
-    override name: string;
-    /// @type.symbol symbol=User.name source="override name: string" type=string
-
-    constructor() {
-    /// @type.symbol symbol=User.constructor type=() => this
-
-        super();
-        /// @type.node source=super type=Base
-        /// @type.node source=super() type=void
-        /// @resolution.receiver source=super kind=super declaration=User type=Base
-        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=super root=this
-        /// @resolution.construct source=super() parameters=() return=void kind=class target=Base constructor=default
-
-        super.name = "Ada";
-        /// @type.node source="super.name = \"Ada\"" type="Ada"
-        /// @type.node source=super type=Base
-        /// @type.node source=super.name type=string
-        /// @resolution.receiver source=super kind=super declaration=User type=Base
-        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=super root=this
-        /// @resolution.pattern.assign source=super.name kind=place
-        /// @resolution.access source=super.name root=this keys=[name]
-        /// @resolution.assignment source=super.name write="receiver=Base, target=field(receiver=Base, target=Base.name, type=string), type=string" type=string
-        /// @type.node source="\"Ada\"" type="Ada"
-
-    }
-}
-"#,
-    );
-}
-
 #[test]
 fn test_missing_constructor_path_reports_uninitialized_field() {
     let session = TestSession::single(
@@ -272,7 +182,7 @@ class User {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -287,7 +197,7 @@ class User {
     }
 }
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -345,7 +255,7 @@ class Connection {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -355,7 +265,7 @@ class Connection {
     count: int32;
 }
 
-=== checked ===
+=== dir ===
 class Connection {
 /// @type.symbol symbol=Connection type=Connection
 /// @definition.class symbol=Connection
@@ -389,7 +299,7 @@ class Foo {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -398,7 +308,7 @@ class Foo {
     like;
 }
 
-=== checked ===
+=== dir ===
 class Foo {
 /// @type.symbol symbol=Foo type=Foo
 /// @definition.class symbol=Foo

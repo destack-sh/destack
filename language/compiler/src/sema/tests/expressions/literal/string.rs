@@ -8,14 +8,14 @@ const value = "hello";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: "hello" = "hello";
 
-=== checked ===
+=== dir ===
 const value = "hello";
 /// @type.symbol symbol=value source=value type="hello"
 /// @resolution.pattern source=value kind=binding target=value
@@ -32,14 +32,14 @@ let value = "hello";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let value: string = "hello";
 
-=== checked ===
+=== dir ===
 let value = "hello";
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
@@ -56,14 +56,14 @@ const value: string = "hello";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: string = "hello";
 
-=== checked ===
+=== dir ===
 const value: string = "hello";
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
@@ -80,14 +80,14 @@ const value = "";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: "" = "";
 
-=== checked ===
+=== dir ===
 const value = "";
 /// @type.symbol symbol=value source=value type=""
 /// @resolution.pattern source=value kind=binding target=value
@@ -104,14 +104,14 @@ const value: number = "hello";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: float64 = "hello";
 
-=== checked ===
+=== dir ===
 const value: number = "hello";
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
@@ -138,7 +138,7 @@ isEmpty satisfies boolean;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -147,7 +147,7 @@ const isEmpty: boolean = "".isEmpty;
 
 isEmpty satisfies boolean;
 
-=== checked ===
+=== dir ===
 const isEmpty = "".isEmpty;
 /// @type.symbol symbol=isEmpty source=isEmpty type=boolean
 /// @resolution.pattern source=isEmpty kind=binding target=isEmpty
@@ -179,7 +179,7 @@ isEmpty satisfies boolean;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -189,7 +189,7 @@ const isEmpty: boolean = value.isEmpty;
 
 isEmpty satisfies boolean;
 
-=== checked ===
+=== dir ===
 let value: string = "";
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value

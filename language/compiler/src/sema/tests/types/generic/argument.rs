@@ -11,7 +11,7 @@ declare const bytes: Bytes;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -21,7 +21,7 @@ type Bytes = Slots<16>;
 
 declare const bytes: [uint8; 16];
 
-=== checked ===
+=== dir ===
 type Slots<const N: usize> = [uint8; N];
 /// @generic.template symbol=Slots parameters=(const N: usize)
 /// @type.symbol symbol=Slots source="type Slots<const N: usize> = [uint8; N]" type=FixedArray<uint8, N>
@@ -58,7 +58,7 @@ const result = Result<int32, string>.ok(42);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -73,7 +73,7 @@ extension<T, E> of Result<T, E> {
 
 const result: Result<int32, string> = Result<int32, string>.ok<int32, string>(42);
 
-=== checked ===
+=== dir ===
 newtype Result<T, E> = T | E;
 /// @generic.template symbol=Result parameters=(out T#1, out E#1)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = T | E" type=Result
@@ -104,7 +104,7 @@ extension<T, E> of Result<T, E> {
         Result(value)
         /// @resolution.name source=Result target=Result
         /// @resolution.construct source=Result(value) parameters=(T#2) arguments=(provided(value) as T#2) return=Result<T#2, E#2> kind=newtype target=Result backing=T#2 instance="Result<T#2, E#2>"
-        /// @generic.instance source=Result(value) id="Result<T#2, E#2>"
+        /// @generic.instantiation id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2) owner=<module>#2
         /// @resolution.name source=value target=ok.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=ok.value
@@ -118,13 +118,12 @@ const result = Result<int32, string>.ok(42);
 /// @resolution.name source=Result target=Result
 /// @resolution.member source="Result<int32, string>.ok" receiver=Result<int32, string> type=(int32) => Result<int32, string> kind=symbol target_receiver=Result<int32, string> target=ok
 /// @resolution.call source="Result<int32, string>.ok(42)" parameters=(int32) arguments=(provided(42) as int32) return=Result<int32, string> kind=symbol target=ok instance="Result<int32, string>.<extension#1>.ok"
-/// @resolution.instantiation source="Result<int32, string>" target=Result instance="Result<int32, string>"
-/// @generic.instance source="Result<int32, string>" id="Result<int32, string>"
-/// @generic.instance source="Result<int32, string>.ok(42)" id="Result<int32, string>.<extension#1>.ok"
-
-/// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
+/// @resolution.function source="Result<int32, string>" type=Result<int32, string> target=Result instance="Result<int32, string>"
+/// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
+/// @generic.instantiation id="ok<int32, string>" template=ok arguments=(int32, string)
+/// @generic.instantiation id="ok<int32, string>" template=ok arguments=(int32, string)
 /// @generic.instance id="Result<int32, string>" template=Result arguments=(int32, string)
-/// @generic.instance id="Result<int32, string>.<extension#1>.ok" template=ok arguments=(int32, string)
+/// @generic.instance id="ok<int32, string>" template=ok arguments=(int32, string)
 "#,
     );
 }
@@ -141,7 +140,7 @@ function print(value: Printable): string {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -152,7 +151,7 @@ function print(value: { print: () => string }): string {
     return value.print();
 }
 
-=== checked ===
+=== dir ===
 type Printable = { print(): string };
 /// @type.symbol symbol=Printable source="type Printable = { print(): string }" type={ print(): string }
 /// @definition.type symbol=Printable source="type Printable = { print(): string }" value={ print(): string }
@@ -199,7 +198,7 @@ function makeCircle(): Shape {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -219,7 +218,7 @@ function makeCircle(): Shape {
     return Circle { radius: 1.0 } as Circle | Rectangle;
 }
 
-=== checked ===
+=== dir ===
 type Shape = Circle | Rectangle;
 /// @type.symbol symbol=Shape source="type Shape = Circle | Rectangle" type=Circle | Rectangle
 /// @definition.type symbol=Shape source="type Shape = Circle | Rectangle" value=Circle | Rectangle

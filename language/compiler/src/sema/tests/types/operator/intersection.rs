@@ -14,7 +14,7 @@ const age = person.age;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -27,7 +27,7 @@ declare const person: Named & Aged;
 const name: string = person.name;
 const age: int32 = person.age;
 
-=== checked ===
+=== dir ===
 type Named = { name: string };
 /// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
 /// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
@@ -85,7 +85,7 @@ const value = both.value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -101,7 +101,7 @@ interface Right {
 declare const both: Left & Right;
 const value: string = both.value;
 
-=== checked ===
+=== dir ===
 interface Left {
 /// @type.symbol symbol=Left type=Left
 /// @definition.interface symbol=Left
@@ -152,7 +152,7 @@ const person: Person = { name: "Ada" };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -163,7 +163,7 @@ type Person = Named & Aged;
 
 const person: Named & Aged = { name: "Ada" };
 
-=== checked ===
+=== dir ===
 type Named = { name: string };
 /// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
 /// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
@@ -203,7 +203,7 @@ const value: Value = { value: "ok" };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -214,7 +214,7 @@ type Value = NumberValue & TextValue;
 
 const value: NumberValue & TextValue = { value: "ok" };
 
-=== checked ===
+=== dir ===
 type NumberValue = { value: int32 };
 /// @type.symbol symbol=NumberValue source="type NumberValue = { value: int32 }" type={ value: int32 }
 /// @definition.type symbol=NumberValue source="type NumberValue = { value: int32 }" value={ value: int32 }
@@ -257,7 +257,7 @@ value.extra satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -270,7 +270,7 @@ const value: Wide & Narrow = { value: "ok", extra: "yes" };
 value.value satisfies string;
 value.extra satisfies string;
 
-=== checked ===
+=== dir ===
 type Wide = { value: string | int32 };
 /// @type.symbol symbol=Wide source="type Wide = { value: string | int32 }" type={ value: string | int32 }
 /// @definition.type symbol=Wide source="type Wide = { value: string | int32 }" value={ value: string | int32 }
@@ -319,7 +319,7 @@ let value: Both = "ok";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -328,7 +328,7 @@ type Both = string & int32;
 
 let value: string & int32 = "ok";
 
-=== checked ===
+=== dir ===
 type Both = string & int32;
 /// @type.symbol symbol=Both source="type Both = string & int32" type=string & int32
 /// @definition.type symbol=Both source="type Both = string & int32" value=string & int32
@@ -356,7 +356,7 @@ let value: Value = ();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -365,7 +365,7 @@ type Value = void & never;
 
 let value: void & never = ();
 
-=== checked ===
+=== dir ===
 type Value = void & never;
 /// @type.symbol symbol=Value source="type Value = void & never" type=void & never
 /// @definition.type symbol=Value source="type Value = void & never" value=void & never

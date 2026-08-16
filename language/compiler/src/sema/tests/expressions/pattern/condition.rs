@@ -13,7 +13,7 @@ if (let (count, label) = pair) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -25,7 +25,7 @@ if (let (count, label) = pair) {
     label satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare const pair: (int32, string) | null;
 /// @type.symbol symbol=pair source=pair type=(int32, string) | null
 /// @resolution.pattern source=pair kind=binding target=pair
@@ -72,7 +72,7 @@ if (let { enabled, retries } = config) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -84,7 +84,7 @@ if (let { enabled, retries } = config) {
     retries satisfies int32;
 }
 
-=== checked ===
+=== dir ===
 declare const config: { enabled: boolean; retries: int32 } | null;
 /// @type.symbol symbol=config source=config type={ enabled: boolean; retries: int32 } | null
 /// @resolution.pattern source=config kind=binding target=config
@@ -129,7 +129,7 @@ if (ready && let (count, label) = pair && count > 0) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -141,7 +141,7 @@ if (ready && let (count, label) = pair && count > 0) {
     label satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare const ready: boolean;
 /// @type.symbol symbol=ready source=ready type=boolean
 /// @resolution.pattern source=ready kind=binding target=ready
@@ -197,7 +197,7 @@ if (let "ready" = status) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -210,7 +210,7 @@ if (let "ready" = status) {
     status satisfies "error";
 }
 
-=== checked ===
+=== dir ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
 /// @resolution.pattern source=status kind=binding target=status
@@ -256,7 +256,7 @@ if (let 1 | 2 = value) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -269,7 +269,7 @@ if (let 1 | 2 = value) {
     value satisfies 3;
 }
 
-=== checked ===
+=== dir ===
 declare const value: 1 | 2 | 3;
 /// @type.symbol symbol=value source=value type=1 | 2 | 3
 /// @resolution.pattern source=value kind=binding target=value
@@ -317,7 +317,7 @@ if (ready && let { name } = user) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -329,7 +329,7 @@ if (ready && let { name } = user) {
     name satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare const ready: boolean;
 /// @type.symbol symbol=ready source=ready type=boolean
 /// @resolution.pattern source=ready kind=binding target=ready
@@ -373,7 +373,7 @@ if (let { name } = user && name.length > 0) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -384,7 +384,7 @@ if (let { name } = user && name.length > 0) {
     name satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
 /// @resolution.pattern source=user kind=binding target=user
@@ -431,7 +431,7 @@ if (let { name } = user && let { x } = point) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -444,7 +444,7 @@ if (let { name } = user && let { x } = point) {
     x satisfies int32;
 }
 
-=== checked ===
+=== dir ===
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
 /// @resolution.pattern source=user kind=binding target=user
@@ -498,7 +498,7 @@ if (let { name } = user) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -511,7 +511,7 @@ if (let { name } = user) {
     name;
 }
 
-=== checked ===
+=== dir ===
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
 /// @resolution.pattern source=user kind=binding target=user
@@ -557,7 +557,7 @@ if (left && right) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -569,7 +569,7 @@ if (left && right) {
     left satisfies boolean;
 }
 
-=== checked ===
+=== dir ===
 declare const left: boolean;
 /// @type.symbol symbol=left source=left type=boolean
 /// @resolution.pattern source=left kind=binding target=left

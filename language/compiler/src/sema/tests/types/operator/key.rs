@@ -11,7 +11,7 @@ declare const key: Keys;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Keys = keyof User;
 
 declare const key: "name" | "age";
 
-=== checked ===
+=== dir ===
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
@@ -51,7 +51,7 @@ declare const key: Keys;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -62,7 +62,7 @@ type Keys = keyof (Left | Right);
 
 declare const key: "shared";
 
-=== checked ===
+=== dir ===
 type Left = { shared: string; left: int32 };
 /// @type.symbol symbol=Left source="type Left = { shared: string; left: int32 }" type={ shared: string; left: int32 }
 /// @definition.type symbol=Left source="type Left = { shared: string; left: int32 }" value={ shared: string; left: int32 }
@@ -97,7 +97,7 @@ const bad: Keys = "left";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -108,7 +108,7 @@ type Keys = keyof (Left | Right);
 
 const bad: "shared" = "left";
 
-=== checked ===
+=== dir ===
 type Left = { shared: string; left: int32 };
 /// @type.symbol symbol=Left source="type Left = { shared: string; left: int32 }" type={ shared: string; left: int32 }
 /// @definition.type symbol=Left source="type Left = { shared: string; left: int32 }" value={ shared: string; left: int32 }
@@ -148,7 +148,7 @@ declare const key: Keys;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -159,7 +159,7 @@ type Keys = keyof (Left & Right);
 
 declare const key: "shared" | "left" | "right";
 
-=== checked ===
+=== dir ===
 type Left = { shared: string; left: int32 };
 /// @type.symbol symbol=Left source="type Left = { shared: string; left: int32 }" type={ shared: string; left: int32 }
 /// @definition.type symbol=Left source="type Left = { shared: string; left: int32 }" value={ shared: string; left: int32 }
@@ -193,7 +193,7 @@ declare const key: Actual;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -203,7 +203,7 @@ type Actual = Keys<{ a: int32; b: string }>;
 
 declare const key: "a" | "b";
 
-=== checked ===
+=== dir ===
 type Keys<T: { a: int32 }> = keyof T;
 /// @generic.template symbol=Keys parameters=(T: { a: int32 })
 /// @type.symbol symbol=Keys source="type Keys<T: { a: int32 }> = keyof T" type=keyof T
@@ -235,7 +235,7 @@ declare const key: Keys;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -245,7 +245,7 @@ type Keys = keyof User;
 
 declare const key: "name" | "age";
 
-=== checked ===
+=== dir ===
 type User = { readonly name: string; age?: int32 };
 /// @type.symbol symbol=User source="type User = { readonly name: string; age?: int32 }" type={ readonly name: string; age?: int32 }
 /// @definition.type symbol=User source="type User = { readonly name: string; age?: int32 }" value={ readonly name: string; age?: int32 }
@@ -276,7 +276,7 @@ type Keys = keyof Point;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -288,7 +288,7 @@ struct Point {
 
 type Keys = keyof Point;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -327,7 +327,7 @@ type Keys = keyof User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -342,7 +342,7 @@ class User {
 
 type Keys = keyof User;
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -389,7 +389,7 @@ const index: Keys = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -400,7 +400,7 @@ type Keys = keyof Bag;
 const text: string | usize = "name" as string | usize;
 const index: string | usize = 1 as string | usize;
 
-=== checked ===
+=== dir ===
 type Bag = { readonly [key: string]: int32 };
 /// @type.symbol symbol=Bag source="type Bag = { readonly [key: string]: int32 }" type={ readonly [key: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
@@ -434,7 +434,7 @@ const bad: Keys = true;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -444,7 +444,7 @@ type Keys = keyof Bag;
 
 const bad: string | usize = true;
 
-=== checked ===
+=== dir ===
 type Bag = { readonly [key: string]: int32 };
 /// @type.symbol symbol=Bag source="type Bag = { readonly [key: string]: int32 }" type={ readonly [key: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
@@ -478,7 +478,7 @@ const key: Keys = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -488,7 +488,7 @@ type Keys = keyof Slots;
 
 const key: usize = 1;
 
-=== checked ===
+=== dir ===
 type Slots = { readonly [key: usize]: string };
 /// @type.symbol symbol=Slots source="type Slots = { readonly [key: usize]: string }" type={ readonly [key: usize]: string }
 /// @definition.type symbol=Slots source="type Slots = { readonly [key: usize]: string }" value={ readonly [key: usize]: string }
@@ -517,7 +517,7 @@ const bad: Keys = "name";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -527,7 +527,7 @@ type Keys = keyof Slots;
 
 const bad: usize = "name";
 
-=== checked ===
+=== dir ===
 type Slots = { readonly [key: usize]: string };
 /// @type.symbol symbol=Slots source="type Slots = { readonly [key: usize]: string }" type={ readonly [key: usize]: string }
 /// @definition.type symbol=Slots source="type Slots = { readonly [key: usize]: string }" value={ readonly [key: usize]: string }
@@ -563,7 +563,7 @@ const title: HasTitle = false;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -575,7 +575,7 @@ type HasTitle = "title" extends keyof Person ? true : false;
 const name: true = true;
 const title: false = false;
 
-=== checked ===
+=== dir ===
 type Person = { name: string; age: int32 };
 /// @type.symbol symbol=Person source="type Person = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=Person source="type Person = { name: string; age: int32 }" value={ name: string; age: int32 }
@@ -620,7 +620,7 @@ const intersectionLeft: HasIntersectionLeft = true;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -636,7 +636,7 @@ const unionLeft: false = false;
 const unionShared: true = true;
 const intersectionLeft: true = true;
 
-=== checked ===
+=== dir ===
 type Left = { shared: string; left: int32 };
 /// @type.symbol symbol=Left source="type Left = { shared: string; left: int32 }" type={ shared: string; left: int32 }
 /// @definition.type symbol=Left source="type Left = { shared: string; left: int32 }" value={ shared: string; left: int32 }

@@ -11,7 +11,7 @@ type FrameCell = WithSpace<Cell, "frame">;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ struct Cell {}
 type StaticCell = WithSpace<Cell, "static">;
 type FrameCell = WithSpace<Cell, "frame">;
 
-=== checked ===
+=== dir ===
 struct Cell {}
 /// @type.symbol symbol=Cell source="struct Cell {}" type=Cell
 /// @definition.struct symbol=Cell source="struct Cell {}"
@@ -63,7 +63,7 @@ payload satisfies Borrowed<Cell, "static">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -82,7 +82,7 @@ declare const payload: &'static Cell;
 base satisfies Cell;
 payload satisfies Borrowed<Cell, "static">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -158,7 +158,7 @@ borrowedAccess satisfies "mutable";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -177,7 +177,7 @@ declare const borrowedAccess: "mutable";
 borrowedLifetime satisfies "static";
 borrowedAccess satisfies "mutable";
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -241,7 +241,7 @@ type ManagedLifetimeFallback = LifetimeOr<Managed<User>, "static">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -251,7 +251,7 @@ class User {}
 type ManagedLifetime = LifetimeOf<Managed<User>>;
 type ManagedLifetimeFallback = LifetimeOr<Managed<User>, "static">;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -290,7 +290,7 @@ cell satisfies Borrowed<Cell, "static">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -306,7 +306,7 @@ declare const cell: &'static Cell;
 
 cell satisfies Borrowed<Cell, "static">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -367,7 +367,7 @@ sharedCell satisfies shared Cell;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -384,7 +384,7 @@ declare const sharedCell: shared Cell;
 localCell satisfies local Cell;
 sharedCell satisfies shared Cell;
 
-=== checked ===
+=== dir ===
 struct Cell { value: int32; }
 /// @type.symbol symbol=Cell source="struct Cell { value: int32; }" type=Cell
 /// @definition.struct symbol=Cell source="struct Cell { value: int32; }"
@@ -428,9 +428,6 @@ sharedCell satisfies shared Cell;
 /// @resolution.place source=sharedCell placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedCell root=sharedCell
 /// @resolution.name source=Cell target=Cell
-
-/// @generic.instance id="WithPlace<BaseOf<Q>, P>" template=memory.type.WithPlace arguments=(BaseOf<Q>, P)
-/// @generic.instance id=BaseOf<Q> template=memory.type.BaseOf arguments=(Q)
 "#,
         r#"
 
@@ -452,7 +449,7 @@ type PlaceDefault = PlaceOr<Cell, "shared">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -465,7 +462,7 @@ type OwnershipDefault = OwnershipOr<Cell, "raw">;
 type AccessDefault = AccessOr<Cell, "readonly">;
 type PlaceDefault = PlaceOr<Cell, "shared">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -510,7 +507,7 @@ type SpaceFallback = SpaceOr<Cell, "shared">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -522,7 +519,7 @@ struct Cell {
 type LifetimeFallback = LifetimeOr<Cell, "static">;
 type SpaceFallback = SpaceOr<Cell, "shared">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -560,7 +557,7 @@ type RelativeInShared = PlaceIn<Cell, "shared">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -571,7 +568,7 @@ struct Cell {
 
 type RelativeInShared = PlaceIn<Cell, "shared">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -603,7 +600,7 @@ type LocalInShared = PlaceIn<local Cell, "shared">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -614,7 +611,7 @@ struct Cell {
 
 type LocalInShared = PlaceIn<local Cell, "shared">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -649,7 +646,7 @@ type RawKind = OwnershipOf<Raw<Cell>>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -663,7 +660,7 @@ type OwnedKind = OwnershipOf<Owned<Cell>>;
 type BorrowedKind = OwnershipOf<Borrowed<Cell, "static">>;
 type RawKind = OwnershipOf<Raw<Cell>>;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -720,7 +717,7 @@ type RawCheck = IsRaw<Raw<Cell>>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -734,7 +731,7 @@ type OwnedCheck = IsOwned<Owned<Cell>>;
 type BorrowedCheck = IsBorrowed<Borrowed<Cell, "static">>;
 type RawCheck = IsRaw<Raw<Cell>>;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -789,7 +786,7 @@ type RelativeSharedCheck = IsSharedIn<Cell, "shared">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -801,7 +798,7 @@ struct Cell {
 type SharedCheck = IsShared<shared Cell>;
 type RelativeSharedCheck = IsSharedIn<Cell, "shared">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -846,7 +843,7 @@ borrowedCell satisfies Borrowed<Cell, "static">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -864,7 +861,7 @@ declare const borrowedCell: &'static Cell;
 ownedCell satisfies ^Cell;
 borrowedCell satisfies Borrowed<Cell, "static">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -929,7 +926,7 @@ sharedOwned satisfies shared ^Cell;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -944,7 +941,7 @@ declare const sharedOwned: shared ^Cell;
 
 sharedOwned satisfies shared ^Cell;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -990,7 +987,7 @@ type Reborrow<const Source: Lifetime, const Target: Lifetime> = WithLifetime<
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1004,7 +1001,7 @@ type Reborrow<const Source: Lifetime, const Target: Lifetime> = WithLifetime<
     Target
 >;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -1034,8 +1031,6 @@ type Reborrow<const Source: Lifetime, const Target: Lifetime> = WithLifetime<
     /// @resolution.name source=Target target=Reborrow.Target
 
 >;
-
-/// @generic.instance id="WithLifetime<Borrowed<Cell, Source, \"mutable\">, Target>" template=memory.type.WithLifetime arguments=(Borrowed<Cell, Source, "mutable">, Target)
 "#,
     );
 }
@@ -1056,7 +1051,7 @@ sharedOwned satisfies shared ^Cell;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1071,7 +1066,7 @@ declare const sharedOwned: shared ^Cell;
 
 sharedOwned satisfies shared ^Cell;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -1117,7 +1112,7 @@ value satisfies shared ^Cell;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1131,7 +1126,7 @@ declare const value: shared ^Cell;
 
 value satisfies shared ^Cell;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -1184,7 +1179,7 @@ exclusiveBorrow satisfies Borrowed<Cell, "static", "exclusive">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1202,7 +1197,7 @@ declare const exclusiveBorrow: &'static exclusive Cell;
 readonlyOwned satisfies ^readonly Cell;
 exclusiveBorrow satisfies Borrowed<Cell, "static", "exclusive">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -1272,7 +1267,7 @@ rebased satisfies shared ^readonly Payload;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1291,7 +1286,7 @@ declare const rebased: shared ^readonly Payload;
 
 rebased satisfies shared ^readonly Payload;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell
@@ -1349,7 +1344,7 @@ borrow satisfies Borrowed<Cell, "static", "readonly">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1364,7 +1359,7 @@ declare const borrow: &'static readonly Cell;
 
 borrow satisfies Borrowed<Cell, "static", "readonly">;
 
-=== checked ===
+=== dir ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.struct symbol=Cell

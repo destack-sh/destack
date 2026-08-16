@@ -11,7 +11,7 @@ const value = do {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -21,7 +21,7 @@ const value: 3 = do {
     base + 2
 };
 
-=== checked ===
+=== dir ===
 const value = do {
 /// @type.symbol symbol=value source=value type=3
 /// @resolution.pattern source=value kind=binding target=value
@@ -59,7 +59,7 @@ scoped;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -71,7 +71,7 @@ const value: 2 = do {
 
 scoped;
 
-=== checked ===
+=== dir ===
 const value = do {
 /// @type.symbol symbol=value source=value type=2
 /// @resolution.pattern source=value kind=binding target=value

@@ -14,7 +14,7 @@ interface Drawable extends Named {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -27,7 +27,7 @@ interface Drawable extends Named {
     draw(): void;
 }
 
-=== checked ===
+=== dir ===
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
@@ -65,7 +65,7 @@ interface Drawable extends Shape {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -76,7 +76,7 @@ interface Drawable extends Shape {
     draw(): void;
 }
 
-=== checked ===
+=== dir ===
 struct Shape {}
 /// @type.symbol symbol=Shape source="struct Shape {}" type=Shape
 /// @definition.struct symbol=Shape source="struct Shape {}"
@@ -110,7 +110,7 @@ interface Drawable extends Alias {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -120,7 +120,7 @@ type Alias = Named;
 
 interface Drawable extends Alias {}
 
-=== checked ===
+=== dir ===
 interface Named {}
 /// @type.symbol symbol=Named source="interface Named {}" type=Named
 /// @definition.interface symbol=Named source="interface Named {}"
@@ -153,7 +153,7 @@ interface Drawable extends Named | DrawableBase {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -163,7 +163,7 @@ interface DrawableBase {}
 
 interface Drawable extends Named | DrawableBase {}
 
-=== checked ===
+=== dir ===
 interface Named {}
 /// @type.symbol symbol=Named source="interface Named {}" type=Named
 /// @definition.interface symbol=Named source="interface Named {}"
@@ -200,7 +200,7 @@ interface Both extends Left, Right {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -214,7 +214,7 @@ interface Right extends Base<int32> {}
 
 interface Both extends Left, Right {}
 
-=== checked ===
+=== dir ===
 interface Base<T> {
 /// @generic.template symbol=Base parameters=(out T)
 /// @type.symbol symbol=Base type=Base
@@ -265,7 +265,7 @@ interface Right extends Left {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -273,7 +273,7 @@ interface Right extends Left {}
 interface Left extends Right {}
 interface Right extends Left {}
 
-=== checked ===
+=== dir ===
 interface Left extends Right {}
 /// @type.symbol symbol=Left source="interface Left extends Right {}" type=Left
 /// @definition.interface symbol=Left source="interface Left extends Right {}"

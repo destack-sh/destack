@@ -23,7 +23,7 @@ const selected = token ?? fallback;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -44,7 +44,7 @@ declare const token: Token | undefined;
 declare const fallback: Token;
 const selected: Token = token ?? fallback;
 
-=== checked ===
+=== dir ===
 import { Add } from "destack:ops";
 
 struct Token {}
@@ -132,7 +132,7 @@ const selected = attempt ?? 0;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -163,7 +163,7 @@ extension of Attempt implements Try {
 declare const attempt: Attempt;
 const selected: int32 = attempt ?? 0;
 
-=== checked ===
+=== dir ===
 import { ControlFlow, Try } from "destack:ops";
 
 struct Attempt {
@@ -230,7 +230,8 @@ extension of Attempt implements Try {
         /// @resolution.name source=ControlFlow target=ops.try.ControlFlow
         /// @resolution.member source=ControlFlow.continue receiver=ops.try.ControlFlow type=(ops.try.C) => ops.try.ControlFlow<ops.try.B, ops.try.C> kind=symbol target_receiver=ops.try.ControlFlow target=ops.try.continue
         /// @resolution.call source=ControlFlow.continue(this.value) parameters=(int32) arguments=(provided(this.value) as int32) return=ops.try.ControlFlow<string, int32> kind=symbol target=ops.try.continue instance="ops.try.ControlFlow<string, int32>.<extension#1>.continue"
-        /// @generic.instance source=ControlFlow.continue(this.value) id="ops.try.ControlFlow<string, int32>.<extension#1>.continue"
+        /// @generic.instantiation id="ops.try.continue<string, int32>" template=ops.try.continue arguments=(string, int32)
+        /// @generic.instance id="ops.try.continue<string, int32>" template=ops.try.continue arguments=(string, int32)
         /// @resolution.member source=this.value receiver=&branch.'a exclusive Attempt type=int32 kind=field target_receiver=&branch.'a exclusive Attempt key=value target=Attempt.value target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&branch.'a exclusive Attempt
         /// @resolution.place source=this placement="local" lifetime=branch.'a access="exclusive"
@@ -253,9 +254,6 @@ const selected = attempt ?? 0;
 /// @resolution.operator source="attempt ?? 0" type=int32 operator="??" kind=builtin operands=[attempt as Attempt, 0 as 0 families=(integer)]
 /// @resolution.place source=attempt placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=attempt root=attempt
-
-/// @generic.instance id="ops.try.ControlFlow<string, int32>" template=ops.try.ControlFlow arguments=(string, int32)
-/// @generic.instance id="ops.try.ControlFlow<string, int32>.<extension#1>.continue" template=ops.try.continue arguments=(string, int32)
 "#,
     );
 }

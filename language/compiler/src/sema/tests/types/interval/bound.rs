@@ -12,7 +12,7 @@ const bad: Count = 5;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -23,7 +23,7 @@ const low: 0..5 = 0;
 const high: 0..5 = 4;
 const bad: 0..5 = 5;
 
-=== checked ===
+=== dir ===
 type Count = 0..5;
 /// @type.symbol symbol=Count source="type Count = 0..5" type=0..5
 /// @definition.type symbol=Count source="type Count = 0..5" value=0..5
@@ -63,7 +63,7 @@ const bad: Digit = 10;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -74,7 +74,7 @@ const zero: 0..=9 = 0;
 const nine: 0..=9 = 9;
 const bad: 0..=9 = 10;
 
-=== checked ===
+=== dir ===
 type Digit = 0..=9;
 /// @type.symbol symbol=Digit source="type Digit = 0..=9" type=0..=9
 /// @definition.type symbol=Digit source="type Digit = 0..=9" value=0..=9
@@ -113,7 +113,7 @@ const right: Offset = 4;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -123,7 +123,7 @@ type Offset = -4..=4;
 const left: -4..=4 = -4;
 const right: -4..=4 = 4;
 
-=== checked ===
+=== dir ===
 type Offset = -4..=4;
 /// @type.symbol symbol=Offset source="type Offset = -4..=4" type=-4..=4
 /// @definition.type symbol=Offset source="type Offset = -4..=4" value=-4..=4
@@ -150,14 +150,14 @@ type Count = 0..;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 type Count = 0..;
 
-=== checked ===
+=== dir ===
 type Count = 0..;
 /// @type.symbol symbol=Count source="type Count = 0.." type=<error>
 /// @definition.type symbol=Count source="type Count = 0.." value=<error>
@@ -177,14 +177,14 @@ type Count = ..;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 type Count = ..;
 
-=== checked ===
+=== dir ===
 type Count = ..;
 /// @type.symbol symbol=Count source="type Count = .." type=<error>
 /// @definition.type symbol=Count source="type Count = .." value=<error>
@@ -204,14 +204,14 @@ type Unit = 0.0..=1.0;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 type Unit = 0.0..=1.0;
 
-=== checked ===
+=== dir ===
 type Unit = 0.0..=1.0;
 /// @type.symbol symbol=Unit source="type Unit = 0.0..=1.0" type=<error>
 /// @definition.type symbol=Unit source="type Unit = 0.0..=1.0" value=<error>
@@ -231,14 +231,14 @@ type Mixed = 0..='z';
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 type Mixed = 0..='z';
 
-=== checked ===
+=== dir ===
 type Mixed = 0..='z';
 /// @type.symbol symbol=Mixed source="type Mixed = 0..='z'" type=<error>
 /// @definition.type symbol=Mixed source="type Mixed = 0..='z'" value=<error>

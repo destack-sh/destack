@@ -20,7 +20,7 @@ const result = dep.value;
         )
         .build();
 
-    session.assert_dir_checked_many(
+    session.assert_dir_many(
         &["dep.ds", "main.ds"],
         DirRows::checked().with_reference_types(),
         r#"
@@ -30,7 +30,7 @@ const result = dep.value;
 @if(true)
 export const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 @if(true)
 export const value = 1;
 /// @type.symbol symbol=value source=value type=1
@@ -44,7 +44,7 @@ import * as dep from "./dep.ds";
 
 const result: 1 = dep.value;
 
-=== checked ===
+=== dir ===
 import * as dep from "./dep.ds";
 
 const result = dep.value;
@@ -77,7 +77,7 @@ dep.value;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -86,7 +86,7 @@ import * as dep from "./dep.ds";
 
 dep.value;
 
-=== checked ===
+=== dir ===
 import * as dep from "./dep.ds";
 
 dep.value;

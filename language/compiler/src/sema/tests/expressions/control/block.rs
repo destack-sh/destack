@@ -14,7 +14,7 @@ const value = if (enabled) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -27,7 +27,7 @@ const value: 1 | 2 = if (enabled) {
     2
 };
 
-=== checked ===
+=== dir ===
 declare const enabled: boolean;
 /// @type.symbol symbol=enabled source=enabled type=boolean
 /// @resolution.pattern source=enabled kind=binding target=enabled
@@ -63,7 +63,7 @@ function add(left: int32, right: int32): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -72,7 +72,7 @@ function add(left: int32, right: int32): int32 {
     left + right
 }
 
-=== checked ===
+=== dir ===
 function add(left: int32, right: int32): int32 {
 /// @type.symbol symbol=add type=(int32, int32) => int32
 /// @type.symbol symbol=add.left source="left: int32" type=int32

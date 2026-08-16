@@ -8,14 +8,14 @@ const value = 42n;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 42n = 42n;
 
-=== checked ===
+=== dir ===
 const value = 42n;
 /// @type.symbol symbol=value source=value type=42n
 /// @resolution.pattern source=value kind=binding target=value
@@ -32,14 +32,14 @@ let value = 42n;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let value: bigint = 42n;
 
-=== checked ===
+=== dir ===
 let value = 42n;
 /// @type.symbol symbol=value source=value type=bigint
 /// @resolution.pattern source=value kind=binding target=value
@@ -56,14 +56,14 @@ const value: bigint = 42n;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: bigint = 42n;
 
-=== checked ===
+=== dir ===
 const value: bigint = 42n;
 /// @type.symbol symbol=value source=value type=bigint
 /// @resolution.pattern source=value kind=binding target=value
@@ -80,14 +80,14 @@ const value: number = 42n;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: float64 = 42n;
 
-=== checked ===
+=== dir ===
 const value: number = 42n;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
@@ -109,14 +109,14 @@ const value: bigint | string = 42n;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: bigint | string = 42n as bigint | string;
 
-=== checked ===
+=== dir ===
 const value: bigint | string = 42n;
 /// @type.symbol symbol=value source=value type=bigint | string
 /// @resolution.pattern source=value kind=binding target=value
@@ -138,7 +138,7 @@ isZero satisfies boolean;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -147,7 +147,7 @@ const isZero: boolean = 1n.isZero;
 
 isZero satisfies boolean;
 
-=== checked ===
+=== dir ===
 const isZero = (1n).isZero;
 /// @type.symbol symbol=isZero source=isZero type=boolean
 /// @resolution.pattern source=isZero kind=binding target=isZero
@@ -179,7 +179,7 @@ isZero satisfies boolean;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -189,7 +189,7 @@ const isZero: boolean = value.isZero;
 
 isZero satisfies boolean;
 
-=== checked ===
+=== dir ===
 let value: bigint = 1n;
 /// @type.symbol symbol=value source=value type=bigint
 /// @resolution.pattern source=value kind=binding target=value

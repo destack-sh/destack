@@ -18,7 +18,7 @@ extension of Panel implements Maker {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -35,7 +35,7 @@ extension of Panel implements Maker {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Maker {
 /// @type.symbol symbol=Maker type=Maker
 /// @definition.interface symbol=Maker nominal=true
@@ -98,7 +98,7 @@ extension of Panel implements Tagger {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -115,7 +115,7 @@ extension of Panel implements Tagger {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Tagger {
 /// @type.symbol symbol=Tagger type=Tagger
 /// @definition.interface symbol=Tagger nominal=true
@@ -182,7 +182,7 @@ extension of Panel implements Rowed {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -203,7 +203,7 @@ extension of Panel implements Rowed {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Rowed {
 /// @type.symbol symbol=Rowed type=Rowed
 /// @definition.interface symbol=Rowed nominal=true
@@ -279,7 +279,7 @@ extension of Panel implements Rowed {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -300,7 +300,7 @@ extension of Panel implements Rowed {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Rowed {
 /// @type.symbol symbol=Rowed type=Rowed
 /// @definition.interface symbol=Rowed nominal=true
@@ -376,7 +376,7 @@ extension of Panel implements Grouper {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -393,7 +393,7 @@ extension of Panel implements Grouper {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Grouper {
 /// @type.symbol symbol=Grouper type=Grouper
 /// @definition.interface symbol=Grouper nominal=true
@@ -469,7 +469,7 @@ extension of Panel implements TreeBuilder {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -499,7 +499,7 @@ extension of Panel implements TreeBuilder {
     }
 }
 
-=== checked ===
+=== dir ===
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
@@ -612,7 +612,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -651,7 +651,7 @@ function render(): Panel {
     return page;
 }
 
-=== checked ===
+=== dir ===
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
@@ -734,7 +734,11 @@ function render(): Panel {
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source="<div class=\"intro\"><span/></div>" builder=Panel form=element tag=div call=element attributes=(class: "intro") children=(Panel) type=Panel
+    /// @generic.instantiation id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,))
+    /// @generic.instance id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,))
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
+    /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
+    /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ())
 
     return page;
     /// @resolution.name source=page target=render.page
@@ -776,5 +780,5 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", "");
+    session.assert_dir_diagnostics("main.ds", "");
 }

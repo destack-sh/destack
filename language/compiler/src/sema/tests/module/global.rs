@@ -32,7 +32,7 @@ const value = answer;
         )
         .build();
 
-    session.assert_dir_checked_many(
+    session.assert_dir_many(
         &["globals.ds", "main.ds"],
         DirRows::checked().with_reference_types(),
         r#"
@@ -43,7 +43,7 @@ global {
     const answer: int32 = 42;
 }
 
-=== checked ===
+=== dir ===
 global {
     const answer: int32 = 42;
     /// @type.symbol symbol=answer source=answer type=int32
@@ -57,7 +57,7 @@ global {
 === annotated ===
 const value: int32 = answer;
 
-=== checked ===
+=== dir ===
 const value = answer;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -89,7 +89,7 @@ export const second = first;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "first.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -98,7 +98,7 @@ import { second } from "./second.ds";
 
 export const first = second;
 
-=== checked ===
+=== dir ===
 import { second } from "./second.ds";
 
 export const first = second;

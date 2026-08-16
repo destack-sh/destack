@@ -20,7 +20,7 @@ const writer: NamedWriter = Buffer {};
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -39,7 +39,7 @@ struct Buffer {
 
 const writer: NamedWriter = Buffer {};
 
-=== checked ===
+=== dir ===
 interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer
@@ -71,7 +71,7 @@ struct Buffer {
         /// @resolution.member source=bytes.length receiver=readonly Array<uint8> type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
         /// @resolution.place source=bytes placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=bytes root=Buffer.write.bytes
-        /// @generic.instance source=bytes.length id=Array<uint8>.<extension#3>.length#2
+        /// @generic.instantiation id=collections.array.length#2<uint8> template=collections.array.length#2 arguments=(uint8)
 
     }
 }
@@ -81,8 +81,6 @@ const writer: NamedWriter = Buffer {};
 /// @resolution.pattern source=writer kind=binding target=writer
 /// @resolution.name source=NamedWriter target=NamedWriter
 /// @resolution.name source=Buffer target=Buffer
-
-/// @generic.instance id=Array<uint8>.<extension#3>.length#2 template=collections.array.length#2 arguments=(uint8)
 "#,
         r#"
 /// @diagnostic.error id=return-not-assignable message="type 'isize' is not assignable to the declared result type 'usize'"
@@ -105,7 +103,7 @@ export const CREATE: Mask = Mask(1 << 0);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -114,7 +112,7 @@ export newtype Mask = uint32;
 
 export const CREATE: Mask = Mask(1 << 0);
 
-=== checked ===
+=== dir ===
 export newtype Mask = uint32;
 /// @type.symbol symbol=Mask source="export newtype Mask = uint32" type=Mask
 /// @definition.newtype symbol=Mask source="export newtype Mask = uint32" backing=uint32 constructors=[(uint32) => Mask]

@@ -10,7 +10,7 @@ const value = id("ready");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ declare function id<const T>(value: T): T;
 
 const value: "ready" = id<"ready">("ready");
 
-=== checked ===
+=== dir ===
 declare function id<const T>(value: T): T;
 /// @generic.template symbol=id parameters=(const T)
 /// @type.symbol symbol=id source="declare function id<const T>(value: T): T" type=<const T>(T) => T
@@ -33,8 +33,7 @@ const value = id("ready");
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
 /// @resolution.call source="id(\"ready\")" parameters=("ready") arguments=(provided("ready") as "ready") return="ready" kind=symbol target=id instance="id<\"ready\">"
-/// @generic.instance source="id(\"ready\")" id="id<\"ready\">"
-
+/// @generic.instantiation id="id<\"ready\">" template=id arguments=("ready")
 /// @generic.instance id="id<\"ready\">" template=id arguments=("ready")
 "#,
     );
@@ -51,7 +50,7 @@ const first = values[0];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -61,7 +60,7 @@ declare function id<const T>(value: T): T;
 const values: [1, 2] = id<[1, 2]>([1, 2]);
 const first: 1 = values[0];
 
-=== checked ===
+=== dir ===
 declare function id<const T>(value: T): T;
 /// @generic.template symbol=id parameters=(const T)
 /// @type.symbol symbol=id source="declare function id<const T>(value: T): T" type=<const T>(T) => T
@@ -75,7 +74,8 @@ const values = id([1, 2]);
 /// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([1, 2])" parameters=([1, 2]) arguments=(provided([1, 2]) as [1, 2]) return=[1, 2] kind=symbol target=id instance="id<[1, 2]>"
-/// @generic.instance source="id([1, 2])" id="id<[1, 2]>"
+/// @generic.instantiation id="id<[1, 2]>" template=id arguments=([1, 2])
+/// @generic.instance id="id<[1, 2]>" template=id arguments=([1, 2])
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=1
@@ -85,8 +85,6 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 kind=member target="receiver=[1, 2], target=field(receiver=[1, 2], target=0, type=1), type=1"
-
-/// @generic.instance id="id<[1, 2]>" template=id arguments=([1, 2])
 "#,
     );
 }
@@ -102,7 +100,7 @@ const first = values[0];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -112,7 +110,7 @@ declare function id<T>(value: T): T;
 const values: float64[] = id<float64[]>([1, 2]);
 const first: float64 = values[0];
 
-=== checked ===
+=== dir ===
 declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
@@ -126,7 +124,8 @@ const values = id([1, 2]);
 /// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([1, 2])" parameters=(Array<float64>) arguments=(provided([1, 2]) as Array<float64>) return=Array<float64> kind=symbol target=id instance=id<Array<float64>>
-/// @generic.instance source="id([1, 2])" id=id<Array<float64>>
+/// @generic.instantiation id=id<Array<float64>> template=id arguments=(Array<float64>)
+/// @generic.instance id=id<Array<float64>> template=id arguments=(Array<float64>)
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=float64
@@ -136,10 +135,8 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
-/// @generic.instance source=values[0] id="Array<float64>.<extension#5>.index#1<\"exclusive\">"
-
-/// @generic.instance id="Array<float64>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id=id<Array<float64>> template=id arguments=(Array<float64>)
+/// @generic.instantiation id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
+/// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 "#,
     );
 }
@@ -155,7 +152,7 @@ take(values);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -165,7 +162,7 @@ declare const values: (1 | 2)[];
 
 take(values);
 
-=== checked ===
+=== dir ===
 declare function take(values: float64[]): void;
 /// @type.symbol symbol=take source="declare function take(values: float64[]): void" type=(Array<float64>) => void
 /// @type.symbol symbol=take.values source="values: float64[]" type=Array<float64>
@@ -200,7 +197,7 @@ take([1, 2]);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -209,7 +206,7 @@ declare function take(values: [float64]): void;
 
 take([1, 2]);
 
-=== checked ===
+=== dir ===
 declare function take(values: Slice<float64>): void;
 /// @type.symbol symbol=take source="declare function take(values: Slice<float64>): void" type=(Slice<float64>) => void
 /// @type.symbol symbol=take.values source="values: Slice<float64>" type=Slice<float64>
@@ -218,8 +215,6 @@ declare function take(values: Slice<float64>): void;
 take([1, 2]);
 /// @resolution.name source=take target=take
 /// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
-
-/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 "#,
     );
 }
@@ -234,7 +229,7 @@ take([1, 2]);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -243,7 +238,7 @@ declare function take(values: [float64; 2]): void;
 
 take([1, 2]);
 
-=== checked ===
+=== dir ===
 declare function take(values: [float64; 2]): void;
 /// @type.symbol symbol=take source="declare function take(values: [float64; 2]): void" type=(FixedArray<float64, 2>) => void
 /// @type.symbol symbol=take.values source="values: [float64; 2]" type=FixedArray<float64, 2>
@@ -265,7 +260,7 @@ take([1, 2, 3]);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -274,7 +269,7 @@ declare function take(values: [float64; 2]): void;
 
 take([1, 2, 3]);
 
-=== checked ===
+=== dir ===
 declare function take(values: [float64; 2]): void;
 /// @type.symbol symbol=take source="declare function take(values: [float64; 2]): void" type=(FixedArray<float64, 2>) => void
 /// @type.symbol symbol=take.values source="values: [float64; 2]" type=FixedArray<float64, 2>
@@ -302,7 +297,7 @@ const value = id((1, "x"));
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -311,7 +306,7 @@ declare function id<T>(value: T): T;
 
 const value: (float64, string) = id<(float64, string)>((1, "x"));
 
-=== checked ===
+=== dir ===
 declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
@@ -325,8 +320,7 @@ const value = id((1, "x"));
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
 /// @resolution.call source="id((1, \"x\"))" parameters=((float64, string)) arguments=(provided((1, "x")) as (float64, string)) return=(float64, string) kind=symbol target=id instance="id<(float64, string)>"
-/// @generic.instance source="id((1, \"x\"))" id="id<(float64, string)>"
-
+/// @generic.instantiation id="id<(float64, string)>" template=id arguments=((float64, string))
 /// @generic.instance id="id<(float64, string)>" template=id arguments=((float64, string))
 "#,
     );
@@ -343,7 +337,7 @@ const kind = values[0].kind;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -355,7 +349,7 @@ const values: { readonly kind: "ready" }[] = collect<{ readonly kind: "ready" }>
 ]);
 const kind: "ready" = values[0].kind;
 
-=== checked ===
+=== dir ===
 declare function collect<const T>(values: T[]): T[];
 /// @generic.template symbol=collect parameters=(const T)
 /// @type.symbol symbol=collect source="declare function collect<const T>(values: T[]): T[]" type=<const T>(Array<T>) => Array<T>
@@ -369,7 +363,8 @@ const values = collect([{ kind: "ready" }]);
 /// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=collect target=collect
 /// @resolution.call source="collect([{ kind: \"ready\" }])" parameters=(Array<{ readonly kind: "ready" }>) arguments=(provided([{ kind: "ready" }]) as Array<{ readonly kind: "ready" }>) return=Array<{ readonly kind: "ready" }> kind=symbol target=collect instance="collect<{ readonly kind: \"ready\" }>"
-/// @generic.instance source="collect([{ kind: \"ready\" }])" id="collect<{ readonly kind: \"ready\" }>"
+/// @generic.instantiation id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
+/// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
 
 const kind = values[0].kind;
 /// @type.symbol symbol=kind source=kind type="ready"
@@ -382,10 +377,8 @@ const kind = values[0].kind;
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
 /// @resolution.access source=values[0].kind root=values keys=[0, kind]
-/// @generic.instance source=values[0] id="Array<{ readonly kind: \"ready\" }>.<extension#5>.index#1<\"exclusive\">"
-
-/// @generic.instance id="Array<{ readonly kind: \"ready\" }>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
-/// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
+/// @generic.instantiation id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
+/// @generic.instance id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
 "#,
     );
 }
@@ -400,7 +393,7 @@ const value = maybe({ kind: "ready" });
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 declare function maybe<const T>(value: T | undefined): T | undefined;
 
@@ -408,7 +401,7 @@ const value: { readonly kind: "ready" } | undefined = maybe<{ readonly kind: "re
     kind: "ready",
 } as { readonly kind: "ready" } | undefined);
 
-=== checked ===
+=== dir ===
 declare function maybe<const T>(value: T | undefined): T | undefined;
 /// @generic.template symbol=maybe parameters=(const T)
 /// @type.symbol symbol=maybe source="declare function maybe<const T>(value: T | undefined): T | undefined" type=<const T>(T | undefined) => T | undefined
@@ -422,8 +415,7 @@ const value = maybe({ kind: "ready" });
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=maybe target=maybe
 /// @resolution.call source="maybe({ kind: \"ready\" })" parameters=({ readonly kind: "ready" } | undefined) arguments=(provided({ kind: "ready" }) as { readonly kind: "ready" } | undefined) return={ readonly kind: "ready" } | undefined kind=symbol target=maybe instance="maybe<{ readonly kind: \"ready\" }>"
-/// @generic.instance source="maybe({ kind: \"ready\" })" id="maybe<{ readonly kind: \"ready\" }>"
-
+/// @generic.instantiation id="maybe<{ readonly kind: \"ready\" }>" template=maybe arguments=({ readonly kind: "ready" })
 /// @generic.instance id="maybe<{ readonly kind: \"ready\" }>" template=maybe arguments=({ readonly kind: "ready" })
 "#);
 }
@@ -440,7 +432,7 @@ const level = value.level;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -454,7 +446,7 @@ const value: { readonly kind: "ready"; readonly level: 1 } = id<{
 const kind: "ready" = value.kind;
 const level: 1 = value.level;
 
-=== checked ===
+=== dir ===
 declare function id<const T>(value: T): T;
 /// @generic.template symbol=id parameters=(const T)
 /// @type.symbol symbol=id source="declare function id<const T>(value: T): T" type=<const T>(T) => T
@@ -468,7 +460,8 @@ const value = id({ kind: "ready", level: 1 });
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
 /// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=({ readonly kind: "ready"; readonly level: 1 }) arguments=(provided({ kind: "ready", level: 1 }) as { readonly kind: "ready"; readonly level: 1 }) return={ readonly kind: "ready"; readonly level: 1 } kind=symbol target=id instance="id<{ readonly kind: \"ready\"; readonly level: 1 }>"
-/// @generic.instance source="id({ kind: \"ready\", level: 1 })" id="id<{ readonly kind: \"ready\"; readonly level: 1 }>"
+/// @generic.instantiation id="id<{ readonly kind: \"ready\"; readonly level: 1 }>" template=id arguments=({ readonly kind: "ready"; readonly level: 1 })
+/// @generic.instance id="id<{ readonly kind: \"ready\"; readonly level: 1 }>" template=id arguments=({ readonly kind: "ready"; readonly level: 1 })
 
 const kind = value.kind;
 /// @type.symbol symbol=kind source=kind type="ready"
@@ -487,8 +480,6 @@ const level = value.level;
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.access source=value.level root=value keys=[level]
-
-/// @generic.instance id="id<{ readonly kind: \"ready\"; readonly level: 1 }>" template=id arguments=({ readonly kind: "ready"; readonly level: 1 })
 "#,
     );
 }
@@ -505,7 +496,7 @@ const level = value.level;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -519,7 +510,7 @@ const value: { kind: string; level: float64 } = id<{ kind: string; level: float6
 const kind: string = value.kind;
 const level: float64 = value.level;
 
-=== checked ===
+=== dir ===
 declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
@@ -533,7 +524,8 @@ const value = id({ kind: "ready", level: 1 });
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
 /// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=({ kind: string; level: float64 }) arguments=(provided({ kind: "ready", level: 1 }) as { kind: string; level: float64 }) return={ kind: string; level: float64 } kind=symbol target=id instance="id<{ kind: string; level: float64 }>"
-/// @generic.instance source="id({ kind: \"ready\", level: 1 })" id="id<{ kind: string; level: float64 }>"
+/// @generic.instantiation id="id<{ kind: string; level: float64 }>" template=id arguments=({ kind: string; level: float64 })
+/// @generic.instance id="id<{ kind: string; level: float64 }>" template=id arguments=({ kind: string; level: float64 })
 
 const kind = value.kind;
 /// @type.symbol symbol=kind source=kind type=string
@@ -552,8 +544,6 @@ const level = value.level;
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.access source=value.level root=value keys=[level]
-
-/// @generic.instance id="id<{ kind: string; level: float64 }>" template=id arguments=({ kind: string; level: float64 })
 "#,
     );
 }
@@ -568,7 +558,7 @@ function read<T: T | { name: string }>(value: T): string {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -577,7 +567,7 @@ function read<T: T | { name: string }>(value: T): string {
     return value.name;
 }
 
-=== checked ===
+=== dir ===
 function read<T: T | { name: string }>(value: T): string {
 /// @generic.template symbol=read parameters=(T: T | { name: string })
 /// @type.symbol symbol=read type=<T: T | { name: string }>(T) => string
@@ -623,7 +613,7 @@ class Bucket<K: Equal<K>> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 interface Equal<in T> {
     equals(other: T): boolean;
@@ -641,7 +631,7 @@ class Bucket<in out K: Equal<K>> {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T)
 /// @type.symbol symbol=Equal type=Equal
@@ -697,7 +687,8 @@ class Bucket<K: Equal<K>> {
 
         return new Bucket<K>(this.key);
         /// @resolution.construct source="new Bucket<K>(this.key)" parameters=(K) arguments=(provided(this.key) as K) return=Bucket<K> kind=class target=Bucket constructor=Bucket.constructor instance=Bucket<K>
-        /// @generic.instance source="new Bucket<K>(this.key)" id=Bucket<K>
+        /// @generic.instantiation id=Bucket.constructor<K> template=Bucket.constructor arguments=(K) owner=Bucket
+        /// @generic.instantiation id=Bucket<K> template=Bucket arguments=(K) owner=Bucket
         /// @resolution.name source=Bucket target=Bucket
         /// @resolution.name source=K target=Bucket.K
         /// @resolution.member source=this.key receiver=Bucket<K> type=K kind=field target_receiver=Bucket<K> key=key target=Bucket.key target_type=K
@@ -709,8 +700,6 @@ class Bucket<K: Equal<K>> {
 
     }
 }
-
-/// @generic.instance id=Bucket<K> template=Bucket arguments=(K)
 "#, "");
 }
 
@@ -740,7 +729,7 @@ extension<K> of Box<K> where K: Equal<K> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 interface Equal<in T> {
     equals(other: T): boolean;
@@ -762,7 +751,7 @@ extension<K> of Box<K> where K: Equal<K> {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
@@ -836,7 +825,7 @@ extension<K> of Box<K> where K: Equal<K> {
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
-        /// @generic.instance source=probe(this.key) id=probe<K#2>
+        /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=<module>#2
         /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -846,8 +835,6 @@ extension<K> of Box<K> where K: Equal<K> {
 
     }
 }
-
-/// @generic.instance id=probe<K#2> template=probe arguments=(K#2)
 "#, "");
 }
 
@@ -875,7 +862,7 @@ class Box<K> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 interface Equal<in T> {
     equals(other: T): boolean;
@@ -895,7 +882,7 @@ class Box<in out K> {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
@@ -960,7 +947,7 @@ class Box<K> {
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K) arguments=(provided(this.key) as K) return=boolean kind=symbol target=probe instance=probe<K>
-        /// @generic.instance source=probe(this.key) id=probe<K>
+        /// @generic.instantiation id=probe<K> template=probe arguments=(K) owner=Box
         /// @resolution.member source=this.key receiver=Box<K> type=K kind=field target_receiver=Box<K> key=key target=Box.key target_type=K
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<K>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -970,8 +957,6 @@ class Box<K> {
 
     }
 }
-
-/// @generic.instance id=probe<K> template=probe arguments=(K)
 "#, "");
 }
 
@@ -997,7 +982,7 @@ extension<K> of Box<K> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 declare function probe<T>(value: T): boolean;
 
@@ -1015,7 +1000,7 @@ extension<K> of Box<K> {
     }
 }
 
-=== checked ===
+=== dir ===
 declare function probe<T>(value: T): boolean;
 /// @generic.template symbol=probe parameters=(T)
 /// @type.symbol symbol=probe source="declare function probe<T>(value: T): boolean" type=<T>(T) => boolean
@@ -1068,7 +1053,7 @@ extension<K> of Box<K> {
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
-        /// @generic.instance source=probe(this.key) id=probe<K#2>
+        /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=<module>#2
         /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -1078,8 +1063,6 @@ extension<K> of Box<K> {
 
     }
 }
-
-/// @generic.instance id=probe<K#2> template=probe arguments=(K#2)
 "#, "");
 }
 
@@ -1113,7 +1096,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 interface Hash {
     hash(): float64;
@@ -1139,7 +1122,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Hash {
 /// @type.symbol symbol=Hash type=Hash
 /// @definition.interface symbol=Hash
@@ -1224,7 +1207,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
-        /// @generic.instance source=probe(this.key) id=probe<K#2>
+        /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=<module>#2
         /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -1234,8 +1217,6 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 
     }
 }
-
-/// @generic.instance id=probe<K#2> template=probe arguments=(K#2)
 "#, "");
 }
 
@@ -1249,7 +1230,7 @@ function active<T: boolean | string>(value: T): boolean where T: boolean {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1258,7 +1239,7 @@ function active<T: boolean | string>(value: T): boolean where T: boolean {
     return value;
 }
 
-=== checked ===
+=== dir ===
 function active<T: boolean | string>(value: T): boolean where T: boolean {
 /// @generic.template symbol=active parameters=(T: boolean | string)
 /// @type.symbol symbol=active type=<T: boolean | string>(T) => boolean
@@ -1291,7 +1272,7 @@ function twice<T>(value: T): int32 where T: Doubling {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1304,7 +1285,7 @@ function twice<T>(value: T): int32 where T: Doubling {
     return value.double();
 }
 
-=== checked ===
+=== dir ===
 interface Doubling {
 /// @type.symbol symbol=Doubling type=Doubling
 /// @definition.interface symbol=Doubling
@@ -1362,7 +1343,7 @@ export extension<T> of Cell<T> {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 declare function todo(message: string): never;
 
@@ -1384,7 +1365,7 @@ export extension<T> of Cell<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 declare function todo(message: string): never;
 /// @type.symbol symbol=todo source="declare function todo(message: string): never" type=(string) => never
 /// @type.symbol symbol=todo.message source="message: string" type=string
@@ -1451,18 +1432,13 @@ export extension<T> of Cell<T> {
         /// @resolution.name source=Inner target=Inner
         /// @resolution.member source=Inner.new receiver=Inner type=(T#2) => Inner<T#2> kind=symbol target_receiver=Inner target=new#1
         /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 instance=Inner<T#4>.<extension#1>.new#1
-        /// @generic.instance source=Inner.new(value) id=Inner<T#4>.<extension#1>.new#1
+        /// @generic.instantiation id=new#1<T#4> template=new#1 arguments=(T#4) owner=<module>#3
         /// @resolution.name source=value target=new.value#2
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=new.value#2
 
     }
 }
-
-/// @generic.instance id=Cell<T#4> template=Cell arguments=(T#4)
-/// @generic.instance id=Inner<T#2> template=Inner arguments=(T#2)
-/// @generic.instance id=Inner<T#3> template=Inner arguments=(T#3)
-/// @generic.instance id=Inner<T#4>.<extension#1>.new#1 template=new#1 arguments=(T#4)
 "#);
 }
 
@@ -1479,7 +1455,7 @@ requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1491,7 +1467,7 @@ declare const narrower: { x: int32 };
 
 requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
 
-=== checked ===
+=== dir ===
 function requireEqual<T, U>(left: T, right: U): void where T == U {}
 /// @generic.template symbol=requireEqual parameters=(T, U)
 /// @type.symbol symbol=requireEqual source="function requireEqual<T, U>(left: T, right: U): void where T == U {}" type=<T, U>(T, U) => void
@@ -1515,11 +1491,9 @@ declare const narrower: { x: int32 };
 requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower)" parameters=({ x: int32; y: string }, { x: int32 }) arguments=(provided(wider) as { x: int32; y: string }, provided(narrower) as { x: int32 }) return=void kind=symbol target=requireEqual instance="requireEqual<{ x: int32; y: string }, { x: int32 }>"
-/// @generic.instance source="requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower)" id="requireEqual<{ x: int32; y: string }, { x: int32 }>"
+/// @generic.instantiation id="requireEqual<{ x: int32; y: string }, { x: int32 }>" template=requireEqual arguments=({ x: int32; y: string }, { x: int32 })
 /// @resolution.name source=wider target=wider
 /// @resolution.name source=narrower target=narrower
-
-/// @generic.instance id="requireEqual<{ x: int32; y: string }, { x: int32 }>" template=requireEqual arguments=({ x: int32; y: string }, { x: int32 })
 "#,
         r#"
 /// @diagnostic.error id=equality-requirement-not-satisfied message="equality requirement '{ x: int32; y: string } == { x: int32 }' is not satisfied"
@@ -1541,7 +1515,7 @@ requireEqual(wider, narrower);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1556,7 +1530,7 @@ requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | {
     narrower as { x: int32; y: string } | { x: int32 },
 );
 
-=== checked ===
+=== dir ===
 function requireEqual<T, U>(left: T, right: U): void where T == U {}
 /// @generic.template symbol=requireEqual parameters=(T, U)
 /// @type.symbol symbol=requireEqual source="function requireEqual<T, U>(left: T, right: U): void where T == U {}" type=<T, U>(T, U) => void
@@ -1580,15 +1554,14 @@ declare const narrower: { x: int32 };
 requireEqual(wider, narrower);
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(wider, narrower)" parameters=({ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }) arguments=(provided(wider) as { x: int32; y: string } | { x: int32 }, provided(narrower) as { x: int32; y: string } | { x: int32 }) return=void kind=symbol target=requireEqual instance="requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }>"
-/// @generic.instance source="requireEqual(wider, narrower)" id="requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }>"
+/// @generic.instantiation id="requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }>" template=requireEqual arguments=({ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 })
+/// @generic.instance id="requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }>" template=requireEqual arguments=({ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 })
 /// @resolution.name source=wider target=wider
 /// @resolution.place source=wider placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=wider root=wider
 /// @resolution.name source=narrower target=narrower
 /// @resolution.place source=narrower placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=narrower root=narrower
-
-/// @generic.instance id="requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }>" template=requireEqual arguments=({ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 })
 "#,
     );
 }
@@ -1607,7 +1580,7 @@ function build<T: Makeable>(): T {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 interface Makeable {
     static make(): this;
@@ -1617,7 +1590,7 @@ function build<T: Makeable>(): T {
     T.make()
 }
 
-=== checked ===
+=== dir ===
 interface Makeable {
 /// @type.symbol symbol=Makeable type=Makeable
 /// @definition.interface symbol=Makeable
@@ -1662,7 +1635,7 @@ function zero<T: Numeric>(): T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1679,7 +1652,7 @@ function zero<T: Numeric>(): T {
     T.zero()
 }
 
-=== checked ===
+=== dir ===
 interface Zero {
 /// @type.symbol symbol=Zero type=Zero
 /// @definition.interface symbol=Zero
@@ -1740,7 +1713,7 @@ function asinh<T: Float>(x: T): T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1754,7 +1727,7 @@ function asinh<T: Float>(x: T): T {
     log<T>(x + sqrt<T>(x * x + 1))
 }
 
-=== checked ===
+=== dir ===
 import { Float } from "destack:math";
 
 declare function log<T: Float>(value: T): T;
@@ -1787,14 +1760,14 @@ function asinh<T: Float>(x: T): T {
     log(x + sqrt(x * x + 1))
     /// @resolution.name source=log target=log
     /// @resolution.call source="log(x + sqrt(x * x + 1))" parameters=(T#3) arguments=(provided(x + sqrt(x * x + 1)) as T#3) return=T#3 kind=symbol target=log instance=log<T#3>
-    /// @generic.instance source="log(x + sqrt(x * x + 1))" id=log<T#3>
+    /// @generic.instantiation id=log<T#3> template=log arguments=(T#3) owner=asinh
     /// @resolution.name source=x target=asinh.x
     /// @resolution.operator source="x + sqrt(x * x + 1)" type=T#3 operator="+" kind=builtin operands=[x as T#3 families=(float), sqrt(x * x + 1) as T#3 families=(float)]
     /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=asinh.x
     /// @resolution.name source=sqrt target=sqrt
     /// @resolution.call source="sqrt(x * x + 1)" parameters=(T#3) arguments=(provided(x * x + 1) as T#3) return=T#3 kind=symbol target=sqrt instance=sqrt<T#3>
-    /// @generic.instance source="sqrt(x * x + 1)" id=sqrt<T#3>
+    /// @generic.instantiation id=sqrt<T#3> template=sqrt arguments=(T#3) owner=asinh
     /// @resolution.name source=x target=asinh.x
     /// @resolution.operator source="x * x + 1" type=T#3 operator="+" kind=builtin operands=[x * x as T#3 families=(float), 1 as T#3 families=(float)]
     /// @resolution.operator source="x * x" type=T#3 operator="*" kind=builtin operands=[x as T#3 families=(float), x as T#3 families=(float)]
@@ -1805,9 +1778,6 @@ function asinh<T: Float>(x: T): T {
     /// @resolution.access source=x root=asinh.x
 
 }
-
-/// @generic.instance id=log<T#3> template=log arguments=(T#3)
-/// @generic.instance id=sqrt<T#3> template=sqrt arguments=(T#3)
 "#,
     );
 }
@@ -1838,7 +1808,7 @@ extension<T> of Box<T> {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 class Box<in out T> {
     value: T;
@@ -1860,7 +1830,7 @@ extension<T> of Box<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 class Box<T> {
 /// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box type=Box
@@ -1909,7 +1879,8 @@ extension<T> of Box<T> {
 
         new Box<T>(value)
         /// @resolution.construct source="new Box<T>(value)" parameters=(T#2) arguments=(provided(value) as T#2) return=Box<T#2> kind=class target=Box constructor=Box.constructor instance=Box<T#2>
-        /// @generic.instance source="new Box<T>(value)" id=Box<T#2>
+        /// @generic.instantiation id=Box.constructor<T#2> template=Box.constructor arguments=(T#2) owner=<module>#2
+        /// @generic.instantiation id=Box<T#2> template=Box arguments=(T#2) owner=<module>#2
         /// @resolution.name source=Box target=Box
         /// @resolution.name source=T target=T#1
         /// @resolution.name source=value target=make.value
@@ -1938,17 +1909,13 @@ extension<T> of Box<T> {
         /// @resolution.name source=Box target=Box
         /// @resolution.member source=Box.make receiver=Box type=(T#2) => Box<T#2> kind=symbol target_receiver=Box target=make
         /// @resolution.call source=Box.make(value) parameters=(T#3) arguments=(provided(value) as T#3) return=Box<T#3> kind=symbol target=make instance=Box<T#3>.<extension#1>.make
-        /// @generic.instance source=Box.make(value) id=Box<T#3>.<extension#1>.make
+        /// @generic.instantiation id=make<T#3> template=make arguments=(T#3) owner=<module>#3
         /// @resolution.name source=value target=wrap.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=wrap.value
 
     }
 }
-
-/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
-/// @generic.instance id=Box<T#3> template=Box arguments=(T#3)
-/// @generic.instance id=Box<T#3>.<extension#1>.make template=make arguments=(T#3)
 "#);
 }
 
@@ -1978,7 +1945,7 @@ extension<T> of Outer<T> {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 struct Inner<out T> {
     value: T;
@@ -2000,7 +1967,7 @@ extension<T> of Outer<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Inner<T> {
 /// @generic.template symbol=Inner parameters=(out T#1)
 /// @type.symbol symbol=Inner type=Inner
@@ -2072,18 +2039,13 @@ extension<T> of Outer<T> {
         /// @resolution.name source=Inner target=Inner
         /// @resolution.member source=Inner.new receiver=Inner type=(T#2) => Inner<T#2> kind=symbol target_receiver=Inner target=new#1
         /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 instance=Inner<T#4>.<extension#1>.new#1
-        /// @generic.instance source=Inner.new(value) id=Inner<T#4>.<extension#1>.new#1
+        /// @generic.instantiation id=new#1<T#4> template=new#1 arguments=(T#4) owner=<module>#3
         /// @resolution.name source=value target=new.value#2
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=new.value#2
 
     }
 }
-
-/// @generic.instance id=Inner<T#2> template=Inner arguments=(T#2)
-/// @generic.instance id=Inner<T#3> template=Inner arguments=(T#3)
-/// @generic.instance id=Inner<T#4>.<extension#1>.new#1 template=new#1 arguments=(T#4)
-/// @generic.instance id=Outer<T#4> template=Outer arguments=(T#4)
 "#);
 }
 
@@ -2107,7 +2069,7 @@ function check<T>(a: T): T | undefined {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 function pair<T>(a: T): (T, boolean) {
     (a, true)
@@ -2123,7 +2085,7 @@ function check<T>(a: T): T | undefined {
     result as T | undefined
 }
 
-=== checked ===
+=== dir ===
 function pair<T>(a: T): (T, boolean) {
 /// @generic.template symbol=pair parameters=(T#1)
 /// @type.symbol symbol=pair type=<T#1>(T#1) => (T#1, boolean)
@@ -2155,7 +2117,7 @@ function check<T>(a: T): T | undefined {
     /// @resolution.pattern source=overflow kind=binding target=check.overflow
     /// @resolution.name source=pair target=pair
     /// @resolution.call source=pair(a) parameters=(T#2) arguments=(provided(a) as T#2) return=(T#2, boolean) kind=symbol target=pair instance=pair<T#2>
-    /// @generic.instance source=pair(a) id=pair<T#2>
+    /// @generic.instantiation id=pair<T#2> template=pair arguments=(T#2) owner=check
     /// @resolution.name source=a target=check.a
     /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=a root=check.a
@@ -2174,8 +2136,6 @@ function check<T>(a: T): T | undefined {
     /// @resolution.access source=result root=check.result
 
 }
-
-/// @generic.instance id=pair<T#2> template=pair arguments=(T#2)
 "#);
 }
 #[test]
@@ -2196,7 +2156,7 @@ extension<T, R, I: Iterator<T, R>> of I {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 interface Iterator<out T, out R = void> {}
 
@@ -2210,7 +2170,7 @@ extension<T, R, I: Iterator<T, R>> of I {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Iterator<out T, out R = void> {}
 /// @generic.template symbol=Iterator parameters=(out T#1, out R#1 = void)
 /// @type.symbol symbol=Iterator source="interface Iterator<out T, out R = void> {}" type=Iterator
@@ -2263,16 +2223,14 @@ extension<T, R, I: Iterator<T, R>> of I {
         /// @resolution.name source=C target=collect.C
         /// @resolution.member source=C.fromIterator receiver=C type=<R#2>(Dynamic<Iterator<T#3, R#2>>) => C kind=symbol target_receiver=C target=FromIterator.fromIterator
         /// @resolution.call source=C.fromIterator(this) parameters=(Dynamic<Iterator<T#3, R#3>>) arguments=(provided(this) as Dynamic<Iterator<T#3, R#3>>) return=C kind=symbol target=FromIterator.fromIterator instance=FromIterator.fromIterator<R#3>
-        /// @generic.instance source=C.fromIterator(this) id=FromIterator.fromIterator<R#3>
+        /// @generic.instantiation id="FromIterator.fromIterator<T#3, R#3>" template=FromIterator.fromIterator arguments=(T#3, R#3) owner=collect
+        /// @generic.instantiation id=FromIterator.fromIterator<T#3> template=FromIterator.fromIterator arguments=(T#3) owner=collect
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
 
     }
 }
-
-/// @generic.instance id="Iterator<T#2, R#2>" template=Iterator arguments=(T#2, R#2)
-/// @generic.instance id=FromIterator.fromIterator<R#3> template=FromIterator.fromIterator arguments=(T#3, R#3)
 "#);
 }
 
@@ -2286,7 +2244,7 @@ struct Named<'a> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -2295,7 +2253,7 @@ struct Named<'a> {
     first: &'a string;
 }
 
-=== checked ===
+=== dir ===
 struct Named<'a> {
 /// @generic.template symbol=Named parameters=('a)
 /// @type.symbol symbol=Named type=Named
@@ -2323,7 +2281,7 @@ struct Mixed<'a> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -2333,7 +2291,7 @@ struct Mixed<'a> {
     second: &string;
 }
 
-=== checked ===
+=== dir ===
 struct Mixed<'a> {
 /// @generic.template symbol=Mixed parameters=('a)
 /// @type.symbol symbol=Mixed type=Mixed
@@ -2371,7 +2329,7 @@ function forward<U: int32>(value: U): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -2382,7 +2340,7 @@ function forward<U: int32>(value: U): void {
     requireExact<U>(value);
 }
 
-=== checked ===
+=== dir ===
 function requireExact<T>(value: T): void where T == int32 {}
 /// @generic.template symbol=requireExact parameters=(T)
 /// @type.symbol symbol=requireExact source="function requireExact<T>(value: T): void where T == int32 {}" type=<T>(T) => void
@@ -2401,13 +2359,11 @@ function forward<U: int32>(value: U): void {
     requireExact<U>(value);
     /// @resolution.name source=requireExact target=requireExact
     /// @resolution.call source=requireExact<U>(value) parameters=(U) arguments=(provided(value) as U) return=void kind=symbol target=requireExact instance=requireExact<U>
-    /// @generic.instance source=requireExact<U>(value) id=requireExact<U>
+    /// @generic.instantiation id=requireExact<U> template=requireExact arguments=(U) owner=forward
     /// @resolution.name source=U target=forward.U
     /// @resolution.name source=value target=forward.value
 
 }
-
-/// @generic.instance id=requireExact<U> template=requireExact arguments=(U)
 "#,
         r#"
 /// @diagnostic.error id=equality-requirement-not-satisfied message="equality requirement 'U == int32' is not satisfied"
@@ -2459,7 +2415,7 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -2470,7 +2426,7 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
     (a - b).length<T>()
 }
 
-=== checked ===
+=== dir ===
 import { Vec, Numericish } from "./a.ds";
 
 function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
@@ -2489,21 +2445,18 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
     (a - b).length()
     /// @resolution.member source="(a - b).length" receiver=a.Vec<T>.Output type=(this: a.Vec<T>) => T kind=symbol target_receiver=a.Vec<T>.Output target=a.Vec.length
     /// @resolution.call source=(a - b).length() parameters=() return=T kind=symbol target=a.Vec.length receiver=a.Vec<T>.Output instance=a.Vec<T>.length
-    /// @generic.instance source=(a - b).length() id=a.Vec<T>.length
+    /// @generic.instantiation id=a.Vec.length<T> template=a.Vec.length arguments=(T) owner=f
+    /// @generic.instantiation id=a.Vec.length<T> template=a.Vec.length arguments=(T) owner=f
     /// @resolution.name source=a target=f.a
     /// @resolution.operator source="a - b" type=a.Vec<T>.Output operator="-" kind=call parameters=(a.Vec<T>) arguments=(provided(b) as a.Vec<T>) return=a.Vec<T>.Output kind=symbol target=a.subtract receiver=a.Vec<T> instance=a.Vec<T>.<extension#1>.subtract
     /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=a root=f.a
-    /// @generic.instance source="a - b" id=a.Vec<T>.<extension#1>.subtract
+    /// @generic.instantiation id=a.subtract<T> template=a.subtract arguments=(T) owner=f
     /// @resolution.name source=b target=f.b
     /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=b root=f.b
 
 }
-
-/// @generic.instance id=a.Vec<T> template=a.Vec arguments=(T)
-/// @generic.instance id=a.Vec<T>.<extension#1>.subtract template=a.subtract arguments=(T)
-/// @generic.instance id=a.Vec<T>.length template=a.Vec.length arguments=(T)
 "#,
     );
 }

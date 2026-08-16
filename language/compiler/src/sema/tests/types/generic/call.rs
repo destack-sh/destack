@@ -13,7 +13,7 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -27,7 +27,7 @@ const result: Result<boolean, string> = first().andThen<int32, string, boolean, 
     (value: int32): Result<boolean, string> => second(value),
 );
 
-=== checked ===
+=== dir ===
 import { Result } from "destack:error";
 
 declare function first(): Result<int32, string>;
@@ -51,33 +51,25 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
 /// @resolution.member source=first().andThen receiver=error.result.Result<int32, string> type=<error.result.andThen.U, error.result.andThen.F>(this: error.result.Result<int32, string>, Function<(int32,), error.result.Result<error.result.andThen.U, error.result.andThen.F>>) => error.result.Result<error.result.andThen.U, string | error.result.andThen.F> kind=symbol target_receiver=error.result.Result<int32, string> target=error.result.andThen
 /// @resolution.call source="first().andThen((value) => second(value))" parameters=(Function<(int32,), error.result.Result<boolean, string>>) arguments=(provided((value) => second(value)) as Function<(int32,), error.result.Result<boolean, string>>) return=error.result.Result<boolean, string> kind=symbol target=error.result.andThen receiver=error.result.Result<int32, string> instance="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>"
 /// @resolution.call source=first() parameters=() return=error.result.Result<int32, string> kind=symbol target=first
-/// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<boolean, string>"
-/// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>"
-/// @generic.instance source=first id="error.result.Result<int32, string>"
-/// @generic.instance source=first() id="error.result.Result<int32, string>"
-/// @generic.instance source=first().andThen id="error.result.Result<error.result.andThen.U, error.result.andThen.F>"
-/// @generic.instance source=first().andThen id="error.result.Result<error.result.andThen.U, string | error.result.andThen.F>"
-/// @generic.instance source=first().andThen id="error.result.Result<int32, string>"
+/// @generic.instantiation id="error.result.andThen<int32, string, boolean, string>" template=error.result.andThen arguments=(int32, string, boolean, string)
+/// @generic.instantiation id="error.result.andThen<int32, string>" template=error.result.andThen arguments=(int32, string)
+/// @generic.instance id="error.result.andThen<int32, string, boolean, string>" template=error.result.andThen arguments=(int32, string, boolean, string)
+/// @generic.instance id="error.result.err#1<boolean, string>" template=error.result.err#1 arguments=(boolean, string)
+/// @generic.instance id="error.result.ok#1<boolean, string>" template=error.result.ok#1 arguments=(boolean, string)
+/// @generic.instance id=error.result.Err<string> template=error.result.Err arguments=(string)
+/// @generic.instance id=error.result.Ok<boolean> template=error.result.Ok arguments=(boolean)
+/// @generic.instance id=error.result.Ok<int32> template=error.result.Ok arguments=(int32)
 /// @type.symbol symbol=symbol5 source=(value) => second(value) type=Function<(int32,), error.result.Result<boolean, string>>
 /// @type.node source=(value) => second(value) type=Function<(int32,), error.result.Result<boolean, string>>
-/// @generic.instance source=(value) => second(value) id="error.result.Result<boolean, string>"
 /// @type.symbol symbol=symbol5.value source=value type=int32
 /// @type.node source=second type=(int32) => error.result.Result<boolean, string>
 /// @type.node source=second(value) type=error.result.Result<boolean, string>
 /// @resolution.name source=second target=second
 /// @resolution.call source=second(value) parameters=(int32) arguments=(provided(value) as int32) return=error.result.Result<boolean, string> kind=symbol target=second
-/// @generic.instance source=second id="error.result.Result<boolean, string>"
-/// @generic.instance source=second(value) id="error.result.Result<boolean, string>"
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=symbol5.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol5.value
-
-/// @generic.instance id="error.result.Result<boolean, string>" template=error.result.Result arguments=(boolean, string)
-/// @generic.instance id="error.result.Result<error.result.andThen.U, error.result.andThen.F>" template=error.result.Result arguments=(error.result.andThen.U, error.result.andThen.F)
-/// @generic.instance id="error.result.Result<error.result.andThen.U, string | error.result.andThen.F>" template=error.result.Result arguments=(error.result.andThen.U, string | error.result.andThen.F)
-/// @generic.instance id="error.result.Result<int32, string>" template=error.result.Result arguments=(int32, string)
-/// @generic.instance id="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>" template=error.result.andThen arguments=(int32, string, boolean, string)
 "#,
     );
 }
@@ -93,7 +85,7 @@ const result: Promise<string> = input.then(() => "done");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -103,7 +95,7 @@ import { Promise } from "destack:async";
 declare const input: Promise<int32>;
 const result: Promise<string> = input.then<int32, string>((): string => "done");
 
-=== checked ===
+=== dir ===
 import { Promise } from "destack:async";
 
 declare const input: Promise<int32>;
@@ -123,21 +115,34 @@ const result: Promise<string> = input.then(() => "done");
 /// @resolution.call source="input.then(() => \"done\")" parameters=(Function<(int32,), string>) arguments=(provided(() => "done") as Function<(int32,), string>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.then#2 receiver=async.promise.Promise<int32> instance=async.promise.Promise<int32>.then#2<string>
 /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=input root=input
-/// @generic.instance source="input.then(() => \"done\")" id=async.promise.Promise<int32>.then#2<string>
-/// @generic.instance source="input.then(() => \"done\")" id=async.promise.Promise<string>
-/// @generic.instance source=input id=async.promise.Promise<int32>
-/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
-/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
-/// @generic.instance source=input.then id=async.promise.Promise<int32>
+/// @generic.instantiation id="async.promise.Promise.then#2<int32, string>" template=async.promise.Promise.then#2 arguments=(int32, string)
+/// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
+/// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
+/// @generic.instance id="async.promise.Promise.then#2<int32, string>" template=async.promise.Promise.then#2 arguments=(int32, string) evaluated=(<async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T> => <async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T>, <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void => <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void, <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void => <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void)
+/// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
+/// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
+/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
+/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
+/// @generic.instance id=async.promise.Promise.addReaction<void> template=async.promise.Promise.addReaction arguments=(void)
+/// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string> | async.promise.PromiseReaction<string>)
+/// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
+/// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string> | async.promise.PromiseReaction<string>)
+/// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
+/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
+/// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
+/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
+/// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
+/// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
+/// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string> | async.promise.PromiseReaction<string>, <async.fiber.Fiber.wake.T>(this: async.fiber.Fiber, async.fiber.Fiber.wake.T) => void => <async.fiber.Fiber.wake.T>(this: async.fiber.Fiber, async.fiber.Fiber.wake.T) => void)
+/// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
+/// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string) evaluated=(<async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void => <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void)
+/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
+/// @generic.instance id=async.promise.PromiseFulfilled<string> template=async.promise.PromiseFulfilled arguments=(string)
+/// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
+/// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
 /// @type.symbol symbol=symbol3 source="() => \"done\"" type=Function<(), string>
 /// @type.node source="() => \"done\"" type=Function<(), string>
 /// @type.node source="\"done\"" type="done"
-
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#1> template=async.promise.Promise arguments=(async.promise.Promise.then.U#1)
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#2> template=async.promise.Promise arguments=(async.promise.Promise.then.U#2)
-/// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
-/// @generic.instance id=async.promise.Promise<int32>.then#2<string> template=async.promise.Promise.then#2 arguments=(int32, string)
-/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 "#,
     );
 }
@@ -154,7 +159,7 @@ const result: Promise<string> = input.then(() => next);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -165,7 +170,7 @@ declare const input: Promise<int32>;
 declare const next: Promise<string>;
 const result: Promise<string> = input.then<int32, string>((): Promise<string> => next);
 
-=== checked ===
+=== dir ===
 import { Promise } from "destack:async";
 
 declare const input: Promise<int32>;
@@ -190,26 +195,37 @@ const result: Promise<string> = input.then(() => next);
 /// @resolution.call source="input.then(() => next)" parameters=(Function<(int32,), async.promise.Promise<string>>) arguments=(provided(() => next) as Function<(int32,), async.promise.Promise<string>>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.then#1 receiver=async.promise.Promise<int32> instance=async.promise.Promise<int32>.then#1<string>
 /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=input root=input
-/// @generic.instance source="input.then(() => next)" id=async.promise.Promise<int32>.then#1<string>
-/// @generic.instance source="input.then(() => next)" id=async.promise.Promise<string>
-/// @generic.instance source=input id=async.promise.Promise<int32>
-/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
-/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
-/// @generic.instance source=input.then id=async.promise.Promise<int32>
+/// @generic.instantiation id="async.promise.Promise.then#1<int32, string>" template=async.promise.Promise.then#1 arguments=(int32, string)
+/// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
+/// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
+/// @generic.instance id="async.promise.Promise.then#1<int32, string>" template=async.promise.Promise.then#1 arguments=(int32, string) evaluated=(<async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T> => <async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T>, <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void => <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void)
+/// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
+/// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
+/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
+/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
+/// @generic.instance id=async.promise.Promise.addReaction<void> template=async.promise.Promise.addReaction arguments=(void)
+/// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string> | async.promise.PromiseReaction<string>)
+/// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
+/// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string> | async.promise.PromiseReaction<string>)
+/// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
+/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
+/// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
+/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
+/// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
+/// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
+/// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string> | async.promise.PromiseReaction<string>, <async.fiber.Fiber.wake.T>(this: async.fiber.Fiber, async.fiber.Fiber.wake.T) => void => <async.fiber.Fiber.wake.T>(this: async.fiber.Fiber, async.fiber.Fiber.wake.T) => void)
+/// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
+/// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string) evaluated=(<async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void => <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void)
+/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
+/// @generic.instance id=async.promise.PromiseFulfilled<string> template=async.promise.PromiseFulfilled arguments=(string)
+/// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
+/// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
 /// @type.symbol symbol=symbol4 source="() => next" type=Function<(), async.promise.Promise<string>>
 /// @type.node source="() => next" type=Function<(), async.promise.Promise<string>>
-/// @generic.instance source="() => next" id=async.promise.Promise<string>
 /// @type.node source=next type=async.promise.Promise<string>
 /// @resolution.name source=next target=next
 /// @resolution.place source=next placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=next root=next
-/// @generic.instance source=next id=async.promise.Promise<string>
-
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#1> template=async.promise.Promise arguments=(async.promise.Promise.then.U#1)
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#2> template=async.promise.Promise arguments=(async.promise.Promise.then.U#2)
-/// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
-/// @generic.instance id=async.promise.Promise<int32>.then#1<string> template=async.promise.Promise.then#1 arguments=(int32, string)
-/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 "#,
     );
 }
@@ -227,7 +243,7 @@ const result: Promise<string> = input.then((value) => {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -239,7 +255,7 @@ const result: Promise<string> = input.then<int32, string>((value: int32): Promis
     input.then<int32, string>((): string => "done")
 });
 
-=== checked ===
+=== dir ===
 import { Promise } from "destack:async";
 
 declare const input: Promise<int32>;
@@ -259,10 +275,12 @@ const result: Promise<string> = input.then((value) => {
 /// @resolution.call parameters=(Function<(int32,), async.promise.Promise<string>>) arguments=(provided(argument) as Function<(int32,), async.promise.Promise<string>>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.then#1 receiver=async.promise.Promise<int32> instance=async.promise.Promise<int32>.then#1<string>
 /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=input root=input
-/// @generic.instance source=input id=async.promise.Promise<int32>
-/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
-/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
-/// @generic.instance source=input.then id=async.promise.Promise<int32>
+/// @generic.instantiation id="async.promise.Promise.then#1<int32, string>" template=async.promise.Promise.then#1 arguments=(int32, string)
+/// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
+/// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
+/// @generic.instance id="async.promise.Promise.then#1<int32, string>" template=async.promise.Promise.then#1 arguments=(int32, string) evaluated=(<async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T> => <async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T>, <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void => <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void)
+/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
+/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
 /// @type.symbol symbol=symbol3 type=Function<(int32,), async.promise.Promise<string>>
 /// @type.node type=Function<(int32,), async.promise.Promise<string>>
 /// @type.symbol symbol=symbol3.value source=value type=int32
@@ -276,24 +294,34 @@ const result: Promise<string> = input.then((value) => {
     /// @resolution.call source="input.then(() => \"done\")" parameters=(Function<(int32,), string>) arguments=(provided(() => "done") as Function<(int32,), string>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.then#2 receiver=async.promise.Promise<int32> instance=async.promise.Promise<int32>.then#2<string>
     /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=input root=input
-    /// @generic.instance source="input.then(() => \"done\")" id=async.promise.Promise<int32>.then#2<string>
-    /// @generic.instance source="input.then(() => \"done\")" id=async.promise.Promise<string>
-    /// @generic.instance source=input id=async.promise.Promise<int32>
-    /// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
-    /// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
-    /// @generic.instance source=input.then id=async.promise.Promise<int32>
+    /// @generic.instantiation id="async.promise.Promise.then#2<int32, string>" template=async.promise.Promise.then#2 arguments=(int32, string)
+    /// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
+    /// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
+    /// @generic.instance id="async.promise.Promise.then#2<int32, string>" template=async.promise.Promise.then#2 arguments=(int32, string) evaluated=(<async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T> => <async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T>, <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void => <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void, <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void => <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void)
+    /// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
+    /// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
+    /// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
+    /// @generic.instance id=async.promise.Promise.addReaction<void> template=async.promise.Promise.addReaction arguments=(void)
+    /// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string> | async.promise.PromiseReaction<string>)
+    /// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
+    /// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string> | async.promise.PromiseReaction<string>)
+    /// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
+    /// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
+    /// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
+    /// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
+    /// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
+    /// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string> | async.promise.PromiseReaction<string>, <async.fiber.Fiber.wake.T>(this: async.fiber.Fiber, async.fiber.Fiber.wake.T) => void => <async.fiber.Fiber.wake.T>(this: async.fiber.Fiber, async.fiber.Fiber.wake.T) => void)
+    /// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
+    /// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string) evaluated=(<async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void => <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void)
+    /// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
+    /// @generic.instance id=async.promise.PromiseFulfilled<string> template=async.promise.PromiseFulfilled arguments=(string)
+    /// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
+    /// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
     /// @type.symbol symbol=symbol3.symbol5 source="() => \"done\"" type=Function<(), string>
     /// @type.node source="() => \"done\"" type=Function<(), string>
     /// @type.node source="\"done\"" type="done"
 
 });
-
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#1> template=async.promise.Promise arguments=(async.promise.Promise.then.U#1)
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#2> template=async.promise.Promise arguments=(async.promise.Promise.then.U#2)
-/// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
-/// @generic.instance id=async.promise.Promise<int32>.then#1<string> template=async.promise.Promise.then#1 arguments=(int32, string)
-/// @generic.instance id=async.promise.Promise<int32>.then#2<string> template=async.promise.Promise.then#2 arguments=(int32, string)
-/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 "#,
     );
 }
@@ -313,7 +341,7 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -329,7 +357,7 @@ const result: Promise<string | Promise<string>> = input.then<int32, string | Pro
     },
 );
 
-=== checked ===
+=== dir ===
 import { Promise } from "destack:async";
 
 declare const input: Promise<int32>;
@@ -359,10 +387,31 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 /// @resolution.call parameters=(Function<(int32,), string | async.promise.Promise<string>>) arguments=(provided(argument) as Function<(int32,), string | async.promise.Promise<string>>) return=async.promise.Promise<string | async.promise.Promise<string>> kind=symbol target=async.promise.Promise.then#2 receiver=async.promise.Promise<int32> instance="async.promise.Promise<int32>.then#2<string | async.promise.Promise<string>>"
 /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=input root=input
-/// @generic.instance source=input id=async.promise.Promise<int32>
-/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
-/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
-/// @generic.instance source=input.then id=async.promise.Promise<int32>
+/// @generic.instantiation id="async.promise.Promise.then#2<int32, string | async.promise.Promise<string>>" template=async.promise.Promise.then#2 arguments=(int32, string | async.promise.Promise<string>)
+/// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
+/// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
+/// @generic.instance id="async.fiber.Fiber.wake<string | async.promise.Promise<string>>" template=async.fiber.Fiber.wake arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.fiber.wakeFiber<string | async.promise.Promise<string>>" template=async.fiber.wakeFiber arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.addReaction<string | async.promise.Promise<string>>" template=async.promise.Promise.addReaction arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.addWaiter<string | async.promise.Promise<string>>" template=async.promise.Promise.addWaiter arguments=(string | async.promise.Promise<string>) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string | async.promise.Promise<string>> | async.promise.PromiseReaction<string | async.promise.Promise<string>>)
+/// @generic.instance id="async.promise.Promise.cancel<string | async.promise.Promise<string>>" template=async.promise.Promise.cancel arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.cancelWaiter<string | async.promise.Promise<string>>" template=async.promise.Promise.cancelWaiter arguments=(string | async.promise.Promise<string>) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string | async.promise.Promise<string>> | async.promise.PromiseReaction<string | async.promise.Promise<string>>)
+/// @generic.instance id="async.promise.Promise.cancelWaiters<string | async.promise.Promise<string>>" template=async.promise.Promise.cancelWaiters arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.forward<string | async.promise.Promise<string>>" template=async.promise.Promise.forward arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.fulfill<string | async.promise.Promise<string>>" template=async.promise.Promise.fulfill arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.observe<string | async.promise.Promise<string>>" template=async.promise.Promise.observe arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.pending<string | async.promise.Promise<string>>" template=async.promise.Promise.pending arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.queueWaiter<string | async.promise.Promise<string>>" template=async.promise.Promise.queueWaiter arguments=(string | async.promise.Promise<string>) evaluated=(async.promise.PromiseWaiter<async.promise.Promise.T> => async.promise.PromiseAwaiter<string | async.promise.Promise<string>> | async.promise.PromiseReaction<string | async.promise.Promise<string>>, <async.fiber.Fiber.wake.T>(this: async.fiber.Fiber, async.fiber.Fiber.wake.T) => void => <async.fiber.Fiber.wake.T>(this: async.fiber.Fiber, async.fiber.Fiber.wake.T) => void)
+/// @generic.instance id="async.promise.Promise.queueWaiters<string | async.promise.Promise<string>>" template=async.promise.Promise.queueWaiters arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.symbol12<string | async.promise.Promise<string>>" template=async.promise.Promise.symbol12 arguments=(string | async.promise.Promise<string>) evaluated=(<async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void => <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void)
+/// @generic.instance id="async.promise.Promise.then#2<int32, string | async.promise.Promise<string>>" template=async.promise.Promise.then#2 arguments=(int32, string | async.promise.Promise<string>) evaluated=(<async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T> => <async.promise.Promise.pending.T: memory.capability.Copy>() => async.promise.Promise<async.promise.Promise.pending.T>, <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void => <async.promise.Promise.fulfill.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.fulfill.T>, async.promise.Promise.fulfill.T) => void, <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void => <async.promise.Promise.cancel.T: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.cancel.T>) => void)
+/// @generic.instance id="async.promise.Promise<string | async.promise.Promise<string>>" template=async.promise.Promise arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.PromiseFulfilled<string | async.promise.Promise<string>>" template=async.promise.PromiseFulfilled arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.PromiseReaction.symbol194<string | async.promise.Promise<string>>" template=async.promise.PromiseReaction.symbol194 arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.PromiseReaction<string | async.promise.Promise<string>>" template=async.promise.PromiseReaction arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
+/// @generic.instance id=async.promise.Promise.addReaction<void> template=async.promise.Promise.addReaction arguments=(void)
+/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
 /// @type.symbol symbol=symbol5 type=Function<(), async.promise.Promise<string> | string>
 /// @type.node type=Function<(), async.promise.Promise<string> | string>
 
@@ -372,22 +421,13 @@ const result: Promise<string | Promise<string>> = input.then(() => {
     /// @resolution.name source=usePromise target=usePromise
     /// @resolution.place source=usePromise placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=usePromise root=usePromise
-    /// @generic.instance source="usePromise ? next : \"done\"" id=async.promise.Promise<string>
     /// @type.node source=next type=async.promise.Promise<string>
     /// @resolution.name source=next target=next
     /// @resolution.place source=next placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=next root=next
-    /// @generic.instance source=next id=async.promise.Promise<string>
     /// @type.node source="\"done\"" type="done"
 
 });
-
-/// @generic.instance id="async.promise.Promise<int32>.then#2<string | async.promise.Promise<string>>" template=async.promise.Promise.then#2 arguments=(int32, string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise<string | async.promise.Promise<string>>" template=async.promise.Promise arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#1> template=async.promise.Promise arguments=(async.promise.Promise.then.U#1)
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#2> template=async.promise.Promise arguments=(async.promise.Promise.then.U#2)
-/// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
-/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 "#,
     );
 }
@@ -403,7 +443,7 @@ const result: Promise<string> = Promise.resolve(input);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -413,7 +453,7 @@ import { Promise } from "destack:async";
 declare const input: Promise<string>;
 const result: Promise<string> = Promise.resolve<string>(input);
 
-=== checked ===
+=== dir ===
 import { Promise } from "destack:async";
 
 declare const input: Promise<string>;
@@ -431,20 +471,12 @@ const result: Promise<string> = Promise.resolve(input);
 /// @resolution.name source=Promise target=async.promise.Promise
 /// @resolution.member source=Promise.resolve receiver=async.promise.Promise type=<async.promise.Promise.resolve.T#1: memory.capability.Copy>(async.promise.Promise<async.promise.Promise.resolve.T#1>) => async.promise.Promise<async.promise.Promise.resolve.T#1> & <async.promise.Promise.resolve.T#2: memory.capability.Copy>(async.promise.Promise.resolve.T#2) => async.promise.Promise<async.promise.Promise.resolve.T#2> kind=existential targets=[async.promise.Promise.resolve#1, async.promise.Promise.resolve#2]
 /// @resolution.call source=Promise.resolve(input) parameters=(async.promise.Promise<string>) arguments=(provided(input) as async.promise.Promise<string>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.resolve#1 instance=async.promise.Promise.resolve#1<string>
-/// @generic.instance source=Promise.resolve id=async.promise.Promise<async.promise.Promise.resolve.T#1>
-/// @generic.instance source=Promise.resolve id=async.promise.Promise<async.promise.Promise.resolve.T#2>
-/// @generic.instance source=Promise.resolve(input) id=async.promise.Promise.resolve#1<string>
-/// @generic.instance source=Promise.resolve(input) id=async.promise.Promise<string>
+/// @generic.instantiation id=async.promise.Promise.resolve#1<string> template=async.promise.Promise.resolve#1 arguments=(string)
+/// @generic.instance id=async.promise.Promise.resolve#1<string> template=async.promise.Promise.resolve#1 arguments=(string)
 /// @type.node source=input type=async.promise.Promise<string>
 /// @resolution.name source=input target=input
 /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=input root=input
-/// @generic.instance source=input id=async.promise.Promise<string>
-
-/// @generic.instance id=async.promise.Promise.resolve#1<string> template=async.promise.Promise.resolve#1 arguments=(string)
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.resolve.T#1> template=async.promise.Promise arguments=(async.promise.Promise.resolve.T#1)
-/// @generic.instance id=async.promise.Promise<async.promise.Promise.resolve.T#2> template=async.promise.Promise arguments=(async.promise.Promise.resolve.T#2)
-/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 "#);
 }
 
@@ -461,7 +493,7 @@ const text = identity("x");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -475,7 +507,7 @@ function identity<T>(value: T): T {
 const number: 1 = identity<1>(1);
 const text: "x" = identity<"x">("x");
 
-=== checked ===
+=== dir ===
 function identity<T>(value: T): T {
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity type=<T>(T) => T
@@ -499,7 +531,8 @@ const number = identity(1);
 /// @type.node source=identity(1) type=1
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(1) parameters=(1) arguments=(provided(1) as 1) return=1 kind=symbol target=identity instance=identity<1>
-/// @generic.instance source=identity(1) id=identity<1>
+/// @generic.instantiation id=identity<1> template=identity arguments=(1)
+/// @generic.instance id=identity<1> template=identity arguments=(1)
 /// @type.node source=1 type=1
 
 const text = identity("x");
@@ -509,11 +542,9 @@ const text = identity("x");
 /// @type.node source=identity type=("x") => "x"
 /// @resolution.name source=identity target=identity
 /// @resolution.call source="identity(\"x\")" parameters=("x") arguments=(provided("x") as "x") return="x" kind=symbol target=identity instance="identity<\"x\">"
-/// @generic.instance source="identity(\"x\")" id="identity<\"x\">"
-/// @type.node source="\"x\"" type="x"
-
+/// @generic.instantiation id="identity<\"x\">" template=identity arguments=("x")
 /// @generic.instance id="identity<\"x\">" template=identity arguments=("x")
-/// @generic.instance id=identity<1> template=identity arguments=(1)
+/// @type.node source="\"x\"" type="x"
 "#);
 }
 
@@ -529,7 +560,7 @@ const values = identity([1, 2]);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -540,7 +571,7 @@ function identity<T>(value: T): T {
 
 const values: float64[] = identity<float64[]>([1, 2]);
 
-=== checked ===
+=== dir ===
 function identity<T>(value: T): T {
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity type=<T>(T) => T
@@ -564,12 +595,11 @@ const values = identity([1, 2]);
 /// @type.node source=identity type=(Array<float64>) => Array<float64>
 /// @resolution.name source=identity target=identity
 /// @resolution.call source="identity([1, 2])" parameters=(Array<float64>) arguments=(provided([1, 2]) as Array<float64>) return=Array<float64> kind=symbol target=identity instance=identity<Array<float64>>
-/// @generic.instance source="identity([1, 2])" id=identity<Array<float64>>
+/// @generic.instantiation id=identity<Array<float64>> template=identity arguments=(Array<float64>)
+/// @generic.instance id=identity<Array<float64>> template=identity arguments=(Array<float64>)
 /// @type.node source=[1, 2] type=Array<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-
-/// @generic.instance id=identity<Array<float64>> template=identity arguments=(Array<float64>)
 "#,
     );
 }
@@ -586,7 +616,7 @@ const value = first([1, 2]);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -597,7 +627,7 @@ function first<T>(values: T[]): T {
 
 const value: float64 = first<float64>([1, 2]);
 
-=== checked ===
+=== dir ===
 function first<T>(values: T[]): T {
 /// @generic.template symbol=first parameters=(T)
 /// @type.symbol symbol=first type=<T>(Array<T>) => T
@@ -615,7 +645,7 @@ function first<T>(values: T[]): T {
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=first.values keys=[0]
     /// @resolution.subscript source=values[0] type=T kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame T, \"exclusive\">)"
-    /// @generic.instance source=values[0] id="Array<T>.<extension#5>.index#1<\"exclusive\">"
+    /// @generic.instantiation id="collections.array.index#1<T, \"exclusive\">" template=collections.array.index#1 arguments=(T, "exclusive") owner=first
     /// @type.node source=0 type=0
 
 }
@@ -627,13 +657,12 @@ const value = first([1, 2]);
 /// @type.node source=first type=(Array<float64>) => float64
 /// @resolution.name source=first target=first
 /// @resolution.call source="first([1, 2])" parameters=(Array<float64>) arguments=(provided([1, 2]) as Array<float64>) return=float64 kind=symbol target=first instance=first<float64>
-/// @generic.instance source="first([1, 2])" id=first<float64>
+/// @generic.instantiation id=first<float64> template=first arguments=(float64)
+/// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
+/// @generic.instance id=first<float64> template=first arguments=(float64)
 /// @type.node source=[1, 2] type=Array<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-
-/// @generic.instance id="Array<T>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(T, "exclusive")
-/// @generic.instance id=first<float64> template=first arguments=(float64)
 "#,
     );
 }
@@ -651,7 +680,7 @@ const second = identity<2>(2);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -663,7 +692,7 @@ function identity<T>(value: T): T {
 const first: 1 = identity<1>(1);
 const second: 2 = identity<2>(2);
 
-=== checked ===
+=== dir ===
 function identity<T>(value: T): T {
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity type=<T>(T) => T
@@ -687,7 +716,8 @@ const first = identity<1>(1);
 /// @type.node source=identity<1>(1) type=1
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity<1>(1) parameters=(1) arguments=(provided(1) as 1) return=1 kind=symbol target=identity instance=identity<1>
-/// @generic.instance source=identity<1>(1) id=identity<1>
+/// @generic.instantiation id=identity<1> template=identity arguments=(1)
+/// @generic.instance id=identity<1> template=identity arguments=(1)
 /// @type.node source=1 type=1
 
 const second = identity<2>(2);
@@ -697,11 +727,9 @@ const second = identity<2>(2);
 /// @type.node source=identity<2>(2) type=2
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity<2>(2) parameters=(2) arguments=(provided(2) as 2) return=2 kind=symbol target=identity instance=identity<2>
-/// @generic.instance source=identity<2>(2) id=identity<2>
-/// @type.node source=2 type=2
-
-/// @generic.instance id=identity<1> template=identity arguments=(1)
+/// @generic.instantiation id=identity<2> template=identity arguments=(2)
 /// @generic.instance id=identity<2> template=identity arguments=(2)
+/// @type.node source=2 type=2
 "#,
     );
 }
@@ -718,7 +746,7 @@ const text = identity<string>("x");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -729,7 +757,7 @@ function identity<T>(value: T): T {
 
 const text: string = identity<string>("x");
 
-=== checked ===
+=== dir ===
 function identity<T>(value: T): T {
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity type=<T>(T) => T
@@ -753,10 +781,9 @@ const text = identity<string>("x");
 /// @type.node source=identity type=(string) => string
 /// @resolution.name source=identity target=identity
 /// @resolution.call source="identity<string>(\"x\")" parameters=(string) arguments=(provided("x") as string) return=string kind=symbol target=identity instance=identity<string>
-/// @generic.instance source="identity<string>(\"x\")" id=identity<string>
-/// @type.node source="\"x\"" type="x"
-
+/// @generic.instantiation id=identity<string> template=identity arguments=(string)
 /// @generic.instance id=identity<string> template=identity arguments=(string)
+/// @type.node source="\"x\"" type="x"
 "#,
     );
 }
@@ -773,7 +800,7 @@ identity<int32>("x");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -784,7 +811,7 @@ function identity<T>(value: T): T {
 
 identity<int32>("x");
 
-=== checked ===
+=== dir ===
 function identity<T>(value: T): T {
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity type=<T>(T) => T
@@ -806,10 +833,8 @@ identity<int32>("x");
 /// @type.node source=identity type=(int32) => int32
 /// @resolution.name source=identity target=identity
 /// @resolution.call source="identity<int32>(\"x\")" parameters=(int32) arguments=(provided("x") as int32) return=int32 kind=symbol target=identity instance=identity<int32>
-/// @generic.instance source="identity<int32>(\"x\")" id=identity<int32>
+/// @generic.instantiation id=identity<int32> template=identity arguments=(int32)
 /// @type.node source="\"x\"" type="x"
-
-/// @generic.instance id=identity<int32> template=identity arguments=(int32)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"x\"' is not assignable to parameter of type 'int32'"
@@ -831,7 +856,7 @@ const asInt = identity<int32>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -842,7 +867,7 @@ function identity<T>(value: T): T {
 
 const asInt = identity<int32>;
 
-=== checked ===
+=== dir ===
 function identity<T>(value: T): T {
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity type=<T>(T) => T
@@ -864,9 +889,8 @@ const asInt = identity<int32>;
 /// @resolution.pattern source=asInt kind=binding target=asInt
 /// @type.node source=identity<int32> type=<T>(int32) => int32
 /// @resolution.name source=identity target=identity
-/// @resolution.instantiation source=identity<int32> target=identity instance=identity<int32>
-/// @generic.instance source=identity<int32> id=identity<int32>
-
+/// @resolution.function source=identity<int32> type=<T>(int32) => int32 target=identity instance=identity<int32>
+/// @generic.instantiation id=identity<int32> template=identity arguments=(int32)
 /// @generic.instance id=identity<int32> template=identity arguments=(int32)
 "#,
     );
@@ -888,7 +912,7 @@ const parser = parse<int32>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -903,7 +927,7 @@ function parse<T>(value: T[]): T {
 
 const parser = parse<int32>;
 
-=== checked ===
+=== dir ===
 function parse<T>(value: T): T {
 /// @generic.template symbol=parse#1 parameters=(T#1)
 /// @type.symbol symbol=parse#1 type=<T#1>(T#1) => T#1
@@ -937,7 +961,7 @@ function parse<T>(value: T[]): T {
     /// @resolution.place source=value[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value[0] root=parse.value#2 keys=[0]
     /// @resolution.subscript source=value[0] type=T#2 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame T#2, \"exclusive\">)"
-    /// @generic.instance source=value[0] id="Array<T#2>.<extension#5>.index#1<\"exclusive\">"
+    /// @generic.instantiation id="collections.array.index#1<T#2, \"exclusive\">" template=collections.array.index#1 arguments=(T#2, "exclusive") owner=parse#2
     /// @type.node source=0 type=0
 
 }
@@ -948,8 +972,6 @@ const parser = parse<int32>;
 /// @type.node source=parse<int32> type=<error>
 /// @resolution.name source=parse target=[parse#1, parse#2]
 /// @resolution.rejected source=parse<int32>
-
-/// @generic.instance id="Array<T#2>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(T#2, "exclusive")
 "#,
         r#"
 /// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'parse'"
@@ -969,7 +991,7 @@ const overridden = pair(1, "x");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -979,7 +1001,7 @@ declare function pair<T, U = T>(left: T, right?: U): (T, U);
 const defaulted: (float64, float64) = pair<float64, float64>(1);
 const overridden: (float64, string) = pair<float64, string>(1, "x" as string | undefined);
 
-=== checked ===
+=== dir ===
 declare function pair<T, U = T>(left: T, right?: U): (T, U);
 /// @generic.template symbol=pair parameters=(T, U = T)
 /// @type.symbol symbol=pair source="declare function pair<T, U = T>(left: T, right?: U): (T, U)" type=<T, U = T>(T, U | undefined?) => (T, U)
@@ -1000,7 +1022,8 @@ const defaulted = pair(1);
 /// @type.node source=pair(1) type=(float64, float64)
 /// @resolution.name source=pair target=pair
 /// @resolution.call source=pair(1) parameters=(float64, float64 | undefined) arguments=(provided(1) as float64, omitted as float64 | undefined) return=(float64, float64) kind=symbol target=pair instance="pair<float64, float64>"
-/// @generic.instance source=pair(1) id="pair<float64, float64>"
+/// @generic.instantiation id="pair<float64, float64>" template=pair arguments=(float64, float64)
+/// @generic.instance id="pair<float64, float64>" template=pair arguments=(float64, float64)
 /// @type.node source=1 type=1
 
 const overridden = pair(1, "x");
@@ -1010,12 +1033,10 @@ const overridden = pair(1, "x");
 /// @type.node source=pair type=(float64, string | undefined?) => (float64, string)
 /// @resolution.name source=pair target=pair
 /// @resolution.call source="pair(1, \"x\")" parameters=(float64, string | undefined) arguments=(provided(1) as float64, provided("x") as string | undefined) return=(float64, string) kind=symbol target=pair instance="pair<float64, string>"
-/// @generic.instance source="pair(1, \"x\")" id="pair<float64, string>"
+/// @generic.instantiation id="pair<float64, string>" template=pair arguments=(float64, string)
+/// @generic.instance id="pair<float64, string>" template=pair arguments=(float64, string)
 /// @type.node source=1 type=1
 /// @type.node source="\"x\"" type="x"
-
-/// @generic.instance id="pair<float64, float64>" template=pair arguments=(float64, float64)
-/// @generic.instance id="pair<float64, string>" template=pair arguments=(float64, string)
 "#,
     );
 }
@@ -1030,7 +1051,7 @@ const value = choose(1, 2);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1039,7 +1060,7 @@ declare function choose<T: 1 | 2>(left: T, right: T): T;
 
 const value: 1 | 2 = choose<1 | 2>(1 as 1 | 2, 2 as 1 | 2);
 
-=== checked ===
+=== dir ===
 declare function choose<T: 1 | 2>(left: T, right: T): T;
 /// @generic.template symbol=choose parameters=(T: 1 | 2)
 /// @type.symbol symbol=choose source="declare function choose<T: 1 | 2>(left: T, right: T): T" type=<T: 1 | 2>(T, T) => T
@@ -1057,11 +1078,10 @@ const value = choose(1, 2);
 /// @type.node source=choose type=(1 | 2, 1 | 2) => 1 | 2
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose(1, 2)" parameters=(1 | 2, 1 | 2) arguments=(provided(1) as 1 | 2, provided(2) as 1 | 2) return=1 | 2 kind=symbol target=choose instance="choose<1 | 2>"
-/// @generic.instance source="choose(1, 2)" id="choose<1 | 2>"
+/// @generic.instantiation id="choose<1 | 2>" template=choose arguments=(1 | 2)
+/// @generic.instance id="choose<1 | 2>" template=choose arguments=(1 | 2)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-
-/// @generic.instance id="choose<1 | 2>" template=choose arguments=(1 | 2)
 "#,
     );
 }
@@ -1076,7 +1096,7 @@ const value = choose(1, 2);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1085,7 +1105,7 @@ declare function choose<T>(left: T, right: T): T where T: 1 | 2;
 
 const value: 1 | 2 = choose<1 | 2>(1 as 1 | 2, 2 as 1 | 2);
 
-=== checked ===
+=== dir ===
 declare function choose<T>(left: T, right: T): T where T: 1 | 2;
 /// @generic.template symbol=choose parameters=(T)
 /// @type.symbol symbol=choose source="declare function choose<T>(left: T, right: T): T where T: 1 | 2" type=<T>(T, T) => T
@@ -1104,11 +1124,10 @@ const value = choose(1, 2);
 /// @type.node source=choose type=(1 | 2, 1 | 2) => 1 | 2
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose(1, 2)" parameters=(1 | 2, 1 | 2) arguments=(provided(1) as 1 | 2, provided(2) as 1 | 2) return=1 | 2 kind=symbol target=choose instance="choose<1 | 2>"
-/// @generic.instance source="choose(1, 2)" id="choose<1 | 2>"
+/// @generic.instantiation id="choose<1 | 2>" template=choose arguments=(1 | 2)
+/// @generic.instance id="choose<1 | 2>" template=choose arguments=(1 | 2)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-
-/// @generic.instance id="choose<1 | 2>" template=choose arguments=(1 | 2)
 "#,
     );
 }
@@ -1132,7 +1151,7 @@ const rejected = accept<int32>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1150,7 +1169,7 @@ function accept<T>(value: T): T where T: Marker {
 const accepted = accept<Good>;
 const rejected = accept<int32>;
 
-=== checked ===
+=== dir ===
 newtype interface Marker {}
 /// @type.symbol symbol=Marker source="newtype interface Marker {}" type=Marker
 /// @definition.interface symbol=Marker source="newtype interface Marker {}" nominal=true
@@ -1188,8 +1207,8 @@ const accepted = accept<Good>;
 /// @resolution.pattern source=accepted kind=binding target=accepted
 /// @type.node source=accept<Good> type=<T>(Good) => Good
 /// @resolution.name source=accept target=accept
-/// @resolution.instantiation source=accept<Good> target=accept instance=accept<Good>
-/// @generic.instance source=accept<Good> id=accept<Good>
+/// @resolution.function source=accept<Good> type=<T>(Good) => Good target=accept instance=accept<Good>
+/// @generic.instantiation id=accept<Good> template=accept arguments=(Good)
 /// @resolution.name source=Good target=Good
 
 const rejected = accept<int32>;
@@ -1197,11 +1216,8 @@ const rejected = accept<int32>;
 /// @resolution.pattern source=rejected kind=binding target=rejected
 /// @type.node source=accept<int32> type=<T>(int32) => int32
 /// @resolution.name source=accept target=accept
-/// @resolution.instantiation source=accept<int32> target=accept instance=accept<int32>
-/// @generic.instance source=accept<int32> id=accept<int32>
-
-/// @generic.instance id=accept<Good> template=accept arguments=(Good)
-/// @generic.instance id=accept<int32> template=accept arguments=(int32)
+/// @resolution.function source=accept<int32> type=<T>(int32) => int32 target=accept instance=accept<int32>
+/// @generic.instantiation id=accept<int32> template=accept arguments=(int32)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'Marker'"
@@ -1230,7 +1246,7 @@ function build(value: float64): Box<int32> {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=not-assignable message="type 'float64' is not assignable to type 'int32'"
@@ -1252,7 +1268,7 @@ const kept = values
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1263,7 +1279,7 @@ const kept: ^Array<int32> = values.map<int32, int32>((value: int32): int32 => va
     (value: &'a readonly int32): boolean => value !== undefined,
 );
 
-=== checked ===
+=== dir ===
 declare const values: ^int32[];
 /// @type.symbol symbol=values source=values type=Owned<Array<int32>>
 /// @resolution.pattern source=values kind=binding target=values
@@ -1278,6 +1294,12 @@ const kept = values
 /// @resolution.call parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value) as Function<(int32, isize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.map#1<int32>
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
+/// @generic.instantiation id="collections.array.map#1<int32, int32>" template=collections.array.map#1 arguments=(int32, int32)
+/// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
+/// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
+/// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
+/// @generic.instantiation id=collections.array.map#1<int32> template=collections.array.map#1 arguments=(int32)
+/// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
 
     .map((value) => value)
     /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32,), int32>
@@ -1293,10 +1315,6 @@ const kept = values
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 families=(integer), undefined as undefined families=(undefined)]
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=symbol4.value
-
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32)
-/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.map#1<int32> template=collections.array.map#1 arguments=(int32, int32)
 "#,
         r#"
 /// @diagnostic.error id=invalid-strict-equality message="this comparison is unintentional: types '&'a readonly int32' and 'undefined' have no overlap"
@@ -1317,7 +1335,7 @@ function bump<T: Integer>(value: T): T | undefined {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -1328,7 +1346,7 @@ function bump<T: Integer>(value: T): T | undefined {
     return value.checkedAdd<T>(1);
 }
 
-=== checked ===
+=== dir ===
 import { Arithmetic, Integer } from "destack:math";
 
 function bump<T: Integer>(value: T): T | undefined {
@@ -1354,7 +1372,7 @@ extension<T: Integer> of T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -1367,7 +1385,7 @@ extension<T: Integer> of T {
     }
 }
 
-=== checked ===
+=== dir ===
 import { Arithmetic, Integer } from "destack:math";
 
 extension<T: Integer> of T {
@@ -1392,7 +1410,7 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1406,7 +1424,7 @@ const defined: ^Array<int32 | undefined> = values.map<int32 | undefined, int32 |
         value !== (undefined as int32 | undefined),
 );
 
-=== checked ===
+=== dir ===
 declare const values: (int32 | undefined)[];
 /// @type.symbol symbol=values source=values type=Array<int32 | undefined>
 /// @resolution.pattern source=values kind=binding target=values
@@ -1421,8 +1439,11 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32 | undefined>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source="values.map((value) => value)" id="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
-/// @generic.instance source="values.map((value) => value).filter((value) => value !== undefined)" id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
+/// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
+/// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
+/// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
+/// @generic.instantiation id="collections.array.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined)
 /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
 /// @type.symbol symbol=symbol2.value source=value type=int32 | undefined
 /// @resolution.name source=value target=symbol2.value
@@ -1434,10 +1455,6 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol4.value
-
-/// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
-/// @generic.instance id="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
-/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32 | undefined)
 "#,
         r#"
 "#,
@@ -1465,7 +1482,7 @@ const twice = values.flat(2);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1484,7 +1501,7 @@ declare const values: Values<int32>;
 const once: Element<int32, 1>[] = values.flat<int32, 1>();
 const twice: Element<int32, 2>[] = values.flat<int32, 2>(2 as 2 | undefined);
 
-=== checked ===
+=== dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
 /// @generic.template symbol=Element parameters=(T#1, const Depth#1: usize)
 /// @type.symbol symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" type=Depth#1 extends 0 ? T#1 : Array<T#1>
@@ -1537,7 +1554,8 @@ const once = values.flat();
 /// @resolution.call source=values.flat() parameters=(1 | undefined) arguments=(omitted as 1 | undefined) return=Array<Array<int32>> kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance=Values<int32>.flat<1>
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source=values.flat() id=Values<int32>.flat<1>
+/// @generic.instantiation id="Values.flat<int32, 1>" template=Values.flat arguments=(int32, 1)
+/// @generic.instantiation id=Values.flat<int32> template=Values.flat arguments=(int32)
 
 const twice = values.flat(2);
 /// @type.symbol symbol=twice source=twice type=Array<Array<int32>>
@@ -1547,12 +1565,8 @@ const twice = values.flat(2);
 /// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=Array<Array<int32>> kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance=Values<int32>.flat<2>
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source=values.flat(2) id=Values<int32>.flat<2>
-
-/// @generic.instance id="Element<T#2, Depth#2>" template=Element arguments=(T#2, Depth#2)
-/// @generic.instance id=Values<int32> template=Values arguments=(int32)
-/// @generic.instance id=Values<int32>.flat<1> template=Values.flat arguments=(int32, 1)
-/// @generic.instance id=Values<int32>.flat<2> template=Values.flat arguments=(int32, 2)
+/// @generic.instantiation id="Values.flat<int32, 2>" template=Values.flat arguments=(int32, 2)
+/// @generic.instantiation id=Values.flat<int32> template=Values.flat arguments=(int32)
 "#,
         r#"
 "#,
@@ -1581,7 +1595,7 @@ const twice: Element<int32, 2>[] = values.flat(2);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1601,7 +1615,7 @@ declare const values: Values<int32>;
 
 const twice: Element<int32, 2>[] = values.flat<int32, 2>(2 as 2 | undefined);
 
-=== checked ===
+=== dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
 /// @generic.template symbol=Element parameters=(T#1, const Depth#1: usize)
 /// @type.symbol symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" type=Depth#1 extends 0 ? T#1 : Array<T#1>
@@ -1662,11 +1676,8 @@ const twice: Element<int32, 2>[] = values.flat(2);
 /// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=Array<Array<int32>> kind=symbol target=flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance=Values<int32>.<extension#1>.flat<2>
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source=values.flat(2) id=Values<int32>.<extension#1>.flat<2>
-
-/// @generic.instance id="Element<T#3, Depth#2>" template=Element arguments=(T#3, Depth#2)
-/// @generic.instance id=Values<int32> template=Values arguments=(int32)
-/// @generic.instance id=Values<int32>.<extension#1>.flat<2> template=flat arguments=(int32, 2)
+/// @generic.instantiation id="flat<int32, 2>" template=flat arguments=(int32, 2)
+/// @generic.instantiation id=flat<int32> template=flat arguments=(int32)
 "#,
         r#"
 "#,
@@ -1691,7 +1702,7 @@ const defined = filterMap(values, (value) => {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1710,7 +1721,7 @@ const defined: int32[] = filterMap<int32 | undefined, int32>(
     },
 );
 
-=== checked ===
+=== dir ===
 declare function filterMap<T, U>(values: T[], callback: (value: T) => U | undefined): U[];
 /// @generic.template symbol=filterMap parameters=(T, U)
 /// @type.symbol symbol=filterMap type=<T, U>(Array<T>, Function<(T,), U | undefined>) => Array<U>
@@ -1733,6 +1744,7 @@ const defined = filterMap(values, (value) => {
 /// @resolution.pattern source=defined kind=binding target=defined
 /// @resolution.name source=filterMap target=filterMap
 /// @resolution.call parameters=(Array<int32 | undefined>, Function<(int32 | undefined,), int32 | undefined>) arguments=(provided(values) as Array<int32 | undefined>, provided(argument) as Function<(int32 | undefined,), int32 | undefined>) return=Array<int32> kind=symbol target=filterMap instance="filterMap<int32 | undefined, int32>"
+/// @generic.instantiation id="filterMap<int32 | undefined, int32>" template=filterMap arguments=(int32 | undefined, int32)
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
@@ -1753,8 +1765,6 @@ const defined = filterMap(values, (value) => {
     }
     return undefined;
 });
-
-/// @generic.instance id="filterMap<int32 | undefined, int32>" template=filterMap arguments=(int32 | undefined, int32)
 "#,
         r#"
 "#,
@@ -1782,7 +1792,7 @@ const once: Element<int32 | int32[], 1>[] = values.flat(1);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1801,7 +1811,7 @@ declare const values: Values<int32 | int32[]>;
 
 const once: Element<int32 | int32[], 1>[] = values.flat<int32 | int32[], 1>(1 as 1 | undefined);
 
-=== checked ===
+=== dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
 /// @generic.template symbol=Element parameters=(T#1, const Depth#1: usize)
 /// @type.symbol symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" type=Depth#1 extends 0 ? T#1 : Array<T#1>
@@ -1858,11 +1868,8 @@ const once: Element<int32 | int32[], 1>[] = values.flat(1);
 /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Array<Array<int32 | Array<int32>>> kind=symbol target=flat receiver=Values<int32 | Array<int32>> adjustments=(borrow(&'static readonly Values<int32 | Array<int32>>)) instance="Values<int32 | Array<int32>>.<extension#1>.flat<1>"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source=values.flat(1) id="Values<int32 | Array<int32>>.<extension#1>.flat<1>"
-
-/// @generic.instance id="Element<T#3, Depth#2>" template=Element arguments=(T#3, Depth#2)
-/// @generic.instance id="Values<int32 | Array<int32>>" template=Values arguments=(int32 | Array<int32>)
-/// @generic.instance id="Values<int32 | Array<int32>>.<extension#1>.flat<1>" template=flat arguments=(int32 | Array<int32>, 1)
+/// @generic.instantiation id="flat<int32 | Array<int32>, 1>" template=flat arguments=(int32 | Array<int32>, 1)
+/// @generic.instantiation id="flat<int32 | Array<int32>>" template=flat arguments=(int32 | Array<int32>)
 "#,
         r#"
 "#,
@@ -1884,7 +1891,7 @@ requireCopy(value);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1897,7 +1904,7 @@ declare const value: int32 | int32[];
 
 requireCopy<int32 | int32[]>(value);
 
-=== checked ===
+=== dir ===
 import { Copy } from "destack:memory";
 
 declare function requireCopy<T: Copy>(value: T): void;
@@ -1915,12 +1922,10 @@ declare const value: int32 | int32[];
 requireCopy(value);
 /// @resolution.name source=requireCopy target=requireCopy
 /// @resolution.call source=requireCopy(value) parameters=(int32 | Array<int32>) arguments=(provided(value) as int32 | Array<int32>) return=void kind=symbol target=requireCopy instance="requireCopy<int32 | Array<int32>>"
-/// @generic.instance source=requireCopy(value) id="requireCopy<int32 | Array<int32>>"
+/// @generic.instantiation id="requireCopy<int32 | Array<int32>>" template=requireCopy arguments=(int32 | Array<int32>)
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id="requireCopy<int32 | Array<int32>>" template=requireCopy arguments=(int32 | Array<int32>)
 "#,
         r#"
 "#,
@@ -1938,7 +1943,7 @@ function flatten(values: (int32 | int32[])[]): int32[] {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1947,7 +1952,7 @@ function flatten(values: (int32 | int32[])[]): int32[] {
     return values.flat<int32 | int32[], 1>(1 as 1 | undefined) as int32[];
 }
 
-=== checked ===
+=== dir ===
 function flatten(values: (int32 | int32[])[]): int32[] {
 /// @type.symbol symbol=flatten type=(Array<int32 | Array<int32>>) => Array<int32>
 /// @type.symbol symbol=flatten.values source="values: (int32 | int32[])[]" type=Array<int32 | Array<int32>>
@@ -1958,11 +1963,10 @@ function flatten(values: (int32 | int32[])[]): int32[] {
     /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Owned<Array<int32>> kind=symbol target=collections.array.flat receiver=Array<int32 | Array<int32>> adjustments=(borrow(&'frame readonly Array<int32 | Array<int32>>)) instance="Array<int32 | Array<int32>>.<extension#5>.flat<1>"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=flatten.values
-    /// @generic.instance source=values.flat(1) id="Array<int32 | Array<int32>>.<extension#5>.flat<1>"
+    /// @generic.instantiation id="collections.array.flat<int32 | Array<int32>, 1>" template=collections.array.flat arguments=(int32 | Array<int32>, 1)
+    /// @generic.instantiation id="collections.array.flat<int32 | Array<int32>>" template=collections.array.flat arguments=(int32 | Array<int32>)
 
 }
-
-/// @generic.instance id="Array<int32 | Array<int32>>.<extension#5>.flat<1>" template=collections.array.flat arguments=(int32 | Array<int32>, 1)
 "#,
         r#"
 "#,
@@ -1992,7 +1996,7 @@ function flatten(): (int32 | int32[])[][] {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -2013,7 +2017,7 @@ function flatten(): (int32 | int32[])[][] {
     return values.flat<int32 | int32[], 1>(1 as 1 | undefined);
 }
 
-=== checked ===
+=== dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
 /// @generic.template symbol=Element parameters=(T#1, const Depth#1: usize)
 /// @type.symbol symbol=Element source="type Element<T, const Depth: usize> = Depth extends 0 ? T : T[]" type=Depth#1 extends 0 ? T#1 : Array<T#1>
@@ -2070,13 +2074,10 @@ function flatten(): (int32 | int32[])[][] {
     /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Array<Array<int32 | Array<int32>>> kind=symbol target=flat receiver=Values<int32 | Array<int32>> adjustments=(borrow(&'static readonly Values<int32 | Array<int32>>)) instance="Values<int32 | Array<int32>>.<extension#1>.flat<1>"
     /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=values root=values
-    /// @generic.instance source=values.flat(1) id="Values<int32 | Array<int32>>.<extension#1>.flat<1>"
+    /// @generic.instantiation id="flat<int32 | Array<int32>, 1>" template=flat arguments=(int32 | Array<int32>, 1)
+    /// @generic.instantiation id="flat<int32 | Array<int32>>" template=flat arguments=(int32 | Array<int32>)
 
 }
-
-/// @generic.instance id="Element<T#3, Depth#2>" template=Element arguments=(T#3, Depth#2)
-/// @generic.instance id="Values<int32 | Array<int32>>" template=Values arguments=(int32 | Array<int32>)
-/// @generic.instance id="Values<int32 | Array<int32>>.<extension#1>.flat<1>" template=flat arguments=(int32 | Array<int32>, 1)
 "#,
         r#"
 "#,
@@ -2096,7 +2097,7 @@ if (value != null) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -2107,7 +2108,7 @@ if (value != null) {
     value satisfies int32;
 }
 
-=== checked ===
+=== dir ===
 declare const value: int32 | null | undefined;
 /// @type.symbol symbol=value source=value type=int32 | null | undefined
 /// @resolution.pattern source=value kind=binding target=value
@@ -2146,7 +2147,7 @@ const positive = values.filter((value) => value > 0);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -2157,7 +2158,7 @@ const positive: ^Array<int32> = values.filter<int32>(
     (value: &'a readonly int32): boolean => (value as int32) > 0,
 );
 
-=== checked ===
+=== dir ===
 declare const values: ^int32[];
 /// @type.symbol symbol=values source=values type=Owned<Array<int32>>
 /// @resolution.pattern source=values kind=binding target=values
@@ -2170,16 +2171,15 @@ const positive = values.filter((value) => value > 0);
 /// @resolution.call source="values.filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source="values.filter((value) => value > 0)" id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
+/// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
+/// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
 /// @type.symbol symbol=symbol2 source="(value) => value > 0" type=Function<(&type_expression.'a readonly int32,), boolean>
 /// @type.symbol symbol=symbol2.value source=value type=&type_expression.'a readonly int32
 /// @resolution.name source=value target=symbol2.value
 /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol2.value
-
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32)
 "#,
         r#"
 "#,
@@ -2203,7 +2203,7 @@ const held: Holder<int32> = Holder<int32>.wrap(42);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -2218,7 +2218,7 @@ extension<T> of Holder<T> {
 
 const held: Holder<int32> = Holder<int32>.wrap<int32>(42);
 
-=== checked ===
+=== dir ===
 declare class Holder<out T> {}
 /// @generic.template symbol=Holder parameters=(out T#1)
 /// @type.symbol symbol=Holder source="declare class Holder<out T> {}" type=Holder
@@ -2254,13 +2254,10 @@ const held: Holder<int32> = Holder<int32>.wrap(42);
 /// @resolution.name source=Holder target=Holder
 /// @resolution.member source=Holder<int32>.wrap receiver=Holder<int32> type=(int32) => Holder<int32> kind=symbol target_receiver=Holder<int32> target=wrap
 /// @resolution.call source=Holder<int32>.wrap(42) parameters=(int32) arguments=(provided(42) as int32) return=Holder<int32> kind=symbol target=wrap instance=Holder<int32>.<extension#1>.wrap
-/// @resolution.instantiation source=Holder<int32> target=Holder instance=Holder<int32>
-/// @generic.instance source=Holder<int32> id=Holder<int32>
-/// @generic.instance source=Holder<int32>.wrap(42) id=Holder<int32>.<extension#1>.wrap
-
-/// @generic.instance id=Holder<T#2> template=Holder arguments=(T#2)
-/// @generic.instance id=Holder<int32> template=Holder arguments=(int32)
-/// @generic.instance id=Holder<int32>.<extension#1>.wrap template=wrap arguments=(int32)
+/// @resolution.function source=Holder<int32> type=Holder<int32> target=Holder instance=Holder<int32>
+/// @generic.instantiation id=Holder<int32> template=Holder arguments=(int32)
+/// @generic.instantiation id=wrap<int32> template=wrap arguments=(int32)
+/// @generic.instantiation id=wrap<int32> template=wrap arguments=(int32)
 "#,
         r#"
 "#,
@@ -2278,7 +2275,7 @@ for (const value of 0..10) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -2287,7 +2284,7 @@ for (const value of 0..10) {
     value;
 }
 
-=== checked ===
+=== dir ===
 for (const value of 0..10) {
 /// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
@@ -2317,7 +2314,7 @@ const picked = pick(boxed);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -2328,7 +2325,7 @@ declare const boxed: Box<Box<int32>>;
 
 const picked = pick(boxed);
 
-=== checked ===
+=== dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
@@ -2360,23 +2357,11 @@ const picked = pick(boxed);
 /// @type.node source=pick(boxed) type=<error>
 /// @resolution.name source=pick target=pick
 /// @resolution.call source=pick(boxed) parameters=(Box<<error>> | Box<Box<<error>>>) arguments=(provided(boxed) as Box<<error>> | Box<Box<<error>>>) return=<error> kind=symbol target=pick instance=pick<<error>>
-/// @generic.instance source=pick id=Box<<error>>
-/// @generic.instance source=pick id=Box<Box<<error>>>
-/// @generic.instance source=pick(boxed) id=pick<<error>>
+/// @generic.instantiation id=pick<<error>> template=pick arguments=(<error>)
 /// @type.node source=boxed type=Box<Box<int32>>
 /// @resolution.name source=boxed target=boxed
 /// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=boxed root=boxed
-/// @generic.instance source=boxed id=Box<Box<int32>>
-/// @generic.instance source=boxed id=Box<int32>
-
-/// @generic.instance id=Box<<error>> template=Box arguments=(<error>)
-/// @generic.instance id=Box<Box<<error>>> template=Box arguments=(Box<<error>>)
-/// @generic.instance id=Box<Box<T#2>> template=Box arguments=(Box<T#2>)
-/// @generic.instance id=Box<Box<int32>> template=Box arguments=(Box<int32>)
-/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
-/// @generic.instance id=Box<int32> template=Box arguments=(int32)
-/// @generic.instance id=pick<<error>> template=pick arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
@@ -2408,7 +2393,7 @@ const doubled = collect(collect(starts, (start) => {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -2431,7 +2416,7 @@ const doubled: int32[] = collect<int32, int32>(
     },
 );
 
-=== checked ===
+=== dir ===
 declare function collect<T, U>(values: T[], step: (value: T) => U | undefined): U[];
 /// @generic.template symbol=collect parameters=(T, U)
 /// @type.symbol symbol=collect type=<T, U>(Array<T>, Function<(T,), U | undefined>) => Array<U>
@@ -2456,10 +2441,12 @@ const doubled = collect(collect(starts, (start) => {
 /// @type.node type=Array<int32>
 /// @resolution.name source=collect target=collect
 /// @resolution.call parameters=(Array<int32>, Function<(int32,), int32 | undefined>) arguments=(provided(argument) as Array<int32>, provided(argument) as Function<(int32,), int32 | undefined>) return=Array<int32> kind=symbol target=collect instance="collect<int32, int32>"
+/// @generic.instantiation id="collect<int32, int32>" template=collect arguments=(int32, int32)
 /// @type.node source=collect type=(Array<int32 | undefined>, Function<(int32 | undefined,), int32 | undefined>) => Array<int32>
 /// @type.node type=Array<int32>
 /// @resolution.name source=collect target=collect
 /// @resolution.call parameters=(Array<int32 | undefined>, Function<(int32 | undefined,), int32 | undefined>) arguments=(provided(starts) as Array<int32 | undefined>, provided(argument) as Function<(int32 | undefined,), int32 | undefined>) return=Array<int32> kind=symbol target=collect instance="collect<int32 | undefined, int32>"
+/// @generic.instantiation id="collect<int32 | undefined, int32>" template=collect arguments=(int32 | undefined, int32)
 /// @type.node source=starts type=Array<int32 | undefined>
 /// @resolution.name source=starts target=starts
 /// @resolution.place source=starts placement="local" lifetime="static" access="exclusive"
@@ -2516,9 +2503,6 @@ const doubled = collect(collect(starts, (start) => {
     /// @type.node source=undefined type=undefined
 
 });
-
-/// @generic.instance id="collect<int32 | undefined, int32>" template=collect arguments=(int32 | undefined, int32)
-/// @generic.instance id="collect<int32, int32>" template=collect arguments=(int32, int32)
 "#,
         r#""#,
     );
@@ -2563,7 +2547,7 @@ extension<T, E> of AsyncResult<T, E> {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 declare class Promise<out T> {
     then<U>(onFulfilled: (arg0: T) => U | Promise<U>): Promise<U>;
@@ -2601,7 +2585,7 @@ extension<T, E> of AsyncResult<T, E> {
     }
 }
 
-=== checked ===
+=== dir ===
 declare class Promise<T> {
 /// @generic.template symbol=Promise parameters=(out T#1)
 /// @type.symbol symbol=Promise type=Promise
@@ -2711,9 +2695,7 @@ extension<T, E> of Result<T, E> {
         /// @type.node source=result type=() => Result<U#2, E#4 | F#1>
         /// @resolution.name source=result target=result
         /// @resolution.call source="result<U, E | F>()" parameters=() return=Result<U#2, E#4 | F#1> kind=symbol target=result instance="result<U#2, E#4 | F#1>"
-        /// @generic.instance source="result<U, E | F>()" id="Result<U#2, E#4 | F#1>"
-        /// @generic.instance source="result<U, E | F>()" id="result<U#2, E#4 | F#1>"
-        /// @generic.instance source=result id="Result<U#2, E#4 | F#1>"
+        /// @generic.instantiation id="result<U#2, E#4 | F#1>" template=result arguments=(U#2, E#4 | F#1) owner=andThen
         /// @resolution.name source=U target=andThen.U
         /// @resolution.name source=E target=E#1
         /// @resolution.name source=F target=andThen.F
@@ -2763,7 +2745,7 @@ extension<T, E> of AsyncResult<T, E> {
         /// @type.node source=AsyncResult type=AsyncResult
         /// @resolution.name source=AsyncResult target=AsyncResult
         /// @resolution.construct source="AsyncResult(this.then((result) => result.andThen(f)))" parameters=(Promise<Result<U#3, E#6 | F#2>>) arguments=(provided(this.then((result) => result.andThen(f))) as Promise<Result<U#3, E#6 | F#2>>) return=AsyncResult<U#3, E#6 | F#2> kind=newtype target=AsyncResult backing=Promise<Result<U#3, E#6 | F#2>> instance="AsyncResult<U#3, E#6 | F#2>"
-        /// @generic.instance source="AsyncResult(this.then((result) => result.andThen(f)))" id="AsyncResult<U#3, E#6 | F#2>"
+        /// @generic.instantiation id="AsyncResult<U#3, E#6 | F#2>" template=AsyncResult arguments=(U#3, E#6 | F#2) owner=andThenSync
         /// @type.node source="this.then((result) => result.andThen(f))" type=Promise<Result<U#3, E#6 | F#2>>
         /// @type.node source=this type=AsyncResult<T#7, E#6>
         /// @type.node source=this.then type=<U#1>(this: Promise<Result<T#7, E#6>>, Function<(Result<T#7, E#6>,), U#1 | Promise<U#1>>) => Promise<U#1>
@@ -2772,17 +2754,12 @@ extension<T, E> of AsyncResult<T, E> {
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=AsyncResult<T#7, E#6>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instance source="this.then((result) => result.andThen(f))" id="Promise<Result<T#7, E#6>>.then<Result<U#3, E#6 | F#2>>"
-        /// @generic.instance source="this.then((result) => result.andThen(f))" id="Promise<Result<U#3, E#6 | F#2>>"
-        /// @generic.instance source="this.then((result) => result.andThen(f))" id="Result<U#3, E#6 | F#2>"
-        /// @generic.instance source=this id="AsyncResult<T#7, E#6>"
-        /// @generic.instance source=this.then id="Promise<Result<T#7, E#6>>"
-        /// @generic.instance source=this.then id="Result<T#7, E#6>"
-        /// @generic.instance source=this.then id=Promise<U#1>
+        /// @generic.instantiation id="AsyncResult<T#7, E#6>" template=AsyncResult arguments=(T#7, E#6) owner=andThenSync
+        /// @generic.instantiation id="AsyncResult<T#7, E#6>" template=AsyncResult arguments=(T#7, E#6) owner=andThenSync
+        /// @generic.instantiation id="Promise.then<Result<T#7, E#6>, Result<U#3, E#6 | F#2>>" template=Promise.then arguments=(Result<T#7, E#6>, Result<U#3, E#6 | F#2>) owner=andThenSync
+        /// @generic.instantiation id="Promise.then<Result<T#7, E#6>>" template=Promise.then arguments=(Result<T#7, E#6>) owner=andThenSync
         /// @type.symbol symbol=andThenSync.symbol47 source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2>>
         /// @type.node source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2>>
-        /// @generic.instance source=(result) => result.andThen(f) id="Result<T#7, E#6>"
-        /// @generic.instance source=(result) => result.andThen(f) id="Result<U#3, E#6 | F#2>"
         /// @type.symbol symbol=andThenSync.symbol47.result source=result type=Result<T#7, E#6>
         /// @type.node source=result type=Result<T#7, E#6>
         /// @type.node source=result.andThen type=<U#2, F#1>(this: Result<T#7, E#6>, Function<(T#7,), Result<U#2, F#1>>) => Result<U#2, E#6 | F#1>
@@ -2792,36 +2769,15 @@ extension<T, E> of AsyncResult<T, E> {
         /// @resolution.call source=result.andThen(f) parameters=(Function<(T#7,), Result<U#3, F#2>>) arguments=(provided(f) as Function<(T#7,), Result<U#3, F#2>>) return=Result<U#3, E#6 | F#2> kind=symbol target=andThen receiver=Result<T#7, E#6> instance="Result<T#7, E#6>.<extension#1>.andThen<U#3, F#2>"
         /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=result root=andThenSync.symbol47.result
-        /// @generic.instance source=result id="Result<T#7, E#6>"
-        /// @generic.instance source=result.andThen id="Result<T#7, E#6>"
-        /// @generic.instance source=result.andThen id="Result<U#2, E#6 | F#1>"
-        /// @generic.instance source=result.andThen id="Result<U#2, F#1>"
-        /// @generic.instance source=result.andThen(f) id="Result<T#7, E#6>.<extension#1>.andThen<U#3, F#2>"
-        /// @generic.instance source=result.andThen(f) id="Result<U#3, E#6 | F#2>"
+        /// @generic.instantiation id="andThen<T#7, E#6, U#3, F#2>" template=andThen arguments=(T#7, E#6, U#3, F#2) owner=andThenSync
+        /// @generic.instantiation id="andThen<T#7, E#6>" template=andThen arguments=(T#7, E#6) owner=andThenSync
         /// @type.node source=f type=Function<(T#7,), Result<U#3, F#2>>
         /// @resolution.name source=f target=andThenSync.f
         /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=f root=andThenSync.f
-        /// @generic.instance source=f id="Result<U#3, F#2>"
 
     }
 }
-
-/// @generic.instance id="AsyncResult<T#7, E#6>" template=AsyncResult arguments=(T#7, E#6)
-/// @generic.instance id="AsyncResult<U#3, E#6 | F#2>" template=AsyncResult arguments=(U#3, E#6 | F#2)
-/// @generic.instance id="Promise<Result<T#7, E#6>>" template=Promise arguments=(Result<T#7, E#6>)
-/// @generic.instance id="Promise<Result<T#7, E#6>>.then<Result<U#3, E#6 | F#2>>" template=Promise.then arguments=(Result<T#7, E#6>, Result<U#3, E#6 | F#2>)
-/// @generic.instance id="Promise<Result<U#3, E#6 | F#2>>" template=Promise arguments=(Result<U#3, E#6 | F#2>)
-/// @generic.instance id="Result<T#4, E#3>" template=Result arguments=(T#4, E#3)
-/// @generic.instance id="Result<T#7, E#6>" template=Result arguments=(T#7, E#6)
-/// @generic.instance id="Result<T#7, E#6>.<extension#1>.andThen<U#3, F#2>" template=andThen arguments=(T#7, E#6, U#3, F#2)
-/// @generic.instance id="Result<U#2, E#4 | F#1>" template=Result arguments=(U#2, E#4 | F#1)
-/// @generic.instance id="Result<U#2, E#6 | F#1>" template=Result arguments=(U#2, E#6 | F#1)
-/// @generic.instance id="Result<U#2, F#1>" template=Result arguments=(U#2, F#1)
-/// @generic.instance id="Result<U#3, E#6 | F#2>" template=Result arguments=(U#3, E#6 | F#2)
-/// @generic.instance id="Result<U#3, F#2>" template=Result arguments=(U#3, F#2)
-/// @generic.instance id="result<U#2, E#4 | F#1>" template=result arguments=(U#2, E#4 | F#1)
-/// @generic.instance id=Promise<U#1> template=Promise arguments=(U#1)
 "#);
 }
 
@@ -2836,7 +2792,7 @@ function positive(values: int32[]): int32[] {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
     return values.map<int32, int32>((value: int32): int32 => value + 1).filter<int32>(
@@ -2844,7 +2800,7 @@ function positive(values: int32[]): int32[] {
     ) as int32[];
 }
 
-=== checked ===
+=== dir ===
 function positive(values: int32[]): int32[] {
 /// @type.symbol symbol=positive type=(Array<int32>) => Array<int32>
 /// @type.symbol symbol=positive.values source="values: int32[]" type=Array<int32>
@@ -2862,12 +2818,14 @@ function positive(values: int32[]): int32[] {
     /// @resolution.call source="values.map((value) => value + 1).filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=positive.values
-    /// @generic.instance source="values.map((value) => value + 1)" id=Array<int32>
-    /// @generic.instance source="values.map((value) => value + 1)" id=Array<int32>.<extension#3>.map#2<int32>
-    /// @generic.instance source="values.map((value) => value + 1).filter" id=Array<int32>
-    /// @generic.instance source="values.map((value) => value + 1).filter((value) => value > 0)" id=Array<int32>
-    /// @generic.instance source="values.map((value) => value + 1).filter((value) => value > 0)" id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
-    /// @generic.instance source=values.map id=Array<collections.array.map.U#2>
+    /// @generic.instantiation id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
+    /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
+    /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
+    /// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
+    /// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
+    /// @generic.instance id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
+    /// @generic.instance id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
+    /// @generic.instance id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
     /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32,), int32>
     /// @type.node source="(value) => value + 1" type=Function<(int32,), int32>
     /// @type.symbol symbol=positive.symbol3.value source=value type=int32
@@ -2890,11 +2848,6 @@ function positive(values: int32[]): int32[] {
     /// @type.node source=0 type=0
 
 }
-
-/// @generic.instance id=Array<collections.array.map.U#2> template=collections.array.Array arguments=(collections.array.map.U#2)
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=Array<int32>.<extension#3>.map#2<int32> template=collections.array.map#2 arguments=(int32, int32)
-/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32)
 "#);
 }
 
@@ -2909,7 +2862,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     return values.map<int32 | undefined, int32 | undefined>(
@@ -2920,7 +2873,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     ) as (int32 | undefined)[];
 }
 
-=== checked ===
+=== dir ===
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 /// @type.symbol symbol=defined type=(Array<int32 | undefined>) => Array<int32 | undefined>
 /// @type.symbol symbol=defined.values source="values: (int32 | undefined)[]" type=Array<int32 | undefined>
@@ -2938,12 +2891,14 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32 | undefined>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=defined.values
-    /// @generic.instance source="values.map((value) => value)" id="Array<int32 | undefined>"
-    /// @generic.instance source="values.map((value) => value)" id="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
-    /// @generic.instance source="values.map((value) => value).filter" id="Array<int32 | undefined>"
-    /// @generic.instance source="values.map((value) => value).filter((value) => value !== undefined)" id="Array<int32 | undefined>"
-    /// @generic.instance source="values.map((value) => value).filter((value) => value !== undefined)" id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
-    /// @generic.instance source=values.map id=Array<collections.array.map.U#2>
+    /// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
+    /// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
+    /// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
+    /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
+    /// @generic.instantiation id="collections.array.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined)
+    /// @generic.instance id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
+    /// @generic.instance id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
+    /// @generic.instance id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
     /// @type.symbol symbol=defined.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
     /// @type.node source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
     /// @type.symbol symbol=defined.symbol3.value source=value type=int32 | undefined
@@ -2963,10 +2918,5 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @type.node source=undefined type=undefined
 
 }
-
-/// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
-/// @generic.instance id="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
-/// @generic.instance id=Array<collections.array.map.U#2> template=collections.array.Array arguments=(collections.array.map.U#2)
-/// @generic.instance id=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1 template=collections.array.filter#1 arguments=(int32 | undefined)
 "#);
 }

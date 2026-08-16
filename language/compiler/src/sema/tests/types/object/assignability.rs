@@ -13,7 +13,7 @@ person.name satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -25,7 +25,7 @@ const person: { name: string } = source;
 
 person.name satisfies string;
 
-=== checked ===
+=== dir ===
 type Person = { name: string };
 /// @type.symbol symbol=Person source="type Person = { name: string }" type={ name: string }
 /// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
@@ -73,7 +73,7 @@ const undecided: Options = { retries: maybe };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -86,7 +86,7 @@ const explicit: { retries?: int32 } = { retries: 3 };
 const omitted: { retries?: int32 } = {};
 const undecided: { retries?: int32 } = { retries: maybe };
 
-=== checked ===
+=== dir ===
 type Options = { retries?: int32 };
 /// @type.symbol symbol=Options source="type Options = { retries?: int32 }" type={ retries?: int32 }
 /// @definition.type symbol=Options source="type Options = { retries?: int32 }" value={ retries?: int32 }
@@ -135,7 +135,7 @@ const cleared: Options = { retries: undefined };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -147,7 +147,7 @@ declare const maybe: int32 | undefined;
 const undecided: { retries?: int32 | undefined } = { retries: maybe };
 const cleared: { retries?: int32 | undefined } = { retries: undefined as int32 | undefined };
 
-=== checked ===
+=== dir ===
 type Options = { retries?: int32 | undefined };
 /// @type.symbol symbol=Options source="type Options = { retries?: int32 | undefined }" type={ retries?: int32 | undefined }
 /// @definition.type symbol=Options source="type Options = { retries?: int32 | undefined }" value={ retries?: int32 | undefined }
@@ -189,7 +189,7 @@ meter.reading = 5;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -203,7 +203,7 @@ declare let meter: { reading: string | int32 };
 const shown: string = meter.reading;
 meter.reading = 5 as string | int32;
 
-=== checked ===
+=== dir ===
 type Meter = {
 /// @type.symbol symbol=Meter type={ get reading(): string; set reading(value: string | int32) }
 /// @definition.type symbol=Meter value={ get reading(): string; set reading(value: string | int32) }
@@ -258,7 +258,7 @@ const narrowed: { tag: string } = frozen;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
        r#"
@@ -269,7 +269,7 @@ declare let frozen: { readonly tag: string };
 const widened: { readonly tag: string } = mutable;
 const narrowed: { tag: string } = frozen;
 
-=== checked ===
+=== dir ===
 declare let mutable: { tag: string };
 /// @type.symbol symbol=mutable source=mutable type={ tag: string }
 /// @resolution.pattern source=mutable kind=binding target=mutable

@@ -11,7 +11,7 @@ function bump(value: int32): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -21,7 +21,7 @@ function bump(value: int32): int32 {
     return value;
 }
 
-=== checked ===
+=== dir ===
 function bump(value: int32): int32 {
 /// @type.symbol symbol=bump type=(int32) => int32
 /// @type.symbol symbol=bump.value source="value: int32" type=int32
@@ -63,7 +63,7 @@ function bump(value: int32): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -73,7 +73,7 @@ function bump(value: int32): int32 {
     return value;
 }
 
-=== checked ===
+=== dir ===
 function bump(value: int32): int32 {
 /// @type.symbol symbol=bump type=(int32) => int32
 /// @type.symbol symbol=bump.value source="value: int32" type=int32
@@ -117,7 +117,7 @@ function bump(value: int32): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -127,7 +127,7 @@ function bump(value: int32): int32 {
     return value;
 }
 
-=== checked ===
+=== dir ===
 function bump(value: int32): int32 {
 /// @type.symbol symbol=bump type=(int32) => int32
 /// @type.symbol symbol=bump.value#1 source="value: int32" type=int32

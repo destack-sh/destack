@@ -10,7 +10,7 @@ async function fetchCount(): Promise<int32> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,15 +19,13 @@ async function fetchCount(): Promise<int32> {
     return 1;
 }
 
-=== checked ===
+=== dir ===
 async function fetchCount(): Promise<int32> {
 /// @type.symbol symbol=fetchCount type=async () => Promise<int32>
 /// @resolution.name source=Promise target=async.promise.Promise
 
     return 1;
 }
-
-/// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
 "#,
     );
 }
@@ -48,7 +46,7 @@ async function double(): Promise<int32> {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 async function fetchCount(): Promise<int32> {
     return 1;
@@ -60,7 +58,7 @@ async function double(): Promise<int32> {
     return count + count;
 }
 
-=== checked ===
+=== dir ===
 async function fetchCount(): Promise<int32> {
 /// @type.symbol symbol=fetchCount type=async () => Promise<int32>
 /// @resolution.name source=Promise target=async.promise.Promise
@@ -88,8 +86,6 @@ async function double(): Promise<int32> {
     /// @resolution.access source=count root=double.count
 
 }
-
-/// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
 "#);
 }
 
@@ -112,7 +108,7 @@ async function sum(): Promise<int32> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 async function* stream(): AsyncGenerator<int32, void, void> {
     yield 1;
@@ -127,7 +123,7 @@ async function sum(): Promise<int32> {
     return total;
 }
 
-=== checked ===
+=== dir ===
 async function* stream(): AsyncGenerator<int32, void, void> {
 /// @type.symbol symbol=stream type=async () => *AsyncGenerator<int32, void, void>
 /// @resolution.name source=AsyncGenerator target=async.generator.AsyncGenerator
@@ -167,9 +163,6 @@ async function sum(): Promise<int32> {
     /// @resolution.access source=total root=sum.total
 
 }
-
-/// @generic.instance id="AsyncGenerator<int32, void, void>" template=async.generator.AsyncGenerator arguments=(int32, void, void)
-/// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
 "#, r#"
 /// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
 /// @diagnostic.label line=8 column=5 span="for" line_source="for await (const value of stream()) {"

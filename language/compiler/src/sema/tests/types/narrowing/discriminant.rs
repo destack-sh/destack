@@ -27,7 +27,7 @@ function read<T>(state: State<T>): T {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending<out T> {
     kind: "pending" = "pending";
@@ -49,7 +49,7 @@ function read<T>(state: State<T>): T {
     return state.waiting;
 }
 
-=== checked ===
+=== dir ===
 struct Pending<T> {
 /// @generic.template symbol=Pending parameters=(out T#1)
 /// @type.symbol symbol=Pending type=Pending
@@ -116,7 +116,7 @@ function read<T>(state: State<T>): T {
     /// @resolution.access source=state root=read.state
     /// @resolution.place source=state.kind placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state.kind root=read.state keys=[kind]
-    /// @generic.instance source=state id=State<T#4>
+    /// @generic.instantiation id=State<T#4> template=State arguments=(T#4) owner=read
     /// @type.node source="\"ready\"" type="ready"
 
         return state.value;
@@ -128,7 +128,6 @@ function read<T>(state: State<T>): T {
         /// @resolution.access source=state root=read.state
         /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state.value root=read.state keys=[value]
-        /// @generic.instance source=state id=Ready<T#4>
 
     }
 
@@ -141,13 +140,8 @@ function read<T>(state: State<T>): T {
     /// @resolution.access source=state root=read.state
     /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state.waiting root=read.state keys=[waiting]
-    /// @generic.instance source=state id=Pending<T#4>
 
 }
-
-/// @generic.instance id=Pending<T#4> template=Pending arguments=(T#4)
-/// @generic.instance id=Ready<T#4> template=Ready arguments=(T#4)
-/// @generic.instance id=State<T#4> template=State arguments=(T#4)
 "#);
 }
 
@@ -187,7 +181,7 @@ function read<T>(state: State<T>): T {
         )
         .build();
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 import { State } from "./state.ds";
 
@@ -199,7 +193,7 @@ function read<T>(state: State<T>): T {
     return state.waiting;
 }
 
-=== checked ===
+=== dir ===
 import { State } from "./state.ds";
 
 function read<T>(state: State<T>): T {
@@ -222,7 +216,7 @@ function read<T>(state: State<T>): T {
     /// @resolution.access source=state root=read.state
     /// @resolution.place source=state.kind placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state.kind root=read.state keys=[kind]
-    /// @generic.instance source=state id=state.State<T>
+    /// @generic.instantiation id=state.State<T> template=state.State arguments=(T) owner=read
     /// @type.node source="\"ready\"" type="ready"
 
         return state.value;
@@ -234,7 +228,6 @@ function read<T>(state: State<T>): T {
         /// @resolution.access source=state root=read.state
         /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state.value root=read.state keys=[value]
-        /// @generic.instance source=state id=state.Ready<T>
 
     }
 
@@ -247,13 +240,8 @@ function read<T>(state: State<T>): T {
     /// @resolution.access source=state root=read.state
     /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state.waiting root=read.state keys=[waiting]
-    /// @generic.instance source=state id=state.Pending<T>
 
 }
-
-/// @generic.instance id=state.Pending<T> template=state.Pending arguments=(T)
-/// @generic.instance id=state.Ready<T> template=state.Ready arguments=(T)
-/// @generic.instance id=state.State<T> template=state.State arguments=(T)
 "#);
 }
 
@@ -275,7 +263,7 @@ function read(source: Source): "ready" {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -292,7 +280,7 @@ function read(source: Dynamic<Source>): "ready" {
     return "ready";
 }
 
-=== checked ===
+=== dir ===
 interface Source {
 /// @type.symbol symbol=Source type=Source
 /// @definition.interface symbol=Source
@@ -349,7 +337,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -362,7 +350,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
     return "ready";
 }
 
-=== checked ===
+=== dir ===
 function read(values: ("pending" | "ready")[]): "ready" {
 /// @type.symbol symbol=read type=(Array<"pending" | "ready">) => "ready"
 /// @type.symbol symbol=read.values source="values: (\"pending\" | \"ready\")[]" type=Array<"pending" | "ready">
@@ -375,7 +363,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=read.values keys=[0]
     /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
-    /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#5>.index#1<\"exclusive\">"
+    /// @generic.instantiation id="collections.array.index#1<\"pending\" | \"ready\", \"exclusive\">" template=collections.array.index#1 arguments=("pending" | "ready", "exclusive")
 
         return values[0];
         /// @resolution.name source=values target=read.values
@@ -384,14 +372,12 @@ function read(values: ("pending" | "ready")[]): "ready" {
         /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values[0] root=read.values keys=[0]
         /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
-        /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#5>.index#1<\"exclusive\">"
+        /// @generic.instantiation id="collections.array.index#1<\"pending\" | \"ready\", \"exclusive\">" template=collections.array.index#1 arguments=("pending" | "ready", "exclusive")
 
     }
 
     return "ready";
 }
-
-/// @generic.instance id="Array<\"pending\" | \"ready\">.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=("pending" | "ready", "exclusive")
 "#,
         r#"
 
@@ -425,7 +411,7 @@ function read(state: State): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -450,7 +436,7 @@ function read(state: Dynamic<Pending> | Dynamic<Fulfilled>): int32 {
     return state.value;
 }
 
-=== checked ===
+=== dir ===
 interface Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending
@@ -557,7 +543,7 @@ function read(state: State): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -582,7 +568,7 @@ function read(state: Dynamic<Pending> | Dynamic<Fulfilled>): int32 {
     return state.value;
 }
 
-=== checked ===
+=== dir ===
 interface Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending
@@ -693,7 +679,7 @@ function read(initial: State, next: State): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -724,7 +710,7 @@ function read(
     return state.value;
 }
 
-=== checked ===
+=== dir ===
 interface Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending
@@ -884,7 +870,7 @@ class Cell<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -939,7 +925,7 @@ class Cell<in out T> {
     }
 }
 
-=== checked ===
+=== dir ===
 class Waiter<T> {
 /// @generic.template symbol=Waiter parameters=(in out T#1)
 /// @type.symbol symbol=Waiter type=Waiter
@@ -1106,7 +1092,8 @@ class Cell<T> {
             /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
             /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=this root=this
-            /// @generic.instance source=this.consume(this.state.value) id=Cell<T#5>.consume
+            /// @generic.instantiation id=Cell.consume<T#5> template=Cell.consume arguments=(T#5) owner=Cell
+            /// @generic.instantiation id=Cell.consume<T#5> template=Cell.consume arguments=(T#5) owner=Cell
             /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
             /// @resolution.member source=this.state.value receiver=Fulfilled<T#5> type=T#5 kind=field target_receiver=Fulfilled<T#5> key=value target=Fulfilled.value target_type=T#5
             /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
@@ -1195,15 +1182,6 @@ class Cell<T> {
         }
     }
 }
-
-/// @generic.instance id=Cell<T#5>.consume template=Cell.consume arguments=(T#5)
-/// @generic.instance id=Fulfilled<T#4> template=Fulfilled arguments=(T#4)
-/// @generic.instance id=Pending<T#4> template=Pending arguments=(T#4)
-/// @generic.instance id=Pending<T#5> template=Pending arguments=(T#5)
-/// @generic.instance id=State<T#5> template=State arguments=(T#5)
-/// @generic.instance id=Waiter<T#1> template=Waiter arguments=(T#1)
-/// @generic.instance id=Waiter<T#2> template=Waiter arguments=(T#2)
-/// @generic.instance id=Waiter<T#5> template=Waiter arguments=(T#5)
 "#,
     );
 }
@@ -1232,7 +1210,7 @@ class Child extends Base {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1255,7 +1233,7 @@ class Child extends Base {
     }
 }
 
-=== checked ===
+=== dir ===
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
@@ -1353,7 +1331,7 @@ class Child extends Base {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 class Base {
     label: string | undefined = undefined as string | undefined;
@@ -1373,7 +1351,7 @@ class Child extends Base {
     }
 }
 
-=== checked ===
+=== dir ===
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
@@ -1472,7 +1450,7 @@ class Child extends Base {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 class Base {
     label: string | undefined = undefined as string | undefined;
@@ -1494,7 +1472,7 @@ class Child extends Base {
     }
 }
 
-=== checked ===
+=== dir ===
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
@@ -1591,7 +1569,7 @@ function read(this: Box): string {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 class Box {
     label: string | undefined = undefined as string | undefined;
@@ -1605,7 +1583,7 @@ function read(this: Box): string {
     return this.label;
 }
 
-=== checked ===
+=== dir ===
 class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
@@ -1672,7 +1650,7 @@ function read(state: &readonly State): int32 {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending" = "pending";
@@ -1697,7 +1675,7 @@ function read<'a>(state: &'a readonly State): int32 {
     return state.waiting;
 }
 
-=== checked ===
+=== dir ===
 struct Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.struct symbol=Pending
@@ -1806,7 +1784,7 @@ function read(frame: Frame): int32 {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Header {
     version: 1;
@@ -1828,7 +1806,7 @@ function read(frame: Header | Trailer): int32 {
     return frame.checksum;
 }
 
-=== checked ===
+=== dir ===
 struct Header {
 /// @type.symbol symbol=Header type=Header
 /// @definition.struct symbol=Header
@@ -1935,7 +1913,7 @@ function read(outcome: Outcome): int32 {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Success {
     ok: true;
@@ -1957,7 +1935,7 @@ function read(outcome: Success | Failure): int32 {
     return outcome.code;
 }
 
-=== checked ===
+=== dir ===
 struct Success {
 /// @type.symbol symbol=Success type=Success
 /// @definition.struct symbol=Success
@@ -2064,7 +2042,7 @@ function read(state: State): int32 {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending" = "pending";
@@ -2086,7 +2064,7 @@ function read(state: State): int32 {
     return state.value;
 }
 
-=== checked ===
+=== dir ===
 struct Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.struct symbol=Pending
@@ -2194,7 +2172,7 @@ function read(state: State): int32 {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending" = "pending";
@@ -2216,7 +2194,7 @@ function read(state: State): int32 {
     return state.waiting;
 }
 
-=== checked ===
+=== dir ===
 struct Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.struct symbol=Pending
@@ -2325,7 +2303,7 @@ function read(state: &readonly State): int32 {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending";
@@ -2350,7 +2328,7 @@ function read<'a>(state: &'a readonly (Pending | Ready)): int32 {
     return state.waiting;
 }
 
-=== checked ===
+=== dir ===
 struct Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.struct symbol=Pending
@@ -2458,7 +2436,7 @@ function read(state: State): int32 {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 interface Pending {
     kind: "pending";
@@ -2480,7 +2458,7 @@ function read(state: Dynamic<Pending> | Dynamic<Fulfilled>): int32 {
     return state.reactions;
 }
 
-=== checked ===
+=== dir ===
 interface Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending

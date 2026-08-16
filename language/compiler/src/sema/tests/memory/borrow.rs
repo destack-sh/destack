@@ -17,7 +17,7 @@ sharedView satisfies shared &readonly User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_node_types().with_coercion(),
         r#"
@@ -33,7 +33,7 @@ const sharedView: shared &'static readonly User = &readonly sharedUser;
 localView satisfies local &readonly User;
 sharedView satisfies shared &readonly User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -94,7 +94,7 @@ const coerced = user as local &readonly User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_node_types().with_coercion(),
         r#"
@@ -106,7 +106,7 @@ declare const user: local User;
 const projected: local &'static readonly User = &readonly user;
 const coerced: local &'static readonly User = user as local &readonly User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -151,7 +151,7 @@ const readonlyExclusive = &exclusive readonlyUser;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -165,7 +165,7 @@ const sharedExclusive: shared &'static exclusive User = &exclusive sharedUser;
 const readonlyMutable: local &'static readonly User = &readonlyUser;
 const readonlyExclusive: local &'static exclusive readonly User = &exclusive readonlyUser;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -235,7 +235,7 @@ modify(&exclusive user);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_node_types().with_coercion(),
         r#"
@@ -251,7 +251,7 @@ modify(&user);
 inspect(&exclusive user);
 modify(&exclusive user);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -329,7 +329,7 @@ replace(mutableView);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -345,7 +345,7 @@ modify(readonlyView);
 replace(readonlyView);
 replace(mutableView);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -426,7 +426,7 @@ function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node):
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -445,7 +445,7 @@ function access<'a, 'b, 'c>(
     exclusive.id;
 }
 
-=== checked ===
+=== dir ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
 /// @definition.struct symbol=Node
@@ -511,7 +511,7 @@ point.x satisfies local int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -526,7 +526,7 @@ let x: &'static readonly int32 = &readonly point.x;
 x satisfies &readonly int32;
 point.x satisfies local int32;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -590,7 +590,7 @@ borrow satisfies &readonly [int32; 3];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -600,7 +600,7 @@ let borrow: &'static readonly [int32; 3] = &readonly values;
 
 borrow satisfies &readonly [int32; 3];
 
-=== checked ===
+=== dir ===
 let values: [int32; 3] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 3>
 /// @resolution.pattern source=values kind=binding target=values

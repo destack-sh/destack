@@ -11,7 +11,7 @@ const value = use(() => {});
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -21,7 +21,7 @@ declare function use<T>(callback: () => T | Box<T>): T;
 
 const value: void = use<void>((): void | Box<void> => {});
 
-=== checked ===
+=== dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
@@ -45,15 +45,10 @@ const value = use(() => {});
 /// @type.node source=use type=(Function<(), void | Box<void>>) => void
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => {})" parameters=(Function<(), void | Box<void>>) arguments=(provided(() => {}) as Function<(), void | Box<void>>) return=void kind=symbol target=use instance=use<void>
-/// @generic.instance source="use(() => {})" id=use<void>
-/// @generic.instance source=use id=Box<void>
+/// @generic.instantiation id=use<void> template=use arguments=(void)
+/// @generic.instance id=use<void> template=use arguments=(void)
 /// @type.symbol symbol=symbol6 source="() => {}" type=Function<(), void | Box<void>>
 /// @type.node source="() => {}" type=Function<(), void | Box<void>>
-/// @generic.instance source="() => {}" id=Box<void>
-
-/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
-/// @generic.instance id=Box<void> template=Box arguments=(void)
-/// @generic.instance id=use<void> template=use arguments=(void)
 "#,
     );
 }
@@ -70,7 +65,7 @@ const value = use(() => load());
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -81,7 +76,7 @@ declare function use(callback: () => int32 | Box<int32>): int32;
 
 const value: int32 = use((): int32 => load());
 
-=== checked ===
+=== dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T)
 /// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
@@ -103,15 +98,12 @@ const value = use(() => load());
 /// @type.node source=use type=(Function<(), int32 | Box<int32>>) => int32
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => load())" parameters=(Function<(), int32 | Box<int32>>) arguments=(provided(() => load()) as Function<(), int32 | Box<int32>>) return=int32 kind=symbol target=use
-/// @generic.instance source=use id=Box<int32>
 /// @type.symbol symbol=symbol6 source=() => load() type=Function<(), int32>
 /// @type.node source=() => load() type=Function<(), int32>
 /// @type.node source=load type=() => int32
 /// @type.node source=load() type=int32
 /// @resolution.name source=load target=load
 /// @resolution.call source=load() parameters=() return=int32 kind=symbol target=load
-
-/// @generic.instance id=Box<int32> template=Box arguments=(int32)
 "#,
     );
 }
@@ -128,7 +120,7 @@ const value = use(() => make());
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -139,7 +131,7 @@ declare function use<T>(callback: () => Box<T> | Box<Box<T>>): T;
 
 const value = use((): Box<Box<int32>> => make());
 
-=== checked ===
+=== dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
@@ -170,29 +162,13 @@ const value = use(() => make());
 /// @type.node source=use type=(Function<(), Box<<error>> | Box<Box<<error>>>>) => <error>
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => make())" parameters=(Function<(), Box<<error>> | Box<Box<<error>>>>) arguments=(provided(() => make()) as Function<(), Box<<error>> | Box<Box<<error>>>>) return=<error> kind=symbol target=use instance=use<<error>>
-/// @generic.instance source="use(() => make())" id=use<<error>>
-/// @generic.instance source=use id=Box<<error>>
-/// @generic.instance source=use id=Box<Box<<error>>>
+/// @generic.instantiation id=use<<error>> template=use arguments=(<error>)
 /// @type.symbol symbol=symbol7 source=() => make() type=Function<(), Box<Box<int32>>>
 /// @type.node source=() => make() type=Function<(), Box<Box<int32>>>
-/// @generic.instance source=() => make() id=Box<Box<int32>>
-/// @generic.instance source=() => make() id=Box<int32>
 /// @type.node source=make type=() => Box<Box<int32>>
 /// @type.node source=make() type=Box<Box<int32>>
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=Box<Box<int32>> kind=symbol target=make
-/// @generic.instance source=make id=Box<Box<int32>>
-/// @generic.instance source=make id=Box<int32>
-/// @generic.instance source=make() id=Box<Box<int32>>
-/// @generic.instance source=make() id=Box<int32>
-
-/// @generic.instance id=Box<<error>> template=Box arguments=(<error>)
-/// @generic.instance id=Box<Box<<error>>> template=Box arguments=(Box<<error>>)
-/// @generic.instance id=Box<Box<T#2>> template=Box arguments=(Box<T#2>)
-/// @generic.instance id=Box<Box<int32>> template=Box arguments=(Box<int32>)
-/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
-/// @generic.instance id=Box<int32> template=Box arguments=(int32)
-/// @generic.instance id=use<<error>> template=use arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Box<Box<int32>>' is not assignable to type 'Box<_> | Box<Box<_>>'"
@@ -215,7 +191,7 @@ const value = map(1, (item) => item);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -224,7 +200,7 @@ declare function map<T, U>(value: T, callback: (arg0: T) => U): U;
 
 const value: float64 = map<float64, float64>(1, (item: float64): float64 => item);
 
-=== checked ===
+=== dir ===
 declare function map<T, U>(value: T, callback: (value: T) => U): U;
 /// @generic.template symbol=map parameters=(T, U)
 /// @type.symbol symbol=map source="declare function map<T, U>(value: T, callback: (value: T) => U): U" type=<T, U>(T, Function<(T,), U>) => U
@@ -245,7 +221,8 @@ const value = map(1, (item) => item);
 /// @type.node source=map type=(float64, Function<(float64,), float64>) => float64
 /// @resolution.name source=map target=map
 /// @resolution.call source="map(1, (item) => item)" parameters=(float64, Function<(float64,), float64>) arguments=(provided(1) as float64, provided((item) => item) as Function<(float64,), float64>) return=float64 kind=symbol target=map instance="map<float64, float64>"
-/// @generic.instance source="map(1, (item) => item)" id="map<float64, float64>"
+/// @generic.instantiation id="map<float64, float64>" template=map arguments=(float64, float64)
+/// @generic.instance id="map<float64, float64>" template=map arguments=(float64, float64)
 /// @type.node source=1 type=1
 /// @type.symbol symbol=symbol7 source="(item) => item" type=Function<(float64,), float64>
 /// @type.node source="(item) => item" type=Function<(float64,), float64>
@@ -254,8 +231,6 @@ const value = map(1, (item) => item);
 /// @resolution.name source=item target=symbol7.item
 /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=item root=symbol7.item
-
-/// @generic.instance id="map<float64, float64>" template=map arguments=(float64, float64)
 "#,
     );
 }
@@ -273,7 +248,7 @@ const mapped = box.map((value) => value);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -285,7 +260,7 @@ declare class Box<out T> {
 declare const box: Box<int32>;
 const mapped: Box<int32> = box.map<int32, int32>((value: int32): int32 => value);
 
-=== checked ===
+=== dir ===
 declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
@@ -322,11 +297,9 @@ const mapped = box.map((value) => value);
 /// @resolution.call source="box.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Box<int32> kind=symbol target=Box.map receiver=Box<int32> instance=Box<int32>.map<int32>
 /// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=box root=box
-/// @generic.instance source="box.map((value) => value)" id=Box<int32>
-/// @generic.instance source="box.map((value) => value)" id=Box<int32>.map<int32>
-/// @generic.instance source=box id=Box<int32>
-/// @generic.instance source=box.map id=Box<U>
-/// @generic.instance source=box.map id=Box<int32>
+/// @generic.instantiation id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
+/// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
+/// @generic.instance id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
 /// @type.symbol symbol=symbol9 source="(value) => value" type=Function<(int32,), int32>
 /// @type.node source="(value) => value" type=Function<(int32,), int32>
 /// @type.symbol symbol=symbol9.value source=value type=int32
@@ -334,10 +307,6 @@ const mapped = box.map((value) => value);
 /// @resolution.name source=value target=symbol9.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol9.value
-
-/// @generic.instance id=Box<U> template=Box arguments=(U)
-/// @generic.instance id=Box<int32> template=Box arguments=(int32)
-/// @generic.instance id=Box<int32>.map<int32> template=Box.map arguments=(int32, int32)
 "#,
     );
 }
@@ -353,7 +322,7 @@ const value = map(1, (item) => item);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -363,7 +332,7 @@ declare function map<T, U>(value: T, callback: (arg0: T) => U | Box<U>): U;
 
 const value: float64 = map<float64, float64>(1, (item: float64): float64 => item);
 
-=== checked ===
+=== dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
@@ -392,8 +361,8 @@ const value = map(1, (item) => item);
 /// @type.node source=map type=(float64, Function<(float64,), float64 | Box<float64>>) => float64
 /// @resolution.name source=map target=map
 /// @resolution.call source="map(1, (item) => item)" parameters=(float64, Function<(float64,), float64 | Box<float64>>) arguments=(provided(1) as float64, provided((item) => item) as Function<(float64,), float64 | Box<float64>>) return=float64 kind=symbol target=map instance="map<float64, float64>"
-/// @generic.instance source="map(1, (item) => item)" id="map<float64, float64>"
-/// @generic.instance source=map id=Box<float64>
+/// @generic.instantiation id="map<float64, float64>" template=map arguments=(float64, float64)
+/// @generic.instance id="map<float64, float64>" template=map arguments=(float64, float64)
 /// @type.node source=1 type=1
 /// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(float64,), float64>
 /// @type.node source="(item) => item" type=Function<(float64,), float64>
@@ -402,10 +371,6 @@ const value = map(1, (item) => item);
 /// @resolution.name source=item target=symbol9.item
 /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=item root=symbol9.item
-
-/// @generic.instance id="map<float64, float64>" template=map arguments=(float64, float64)
-/// @generic.instance id=Box<U> template=Box arguments=(U)
-/// @generic.instance id=Box<float64> template=Box arguments=(float64)
 "#,
     );
 }
@@ -423,7 +388,7 @@ const value = box.map((item) => item);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -435,7 +400,7 @@ declare class Box<out T> {
 declare const box: Box<int32>;
 const value: int32 = box.map<int32, int32>((item: int32): int32 => item);
 
-=== checked ===
+=== dir ===
 declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
@@ -473,10 +438,9 @@ const value = box.map((item) => item);
 /// @resolution.call source="box.map((item) => item)" parameters=(Function<(int32,), int32 | Box<int32>>) arguments=(provided((item) => item) as Function<(int32,), int32 | Box<int32>>) return=int32 kind=symbol target=Box.map receiver=Box<int32> instance=Box<int32>.map<int32>
 /// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=box root=box
-/// @generic.instance source="box.map((item) => item)" id=Box<int32>.map<int32>
-/// @generic.instance source=box id=Box<int32>
-/// @generic.instance source=box.map id=Box<U>
-/// @generic.instance source=box.map id=Box<int32>
+/// @generic.instantiation id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
+/// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
+/// @generic.instance id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
 /// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int32,), int32>
 /// @type.node source="(item) => item" type=Function<(int32,), int32>
 /// @type.symbol symbol=symbol9.item source=item type=int32
@@ -484,10 +448,6 @@ const value = box.map((item) => item);
 /// @resolution.name source=item target=symbol9.item
 /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=item root=symbol9.item
-
-/// @generic.instance id=Box<U> template=Box arguments=(U)
-/// @generic.instance id=Box<int32> template=Box arguments=(int32)
-/// @generic.instance id=Box<int32>.map<int32> template=Box.map arguments=(int32, int32)
 "#,
     );
 }

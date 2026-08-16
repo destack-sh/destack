@@ -16,7 +16,7 @@ struct User {}
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -31,7 +31,7 @@ struct View<'a> {
 
 struct User {}
 
-=== checked ===
+=== dir ===
 interface Holder<'a, T: View<'a>> {
 /// @generic.template symbol=Holder parameters=('a#1, in out T: View<'a#1>)
 /// @type.symbol symbol=Holder type=Holder
@@ -101,7 +101,7 @@ export struct Foo<'a> {
         )
         .build();
 
-    compiler.assert_dir_checked_many(
+    compiler.assert_dir_many(
         &["a.ds", "b.ds"],
         DirRows::checked().with_reference_types(),
         r#"
@@ -114,7 +114,7 @@ export struct Foo<'a> {
     baz: Baz<'a>;
 }
 
-=== checked ===
+=== dir ===
 import { Baz } from "./b.ds";
 
 export struct Foo<'a> {
@@ -131,8 +131,6 @@ export struct Foo<'a> {
 
 }
 
-/// @generic.instance id=b.Baz<'a> template=b.Baz arguments=('a)
-
 === b.ds ===
 
 === annotated ===
@@ -148,7 +146,7 @@ export struct Baz<'a> {
 
 export struct User {}
 
-=== checked ===
+=== dir ===
 import { Foo } from "./a.ds";
 
 export struct Bar<'a> {
@@ -182,8 +180,6 @@ export struct Baz<'a> {
 export struct User {}
 /// @type.symbol symbol=User source="export struct User {}" type=User
 /// @definition.struct symbol=User source="export struct User {}"
-
-/// @generic.instance id=a.Foo<'a#1> template=a.Foo arguments=('a#1)
 "#,
     );
 }
@@ -209,7 +205,7 @@ type Wrapped<T> = Box<T>;
         )
         .build();
 
-    compiler.assert_dir_checked_many(
+    compiler.assert_dir_many(
         &["lib.ds", "main.ds"],
         DirRows::checked().with_reference_types(),
         r#"
@@ -220,7 +216,7 @@ export interface Box<in out T> {
     value: T;
 }
 
-=== checked ===
+=== dir ===
 export interface Box<T> {
 /// @generic.template symbol=Box parameters=(in out T)
 /// @type.symbol symbol=Box type=Box
@@ -242,7 +238,7 @@ import { Box } from "./lib.ds";
 
 type Wrapped<T> = Box<T>;
 
-=== checked ===
+=== dir ===
 import { Box } from "./lib.ds";
 
 type Wrapped<T> = Box<T>;
@@ -252,8 +248,6 @@ type Wrapped<T> = Box<T>;
 /// @type.symbol symbol=Wrapped.T source=T type=T
 /// @resolution.name source=Box target=lib.Box
 /// @resolution.name source=T target=Wrapped.T
-
-/// @generic.instance id=lib.Box<T> template=lib.Box arguments=(T)
 "#,
     );
 }
@@ -281,7 +275,7 @@ type Used = Equal<string>;
         )
         .build();
 
-    compiler.assert_dir_checked_many(
+    compiler.assert_dir_many(
         &["ops.ds", "main.ds"],
         DirRows::checked().with_reference_types(),
         r#"
@@ -294,7 +288,7 @@ export newtype interface PartialEqual<in T = this> {
 
 export newtype interface Equal<in T = this> extends PartialEqual<T> {}
 
-=== checked ===
+=== dir ===
 export newtype interface PartialEqual<T = this> {
 /// @generic.template symbol=PartialEqual parameters=(in T#1 = this)
 /// @type.symbol symbol=PartialEqual type=PartialEqual
@@ -327,15 +321,13 @@ import { Equal } from "./ops.ds";
 
 type Used = Equal<string>;
 
-=== checked ===
+=== dir ===
 import { Equal } from "./ops.ds";
 
 type Used = Equal<string>;
 /// @type.symbol symbol=Used source="type Used = Equal<string>" type=ops.Equal<string>
 /// @definition.type symbol=Used source="type Used = Equal<string>" value=ops.Equal<string>
 /// @resolution.name source=Equal target=ops.Equal
-
-/// @generic.instance id=ops.Equal<string> template=ops.Equal arguments=(string)
 "#,
     );
 }
@@ -362,7 +354,7 @@ const text = identity("x");
         )
         .build();
 
-    compiler.assert_dir_checked_many(
+    compiler.assert_dir_many(
         &["lib.ds", "main.ds"],
         DirRows::checked().with_reference_types(),
         r#"
@@ -373,7 +365,7 @@ export function identity<T>(value: T): T {
     return value;
 }
 
-=== checked ===
+=== dir ===
 export function identity<T>(value: T): T {
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity type=<T>(T) => T
@@ -398,7 +390,7 @@ import { identity } from "./lib.ds";
 const number: 1 = identity<1>(1);
 const text: "x" = identity<"x">("x");
 
-=== checked ===
+=== dir ===
 import { identity } from "./lib.ds";
 
 const number = identity(1);
@@ -408,7 +400,8 @@ const number = identity(1);
 /// @type.node source=identity(1) type=1
 /// @resolution.name source=identity target=lib.identity
 /// @resolution.call source=identity(1) parameters=(1) arguments=(provided(1) as 1) return=1 kind=symbol target=lib.identity instance=lib.identity<1>
-/// @generic.instance source=identity(1) id=lib.identity<1>
+/// @generic.instantiation id=lib.identity<1> template=lib.identity arguments=(1)
+/// @generic.instance id=lib.identity<1> template=lib.identity arguments=(1)
 /// @type.node source=1 type=1
 
 const text = identity("x");
@@ -418,11 +411,9 @@ const text = identity("x");
 /// @type.node source=identity type=("x") => "x"
 /// @resolution.name source=identity target=lib.identity
 /// @resolution.call source="identity(\"x\")" parameters=("x") arguments=(provided("x") as "x") return="x" kind=symbol target=lib.identity instance="lib.identity<\"x\">"
-/// @generic.instance source="identity(\"x\")" id="lib.identity<\"x\">"
-/// @type.node source="\"x\"" type="x"
-
+/// @generic.instantiation id="lib.identity<\"x\">" template=lib.identity arguments=("x")
 /// @generic.instance id="lib.identity<\"x\">" template=lib.identity arguments=("x")
-/// @generic.instance id=lib.identity<1> template=lib.identity arguments=(1)
+/// @type.node source="\"x\"" type="x"
 "#,
     );
 }
@@ -448,7 +439,7 @@ const text = identity("x");
         )
         .build();
 
-    compiler.assert_dir_checked_diagnostics(
+    compiler.assert_dir_diagnostics(
         "lib.ds",
         r#"
 /// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
@@ -457,7 +448,7 @@ const text = identity("x");
 "#,
     );
 
-    compiler.assert_dir_checked_and_diagnostics(
+    compiler.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -466,7 +457,7 @@ import { identity } from "./lib.ds";
 
 const text = identity<string>("x");
 
-=== checked ===
+=== dir ===
 import { identity } from "./lib.ds";
 
 const text = identity("x");
@@ -476,10 +467,8 @@ const text = identity("x");
 /// @type.node source=identity type=(string) => <error>
 /// @resolution.name source=identity target=lib.identity
 /// @resolution.call source="identity(\"x\")" parameters=(string) arguments=(provided("x") as string) return=<error> kind=symbol target=lib.identity instance=lib.identity<string>
-/// @generic.instance source="identity(\"x\")" id=lib.identity<string>
+/// @generic.instantiation id=lib.identity<string> template=lib.identity arguments=(string)
 /// @type.node source="\"x\"" type="x"
-
-/// @generic.instance id=lib.identity<string> template=lib.identity arguments=(string)
 "#,
         r#"
 /// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
@@ -502,7 +491,7 @@ const value = probe(todo("iter"));
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -514,7 +503,7 @@ interface Iter<out T, in out R = unknown> {
 declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
-=== checked ===
+=== dir ===
 interface Iter<T, in out R = unknown> {
 /// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
@@ -542,8 +531,6 @@ const value = probe(todo("iter"));
 /// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<Iter<int32, unknown>>) arguments=(provided(todo("iter")) as Dynamic<Iter<int32, unknown>>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
-
-/// @generic.instance id="Iter<int32, unknown>" template=Iter arguments=(int32, unknown)
 "#,
         "",
     );
@@ -577,7 +564,7 @@ const value = probe(todo("iter"));
         )
         .build();
 
-    session.assert_dir_checked_many(
+    session.assert_dir_many(
         &["inner.ds", "lib.ds", "main.ds"],
         DirRows::checked(),
         r#"
@@ -588,7 +575,7 @@ export newtype interface Iter<out T, in out R = unknown> {
     next(): T;
 }
 
-=== checked ===
+=== dir ===
 export newtype interface Iter<T, in out R = unknown> {
 /// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
@@ -609,7 +596,7 @@ export newtype interface Iter<T, in out R = unknown> {
 === annotated ===
 export { Iter } from "./inner.ds";
 
-=== checked ===
+=== dir ===
 export { Iter } from "./inner.ds";
 
 === main.ds ===
@@ -620,7 +607,7 @@ import { Iter } from "./lib.ds";
 declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
-=== checked ===
+=== dir ===
 import { Iter } from "./lib.ds";
 
 declare function probe(values: Iter<int32>): boolean;
@@ -635,9 +622,6 @@ const value = probe(todo("iter"));
 /// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<inner.Iter<int32>>) arguments=(provided(todo("iter")) as Dynamic<inner.Iter<int32>>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
-
-/// @generic.instance id="inner.Iter<int32, unknown>" template=inner.Iter arguments=(int32, unknown)
-/// @generic.instance id=inner.Iter<int32> template=inner.Iter arguments=(int32)
 "#,
     );
 }
@@ -671,7 +655,7 @@ export interface Iter<T, in out R = unknown> {
         )
         .build();
 
-    session.assert_dir_checked_many(
+    session.assert_dir_many(
         &["a.ds", "b.ds"],
         DirRows::checked(),
         r#"
@@ -687,7 +671,7 @@ export interface Marker {
 declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
-=== checked ===
+=== dir ===
 import { Iter } from "./b.ds";
 
 export interface Marker {
@@ -713,9 +697,6 @@ const value = probe(todo("iter"));
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
-/// @generic.instance id="b.Iter<int32, unknown>" template=b.Iter arguments=(int32, unknown)
-/// @generic.instance id=b.Iter<int32> template=b.Iter arguments=(int32)
-
 === b.ds ===
 
 === annotated ===
@@ -726,7 +707,7 @@ export interface Iter<out T, in out R = unknown> {
     mark(): Marker;
 }
 
-=== checked ===
+=== dir ===
 import { Marker } from "./a.ds";
 
 export interface Iter<T, in out R = unknown> {
@@ -771,7 +752,7 @@ const out = unwrap(built);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -789,7 +770,7 @@ function unwrap(wrapped: Wrap<float64>): float64 {
 const built: Wrap<float64> = Wrap<float64> { value: 1 };
 const out: float64 = unwrap(built);
 
-=== checked ===
+=== dir ===
 struct Wrap<T> {
 /// @generic.template symbol=Wrap parameters=(out T)
 /// @type.symbol symbol=Wrap type=Wrap
@@ -816,7 +797,7 @@ function unwrap(wrapped: Wrap<float64>): float64 {
         Wrap { value } => value
         /// @resolution.name source=Wrap target=Wrap
         /// @resolution.pattern source="Wrap { value }" kind=nominal_object target=Wrap instance=Wrap<float64> fields={ Wrap.value }
-        /// @generic.instance source="Wrap { value }" id=Wrap<float64>
+        /// @generic.instantiation id=Wrap<float64> template=Wrap arguments=(float64)
         /// @type.symbol symbol=unwrap.value source=value type=float64
         /// @resolution.name source=value target=unwrap.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -838,8 +819,6 @@ const out = unwrap(built);
 /// @resolution.name source=built target=built
 /// @resolution.place source=built placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=built root=built
-
-/// @generic.instance id=Wrap<float64> template=Wrap arguments=(float64)
 "#,
         "",
     );
@@ -878,7 +857,7 @@ scenario.trigger satisfies Trigger;
         )
         .build();
 
-    compiler.assert_dir_checked_many(
+    compiler.assert_dir_many(
         &["trigger.ds", "main.ds"],
         DirRows::checked(),
         r#"
@@ -895,7 +874,7 @@ export struct Trigger {
     predicate?: Predicate;
 }
 
-=== checked ===
+=== dir ===
 export struct Attempt {
 /// @type.symbol symbol=Attempt type=Attempt
 /// @definition.struct symbol=Attempt
@@ -937,7 +916,7 @@ declare let scenario: Scenario;
 
 scenario.trigger satisfies Trigger;
 
-=== checked ===
+=== dir ===
 import { Trigger } from "./trigger.ds";
 
 export struct Scenario {
@@ -998,7 +977,7 @@ const value = boxed.value;
         )
         .build();
 
-    compiler.assert_dir_checked_many(
+    compiler.assert_dir_many(
         &["a.ds", "b.ds", "c.ds"],
         DirRows::checked(),
         r#"
@@ -1011,7 +990,7 @@ struct Marker {
 
 export type Box<T = Marker> = { value: T };
 
-=== checked ===
+=== dir ===
 struct Marker {
 /// @type.symbol symbol=Marker type=Marker
 /// @definition.struct symbol=Marker
@@ -1035,7 +1014,7 @@ export type Box<T = Marker> = { value: T };
 === annotated ===
 export { Box } from "./a.ds";
 
-=== checked ===
+=== dir ===
 export { Box } from "./a.ds";
 
 === c.ds ===
@@ -1046,7 +1025,7 @@ import { Box } from "./b.ds";
 declare const boxed: { value: Marker };
 const value: Marker = boxed.value;
 
-=== checked ===
+=== dir ===
 import { Box } from "./b.ds";
 
 declare const boxed: Box;
@@ -1087,7 +1066,7 @@ const value = make();
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir_and_diagnostics(
         "lib.ds",
         DirRows::checked(),
         r#"
@@ -1096,12 +1075,17 @@ export function make() {
     return 1;
 }
 
-=== checked ===
+=== dir ===
 export function make() {
 /// @type.symbol symbol=make type=() => <error>
 
     return 1;
 }
+"#,
+        r#"
+/// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
+/// @diagnostic.label line=2 column=17 span="make" line_source="export function make() {"
+/// @diagnostic.help message="state the result type on the declaration"
 "#,
     );
 }

@@ -14,7 +14,7 @@ point satisfies ^Point;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -27,7 +27,7 @@ let point: ^Point = ^Point { x: 1 };
 
 point satisfies ^Point;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -71,7 +71,7 @@ let buffer: ^Buffer = makeBuffer();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -84,7 +84,7 @@ declare function makeBuffer(): Buffer;
 
 let buffer: ^Buffer = makeBuffer();
 
-=== checked ===
+=== dir ===
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
@@ -123,7 +123,7 @@ let user: ^User = makeUser();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -134,7 +134,7 @@ declare function makeUser(): User;
 
 let user: ^User = makeUser();
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -178,7 +178,7 @@ container.data satisfies ^Data;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -195,7 +195,7 @@ const container: Container = Container { data: ^Data { value: 1 } };
 
 container.data satisfies ^Data;
 
-=== checked ===
+=== dir ===
 struct Data {
 /// @type.symbol symbol=Data type=Data
 /// @definition.struct symbol=Data
@@ -261,7 +261,7 @@ user.profile.name = "Grace";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -280,7 +280,7 @@ let user: ^readonly User = ^readonly User {
 
 user.profile.name = "Grace";
 
-=== checked ===
+=== dir ===
 struct Profile {
 /// @type.symbol symbol=Profile type=Profile
 /// @definition.struct symbol=Profile

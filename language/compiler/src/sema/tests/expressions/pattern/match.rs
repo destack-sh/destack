@@ -10,7 +10,7 @@ switch (1) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -20,7 +20,7 @@ switch (1) {
         debugger;
 }
 
-=== checked ===
+=== dir ===
 switch (1) {
 /// @type.node source=1 type=1
 
@@ -44,7 +44,7 @@ switch ("ready") {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -54,7 +54,7 @@ switch ("ready") {
         debugger;
 }
 
-=== checked ===
+=== dir ===
 switch ("ready") {
 /// @type.node source="\"ready\"" type="ready"
 
@@ -78,7 +78,7 @@ switch (1n) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -88,7 +88,7 @@ switch (1n) {
         debugger;
 }
 
-=== checked ===
+=== dir ===
 switch (1n) {
 /// @type.node source=1n type=1n
 
@@ -118,7 +118,7 @@ observed satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -135,7 +135,7 @@ switch (selected) {
 
 observed satisfies int32;
 
-=== checked ===
+=== dir ===
 declare const selected: int32;
 /// @type.symbol symbol=selected source=selected type=int32
 /// @resolution.pattern source=selected kind=binding target=selected
@@ -189,7 +189,7 @@ function classify(value: int32): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -203,7 +203,7 @@ function classify(value: int32): int32 {
     }
 }
 
-=== checked ===
+=== dir ===
 function classify(value: int32): int32 {
 /// @type.symbol symbol=classify type=(int32) => int32
 /// @type.symbol symbol=classify.value source="value: int32" type=int32
@@ -241,7 +241,7 @@ const value = match (true) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -252,7 +252,7 @@ const value: 1 = match (true) {
     _ => 1
 };
 
-=== checked ===
+=== dir ===
 const value = match (true) {
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value
@@ -282,7 +282,7 @@ switch (0) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -295,7 +295,7 @@ switch (0) {
         debugger;
 }
 
-=== checked ===
+=== dir ===
 switch (0) {
 /// @type.node source=0 type=0
 
@@ -333,7 +333,7 @@ switch (mode) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -356,7 +356,7 @@ switch (mode) {
         mode;
 }
 
-=== checked ===
+=== dir ===
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
@@ -451,7 +451,7 @@ switch (state) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -468,7 +468,7 @@ switch (state) {
         state;
 }
 
-=== checked ===
+=== dir ===
 newtype Ready = "ready";
 /// @type.symbol symbol=Ready source="newtype Ready = \"ready\"" type=Ready
 /// @definition.newtype symbol=Ready source="newtype Ready = \"ready\"" backing="ready" constructors=[("ready") => Ready]
@@ -533,7 +533,7 @@ label satisfies "yes" | "no";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -547,7 +547,7 @@ const label: "yes" | "no" = match (value) {
 
 label satisfies "yes" | "no";
 
-=== checked ===
+=== dir ===
 declare const value: boolean;
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
@@ -595,7 +595,7 @@ result satisfies never;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -606,7 +606,7 @@ const result: never = match (value) {};
 
 result satisfies never;
 
-=== checked ===
+=== dir ===
 declare const value: never;
 /// @type.symbol symbol=value source=value type=never
 /// @resolution.pattern source=value kind=binding target=value
@@ -645,7 +645,7 @@ label satisfies "go" | "stop";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -659,7 +659,7 @@ const label: "go" | "stop" = match (status) {
 
 label satisfies "go" | "stop";
 
-=== checked ===
+=== dir ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
 /// @resolution.pattern source=status kind=binding target=status
@@ -707,7 +707,7 @@ const label = match (status) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -718,7 +718,7 @@ const label: "go" = match (status) {
     "ready" => "go"
 };
 
-=== checked ===
+=== dir ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
 /// @resolution.pattern source=status kind=binding target=status
@@ -760,7 +760,7 @@ const label = match (status) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -772,7 +772,7 @@ const label: "go" | "stop" = match (status) {
     "error" => "stop"
 };
 
-=== checked ===
+=== dir ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
 /// @resolution.pattern source=status kind=binding target=status
@@ -824,7 +824,7 @@ result satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -838,7 +838,7 @@ const result: int32 = match (point) {
 
 result satisfies int32;
 
-=== checked ===
+=== dir ===
 declare const point: { x: int32; y: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 /// @resolution.pattern source=point kind=binding target=point
@@ -902,7 +902,7 @@ match (config) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -916,7 +916,7 @@ match (config) {
     }
 }
 
-=== checked ===
+=== dir ===
 declare const config: { enabled: boolean; retries: int32 };
 /// @type.symbol symbol=config source=config type={ enabled: boolean; retries: int32 }
 /// @resolution.pattern source=config kind=binding target=config
@@ -972,7 +972,7 @@ match (packet) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -991,7 +991,7 @@ match (packet) {
     }
 }
 
-=== checked ===
+=== dir ===
 declare const packet: { point: { x: int32; y: int32 }; labels: [string; 2] };
 /// @type.symbol symbol=packet source=packet type={ point: { x: int32; y: int32 }; labels: FixedArray<string, 2> }
 /// @resolution.pattern source=packet kind=binding target=packet
@@ -1012,6 +1012,8 @@ match (packet) {
 
         labels: [first, second],
         /// @resolution.pattern source=[first, second] kind=sequence element=string arity=2 fields=(first, second)
+        /// @generic.instantiation id="collections.fixed-array.index#1<string, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(string, 2, "exclusive")
+        /// @generic.instance id="collections.fixed-array.index#1<string, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(string, 2, "exclusive")
         /// @type.symbol symbol=first source=first type=string
         /// @resolution.pattern source=first kind=binding target=first
         /// @type.symbol symbol=second source=second type=string
@@ -1072,7 +1074,7 @@ match (user) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1091,7 +1093,7 @@ match (user) {
     User { name } => name satisfies string
 }
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -1165,7 +1167,7 @@ match (values) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1179,7 +1181,7 @@ match (values) {
     }
 }
 
-=== checked ===
+=== dir ===
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
@@ -1192,6 +1194,10 @@ match (values) {
 
     [head, ...tail] => {
     /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
+    /// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+    /// @generic.instantiation id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
+    /// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+    /// @generic.instance id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
     /// @type.symbol symbol=head source=head type=int32
     /// @resolution.pattern source=head kind=binding target=head
     /// @type.symbol symbol=tail source=tail type=Owned<Array<int32>>
@@ -1210,13 +1216,9 @@ match (values) {
         /// @resolution.name source=tail target=tail
         /// @resolution.place source=tail placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=tail root=tail
-        /// @generic.instance source="tail satisfies ^int32[]" id=Array<int32>
-        /// @generic.instance source=tail id=Array<int32>
 
     }
 }
-
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 "#,
     );
 }
@@ -1233,7 +1235,7 @@ match (value) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1244,7 +1246,7 @@ match (value) {
     { left: item } | { right: item } => item satisfies int32
 }
 
-=== checked ===
+=== dir ===
 declare const value: { left: int32 } | { right: int32 };
 /// @type.symbol symbol=value source=value type={ left: int32 } | { right: int32 }
 /// @resolution.pattern source=value kind=binding target=value
@@ -1287,7 +1289,7 @@ const label = match (status) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1299,7 +1301,7 @@ const label: "go" | "error" = match (status) {
     _ => status
 };
 
-=== checked ===
+=== dir ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
 /// @resolution.pattern source=status kind=binding target=status

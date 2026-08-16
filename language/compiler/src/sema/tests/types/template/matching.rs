@@ -14,7 +14,7 @@ posts satisfies Route;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -27,7 +27,7 @@ const posts: "api:users" | "api:posts" = "api:posts" as "api:users" | "api:posts
 users satisfies "api:users" | "api:posts";
 posts satisfies Route;
 
-=== checked ===
+=== dir ===
 type Route = `api:${"users" | "posts"}`;
 /// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type="api:users" | "api:posts"
 /// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value="api:users" | "api:posts"
@@ -68,7 +68,7 @@ const bad: Route = "fr-users";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -85,7 +85,7 @@ const dePosts: "en-users" | "en-posts" | "de-users" | "de-posts" = "de-posts" as
 | "de-posts";
 const bad: "en-users" | "en-posts" | "de-users" | "de-posts" = "fr-users";
 
-=== checked ===
+=== dir ===
 type Route = `${"en" | "de"}-${"users" | "posts"}`;
 /// @type.symbol symbol=Route source="type Route = `${\"en\" | \"de\"}-${\"users\" | \"posts\"}`" type="en-users" | "en-posts" | "de-users" | "de-posts"
 /// @definition.type symbol=Route source="type Route = `${\"en\" | \"de\"}-${\"users\" | \"posts\"}`" value="en-users" | "en-posts" | "de-users" | "de-posts"
@@ -123,7 +123,7 @@ const bad: Route = "api:orders";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -132,7 +132,7 @@ type Route = `api:${"users" | "posts"}`;
 
 const bad: "api:users" | "api:posts" = "api:orders";
 
-=== checked ===
+=== dir ===
 type Route = `api:${"users" | "posts"}`;
 /// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type="api:users" | "api:posts"
 /// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value="api:users" | "api:posts"
@@ -161,7 +161,7 @@ const bad: PrimitiveText = "yes-null-undefined";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -171,7 +171,7 @@ type PrimitiveText = `${boolean}-${null}-${undefined}`;
 const ok: PrimitiveText = "true-null-undefined";
 const bad: PrimitiveText = "yes-null-undefined";
 
-=== checked ===
+=== dir ===
 type PrimitiveText = `${boolean}-${null}-${undefined}`;
 /// @type.symbol symbol=PrimitiveText source="type PrimitiveText = `${boolean}-${null}-${undefined}`" type=`${boolean}-${null}-${undefined}`
 /// @definition.type symbol=PrimitiveText source="type PrimitiveText = `${boolean}-${null}-${undefined}`" value=`${boolean}-${null}-${undefined}`
@@ -204,7 +204,7 @@ const bad: Nothing = "id:anything";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -213,7 +213,7 @@ type Nothing = `id:${never}`;
 
 const bad: never = "id:anything";
 
-=== checked ===
+=== dir ===
 type Nothing = `id:${never}`;
 /// @type.symbol symbol=Nothing source="type Nothing = `id:${never}`" type=never
 /// @definition.type symbol=Nothing source="type Nothing = `id:${never}`" value=never
@@ -242,7 +242,7 @@ const ok: AnyString = value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -252,7 +252,7 @@ type AnyString = `${string}${string}`;
 declare const value: string;
 const ok: AnyString = value;
 
-=== checked ===
+=== dir ===
 type AnyString = `${string}${string}`;
 /// @type.symbol symbol=AnyString source="type AnyString = `${string}${string}`" type=`${string}${string}`
 /// @definition.type symbol=AnyString source="type AnyString = `${string}${string}`" value=`${string}${string}`
@@ -284,7 +284,7 @@ item satisfies `item:${number}`;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -295,7 +295,7 @@ const item: NumericRoute = "item:42";
 
 item satisfies `item:${number}`;
 
-=== checked ===
+=== dir ===
 type NumericRoute = `item:${number}`;
 /// @type.symbol symbol=NumericRoute source="type NumericRoute = `item:${number}`" type=`item:${float64}`
 /// @definition.type symbol=NumericRoute source="type NumericRoute = `item:${number}`" value=`item:${float64}`
@@ -323,7 +323,7 @@ const bad: NumericRoute = "item:abc";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -332,7 +332,7 @@ type NumericRoute = `item:${number}`;
 
 const bad: NumericRoute = "item:abc";
 
-=== checked ===
+=== dir ===
 type NumericRoute = `item:${number}`;
 /// @type.symbol symbol=NumericRoute source="type NumericRoute = `item:${number}`" type=`item:${float64}`
 /// @definition.type symbol=NumericRoute source="type NumericRoute = `item:${number}`" value=`item:${float64}`
@@ -360,7 +360,7 @@ const value: Nested = "prefix-id-1";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -369,7 +369,7 @@ type Nested = `prefix-${`id-${number}`}`;
 
 const value: Nested = "prefix-id-1";
 
-=== checked ===
+=== dir ===
 type Nested = `prefix-${`id-${number}`}`;
 /// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-${`id-${float64}`}`
 /// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-${`id-${float64}`}`
@@ -392,7 +392,7 @@ const value: Nested = "prefix-id-a";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -401,7 +401,7 @@ type Nested = `prefix-${`id-${number}`}`;
 
 const value: Nested = "prefix-id-a";
 
-=== checked ===
+=== dir ===
 type Nested = `prefix-${`id-${number}`}`;
 /// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-${`id-${float64}`}`
 /// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-${`id-${float64}`}`

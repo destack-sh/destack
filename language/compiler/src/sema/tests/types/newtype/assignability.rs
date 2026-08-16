@@ -10,7 +10,7 @@ const id: UserId = 42;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ newtype UserId = int64;
 
 const id: UserId = 42;
 
-=== checked ===
+=== dir ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 /// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
@@ -47,7 +47,7 @@ const raw: int64 = UserId(42);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -56,7 +56,7 @@ newtype UserId = int64;
 
 const raw: int64 = UserId(42);
 
-=== checked ===
+=== dir ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 /// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
@@ -87,7 +87,7 @@ raw satisfies int64;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -98,7 +98,7 @@ const id: UserId = UserId(42);
 const raw: int64 = id as int64;
 raw satisfies int64;
 
-=== checked ===
+=== dir ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 /// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
@@ -136,7 +136,7 @@ target satisfies UserId;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -147,7 +147,7 @@ const source: UserId = UserId(42);
 const target: UserId = source;
 target satisfies UserId;
 
-=== checked ===
+=== dir ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 /// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
@@ -187,7 +187,7 @@ const order: OrderId = user;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -198,7 +198,7 @@ newtype OrderId = int64;
 const user: UserId = UserId(42);
 const order: OrderId = user;
 
-=== checked ===
+=== dir ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 /// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
@@ -255,7 +255,7 @@ const id: LeftUserId = RightUserId(42);
         )
         .build();
 
-    compiler.assert_dir_checked_and_diagnostics(
+    compiler.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -265,7 +265,7 @@ import { UserId as RightUserId } from "./right.ds";
 
 const id: UserId = RightUserId(42);
 
-=== checked ===
+=== dir ===
 import { UserId as LeftUserId } from "./left.ds";
 import { UserId as RightUserId } from "./right.ds";
 
@@ -294,7 +294,7 @@ const config: Config = { debug: true };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -303,7 +303,7 @@ newtype Config = { debug: boolean };
 
 const config: Config = { debug: true };
 
-=== checked ===
+=== dir ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
 /// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean } constructors=[({ debug: boolean }) => Config]

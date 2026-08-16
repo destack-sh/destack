@@ -14,7 +14,7 @@ handler.run(1) satisfies number;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -27,7 +27,7 @@ const handler: { run: (arg0: float64) => float64 } = {
 
 handler.run(1) satisfies number;
 
-=== checked ===
+=== dir ===
 type Handler = { run: (value: number) => number };
 /// @type.symbol symbol=Handler source="type Handler = { run: (value: number) => number }" type={ run: Function<(float64,), float64> }
 /// @definition.type symbol=Handler source="type Handler = { run: (value: number) => number }" value={ run: Function<(float64,), float64> }
@@ -71,7 +71,7 @@ config.mode satisfies "dev";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -82,7 +82,7 @@ const config: { mode: "dev" } = { mode: "dev" } satisfies { mode: Mode };
 
 config.mode satisfies "dev";
 
-=== checked ===
+=== dir ===
 type Mode = "dev" | "prod";
 /// @type.symbol symbol=Mode source="type Mode = \"dev\" | \"prod\"" type="dev" | "prod"
 /// @definition.type symbol=Mode source="type Mode = \"dev\" | \"prod\"" value="dev" | "prod"
@@ -113,7 +113,7 @@ const value = { a: 1, b: 2 } satisfies Shape;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -122,7 +122,7 @@ type Shape = { a: number };
 
 const value: { a: 1; b: float64 } = { a: 1, b: 2 } satisfies Shape;
 
-=== checked ===
+=== dir ===
 type Shape = { a: number };
 /// @type.symbol symbol=Shape source="type Shape = { a: number }" type={ a: float64 }
 /// @definition.type symbol=Shape source="type Shape = { a: number }" value={ a: float64 }
@@ -157,7 +157,7 @@ import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "desta
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -173,7 +173,7 @@ import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "desta
 1 as int32 satisfies Integer;
 1.5 as float32 satisfies Float;
 
-=== checked ===
+=== dir ===
 import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "destack:math";
 
 1 satisfies IntegerDomain;
@@ -214,7 +214,7 @@ import { Float, Integer } from "destack:math";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -224,7 +224,7 @@ import { Float, Integer } from "destack:math";
 1 satisfies Integer;
 1.5 satisfies Float;
 
-=== checked ===
+=== dir ===
 import { Float, Integer } from "destack:math";
 
 1 satisfies Integer;

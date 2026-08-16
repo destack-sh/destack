@@ -19,7 +19,7 @@ counter = 1;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -28,7 +28,7 @@ import { counter } from "./counter.ds";
 
 counter = 1;
 
-=== checked ===
+=== dir ===
 import { counter } from "./counter.ds";
 
 counter = 1;
@@ -67,7 +67,7 @@ localCounter = 1;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -76,7 +76,7 @@ import { counter as localCounter } from "./counter.ds";
 
 localCounter = 1;
 
-=== checked ===
+=== dir ===
 import { counter as localCounter } from "./counter.ds";
 
 localCounter = 1;
@@ -115,7 +115,7 @@ counter = counter;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -124,7 +124,7 @@ import * as counter from "./counter.ds";
 
 counter = counter;
 
-=== checked ===
+=== dir ===
 import * as counter from "./counter.ds";
 
 counter = counter;
@@ -158,7 +158,7 @@ namespaceCounter.counter = 1;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -167,7 +167,7 @@ import * as namespaceCounter from "./counter.ds";
 
 namespaceCounter.counter = 1;
 
-=== checked ===
+=== dir ===
 import * as namespaceCounter from "./counter.ds";
 
 namespaceCounter.counter = 1;

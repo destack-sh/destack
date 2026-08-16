@@ -14,7 +14,7 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -27,7 +27,7 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
     storage: [0; 16],
 };
 
-=== checked ===
+=== dir ===
 struct InlineBuffer<T, const N: 0..=4096> {
 /// @generic.template symbol=InlineBuffer parameters=(out T, const N: 0..=4096)
 /// @type.symbol symbol=InlineBuffer type=InlineBuffer
@@ -51,8 +51,6 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
 
     storage: [0; 16],
 };
-
-/// @generic.instance id="InlineBuffer<uint8, 16>" template=InlineBuffer arguments=(uint8, 16)
 "#,
     );
 }
@@ -69,7 +67,7 @@ type TooLarge = InlineBuffer<uint8, 4097>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -80,7 +78,7 @@ struct InlineBuffer<out T, const N: 0..=4096> {
 
 type TooLarge = InlineBuffer<uint8, 4097>;
 
-=== checked ===
+=== dir ===
 struct InlineBuffer<T, const N: 0..=4096> {
 /// @generic.template symbol=InlineBuffer parameters=(out T, const N: 0..=4096)
 /// @type.symbol symbol=InlineBuffer type=InlineBuffer
@@ -100,8 +98,6 @@ type TooLarge = InlineBuffer<uint8, 4097>;
 /// @type.symbol symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" type=InlineBuffer<uint8, 4097>
 /// @definition.type symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" value=InlineBuffer<uint8, 4097>
 /// @resolution.name source=InlineBuffer target=InlineBuffer
-
-/// @generic.instance id="InlineBuffer<uint8, 4097>" template=InlineBuffer arguments=(uint8, 4097)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '4097' does not satisfy '0..=4096'"

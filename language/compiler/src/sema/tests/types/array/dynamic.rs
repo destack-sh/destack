@@ -10,7 +10,7 @@ const byte = bytes[index];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ declare const bytes: uint8[];
 declare const index: isize;
 const byte: uint8 = bytes[index];
 
-=== checked ===
+=== dir ===
 declare const bytes: uint8[];
 /// @type.symbol symbol=bytes source=bytes type=Array<uint8>
 /// @resolution.pattern source=bytes kind=binding target=bytes
@@ -35,12 +35,11 @@ const byte = bytes[index];
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.subscript source=bytes[index] type=uint8 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(index) as isize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
-/// @generic.instance source=bytes[index] id="Array<uint8>.<extension#5>.index#1<\"exclusive\">"
+/// @generic.instantiation id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
+/// @generic.instance id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=index root=index
-
-/// @generic.instance id="Array<uint8>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 "#,
     );
 }
@@ -55,7 +54,7 @@ bytes[index] = 255;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -64,7 +63,7 @@ declare const bytes: uint8[];
 declare const index: isize;
 bytes[index] = 255;
 
-=== checked ===
+=== dir ===
 declare const bytes: uint8[];
 /// @type.symbol symbol=bytes source=bytes type=Array<uint8>
 /// @resolution.pattern source=bytes kind=binding target=bytes
@@ -79,6 +78,8 @@ bytes[index] = 255;
 /// @resolution.access source=bytes root=bytes
 /// @resolution.pattern.assign source=bytes[index] kind=place
 /// @resolution.assignment source=bytes[index] write="collections.array.indexSet(parameters=(isize, uint8), arguments=(provided(index) as isize, write as uint8), return=void)" type=uint8
+/// @generic.instantiation id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
+/// @generic.instance id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=index root=index
@@ -96,7 +97,7 @@ bytes[index] += 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -105,7 +106,7 @@ declare const bytes: uint8[];
 declare const index: isize;
 bytes[index] += 1;
 
-=== checked ===
+=== dir ===
 declare const bytes: uint8[];
 /// @type.symbol symbol=bytes source=bytes type=Array<uint8>
 /// @resolution.pattern source=bytes kind=binding target=bytes
@@ -121,6 +122,10 @@ bytes[index] += 1;
 /// @resolution.access source=bytes root=bytes
 /// @resolution.pattern.assign source=bytes[index] kind=place
 /// @resolution.assignment source=bytes[index] read="collections.array.index#1(parameters=(isize), arguments=(provided(index) as isize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)" write="collections.array.indexSet(parameters=(isize, uint8), arguments=(provided(index) as isize, write as uint8), return=void)" type=uint8
+/// @generic.instantiation id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
+/// @generic.instantiation id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
+/// @generic.instance id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
+/// @generic.instance id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=index root=index

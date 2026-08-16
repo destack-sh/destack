@@ -18,7 +18,7 @@ function update(state: &State): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -35,7 +35,7 @@ function update<'a>(state: &'a State): void {
     state.user = state.user;
 }
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -106,7 +106,7 @@ function update(state: &State): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -123,7 +123,7 @@ function update<'a>(state: &'a State): void {
     state.user = state.user;
 }
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -190,7 +190,7 @@ function update(state: &State): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -208,7 +208,7 @@ function update<'a>(state: &'a State): void {
     state.status = Status.Busy;
 }
 
-=== checked ===
+=== dir ===
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
@@ -265,7 +265,7 @@ function update(state: &exclusive State): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -283,7 +283,7 @@ function update<'a>(state: &'a exclusive State): void {
     state.status = Status.Busy;
 }
 
-=== checked ===
+=== dir ===
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
@@ -330,7 +330,7 @@ function update(value: &int32): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -339,7 +339,7 @@ function update<'a>(value: &'a int32): void {
     *value = 1;
 }
 
-=== checked ===
+=== dir ===
 function update(value: &int32): void {
 /// @generic.template symbol=update parameters=('a)
 /// @type.symbol symbol=update type=<update.'a>(&update.'a int32) => void
@@ -369,7 +369,7 @@ function update(value: &Status): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -383,7 +383,7 @@ function update<'a>(value: &'a Status): void {
     *value = Status.Busy;
 }
 
-=== checked ===
+=== dir ===
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
@@ -428,7 +428,7 @@ function update(value: &readonly int32): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -437,7 +437,7 @@ function update<'a>(value: &'a readonly int32): void {
     *value = 1;
 }
 
-=== checked ===
+=== dir ===
 function update(value: &readonly int32): void {
 /// @generic.template symbol=update parameters=('a)
 /// @type.symbol symbol=update type=<update.'a>(&update.'a readonly int32) => void
@@ -476,7 +476,7 @@ function updateStatuses(values: &[Status; 2]): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -494,7 +494,7 @@ function updateStatuses<'a>(values: &'a [Status; 2]): void {
     values[0] = Status.Busy;
 }
 
-=== checked ===
+=== dir ===
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
@@ -514,6 +514,7 @@ function updateNumbers(values: &[int32; 2]): void {
     /// @resolution.access source=values root=updateNumbers.values
     /// @resolution.pattern.assign source=values[0] kind=place
     /// @resolution.assignment source=values[0] write="collections.fixed-array.indexSet#1(parameters=(isize, int32), arguments=(provided(0) as isize, write as int32), return=void)" type=int32
+    /// @generic.instantiation id="collections.fixed-array.indexSet#1<int32, 2>" template=collections.fixed-array.indexSet#1 arguments=(int32, 2)
 
 }
 
@@ -529,6 +530,7 @@ function updateStatuses(values: &[Status; 2]): void {
     /// @resolution.access source=values root=updateStatuses.values
     /// @resolution.pattern.assign source=values[0] kind=place
     /// @resolution.assignment source=values[0] write="collections.fixed-array.indexSet#1(parameters=(isize, Status), arguments=(provided(0) as isize, write as Status), return=void)" type=Status
+    /// @generic.instantiation id="collections.fixed-array.indexSet#1<Status, 2>" template=collections.fixed-array.indexSet#1 arguments=(Status, 2)
     /// @resolution.name source=Status target=Status
     /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 
@@ -561,7 +563,7 @@ sharedState.status = Status.Busy;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -581,7 +583,7 @@ declare const sharedState: shared State;
 localState.status = Status.Busy;
 sharedState.status = Status.Busy;
 
-=== checked ===
+=== dir ===
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
@@ -656,7 +658,7 @@ state.status = Status.Busy;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -674,7 +676,7 @@ declare const state: ^State;
 
 state.status = Status.Busy;
 
-=== checked ===
+=== dir ===
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
@@ -724,7 +726,7 @@ shared class Cell<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -737,7 +739,7 @@ shared class Cell<in out T> {
     }
 }
 
-=== checked ===
+=== dir ===
 shared class Cell<T> {
 /// @generic.template symbol=Cell parameters=(in out T)
 /// @type.symbol symbol=Cell type=Cell
@@ -784,7 +786,7 @@ function update<T: { status: Status }>(state: &T): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -798,7 +800,7 @@ function update<T: { status: Status }, 'a>(state: &'a T): void {
     state.status = Status.Busy;
 }
 
-=== checked ===
+=== dir ===
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"

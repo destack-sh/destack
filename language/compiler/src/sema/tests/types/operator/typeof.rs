@@ -12,7 +12,7 @@ let ok: ValueType = 42;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -23,7 +23,7 @@ type ValueType = typeof value;
 
 let ok: 42 = 42;
 
-=== checked ===
+=== dir ===
 const value = 42;
 /// @type.symbol symbol=value source=value type=42
 /// @resolution.pattern source=value kind=binding target=value
@@ -53,7 +53,7 @@ let bad: ValueType = "no";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -64,7 +64,7 @@ type ValueType = typeof value;
 
 let bad: 42 = "no";
 
-=== checked ===
+=== dir ===
 const value = 42;
 /// @type.symbol symbol=value source=value type=42
 /// @resolution.pattern source=value kind=binding target=value
@@ -109,7 +109,7 @@ let version: CounterCtor["version"] = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -130,7 +130,7 @@ declare function takesCounter(ctor: new (arg0: int32) => Counter): void;
 takesCounter(Counter);
 let version: int32 = 1;
 
-=== checked ===
+=== dir ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter

@@ -17,7 +17,7 @@ extension<T: Copy> of Wrapper<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -33,7 +33,7 @@ extension<T: Copy> of Wrapper<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 import { Promise } from "destack:async";
 
 newtype Wrapper<T: Copy> = Promise<T>;
@@ -67,7 +67,6 @@ extension<T: Copy> of Wrapper<T> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Wrapper<T#2>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instance source=this id=Wrapper<T#2>
 
         value
         /// @type.node source=value type=T#2
@@ -77,9 +76,6 @@ extension<T: Copy> of Wrapper<T> {
 
     }
 }
-
-/// @generic.instance id=Promise<T#2> template=async.promise.Promise arguments=(T#2)
-/// @generic.instance id=Wrapper<T#2> template=Wrapper arguments=(T#2)
 "#,
     );
 }

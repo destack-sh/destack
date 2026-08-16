@@ -11,7 +11,7 @@ declare const name: Name;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Name = Segment<"/api">;
 
 declare const name: "api";
 
-=== checked ===
+=== dir ===
 type Segment<T> = T extends `/${infer Name}` ? Name : never;
 /// @generic.template symbol=Segment parameters=(T)
 /// @type.symbol symbol=Segment source="type Segment<T> = T extends `/${infer Name}` ? Name : never" type=T extends `/${infer Name}` ? Segment.Name : never
@@ -56,7 +56,7 @@ const no: No = false;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -68,7 +68,7 @@ type No = HasId<"users">;
 const yes: true = true;
 const no: false = false;
 
-=== checked ===
+=== dir ===
 type HasId<T> = T extends `id:${infer _}` ? true : false;
 /// @generic.template symbol=HasId parameters=(T)
 /// @type.symbol symbol=HasId source="type HasId<T> = T extends `id:${infer _}` ? true : false" type=T extends `id:${infer _}` ? true : false
@@ -111,7 +111,7 @@ const b: Result = "b";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -122,7 +122,7 @@ type Result = Extract<`foo-a` | `foo-b`>;
 const a: "a" | "b" = "a" as "a" | "b";
 const b: "a" | "b" = "b" as "a" | "b";
 
-=== checked ===
+=== dir ===
 type Extract<T> = T extends `foo-${infer A}` ? A : never;
 /// @generic.template symbol=Extract parameters=(T)
 /// @type.symbol symbol=Extract source="type Extract<T> = T extends `foo-${infer A}` ? A : never" type=T extends `foo-${infer A}` ? Extract.A : never
@@ -160,7 +160,7 @@ const matched: Match = "foo";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -170,7 +170,7 @@ type Match = Repeat<"foo-foo">;
 
 const matched: "foo" = "foo";
 
-=== checked ===
+=== dir ===
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 /// @generic.template symbol=Repeat parameters=(T)
 /// @type.symbol symbol=Repeat source="type Repeat<T> = T extends `${infer A}-${infer A}` ? A : \"no\"" type=T extends `${infer A}-${infer A}` ? Repeat.A : "no"
@@ -203,7 +203,7 @@ const matched: Match = "no";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -213,7 +213,7 @@ type Match = Repeat<"foo-bar">;
 
 const matched: "no" = "no";
 
-=== checked ===
+=== dir ===
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 /// @generic.template symbol=Repeat parameters=(T)
 /// @type.symbol symbol=Repeat source="type Repeat<T> = T extends `${infer A}-${infer A}` ? A : \"no\"" type=T extends `${infer A}-${infer A}` ? Repeat.A : "no"
@@ -246,7 +246,7 @@ const result: Result = ("foo", "bar-baz");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -256,7 +256,7 @@ type Result = Pair<"foo-bar-baz">;
 
 const result: ("foo", "bar-baz") = ("foo", "bar-baz");
 
-=== checked ===
+=== dir ===
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 /// @generic.template symbol=Pair parameters=(T)
 /// @type.symbol symbol=Pair source="type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never" type=T extends `${infer A}-${infer B}` ? (Pair.A, Pair.B) : never
@@ -290,7 +290,7 @@ const bad: Result = ("foo-bar", "baz");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -300,7 +300,7 @@ type Result = Pair<"foo-bar-baz">;
 
 const bad: ("foo", "bar-baz") = ("foo-bar", "baz");
 
-=== checked ===
+=== dir ===
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 /// @generic.template symbol=Pair parameters=(T)
 /// @type.symbol symbol=Pair source="type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never" type=T extends `${infer A}-${infer B}` ? (Pair.A, Pair.B) : never
@@ -345,7 +345,7 @@ const bad: Result = ("", "a");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -356,7 +356,7 @@ type Result = Split<"a">;
 const ok: ("a", "") = ("a", "");
 const bad: ("a", "") = ("", "a");
 
-=== checked ===
+=== dir ===
 type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
 /// @generic.template symbol=Split parameters=(T)
 /// @type.symbol symbol=Split source="type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never" type=T extends `${infer A}${infer B}` ? (Split.A, Split.B) : never
@@ -405,7 +405,7 @@ const ok: Result = ("", "");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -415,7 +415,7 @@ type Result = Split<"a">;
 
 const ok: ("", "") = ("", "");
 
-=== checked ===
+=== dir ===
 type Split<T> = T extends `a${infer A}${infer B}` ? (A, B) : never;
 /// @generic.template symbol=Split parameters=(T)
 /// @type.symbol symbol=Split source="type Split<T> = T extends `a${infer A}${infer B}` ? (A, B) : never" type=T extends `a${infer A}${infer B}` ? (Split.A, Split.B) : never

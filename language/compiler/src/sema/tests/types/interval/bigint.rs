@@ -11,7 +11,7 @@ const bad: Small = 11n;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Small = 1n..=10n;
 const value: 1n..=10n = 5n;
 const bad: 1n..=10n = 11n;
 
-=== checked ===
+=== dir ===
 type Small = 1n..=10n;
 /// @type.symbol symbol=Small source="type Small = 1n..=10n" type=1n..=10n
 /// @definition.type symbol=Small source="type Small = 1n..=10n" value=1n..=10n

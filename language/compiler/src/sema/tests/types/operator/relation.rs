@@ -13,7 +13,7 @@ const no: IsNumber = false;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -24,7 +24,7 @@ type IsNumber = int32 extends number;
 const yes: true = true;
 const no: false = false;
 
-=== checked ===
+=== dir ===
 type IsString = "id" extends string;
 /// @type.symbol symbol=IsString source="type IsString = \"id\" extends string" type=true
 /// @definition.type symbol=IsString source="type IsString = \"id\" extends string" value=true
@@ -58,7 +58,7 @@ const right: UnitExtendsVoid = true;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -69,7 +69,7 @@ type UnitExtendsVoid = () extends void;
 const left: true = true;
 const right: true = true;
 
-=== checked ===
+=== dir ===
 type VoidExtendsUnit = void extends ();
 /// @type.symbol symbol=VoidExtendsUnit source="type VoidExtendsUnit = void extends ()" type=true
 /// @definition.type symbol=VoidExtendsUnit source="type VoidExtendsUnit = void extends ()" value=true
@@ -103,7 +103,7 @@ const right: NeverExtendsUnit = true;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -114,7 +114,7 @@ type NeverExtendsUnit = never extends ();
 const left: true = true;
 const right: true = true;
 
-=== checked ===
+=== dir ===
 type NeverExtendsVoid = never extends void;
 /// @type.symbol symbol=NeverExtendsVoid source="type NeverExtendsVoid = never extends void" type=true
 /// @definition.type symbol=NeverExtendsVoid source="type NeverExtendsVoid = never extends void" value=true
@@ -148,7 +148,7 @@ const right: UnitExtendsNever = false;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -159,7 +159,7 @@ type UnitExtendsNever = () extends never;
 const left: false = false;
 const right: false = false;
 
-=== checked ===
+=== dir ===
 type VoidExtendsNever = void extends never;
 /// @type.symbol symbol=VoidExtendsNever source="type VoidExtendsNever = void extends never" type=false
 /// @definition.type symbol=VoidExtendsNever source="type VoidExtendsNever = void extends never" value=false
@@ -207,7 +207,7 @@ const plain: IsPlain = false;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -232,7 +232,7 @@ type IsPlain = PlainPoint implements Drawable;
 const drawn: true = true;
 const plain: false = false;
 
-=== checked ===
+=== dir ===
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable

@@ -9,7 +9,7 @@ const first = values[0];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -17,7 +17,7 @@ const first = values[0];
 let values: float64[] = [1, 2];
 const first: float64 = values[0];
 
-=== checked ===
+=== dir ===
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
@@ -35,10 +35,9 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
-/// @generic.instance source=values[0] id="Array<float64>.<extension#5>.index#1<\"exclusive\">"
+/// @generic.instantiation id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
+/// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 /// @type.node source=0 type=0
-
-/// @generic.instance id="Array<float64>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 "#,
     );
 }
@@ -52,7 +51,7 @@ const first = values[0];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -60,7 +59,7 @@ const first = values[0];
 const values: (1 | 2)[] = [1 as 1 | 2, 2 as 1 | 2];
 const first: 1 | 2 = values[0];
 
-=== checked ===
+=== dir ===
 const values: (1 | 2)[] = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<1 | 2>
 /// @resolution.pattern source=values kind=binding target=values
@@ -78,10 +77,9 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 | 2 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static 1 | 2, \"exclusive\">)"
-/// @generic.instance source=values[0] id="Array<1 | 2>.<extension#5>.index#1<\"exclusive\">"
+/// @generic.instantiation id="collections.array.index#1<1 | 2, \"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
+/// @generic.instance id="collections.array.index#1<1 | 2, \"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
 /// @type.node source=0 type=0
-
-/// @generic.instance id="Array<1 | 2>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
 "#,
     );
 }
@@ -94,7 +92,7 @@ const value: number | boolean = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -104,7 +102,7 @@ const value: number | boolean = 1;
 === annotated ===
 const value: float64 | boolean = 1 as float64 | boolean;
 
-=== checked ===
+=== dir ===
 const value: number | boolean = 1;
 /// @type.symbol symbol=value source=value type=float64 | boolean
 /// @resolution.pattern source=value kind=binding target=value
@@ -126,7 +124,7 @@ function widen(value: 1 | Flag): int32 | Flag {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -140,7 +138,7 @@ function widen(value: 1 | Flag): int32 | Flag {
     return value as int32 | Flag;
 }
 
-=== checked ===
+=== dir ===
 newtype Flag = boolean;
 /// @type.symbol symbol=Flag source="newtype Flag = boolean" type=Flag
 /// @definition.newtype symbol=Flag source="newtype Flag = boolean" backing=boolean constructors=[(boolean) => Flag]
@@ -173,7 +171,7 @@ function widen(value: 1 | 2): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -185,7 +183,7 @@ function widen(value: 1 | 2): int32 {
     return value as int32;
 }
 
-=== checked ===
+=== dir ===
 function widen(value: 1 | 2): int32 {
 /// @type.symbol symbol=widen type=(1 | 2) => int32
 /// @type.symbol symbol=widen.value source="value: 1 | 2" type=1 | 2
@@ -210,14 +208,14 @@ const value = true ? 1 : 2;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 1 | 2 = true ? 1 : 2;
 
-=== checked ===
+=== dir ===
 const value = true ? 1 : 2;
 /// @type.symbol symbol=value source=value type=1 | 2
 /// @resolution.pattern source=value kind=binding target=value
@@ -241,14 +239,14 @@ let value = true ? 1 : 2;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let value: float64 = true ? 1 : 2;
 
-=== checked ===
+=== dir ===
 let value = true ? 1 : 2;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value

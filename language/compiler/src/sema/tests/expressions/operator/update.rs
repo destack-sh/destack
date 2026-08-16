@@ -9,7 +9,7 @@ const before = value++;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -17,7 +17,7 @@ const before = value++;
 let value: int32 = 1;
 const before: int32 = value++;
 
-=== checked ===
+=== dir ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -45,7 +45,7 @@ const after = --value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -53,7 +53,7 @@ const after = --value;
 let value: int32 = 1;
 const after: int32 = --value;
 
-=== checked ===
+=== dir ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value

@@ -10,7 +10,7 @@ const literal = 1 << 5;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ declare const flags: int32;
 const shifted: int32 = flags << 5;
 const literal: 32 = 1 << 5;
 
-=== checked ===
+=== dir ===
 declare const flags: int32;
 /// @type.symbol symbol=flags source=flags type=int32
 /// @resolution.pattern source=flags kind=binding target=flags
@@ -50,7 +50,7 @@ const masked = mask & bits;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -59,7 +59,7 @@ declare const mask: int32;
 declare const bits: int32;
 const masked: int32 = mask & bits;
 
-=== checked ===
+=== dir ===
 declare const mask: int32;
 /// @type.symbol symbol=mask source=mask type=int32
 /// @resolution.pattern source=mask kind=binding target=mask
@@ -91,7 +91,7 @@ const bad = scale & 2;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -99,7 +99,7 @@ const bad = scale & 2;
 declare const scale: float64;
 const bad = scale & 2;
 
-=== checked ===
+=== dir ===
 declare const scale: float64;
 /// @type.symbol symbol=scale source=scale type=float64
 /// @resolution.pattern source=scale kind=binding target=scale
@@ -143,7 +143,7 @@ const both = left & right;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -166,7 +166,7 @@ declare const left: Flags;
 declare const right: Flags;
 const both: Flags = left & right;
 
-=== checked ===
+=== dir ===
 import { And } from "destack:ops";
 
 struct Flags {

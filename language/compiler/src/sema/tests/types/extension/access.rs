@@ -20,7 +20,7 @@ export extension<const A: Access = "readonly"> of Grid {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -39,7 +39,7 @@ export extension<const A: Access = "readonly"> of Grid {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Grid {
 /// @type.symbol symbol=Grid type=Grid
 /// @definition.struct symbol=Grid
@@ -76,7 +76,6 @@ export extension<const A: Access = "readonly"> of Grid {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.size placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this.size root=this keys=[size]
-        /// @generic.instance source=this id="WithAccess<&view.'a Grid, A>"
 
     }
 
@@ -97,16 +96,10 @@ export extension<const A: Access = "readonly"> of Grid {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&peek.'a Grid, A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instance source=this id="WithAccess<&peek.'a Grid, A>"
-        /// @generic.instance source=this.view id="WithAccess<&view.'a Grid, A>"
-        /// @generic.instance source=this.view() id=Grid.<extension#1>.view
+        /// @generic.instantiation id=view<A> template=view arguments=(A) owner=<module>#2
 
     }
 }
-
-/// @generic.instance id="WithAccess<&peek.'a Grid, A>" template=memory.type.WithAccess arguments=(&peek.'a Grid, A)
-/// @generic.instance id="WithAccess<&view.'a Grid, A>" template=memory.type.WithAccess arguments=(&view.'a Grid, A)
-/// @generic.instance id=Grid.<extension#1>.view template=view arguments=(A)
 "#,
     );
 }
@@ -135,7 +128,7 @@ function write(grid: &exclusive Grid): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -158,7 +151,7 @@ function write<'a>(grid: &'a exclusive Grid): int32 {
     grid.view<"exclusive">()
 }
 
-=== checked ===
+=== dir ===
 struct Grid {
 /// @type.symbol symbol=Grid type=Grid
 /// @definition.struct symbol=Grid
@@ -194,7 +187,6 @@ export extension<const A: Access = "readonly"> of Grid {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.size placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this.size root=this keys=[size]
-        /// @generic.instance source=this id="WithAccess<&view.'a Grid, A>"
 
     }
 }
@@ -214,8 +206,8 @@ function read(grid: &readonly Grid): int32 {
     /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&read.'a readonly Grid instance=Grid.<extension#1>.view
     /// @resolution.place source=grid placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=grid root=read.grid
-    /// @generic.instance source=grid.view id="WithAccess<&view.'a Grid, A>"
-    /// @generic.instance source=grid.view() id=Grid.<extension#1>.view
+    /// @generic.instantiation id="view<\"readonly\">" template=view arguments=("readonly")
+    /// @generic.instance id="view<\"readonly\">" template=view arguments=("readonly")
 
 }
 
@@ -234,13 +226,10 @@ function write(grid: &exclusive Grid): int32 {
     /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&write.'a exclusive Grid instance=Grid.<extension#1>.view
     /// @resolution.place source=grid placement="local" lifetime=write.'a access="exclusive"
     /// @resolution.access source=grid root=write.grid
-    /// @generic.instance source=grid.view id="WithAccess<&view.'a Grid, A>"
-    /// @generic.instance source=grid.view() id=Grid.<extension#1>.view
+    /// @generic.instantiation id="view<\"exclusive\">" template=view arguments=("exclusive")
+    /// @generic.instance id="view<\"exclusive\">" template=view arguments=("exclusive")
 
 }
-
-/// @generic.instance id="WithAccess<&view.'a Grid, A>" template=memory.type.WithAccess arguments=(&view.'a Grid, A)
-/// @generic.instance id=Grid.<extension#1>.view template=view arguments=("exclusive")
 "#,
     );
 }
@@ -261,7 +250,7 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -276,7 +265,7 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
     }
 }
 
-=== checked ===
+=== dir ===
 export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly"> of [T; N] {
 /// @generic.template symbol=FixedArrayAccess parameters=(T, const N: usize, const A: Access = "readonly")
 /// @definition.extension symbol=FixedArrayAccess form=exported target=FixedArray<T, N>
@@ -321,20 +310,12 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
         /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instance source=this id="WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>"
-        /// @generic.instance source=this.view id="WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>"
-        /// @generic.instance source=this.view id="WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>"
-        /// @generic.instance source=this.view id="WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A>"
-        /// @generic.instance source=this.view() id="FixedArrayAccess<T, N, A>.view"
+        /// @generic.instantiation id="FixedArrayAccess.view<T, N, A>" template=FixedArrayAccess.view arguments=(T, N, A) owner=FixedArrayAccess
+        /// @generic.instantiation id="FixedArrayAccess.view<T, N>" template=FixedArrayAccess.view arguments=(T, N) owner=FixedArrayAccess
+        /// @generic.instantiation id="collections.fixed-array.view<T, N>" template=collections.fixed-array.view arguments=(T, N) owner=FixedArrayAccess
 
     }
 }
-
-/// @generic.instance id="FixedArrayAccess<T, N, A>.view" template=FixedArrayAccess.view arguments=(T, N, A)
-/// @generic.instance id="WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>" template=memory.type.WithAccess arguments=(&FixedArrayAccess.peek.'a FixedArray<T, N>, A)
-/// @generic.instance id="WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>" template=memory.type.WithAccess arguments=(&FixedArrayAccess.view.'a FixedArray<T, N>, A)
-/// @generic.instance id="WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>" template=memory.type.WithAccess arguments=(&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A)
-/// @generic.instance id="WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A>" template=memory.type.WithAccess arguments=(&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A)
 "#,
     );
 }
@@ -355,7 +336,7 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -370,7 +351,7 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 /// @generic.template symbol=ArrayAccess parameters=(T, const A: Access = "readonly")
 /// @definition.extension symbol=ArrayAccess form=exported target=Array<T>
@@ -414,23 +395,12 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
         /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.peek.'a Array<T>, A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instance source=this id="WithAccess<&ArrayAccess.peek.'a Array<T>, A>"
-        /// @generic.instance source=this id=Array<T>
-        /// @generic.instance source=this.view id="WithAccess<&ArrayAccess.view.'a Array<T>, A>"
-        /// @generic.instance source=this.view id="WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>"
-        /// @generic.instance source=this.view id="WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A>"
-        /// @generic.instance source=this.view id=Array<T>
-        /// @generic.instance source=this.view() id="ArrayAccess<T, A>.view"
+        /// @generic.instantiation id="ArrayAccess.view<T, A>" template=ArrayAccess.view arguments=(T, A) owner=ArrayAccess
+        /// @generic.instantiation id=ArrayAccess.view<T> template=ArrayAccess.view arguments=(T) owner=ArrayAccess
+        /// @generic.instantiation id=collections.array.view<T> template=collections.array.view arguments=(T) owner=ArrayAccess
 
     }
 }
-
-/// @generic.instance id="ArrayAccess<T, A>.view" template=ArrayAccess.view arguments=(T, A)
-/// @generic.instance id="WithAccess<&ArrayAccess.peek.'a Array<T>, A>" template=memory.type.WithAccess arguments=(&ArrayAccess.peek.'a Array<T>, A)
-/// @generic.instance id="WithAccess<&ArrayAccess.view.'a Array<T>, A>" template=memory.type.WithAccess arguments=(&ArrayAccess.view.'a Array<T>, A)
-/// @generic.instance id="WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>" template=memory.type.WithAccess arguments=(&collections.array.view.'a Array<T>, collections.array.view.A)
-/// @generic.instance id="WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A>" template=memory.type.WithAccess arguments=(&collections.array.view.'a Slice<T>, collections.array.view.A)
-/// @generic.instance id=Array<T> template=collections.array.Array arguments=(T)
 "#,
     );
 }

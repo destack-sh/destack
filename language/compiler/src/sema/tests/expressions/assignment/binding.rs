@@ -8,14 +8,14 @@ const value: int32 = "text";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: int32 = "text";
 
-=== checked ===
+=== dir ===
 const value: int32 = "text";
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -38,7 +38,7 @@ value = 2;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -46,7 +46,7 @@ value = 2;
 let value: int32 = 1;
 value = 2;
 
-=== checked ===
+=== dir ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -73,7 +73,7 @@ value = "text";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -81,7 +81,7 @@ value = "text";
 let value: int32 = 1;
 value = "text";
 
-=== checked ===
+=== dir ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -113,7 +113,7 @@ value += 2;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -121,7 +121,7 @@ value += 2;
 let value: int32 = 1;
 value += 2;
 
-=== checked ===
+=== dir ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -150,7 +150,7 @@ value = 2;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -158,7 +158,7 @@ value = 2;
 let value: float64 = 1;
 value = 2;
 
-=== checked ===
+=== dir ===
 let value = 1;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
@@ -185,7 +185,7 @@ value = "text";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -193,7 +193,7 @@ value = "text";
 let value: float64 = 1;
 value = "text";
 
-=== checked ===
+=== dir ===
 let value = 1;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
@@ -225,7 +225,7 @@ value = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -233,7 +233,7 @@ value = 1;
 let value: int32;
 value = 1;
 
-=== checked ===
+=== dir ===
 let value: int32;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -259,7 +259,7 @@ values = [1, 2];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -267,7 +267,7 @@ values = [1, 2];
 let values: int32[];
 values = [1, 2];
 
-=== checked ===
+=== dir ===
 let values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
@@ -295,7 +295,7 @@ values = [];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -303,7 +303,7 @@ values = [];
 let values: int32[];
 values = [];
 
-=== checked ===
+=== dir ===
 let values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
@@ -329,7 +329,7 @@ values = [1, 2];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -337,7 +337,7 @@ values = [1, 2];
 let values: [int32; 2];
 values = [1, 2];
 
-=== checked ===
+=== dir ===
 let values: [int32; 2];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
 /// @resolution.pattern source=values kind=binding target=values
@@ -365,7 +365,7 @@ values = [1, 2, 3];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -373,7 +373,7 @@ values = [1, 2, 3];
 let values: [int32; 2];
 values = [1, 2, 3];
 
-=== checked ===
+=== dir ===
 let values: [int32; 2];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
 /// @resolution.pattern source=values kind=binding target=values
@@ -409,7 +409,7 @@ const copy = value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -418,7 +418,7 @@ let value: string;
 value = "ready";
 const copy: string = value;
 
-=== checked ===
+=== dir ===
 let value: string;
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
@@ -451,7 +451,7 @@ const copy = value;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -459,7 +459,7 @@ const copy = value;
 let value: string;
 const copy: string = value;
 
-=== checked ===
+=== dir ===
 let value: string;
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
@@ -493,7 +493,7 @@ const copy = value;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -506,7 +506,7 @@ if (condition) {
 }
 const copy: string = value;
 
-=== checked ===
+=== dir ===
 declare const condition: boolean;
 /// @type.symbol symbol=condition source=condition type=boolean
 /// @resolution.pattern source=condition kind=binding target=condition
@@ -560,7 +560,7 @@ const copy = value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -573,7 +573,7 @@ if (condition) {
 }
 const copy: string | undefined = value;
 
-=== checked ===
+=== dir ===
 declare const condition: boolean;
 /// @type.symbol symbol=condition source=condition type=boolean
 /// @resolution.pattern source=condition kind=binding target=condition
@@ -618,7 +618,7 @@ const answer = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -626,7 +626,7 @@ const answer = 1;
 const value: 1 = answer;
 const answer: 1 = 1;
 
-=== checked ===
+=== dir ===
 const value = answer;
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value
@@ -654,7 +654,7 @@ const b = a;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -662,7 +662,7 @@ const b = a;
 const a = b;
 const b = a;
 
-=== checked ===
+=== dir ===
 const a = b;
 /// @type.symbol symbol=a source=a type=<error>
 /// @resolution.pattern source=a kind=binding target=a

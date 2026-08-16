@@ -16,7 +16,7 @@ const shapes: Holder<Shape> = circles;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -31,7 +31,7 @@ struct Holder<out T> {
 declare const circles: Holder<Circle>;
 const shapes: Holder<Shape> = circles;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -69,9 +69,6 @@ const shapes: Holder<Shape> = circles;
 /// @resolution.name source=circles target=circles
 /// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=circles root=circles
-
-/// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
-/// @generic.instance id=Holder<Shape> template=Holder arguments=(Shape)
 "#,
     );
 }
@@ -93,7 +90,7 @@ const either: Holder<Circle | Square> = circles;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -109,7 +106,7 @@ struct Holder<out T> {
 declare const circles: Holder<Circle>;
 const either: Holder<Circle | Square> = circles;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -154,9 +151,6 @@ const either: Holder<Circle | Square> = circles;
 /// @resolution.name source=circles target=circles
 /// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=circles root=circles
-
-/// @generic.instance id="Holder<Circle | Square>" template=Holder arguments=(Circle | Square)
-/// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<Circle | Square>'"
@@ -180,7 +174,7 @@ const wide: Holder<int32> = one;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -192,7 +186,7 @@ struct Holder<out T> {
 declare const one: Holder<1>;
 const wide: Holder<int32> = one;
 
-=== checked ===
+=== dir ===
 struct Holder<T> {
 /// @generic.template symbol=Holder parameters=(out T)
 /// @type.symbol symbol=Holder type=Holder
@@ -218,9 +212,6 @@ const wide: Holder<int32> = one;
 /// @resolution.name source=one target=one
 /// @resolution.place source=one placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=one root=one
-
-/// @generic.instance id=Holder<1> template=Holder arguments=(1)
-/// @generic.instance id=Holder<int32> template=Holder arguments=(int32)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<1>' is not assignable to type 'Holder<int32>'"
@@ -246,7 +237,7 @@ const opaque: Holder<unknown> = circles;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -260,7 +251,7 @@ struct Holder<out T> {
 declare const circles: Holder<Circle>;
 const opaque: Holder<unknown> = circles;
 
-=== checked ===
+=== dir ===
 class Circle {}
 /// @type.symbol symbol=Circle source="class Circle {}" type=Circle
 /// @definition.class symbol=Circle source="class Circle {}"
@@ -291,9 +282,6 @@ const opaque: Holder<unknown> = circles;
 /// @resolution.name source=circles target=circles
 /// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=circles root=circles
-
-/// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
-/// @generic.instance id=Holder<unknown> template=Holder arguments=(unknown)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<unknown>'"
@@ -320,7 +308,7 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -335,7 +323,7 @@ struct Holder<out T> {
 declare const circles: Holder<Circle>;
 const dynamic: Holder<Dynamic<Draw>> = circles;
 
-=== checked ===
+=== dir ===
 interface Draw {}
 /// @type.symbol symbol=Draw source="interface Draw {}" type=Draw
 /// @definition.interface symbol=Draw source="interface Draw {}"
@@ -375,10 +363,6 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
 /// @resolution.name source=circles target=circles
 /// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=circles root=circles
-
-/// @generic.instance id=Dynamic<Draw> template=memory.dynamic.Dynamic arguments=(Draw)
-/// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
-/// @generic.instance id=Holder<Dynamic<Draw>> template=Holder arguments=(Dynamic<Draw>)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<Dynamic<Draw>>'"
@@ -405,7 +389,7 @@ const widened: Holder<() => Shape> = makers;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -420,7 +404,7 @@ struct Holder<out T> {
 declare const makers: Holder<() => Circle>;
 const widened: Holder<() => Shape> = makers;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -458,9 +442,6 @@ const widened: Holder<() => Shape> = makers;
 /// @resolution.name source=makers target=makers
 /// @resolution.place source=makers placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=makers root=makers
-
-/// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
-/// @generic.instance id="Holder<Function<(), Shape>>" template=Holder arguments=(Function<(), Shape>)
 "#,
     );
 }
@@ -482,7 +463,7 @@ const either: Holder<() => Circle | Square> = makers;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -498,7 +479,7 @@ struct Holder<out T> {
 declare const makers: Holder<() => Circle>;
 const either: Holder<() => Circle | Square> = makers;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -543,9 +524,6 @@ const either: Holder<() => Circle | Square> = makers;
 /// @resolution.name source=makers target=makers
 /// @resolution.place source=makers placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=makers root=makers
-
-/// @generic.instance id="Holder<Function<(), Circle | Square>>" template=Holder arguments=(Function<(), Circle | Square>)
-/// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<() => Circle>' is not assignable to type 'Holder<() => … | …>'"
@@ -572,7 +550,7 @@ const widened: Box<Shape> = boxed;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -587,7 +565,7 @@ declare class Box<in out T> {
 declare const boxed: Box<Circle>;
 const widened: Box<Shape> = boxed;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -625,9 +603,6 @@ const widened: Box<Shape> = boxed;
 /// @resolution.name source=boxed target=boxed
 /// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=boxed root=boxed
-
-/// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
-/// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
@@ -654,7 +629,7 @@ const widened: Label<Shape> = labeled;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -669,7 +644,7 @@ declare class Label<out T> {
 declare const labeled: Label<Circle>;
 const widened: Label<Shape> = labeled;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -707,9 +682,6 @@ const widened: Label<Shape> = labeled;
 /// @resolution.name source=labeled target=labeled
 /// @resolution.place source=labeled placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=labeled root=labeled
-
-/// @generic.instance id=Label<Circle> template=Label arguments=(Circle)
-/// @generic.instance id=Label<Shape> template=Label arguments=(Shape)
 "#,
     );
 }
@@ -730,7 +702,7 @@ const widened: ^Box<Shape> = boxed;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -745,7 +717,7 @@ declare class Box<in out T> {
 declare const boxed: ^Box<Circle>;
 const widened: ^Box<Shape> = boxed;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -783,9 +755,6 @@ const widened: ^Box<Shape> = boxed;
 /// @resolution.name source=boxed target=boxed
 /// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=boxed root=boxed
-
-/// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
-/// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 "#,
     );
 }
@@ -808,7 +777,7 @@ const widened: ^Pipe<Shape> = pipe;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -825,7 +794,7 @@ declare class Pipe<in out T> {
 declare const pipe: ^Pipe<Circle>;
 const widened: ^Pipe<Shape> = pipe;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -870,9 +839,6 @@ const widened: ^Pipe<Shape> = pipe;
 /// @resolution.name source=pipe target=pipe
 /// @resolution.place source=pipe placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=pipe root=pipe
-
-/// @generic.instance id=Pipe<Circle> template=Pipe arguments=(Circle)
-/// @generic.instance id=Pipe<Shape> template=Pipe arguments=(Shape)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '^Pipe<Circle>' is not assignable to type '^Pipe<Shape>'"
@@ -905,7 +871,7 @@ const widened: Stack<Shape> = circles;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -926,7 +892,7 @@ extension<T> of Stack<T> {
 declare const circles: Stack<Circle>;
 const widened: Stack<Shape> = circles;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -992,9 +958,6 @@ const widened: Stack<Shape> = circles;
 /// @resolution.name source=circles target=circles
 /// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=circles root=circles
-
-/// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
-/// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Stack<Circle>' is not assignable to type 'Stack<Shape>'"
@@ -1027,7 +990,7 @@ const view: readonly Stack<Shape> = circles;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1048,7 +1011,7 @@ extension<T> of Stack<T> {
 declare const circles: Stack<Circle>;
 const view: readonly Stack<Shape> = circles;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -1114,9 +1077,6 @@ const view: readonly Stack<Shape> = circles;
 /// @resolution.name source=circles target=circles
 /// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=circles root=circles
-
-/// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
-/// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
 "#,
     );
 }
@@ -1141,7 +1101,7 @@ const view: readonly Bag<Shape> = circles;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1160,7 +1120,7 @@ class Bag<in out T> {
 declare const circles: Bag<Circle>;
 const view: readonly Bag<Shape> = circles;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -1217,9 +1177,6 @@ const view: readonly Bag<Shape> = circles;
 /// @resolution.name source=circles target=circles
 /// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=circles root=circles
-
-/// @generic.instance id=Bag<Circle> template=Bag arguments=(Circle)
-/// @generic.instance id=Bag<Shape> template=Bag arguments=(Shape)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Bag<Circle>' is not assignable to type 'readonly Bag<Shape>'"
@@ -1243,7 +1200,7 @@ const widened: Handle<Shape> = handle;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1256,7 +1213,7 @@ newtype Handle<out T> = intrinsic;
 declare const handle: Handle<Circle>;
 const widened: Handle<Shape> = handle;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -1287,9 +1244,6 @@ const widened: Handle<Shape> = handle;
 /// @resolution.name source=handle target=handle
 /// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handle root=handle
-
-/// @generic.instance id=Handle<Circle> template=Handle arguments=(Circle)
-/// @generic.instance id=Handle<Shape> template=Handle arguments=(Shape)
 "#,
     );
 }
@@ -1309,7 +1263,7 @@ const either: Handle<Circle | Square> = handle;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1323,7 +1277,7 @@ newtype Handle<out T> = intrinsic;
 declare const handle: Handle<Circle>;
 const either: Handle<Circle | Square> = handle;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -1361,9 +1315,6 @@ const either: Handle<Circle | Square> = handle;
 /// @resolution.name source=handle target=handle
 /// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handle root=handle
-
-/// @generic.instance id="Handle<Circle | Square>" template=Handle arguments=(Circle | Square)
-/// @generic.instance id=Handle<Circle> template=Handle arguments=(Circle)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Handle<Circle>' is not assignable to type 'Handle<Circle | Square>'"
@@ -1388,7 +1339,7 @@ const widened: Managed<Handle<Shape>> = handle;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1401,7 +1352,7 @@ newtype Handle<out T> = intrinsic;
 declare const handle: Handle<Circle>;
 const widened: Handle<Shape> = handle;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -1434,9 +1385,6 @@ const widened: Managed<Handle<Shape>> = handle;
 /// @resolution.name source=handle target=handle
 /// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handle root=handle
-
-/// @generic.instance id=Handle<Circle> template=Handle arguments=(Circle)
-/// @generic.instance id=Handle<Shape> template=Handle arguments=(Shape)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Handle<Circle>' is not assignable to type 'Handle<Shape>'"
@@ -1464,7 +1412,7 @@ const either: &readonly Holder<Circle | Square> = &readonly holder;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1481,7 +1429,7 @@ declare const holder: Holder<Circle>;
 const view: &'static readonly Holder<Shape> = &readonly holder;
 const either: &'static readonly Holder<Circle | Square> = &readonly holder;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -1535,10 +1483,6 @@ const either: &readonly Holder<Circle | Square> = &readonly holder;
 /// @resolution.name source=holder target=holder
 /// @resolution.place source=holder placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=holder root=holder
-
-/// @generic.instance id="Holder<Circle | Square>" template=Holder arguments=(Circle | Square)
-/// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
-/// @generic.instance id=Holder<Shape> template=Holder arguments=(Shape)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '&'static readonly Holder<Circle>' is not assignable to type '&'static readonly Holder<Circle | Square>'"

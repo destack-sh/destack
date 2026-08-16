@@ -13,7 +13,7 @@ label satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -25,7 +25,7 @@ let (count, label) = pair;
 count satisfies int32;
 label satisfies string;
 
-=== checked ===
+=== dir ===
 declare const pair: (int32, string);
 /// @type.symbol symbol=pair source=pair type=(int32, string)
 /// @resolution.pattern source=pair kind=binding target=pair
@@ -67,7 +67,7 @@ let (x, y) = point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -76,7 +76,7 @@ declare const point: { x: int32; y: int32 };
 
 let (x, y) = point;
 
-=== checked ===
+=== dir ===
 declare const point: { x: int32; y: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 /// @resolution.pattern source=point kind=binding target=point

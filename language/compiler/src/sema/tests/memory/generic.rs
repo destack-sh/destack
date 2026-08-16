@@ -14,7 +14,7 @@ declare function create(): User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -27,7 +27,7 @@ function identity(value: User): User {
 
 declare function create(): User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -65,7 +65,7 @@ consume(user);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -77,7 +77,7 @@ declare const user: shared User;
 
 consume(user);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -121,7 +121,7 @@ function replace(user: User): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -134,7 +134,7 @@ function replace(user: User): void {
     consume(user as &'frame exclusive User);
 }
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -180,7 +180,7 @@ identity(sharedUser) satisfies shared User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -197,7 +197,7 @@ declare const sharedUser: shared User;
 identity<"local">(localUser) satisfies local User;
 identity<"shared">(sharedUser) satisfies shared User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -235,7 +235,8 @@ declare const sharedUser: shared User;
 identity(localUser) satisfies local User;
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(localUser) parameters=(Placed<User, "local">) arguments=(provided(localUser) as Placed<User, "local">) return=Placed<User, "local"> kind=symbol target=identity instance="identity<\"local\">"
-/// @generic.instance source=identity(localUser) id="identity<\"local\">"
+/// @generic.instantiation id="identity<\"local\">" template=identity arguments=("local")
+/// @generic.instance id="identity<\"local\">" template=identity arguments=("local")
 /// @resolution.name source=localUser target=localUser
 /// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localUser root=localUser
@@ -244,14 +245,12 @@ identity(localUser) satisfies local User;
 identity(sharedUser) satisfies shared User;
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(sharedUser) parameters=(Placed<User, "shared">) arguments=(provided(sharedUser) as Placed<User, "shared">) return=Placed<User, "shared"> kind=symbol target=identity instance="identity<\"shared\">"
-/// @generic.instance source=identity(sharedUser) id="identity<\"shared\">"
+/// @generic.instantiation id="identity<\"shared\">" template=identity arguments=("shared")
+/// @generic.instance id="identity<\"shared\">" template=identity arguments=("shared")
 /// @resolution.name source=sharedUser target=sharedUser
 /// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedUser root=sharedUser
 /// @resolution.name source=User target=User
-
-/// @generic.instance id="identity<\"local\">" template=identity arguments=("local")
-/// @generic.instance id="identity<\"shared\">" template=identity arguments=("shared")
 "#,
     );
 }
@@ -274,7 +273,7 @@ identity(sharedUser) satisfies shared User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -291,7 +290,7 @@ declare const sharedUser: shared User;
 identity<local User>(localUser) satisfies local User;
 identity<shared User>(sharedUser) satisfies shared User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -324,7 +323,8 @@ declare const sharedUser: shared User;
 identity(localUser) satisfies local User;
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(localUser) parameters=(Placed<User, "local">) arguments=(provided(localUser) as Placed<User, "local">) return=Placed<User, "local"> kind=symbol target=identity instance="identity<Placed<User, \"local\">>"
-/// @generic.instance source=identity(localUser) id="identity<Placed<User, \"local\">>"
+/// @generic.instantiation id="identity<Placed<User, \"local\">>" template=identity arguments=(Placed<User, "local">)
+/// @generic.instance id="identity<Placed<User, \"local\">>" template=identity arguments=(Placed<User, "local">)
 /// @resolution.name source=localUser target=localUser
 /// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localUser root=localUser
@@ -333,14 +333,12 @@ identity(localUser) satisfies local User;
 identity(sharedUser) satisfies shared User;
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(sharedUser) parameters=(Placed<User, "shared">) arguments=(provided(sharedUser) as Placed<User, "shared">) return=Placed<User, "shared"> kind=symbol target=identity instance="identity<Placed<User, \"shared\">>"
-/// @generic.instance source=identity(sharedUser) id="identity<Placed<User, \"shared\">>"
+/// @generic.instantiation id="identity<Placed<User, \"shared\">>" template=identity arguments=(Placed<User, "shared">)
+/// @generic.instance id="identity<Placed<User, \"shared\">>" template=identity arguments=(Placed<User, "shared">)
 /// @resolution.name source=sharedUser target=sharedUser
 /// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedUser root=sharedUser
 /// @resolution.name source=User target=User
-
-/// @generic.instance id="identity<Placed<User, \"local\">>" template=identity arguments=(Placed<User, "local">)
-/// @generic.instance id="identity<Placed<User, \"shared\">>" template=identity arguments=(Placed<User, "shared">)
 "#,
     );
 }
@@ -365,7 +363,7 @@ mixedBox.value satisfies shared User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -384,7 +382,7 @@ localBox.value satisfies local User;
 sharedBox.value satisfies shared User;
 mixedBox.value satisfies shared User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -446,9 +444,6 @@ mixedBox.value satisfies shared User;
 /// @resolution.place source=mixedBox.value placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=mixedBox.value root=mixedBox keys=[value]
 /// @resolution.name source=User target=User
-
-/// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
-/// @generic.instance id=Box<User> template=Box arguments=(User)
 "#,
     );
 }
@@ -463,7 +458,7 @@ function negate(value: boolean): boolean {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -472,7 +467,7 @@ function negate(value: boolean): boolean {
     return !value;
 }
 
-=== checked ===
+=== dir ===
 function negate(value: boolean): boolean {
 /// @type.symbol symbol=negate type=(boolean) => boolean
 /// @type.symbol symbol=negate.value source="value: boolean" type=boolean
@@ -499,7 +494,7 @@ function inspect(value: int32): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -509,7 +504,7 @@ function inspect(value: int32): void {
     borrow satisfies local &readonly int32;
 }
 
-=== checked ===
+=== dir ===
 function inspect(value: int32): void {
 /// @type.symbol symbol=inspect type=(int32) => void
 /// @type.symbol symbol=inspect.value source="value: int32" type=int32
@@ -543,7 +538,7 @@ function inspect(value: &readonly User): &readonly User {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -554,7 +549,7 @@ function inspect<'a>(value: &'a readonly User): &'a readonly User {
     return value;
 }
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -591,7 +586,7 @@ declare function inspect(holder: Holder<&readonly User>): void;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -605,7 +600,7 @@ struct Holder<out T> {
 declare function maybe<'a>(value: &'a readonly User | undefined): &readonly User | undefined;
 declare function inspect<'a>(holder: Holder<&'a readonly User>): void;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -636,8 +631,6 @@ declare function inspect(holder: Holder<&readonly User>): void;
 /// @type.symbol symbol=inspect.holder source="holder: Holder<&readonly User>" type=Holder<&inspect.'a readonly User>
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=User target=User
-
-/// @generic.instance id="Holder<&inspect.'a readonly User>" template=Holder arguments=(&inspect.'a readonly User)
 "#,
         r#"
 
@@ -668,7 +661,7 @@ const mixedBox: local Box<shared User> = new Box(sharedUser);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -690,7 +683,7 @@ const localBox: local Box<User> = new Box<User>(localUser);
 const sharedBox: shared Box<User> = new Box<User>(sharedUser);
 const mixedBox: local Box<shared User> = new Box<shared User>(sharedUser);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -742,7 +735,10 @@ const localBox: local Box<User> = new Box(localUser);
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new Box(localUser)" parameters=(User) arguments=(provided(localUser) as User) return=Placed<Box<User>, "local"> kind=class target=Box constructor=Box.constructor instance=Box<User>
-/// @generic.instance source="new Box(localUser)" id=Box<User>
+/// @generic.instantiation id=Box.constructor<User> template=Box.constructor arguments=(User)
+/// @generic.instantiation id=Box<User> template=Box arguments=(User)
+/// @generic.instance id=Box.constructor<User> template=Box.constructor arguments=(User)
+/// @generic.instance id=Box<User> template=Box arguments=(User)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=localUser target=localUser
 /// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
@@ -754,7 +750,8 @@ const sharedBox: shared Box<User> = new Box(sharedUser);
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new Box(sharedUser)" parameters=(Placed<User, "shared">) arguments=(provided(sharedUser) as Placed<User, "shared">) return=Placed<Box<User>, "shared"> kind=class target=Box constructor=Box.constructor instance=Box<User>
-/// @generic.instance source="new Box(sharedUser)" id=Box<User>
+/// @generic.instantiation id=Box.constructor<User> template=Box.constructor arguments=(User)
+/// @generic.instantiation id=Box<User> template=Box arguments=(User)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=sharedUser target=sharedUser
 /// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
@@ -766,14 +763,14 @@ const mixedBox: local Box<shared User> = new Box(sharedUser);
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new Box(sharedUser)" parameters=(Placed<User, "shared">) arguments=(provided(sharedUser) as Placed<User, "shared">) return=Placed<Box<Placed<User, "shared">>, "local"> kind=class target=Box constructor=Box.constructor instance="Box<Placed<User, \"shared\">>"
-/// @generic.instance source="new Box(sharedUser)" id="Box<Placed<User, \"shared\">>"
+/// @generic.instantiation id="Box.constructor<Placed<User, \"shared\">>" template=Box.constructor arguments=(Placed<User, "shared">)
+/// @generic.instantiation id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
+/// @generic.instance id="Box.constructor<Placed<User, \"shared\">>" template=Box.constructor arguments=(Placed<User, "shared">)
+/// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=sharedUser target=sharedUser
 /// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedUser root=sharedUser
-
-/// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
-/// @generic.instance id=Box<User> template=Box arguments=(User)
 "#,
     );
 }
@@ -804,7 +801,7 @@ mixedBox.borrow() satisfies shared &readonly User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -831,7 +828,7 @@ declare const mixedBox: local Dynamic<Box<shared User>>;
 localBox.borrow<User>() satisfies local &readonly User;
 mixedBox.borrow<shared User>() satisfies shared &readonly User;
 
-=== checked ===
+=== dir ===
 interface Box<T> { value: T; }
 /// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box source="interface Box<T> { value: T; }" type=Box
@@ -875,7 +872,8 @@ extension<T> of Box<T> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'a readonly Box<T#2>
         /// @resolution.place source=this placement="local" lifetime=forward.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instance source=this.borrow() id=Box<T#2>.<extension#1>.borrow
+        /// @generic.instantiation id=borrow<T#2> template=borrow arguments=(T#2) owner=<module>#2
+        /// @generic.instantiation id=borrow<T#2> template=borrow arguments=(T#2) owner=<module>#2
 
     }
 }
@@ -902,7 +900,9 @@ localBox.borrow() satisfies local &readonly User;
 /// @resolution.call source=localBox.borrow() parameters=() return=&'static readonly User kind=symbol target=borrow receiver=Placed<Dynamic<Box<User>>, "local"> adjustments=(Placed<Dynamic<Box<User>>, "local"> => direct -> Dynamic<Box<User>>, borrow(&'static readonly Dynamic<Box<User>>)) instance=Box<User>.<extension#1>.borrow
 /// @resolution.place source=localBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localBox root=localBox
-/// @generic.instance source=localBox.borrow() id=Box<User>.<extension#1>.borrow
+/// @generic.instantiation id=borrow<User> template=borrow arguments=(User)
+/// @generic.instantiation id=borrow<User> template=borrow arguments=(User)
+/// @generic.instance id=borrow<User> template=borrow arguments=(User)
 /// @resolution.name source=User target=User
 
 mixedBox.borrow() satisfies shared &readonly User;
@@ -911,14 +911,10 @@ mixedBox.borrow() satisfies shared &readonly User;
 /// @resolution.call source=mixedBox.borrow() parameters=() return=Placed<&'static readonly User, "shared"> kind=symbol target=borrow receiver=Placed<Dynamic<Box<Placed<User, "shared">>>, "local"> adjustments=(Placed<Dynamic<Box<Placed<User, "shared">>>, "local"> => direct -> Dynamic<Box<Placed<User, "shared">>>, borrow(&'static readonly Dynamic<Box<Placed<User, "shared">>>)) instance="Box<Placed<User, \"shared\">>.<extension#1>.borrow"
 /// @resolution.place source=mixedBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=mixedBox root=mixedBox
-/// @generic.instance source=mixedBox.borrow() id="Box<Placed<User, \"shared\">>.<extension#1>.borrow"
+/// @generic.instantiation id="borrow<Placed<User, \"shared\">>" template=borrow arguments=(Placed<User, "shared">)
+/// @generic.instantiation id="borrow<Placed<User, \"shared\">>" template=borrow arguments=(Placed<User, "shared">)
+/// @generic.instance id="borrow<Placed<User, \"shared\">>" template=borrow arguments=(Placed<User, "shared">)
 /// @resolution.name source=User target=User
-
-/// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
-/// @generic.instance id="Box<Placed<User, \"shared\">>.<extension#1>.borrow" template=borrow arguments=(Placed<User, "shared">)
-/// @generic.instance id=Box<T#2>.<extension#1>.borrow template=borrow arguments=(T#2)
-/// @generic.instance id=Box<User> template=Box arguments=(User)
-/// @generic.instance id=Box<User>.<extension#1>.borrow template=borrow arguments=(User)
 "#,
     );
 }

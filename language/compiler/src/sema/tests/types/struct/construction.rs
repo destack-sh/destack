@@ -14,7 +14,7 @@ point satisfies Point;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -27,7 +27,7 @@ struct Point {
 const point: Point = Point { x: 1, y: 2 };
 point satisfies Point;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -73,7 +73,7 @@ const store = Store {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=invalid-struct-accessor message="accessors are not valid in struct literals"
@@ -98,7 +98,7 @@ function wrap<T>(value: T): Box<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -111,7 +111,7 @@ function wrap<T>(value: T): Box<T> {
     Box<T> { value }
 }
 
-=== checked ===
+=== dir ===
 struct Box<T> {
 /// @generic.template symbol=Box parameters=(out T#1)
 /// @type.symbol symbol=Box type=Box
@@ -137,15 +137,12 @@ function wrap<T>(value: T): Box<T> {
     Box { value }
     /// @type.node source="Box { value }" type=Box<T#2>
     /// @resolution.name source=Box target=Box
-    /// @generic.instance source="Box { value }" id=Box<T#2>
     /// @type.node source=value type=T#2
     /// @resolution.name source=value target=wrap.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=wrap.value
 
 }
-
-/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 "#,
     );
 }
@@ -168,7 +165,7 @@ function make<T: Zero>(): Box<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -185,7 +182,7 @@ function make<T: Zero>(): Box<T> {
     Box<T> { value: T.zero() }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Zero {
 /// @type.symbol symbol=Zero type=Zero
 /// @definition.interface symbol=Zero nominal=true
@@ -225,8 +222,6 @@ function make<T: Zero>(): Box<T> {
     /// @resolution.call source=T.zero() parameters=() return=T#2 kind=symbol target=Zero.zero
 
 }
-
-/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 "#,
         r#"
 "#,
@@ -249,7 +244,7 @@ function doubled<T: Float>(value: T): Box<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -264,7 +259,7 @@ function doubled<T: Float>(value: T): Box<T> {
     Box<T> { value: value + value }
 }
 
-=== checked ===
+=== dir ===
 import { Float } from "destack:math";
 
 struct Box<T: Float> {
@@ -302,8 +297,6 @@ function doubled<T: Float>(value: T): Box<T> {
     /// @resolution.access source=value root=doubled.value
 
 }
-
-/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 "#,
         r#""#,
     );
@@ -326,7 +319,7 @@ next satisfies Counter;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -342,7 +335,7 @@ struct Counter {
 const next: Counter = (Counter { value: 1 }).increment();
 next satisfies Counter;
 
-=== checked ===
+=== dir ===
 struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
@@ -399,7 +392,7 @@ const point = Point { x: 1 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -411,7 +404,7 @@ struct Point {
 
 const point: Point = Point { x: 1 };
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -451,7 +444,7 @@ const point = Point { x: 1, y: 2, z: 3 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -463,7 +456,7 @@ struct Point {
 
 const point: Point = Point { x: 1, y: 2, z: 3 };
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -504,7 +497,7 @@ const point = new Point(1, 2);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -516,7 +509,7 @@ struct Point {
 
 const point = new Point(1, 2);
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -563,7 +556,7 @@ next satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -581,7 +574,7 @@ let counter: Counter = Counter { value: 1 };
 const next: int32 = counter.increment();
 next satisfies int32;
 
-=== checked ===
+=== dir ===
 struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
@@ -655,7 +648,7 @@ const counter: Counter = { value: 1 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -666,7 +659,7 @@ struct Counter {
 
 const counter: Counter = { value: 1 };
 
-=== checked ===
+=== dir ===
 struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
@@ -711,7 +704,7 @@ function make(options?: Options): Entry {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -731,7 +724,7 @@ function make(options?: Options): Entry<"static"> {
     return entry;
 }
 
-=== checked ===
+=== dir ===
 type Options = {
 /// @type.symbol symbol=Options type={ message?: string }
 /// @definition.type symbol=Options value={ message?: string }
@@ -779,9 +772,6 @@ function make(options?: Options): Entry {
     /// @resolution.access source=entry root=make.entry
 
 }
-
-/// @generic.instance id="Entry<\"frame\">" template=Entry arguments=("frame")
-/// @generic.instance id="Entry<\"static\">" template=Entry arguments=("static")
 "#,
     );
 }

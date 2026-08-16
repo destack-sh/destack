@@ -21,7 +21,7 @@ selected satisfies "borrowed";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -41,7 +41,7 @@ const selected: "borrowed" = select(user as &'static readonly User);
 
 selected satisfies "borrowed";
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -109,7 +109,7 @@ selected satisfies "readonly";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -129,7 +129,7 @@ const selected: "readonly" = select(user as &'static readonly User);
 
 selected satisfies "readonly";
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -198,7 +198,7 @@ selected satisfies "readonly";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -218,7 +218,7 @@ const selected: "readonly" = select(user);
 
 selected satisfies "readonly";
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -283,7 +283,7 @@ replace(user);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -300,7 +300,7 @@ inspect(user as &'static readonly User);
 modify(user as &'static User);
 replace(user as &'static exclusive User);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -375,7 +375,7 @@ replace(user);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -392,7 +392,7 @@ inspect(user as local &'static readonly User);
 modify(user as local &'static User);
 replace(user as local &'static exclusive User);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -460,7 +460,7 @@ inspect(user);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -472,7 +472,7 @@ declare const user: local readonly User;
 
 inspect(user as &'static readonly User);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -514,7 +514,7 @@ replace(user);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -528,7 +528,7 @@ declare const user: local readonly User;
 modify(user);
 replace(user);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -594,7 +594,7 @@ inspect(alias);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -610,7 +610,7 @@ declare const alias: Cell;
 inspect(explicit as &'static readonly Cell);
 inspect(alias as &'static readonly Cell);
 
-=== checked ===
+=== dir ===
 struct Cell {}
 /// @type.symbol symbol=Cell source="struct Cell {}" type=Cell
 /// @definition.struct symbol=Cell source="struct Cell {}"
@@ -675,7 +675,7 @@ inspect(cell);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -689,7 +689,7 @@ declare const cell: ManagedCellId;
 
 inspect(cell as &'static readonly ManagedCellId);
 
-=== checked ===
+=== dir ===
 struct Cell {}
 /// @type.symbol symbol=Cell source="struct Cell {}" type=Cell
 /// @definition.struct symbol=Cell source="struct Cell {}"
@@ -740,7 +740,7 @@ inspect(readonlyCell);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -754,7 +754,7 @@ declare const readonlyCell: local readonly Cell;
 inspect(localCell as &'static readonly Cell);
 inspect(readonlyCell as &'static readonly Cell);
 
-=== checked ===
+=== dir ===
 struct Cell {}
 /// @type.symbol symbol=Cell source="struct Cell {}" type=Cell
 /// @definition.struct symbol=Cell source="struct Cell {}"
@@ -824,7 +824,7 @@ inspect(state.users[0]);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -848,7 +848,7 @@ inspect(state.user as &'static readonly User);
 inspect(state.boxed.value as &'static readonly User);
 inspect(state.users[0] as &'static readonly User);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -936,11 +936,9 @@ inspect(state.users[0]);
 /// @resolution.place source=state.users[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=state.users[0] root=state keys=[users, 0]
 /// @resolution.subscript source=state.users[0] type=User kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static User, \"exclusive\">)"
-/// @generic.instance source=state.users[0] id="Array<User>.<extension#5>.index#1<\"exclusive\">"
+/// @generic.instantiation id="collections.array.index#1<User, \"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
+/// @generic.instance id="collections.array.index#1<User, \"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
-
-/// @generic.instance id="Array<User>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
-/// @generic.instance id=Box<User> template=Box arguments=(User)
 "#,
     );
 }
@@ -959,7 +957,7 @@ const selected: &readonly User = condition ? first : second;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -974,7 +972,7 @@ const selected: &'static readonly User = condition
     ? (first as &'static readonly User)
     : (second as &'static readonly User);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -1029,7 +1027,7 @@ const selected: &readonly User = match (choice) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -1045,7 +1043,7 @@ const selected: &'static readonly User = match (choice) {
     _ => second as &'static readonly User
 };
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -1104,7 +1102,7 @@ const selected: (&readonly User, &readonly User) = (first, second);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -1119,7 +1117,7 @@ const selected: (&'static readonly User, &'static readonly User) = (
     second as &'static readonly User,
 );
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -1161,7 +1159,7 @@ inspect("message");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -1170,7 +1168,7 @@ declare function inspect<'a>(value: &'a readonly string): void;
 
 inspect("message" as &'frame readonly string);
 
-=== checked ===
+=== dir ===
 declare function inspect(value: &readonly string): void;
 /// @generic.template symbol=inspect parameters=('a)
 /// @type.symbol symbol=inspect source="declare function inspect(value: &readonly string): void" type=<inspect.'a>(&inspect.'a readonly string) => void
@@ -1199,7 +1197,7 @@ modify(user);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -1213,7 +1211,7 @@ declare function modify<'a>(value: shared &'a User): void;
 inspect(user as shared &'static readonly User);
 modify(user as shared &'static User);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -1267,7 +1265,7 @@ replace(user);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1279,7 +1277,7 @@ declare function replace<'a>(value: shared &'a exclusive User): void;
 
 replace(user);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -1328,7 +1326,7 @@ replace(user);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -1344,7 +1342,7 @@ inspect(user as shared &'static readonly User);
 modify(user as shared &'static User);
 replace(user as shared &'static exclusive User);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -1417,7 +1415,7 @@ inspectValues(values);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -1434,7 +1432,7 @@ declare const values: int32[];
 inspectPoint(point as &'static readonly Point);
 inspectValues(values as &'static readonly int32[]);
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -1501,7 +1499,7 @@ messages.push(message);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1517,7 +1515,7 @@ declare const message: shared Message;
 
 messages.push<Message>(message);
 
-=== checked ===
+=== dir ===
 declare const values: shared int32[];
 /// @type.symbol symbol=values source=values type=Placed<Array<int32>, "shared">
 /// @resolution.pattern source=values kind=binding target=values
@@ -1528,7 +1526,8 @@ values.push(1);
 /// @resolution.call source=values.push(1) parameters=(Placed<Array<int32>, "shared">) arguments=(rest(1) as int32) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<int32>, "shared"> instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=values root=values
-/// @generic.instance source=values.push(1) id=Array<int32>.<extension#5>.push
+/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
 
 class Message {}
 /// @type.symbol symbol=Message source="class Message {}" type=Message
@@ -1550,11 +1549,9 @@ messages.push(message);
 /// @resolution.call source=messages.push(message) parameters=(Placed<Array<Message>, "shared">) arguments=(rest(message) as Placed<Message, "shared">) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<Message>, "shared"> instance=Array<Message>.<extension#5>.push
 /// @resolution.place source=messages placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=messages root=messages
-/// @generic.instance source=messages.push(message) id=Array<Message>.<extension#5>.push
+/// @generic.instantiation id=collections.array.push<Message> template=collections.array.push arguments=(Message)
+/// @generic.instantiation id=collections.array.push<Message> template=collections.array.push arguments=(Message)
 /// @resolution.name source=message target=message
-
-/// @generic.instance id=Array<Message>.<extension#5>.push template=collections.array.push arguments=(Message)
-/// @generic.instance id=Array<int32>.<extension#5>.push template=collections.array.push arguments=(int32)
 "#,
         r#"
 /// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Array<int32>' is not assignable to the method's 'this' type 'shared &exclusive Array<int32>'"
@@ -1578,7 +1575,7 @@ same satisfies User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1590,7 +1587,7 @@ const same: User = user;
 
 same satisfies User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -1626,7 +1623,7 @@ let owned: ^User = user;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1636,7 +1633,7 @@ class User {}
 let user: User = new User();
 let owned: ^User = user;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -1679,7 +1676,7 @@ let owned: ^Label = borrow;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1693,7 +1690,7 @@ declare const label: ^Label;
 let borrow: &'static ^Label = &label;
 let owned: ^Label = borrow;
 
-=== checked ===
+=== dir ===
 class Buffer {}
 /// @type.symbol symbol=Buffer source="class Buffer {}" type=Buffer
 /// @definition.class symbol=Buffer source="class Buffer {}"
@@ -1751,7 +1748,7 @@ let owned: ^Point = borrow;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
@@ -1765,7 +1762,7 @@ let borrow: &'static ^Point = &point;
 let copied: Point = borrow;
 let owned: ^Point = borrow;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -1833,7 +1830,7 @@ let owned: ^User = new User();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1842,7 +1839,7 @@ class User {}
 
 let owned: ^User = new User();
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -1874,7 +1871,7 @@ let owned: ^Point = point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1886,7 +1883,7 @@ struct Point {
 let point: Point = Point { x: 1 };
 let owned: ^Point = point;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -1929,7 +1926,7 @@ function duplicate<T: Copy>(value: T): ^T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1940,7 +1937,7 @@ function duplicate<T: Copy>(value: T): ^T {
     value as ^T
 }
 
-=== checked ===
+=== dir ===
 import { Copy } from "destack:memory";
 
 function duplicate<T: Copy>(value: T): ^T {
@@ -1980,7 +1977,7 @@ duplicate(session);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1995,7 +1992,7 @@ declare const session: ^Session;
 duplicate<32>(32);
 duplicate(session);
 
-=== checked ===
+=== dir ===
 import { Copy } from "destack:memory";
 
 class Session {}
@@ -2019,18 +2016,15 @@ declare const session: ^Session;
 duplicate(32);
 /// @resolution.name source=duplicate target=duplicate
 /// @resolution.call source=duplicate(32) parameters=(32) arguments=(provided(32) as 32) return=Owned<32> kind=symbol target=duplicate instance=duplicate<32>
-/// @generic.instance source=duplicate(32) id=duplicate<32>
+/// @generic.instantiation id=duplicate<32> template=duplicate arguments=(32)
 
 duplicate(session);
 /// @resolution.name source=duplicate target=duplicate
 /// @resolution.call source=duplicate(session) parameters=(<error>) arguments=(provided(session) as <error>) return=Owned<<error>> kind=symbol target=duplicate instance=duplicate<<error>>
-/// @generic.instance source=duplicate(session) id=duplicate<<error>>
+/// @generic.instantiation id=duplicate<<error>> template=duplicate arguments=(<error>)
 /// @resolution.name source=session target=session
 /// @resolution.place source=session placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=session root=session
-
-/// @generic.instance id=duplicate<32> template=duplicate arguments=(32)
-/// @generic.instance id=duplicate<<error>> template=duplicate arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '^Session' does not satisfy 'Copy'"

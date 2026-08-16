@@ -10,7 +10,7 @@ if (true) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ if (true) {
     const value: 1 = 1;
 }
 
-=== checked ===
+=== dir ===
 if (true) {
     const value = 1;
     /// @type.symbol symbol=value source=value type=1
@@ -44,7 +44,7 @@ while (true) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -53,7 +53,7 @@ while (true) {
     break;
 }
 
-=== checked ===
+=== dir ===
 while (true) {
     break;
 }
@@ -77,7 +77,7 @@ while (always) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -88,7 +88,7 @@ while (always) {
     break;
 }
 
-=== checked ===
+=== dir ===
 const always = true;
 /// @type.symbol symbol=always source=always type=true
 /// @resolution.pattern source=always kind=binding target=always

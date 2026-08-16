@@ -22,7 +22,7 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -43,7 +43,7 @@ function read<'a>(shape: &'a (Rectangle | Circle)): int32 {
     return shape.radius;
 }
 
-=== checked ===
+=== dir ===
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
@@ -135,7 +135,7 @@ function read<'a, const A: Access>(
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -156,7 +156,7 @@ function read<'a, const A: Access>(shape: Borrowed<Rectangle | Circle, 'a, A>): 
     return shape.radius;
 }
 
-=== checked ===
+=== dir ===
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
@@ -249,7 +249,7 @@ function value<'a, 'b>(
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -266,7 +266,7 @@ function value<'a, 'b>(
     return flag ? &left.value : &right.value;
 }
 
-=== checked ===
+=== dir ===
 struct Text {
 /// @type.symbol symbol=Text type=Text
 /// @definition.struct symbol=Text

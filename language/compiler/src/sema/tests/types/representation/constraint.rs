@@ -14,7 +14,7 @@ function paint(item: Drawable): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -27,7 +27,7 @@ function paint(item: Dynamic<Drawable>): void {
     item.draw();
 }
 
-=== checked ===
+=== dir ===
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
@@ -70,7 +70,7 @@ function paint(item: Drawable): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -83,7 +83,7 @@ function paint(item: { draw: () => void }): void {
     item.draw();
 }
 
-=== checked ===
+=== dir ===
 type Drawable = {
 /// @type.symbol symbol=Drawable type={ draw(): void }
 /// @definition.type symbol=Drawable value={ draw(): void }

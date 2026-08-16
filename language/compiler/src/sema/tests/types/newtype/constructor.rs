@@ -10,7 +10,7 @@ const id = UserId(42);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -19,7 +19,7 @@ newtype UserId = int64;
 
 const id: UserId = UserId(42);
 
-=== checked ===
+=== dir ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 /// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
@@ -46,7 +46,7 @@ const pair = Pair(1, "x");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -55,7 +55,7 @@ newtype Pair = (int32, string);
 
 const pair: Pair = Pair(1, "x");
 
-=== checked ===
+=== dir ===
 newtype Pair = (int32, string);
 /// @type.symbol symbol=Pair source="newtype Pair = (int32, string)" type=Pair
 /// @definition.newtype symbol=Pair source="newtype Pair = (int32, string)" backing=(int32, string) constructors=[(int32, string) => Pair]
@@ -83,7 +83,7 @@ const config = Config({ debug: true });
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -92,7 +92,7 @@ newtype Config = { debug: boolean };
 
 const config: Config = Config({ debug: true });
 
-=== checked ===
+=== dir ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
 /// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean } constructors=[({ debug: boolean }) => Config]
@@ -120,7 +120,7 @@ const annotation = Annotation("lint", { reason: "intentional" });
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -129,7 +129,7 @@ newtype Annotation = () | (string, { reason?: string });
 
 const annotation: Annotation = Annotation("lint", { reason: "intentional" });
 
-=== checked ===
+=== dir ===
 newtype Annotation = () | (string, { reason?: string });
 /// @type.symbol symbol=Annotation source="newtype Annotation = () | (string, { reason?: string })" type=Annotation
 /// @definition.newtype symbol=Annotation source="newtype Annotation = () | (string, { reason?: string })" backing=() | (string, { reason?: string }) constructors=[() => Annotation, (string, { reason?: string }) => Annotation, (() | (string, { reason?: string })) => Annotation]
@@ -158,7 +158,7 @@ const id: UserId = _(42);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -167,7 +167,7 @@ newtype UserId = int64;
 
 const id: UserId = UserId(42);
 
-=== checked ===
+=== dir ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 /// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
@@ -194,7 +194,7 @@ const point: Point = _(1, 2);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -203,7 +203,7 @@ newtype Point = (int32, int32);
 
 const point: Point = Point(1, 2);
 
-=== checked ===
+=== dir ===
 newtype Point = (int32, int32);
 /// @type.symbol symbol=Point source="newtype Point = (int32, int32)" type=Point
 /// @definition.newtype symbol=Point source="newtype Point = (int32, int32)" backing=(int32, int32) constructors=[(int32, int32) => Point]
@@ -231,7 +231,7 @@ const config: Config = _({ debug: true });
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -240,7 +240,7 @@ newtype Config = { debug: boolean };
 
 const config: Config = Config({ debug: true });
 
-=== checked ===
+=== dir ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
 /// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean } constructors=[({ debug: boolean }) => Config]
@@ -268,7 +268,7 @@ const value: Box<int32> = _(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -277,7 +277,7 @@ newtype Box<out T> = T;
 
 const value: Box<int32> = Box(1);
 
-=== checked ===
+=== dir ===
 newtype Box<T> = T;
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box source="newtype Box<T> = T" type=Box
@@ -292,10 +292,9 @@ const value: Box<int32> = _(1);
 /// @type.node source=_ type=Box
 /// @type.node source=_(1) type=Box<int32>
 /// @resolution.construct source=_(1) parameters=(int32) arguments=(provided(1) as int32) return=Box<int32> kind=newtype target=Box backing=int32 instance=Box<int32>
-/// @generic.instance source=_(1) id=Box<int32>
-/// @type.node source=1 type=1
-
+/// @generic.instantiation id=Box<int32> template=Box arguments=(int32)
 /// @generic.instance id=Box<int32> template=Box arguments=(int32)
+/// @type.node source=1 type=1
 "#,
     );
 }
@@ -312,7 +311,7 @@ function from<T, E>(value: E): Result<T, E> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -323,7 +322,7 @@ function from<T, E>(value: E): Result<T, E> {
     Result(value)
 }
 
-=== checked ===
+=== dir ===
 newtype Result<T, E> = T | E;
 /// @generic.template symbol=Result parameters=(out T#1, out E#1)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = T | E" type=Result
@@ -349,15 +348,13 @@ function from<T, E>(value: E): Result<T, E> {
     /// @type.node source=Result(value) type=Result<T#2, E#2>
     /// @resolution.name source=Result target=Result
     /// @resolution.construct source=Result(value) parameters=(E#2) arguments=(provided(value) as E#2) return=Result<T#2, E#2> kind=newtype target=Result backing=E#2 instance="Result<T#2, E#2>"
-    /// @generic.instance source=Result(value) id="Result<T#2, E#2>"
+    /// @generic.instantiation id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2) owner=from
     /// @type.node source=value type=E#2
     /// @resolution.name source=value target=from.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=from.value
 
 }
-
-/// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 "#,
     );
 }
@@ -370,14 +367,14 @@ const value = _(1);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 const value = _(1);
 
-=== checked ===
+=== dir ===
 const value = _(1);
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
@@ -399,14 +396,14 @@ const value: string = _(1);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 const value: string = _(1);
 
-=== checked ===
+=== dir ===
 const value: string = _(1);
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value

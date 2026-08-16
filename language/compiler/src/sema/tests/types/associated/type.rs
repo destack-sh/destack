@@ -13,7 +13,7 @@ declare const value: Box<string>.Item;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -25,7 +25,7 @@ struct Box<out T> {
 
 declare const value: string;
 
-=== checked ===
+=== dir ===
 struct Box<T> {
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
@@ -65,7 +65,7 @@ const size = Packet.Size;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -76,7 +76,7 @@ class Packet {
 
 const size: uint32 = Packet.Size;
 
-=== checked ===
+=== dir ===
 class Packet {
 /// @type.symbol symbol=Packet type=Packet
 /// @definition.class symbol=Packet
@@ -114,7 +114,7 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -129,7 +129,7 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
     return iter.next();
 }
 
-=== checked ===
+=== dir ===
 interface Iterator {
 /// @type.symbol symbol=Iterator type=Iterator
 /// @definition.interface symbol=Iterator
@@ -187,7 +187,7 @@ declare const made: Made<Factory>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -210,7 +210,7 @@ type Made<F: Producing> = F.Output;
 
 declare const made: int32;
 
-=== checked ===
+=== dir ===
 interface Producing {
 /// @type.symbol symbol=Producing type=Producing
 /// @definition.interface symbol=Producing
@@ -281,7 +281,7 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -296,7 +296,7 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
     return iter.next();
 }
 
-=== checked ===
+=== dir ===
 interface Iterator {
 /// @type.symbol symbol=Iterator type=Iterator
 /// @definition.interface symbol=Iterator
@@ -358,7 +358,7 @@ declare const value: Grid.Cell.Value;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -367,7 +367,7 @@ import { Grid } from "./geometry.ds";
 
 declare const value: int32;
 
-=== checked ===
+=== dir ===
 import { Grid } from "./geometry.ds";
 
 declare const value: Grid.Cell.Value;
@@ -394,7 +394,7 @@ type EventLabel = Message<"orders">.Label<"created">;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -407,7 +407,7 @@ class Message<in out T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
 
-=== checked ===
+=== dir ===
 interface Envelope<T: string> {
 /// @generic.template symbol=Envelope parameters=(in out T#1: string)
 /// @type.symbol symbol=Envelope type=Envelope
@@ -468,7 +468,7 @@ type EventLabel = Message<"orders">.Label<"created">;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -479,7 +479,7 @@ class Message<in out T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
 
-=== checked ===
+=== dir ===
 import { Envelope } from "./envelope.ds";
 
 class Message<T: string> implements Envelope<T> {}

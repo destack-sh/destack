@@ -15,7 +15,7 @@ person.age satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -29,7 +29,7 @@ declare const person: readonly Dynamic<Person>;
 
 person.age satisfies int32;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -75,7 +75,7 @@ person.name satisfies string | undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -88,7 +88,7 @@ const person: readonly Dynamic<Person> = {} as readonly Dynamic<Person>;
 
 person.name satisfies string | undefined;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -131,7 +131,7 @@ person.name = "Grace";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -145,7 +145,7 @@ declare const person: readonly Dynamic<Person>;
 
 person.name = "Grace";
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -197,7 +197,7 @@ person.profile.name = "Grace";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -212,7 +212,7 @@ const person: readonly Dynamic<Person> = { profile: { name: "Ada" } };
 
 person.profile.name = "Grace";
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person

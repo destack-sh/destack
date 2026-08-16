@@ -10,7 +10,7 @@ function square<T: int32 | float64>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ function square<T: int32 | float64>(value: T): T {
     return value * value;
 }
 
-=== checked ===
+=== dir ===
 function square<T: int32 | float64>(value: T): T {
 /// @generic.template symbol=square parameters=(T: int32 | float64)
 /// @type.symbol symbol=square type=<T: int32 | float64>(T) => T
@@ -52,7 +52,7 @@ function scale<T>(left: T, right: T): T where T: int32 | float64 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -61,7 +61,7 @@ function scale<T>(left: T, right: T): T where T: int32 | float64 {
     return left * right;
 }
 
-=== checked ===
+=== dir ===
 function scale<T>(left: T, right: T): T where T: int32 | float64 {
 /// @generic.template symbol=scale parameters=(T)
 /// @type.symbol symbol=scale type=<T>(T, T) => T
@@ -97,7 +97,7 @@ function decrement<T: int32 | float64>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -106,7 +106,7 @@ function decrement<T: int32 | float64>(value: T): T {
     return value - 1;
 }
 
-=== checked ===
+=== dir ===
 function decrement<T: int32 | float64>(value: T): T {
 /// @generic.template symbol=decrement parameters=(T: int32 | float64)
 /// @type.symbol symbol=decrement type=<T: int32 | float64>(T) => T
@@ -136,7 +136,7 @@ function offset<T: int8 | int64>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -145,7 +145,7 @@ function offset<T: int8 | int64>(value: T): T {
     return value + 128;
 }
 
-=== checked ===
+=== dir ===
 function offset<T: int8 | int64>(value: T): T {
 /// @generic.template symbol=offset parameters=(T: int8 | int64)
 /// @type.symbol symbol=offset type=<T: int8 | int64>(T) => T
@@ -179,7 +179,7 @@ function offset<T: int64>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -188,7 +188,7 @@ function offset<T: int64>(value: T): T {
     return value + 1000;
 }
 
-=== checked ===
+=== dir ===
 function offset<T: int64>(value: T): T {
 /// @generic.template symbol=offset parameters=(T: int64)
 /// @type.symbol symbol=offset type=<T: int64>(T) => T
@@ -218,7 +218,7 @@ function offset<T>(value: T): T where int64 == T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -227,7 +227,7 @@ function offset<T>(value: T): T where int64 == T {
     return value + 1000;
 }
 
-=== checked ===
+=== dir ===
 function offset<T>(value: T): T where int64 == T {
 /// @generic.template symbol=offset parameters=(T)
 /// @type.symbol symbol=offset type=<T>(T) => T
@@ -258,7 +258,7 @@ function subtract<T: int32 | float64>(value: T): T where T: float64 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -267,7 +267,7 @@ function subtract<T: int32 | float64>(value: T): T where T: float64 {
     return value - 0.5;
 }
 
-=== checked ===
+=== dir ===
 function subtract<T: int32 | float64>(value: T): T where T: float64 {
 /// @generic.template symbol=subtract parameters=(T: int32 | float64)
 /// @type.symbol symbol=subtract type=<T: int32 | float64>(T) => T
@@ -298,7 +298,7 @@ function offset<T: int8 | float64>(value: T): T where T: uint8 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -307,7 +307,7 @@ function offset<T: int8 | float64>(value: T): T where T: uint8 {
     return value + 100;
 }
 
-=== checked ===
+=== dir ===
 function offset<T: int8 | float64>(value: T): T where T: uint8 {
 /// @generic.template symbol=offset parameters=(T: int8 | float64)
 /// @type.symbol symbol=offset type=<T: int8 | float64>(T) => T
@@ -338,7 +338,7 @@ function offset<T: int8 | float64>(value: T): T where T: uint8 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -347,7 +347,7 @@ function offset<T: int8 | float64>(value: T): T where T: uint8 {
     return value + 200;
 }
 
-=== checked ===
+=== dir ===
 function offset<T: int8 | float64>(value: T): T where T: uint8 {
 /// @generic.template symbol=offset parameters=(T: int8 | float64)
 /// @type.symbol symbol=offset type=<T: int8 | float64>(T) => T
@@ -382,7 +382,7 @@ function ordered<T: int32 | float64>(left: T, right: T): boolean {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -391,7 +391,7 @@ function ordered<T: int32 | float64>(left: T, right: T): boolean {
     return left < right;
 }
 
-=== checked ===
+=== dir ===
 function ordered<T: int32 | float64>(left: T, right: T): boolean {
 /// @generic.template symbol=ordered parameters=(T: int32 | float64)
 /// @type.symbol symbol=ordered type=<T: int32 | float64>(T, T) => boolean
@@ -425,7 +425,7 @@ function negate<T: int32 | float64>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -434,7 +434,7 @@ function negate<T: int32 | float64>(value: T): T {
     return -value;
 }
 
-=== checked ===
+=== dir ===
 function negate<T: int32 | float64>(value: T): T {
 /// @generic.template symbol=negate parameters=(T: int32 | float64)
 /// @type.symbol symbol=negate type=<T: int32 | float64>(T) => T
@@ -464,7 +464,7 @@ function flip<T: int32 | int64>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -473,7 +473,7 @@ function flip<T: int32 | int64>(value: T): T {
     return ~value;
 }
 
-=== checked ===
+=== dir ===
 function flip<T: int32 | int64>(value: T): T {
 /// @generic.template symbol=flip parameters=(T: int32 | int64)
 /// @type.symbol symbol=flip type=<T: int32 | int64>(T) => T
@@ -503,7 +503,7 @@ function mix<T: int32 | float64, U: int32 | float64>(left: T, right: U): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -512,7 +512,7 @@ function mix<T: int32 | float64, U: int32 | float64>(left: T, right: U): T {
     return left * right;
 }
 
-=== checked ===
+=== dir ===
 function mix<T: int32 | float64, U: int32 | float64>(left: T, right: U): T {
 /// @generic.template symbol=mix parameters=(T: int32 | float64, U: int32 | float64)
 /// @type.symbol symbol=mix type=<T: int32 | float64, U: int32 | float64>(T, U) => T
@@ -552,7 +552,7 @@ function double<T>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -561,7 +561,7 @@ function double<T>(value: T): T {
     return value + value;
 }
 
-=== checked ===
+=== dir ===
 function double<T>(value: T): T {
 /// @generic.template symbol=double parameters=(T)
 /// @type.symbol symbol=double type=<T>(T) => T
@@ -600,7 +600,7 @@ function double<T: IntegerDomain>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -611,7 +611,7 @@ function double<T: IntegerDomain>(value: T): T {
     return value + value;
 }
 
-=== checked ===
+=== dir ===
 import { IntegerDomain } from "destack:math";
 
 function double<T: IntegerDomain>(value: T): T {
@@ -649,14 +649,14 @@ const value = missing * 2;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 const value = missing * 2;
 
-=== checked ===
+=== dir ===
 const value = missing * 2;
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
@@ -679,7 +679,7 @@ const doubled = value * value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -687,7 +687,7 @@ const doubled = value * value;
 declare const value: int32 | float64;
 const doubled: int32 | float64 = value * value;
 
-=== checked ===
+=== dir ===
 declare const value: int32 | float64;
 /// @type.symbol symbol=value source=value type=int32 | float64
 /// @resolution.pattern source=value kind=binding target=value
@@ -718,7 +718,7 @@ function square<T: Multiply<T>>(value: T): T.Output {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 import { Multiply } from "destack:ops";
 
@@ -726,7 +726,7 @@ function square<T: Multiply<T>>(value: T): T.Output {
     return value * value;
 }
 
-=== checked ===
+=== dir ===
 import { Multiply } from "destack:ops";
 
 function square<T: Multiply<T>>(value: T): T.Output {
@@ -745,14 +745,12 @@ function square<T: Multiply<T>>(value: T): T.Output {
     /// @resolution.operator source="value * value" type=T.Output operator="*" kind=call parameters=(T) arguments=(provided(value) as T) return=T.Output kind=symbol target=ops.multiply.Multiply.multiply receiver=T instance=Multiply<T>.multiply
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=square.value
-    /// @generic.instance source="value * value" id=Multiply<T>.multiply
+    /// @generic.instantiation id=ops.multiply.Multiply.multiply<T> template=ops.multiply.Multiply.multiply arguments=(T) owner=square
     /// @resolution.name source=value target=square.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=square.value
 
 }
-
-/// @generic.instance id=Multiply<T>.multiply template=ops.multiply.Multiply.multiply arguments=(T)
 "#);
 }
 
@@ -766,7 +764,7 @@ const kept = bits << 3;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -775,7 +773,7 @@ declare const bits: int32;
 const spilled: int32 = bits << 32;
 const kept: int32 = bits << 3;
 
-=== checked ===
+=== dir ===
 declare const bits: int32;
 const spilled = bits << 32;
 const kept = bits << 3;

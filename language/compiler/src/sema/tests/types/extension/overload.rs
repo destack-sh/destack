@@ -18,7 +18,7 @@ extension of User {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -35,7 +35,7 @@ extension of User {
     }
 }
 
-=== checked ===
+=== dir ===
 struct User {}
 /// @type.symbol symbol=User source="struct User {}" type=User
 /// @definition.struct symbol=User source="struct User {}"

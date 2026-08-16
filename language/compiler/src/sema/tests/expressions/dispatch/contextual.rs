@@ -10,7 +10,7 @@ class Bag<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -19,7 +19,7 @@ class Bag<in out T> {
     values: T[] = Array.new<T>() as T[];
 }
 
-=== checked ===
+=== dir ===
 class Bag<T> {
 /// @generic.template symbol=Bag parameters=(in out T)
 /// @type.symbol symbol=Bag type=Bag
@@ -36,15 +36,9 @@ class Bag<T> {
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#5>> kind=symbol target_receiver=Array target=collections.array.new
     /// @resolution.call source=Array.new() parameters=() return=Owned<Array<T>> kind=symbol target=collections.array.new instance=Array<T>.<extension#5>.new
-    /// @generic.instance source=Array.new id=Array<collections.array.T#5>
-    /// @generic.instance source=Array.new() id=Array<T>
-    /// @generic.instance source=Array.new() id=Array<T>.<extension#5>.new
+    /// @generic.instantiation id=collections.array.new<T> template=collections.array.new arguments=(T) owner=Bag
 
 }
-
-/// @generic.instance id=Array<T> template=collections.array.Array arguments=(T)
-/// @generic.instance id=Array<T>.<extension#5>.new template=collections.array.new arguments=(T)
-/// @generic.instance id=Array<collections.array.T#5> template=collections.array.Array arguments=(collections.array.T#5)
 "#,
     );
 }
@@ -60,7 +54,7 @@ function build(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -70,7 +64,7 @@ function build(): void {
     values;
 }
 
-=== checked ===
+=== dir ===
 function build(): void {
 /// @type.symbol symbol=build type=() => void
 
@@ -83,9 +77,8 @@ function build(): void {
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#5>> kind=symbol target_receiver=Array target=collections.array.new
     /// @resolution.call source=Array.new() parameters=() return=Owned<Array<int32>> kind=symbol target=collections.array.new instance=Array<int32>.<extension#5>.new
-    /// @generic.instance source=Array.new id=Array<collections.array.T#5>
-    /// @generic.instance source=Array.new() id=Array<int32>
-    /// @generic.instance source=Array.new() id=Array<int32>.<extension#5>.new
+    /// @generic.instantiation id=collections.array.new<int32> template=collections.array.new arguments=(int32)
+    /// @generic.instance id=collections.array.new<int32> template=collections.array.new arguments=(int32)
 
     values;
     /// @type.node source=values type=Array<int32>
@@ -94,10 +87,6 @@ function build(): void {
     /// @resolution.access source=values root=build.values
 
 }
-
-/// @generic.instance id=Array<collections.array.T#5> template=collections.array.Array arguments=(collections.array.T#5)
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=Array<int32>.<extension#5>.new template=collections.array.new arguments=(int32)
 "#,
     );
 }
@@ -121,7 +110,7 @@ export extension<T: Numeric> of Pair<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -139,7 +128,7 @@ export extension<T: Numeric> of Pair<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 import { Numeric } from "destack:math";
 
 struct Pair<T> {
@@ -177,7 +166,6 @@ export extension<T: Numeric> of Pair<T> {
         Pair { x: T.zero(), y: T.zero() }
         /// @type.node source="Pair { x: T.zero(), y: T.zero() }" type=Pair<T#2>
         /// @resolution.name source=Pair target=Pair
-        /// @generic.instance source="Pair { x: T.zero(), y: T.zero() }" id=Pair<T#2>
         /// @type.node source=T type=T#2
         /// @type.node source=T.zero type=() => T#2
         /// @type.node source=T.zero() type=T#2
@@ -193,8 +181,6 @@ export extension<T: Numeric> of Pair<T> {
 
     }
 }
-
-/// @generic.instance id=Pair<T#2> template=Pair arguments=(T#2)
 "#,
     );
 }
@@ -217,7 +203,7 @@ export extension<T> of Tag<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -232,7 +218,7 @@ export extension<T> of Tag<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Tag<in out T> {
 /// @generic.template symbol=Tag parameters=(in out T#1)
 /// @type.symbol symbol=Tag type=Tag
@@ -262,7 +248,6 @@ export extension<T> of Tag<T> {
         Tag { name }
         /// @type.node source="Tag { name }" type=Tag<T#2>
         /// @resolution.name source=Tag target=Tag
-        /// @generic.instance source="Tag { name }" id=Tag<T#2>
         /// @type.node source=name type=string
         /// @resolution.name source=name target=new.name
         /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
@@ -270,8 +255,6 @@ export extension<T> of Tag<T> {
 
     }
 }
-
-/// @generic.instance id=Tag<T#2> template=Tag arguments=(T#2)
 "#,
     );
 }

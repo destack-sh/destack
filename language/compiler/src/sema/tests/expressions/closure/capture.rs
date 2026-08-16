@@ -12,7 +12,7 @@ function make(): () => float64 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
@@ -23,7 +23,7 @@ function make(): () => float64 {
     return next;
 }
 
-=== checked ===
+=== dir ===
 function make(): () => float64 {
 /// @type.symbol symbol=make type=() => Function<(), float64>
 /// @capture.function function=make bindings=0
@@ -85,7 +85,7 @@ function run(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
@@ -109,7 +109,7 @@ function run(): void {
     boo();
 }
 
-=== checked ===
+=== dir ===
 function run(): void {
 /// @type.symbol symbol=run type=() => void
 /// @capture.function function=run bindings=0
@@ -235,7 +235,7 @@ function make(): () => float64 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
@@ -252,7 +252,7 @@ function make(): () => float64 {
     return next;
 }
 
-=== checked ===
+=== dir ===
 function make(): () => float64 {
 /// @type.symbol symbol=make type=() => Function<(), float64>
 /// @capture.function function=make bindings=0
@@ -338,7 +338,7 @@ function connect(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
@@ -363,7 +363,7 @@ function connect(): void {
     send("ping");
 }
 
-=== checked ===
+=== dir ===
 struct Socket {
 /// @type.symbol symbol=Socket type=Socket
 /// @definition.struct symbol=Socket
@@ -477,7 +477,7 @@ function make(): () => Promise<string> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
@@ -494,7 +494,7 @@ function make(): () => Promise<string> {
     return load;
 }
 
-=== checked ===
+=== dir ===
 declare class Client {
 /// @type.symbol symbol=Client type=Client
 /// @definition.class symbol=Client
@@ -528,7 +528,6 @@ function make(): () => Promise<string> {
     /// @resolution.pattern source=load kind=binding target=make.load
     /// @type.symbol symbol=make.symbol6 source="async () => await client.read()" type=Function<(), Promise<string>>
     /// @type.node source="async () => await client.read()" type=Function<(), Promise<string>>
-    /// @generic.instance source="async () => await client.read()" id=Promise<string>
     /// @capture.function function=make.symbol6 bindings=1
     /// @capture.binding function=make.symbol6 symbol=client mode=copy type=Client
     /// @capture.directive function=make.symbol6 default=copy rules=0
@@ -541,19 +540,14 @@ function make(): () => Promise<string> {
     /// @resolution.call source=client.read() parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client
     /// @resolution.place source=client placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=client root=make.client
-    /// @generic.instance source=client.read id=Promise<string>
-    /// @generic.instance source=client.read() id=Promise<string>
 
     return load;
     /// @type.node source=load type=Function<(), Promise<string>>
     /// @resolution.name source=load target=make.load
     /// @resolution.place source=load placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=load root=make.load
-    /// @generic.instance source=load id=Promise<string>
 
 }
-
-/// @generic.instance id=Promise<string> template=async.promise.Promise arguments=(string)
 "#,
     );
 }
@@ -572,7 +566,7 @@ class Counter {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
@@ -585,7 +579,7 @@ class Counter {
     }
 }
 
-=== checked ===
+=== dir ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
@@ -629,14 +623,14 @@ const reset = () => ({ value: 1 });
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 const reset: () => { value: 1 } = (): { value: 1 } => ({ value: 1 });
 
-=== checked ===
+=== dir ===
 const reset = () => ({ value: 1 });
 /// @type.symbol symbol=reset source=reset type=Function<(), { value: 1 }>
 /// @resolution.pattern source=reset kind=binding target=reset
@@ -656,7 +650,7 @@ const reset = () => ({ value: (current = 0) });
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -664,7 +658,7 @@ const reset = () => ({ value: (current = 0) });
 let current: float64 = 1;
 const reset: () => { value: 0 } = (): { value: 0 } => ({ value: (current = 0) });
 
-=== checked ===
+=== dir ===
 let current = 1;
 /// @type.symbol symbol=current source=current type=float64
 /// @resolution.pattern source=current kind=binding target=current

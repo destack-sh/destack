@@ -15,7 +15,7 @@ const floats = Vector { x: 1.5 as float32 };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -29,7 +29,7 @@ struct Vector<out T: Numeric> {
 const ints: Vector<int32> = Vector<int32> { x: 1 as int32 };
 const floats: Vector<float32> = Vector<float32> { x: 1.5 as float32 };
 
-=== checked ===
+=== dir ===
 import { Numeric } from "destack:math";
 
 struct Vector<T: Numeric> {
@@ -55,9 +55,6 @@ const floats = Vector { x: 1.5 as float32 };
 /// @type.symbol symbol=floats source=floats type=Vector<float32>
 /// @resolution.pattern source=floats kind=binding target=floats
 /// @resolution.name source=Vector target=Vector
-
-/// @generic.instance id=Vector<float32> template=Vector arguments=(float32)
-/// @generic.instance id=Vector<int32> template=Vector arguments=(int32)
 "#,
     );
 }
@@ -75,7 +72,7 @@ const narrow = Index { value: 1 as int32 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -87,7 +84,7 @@ struct Index<out T: int> {
 const wide: Index<int64> = Index<int64> { value: 1 as int64 };
 const narrow = Index { value: 1 as int32 };
 
-=== checked ===
+=== dir ===
 struct Index<T: int> {
 /// @generic.template symbol=Index parameters=(out T: int64)
 /// @type.symbol symbol=Index type=Index
@@ -110,9 +107,6 @@ const narrow = Index { value: 1 as int32 };
 /// @type.symbol symbol=narrow source=narrow type=Index<<error>>
 /// @resolution.pattern source=narrow kind=binding target=narrow
 /// @resolution.name source=Index target=Index
-
-/// @generic.instance id=Index<<error>> template=Index arguments=(<error>)
-/// @generic.instance id=Index<int64> template=Index arguments=(int64)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
@@ -135,7 +129,7 @@ const index: usize = key;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -147,7 +141,7 @@ type Pair = { 0: string; 1: string };
 declare const key: 0 | 1;
 const index: usize = key as usize;
 
-=== checked ===
+=== dir ===
 const fits: int8 = 100;
 /// @type.symbol symbol=fits source=fits type=int8
 /// @resolution.pattern source=fits kind=binding target=fits
@@ -187,38 +181,39 @@ fn test_const_arithmetic_keeps_the_operand_type() {
     let session = TestSession::single(
         r#"
 struct Tensor<const Rank: int> {
-    rank: usize;
+    slots: [uint8; Rank];
 }
 
 function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
-    Tensor { rank: 0 }
+    Tensor { slots: [0; Rank - 1] }
 }
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 struct Tensor<const Rank: int> {
-    rank: usize;
+    slots: [uint8; Rank];
 }
 
 function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
-    Tensor { rank: 0 }
+    Tensor { slots: [0; Rank - 1] }
 }
 
-=== checked ===
+=== dir ===
 struct Tensor<const Rank: int> {
 /// @generic.template symbol=Tensor parameters=(const Rank#1: int64)
 /// @type.symbol symbol=Tensor type=Tensor
 /// @definition.struct symbol=Tensor template=(const Rank#1: int64)
-/// @definition.field symbol=Tensor.rank source="rank: usize" key=rank type=usize
+/// @definition.field symbol=Tensor.slots source="slots: [uint8; Rank]" key=slots type=FixedArray<uint8, Rank#1>
 /// @type.symbol symbol=Tensor.Rank source="const Rank: int" type=Rank#1
 
-    rank: usize;
-    /// @type.symbol symbol=Tensor.rank source="rank: usize" type=usize
+    slots: [uint8; Rank];
+    /// @type.symbol symbol=Tensor.slots source="slots: [uint8; Rank]" type=FixedArray<uint8, Rank#1>
+    /// @resolution.name source=Rank target=Tensor.Rank
 
 }
 
@@ -232,13 +227,11 @@ function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
 /// @resolution.name source=Tensor target=Tensor
 /// @resolution.name source=Rank target=shrink.Rank
 
-    Tensor { rank: 0 }
+    Tensor { slots: [0; Rank - 1] }
     /// @resolution.name source=Tensor target=Tensor
+    /// @resolution.name source=Rank target=shrink.Rank
 
 }
-
-/// @generic.instance id="Tensor<Rank#2 - 1>" template=Tensor arguments=(Rank#2 - 1)
-/// @generic.instance id=Tensor<Rank#2> template=Tensor arguments=(Rank#2)
 "#,
     );
 }

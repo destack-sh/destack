@@ -10,7 +10,7 @@ declare const buffer: Buffer<1024>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -19,7 +19,7 @@ type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: [uint8; 1024];
 
-=== checked ===
+=== dir ===
 type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: Buffer<1024>;
@@ -41,7 +41,7 @@ declare const halved: Halved<1024>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -52,7 +52,7 @@ type Halved<const M: uint> = Buffer<M / 2>;
 
 declare const halved: Halved<1024>;
 
-=== checked ===
+=== dir ===
 type Buffer<const N: uint> = [uint8; N];
 
 type Halved<const M: uint> = Buffer<M / 2>;
@@ -74,7 +74,7 @@ declare const buffer: Buffer<uint>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -83,7 +83,7 @@ type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: Buffer<uint>;
 
-=== checked ===
+=== dir ===
 type Buffer<const N: uint> = [uint8; N];
 
 declare const buffer: Buffer<uint>;
@@ -107,7 +107,7 @@ declare const quad: Quad<uint>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -118,7 +118,7 @@ type Quad<const M: uint> = Double<M>;
 
 declare const quad: Quad<uint>;
 
-=== checked ===
+=== dir ===
 type Double<const N: uint> = [uint8; N];
 
 type Quad<const M: uint> = Double<M>;
@@ -148,7 +148,7 @@ function count<const N: usize>(): usize {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -163,7 +163,7 @@ function count<const N: usize>(): usize {
     total
 }
 
-=== checked ===
+=== dir ===
 function count<const N: usize>(): usize {
     let total: usize = 0;
 
@@ -195,7 +195,7 @@ struct Block<const N: usize> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -208,7 +208,7 @@ struct Block<const N: usize> {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Block<const N: usize> {
     data: [uint8; N];
 

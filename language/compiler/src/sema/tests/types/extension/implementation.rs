@@ -24,7 +24,7 @@ extension of User implements Show {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -47,7 +47,7 @@ extension of User implements Show {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
@@ -116,7 +116,7 @@ extension of User implements Show {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -129,7 +129,7 @@ struct User {}
 
 extension of User implements Show {}
 
-=== checked ===
+=== dir ===
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
@@ -179,7 +179,7 @@ extension of User implements Show {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -200,7 +200,7 @@ extension of User implements Show {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named nominal=true
@@ -275,7 +275,7 @@ const ok = compare(Badge {}, Badge {});
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -300,7 +300,7 @@ function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
 
 const ok: boolean = compare<Badge>(Badge {}, Badge {});
 
-=== checked ===
+=== dir ===
 newtype interface PartialEqual<T = this> {
 /// @generic.template symbol=PartialEqual parameters=(in T#1 = this)
 /// @type.symbol symbol=PartialEqual type=PartialEqual
@@ -366,7 +366,8 @@ function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
     /// @resolution.call source=left.equal(right) parameters=(T#3) arguments=(provided(right) as T#3) return=boolean kind=symbol target=PartialEqual.equal receiver=T#3 instance=PartialEqual<T#3>.equal
     /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=compare.left
-    /// @generic.instance source=left.equal(right) id=PartialEqual<T#3>.equal
+    /// @generic.instantiation id=PartialEqual.equal<T#3> template=PartialEqual.equal arguments=(T#3) owner=compare
+    /// @generic.instantiation id=PartialEqual.equal<T#3> template=PartialEqual.equal arguments=(T#3) owner=compare
     /// @resolution.name source=right target=compare.right
     /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=right root=compare.right
@@ -378,12 +379,11 @@ const ok = compare(Badge {}, Badge {});
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=compare target=compare
 /// @resolution.call source="compare(Badge {}, Badge {})" parameters=(Badge, Badge) arguments=(provided(Badge {}) as Badge, provided(Badge {}) as Badge) return=boolean kind=symbol target=compare instance=compare<Badge>
-/// @generic.instance source="compare(Badge {}, Badge {})" id=compare<Badge>
-/// @resolution.name source=Badge target=Badge
-/// @resolution.name source=Badge target=Badge
-
-/// @generic.instance id=PartialEqual<T#3>.equal template=PartialEqual.equal arguments=(T#3)
+/// @generic.instantiation id=compare<Badge> template=compare arguments=(Badge)
+/// @generic.instance id=PartialEqual.equal<Badge> template=PartialEqual.equal arguments=(Badge)
 /// @generic.instance id=compare<Badge> template=compare arguments=(Badge)
+/// @resolution.name source=Badge target=Badge
+/// @resolution.name source=Badge target=Badge
 "#,
     );
 }
@@ -399,7 +399,7 @@ extension of User implements NotInterface {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -409,7 +409,7 @@ struct NotInterface {}
 
 extension of User implements NotInterface {}
 
-=== checked ===
+=== dir ===
 struct User {}
 /// @type.symbol symbol=User source="struct User {}" type=User
 /// @definition.struct symbol=User source="struct User {}"
@@ -448,7 +448,7 @@ extension of User implements Alias {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -465,7 +465,7 @@ extension of User implements Alias {
     }
 }
 
-=== checked ===
+=== dir ===
 struct User {}
 /// @type.symbol symbol=User source="struct User {}" type=User
 /// @definition.struct symbol=User source="struct User {}"
@@ -525,7 +525,7 @@ extension of User implements Show | Debug {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -544,7 +544,7 @@ extension of User implements Show | Debug {
     }
 }
 
-=== checked ===
+=== dir ===
 struct User {}
 /// @type.symbol symbol=User source="struct User {}" type=User
 /// @definition.struct symbol=User source="struct User {}"
@@ -610,7 +610,7 @@ extension of int32 implements Doubling {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 interface Doubling {
     type Output;
@@ -626,7 +626,7 @@ extension of int32 implements Doubling {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Doubling {
 /// @type.symbol symbol=Doubling type=Doubling
 /// @definition.interface symbol=Doubling
@@ -689,7 +689,7 @@ extension<T> of Box<T> implements Container {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -712,7 +712,7 @@ extension<T> of Box<T> implements Container {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Container {
 /// @type.symbol symbol=Container type=Container
 /// @definition.interface symbol=Container
@@ -802,7 +802,7 @@ extension<T> of Box<T> implements Container<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -834,7 +834,7 @@ extension<T> of Box<T> implements Container<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Container<S> {
 /// @generic.template symbol=Container parameters=(in S)
 /// @type.symbol symbol=Container type=Container
@@ -917,9 +917,6 @@ extension<T> of Box<T> implements Container<T> {
 
     }
 }
-
-/// @generic.instance id=Container<S> template=Container arguments=(S)
-/// @generic.instance id=Container<string> template=Container arguments=(string)
 "#,
     );
 }
@@ -948,7 +945,7 @@ extension<T, E> of Result<T, E> implements Source<E>, Carrier {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -971,7 +968,7 @@ extension<T, E> of Result<T, E> implements Source<E>, Carrier {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Source<T> {
 /// @generic.template symbol=Source parameters=(in T#1)
 /// @type.symbol symbol=Source type=Source
@@ -1042,8 +1039,6 @@ extension<T, E> of Result<T, E> implements Source<E>, Carrier {
 
     }
 }
-
-/// @generic.instance id="Result<T#3, E#2>" template=Result arguments=(T#3, E#2)
 "#,
     );
 }
@@ -1068,7 +1063,7 @@ extension of int32 implements Halving {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 interface Halving {
     type Output;
@@ -1084,7 +1079,7 @@ extension of int32 implements Halving {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Halving {
 /// @type.symbol symbol=Halving type=Halving
 /// @definition.interface symbol=Halving
@@ -1162,7 +1157,7 @@ extension of Cell implements Writing {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1199,7 +1194,7 @@ extension of Cell implements Writing {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Reading {
 /// @type.symbol symbol=Reading type=Reading
 /// @definition.interface symbol=Reading
@@ -1298,7 +1293,7 @@ extension of Channel implements Emits<int32>, Emits<string> {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1309,7 +1304,7 @@ struct Channel {}
 
 extension of Channel implements Emits<int32>, Emits<string> {}
 
-=== checked ===
+=== dir ===
 interface Emits<in out T> {}
 /// @generic.template symbol=Emits parameters=(in out T)
 /// @type.symbol symbol=Emits source="interface Emits<in out T> {}" type=Emits
@@ -1353,7 +1348,7 @@ requireMine(badge);
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", "");
+    session.assert_dir_diagnostics("main.ds", "");
 }
 
 #[test]
@@ -1380,7 +1375,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1403,7 +1398,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Eq<T> {
 /// @generic.template symbol=Eq parameters=(in T#1)
 /// @type.symbol symbol=Eq type=Eq
@@ -1505,7 +1500,7 @@ export extension<T> of Pack<T> implements Has<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1526,7 +1521,7 @@ export extension<T> of Pack<T> implements Has<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Marker {}
 /// @type.symbol symbol=Marker source="interface Marker {}" type=Marker
 /// @definition.interface symbol=Marker source="interface Marker {}"
@@ -1611,7 +1606,7 @@ export extension<T> of Pack<T> implements Has<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -1630,7 +1625,7 @@ export extension<T> of Pack<T> implements Has<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 interface Has<T> {
 /// @generic.template symbol=Has parameters=(in T#1)
 /// @type.symbol symbol=Has type=Has
@@ -1725,7 +1720,7 @@ export extension<K, V> of Bag<K, V>
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1759,7 +1754,7 @@ export extension<K, V, 'a, 'b> of Bag<K, V>
     }
 }
 
-=== checked ===
+=== dir ===
 import { Iterable, Iterator } from "destack:iter";
 import { Access, WithAccess } from "destack:memory";
 import { todo } from "destack:error";
@@ -1870,13 +1865,6 @@ export extension<K, V> of Bag<K, V>
 
     }
 }
-
-/// @generic.instance id="Bag<K#3, V#3>" template=Bag arguments=(K#3, V#3)
-/// @generic.instance id="Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>" template=Entry arguments=(&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>)
-/// @generic.instance id="iter.iterator.Iterator<(K#3, V#3)>" template=iter.iterator.Iterator arguments=((K#3, V#3))
-/// @generic.instance id="iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>" template=iter.iterator.Iterator arguments=(Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>)
-/// @generic.instance id="memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>" template=memory.type.WithAccess arguments=(&iterator#2.'a Bag<K#3, V#3>, A)
-/// @generic.instance id="memory.type.WithAccess<&iterator#2.'a V#3, A>" template=memory.type.WithAccess arguments=(&iterator#2.'a V#3, A)
 "#,
     );
 }
@@ -1902,7 +1890,7 @@ const greeter: Greeter = robot;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1922,7 +1910,7 @@ extension of Robot implements Greeter {}
 declare const robot: Robot;
 const greeter: Dynamic<Greeter> = robot as Dynamic<Greeter>;
 
-=== checked ===
+=== dir ===
 interface Greeter {
 /// @type.symbol symbol=Greeter type=Greeter
 /// @definition.interface symbol=Greeter
@@ -1990,7 +1978,7 @@ extension Int16Show of int16 implements Show {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -2011,7 +1999,7 @@ extension Int16Show of int16 implements Show {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Show {
     show(): string;
 }
@@ -2055,7 +2043,7 @@ extension SecondShow of int8 implements Show {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -2076,7 +2064,7 @@ extension SecondShow of int8 implements Show {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Show {
     show(): string;
 }
@@ -2129,7 +2117,7 @@ const label = value.show();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -2156,7 +2144,7 @@ declare const value: int16;
 
 const label: string = value.show();
 
-=== checked ===
+=== dir ===
 import { Integer } from "destack:math";
 
 newtype interface Show {
@@ -2242,7 +2230,7 @@ extension ToInt32 of int8 implements Convert<int32> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -2263,7 +2251,7 @@ extension ToInt32 of int8 implements Convert<int32> {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Convert<U> {
     to(): U;
 }

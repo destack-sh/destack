@@ -15,7 +15,7 @@ type BorrowedLocal<'a> = &'a readonly local User;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -29,7 +29,7 @@ type OwnedShared = ^shared User;
 type LocalBorrowed<'a> = local &'a readonly User;
 type BorrowedLocal<'a> = &'a readonly local User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -90,7 +90,7 @@ const sharedFromLocal: shared User = localUser;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -103,7 +103,7 @@ declare const sharedUser: shared User;
 const localFromShared: local User = sharedUser;
 const sharedFromLocal: shared User = localUser;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -167,7 +167,7 @@ carrierPlace satisfies "local";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -184,7 +184,7 @@ declare const carrierPlace: "local";
 localChoice satisfies local (User | shared Team);
 carrierPlace satisfies "local";
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -246,7 +246,7 @@ const localFromShared: local ^User = sharedUser;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -259,7 +259,7 @@ declare const sharedUser: shared ^User;
 const sharedFromLocal: shared ^User = localUser;
 const localFromShared: local ^User = sharedUser;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"

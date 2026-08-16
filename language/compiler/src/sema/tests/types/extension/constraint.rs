@@ -29,7 +29,7 @@ const text = boxed.read();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -57,7 +57,7 @@ extension<T> of Box<T> where T: Readable {
 declare const boxed: Box<Document>;
 const text: string = boxed.read<Document>();
 
-=== checked ===
+=== dir ===
 interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable
@@ -136,10 +136,9 @@ const text = boxed.read();
 /// @resolution.call source=boxed.read() parameters=() return=string kind=symbol target=read receiver=Box<Document> adjustments=(borrow(&'static exclusive Box<Document>)) instance=Box<Document>.<extension#1>.read
 /// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=boxed root=boxed
-/// @generic.instance source=boxed.read() id=Box<Document>.<extension#1>.read
-
-/// @generic.instance id=Box<Document> template=Box arguments=(Document)
-/// @generic.instance id=Box<Document>.<extension#1>.read template=read arguments=(Document)
+/// @generic.instantiation id=read<Document> template=read arguments=(Document)
+/// @generic.instantiation id=read<Document> template=read arguments=(Document)
+/// @generic.instance id=read<Document> template=read arguments=(Document)
 "#,
     );
 }
@@ -169,7 +168,7 @@ boxed.read();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -193,7 +192,7 @@ extension<T> of Box<T> where T: Readable {
 declare const boxed: Box<Token>;
 boxed.read();
 
-=== checked ===
+=== dir ===
 interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable
@@ -249,7 +248,6 @@ extension<T> of Box<T> where T: Readable {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement="local" lifetime=read.'a access="exclusive"
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @generic.instance source=this id=Box<T#2>
 
     }
 }
@@ -269,10 +267,6 @@ boxed.read();
 /// @resolution.access source=boxed root=boxed
 /// @resolution.rejected source=boxed.read
 /// @resolution.rejected source=boxed.read()
-/// @generic.instance source=boxed id=Box<Token>
-
-/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
-/// @generic.instance id=Box<Token> template=Box arguments=(Token)
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'read' does not exist on type 'Box<Token>'"
@@ -307,7 +301,7 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
 }
 "#,
     );
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -333,7 +327,7 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
     }
 }
 
-=== checked ===
+=== dir ===
 import { todo } from "destack:error";
 import { Equal, Hash } from "destack:ops";
 
@@ -406,8 +400,6 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
 
     }
 }
-
-/// @generic.instance id=Keyed<I> template=Keyed arguments=(I)
 "#,
     );
 }
@@ -436,7 +428,7 @@ export extension<T> of Pack<T> where T: Copy {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -459,7 +451,7 @@ export extension<T> of Pack<T> where T: Copy {
     }
 }
 
-=== checked ===
+=== dir ===
 import { Copy } from "destack:memory";
 
 struct Pack<T> {
@@ -528,15 +520,11 @@ export extension<T> of Pack<T> where T: Copy {
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&twice.'a readonly Pack<T#3>
         /// @resolution.place source=this placement="local" lifetime=twice.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instance source=this id=Pack<T#3>
-        /// @generic.instance source=this.duplicate id=Pack<T#3>
-        /// @generic.instance source=this.duplicate() id=Pack<T#3>.<extension#1>.duplicate
+        /// @generic.instantiation id=duplicate<T#3> template=duplicate arguments=(T#3) owner=<module>#3
+        /// @generic.instantiation id=duplicate<T#3> template=duplicate arguments=(T#3) owner=<module>#3
 
     }
 }
-
-/// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-/// @generic.instance id=Pack<T#3>.<extension#1>.duplicate template=duplicate arguments=(T#3)
 "#,
         r#"
 "#,

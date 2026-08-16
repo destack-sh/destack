@@ -12,7 +12,7 @@ const bytes = take<4>([1, 2, 3, 4]);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -23,7 +23,7 @@ function take<const N: uint>(value: [uint8; N]): [uint8; N] {
 
 const bytes: [uint8; 4] = take<4>([1, 2, 3, 4]);
 
-=== checked ===
+=== dir ===
 function take<const N: uint>(value: [uint8; N]): [uint8; N] {
 /// @generic.template symbol=take parameters=(const N: uint64)
 /// @type.symbol symbol=take type=<const N: uint64>(FixedArray<uint8, N>) => FixedArray<uint8, N>
@@ -47,14 +47,13 @@ const bytes = take<4>([1, 2, 3, 4]);
 /// @type.node source=take type=(FixedArray<uint8, 4>) => FixedArray<uint8, 4>
 /// @resolution.name source=take target=take
 /// @resolution.call source="take<4>([1, 2, 3, 4])" parameters=(FixedArray<uint8, 4>) arguments=(provided([1, 2, 3, 4]) as FixedArray<uint8, 4>) return=FixedArray<uint8, 4> kind=symbol target=take instance=take<4>
-/// @generic.instance source="take<4>([1, 2, 3, 4])" id=take<4>
+/// @generic.instantiation id=take<4> template=take arguments=(4)
+/// @generic.instance id=take<4> template=take arguments=(4)
 /// @type.node source=[1, 2, 3, 4] type=FixedArray<uint8, 4>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 /// @type.node source=4 type=4
-
-/// @generic.instance id=take<4> template=take arguments=(4)
 "#,
     );
 }
@@ -71,7 +70,7 @@ const value = choose(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -82,7 +81,7 @@ function choose<const Flag: boolean = true>(value: int32): int32 {
 
 const value: int32 = choose<true>(1);
 
-=== checked ===
+=== dir ===
 function choose<const Flag: boolean = true>(value: int32): int32 {
 /// @generic.template symbol=choose parameters=(const Flag: boolean = true)
 /// @type.symbol symbol=choose type=<const Flag: boolean = true>(int32) => int32
@@ -104,10 +103,9 @@ const value = choose(1);
 /// @type.node source=choose(1) type=int32
 /// @resolution.name source=choose target=choose
 /// @resolution.call source=choose(1) parameters=(int32) arguments=(provided(1) as int32) return=int32 kind=symbol target=choose instance=choose<true>
-/// @generic.instance source=choose(1) id=choose<true>
-/// @type.node source=1 type=1
-
+/// @generic.instantiation id=choose<true> template=choose arguments=(true)
 /// @generic.instance id=choose<true> template=choose arguments=(true)
+/// @type.node source=1 type=1
 "#,
     );
 }
@@ -122,7 +120,7 @@ declare const read: Read;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -131,7 +129,7 @@ type Read = <const N: uint>() => [uint8; N];
 
 declare const read: Read;
 
-=== checked ===
+=== dir ===
 type Read = <const N: uint>() => [uint8; N];
 /// @type.symbol symbol=Read source="type Read = <const N: uint>() => [uint8; N]" type=Function<(), FixedArray<uint8, N>>
 /// @definition.type symbol=Read source="type Read = <const N: uint>() => [uint8; N]" value=Function<(), FixedArray<uint8, N>>
@@ -159,7 +157,7 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -170,7 +168,7 @@ type Flagged<const Config: { name: string; enabled: boolean }> = Config;
 declare const tagged: { tag: "alpha" };
 declare const flagged: { name: "search"; enabled: true };
 
-=== checked ===
+=== dir ===
 type Tagged<const Tag: string> = { tag: Tag };
 /// @generic.template symbol=Tagged parameters=(const Tag: string)
 /// @type.symbol symbol=Tagged source="type Tagged<const Tag: string> = { tag: Tag }" type={ tag: Tag }
@@ -208,7 +206,7 @@ function f(a: usize, b: int64): boolean {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -217,7 +215,7 @@ function f(a: usize, b: int64): boolean {
     a < b
 }
 
-=== checked ===
+=== dir ===
 function f(a: usize, b: int64): boolean {
 /// @type.symbol symbol=f type=(usize, int64) => boolean
 /// @type.symbol symbol=f.a source="a: usize" type=usize
@@ -253,7 +251,7 @@ function put<T>(destination: &exclusive [T], value: T): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -264,7 +262,7 @@ function put<T, 'a>(destination: &'a exclusive [T], value: T): void {
     destination[lane] = value;
 }
 
-=== checked ===
+=== dir ===
 function put<T>(destination: &exclusive [T], value: T): void {
 /// @generic.template symbol=put parameters=(T, 'a)
 /// @type.symbol symbol=put type=<T, put.'a>(&put.'a exclusive Slice<T>, T) => void
@@ -284,6 +282,7 @@ function put<T>(destination: &exclusive [T], value: T): void {
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
     /// @resolution.assignment source=destination[lane] write="collections.slice.indexSet#1(parameters=(isize, T), arguments=(provided(lane) as isize, write as T), return=void)" type=T
+    /// @generic.instantiation id=collections.slice.indexSet#1<T> template=collections.slice.indexSet#1 arguments=(T) owner=put
     /// @resolution.name source=lane target=put.lane
     /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=lane root=put.lane
@@ -308,7 +307,7 @@ function put(destination: &exclusive [int32], value: int32): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -319,7 +318,7 @@ function put<'a>(destination: &'a exclusive [int32], value: int32): void {
     destination[lane] = value;
 }
 
-=== checked ===
+=== dir ===
 function put(destination: &exclusive [int32], value: int32): void {
 /// @generic.template symbol=put parameters=('a)
 /// @type.symbol symbol=put type=<put.'a>(&put.'a exclusive Slice<int32>, int32) => void
@@ -336,6 +335,8 @@ function put(destination: &exclusive [int32], value: int32): void {
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
     /// @resolution.assignment source=destination[lane] write="collections.slice.indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, write as int32), return=void)" type=int32
+    /// @generic.instantiation id=collections.slice.indexSet#1<int32> template=collections.slice.indexSet#1 arguments=(int32)
+    /// @generic.instance id=collections.slice.indexSet#1<int32> template=collections.slice.indexSet#1 arguments=(int32)
     /// @resolution.name source=lane target=put.lane
     /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=lane root=put.lane
@@ -362,7 +363,7 @@ const function double(value: usize): usize {
 }
 "#,
     );
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -376,7 +377,7 @@ const function double(value: usize): usize {
     return value * 2;
 }
 
-=== checked ===
+=== dir ===
 struct Lane<const Width: usize> {
     const {}
     data: [uint8; Width];

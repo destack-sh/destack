@@ -17,7 +17,7 @@ value satisfies HasX;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -33,7 +33,7 @@ struct Point {
 const value: Dynamic<HasX> = Point { x: 1 } as Dynamic<HasX>;
 value satisfies HasX;
 
-=== checked ===
+=== dir ===
 interface HasX {
 /// @type.symbol symbol=HasX type=HasX
 /// @definition.interface symbol=HasX
@@ -91,7 +91,7 @@ picture satisfies Drawable;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -112,7 +112,7 @@ struct Picture {
 declare const picture: Picture;
 picture satisfies Drawable;
 
-=== checked ===
+=== dir ===
 newtype interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named nominal=true
@@ -189,7 +189,7 @@ picture satisfies Drawable;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -210,7 +210,7 @@ struct Picture implements Named {
 declare const picture: Picture;
 picture satisfies Drawable;
 
-=== checked ===
+=== dir ===
 newtype interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named nominal=true
@@ -280,7 +280,7 @@ value satisfies { readonly x: int32 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -293,7 +293,7 @@ const point: Point = Point { x: 1 };
 const value: { readonly x: int32 } = point;
 value satisfies { readonly x: int32 };
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -347,7 +347,7 @@ counter satisfies HasCount;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -363,7 +363,7 @@ struct Counter {
 const counter: Dynamic<HasCount> = Counter { count: 1 } as Dynamic<HasCount>;
 counter satisfies HasCount;
 
-=== checked ===
+=== dir ===
 interface HasCount {
 /// @type.symbol symbol=HasCount type=HasCount
 /// @definition.interface symbol=HasCount
@@ -413,7 +413,7 @@ struct Point implements Drawable {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -426,7 +426,7 @@ struct Point implements Drawable {
     x: int32;
 }
 
-=== checked ===
+=== dir ===
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
@@ -469,7 +469,7 @@ struct Point implements Left, Right {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -480,7 +480,7 @@ interface Right extends Base<int32> {}
 
 struct Point implements Left, Right {}
 
-=== checked ===
+=== dir ===
 interface Base<in out T> {}
 /// @generic.template symbol=Base parameters=(in out T)
 /// @type.symbol symbol=Base source="interface Base<in out T> {}" type=Base
@@ -534,7 +534,7 @@ const value: PointClass = point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -550,7 +550,7 @@ class PointClass {
 const point: Point = Point { x: 1 };
 const value: PointClass = point;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -609,7 +609,7 @@ const value: Point = point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -625,7 +625,7 @@ class PointClass {
 const point: PointClass = new PointClass();
 const value: Point = point;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point

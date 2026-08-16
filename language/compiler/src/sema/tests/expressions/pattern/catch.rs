@@ -15,7 +15,7 @@ try {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -29,7 +29,7 @@ try {
     message satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare function read(): Result<string, { code: int32; message: string }>;
 /// @type.symbol symbol=read source="declare function read(): Result<string, { code: int32; message: string }>" type=() => Result<string, { code: int32; message: string }>
 /// @resolution.name source=Result target=error.result.Result
@@ -43,8 +43,6 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, { code: int32; message: string }> kind=symbol target=read
-    /// @generic.instance source=read id="Result<string, { code: int32; message: string }>"
-    /// @generic.instance source=read() id="Result<string, { code: int32; message: string }>"
 
 } catch ({ code, message }) {
 /// @resolution.pattern source={ code, message } kind=object fields={ code, message }
@@ -66,8 +64,6 @@ try {
     /// @resolution.access source=message root=message
 
 }
-
-/// @generic.instance id="Result<string, { code: int32; message: string }>" template=error.result.Result arguments=(string, { code: int32; message: string })
 "#,
     );
 }
@@ -86,7 +82,7 @@ try {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -99,7 +95,7 @@ try {
     const handled: true = true;
 }
 
-=== checked ===
+=== dir ===
 declare function read(): Result<string, string>;
 /// @type.symbol symbol=read source="declare function read(): Result<string, string>" type=() => Result<string, string>
 /// @resolution.name source=Result target=error.result.Result
@@ -113,8 +109,6 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, string> kind=symbol target=read
-    /// @generic.instance source=read id="Result<string, string>"
-    /// @generic.instance source=read() id="Result<string, string>"
 
 } catch {
     const handled = true;
@@ -123,8 +117,6 @@ try {
     /// @type.node source=true type=true
 
 }
-
-/// @generic.instance id="Result<string, string>" template=error.result.Result arguments=(string, string)
 "#,
     );
 }
@@ -143,7 +135,7 @@ try {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -156,7 +148,7 @@ try {
     error.message satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare function read(): Result<string, { message: string }>;
 /// @type.symbol symbol=read source="declare function read(): Result<string, { message: string }>" type=() => Result<string, { message: string }>
 /// @resolution.name source=Result target=error.result.Result
@@ -170,8 +162,6 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, { message: string }> kind=symbol target=read
-    /// @generic.instance source=read id="Result<string, { message: string }>"
-    /// @generic.instance source=read() id="Result<string, { message: string }>"
 
 } catch (error) {
 /// @type.symbol symbol=error source=error type=TryResidual<Result<string, { message: string }>>
@@ -187,11 +177,8 @@ try {
     /// @resolution.access source=error root=error
     /// @resolution.place source=error.message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=error.message root=error keys=[message]
-    /// @generic.instance source=error id="Result<string, { message: string }>"
 
 }
-
-/// @generic.instance id="Result<string, { message: string }>" template=error.result.Result arguments=(string, { message: string })
 "#,
     );
 }
@@ -209,7 +196,7 @@ try {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -221,7 +208,7 @@ try {
 } catch ("missing") {
 }
 
-=== checked ===
+=== dir ===
 declare function read(): Result<string, "missing" | "denied">;
 /// @type.symbol symbol=read source="declare function read(): Result<string, \"missing\" | \"denied\">" type=() => Result<string, "missing" | "denied">
 /// @resolution.name source=Result target=error.result.Result
@@ -235,16 +222,12 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, "missing" | "denied"> kind=symbol target=read
-    /// @generic.instance source=read id="Result<string, \"missing\" | \"denied\">"
-    /// @generic.instance source=read() id="Result<string, \"missing\" | \"denied\">"
 
 } catch ("missing") {
 /// @type.node source="\"missing\"" type="missing"
 /// @resolution.pattern source="\"missing\"" kind=literal value="missing"
 
 }
-
-/// @generic.instance id="Result<string, \"missing\" | \"denied\">" template=error.result.Result arguments=(string, "missing" | "denied")
 "#,
         r#"
 /// @diagnostic.error id=refutable-catch-pattern message="catch pattern must be irrefutable: '\"denied\"' is not covered"

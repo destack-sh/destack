@@ -293,8 +293,8 @@ impl<'a> SnapshotRenderer<'a> {
 
     /// Return row ordering rank inside one anchor.
     fn row_rank(row: &SnapshotRow) -> u8 {
-        // keep source-site generic instances after resolution rows
-        if row.tag.table == "generic" && row.tag.entry == "instance" {
+        // keep source-site instantiations and instances after resolution rows
+        if row.tag.table == "generic" && matches!(row.tag.entry, "instantiation" | "instance") {
             return GENERIC_INSTANCE_ROW_RANK;
         }
 
@@ -316,7 +316,8 @@ impl<'a> SnapshotRenderer<'a> {
             "slot" => 5,
             "static" => 6,
             "node" => 7,
-            "instance" => 8,
+            "instantiation" => 8,
+            "instance" => 9,
             "entry" => 9,
             "edge" => 10,
             "local" => 11,

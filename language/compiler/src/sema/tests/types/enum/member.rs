@@ -13,7 +13,7 @@ type Selected = Mode.Read;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -25,7 +25,7 @@ enum Mode {
 
 type Selected = Mode.Read;
 
-=== checked ===
+=== dir ===
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
@@ -62,7 +62,7 @@ const selected = Mode.Read;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -74,7 +74,7 @@ enum Mode {
 
 const selected = Mode.Read;
 
-=== checked ===
+=== dir ===
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
@@ -122,7 +122,7 @@ switch (mode) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -141,7 +141,7 @@ switch (mode) {
         const remaining = mode;
 }
 
-=== checked ===
+=== dir ===
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
@@ -214,7 +214,7 @@ const value: Status = Status.Default;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -228,7 +228,7 @@ enum Status {
 
 const value: Status = Status.Default;
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
@@ -277,7 +277,7 @@ const value = Status.Active.isActive();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -293,7 +293,7 @@ enum Status {
 
 const value: boolean = Status.Active.isActive();
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
@@ -354,7 +354,7 @@ enum Status {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -364,7 +364,7 @@ enum Status {
     Ready,
 }
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
@@ -401,7 +401,7 @@ const value: Status = Status.Default;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -415,7 +415,7 @@ enum Status {
 
 const value: Status = Status.Default;
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status

@@ -10,7 +10,7 @@ function name(user: { name: string } | null): string | undefined {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -19,7 +19,7 @@ function name(user: { name: string } | null): string | undefined {
     return user?.name;
 }
 
-=== checked ===
+=== dir ===
 function name(user: { name: string } | null): string | undefined {
 /// @type.symbol symbol=name type=({ name: string } | null) => string | undefined
 /// @type.symbol symbol=name.user source="user: { name: string } | null" type={ name: string } | null
@@ -49,7 +49,7 @@ function name(user: { name: string } | null): string {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -58,7 +58,7 @@ function name(user: { name: string } | null): string {
     return user.name;
 }
 
-=== checked ===
+=== dir ===
 function name(user: { name: string } | null): string {
 /// @type.symbol symbol=name type=({ name: string } | null) => string
 /// @type.symbol symbol=name.user source="user: { name: string } | null" type={ name: string } | null
@@ -92,7 +92,7 @@ function name(user: { name: string } | null): string | undefined {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -101,7 +101,7 @@ function name(user: { name: string } | null): string | undefined {
     return user?.["name"];
 }
 
-=== checked ===
+=== dir ===
 function name(user: { name: string } | null): string | undefined {
 /// @type.symbol symbol=name type=({ name: string } | null) => string | undefined
 /// @type.symbol symbol=name.user source="user: { name: string } | null" type={ name: string } | null
@@ -132,7 +132,7 @@ function name(user: { name: string } | null): string {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -141,7 +141,7 @@ function name(user: { name: string } | null): string {
     return user["name"];
 }
 
-=== checked ===
+=== dir ===
 function name(user: { name: string } | null): string {
 /// @type.symbol symbol=name type=({ name: string } | null) => string
 /// @type.symbol symbol=name.user source="user: { name: string } | null" type={ name: string } | null
@@ -176,7 +176,7 @@ function invoke(service: { callback?: () => int32 } | null): int32 | undefined {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -185,7 +185,7 @@ function invoke(service: { callback?: () => int32 } | null): int32 | undefined {
     return service?.callback?.();
 }
 
-=== checked ===
+=== dir ===
 function invoke(service: { callback?: () => int32 } | null): int32 | undefined {
 /// @type.symbol symbol=invoke type=({ callback?: Function<(), int32> } | null) => int32 | undefined
 /// @type.symbol symbol=invoke.service source="service: { callback?: () => int32 } | null" type={ callback?: Function<(), int32> } | null
@@ -216,7 +216,7 @@ function invoke(callback: (() => int32) | undefined): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -225,7 +225,7 @@ function invoke(callback: (() => int32) | undefined): int32 {
     return callback();
 }
 
-=== checked ===
+=== dir ===
 function invoke(callback: (() => int32) | undefined): int32 {
 /// @type.symbol symbol=invoke type=(Function<(), int32> | undefined) => int32
 /// @type.symbol symbol=invoke.callback source="callback: (() => int32) | undefined" type=Function<(), int32> | undefined

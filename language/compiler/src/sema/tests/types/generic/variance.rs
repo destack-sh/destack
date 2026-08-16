@@ -12,7 +12,7 @@ const shapes: Shape[] = circles;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -23,7 +23,7 @@ class Circle extends Shape {}
 declare const circles: Circle[];
 const shapes: Shape[] = circles;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -68,7 +68,7 @@ const shapes: readonly Shape[] = circles;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -79,7 +79,7 @@ class Circle extends Shape {}
 declare const circles: Circle[];
 const shapes: readonly Shape[] = circles;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -119,7 +119,7 @@ const widened: readonly (Circle | Square)[] = circles;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -131,7 +131,7 @@ class Square extends Shape {}
 declare const circles: Circle[];
 const widened: readonly (Circle | Square)[] = circles;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -184,7 +184,7 @@ const either: () => Circle | Square = make;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -197,7 +197,7 @@ declare const make: () => Circle;
 const widened: () => Shape = make;
 const either: () => Circle | Square = make;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -254,7 +254,7 @@ declare class Evil<out T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -263,7 +263,7 @@ declare class Evil<out T> {
     slot: T;
 }
 
-=== checked ===
+=== dir ===
 declare class Evil<out T> {
 /// @generic.template symbol=Evil parameters=(out T)
 /// @type.symbol symbol=Evil type=Evil
@@ -294,7 +294,7 @@ struct Sink<out T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -303,7 +303,7 @@ struct Sink<out T> {
     readonly accept: (arg0: T) => void;
 }
 
-=== checked ===
+=== dir ===
 struct Sink<out T> {
 /// @generic.template symbol=Sink parameters=(out T)
 /// @type.symbol symbol=Sink type=Sink
@@ -344,7 +344,7 @@ const widened: Managed<Box<Shape>> = aliased;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -362,7 +362,7 @@ const copy: Box<Shape> = owned;
 declare const aliased: Box<Circle>;
 const widened: Box<Shape> = aliased;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -417,9 +417,6 @@ const widened: Managed<Box<Shape>> = aliased;
 /// @resolution.name source=aliased target=aliased
 /// @resolution.place source=aliased placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=aliased root=aliased
-
-/// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
-/// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
@@ -439,7 +436,7 @@ declare class Reader<out T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -448,7 +445,7 @@ declare class Reader<out T> {
     readonly value: T;
 }
 
-=== checked ===
+=== dir ===
 declare class Reader<out T> {
 /// @generic.template symbol=Reader parameters=(out T)
 /// @type.symbol symbol=Reader type=Reader
@@ -474,7 +471,7 @@ const widened: { x: float64 } = point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -482,7 +479,7 @@ const widened: { x: float64 } = point;
 declare const point: { x: 1 };
 const widened: { x: float64 } = point;
 
-=== checked ===
+=== dir ===
 declare const point: { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: 1 }
 /// @resolution.pattern source=point kind=binding target=point
@@ -519,7 +516,7 @@ const converted: { readonly x: float64 } = scalar;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -533,7 +530,7 @@ const widened: { readonly x: Shape } = point;
 declare const scalar: { x: 1 };
 const converted: { readonly x: float64 } = scalar;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -596,7 +593,7 @@ const useShape2: (shape: Shape) => void = useCircle2;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -610,7 +607,7 @@ const useCircle: (arg0: Circle) => void = useShape;
 declare const useCircle2: (arg0: Circle) => void;
 const useShape2: (arg0: Shape) => void = useCircle2;
 
-=== checked ===
+=== dir ===
 class Shape {}
 /// @type.symbol symbol=Shape source="class Shape {}" type=Shape
 /// @definition.class symbol=Shape source="class Shape {}"
@@ -670,7 +667,7 @@ const target: Handle<string> = source;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -680,7 +677,7 @@ newtype Handle<in out T> = intrinsic;
 declare const source: Handle<int32>;
 const target: Handle<string> = source;
 
-=== checked ===
+=== dir ===
 newtype Handle<T> = intrinsic;
 /// @generic.template symbol=Handle parameters=(in out T)
 /// @type.symbol symbol=Handle source="newtype Handle<T> = intrinsic" type=Handle
@@ -700,10 +697,6 @@ const target: Handle<string> = source;
 /// @resolution.name source=source target=source
 /// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=source root=source
-/// @generic.instance source=source id=Handle<int32>
-
-/// @generic.instance id=Handle<int32> template=Handle arguments=(int32)
-/// @generic.instance id=Handle<string> template=Handle arguments=(string)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Handle<int32>' is not assignable to type 'Handle<string>'"
@@ -735,7 +728,7 @@ class Holder {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -755,7 +748,7 @@ class Holder {
     storage: Handle<[uint8]> = Handle.empty<uint8>();
 }
 
-=== checked ===
+=== dir ===
 newtype Handle<T> = intrinsic;
 /// @generic.template symbol=Handle parameters=(in out T#1)
 /// @type.symbol symbol=Handle source="newtype Handle<T> = intrinsic" type=Handle
@@ -792,9 +785,7 @@ extension<T> of Handle<[T]> {
         /// @type.node source=emptyHandle<T>() type=Handle<Slice<T#3>>
         /// @resolution.name source=emptyHandle target=emptyHandle
         /// @resolution.call source=emptyHandle<T>() parameters=() return=Handle<Slice<T#3>> kind=symbol target=emptyHandle instance=emptyHandle<T#3>
-        /// @generic.instance source=emptyHandle id=Handle<Slice<T#3>>
-        /// @generic.instance source=emptyHandle<T>() id=Handle<Slice<T#3>>
-        /// @generic.instance source=emptyHandle<T>() id=emptyHandle<T#3>
+        /// @generic.instantiation id=emptyHandle<T#3> template=emptyHandle arguments=(T#3) owner=<module>#2
         /// @resolution.name source=T target=T
 
     }
@@ -814,17 +805,9 @@ class Holder {
     /// @resolution.name source=Handle target=Handle
     /// @resolution.member source=Handle.empty receiver=Handle type=() => Handle<Slice<T#3>> kind=symbol target_receiver=Handle target=empty
     /// @resolution.call source=Handle.empty() parameters=() return=Handle<Slice<uint8>> kind=symbol target=empty instance=Handle<Slice<T#3>>.<extension#1>.empty
-    /// @generic.instance source=Handle.empty id=Handle<Slice<T#3>>
-    /// @generic.instance source=Handle.empty() id=Handle<Slice<T#3>>.<extension#1>.empty
-    /// @generic.instance source=Handle.empty() id=Handle<Slice<uint8>>
+    /// @generic.instantiation id=empty<uint8> template=empty arguments=(uint8)
 
 }
-
-/// @generic.instance id=Handle<Slice<T#2>> template=Handle arguments=(Slice<T#2>)
-/// @generic.instance id=Handle<Slice<T#3>> template=Handle arguments=(Slice<T#3>)
-/// @generic.instance id=Handle<Slice<T#3>>.<extension#1>.empty template=empty arguments=(uint8)
-/// @generic.instance id=Handle<Slice<uint8>> template=Handle arguments=(Slice<uint8>)
-/// @generic.instance id=emptyHandle<T#3> template=emptyHandle arguments=(T#3)
 "#,
         r#"
 "#,
@@ -845,7 +828,7 @@ take(increment);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -858,7 +841,7 @@ function increment(value: int32): int32 {
 
 take(increment);
 
-=== checked ===
+=== dir ===
 declare function take(callback: (value: int32) => int32 | undefined): void;
 /// @type.symbol symbol=take source="declare function take(callback: (value: int32) => int32 | undefined): void" type=(Function<(int32,), int32 | undefined>) => void
 /// @type.symbol symbol=take.callback source="callback: (value: int32) => int32 | undefined" type=Function<(int32,), int32 | undefined>
@@ -898,7 +881,7 @@ forEach(async (value) => value);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -907,7 +890,7 @@ declare function forEach(visit: (arg0: int32) => void): void;
 
 forEach(async (value: int32) => value);
 
-=== checked ===
+=== dir ===
 declare function forEach(visit: (value: int32) => void): void;
 /// @type.symbol symbol=forEach source="declare function forEach(visit: (value: int32) => void): void" type=(Function<(int32,), void>) => void
 /// @type.symbol symbol=forEach.visit source="visit: (value: int32) => void" type=Function<(int32,), void>
@@ -921,8 +904,6 @@ forEach(async (value) => value);
 /// @resolution.name source=value target=symbol4.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol4.value
-
-/// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
 "#,
         r#"
 "#,

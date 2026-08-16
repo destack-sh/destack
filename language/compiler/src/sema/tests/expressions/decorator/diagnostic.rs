@@ -10,7 +10,7 @@ if (true) {}
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -21,7 +21,7 @@ if (true) {}
 if (true) {
 }
 
-=== checked ===
+=== dir ===
 @allow("constant-condition")
 /// @decorator.node source="@allow(\"constant-condition\")" owner="if (true) {}" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"constant-condition\")"
 /// @type.node source=allow type=allow
@@ -45,7 +45,7 @@ if (true) {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -54,7 +54,7 @@ if (true) {}
 if (true) {
 }
 
-=== checked ===
+=== dir ===
 @deny("constant-condition")
 /// @decorator.node source="@deny(\"constant-condition\")" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.deny backing=(decorator.diagnostic.DiagnosticId,) value="deny(\"constant-condition\")"
 /// @type.node source=deny type=deny
@@ -82,7 +82,7 @@ if (true) {}
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -93,7 +93,7 @@ if (true) {}
 if (true) {
 }
 
-=== checked ===
+=== dir ===
 @expect("constant-condition")
 /// @decorator.node source="@expect(\"constant-condition\")" owner="if (true) {}" expression=expect target=decorator.expect type=expect kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.expect backing=(decorator.diagnostic.DiagnosticId,) value="expect(\"constant-condition\")"
 /// @type.node source=expect type=expect
@@ -117,7 +117,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -125,7 +125,7 @@ const value = 1;
 @expect("constant-condition", { reason: "intentional assertion" })
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 @expect("constant-condition", { reason: "intentional assertion" })
 /// @decorator.node source="@expect(\"constant-condition\", { reason: \"intentional assertion\" })" owner="const value = 1" expression=expect target=decorator.expect type=expect kind=newtype parameters=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId, provided({ reason: "intentional assertion" }) as decorator.diagnostic.DiagnosticControlOptions) newtype=decorator.diagnostic.expect backing=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) value="expect(\"constant-condition\", { reason: \"intentional assertion\" })"
 /// @type.node source=expect type=expect
@@ -157,7 +157,7 @@ if (true) {}
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -168,7 +168,7 @@ if (true) {}
 if (true) {
 }
 
-=== checked ===
+=== dir ===
 @deny("constant-condition", { if: false, otherwise: "allow" })
 /// @decorator.node source="@deny(\"constant-condition\", { if: false, otherwise: \"allow\" })" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId, provided({ if: false, otherwise: "allow" }) as decorator.diagnostic.DiagnosticControlOptions) newtype=decorator.diagnostic.deny backing=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) value="deny(\"constant-condition\", { if: false; otherwise: \"allow\" })"
 /// @type.node source=deny type=deny
@@ -196,7 +196,7 @@ if (true) {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -206,7 +206,7 @@ if (true) {}
 if (true) {
 }
 
-=== checked ===
+=== dir ===
 @forbid("constant-condition")
 /// @decorator.node source="@forbid(\"constant-condition\")" owner="if (true) {}" expression=forbid target=decorator.forbid type=forbid kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.forbid backing=(decorator.diagnostic.DiagnosticId,) value="forbid(\"constant-condition\")"
 /// @type.node source=forbid type=forbid
@@ -243,7 +243,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -251,7 +251,7 @@ const value = 1;
 @allow("not-a-diagnostic")
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 @allow("not-a-diagnostic")
 /// @decorator.node source="@allow(\"not-a-diagnostic\")" owner="const value = 1" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("not-a-diagnostic") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"not-a-diagnostic\")"
 /// @type.node source=allow type=allow
@@ -280,7 +280,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -288,7 +288,7 @@ const value = 1;
 @allow("not-assignable")
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 @allow("not-assignable")
 /// @decorator.node source="@allow(\"not-assignable\")" owner="const value = 1" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("not-assignable") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"not-assignable\")"
 /// @type.node source=allow type=allow

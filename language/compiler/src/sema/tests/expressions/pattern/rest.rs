@@ -13,7 +13,7 @@ tail satisfies ^int32[];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -25,13 +25,17 @@ let [head, ...tail] = values;
 head satisfies int32;
 tail satisfies ^int32[];
 
-=== checked ===
+=== dir ===
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
 
 let [head, ...tail] = values;
 /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
+/// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+/// @generic.instantiation id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
+/// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+/// @generic.instance id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
 /// @type.symbol symbol=head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=head
 /// @type.symbol symbol=tail source=tail type=Owned<Array<int32>>
@@ -53,10 +57,6 @@ tail satisfies ^int32[];
 /// @resolution.name source=tail target=tail
 /// @resolution.place source=tail placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=tail root=tail
-/// @generic.instance source="tail satisfies ^int32[]" id=Array<int32>
-/// @generic.instance source=tail id=Array<int32>
-
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 "#,
     );
 }
@@ -69,14 +69,14 @@ let [...middle, last] = [1, 2, 3];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let [...middle, last] = [1, 2, 3];
 
-=== checked ===
+=== dir ===
 let [...middle, last] = [1, 2, 3];
 /// @resolution.rejected source=[...middle, last]
 /// @type.symbol symbol=middle source=middle type=<error>
@@ -101,14 +101,14 @@ let [head, ...middle, ...tail] = [1, 2, 3];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let [head, ...middle, ...tail] = [1, 2, 3];
 
-=== checked ===
+=== dir ===
 let [head, ...middle, ...tail] = [1, 2, 3];
 /// @resolution.rejected source=[head, ...middle, ...tail]
 /// @type.symbol symbol=head source=head type=<error>

@@ -18,7 +18,7 @@ value satisfies Point;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -35,7 +35,7 @@ function requireEqual<T: Equal>(value: T): T {
 const value: Point = requireEqual<Point>(Point { x: 1, y: 2 });
 value satisfies Point;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -71,7 +71,8 @@ const value = requireEqual(Point { x: 1, y: 2 });
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(Point { x: 1, y: 2 })" parameters=(Point) arguments=(provided(Point { x: 1, y: 2 }) as Point) return=Point kind=symbol target=requireEqual instance=requireEqual<Point>
-/// @generic.instance source="requireEqual(Point { x: 1, y: 2 })" id=requireEqual<Point>
+/// @generic.instantiation id=requireEqual<Point> template=requireEqual arguments=(Point)
+/// @generic.instance id=requireEqual<Point> template=requireEqual arguments=(Point)
 /// @resolution.name source=Point target=Point
 
 value satisfies Point;
@@ -79,8 +80,6 @@ value satisfies Point;
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.name source=Point target=Point
-
-/// @generic.instance id=requireEqual<Point> template=requireEqual arguments=(Point)
 "#,
     );
 }
@@ -107,7 +106,7 @@ const total = requireEqual(Sample { label: "a", weight: 1.0 });
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -128,7 +127,7 @@ function requirePartial<T: PartialEqual>(value: T): T {
 const partial: Sample = requirePartial<Sample>(Sample { label: "a", weight: 1.0 });
 const total = requireEqual(Sample { label: "a", weight: 1.0 });
 
-=== checked ===
+=== dir ===
 struct Sample {
 /// @type.symbol symbol=Sample type=Sample
 /// @definition.struct symbol=Sample
@@ -180,7 +179,7 @@ const partial = requirePartial(Sample { label: "a", weight: 1.0 });
 /// @resolution.pattern source=partial kind=binding target=partial
 /// @resolution.name source=requirePartial target=requirePartial
 /// @resolution.call source="requirePartial(Sample { label: \"a\", weight: 1.0 })" parameters=(Sample) arguments=(provided(Sample { label: "a", weight: 1.0 }) as Sample) return=Sample kind=symbol target=requirePartial instance=requirePartial<Sample>
-/// @generic.instance source="requirePartial(Sample { label: \"a\", weight: 1.0 })" id=requirePartial<Sample>
+/// @generic.instantiation id=requirePartial<Sample> template=requirePartial arguments=(Sample)
 /// @resolution.name source=Sample target=Sample
 
 const total = requireEqual(Sample { label: "a", weight: 1.0 });
@@ -188,11 +187,8 @@ const total = requireEqual(Sample { label: "a", weight: 1.0 });
 /// @resolution.pattern source=total kind=binding target=total
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(Sample { label: \"a\", weight: 1.0 })" parameters=(<error>) arguments=(provided(Sample { label: "a", weight: 1.0 }) as <error>) return=<error> kind=symbol target=requireEqual instance=requireEqual<<error>>
-/// @generic.instance source="requireEqual(Sample { label: \"a\", weight: 1.0 })" id=requireEqual<<error>>
+/// @generic.instantiation id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 /// @resolution.name source=Sample target=Sample
-
-/// @generic.instance id=requireEqual<<error>> template=requireEqual arguments=(<error>)
-/// @generic.instance id=requirePartial<Sample> template=requirePartial arguments=(Sample)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Sample' does not satisfy 'Equal'"
@@ -220,7 +216,7 @@ node satisfies Node;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -237,7 +233,7 @@ function requireClone<T: Clone>(value: T): T {
 const node: Node = requireClone<Node>(Node { value: 1, next: null as Box<Node> | null });
 node satisfies Node;
 
-=== checked ===
+=== dir ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
 /// @definition.struct symbol=Node
@@ -275,7 +271,8 @@ const node = requireClone(Node { value: 1, next: null });
 /// @resolution.pattern source=node kind=binding target=node
 /// @resolution.name source=requireClone target=requireClone
 /// @resolution.call source="requireClone(Node { value: 1, next: null })" parameters=(Node) arguments=(provided(Node { value: 1, next: null }) as Node) return=Node kind=symbol target=requireClone instance=requireClone<Node>
-/// @generic.instance source="requireClone(Node { value: 1, next: null })" id=requireClone<Node>
+/// @generic.instantiation id=requireClone<Node> template=requireClone arguments=(Node)
+/// @generic.instance id=requireClone<Node> template=requireClone arguments=(Node)
 /// @resolution.name source=Node target=Node
 
 node satisfies Node;
@@ -283,9 +280,6 @@ node satisfies Node;
 /// @resolution.place source=node placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=node root=node
 /// @resolution.name source=Node target=Node
-
-/// @generic.instance id=Box<Node> template=memory.box.Box arguments=(Node)
-/// @generic.instance id=requireClone<Node> template=requireClone arguments=(Node)
 "#,
     );
 }
@@ -312,7 +306,7 @@ const measure = requireHash(Measure { value: 1.0 });
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -333,7 +327,7 @@ function requireHash<T: Hash>(value: T): T {
 const key: Key = requireHash<Key>(Key { id: 1, name: "a" });
 const measure = requireHash(Measure { value: 1.0 });
 
-=== checked ===
+=== dir ===
 struct Key {
 /// @type.symbol symbol=Key type=Key
 /// @definition.struct symbol=Key
@@ -379,7 +373,7 @@ const key = requireHash(Key { id: 1, name: "a" });
 /// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=requireHash target=requireHash
 /// @resolution.call source="requireHash(Key { id: 1, name: \"a\" })" parameters=(Key) arguments=(provided(Key { id: 1, name: "a" }) as Key) return=Key kind=symbol target=requireHash instance=requireHash<Key>
-/// @generic.instance source="requireHash(Key { id: 1, name: \"a\" })" id=requireHash<Key>
+/// @generic.instantiation id=requireHash<Key> template=requireHash arguments=(Key)
 /// @resolution.name source=Key target=Key
 
 const measure = requireHash(Measure { value: 1.0 });
@@ -387,11 +381,8 @@ const measure = requireHash(Measure { value: 1.0 });
 /// @resolution.pattern source=measure kind=binding target=measure
 /// @resolution.name source=requireHash target=requireHash
 /// @resolution.call source="requireHash(Measure { value: 1.0 })" parameters=(<error>) arguments=(provided(Measure { value: 1.0 }) as <error>) return=<error> kind=symbol target=requireHash instance=requireHash<<error>>
-/// @generic.instance source="requireHash(Measure { value: 1.0 })" id=requireHash<<error>>
+/// @generic.instantiation id=requireHash<<error>> template=requireHash arguments=(<error>)
 /// @resolution.name source=Measure target=Measure
-
-/// @generic.instance id=requireHash<<error>> template=requireHash arguments=(<error>)
-/// @generic.instance id=requireHash<Key> template=requireHash arguments=(Key)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Measure' does not satisfy 'Hash'"
@@ -418,7 +409,7 @@ const value = requireCompare(Point { x: 1, y: 2 });
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -434,7 +425,7 @@ function requireCompare<T: Compare>(value: T): T {
 
 const value = requireCompare(Point { x: 1, y: 2 });
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -470,10 +461,8 @@ const value = requireCompare(Point { x: 1, y: 2 });
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=requireCompare target=requireCompare
 /// @resolution.call source="requireCompare(Point { x: 1, y: 2 })" parameters=(<error>) arguments=(provided(Point { x: 1, y: 2 }) as <error>) return=<error> kind=symbol target=requireCompare instance=requireCompare<<error>>
-/// @generic.instance source="requireCompare(Point { x: 1, y: 2 })" id=requireCompare<<error>>
+/// @generic.instantiation id=requireCompare<<error>> template=requireCompare arguments=(<error>)
 /// @resolution.name source=Point target=Point
-
-/// @generic.instance id=requireCompare<<error>> template=requireCompare arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Compare'"
@@ -504,7 +493,7 @@ const hashed = requireHash(new Session());
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -524,7 +513,7 @@ function requireHash<T: Hash>(value: T): T {
 const session: Session = requireEqual<Session>(new Session());
 const hashed: Session = requireHash<Session>(new Session());
 
-=== checked ===
+=== dir ===
 class Session {
 /// @type.symbol symbol=Session type=Session
 /// @definition.class symbol=Session
@@ -572,7 +561,8 @@ const session = requireEqual(new Session());
 /// @resolution.pattern source=session kind=binding target=session
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(new Session())" parameters=(Session) arguments=(provided(new Session()) as Session) return=Session kind=symbol target=requireEqual instance=requireEqual<Session>
-/// @generic.instance source="requireEqual(new Session())" id=requireEqual<Session>
+/// @generic.instantiation id=requireEqual<Session> template=requireEqual arguments=(Session)
+/// @generic.instance id=requireEqual<Session> template=requireEqual arguments=(Session)
 /// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=default
 /// @resolution.name source=Session target=Session
 
@@ -581,12 +571,10 @@ const hashed = requireHash(new Session());
 /// @resolution.pattern source=hashed kind=binding target=hashed
 /// @resolution.name source=requireHash target=requireHash
 /// @resolution.call source="requireHash(new Session())" parameters=(Session) arguments=(provided(new Session()) as Session) return=Session kind=symbol target=requireHash instance=requireHash<Session>
-/// @generic.instance source="requireHash(new Session())" id=requireHash<Session>
+/// @generic.instantiation id=requireHash<Session> template=requireHash arguments=(Session)
+/// @generic.instance id=requireHash<Session> template=requireHash arguments=(Session)
 /// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=default
 /// @resolution.name source=Session target=Session
-
-/// @generic.instance id=requireEqual<Session> template=requireEqual arguments=(Session)
-/// @generic.instance id=requireHash<Session> template=requireHash arguments=(Session)
 "#,
     );
 }
@@ -602,7 +590,7 @@ struct Sample {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -612,7 +600,7 @@ struct Sample {
     weight: float64;
 }
 
-=== checked ===
+=== dir ===
 @derive(Equal)
 /// @resolution.name source=derive target=decorator.derive.derive
 /// @resolution.name source=Equal target=ops.equality.Equal
@@ -649,7 +637,7 @@ struct Point {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -661,7 +649,7 @@ struct Point {
     x: int32;
 }
 
-=== checked ===
+=== dir ===
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value
@@ -699,7 +687,7 @@ struct Point {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -709,7 +697,7 @@ struct Point {
     x: int32;
 }
 
-=== checked ===
+=== dir ===
 @derive(Clone, Clone)
 /// @resolution.name source=derive target=decorator.derive.derive
 /// @resolution.name source=Clone target=memory.capability.Clone
@@ -752,7 +740,7 @@ requireEqual(Point { x: 1 });
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 const invalid: 1 = 1;
 
@@ -767,7 +755,7 @@ function requireEqual<T: Equal>(value: T): void {}
 requireClone(Point { x: 1 });
 requireEqual(Point { x: 1 });
 
-=== checked ===
+=== dir ===
 const invalid = 1;
 /// @type.symbol symbol=invalid source=invalid type=1
 /// @resolution.pattern source=invalid kind=binding target=invalid
@@ -806,17 +794,14 @@ function requireEqual<T: Equal>(value: T): void {}
 requireClone(Point { x: 1 });
 /// @resolution.name source=requireClone target=requireClone
 /// @resolution.call source="requireClone(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=void kind=symbol target=requireClone instance=requireClone<<error>>
-/// @generic.instance source="requireClone(Point { x: 1 })" id=requireClone<<error>>
+/// @generic.instantiation id=requireClone<<error>> template=requireClone arguments=(<error>)
 /// @resolution.name source=Point target=Point
 
 requireEqual(Point { x: 1 });
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=void kind=symbol target=requireEqual instance=requireEqual<<error>>
-/// @generic.instance source="requireEqual(Point { x: 1 })" id=requireEqual<<error>>
+/// @generic.instantiation id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 /// @resolution.name source=Point target=Point
-
-/// @generic.instance id=requireClone<<error>> template=requireClone arguments=(<error>)
-/// @generic.instance id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 "#, r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Clone'"
 /// @diagnostic.label line=12 column=1 span="requireClone(Point { x: 1 })" line_source="requireClone(Point { x: 1 });"
@@ -846,7 +831,7 @@ const value = requireEqual(Point { x: 1 });
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -862,7 +847,7 @@ function requireEqual<T: Equal>(value: T): T {
 
 const value = requireEqual(Point { x: 1 });
 
-=== checked ===
+=== dir ===
 @derive(Debug)
 /// @resolution.name source=derive target=decorator.derive.derive
 /// @resolution.name source=Debug target=ops.format.Debug
@@ -899,10 +884,8 @@ const value = requireEqual(Point { x: 1 });
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=<error> kind=symbol target=requireEqual instance=requireEqual<<error>>
-/// @generic.instance source="requireEqual(Point { x: 1 })" id=requireEqual<<error>>
+/// @generic.instantiation id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 /// @resolution.name source=Point target=Point
-
-/// @generic.instance id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Equal'"
@@ -938,7 +921,7 @@ cstrict satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -963,7 +946,7 @@ const cstrict: boolean = s1 === s2;
 csame satisfies boolean;
 cstrict satisfies boolean;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -1071,7 +1054,7 @@ const strict = a === b;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1084,7 +1067,7 @@ const a: Point = Point { x: 1 };
 const b: Point = Point { x: 2 };
 const strict = a === b;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -1145,7 +1128,7 @@ const cloned = requireClone(hold(), holdBlocker());
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Holder<Blocker>' does not satisfy 'Clone'"
@@ -1177,7 +1160,7 @@ const cloned = requireClone(held);
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Holder<Blocker>' does not satisfy 'Clone'"

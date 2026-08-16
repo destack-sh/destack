@@ -19,7 +19,7 @@ function inspectFrame(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -39,7 +39,7 @@ function inspectFrame(): void {
     frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
 }
 
-=== checked ===
+=== dir ===
 struct Point { x: int32; }
 /// @type.symbol symbol=Point source="struct Point { x: int32; }" type=Point
 /// @definition.struct symbol=Point source="struct Point { x: int32; }"
@@ -106,7 +106,7 @@ function first(a: &Node, b: &Node): &Node {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -119,7 +119,7 @@ function first<'a, 'b>(a: &'a Node, b: &'b Node): Borrowed<Node, 'a | 'b, "mutab
     return a;
 }
 
-=== checked ===
+=== dir ===
 struct Node { id: int32; }
 /// @type.symbol symbol=Node source="struct Node { id: int32; }" type=Node
 /// @definition.struct symbol=Node source="struct Node { id: int32; }"
@@ -157,7 +157,7 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -174,7 +174,7 @@ function choose<'a, 'b>(
     return flag ? a : b;
 }
 
-=== checked ===
+=== dir ===
 struct Node { id: int32; }
 /// @type.symbol symbol=Node source="struct Node { id: int32; }" type=Node
 /// @definition.struct symbol=Node source="struct Node { id: int32; }"
@@ -220,7 +220,7 @@ declare function choose<'a, 'b>(
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -231,7 +231,7 @@ struct Node {
 
 declare function choose<'a, 'b>(a: &'a Node, b: &'b Node): &Node;
 
-=== checked ===
+=== dir ===
 struct Node { id: int32; }
 /// @type.symbol symbol=Node source="struct Node { id: int32; }" type=Node
 /// @definition.struct symbol=Node source="struct Node { id: int32; }"
@@ -278,7 +278,7 @@ struct WorldView<'a, 'b> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -295,7 +295,7 @@ struct WorldView<'a, 'b> {
     assets: &'b AssetStore;
 }
 
-=== checked ===
+=== dir ===
 struct Engine { frame: uint64; }
 /// @type.symbol symbol=Engine source="struct Engine { frame: uint64; }" type=Engine
 /// @definition.struct symbol=Engine source="struct Engine { frame: uint64; }"
@@ -348,7 +348,7 @@ extension of Cell {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -365,7 +365,7 @@ extension of Cell {
     }
 }
 
-=== checked ===
+=== dir ===
 import { todo } from "destack:error";
 
 struct Cell { value: int32; }
@@ -410,7 +410,7 @@ interface Viewing {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -423,7 +423,7 @@ interface Viewing {
     view<const A: Access = "readonly">(this: WithAccess<&this, A>): WithAccess<&this.View, A>;
 }
 
-=== checked ===
+=== dir ===
 import { Access, WithAccess } from "destack:memory";
 
 interface Viewing {
@@ -450,9 +450,6 @@ interface Viewing {
     /// @resolution.name source=A target=Viewing.view.A
 
 }
-
-/// @generic.instance id="memory.type.WithAccess<&Viewing.view.'a this, A>" template=memory.type.WithAccess arguments=(&Viewing.view.'a this, A)
-/// @generic.instance id="memory.type.WithAccess<&Viewing.view.'a this.View, A>" template=memory.type.WithAccess arguments=(&Viewing.view.'a this.View, A)
 "#,
     );
 }
@@ -475,7 +472,7 @@ function warn(count?: int32, cause?: unknown): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -492,7 +489,7 @@ function warn(count?: int32, cause?: Dynamic<unknown>): void {
     log({ count, error: cause as Dynamic<unknown> } as Options<"frame"> | undefined);
 }
 
-=== checked ===
+=== dir ===
 type Options<'a> = {
 /// @generic.template symbol=Options parameters=('a)
 /// @type.symbol symbol=Options type={ count?: int32 | undefined; message?: &'a readonly string; error?: unknown }
@@ -529,8 +526,6 @@ function warn(count?: int32, cause?: unknown): void {
     /// @resolution.access source=cause root=warn.cause
 
 }
-
-/// @generic.instance id=Options<log.'a> template=Options arguments=(log.'a)
 "#,
     );
 }
@@ -553,7 +548,7 @@ struct User {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -570,7 +565,7 @@ struct User {
     id: int32;
 }
 
-=== checked ===
+=== dir ===
 struct Holder<'a> {
 /// @generic.template symbol=Holder parameters=('a#1)
 /// @type.symbol symbol=Holder type=Holder
@@ -608,8 +603,6 @@ struct User {
     /// @type.symbol symbol=User.id source="id: int32" type=int32
 
 }
-
-/// @generic.instance id=View<'a#1> template=View arguments=('a#1)
 "#,
     );
 }
@@ -628,7 +621,7 @@ struct Pong {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -641,7 +634,7 @@ struct Pong {
     ping: &readonly Ping;
 }
 
-=== checked ===
+=== dir ===
 struct Ping {
     pong: &readonly Pong;
 }
@@ -681,7 +674,7 @@ function inspect(user: &readonly User): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -700,7 +693,7 @@ function inspect<'a>(user: &'a readonly User): int32 {
     return view.user.id;
 }
 
-=== checked ===
+=== dir ===
 struct User {
 /// @type.symbol symbol=User type=User
 /// @definition.struct symbol=User
@@ -752,8 +745,6 @@ function inspect(user: &readonly User): int32 {
     /// @resolution.access source=view.user.id root=inspect.view keys=[user, id]
 
 }
-
-/// @generic.instance id=View<inspect.'a> template=View arguments=(inspect.'a)
 "#,
     );
 }
@@ -770,7 +761,7 @@ function first<'a>(a: &'a Node, b: &Node): &'a Node {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -783,7 +774,7 @@ function first<'a, 'b>(a: &'a Node, b: &'b Node): &'a Node {
     return a;
 }
 
-=== checked ===
+=== dir ===
 struct Node { id: int32; }
 /// @type.symbol symbol=Node source="struct Node { id: int32; }" type=Node
 /// @definition.struct symbol=Node source="struct Node { id: int32; }"
@@ -822,7 +813,7 @@ declare const shared: &'static Node;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -833,7 +824,7 @@ struct Node {
 
 declare const shared: &'static Node;
 
-=== checked ===
+=== dir ===
 struct Node { id: int32; }
 /// @type.symbol symbol=Node source="struct Node { id: int32; }" type=Node
 /// @definition.struct symbol=Node source="struct Node { id: int32; }"

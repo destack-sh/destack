@@ -12,7 +12,7 @@ value satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -23,7 +23,7 @@ let { ["x"]: value } = point;
 
 value satisfies int32;
 
-=== checked ===
+=== dir ===
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
@@ -58,7 +58,7 @@ let { [key]: value } = point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -68,7 +68,7 @@ declare const point: { x: int32 };
 
 let { [key]: value } = point;
 
-=== checked ===
+=== dir ===
 declare const key: string;
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
@@ -110,7 +110,7 @@ value satisfies int32 | undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -124,7 +124,7 @@ let { [key]: value } = bag;
 
 value satisfies int32 | undefined;
 
-=== checked ===
+=== dir ===
 type Bag = { [key: string]: int32 };
 /// @type.symbol symbol=Bag source="type Bag = { [key: string]: int32 }" type={ [key: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = { [key: string]: int32 }" value={ [key: string]: int32 }
@@ -176,7 +176,7 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -191,7 +191,7 @@ function get<K: keyof User>(user: { readonly name: string; readonly age: int32 }
     return value;
 }
 
-=== checked ===
+=== dir ===
 type User = {
 /// @type.symbol symbol=User type={ readonly name: string; readonly age: int32 }
 /// @definition.type symbol=User value={ readonly name: string; readonly age: int32 }
@@ -247,7 +247,7 @@ value satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -258,7 +258,7 @@ let { [1]: value } = pair;
 
 value satisfies int32;
 
-=== checked ===
+=== dir ===
 declare const pair: { 0: string; 1: int32 };
 /// @type.symbol symbol=pair source=pair type={ 0: string; 1: int32 }
 /// @resolution.pattern source=pair kind=binding target=pair

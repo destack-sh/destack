@@ -17,7 +17,7 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -33,7 +33,7 @@ function read<T: AtomicSafe, 'a>(value: &'a readonly Atomic<T>): T {
     return value.load<T>();
 }
 
-=== checked ===
+=== dir ===
 import { Atomic, AtomicSafe } from "destack:sync";
 
 declare const ready: Atomic<boolean>;
@@ -72,16 +72,10 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
     /// @resolution.call source=value.load() parameters=(sync.atomic.MemoryOrdering) arguments=(omitted as sync.atomic.MemoryOrdering) return=T kind=symbol target=sync.atomic.load receiver=&read.'a readonly sync.atomic.Atomic<T> adjustments=(&read.'a readonly sync.atomic.Atomic<T> => direct -> sync.atomic.Atomic<T>, borrow(&read.'a readonly sync.atomic.Atomic<T>)) instance=sync.atomic.Atomic<T>.<extension#1>.load
     /// @resolution.place source=value placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=value root=read.value
-    /// @generic.instance source=value.load() id=sync.atomic.Atomic<T>.<extension#1>.load
+    /// @generic.instantiation id=sync.atomic.load<T> template=sync.atomic.load arguments=(T) owner=read
+    /// @generic.instantiation id=sync.atomic.load<T> template=sync.atomic.load arguments=(T) owner=read
 
 }
-
-/// @generic.instance id=sync.atomic.Atomic<T> template=sync.atomic.Atomic arguments=(T)
-/// @generic.instance id=sync.atomic.Atomic<T>.<extension#1>.load template=sync.atomic.load arguments=(T)
-/// @generic.instance id=sync.atomic.Atomic<boolean> template=sync.atomic.Atomic arguments=(boolean)
-/// @generic.instance id=sync.atomic.Atomic<float64> template=sync.atomic.Atomic arguments=(float64)
-/// @generic.instance id=sync.atomic.Atomic<uint32> template=sync.atomic.Atomic arguments=(uint32)
-/// @generic.instance id=sync.atomic.Atomic<usize> template=sync.atomic.Atomic arguments=(usize)
 "#,
     );
 }
@@ -96,7 +90,7 @@ declare const wide: Atomic<uint128>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -105,15 +99,13 @@ import { Atomic } from "destack:sync";
 
 declare const wide: Atomic<uint128>;
 
-=== checked ===
+=== dir ===
 import { Atomic } from "destack:sync";
 
 declare const wide: Atomic<uint128>;
 /// @type.symbol symbol=wide source=wide type=sync.atomic.Atomic<uint128>
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Atomic target=sync.atomic.Atomic
-
-/// @generic.instance id=sync.atomic.Atomic<uint128> template=sync.atomic.Atomic arguments=(uint128)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'uint128' does not satisfy 'AtomicSafe'"
@@ -138,7 +130,7 @@ extension of Word implements AtomicSafe {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_definitions().with_decorators(),
         r#"
@@ -152,7 +144,7 @@ struct Word {
 @unsafe
 extension of Word implements AtomicSafe {}
 
-=== checked ===
+=== dir ===
 import { AtomicSafe } from "destack:sync";
 
 struct Word {

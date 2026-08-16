@@ -25,7 +25,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -49,7 +49,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
     }
 }
 
-=== checked ===
+=== dir ===
 import { Numeric } from "destack:math";
 
 interface Doubles {
@@ -104,7 +104,6 @@ extension<T: Numeric> of Pair<T> implements Doubles {
         Pair { x: this.x + this.x }
         /// @type.node source="Pair { x: this.x + this.x }" type=Pair<T#2>
         /// @resolution.name source=Pair target=Pair
-        /// @generic.instance source="Pair { x: this.x + this.x }" id=Pair<T#2>
         /// @type.node source="this.x + this.x" type=T#2
         /// @type.node source=this.x type=T#2
         /// @resolution.member source=this.x receiver=&double.'a exclusive Pair<T#2> type=T#2 kind=field target_receiver=&double.'a exclusive Pair<T#2> key=x target=Pair.x target_type=T#2
@@ -124,8 +123,6 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 
     }
 }
-
-/// @generic.instance id=Pair<T#2> template=Pair arguments=(T#2)
 "#,
     );
 }

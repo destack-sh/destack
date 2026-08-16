@@ -25,7 +25,7 @@ const direct = value;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -34,7 +34,7 @@ import { value } from "./index.ds";
 
 const direct: int32 = value;
 
-=== checked ===
+=== dir ===
 import { value } from "./index.ds";
 
 const direct = value;
@@ -72,7 +72,7 @@ const namespaced = source.value;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -81,7 +81,7 @@ import { source } from "./index.ds";
 
 const namespaced: int32 = source.value;
 
-=== checked ===
+=== dir ===
 import { source } from "./index.ds";
 
 const namespaced = source.value;
@@ -115,7 +115,7 @@ const second = sibling;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -125,7 +125,7 @@ import { helper } from "./util.ds";
 const first: int32 = helper;
 const second = sibling;
 
-=== checked ===
+=== dir ===
 import { helper } from "./util.ds";
 
 const first = helper;
@@ -160,7 +160,7 @@ export const config = { retries: 3, name: "job" };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -171,7 +171,7 @@ export const label: string = `name`;
 export const pair: float64[] = [1, 2];
 export const config: { retries: float64; name: string } = { retries: 3, name: "job" };
 
-=== checked ===
+=== dir ===
 export const flag = true;
 /// @type.symbol symbol=flag source=flag type=true
 /// @resolution.pattern source=flag kind=binding target=flag
@@ -208,7 +208,7 @@ export const computed = seed();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -219,7 +219,7 @@ function seed(): int32 {
 
 export const computed = seed();
 
-=== checked ===
+=== dir ===
 function seed(): int32 {
 /// @type.symbol symbol=seed type=() => int32
 

@@ -8,14 +8,14 @@ const value: "ready" = "ready";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: "ready" = "ready";
 
-=== checked ===
+=== dir ===
 const value: "ready" = "ready";
 /// @type.symbol symbol=value source=value type="ready"
 /// @resolution.pattern source=value kind=binding target=value
@@ -32,14 +32,14 @@ const value: true = true;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: true = true;
 
-=== checked ===
+=== dir ===
 const value: true = true;
 /// @type.symbol symbol=value source=value type=true
 /// @resolution.pattern source=value kind=binding target=value
@@ -56,14 +56,14 @@ const value = null;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: null = null;
 
-=== checked ===
+=== dir ===
 const value = null;
 /// @type.symbol symbol=value source=value type=null
 /// @resolution.pattern source=value kind=binding target=value
@@ -80,14 +80,14 @@ const value = undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: undefined = undefined;
 
-=== checked ===
+=== dir ===
 const value = undefined;
 /// @type.symbol symbol=value source=value type=undefined
 /// @resolution.pattern source=value kind=binding target=value
@@ -104,14 +104,14 @@ const value = 42 satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 42 = 42 satisfies int32;
 
-=== checked ===
+=== dir ===
 const value = 42 satisfies int32;
 /// @type.symbol symbol=value source=value type=42
 /// @resolution.pattern source=value kind=binding target=value
@@ -130,7 +130,7 @@ const version = config.version;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -138,7 +138,7 @@ const version = config.version;
 const config: { version: float64 } = { version: 1 };
 const version: float64 = config.version;
 
-=== checked ===
+=== dir ===
 const config = { version: 1 };
 /// @type.symbol symbol=config source=config type={ version: float64 }
 /// @resolution.pattern source=config kind=binding target=config
@@ -168,7 +168,7 @@ const mode = config.nested.mode;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -176,7 +176,7 @@ const mode = config.nested.mode;
 const config: { readonly nested: { readonly mode: "dev" } } = { nested: { mode: "dev" } } as const;
 const mode: "dev" = config.nested.mode;
 
-=== checked ===
+=== dir ===
 const config = { nested: { mode: "dev" } } as const;
 /// @type.symbol symbol=config source=config type={ readonly nested: { readonly mode: "dev" } }
 /// @resolution.pattern source=config kind=binding target=config
@@ -212,7 +212,7 @@ const mode = value.env.mode;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -222,7 +222,7 @@ const value: { readonly env: { readonly mode: "dev" } } = {
 } as const satisfies { env: { mode: string } };
 const mode: "dev" = value.env.mode;
 
-=== checked ===
+=== dir ===
 const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string } };
 /// @type.symbol symbol=value source=value type={ readonly env: { readonly mode: "dev" } }
 /// @resolution.pattern source=value kind=binding target=value
@@ -269,7 +269,7 @@ const copy = version;
         )
         .build();
 
-    session.assert_dir_checked_many(
+    session.assert_dir_many(
         &["values.ds", "main.ds"],
         DirRows::checked().with_reference_types(),
         r#"
@@ -278,7 +278,7 @@ const copy = version;
 === annotated ===
 export const version: 1 = 1;
 
-=== checked ===
+=== dir ===
 export const version = 1;
 /// @type.symbol symbol=version source=version type=1
 /// @resolution.pattern source=version kind=binding target=version
@@ -291,7 +291,7 @@ import { version } from "./values.ds";
 
 const copy: 1 = version;
 
-=== checked ===
+=== dir ===
 import { version } from "./values.ds";
 
 const copy = version;
@@ -323,7 +323,7 @@ const copy = counter;
         )
         .build();
 
-    session.assert_dir_checked_many(
+    session.assert_dir_many(
         &["values.ds", "main.ds"],
         DirRows::checked().with_reference_types(),
         r#"
@@ -332,7 +332,7 @@ const copy = counter;
 === annotated ===
 export let counter: float64 = 1;
 
-=== checked ===
+=== dir ===
 export let counter = 1;
 /// @type.symbol symbol=counter source=counter type=float64
 /// @resolution.pattern source=counter kind=binding target=counter
@@ -345,7 +345,7 @@ import { counter } from "./values.ds";
 
 const copy: float64 = counter;
 
-=== checked ===
+=== dir ===
 import { counter } from "./values.ds";
 
 const copy = counter;

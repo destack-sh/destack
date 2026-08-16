@@ -13,7 +13,7 @@ type UnsignedPointer = Unsigned<usize>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -25,7 +25,7 @@ type UnsignedFixed = Unsigned<uint37>;
 type SignedPointer = Unsigned<isize>;
 type UnsignedPointer = Unsigned<usize>;
 
-=== checked ===
+=== dir ===
 import { Unsigned } from "destack:math";
 
 type SignedFixed = Unsigned<int37>;

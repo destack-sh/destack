@@ -12,7 +12,7 @@ declare const point: { x: int32; y: string };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -23,7 +23,7 @@ declare const point: { x: int32; y: string };
 
 ({ x, y: label } = point);
 
-=== checked ===
+=== dir ===
 let x: int32 = 0;
 /// @type.symbol symbol=x#1 source=x type=int32
 /// @resolution.pattern source=x kind=binding target=x#1
@@ -71,7 +71,7 @@ declare const values: [int32; 3];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -82,7 +82,7 @@ declare const values: [int32; 3];
 
 [first, , last] = values;
 
-=== checked ===
+=== dir ===
 let first: int32 = 0;
 /// @type.symbol symbol=first source=first type=int32
 /// @resolution.pattern source=first kind=binding target=first
@@ -100,6 +100,8 @@ declare const values: [int32; 3];
 [first, , last] = values;
 /// @type.node source="[first, , last] = values" type=FixedArray<int32, 3>
 /// @resolution.pattern.assign source=[first, , last] kind=sequence element=int32 arity=3 fields=(first, last)
+/// @generic.instantiation id="collections.fixed-array.index#1<int32, 3, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 3, "exclusive")
+/// @generic.instance id="collections.fixed-array.index#1<int32, 3, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 3, "exclusive")
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
 /// @resolution.pattern.assign source=first kind=place
@@ -130,7 +132,7 @@ declare const user: { name: string; age: int32; active: boolean };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -141,7 +143,7 @@ declare const user: { name: string; age: int32; active: boolean };
 
 ({ name, ...rest } = user);
 
-=== checked ===
+=== dir ===
 let name: string = "";
 /// @type.symbol symbol=name#1 source=name type=string
 /// @resolution.pattern source=name kind=binding target=name#1
@@ -191,7 +193,7 @@ declare const values: int32[];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -202,7 +204,7 @@ declare const values: int32[];
 
 [head, ...tail] = values;
 
-=== checked ===
+=== dir ===
 let head: int32 = 0;
 /// @type.symbol symbol=head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=head
@@ -220,6 +222,10 @@ declare const values: int32[];
 [head, ...tail] = values;
 /// @type.node source="[head, ...tail] = values" type=Array<int32>
 /// @resolution.pattern.assign source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
+/// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+/// @generic.instantiation id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
+/// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+/// @generic.instance id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
 /// @type.node source=head type=int32
 /// @resolution.name source=head target=head
 /// @resolution.pattern.assign source=head kind=place
@@ -253,7 +259,7 @@ declare const packet: { point: { x: int32 }; meta: (string,) };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -267,7 +273,7 @@ declare const packet: { point: { x: int32 }; meta: (string,) };
     meta: (label,),
 } = packet);
 
-=== checked ===
+=== dir ===
 let x: int32 = 0;
 /// @type.symbol symbol=x#1 source=x type=int32
 /// @resolution.pattern source=x kind=binding target=x#1
@@ -326,7 +332,7 @@ declare const packet: { count?: int32; labels: (string | undefined,) };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -340,7 +346,7 @@ declare const packet: { count?: int32; labels: (string | undefined,) };
     labels: (label = "missing",),
 } = packet);
 
-=== checked ===
+=== dir ===
 let count: int32 = 0;
 /// @type.symbol symbol=count#1 source=count type=int32
 /// @resolution.pattern source=count kind=binding target=count#1
@@ -398,7 +404,7 @@ declare const point: { x: int32 };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -408,7 +414,7 @@ declare const point: { x: int32 };
 
 ({ ["x"]: value } = point);
 
-=== checked ===
+=== dir ===
 let value: int32 = 0;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -447,7 +453,7 @@ declare const bag: { [key: string]: int32 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -458,7 +464,7 @@ declare const bag: { [key: string]: int32 };
 
 ({ [key]: value } = bag);
 
-=== checked ===
+=== dir ===
 declare const key: string;
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
@@ -509,7 +515,7 @@ declare const point: { x: int32 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -520,7 +526,7 @@ declare const point: { x: int32 };
 
 ({ [key]: value } = point);
 
-=== checked ===
+=== dir ===
 declare const key: string;
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key

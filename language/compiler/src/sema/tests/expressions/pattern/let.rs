@@ -14,7 +14,7 @@ function parse(status: "ready" | "error"): "ready" {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -27,7 +27,7 @@ function parse(status: "ready" | "error"): "ready" {
     status
 }
 
-=== checked ===
+=== dir ===
 function parse(status: "ready" | "error"): "ready" {
 /// @type.symbol symbol=parse type=("ready" | "error") => "ready"
 /// @type.symbol symbol=parse.status source="status: \"ready\" | \"error\"" type="ready" | "error"
@@ -66,7 +66,7 @@ function parse(status: "ready" | "error"): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -76,7 +76,7 @@ function parse(status: "ready" | "error"): int32 {
     1
 }
 
-=== checked ===
+=== dir ===
 function parse(status: "ready" | "error"): int32 {
 /// @type.symbol symbol=parse type=("ready" | "error") => int32
 /// @type.symbol symbol=parse.status source="status: \"ready\" | \"error\"" type="ready" | "error"
@@ -115,7 +115,7 @@ function parse(status: "ready" | "error"): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -128,7 +128,7 @@ function parse(status: "ready" | "error"): int32 {
     1
 }
 
-=== checked ===
+=== dir ===
 function parse(status: "ready" | "error"): int32 {
 /// @type.symbol symbol=parse type=("ready" | "error") => int32
 /// @type.symbol symbol=parse.status source="status: \"ready\" | \"error\"" type="ready" | "error"

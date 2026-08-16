@@ -21,7 +21,7 @@ export extension<T> of ^Pack<T> implements From<Iterable<T>> {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", "");
+    session.assert_dir_diagnostics("main.ds", "");
 }
 
 /// Place a static `this` result according to its shared declaration.
@@ -41,7 +41,7 @@ const channel: Channel = Channel.new();
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", "");
+    session.assert_dir_diagnostics("main.ds", "");
 }
 
 /// Apply inferred extension arguments to a static `this` result.
@@ -62,7 +62,7 @@ const pack: Pack<int32> = Pack.from(value);
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", "");
+    session.assert_dir_diagnostics("main.ds", "");
 }
 
 /// Preserve explicitly shared static parameters.
@@ -82,7 +82,7 @@ Channel.send(message);
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'local Message' is not assignable to parameter of type 'shared &readonly Message'"
@@ -111,7 +111,7 @@ channel.send(message);
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'local Message' is not assignable to parameter of type 'shared &readonly Message'"
@@ -144,7 +144,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -165,7 +165,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Pack<T> {
 /// @generic.template symbol=Pack parameters=(out T#1)
 /// @type.symbol symbol=Pack type=Pack
@@ -234,26 +234,14 @@ export extension<T: Compare<T>> of ^Pack<T> {
         /// @resolution.name source=Pack target=Pack
         /// @resolution.member source=Pack.from receiver=Pack type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> kind=existential targets=[from#1, from#2]
         /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3>>) arguments=(provided(values) as Dynamic<Iterable<T#3>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
-        /// @generic.instance source=Pack.from id=Iterable<T#2>
-        /// @generic.instance source=Pack.from id=Iterable<T#3>
-        /// @generic.instance source=Pack.from id=Pack<T#2>
-        /// @generic.instance source=Pack.from id=Pack<T#3>
-        /// @generic.instance source=Pack.from(values) id=Pack<T#3>
-        /// @generic.instance source=Pack.from(values) id=Pack<T#3>.<extension#1>.from#1
+        /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=<module>#3
         /// @type.node source=values type=Dynamic<Iterable<T#3>>
         /// @resolution.name source=values target=from.values#2
         /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values root=from.values#2
-        /// @generic.instance source=values id=Iterable<T#3>
 
     }
 }
-
-/// @generic.instance id=Iterable<T#2> template=iter.iterator.Iterable arguments=(T#2)
-/// @generic.instance id=Iterable<T#3> template=iter.iterator.Iterable arguments=(T#3)
-/// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
-/// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-/// @generic.instance id=Pack<T#3>.<extension#1>.from#1 template=from#1 arguments=(T#3)
 "#,
         r#"
 "#,
@@ -275,7 +263,7 @@ export type ReadPort = Port<Mode.Write>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -289,7 +277,7 @@ newtype Port<const out M: Mode = Mode.Read> = int32;
 
 export type ReadPort = Port<Mode.Write>;
 
-=== checked ===
+=== dir ===
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
@@ -319,8 +307,6 @@ export type ReadPort = Port<Mode.Write>;
 /// @resolution.name source=Port target=Port
 /// @resolution.name source=Mode.Write target=Mode
 /// @resolution.path source=Mode.Write index=1 target=Mode.Write
-
-/// @generic.instance id=Port<Mode.Write> template=Port arguments=(Mode.Write)
 "#,
         r#"
 "#,
@@ -360,7 +346,7 @@ export extension<T, E> of Outcome<T, E> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -392,7 +378,7 @@ export extension<T, E> of Outcome<T, E> {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Ok<T> {
 /// @generic.template symbol=Ok parameters=(out T#1)
 /// @type.symbol symbol=Ok type=Ok
@@ -455,10 +441,9 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
         /// @resolution.construct source="Outcome(Ok { value })" parameters=(Ok<T#3>) arguments=(provided(Ok { value }) as Ok<T#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Ok<T#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instance source="Outcome(Ok { value })" id="Outcome<T#3, E#3>"
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=<module>#2
         /// @type.node source="Ok { value }" type=Ok<T#3>
         /// @resolution.name source=Ok target=Ok
-        /// @generic.instance source="Ok { value }" id=Ok<T#3>
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=ok.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -479,10 +464,9 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
         /// @resolution.construct source="Outcome(Err { error })" parameters=(Err<E#3>) arguments=(provided(Err { error }) as Err<E#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Err<E#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instance source="Outcome(Err { error })" id="Outcome<T#3, E#3>"
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=<module>#2
         /// @type.node source="Err { error }" type=Err<E#3>
         /// @resolution.name source=Err target=Err
-        /// @generic.instance source="Err { error }" id=Err<E#3>
         /// @type.node source=error type=E#3
         /// @resolution.name source=error target=err.error
         /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
@@ -508,12 +492,11 @@ export extension<T, E> of Outcome<T, E> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instance source=this id="Outcome<T#3, E#3>"
 
             Ok { value } => Outcome.ok(f(value))
             /// @resolution.name source=Ok target=Ok
             /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
-            /// @generic.instance source="Ok { value }" id=Ok<T#3>
+            /// @generic.instantiation id=Ok<T#3> template=Ok arguments=(T#3) owner=map
             /// @type.symbol symbol=map.value#2 source=value type=T#3
             /// @type.node source=Outcome type=Outcome
             /// @type.node source=Outcome.ok type=(T#3) => Outcome<T#3, E#3>
@@ -521,9 +504,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.ok receiver=Outcome type=(T#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=ok
             /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok instance="Outcome<U, E#3>.<extension#1>.ok"
-            /// @generic.instance source=Outcome.ok id="Outcome<T#3, E#3>"
-            /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>"
-            /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>.<extension#1>.ok"
+            /// @generic.instantiation id="ok<U, E#3>" template=ok arguments=(U, E#3) owner=map
             /// @type.node source=f type=Function<(T#3,), U>
             /// @type.node source=f(value) type=U
             /// @resolution.name source=f target=map.f
@@ -538,7 +519,7 @@ export extension<T, E> of Outcome<T, E> {
             Err { error } => Outcome.err(error)
             /// @resolution.name source=Err target=Err
             /// @resolution.pattern source="Err { error }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error }
-            /// @generic.instance source="Err { error }" id=Err<E#3>
+            /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=map
             /// @type.symbol symbol=map.error source=error type=E#3
             /// @type.node source=Outcome type=Outcome
             /// @type.node source=Outcome.err type=(E#3) => Outcome<T#3, E#3>
@@ -546,9 +527,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.err receiver=Outcome type=(E#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=err
             /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err instance="Outcome<U, E#3>.<extension#1>.err"
-            /// @generic.instance source=Outcome.err id="Outcome<T#3, E#3>"
-            /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>"
-            /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>.<extension#1>.err"
+            /// @generic.instantiation id="err<U, E#3>" template=err arguments=(U, E#3) owner=map
             /// @type.node source=error type=E#3
             /// @resolution.name source=error target=map.error
             /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
@@ -557,13 +536,6 @@ export extension<T, E> of Outcome<T, E> {
         }
     }
 }
-
-/// @generic.instance id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3)
-/// @generic.instance id="Outcome<U, E#3>" template=Outcome arguments=(U, E#3)
-/// @generic.instance id="Outcome<U, E#3>.<extension#1>.err" template=err arguments=(U, E#3)
-/// @generic.instance id="Outcome<U, E#3>.<extension#1>.ok" template=ok arguments=(U, E#3)
-/// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
-/// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
 "#,
         r#"
 "#,
@@ -594,7 +566,7 @@ function wrap(): Packed<string> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -615,7 +587,7 @@ function wrap(): Packed<string> {
     Packed.of<string>("text")
 }
 
-=== checked ===
+=== dir ===
 struct Pack<T> {
 /// @generic.template symbol=Pack parameters=(out T#1)
 /// @type.symbol symbol=Pack type=Pack
@@ -647,7 +619,6 @@ export extension<T> of Pack<T> {
         Pack { value }
         /// @type.node source="Pack { value }" type=Pack<T#2>
         /// @resolution.name source=Pack target=Pack
-        /// @generic.instance source="Pack { value }" id=Pack<T#2>
         /// @type.node source=value type=T#2
         /// @resolution.name source=value target=of.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -675,18 +646,10 @@ function wrap(): Packed<string> {
     /// @resolution.name source=Packed target=Packed
     /// @resolution.member source=Packed.of receiver=Packed type=(T#2) => Pack<T#2> kind=symbol target_receiver=Packed target=of
     /// @resolution.call source="Packed.of(\"text\")" parameters=(string) arguments=(provided("text") as string) return=Pack<string> kind=symbol target=of instance=Pack<string>.<extension#1>.of
-    /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>
-    /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>.<extension#1>.of
-    /// @generic.instance source=Packed.of id=Pack<T#2>
+    /// @generic.instantiation id=of<string> template=of arguments=(string)
     /// @type.node source="\"text\"" type="text"
 
 }
-
-/// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
-/// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-/// @generic.instance id=Pack<string> template=Pack arguments=(string)
-/// @generic.instance id=Pack<string>.<extension#1>.of template=of arguments=(string)
-/// @generic.instance id=Packed<string> template=Packed arguments=(string)
 "#,
         r#"
 "#,
@@ -707,7 +670,7 @@ function read<T>(pack: &readonly Pack<T>): readonly T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -720,7 +683,7 @@ function read<T, 'a>(pack: &'a readonly Pack<T>): readonly T {
     pack.value
 }
 
-=== checked ===
+=== dir ===
 struct Pack<T> {
 /// @generic.template symbol=Pack parameters=(out T#1)
 /// @type.symbol symbol=Pack type=Pack
@@ -752,11 +715,8 @@ function read<T>(pack: &readonly Pack<T>): readonly T {
     /// @resolution.access source=pack root=read.pack
     /// @resolution.place source=pack.value placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=pack.value root=read.pack keys=[value]
-    /// @generic.instance source=pack id=Pack<T#2>
 
 }
-
-/// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 "#,
         r#"
 "#,
@@ -781,7 +741,7 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -798,7 +758,7 @@ function check<T, 'a>(pack: &'a readonly Pack<T>, expected: T): void {
     same<T>(pack.value as readonly T | T, expected);
 }
 
-=== checked ===
+=== dir ===
 struct Pack<T> {
 /// @generic.template symbol=Pack parameters=(out T#1)
 /// @type.symbol symbol=Pack type=Pack
@@ -846,7 +806,7 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
     /// @type.node source=same type=(Readonly<T#3> | T#3, T#3) => void
     /// @resolution.name source=same target=same
     /// @resolution.call source="same(pack.value, expected)" parameters=(Readonly<T#3> | T#3, T#3) arguments=(provided(pack.value) as Readonly<T#3> | T#3, provided(expected) as T#3) return=void kind=symbol target=same instance=same<T#3>
-    /// @generic.instance source="same(pack.value, expected)" id=same<T#3>
+    /// @generic.instantiation id=same<T#3> template=same arguments=(T#3) owner=check
     /// @type.node source=pack type=&check.'a readonly Pack<T#3>
     /// @type.node source=pack.value type=Readonly<T#3>
     /// @resolution.name source=pack target=check.pack
@@ -855,16 +815,12 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
     /// @resolution.access source=pack root=check.pack
     /// @resolution.place source=pack.value placement="local" lifetime=check.'a access="readonly"
     /// @resolution.access source=pack.value root=check.pack keys=[value]
-    /// @generic.instance source=pack id=Pack<T#3>
     /// @type.node source=expected type=T#3
     /// @resolution.name source=expected target=check.expected
     /// @resolution.place source=expected placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=expected root=check.expected
 
 }
-
-/// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-/// @generic.instance id=same<T#3> template=same arguments=(T#3)
 "#,
         r#"
 "#,
@@ -904,7 +860,7 @@ export extension<T, E> of Outcome<T, E> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -936,7 +892,7 @@ export extension<T, E> of Outcome<T, E> {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Ok<T> {
 /// @generic.template symbol=Ok parameters=(out T#1)
 /// @type.symbol symbol=Ok type=Ok
@@ -999,10 +955,9 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
         /// @resolution.construct source="Outcome(Ok { value })" parameters=(Ok<T#3>) arguments=(provided(Ok { value }) as Ok<T#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Ok<T#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instance source="Outcome(Ok { value })" id="Outcome<T#3, E#3>"
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=<module>#2
         /// @type.node source="Ok { value }" type=Ok<T#3>
         /// @resolution.name source=Ok target=Ok
-        /// @generic.instance source="Ok { value }" id=Ok<T#3>
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=ok.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -1023,10 +978,9 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
         /// @resolution.construct source="Outcome(Err { error })" parameters=(Err<E#3>) arguments=(provided(Err { error }) as Err<E#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Err<E#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instance source="Outcome(Err { error })" id="Outcome<T#3, E#3>"
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=<module>#2
         /// @type.node source="Err { error }" type=Err<E#3>
         /// @resolution.name source=Err target=Err
-        /// @generic.instance source="Err { error }" id=Err<E#3>
         /// @type.node source=error type=E#3
         /// @resolution.name source=error target=err.error
         /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
@@ -1052,12 +1006,11 @@ export extension<T, E> of Outcome<T, E> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instance source=this id="Outcome<T#3, E#3>"
 
             Ok { value } => Outcome.ok(f(value))
             /// @resolution.name source=Ok target=Ok
             /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
-            /// @generic.instance source="Ok { value }" id=Ok<T#3>
+            /// @generic.instantiation id=Ok<T#3> template=Ok arguments=(T#3) owner=map
             /// @type.symbol symbol=map.value#2 source=value type=T#3
             /// @type.node source=Outcome type=Outcome
             /// @type.node source=Outcome.ok type=(T#3) => Outcome<T#3, E#3>
@@ -1065,9 +1018,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.ok receiver=Outcome type=(T#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=ok
             /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok instance="Outcome<U, E#3>.<extension#1>.ok"
-            /// @generic.instance source=Outcome.ok id="Outcome<T#3, E#3>"
-            /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>"
-            /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>.<extension#1>.ok"
+            /// @generic.instantiation id="ok<U, E#3>" template=ok arguments=(U, E#3) owner=map
             /// @type.node source=f type=Function<(T#3,), U>
             /// @type.node source=f(value) type=U
             /// @resolution.name source=f target=map.f
@@ -1082,7 +1033,7 @@ export extension<T, E> of Outcome<T, E> {
             Err { error } => Outcome.err(error)
             /// @resolution.name source=Err target=Err
             /// @resolution.pattern source="Err { error }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error }
-            /// @generic.instance source="Err { error }" id=Err<E#3>
+            /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=map
             /// @type.symbol symbol=map.error source=error type=E#3
             /// @type.node source=Outcome type=Outcome
             /// @type.node source=Outcome.err type=(E#3) => Outcome<T#3, E#3>
@@ -1090,9 +1041,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.err receiver=Outcome type=(E#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=err
             /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err instance="Outcome<U, E#3>.<extension#1>.err"
-            /// @generic.instance source=Outcome.err id="Outcome<T#3, E#3>"
-            /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>"
-            /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>.<extension#1>.err"
+            /// @generic.instantiation id="err<U, E#3>" template=err arguments=(U, E#3) owner=map
             /// @type.node source=error type=E#3
             /// @resolution.name source=error target=map.error
             /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
@@ -1101,13 +1050,6 @@ export extension<T, E> of Outcome<T, E> {
         }
     }
 }
-
-/// @generic.instance id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3)
-/// @generic.instance id="Outcome<U, E#3>" template=Outcome arguments=(U, E#3)
-/// @generic.instance id="Outcome<U, E#3>.<extension#1>.err" template=err arguments=(U, E#3)
-/// @generic.instance id="Outcome<U, E#3>.<extension#1>.ok" template=ok arguments=(U, E#3)
-/// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
-/// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
 "#,
     );
 }

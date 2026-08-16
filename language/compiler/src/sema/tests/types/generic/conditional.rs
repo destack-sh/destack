@@ -28,7 +28,7 @@ write(1, number);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -53,7 +53,7 @@ declare const number: Dynamic<NumberSink>;
 write<string>("message", text);
 write<float64>(1, number);
 
-=== checked ===
+=== dir ===
 interface TextSink {
 /// @type.symbol symbol=TextSink type=TextSink
 /// @definition.interface symbol=TextSink
@@ -118,7 +118,7 @@ declare const number: NumberSink;
 write("message", text);
 /// @resolution.name source=write target=write
 /// @resolution.call source="write(\"message\", text)" parameters=(string, TextSink) arguments=(provided("message") as string, provided(text) as TextSink) return=void kind=symbol target=write instance=write<string>
-/// @generic.instance source="write(\"message\", text)" id=write<string>
+/// @generic.instantiation id=write<string> template=write arguments=(string)
 /// @resolution.name source=text target=text
 /// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=text root=text
@@ -126,14 +126,10 @@ write("message", text);
 write(1, number);
 /// @resolution.name source=write target=write
 /// @resolution.call source="write(1, number)" parameters=(float64, NumberSink) arguments=(provided(1) as float64, provided(number) as NumberSink) return=void kind=symbol target=write instance=write<float64>
-/// @generic.instance source="write(1, number)" id=write<float64>
+/// @generic.instantiation id=write<float64> template=write arguments=(float64)
 /// @resolution.name source=number target=number
 /// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=number root=number
-
-/// @generic.instance id=SinkFor<T#2> template=SinkFor arguments=(T#2)
-/// @generic.instance id=write<float64> template=write arguments=(float64)
-/// @generic.instance id=write<string> template=write arguments=(string)
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'write' does not exist on type 'SinkFor<T>'"
@@ -165,7 +161,7 @@ write("message", number);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -187,7 +183,7 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 declare const number: Dynamic<NumberSink>;
 write<string>("message", number);
 
-=== checked ===
+=== dir ===
 interface TextSink {
 /// @type.symbol symbol=TextSink type=TextSink
 /// @definition.interface symbol=TextSink
@@ -238,7 +234,6 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     /// @resolution.access source=sink root=write.sink
     /// @resolution.rejected source=sink.write
     /// @resolution.rejected source=sink.write(value)
-    /// @generic.instance source=sink id=SinkFor<T#2>
     /// @resolution.name source=value target=write.value
 
 }
@@ -253,15 +248,12 @@ write("message", number);
 /// @type.node source=write type=(string, TextSink) => void
 /// @resolution.name source=write target=write
 /// @resolution.call source="write(\"message\", number)" parameters=(string, TextSink) arguments=(provided("message") as string, provided(number) as TextSink) return=void kind=symbol target=write instance=write<string>
-/// @generic.instance source="write(\"message\", number)" id=write<string>
+/// @generic.instantiation id=write<string> template=write arguments=(string)
 /// @type.node source="\"message\"" type="message"
 /// @type.node source=number type=Dynamic<NumberSink>
 /// @resolution.name source=number target=number
 /// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=number root=number
-
-/// @generic.instance id=SinkFor<T#2> template=SinkFor arguments=(T#2)
-/// @generic.instance id=write<string> template=write arguments=(string)
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'write' does not exist on type 'SinkFor<T>'"

@@ -23,7 +23,7 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -43,7 +43,7 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype Axis = intrinsic;
 /// @type.symbol symbol=Axis source="newtype Axis = intrinsic" type=Axis
 /// @definition.newtype symbol=Axis source="newtype Axis = intrinsic" backing=intrinsic constructors=[(intrinsic) => Axis]
@@ -98,7 +98,7 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
         return mesh<T, ...Axes>(this);
         /// @resolution.name source=mesh target=mesh
         /// @resolution.call source="mesh<T, ...Axes>(this)" parameters=(&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) arguments=(provided(this) as &mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) return=int32 kind=symbol target=mesh instance="mesh<T#3, Axes#3>"
-        /// @generic.instance source="mesh<T, ...Axes>(this)" id="mesh<T#3, Axes#3>"
+        /// @generic.instantiation id="mesh<T#3, Axes#3>" template=mesh arguments=(T#3, Axes#3) owner=<module>#2
         /// @resolution.name source=T target=T
         /// @resolution.name source=Axes target=Axes
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>
@@ -107,10 +107,6 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
 
     }
 }
-
-/// @generic.instance id="Grid<T#2, Sharding<Axes#2>>" template=Grid arguments=(T#2, Sharding<Axes#2>)
-/// @generic.instance id="mesh<T#3, Axes#3>" template=mesh arguments=(T#3, Axes#3)
-/// @generic.instance id=Sharding<Axes#2> template=Sharding arguments=(Axes#2)
 "#,
     );
 }
@@ -153,7 +149,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -169,7 +165,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
     }
 }
 
-=== checked ===
+=== dir ===
 import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 
 declare function mesh<T, ...Xs: Axis[]>(
@@ -209,7 +205,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
         return mesh<T, ...Xs>(this);
         /// @resolution.name source=mesh target=mesh
         /// @resolution.call source="mesh<T, ...Xs>(this)" parameters=(&'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) arguments=(provided(this) as &'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) return=int32 kind=symbol target=mesh instance="mesh<T#2, Xs#2>"
-        /// @generic.instance source="mesh<T, ...Xs>(this)" id="mesh<T#2, Xs#2>"
+        /// @generic.instantiation id="mesh<T#2, Xs#2>" template=mesh arguments=(T#2, Xs#2) owner=<module>#2
         /// @resolution.name source=T target=T
         /// @resolution.name source=Xs target=Xs
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&mesh#1.'a readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>
@@ -217,10 +213,6 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 
     }
 }
-
-/// @generic.instance id="mesh<T#2, Xs#2>" template=mesh arguments=(T#2, Xs#2)
-/// @generic.instance id="sharding.Grid<T#1, sharding.Wrap<Xs#1>>" template=sharding.Grid arguments=(T#1, sharding.Wrap<Xs#1>)
-/// @generic.instance id=sharding.Wrap<Xs#1> template=sharding.Wrap arguments=(Xs#1)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'sharding.Wrap<Xs>' does not satisfy 'sharding.Placed'"
@@ -244,14 +236,14 @@ declare function mesh<...Axes: Missing[]>(value: int32): int32;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 declare function mesh<...Axes: Missing[]>(value: int32): int32;
 
-=== checked ===
+=== dir ===
 declare function mesh<...Axes: Missing[]>(value: int32): int32;
 /// @generic.template symbol=mesh parameters=(...Axes: Array<<error>>)
 /// @type.symbol symbol=mesh source="declare function mesh<...Axes: Missing[]>(value: int32): int32" type=<...Axes: Array<<error>>>(int32) => int32

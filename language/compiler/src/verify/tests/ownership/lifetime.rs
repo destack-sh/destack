@@ -524,7 +524,7 @@ function pick<'a, 'b, 'c>(a: &'a Node, b: &'b Node): &'c Node where 'c: 'a | 'b 
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
+    session.assert_dir_diagnostics("main.ds", r#"
 /// @diagnostic.error id=disjunctive-lifetime-bound message="a lifetime bound must name one lifetime, not a union"
 /// @diagnostic.label line=6 column=69 span="'c" line_source="function pick<'a, 'b, 'c>(a: &'a Node, b: &'b Node): &'c Node where 'c: 'a | 'b {"
 "#);

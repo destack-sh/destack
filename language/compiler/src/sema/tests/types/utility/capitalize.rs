@@ -10,7 +10,7 @@ const ok: Value = "Hello";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ type Value = Capitalize<"hello">;
 
 const ok: "Hello" = "Hello";
 
-=== checked ===
+=== dir ===
 type Value = Capitalize<"hello">;
 /// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type="Hello"
 /// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value="Hello"
@@ -45,7 +45,7 @@ value satisfies "Yes" | "No";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -56,7 +56,7 @@ declare const value: "Yes" | "No";
 
 value satisfies "Yes" | "No";
 
-=== checked ===
+=== dir ===
 type Value = Capitalize<"yes" | "no">;
 /// @type.symbol symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" type="Yes" | "No"
 /// @definition.type symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" value="Yes" | "No"
@@ -85,7 +85,7 @@ const bad: Value = "hello";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -94,7 +94,7 @@ type Value = Capitalize<"hello">;
 
 const bad: "Hello" = "hello";
 
-=== checked ===
+=== dir ===
 type Value = Capitalize<"hello">;
 /// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type="Hello"
 /// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value="Hello"

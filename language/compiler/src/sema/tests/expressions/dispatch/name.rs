@@ -9,7 +9,7 @@ const copy = value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -17,7 +17,7 @@ const copy = value;
 const value: 1 = 1;
 const copy: 1 = value;
 
-=== checked ===
+=== dir ===
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value
@@ -42,7 +42,7 @@ const copy = valeu;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -50,7 +50,7 @@ const copy = valeu;
 const value: 1 = 1;
 const copy = valeu;
 
-=== checked ===
+=== dir ===
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value
@@ -77,7 +77,7 @@ const copy = json;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -85,7 +85,7 @@ const copy = json;
 const JSON: 1 = 1;
 const copy = json;
 
-=== checked ===
+=== dir ===
 const JSON = 1;
 /// @type.symbol symbol=JSON source=JSON type=1
 /// @resolution.pattern source=JSON kind=binding target=JSON
@@ -112,7 +112,7 @@ const same = value as int32;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -120,7 +120,7 @@ const same = value as int32;
 const value: int32 = 1;
 const same: int32 = value as int32;
 
-=== checked ===
+=== dir ===
 const value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -153,7 +153,7 @@ const size = point.lenght;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -165,7 +165,7 @@ struct Point {
 declare const point: Point;
 const size = point.lenght;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point

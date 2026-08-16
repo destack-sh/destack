@@ -18,7 +18,7 @@ const cache: local Cache = Cache { localUser, sharedUser };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -35,7 +35,7 @@ declare const sharedUser: shared User;
 
 const cache: local Cache = local Cache { localUser, sharedUser };
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -99,7 +99,7 @@ const cache: shared Cache = Cache { user, count: 1 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -114,7 +114,7 @@ shared struct Cache {
 declare const user: shared User;
 const cache: shared Cache = shared Cache { user, count: 1 };
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -171,7 +171,7 @@ const union: shared (local User | undefined) = user;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -188,7 +188,7 @@ const field: shared BoxedUser = shared BoxedUser { user };
 const tuple: shared (local User, int32) = (user, 1);
 const union: shared (local User | undefined) = user as shared (local User | undefined);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -263,7 +263,7 @@ shared struct State {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -274,7 +274,7 @@ shared struct State {
     user: local User;
 }
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -316,7 +316,7 @@ service.user satisfies shared User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -332,7 +332,7 @@ shared class Service {
 declare const service: Service;
 service.user satisfies shared User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -389,7 +389,7 @@ const accepted: shared Box<shared User> = Box { value: sharedUser };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -406,7 +406,7 @@ declare const sharedUser: shared User;
 const rejected: shared Box<local User> = shared Box<local User> { value: localUser };
 const accepted: shared Box<shared User> = shared Box<shared User> { value: sharedUser };
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -453,9 +453,6 @@ const accepted: shared Box<shared User> = Box { value: sharedUser };
 /// @resolution.name source=sharedUser target=sharedUser
 /// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedUser root=sharedUser
-
-/// @generic.instance id="Box<Placed<User, \"local\">>" template=Box arguments=(Placed<User, "local">)
-/// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
 "#,
         r#"
 /// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
@@ -478,7 +475,7 @@ shared struct EscapeHatch {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -489,7 +486,7 @@ shared struct EscapeHatch {
     pointer: local *User;
 }
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -526,7 +523,7 @@ const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -546,7 +543,7 @@ declare const borrowed: local &'static User;
 const ownedBox: shared OwnedBox = shared OwnedBox { value: owned };
 const borrowedBox: shared BorrowedBox = shared BorrowedBox { value: borrowed };
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -624,7 +621,7 @@ const box: shared Box = new Box(user);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -641,7 +638,7 @@ class Box {
 declare const user: local User;
 const box: shared Box = new Box(user);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -729,7 +726,7 @@ cleanEnvelope satisfies SharedSafe;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -760,7 +757,7 @@ publish<CleanEnvelope>(cleanEnvelope);
 publish(handle);
 cleanEnvelope satisfies SharedSafe;
 
-=== checked ===
+=== dir ===
 import { SharedSafe } from "destack:memory";
 
 class Message {}
@@ -823,7 +820,7 @@ declare const handle: Handle;
 publish<CleanEnvelope>(cleanEnvelope);
 /// @resolution.name source=publish target=publish
 /// @resolution.call source=publish<CleanEnvelope>(cleanEnvelope) parameters=(CleanEnvelope) arguments=(provided(cleanEnvelope) as CleanEnvelope) return=void kind=symbol target=publish instance=publish<CleanEnvelope>
-/// @generic.instance source=publish<CleanEnvelope>(cleanEnvelope) id=publish<CleanEnvelope>
+/// @generic.instantiation id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
 /// @resolution.name source=CleanEnvelope target=CleanEnvelope
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
 /// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="exclusive"
@@ -832,14 +829,14 @@ publish<CleanEnvelope>(cleanEnvelope);
 publish<LocalEnvelope>(localEnvelope);
 /// @resolution.name source=publish target=publish
 /// @resolution.call source=publish<LocalEnvelope>(localEnvelope) parameters=(LocalEnvelope) arguments=(provided(localEnvelope) as LocalEnvelope) return=void kind=symbol target=publish instance=publish<LocalEnvelope>
-/// @generic.instance source=publish<LocalEnvelope>(localEnvelope) id=publish<LocalEnvelope>
+/// @generic.instantiation id=publish<LocalEnvelope> template=publish arguments=(LocalEnvelope)
 /// @resolution.name source=LocalEnvelope target=LocalEnvelope
 /// @resolution.name source=localEnvelope target=localEnvelope
 
 publish(cleanEnvelope);
 /// @resolution.name source=publish target=publish
 /// @resolution.call source=publish(cleanEnvelope) parameters=(CleanEnvelope) arguments=(provided(cleanEnvelope) as CleanEnvelope) return=void kind=symbol target=publish instance=publish<CleanEnvelope>
-/// @generic.instance source=publish(cleanEnvelope) id=publish<CleanEnvelope>
+/// @generic.instantiation id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
 /// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
@@ -847,7 +844,7 @@ publish(cleanEnvelope);
 publish(handle);
 /// @resolution.name source=publish target=publish
 /// @resolution.call source=publish(handle) parameters=(<error>) arguments=(provided(handle) as <error>) return=void kind=symbol target=publish instance=publish<<error>>
-/// @generic.instance source=publish(handle) id=publish<<error>>
+/// @generic.instantiation id=publish<<error>> template=publish arguments=(<error>)
 /// @resolution.name source=handle target=handle
 /// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handle root=handle
@@ -857,10 +854,6 @@ cleanEnvelope satisfies SharedSafe;
 /// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 /// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
-
-/// @generic.instance id=publish<<error>> template=publish arguments=(<error>)
-/// @generic.instance id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
-/// @generic.instance id=publish<LocalEnvelope> template=publish arguments=(LocalEnvelope)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
@@ -889,7 +882,7 @@ handle satisfies SharedSafe;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_definitions().with_decorators(),
         r#"
@@ -904,7 +897,7 @@ extension of Handle implements SharedSafe {}
 declare const handle: Handle;
 handle satisfies SharedSafe;
 
-=== checked ===
+=== dir ===
 import { SharedSafe } from "destack:memory";
 
 local class Handle {}

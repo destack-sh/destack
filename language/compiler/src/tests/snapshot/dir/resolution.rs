@@ -45,9 +45,6 @@ impl SnapshotTable for dir::DecisionTable<'_> {
         // render each decided node through its family renderer
         for (node_id, resolution) in self.decision_entries() {
             match resolution {
-                dir::Decision::Instantiation(resolution) => {
-                    add_instantiation_decision_row(builder, node_id, resolution);
-                }
                 dir::Decision::Label(target) => {
                     add_label_decision_row(builder, node_id, *target);
                 }
@@ -179,7 +176,6 @@ fn add_operator_decision_row(
     };
 
     builder.push(row);
-    add_operator_decision_generic_instances(builder, node_id, resolution);
 }
 
 /// Return one singular operator application snapshot label.
@@ -365,31 +361,6 @@ fn add_label_decision_row(
     builder.push(row);
 }
 
-/// Add one explicit instantiation resolution row.
-fn add_instantiation_decision_row(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::Selection,
-) {
-    let anchor = builder.anchor_node(node_id);
-    let source = builder.node_source(node_id);
-    let arguments = generic_argument_values(&resolution.arguments);
-    let instance = builder.generic_instance_label(resolution.symbol, &arguments);
-    let row = SnapshotRow::new(anchor, "resolution", "instantiation")
-        .optional_field("source", source.clone())
-        .field("target", builder.symbol_path_label(resolution.symbol))
-        .field("instance", instance);
-
-    builder.push(row);
-    add_generic_instance(
-        builder,
-        anchor,
-        source,
-        resolution.symbol,
-        &resolution.arguments,
-    );
-}
-
 /// Add one receiver resolution row.
 fn add_receiver_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
@@ -465,7 +436,6 @@ fn add_member_decision_row(
     };
 
     builder.push(row);
-    add_member_decision_generic_instances(builder, node_id, resolution);
 }
 
 /// Add fields for one singular member access.
@@ -568,6 +538,25 @@ fn add_function_decision_row(
                     .map(|symbol| builder.symbol_path_label(symbol)),
             );
 
+        // render explicitly applied selections with their instance
+        let applied = match &value.target {
+            dir::CallableTarget::Symbol { function, .. }
+                if !function.selection.arguments.is_empty() =>
+            {
+                Some(function)
+            }
+            _ => None,
+        };
+        let Some(function) = applied else {
+            builder.push(row);
+
+            continue;
+        };
+        let row = row.optional_field(
+            "instance",
+            function_target_instance_label(builder, function),
+        );
+
         builder.push(row);
     }
 }
@@ -589,9 +578,6 @@ fn add_call_decision_row(
                 .list_field("arms", arms.iter().map(|call| call_label(builder, call)));
 
             builder.push(row);
-            for call in arms {
-                add_call_generic_instances(builder, node_id, call);
-            }
         }
     }
 }
@@ -608,7 +594,6 @@ fn add_call_row(
     let row = add_call_target_fields(builder, row, &call.target);
 
     builder.push(row);
-    add_call_generic_instances(builder, node_id, call);
 }
 
 /// Add one subscript resolution row.
@@ -630,7 +615,6 @@ fn add_subscript_decision_row(
     };
 
     builder.push(row);
-    add_subscript_decision_generic_instances(builder, node_id, resolution);
 }
 
 /// Add fields for one singular call.
@@ -745,12 +729,6 @@ fn add_guard_decision_row(
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "guard")
         .optional_field("source", builder.node_source(node_id));
 
-    let predicate = match resolution {
-        dir::GuardDecision::Is(predicate) => &predicate.predicate,
-        dir::GuardDecision::InstanceOf(predicate) => &predicate.predicate,
-        dir::GuardDecision::In(predicate) => &predicate.predicate,
-    };
-
     let row = match resolution {
         dir::GuardDecision::Is(predicate) => {
             let row = row
@@ -786,7 +764,6 @@ fn add_guard_decision_row(
     };
 
     builder.push(row);
-    add_predicate_generic_instances(builder, node_id, predicate);
 }
 
 /// Add common predicate fields to one row.
@@ -1372,7 +1349,6 @@ fn add_construct_decision_row(
     };
 
     builder.push(row);
-    add_construct_target_generic_instances(builder, node_id, &resolution.target);
 }
 
 /// Add one tree resolution row.
@@ -1541,7 +1517,6 @@ fn add_pattern_decision_row(
     };
 
     builder.push(row);
-    add_pattern_generic_instances(builder, node_id, resolution);
 }
 
 /// Return one receiver kind label.
@@ -1926,344 +1901,6 @@ fn add_newtype_construct_fields(
         )
 }
 
-/// Add generic instance rows from one member target.
-fn add_member_target_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    target: &dir::MemberTarget,
-) {
-    let anchor = builder.anchor_node(node_id);
-    let source = builder.node_source(node_id);
-
-    match target {
-        dir::MemberTarget::Symbol(candidate) => {
-            add_generic_instance(
-                builder,
-                anchor,
-                source,
-                candidate.selection.symbol,
-                &candidate.selection.arguments,
-            );
-        }
-        dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
-            for target in targets {
-                add_member_target_generic_instances(builder, node_id, target);
-            }
-        }
-        dir::MemberTarget::Call(call) => {
-            add_call_generic_instances(builder, node_id, call);
-        }
-        dir::MemberTarget::Projection { .. }
-        | dir::MemberTarget::Field(_)
-        | dir::MemberTarget::Index(_) => {}
-    }
-}
-
-/// Add generic instance rows from one member resolution.
-fn add_member_decision_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::MemberDecision,
-) {
-    match resolution {
-        dir::OperationResolution::One(access) => {
-            add_member_target_generic_instances(builder, node_id, &access.target);
-        }
-        dir::OperationResolution::Union { arms, .. } => {
-            for access in arms {
-                add_member_target_generic_instances(builder, node_id, &access.target);
-            }
-        }
-    }
-}
-
-/// Add generic instance rows from one operator resolution.
-fn add_operator_decision_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::OperatorDecision,
-) {
-    match resolution {
-        dir::OperationResolution::One(application) => {
-            add_operator_application_generic_instances(builder, node_id, application);
-        }
-        dir::OperationResolution::Union { arms, .. } => {
-            for application in arms {
-                add_operator_application_generic_instances(builder, node_id, application);
-            }
-        }
-    }
-}
-
-/// Add generic instance rows from one operator application.
-fn add_operator_application_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    application: &dir::OperatorApplication,
-) {
-    match application {
-        dir::OperatorApplication::Unary {
-            target: dir::OperatorTarget::Call(call),
-            ..
-        }
-        | dir::OperatorApplication::Binary {
-            target: dir::OperatorTarget::Call(call),
-            ..
-        } => add_call_generic_instances(builder, node_id, call),
-        dir::OperatorApplication::Unary {
-            target: dir::OperatorTarget::Builtin(_),
-            ..
-        }
-        | dir::OperatorApplication::Binary {
-            target: dir::OperatorTarget::Builtin(_),
-            ..
-        } => {}
-    }
-}
-
-/// Add generic instance rows from one singular call.
-fn add_call_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    call: &dir::Call,
-) {
-    let anchor = builder.anchor_node(node_id);
-    let source = builder.node_source(node_id);
-
-    match &call.target {
-        dir::CallableTarget::Symbol { function, .. } => {
-            add_function_target_generic_instance(builder, anchor, source, function);
-        }
-        dir::CallableTarget::Dynamic {
-            function: dir::DynamicFunction::Symbol(symbol),
-            generic_arguments,
-            ..
-        } => add_generic_instance(builder, anchor, source, *symbol, generic_arguments),
-        dir::CallableTarget::Expression { .. }
-        | dir::CallableTarget::Dynamic {
-            function:
-                dir::DynamicFunction::CallSignature(_)
-                | dir::DynamicFunction::IndexRead(_)
-                | dir::DynamicFunction::IndexWrite(_)
-                | dir::DynamicFunction::ConstructSignature(_),
-            ..
-        } => {}
-    }
-}
-
-/// Add generic instance rows from one subscript resolution.
-fn add_subscript_decision_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::SubscriptDecision,
-) {
-    match resolution {
-        dir::OperationResolution::One(subscript) => {
-            add_subscript_generic_instances(builder, node_id, subscript);
-        }
-        dir::OperationResolution::Union { arms, .. } => {
-            for subscript in arms {
-                add_subscript_generic_instances(builder, node_id, subscript);
-            }
-        }
-    }
-}
-
-/// Add generic instance rows from one singular subscript.
-fn add_subscript_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    subscript: &dir::Subscript,
-) {
-    match &subscript.target {
-        dir::SubscriptTarget::Member(member) => {
-            add_member_target_generic_instances(builder, node_id, &member.target);
-        }
-        dir::SubscriptTarget::Call(call) => add_call_generic_instances(builder, node_id, call),
-        dir::SubscriptTarget::Index(read) => {
-            add_call_generic_instances(builder, node_id, &read.call)
-        }
-    }
-}
-
-/// Add generic instance rows from one construct target.
-fn add_construct_target_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    target: &dir::ConstructTarget,
-) {
-    let anchor = builder.anchor_node(node_id);
-    let source = builder.node_source(node_id);
-
-    match target {
-        dir::ConstructTarget::Class { selection, .. }
-        | dir::ConstructTarget::Newtype { selection, .. } => {
-            add_generic_instance(
-                builder,
-                anchor,
-                source,
-                selection.symbol,
-                &selection.arguments,
-            );
-        }
-        dir::ConstructTarget::Dynamic { .. } => {}
-    }
-}
-
-/// Add generic instance rows from one pattern resolution.
-fn add_pattern_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::PatternDecision,
-) {
-    let anchor = builder.anchor_node(node_id);
-    let source = builder.node_source(node_id);
-
-    match resolution {
-        dir::PatternDecision::Project(project) => {
-            add_projection_resolution_generic_instances(
-                builder,
-                anchor,
-                source,
-                &project.projection,
-            );
-        }
-        dir::PatternDecision::Test(test) => {
-            add_predicate_generic_instances(builder, node_id, &test.predicate);
-        }
-        dir::PatternDecision::Variant(variant) => {
-            add_predicate_generic_instances(builder, node_id, &variant.predicate);
-        }
-        dir::PatternDecision::Destructure(destructure) => {
-            add_destructure_generic_instance(builder, anchor, source, destructure);
-        }
-        dir::PatternDecision::Ignore
-        | dir::PatternDecision::Bind(_)
-        | dir::PatternDecision::Must(_)
-        | dir::PatternDecision::Default(_)
-        | dir::PatternDecision::Or(_) => {}
-    }
-}
-
-/// Add generic instance rows from one projection resolution.
-fn add_projection_resolution_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    anchor: SnapshotAnchor,
-    source: Option<String>,
-    resolution: &dir::ProjectionResolution,
-) {
-    match resolution {
-        dir::OperationResolution::One(projection) => {
-            add_projection_generic_instance(builder, anchor, source, projection);
-        }
-        dir::OperationResolution::Union { arms, .. } => {
-            for projection in arms {
-                add_projection_generic_instance(builder, anchor, source.clone(), projection);
-            }
-        }
-    }
-}
-
-/// Add generic instance rows from one predicate.
-fn add_predicate_generic_instances(
-    builder: &mut DirSnapshotBuilder<'_>,
-    node_id: dir::GlobalNodeIdAny,
-    predicate: &dir::Predicate,
-) {
-    let anchor = builder.anchor_node(node_id);
-    let source = builder.node_source(node_id);
-
-    match &predicate.test {
-        dir::PredicateTest::Unary(test) => {
-            add_predicate_operand_generic_instance(builder, anchor, source.clone(), &test.input);
-        }
-        dir::PredicateTest::Membership(test) => {
-            add_predicate_operand_generic_instance(builder, anchor, source.clone(), &test.receiver);
-            if let dir::PredicateKey::Dynamic(operand) = &test.key {
-                add_predicate_operand_generic_instance(builder, anchor, source.clone(), operand);
-            }
-        }
-        dir::PredicateTest::Any(alternatives) => {
-            for alternative in alternatives {
-                add_predicate_generic_instances(builder, node_id, alternative);
-            }
-        }
-    }
-
-    if let Some(projection) = &predicate.projection {
-        add_projection_generic_instance(builder, anchor, source, projection);
-    }
-}
-
-/// Add generic instance rows from one predicate operand.
-fn add_predicate_operand_generic_instance(
-    builder: &mut DirSnapshotBuilder<'_>,
-    anchor: SnapshotAnchor,
-    source: Option<String>,
-    operand: &dir::PredicateOperand,
-) {
-    if let dir::PredicateOperand::Projected(projection) = operand {
-        add_projection_generic_instance(builder, anchor, source, projection);
-    }
-}
-
-/// Add generic instance rows from one projection.
-fn add_projection_generic_instance(
-    builder: &mut DirSnapshotBuilder<'_>,
-    anchor: SnapshotAnchor,
-    source: Option<String>,
-    projection: &dir::Projection,
-) {
-    match projection {
-        dir::Projection::NewtypePayload { selection, .. } => {
-            add_generic_instance(
-                builder,
-                anchor,
-                source,
-                selection.symbol,
-                &selection.arguments,
-            );
-        }
-        dir::Projection::Absent { .. }
-        | dir::Projection::Field(_)
-        | dir::Projection::Subscript(_)
-        | dir::Projection::Call(_)
-        | dir::Projection::Member(_)
-        | dir::Projection::ObjectRest { .. }
-        | dir::Projection::SliceLength { .. }
-        | dir::Projection::DynamicPayload { .. }
-        | dir::Projection::DynamicType { .. }
-        | dir::Projection::Discriminant { .. }
-        | dir::Projection::Borrow { .. }
-        | dir::Projection::Move { .. }
-        | dir::Projection::Dereference(_)
-        | dir::Projection::Copy { .. } => {}
-    }
-}
-
-/// Add generic instance rows from one destructure resolution.
-fn add_destructure_generic_instance(
-    builder: &mut DirSnapshotBuilder<'_>,
-    anchor: SnapshotAnchor,
-    source: Option<String>,
-    destructure: &dir::PatternDestructureResolution,
-) {
-    match destructure {
-        dir::PatternDestructureResolution::Nominal(nominal) => {
-            add_generic_instance(
-                builder,
-                anchor,
-                source,
-                nominal.selection.symbol,
-                &nominal.selection.arguments,
-            );
-        }
-        dir::PatternDestructureResolution::Tuple(_)
-        | dir::PatternDestructureResolution::Object(_)
-        | dir::PatternDestructureResolution::Sequence(_) => {}
-    }
-}
-
 /// Render one applied generic declaration label.
 fn generic_instance_label(
     builder: &DirSnapshotBuilder<'_>,
@@ -2276,19 +1913,6 @@ fn generic_instance_label(
     }
 
     Some(builder.generic_instance_label(symbol, &arguments))
-}
-
-/// Add one generic instance row from selected argument bindings.
-fn add_generic_instance(
-    builder: &mut DirSnapshotBuilder<'_>,
-    anchor: SnapshotAnchor,
-    source: Option<String>,
-    symbol: dir::GlobalSymbolId,
-    arguments: &[dir::GenericArgumentBinding],
-) {
-    let arguments = generic_instance_arguments(builder, symbol, arguments);
-
-    builder.add_generic_instance(anchor, source, symbol, &arguments);
 }
 
 /// Render one selected callable instance.
@@ -2431,29 +2055,6 @@ fn type_table<'a>(
     } else {
         builder.foreign_types.get(&module)
     }
-}
-
-/// Add one selected callable instance row.
-fn add_function_target_generic_instance(
-    builder: &mut DirSnapshotBuilder<'_>,
-    anchor: SnapshotAnchor,
-    source: Option<String>,
-    function: &dir::FunctionTarget,
-) {
-    let Some(label) = function_target_instance_label(builder, function) else {
-        return;
-    };
-    let arguments = generic_argument_values(&function.selection.arguments);
-    let arguments = builder.generic_instance_arguments_label(&arguments);
-    let template = builder.symbol_path_label(function.selection.symbol);
-
-    builder.add_generic_instance_row(
-        anchor,
-        source.as_deref(),
-        &label,
-        Some(&template),
-        &arguments,
-    );
 }
 
 /// Render one member name relative to its owner.

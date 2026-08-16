@@ -12,7 +12,7 @@ function* count(limit: int32): Generator<int32, void, void> {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 function* count(limit: int32): Generator<int32, void, void> {
     for (let value: int32 = 0; value < limit; value += 1) {
@@ -20,7 +20,7 @@ function* count(limit: int32): Generator<int32, void, void> {
     }
 }
 
-=== checked ===
+=== dir ===
 function* count(limit: int32): Generator<int32, void, void> {
 /// @type.symbol symbol=count type=(int32) => *Generator<int32, void, void>
 /// @type.symbol symbol=count.limit source="limit: int32" type=int32
@@ -50,7 +50,5 @@ function* count(limit: int32): Generator<int32, void, void> {
 
     }
 }
-
-/// @generic.instance id="Generator<int32, void, void>" template=async.generator.Generator arguments=(int32, void, void)
 "#);
 }

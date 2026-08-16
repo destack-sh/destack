@@ -10,7 +10,7 @@ name satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -19,7 +19,7 @@ let { name = "Ada" } = {};
 
 name satisfies string;
 
-=== checked ===
+=== dir ===
 let { name = "Ada" } = {};
 /// @resolution.pattern source={ name = "Ada" } kind=object fields={ absent(undefined): name }
 /// @type.symbol symbol=name source=name type=string
@@ -50,7 +50,7 @@ declare const values: [int32; 1];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -61,7 +61,7 @@ declare const values: [int32; 1];
 
 [value = fallback] = values;
 
-=== checked ===
+=== dir ===
 let value: int32 = 0;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -78,6 +78,8 @@ declare const values: [int32; 1];
 [value = fallback] = values;
 /// @type.node source="[value = fallback] = values" type=FixedArray<int32, 1>
 /// @resolution.pattern.assign source=[value = fallback] kind=sequence element=int32 arity=1 fields=(value)
+/// @generic.instantiation id="collections.fixed-array.index#1<int32, 1, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 1, "exclusive")
+/// @generic.instance id="collections.fixed-array.index#1<int32, 1, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 1, "exclusive")
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source="value = fallback" kind=default pattern=value value=expression

@@ -15,7 +15,7 @@ function run(): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none().with_flows(),
         r#"
@@ -29,7 +29,7 @@ function run(): int32 {
     counted;
 }
 
-=== checked ===
+=== dir ===
 function run(): int32 {
     let counted = 1;
     /// @flow.use symbol=counted uses=read+written+captured
@@ -82,7 +82,7 @@ function shift(point: &Point): int32 {
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none().with_flows(),
         r#"
@@ -100,7 +100,7 @@ function shift<'a>(point: &'a Point): int32 {
     return max(point.x, point.y);
 }
 
-=== checked ===
+=== dir ===
 import { max } from "./math.ds";
 
 struct Point {
@@ -150,7 +150,7 @@ function pick(flag: boolean): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none().with_flows(),
         r#"
@@ -168,7 +168,7 @@ function pick(flag: boolean): int32 {
     return 2;
 }
 
-=== checked ===
+=== dir ===
 function pick(flag: boolean): int32 {
 /// @flow.use symbol=flag uses=read
 

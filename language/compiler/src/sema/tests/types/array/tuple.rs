@@ -10,7 +10,7 @@ const same: (int32, int32) = pair;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_coercion(),
         r#"
@@ -19,7 +19,7 @@ declare const pair: (int32, int32);
 const triple: (int32, int32, int32?) = pair as (int32, int32, int32?);
 const same: (int32, int32) = pair;
 
-=== checked ===
+=== dir ===
 declare const pair: (int32, int32);
 /// @type.symbol symbol=pair source=pair type=(int32, int32)
 /// @resolution.pattern source=pair kind=binding target=pair
@@ -52,7 +52,7 @@ const count = tuple[1];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -61,7 +61,7 @@ const tuple: readonly ["id", 42] = ["id", 42] as const;
 const name: "id" = tuple[0];
 const count: 42 = tuple[1];
 
-=== checked ===
+=== dir ===
 const tuple = ["id", 42] as const;
 /// @type.symbol symbol=tuple source=tuple type=readonly ["id", 42]
 /// @resolution.pattern source=tuple kind=binding target=tuple

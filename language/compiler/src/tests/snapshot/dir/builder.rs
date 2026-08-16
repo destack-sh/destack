@@ -10,7 +10,6 @@ use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use super::generic::GenericInstanceSnapshot;
 use super::name::BindingSnapshotName;
 use super::rows::DirRows;
 use crate::tests::snapshot::render::SnapshotRenderer;
@@ -79,12 +78,6 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     summaries: bool,
     /// The rows collected so far.
     rows: Vec<SnapshotRow>,
-    /// Generic instances discovered while rendering rows.
-    pub(super) generic_instances: BTreeMap<String, GenericInstanceSnapshot>,
-    /// The row most recently pushed, owning subsequent derived instances.
-    pub(super) last_row: Option<usize>,
-    /// Source-anchored generic instance rows already emitted.
-    pub(super) generic_instance_sources: BTreeSet<(u32, String, String)>,
 }
 
 impl<'a> DirSnapshotBuilder<'a> {
@@ -118,9 +111,6 @@ impl<'a> DirSnapshotBuilder<'a> {
             type_references: false,
             summaries: true,
             rows: Vec::new(),
-            generic_instances: BTreeMap::new(),
-            last_row: None,
-            generic_instance_sources: BTreeSet::new(),
         }
     }
 
@@ -385,8 +375,6 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Add one row.
     pub(crate) fn push(&mut self, row: SnapshotRow) {
         if row.tag.entry == "summary" && !self.summaries {
-            self.last_row = None;
-
             return;
         }
 
@@ -406,16 +394,10 @@ impl<'a> DirSnapshotBuilder<'a> {
         });
         match replaced {
             Some(index) => {
-                // drop instances derived from the shadowed row along with it
-                for instance in self.generic_instances.values_mut() {
-                    instance.owners.remove(&index);
-                }
                 self.rows[index] = row;
-                self.last_row = Some(index);
             }
             None => {
                 self.rows.push(row);
-                self.last_row = Some(self.rows.len() - 1);
             }
         }
     }
@@ -622,7 +604,6 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render the annotated source snapshot.
     pub(crate) fn render(mut self) -> String {
-        self.add_generic_instance_index_rows();
         SnapshotRenderer::sort_rows(&mut self.rows);
 
         SnapshotRenderer::new(self.source, &self.rows).render()

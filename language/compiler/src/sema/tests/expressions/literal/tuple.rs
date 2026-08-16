@@ -8,7 +8,7 @@ let value = (1, "two", true);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -18,7 +18,7 @@ let value = (1, "two", true);
 === annotated ===
 let value: (float64, string, boolean) = (1, "two", true);
 
-=== checked ===
+=== dir ===
 let value = (1, "two", true);
 /// @type.symbol symbol=value source=value type=(float64, string, boolean)
 /// @resolution.pattern source=value kind=binding target=value
@@ -41,14 +41,14 @@ const value = (1, "two", true) as const;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: readonly (1, "two", true) = (1, "two", true) as const;
 
-=== checked ===
+=== dir ===
 const value = (1, "two", true) as const;
 /// @type.symbol symbol=value source=value type=readonly (1, "two", true)
 /// @resolution.pattern source=value kind=binding target=value
@@ -69,14 +69,14 @@ const value = (1, "two", true);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: (float64, string, boolean) = (1, "two", true);
 
-=== checked ===
+=== dir ===
 const value = (1, "two", true);
 /// @type.symbol symbol=value source=value type=(float64, string, boolean)
 /// @resolution.pattern source=value kind=binding target=value
@@ -96,14 +96,14 @@ const value = (1, (2, 3));
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: (float64, (float64, float64)) = (1, (2, 3));
 
-=== checked ===
+=== dir ===
 const value = (1, (2, 3));
 /// @type.symbol symbol=value source=value type=(float64, (float64, float64))
 /// @resolution.pattern source=value kind=binding target=value
@@ -124,14 +124,14 @@ const value: (1 | 2, "a" | "b") = (1, "a");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: (1 | 2, "a" | "b") = (1 as 1 | 2, "a" as "a" | "b");
 
-=== checked ===
+=== dir ===
 const value: (1 | 2, "a" | "b") = (1, "a");
 /// @type.symbol symbol=value source=value type=(1 | 2, "a" | "b")
 /// @resolution.pattern source=value kind=binding target=value
@@ -150,14 +150,14 @@ const value: (number, string) = (1, 2);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: (float64, string) = (1, 2);
 
-=== checked ===
+=== dir ===
 const value: (number, string) = (1, 2);
 /// @type.symbol symbol=value source=value type=(float64, string)
 /// @resolution.pattern source=value kind=binding target=value

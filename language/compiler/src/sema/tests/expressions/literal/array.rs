@@ -8,14 +8,14 @@ let values = [1, 2];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 let values: float64[] = [1, 2];
 
-=== checked ===
+=== dir ===
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
@@ -36,14 +36,14 @@ const values = [1, 2];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 const values: float64[] = [1, 2];
 
-=== checked ===
+=== dir ===
 const values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
@@ -65,7 +65,7 @@ const first = values[0];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -73,7 +73,7 @@ const first = values[0];
 const values: readonly [1, 2] = [1, 2] as const;
 const first: 1 = values[0];
 
-=== checked ===
+=== dir ===
 const values = [1, 2] as const;
 /// @type.symbol symbol=values source=values type=readonly [1, 2]
 /// @resolution.pattern source=values kind=binding target=values
@@ -105,14 +105,14 @@ const values = [];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const values: never[] = [];
 
-=== checked ===
+=== dir ===
 const values = [];
 /// @type.symbol symbol=values source=values type=Array<never>
 /// @resolution.pattern source=values kind=binding target=values
@@ -129,14 +129,14 @@ const values: int32[] = [];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const values: int32[] = [];
 
-=== checked ===
+=== dir ===
 const values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
@@ -153,7 +153,7 @@ let values = [1, "two", true];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -167,7 +167,7 @@ let values: (float64 | string | boolean)[] = [
     true as float64 | string | boolean,
 ];
 
-=== checked ===
+=== dir ===
 let values = [1, "two", true];
 /// @type.symbol symbol=values source=values type=Array<float64 | string | boolean>
 /// @resolution.pattern source=values kind=binding target=values
@@ -190,14 +190,14 @@ const values: number[] = [1, 2, 3];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 const values: float64[] = [1, 2, 3];
 
-=== checked ===
+=== dir ===
 const values: number[] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
@@ -220,14 +220,14 @@ const values = [1, 2] satisfies readonly number[];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 const values: (1 | 2)[] = [1, 2] satisfies readonly number[];
 
-=== checked ===
+=== dir ===
 const values = [1, 2] satisfies readonly number[];
 /// @type.symbol symbol=values source=values type=Array<1 | 2>
 /// @resolution.pattern source=values kind=binding target=values
@@ -247,14 +247,14 @@ const values: number[] = [1, "two"];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const values: float64[] = [1, "two"];
 
-=== checked ===
+=== dir ===
 const values: number[] = [1, "two"];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values

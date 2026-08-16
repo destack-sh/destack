@@ -12,7 +12,7 @@ const hexadecimal: Numeric = "0x1";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -23,7 +23,7 @@ const decimal: Numeric = "42";
 const exponent: Numeric = "1e3";
 const hexadecimal: Numeric = "0x1";
 
-=== checked ===
+=== dir ===
 type Numeric = `${number}`;
 /// @type.symbol symbol=Numeric source="type Numeric = `${number}`" type=`${float64}`
 /// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${float64}`
@@ -56,7 +56,7 @@ const bad: Numeric = "NaN";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -65,7 +65,7 @@ type Numeric = `${number}`;
 
 const bad: Numeric = "NaN";
 
-=== checked ===
+=== dir ===
 type Numeric = `${number}`;
 /// @type.symbol symbol=Numeric source="type Numeric = `${number}`" type=`${float64}`
 /// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${float64}`
@@ -95,7 +95,7 @@ const hexadecimal: Big = "0x1";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -106,7 +106,7 @@ const decimal: Big = "900";
 const negative: Big = "-1";
 const hexadecimal: Big = "0x1";
 
-=== checked ===
+=== dir ===
 type Big = `${bigint}`;
 /// @type.symbol symbol=Big source="type Big = `${bigint}`" type=`${bigint}`
 /// @definition.type symbol=Big source="type Big = `${bigint}`" value=`${bigint}`
@@ -139,7 +139,7 @@ const bad: Small = "128";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -148,7 +148,7 @@ type Small = `${int8}`;
 
 const bad: Small = "128";
 
-=== checked ===
+=== dir ===
 type Small = `${int8}`;
 /// @type.symbol symbol=Small source="type Small = `${int8}`" type=`${int8}`
 /// @definition.type symbol=Small source="type Small = `${int8}`" value=`${int8}`
@@ -177,7 +177,7 @@ value satisfies number;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -187,7 +187,7 @@ declare function parse<T: number>(value: `${T}`): T;
 const value: 1000 = parse<1000>("1e3");
 value satisfies number;
 
-=== checked ===
+=== dir ===
 declare function parse<T: number>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: float64)
 /// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
@@ -201,14 +201,13 @@ const value = parse("1e3");
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"1e3\")" parameters=(`${1000}`) arguments=(provided("1e3") as `${1000}`) return=1000 kind=symbol target=parse instance=parse<1000>
-/// @generic.instance source="parse(\"1e3\")" id=parse<1000>
+/// @generic.instantiation id=parse<1000> template=parse arguments=(1000)
+/// @generic.instance id=parse<1000> template=parse arguments=(1000)
 
 value satisfies number;
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id=parse<1000> template=parse arguments=(1000)
 "#,
     );
 }
@@ -223,7 +222,7 @@ parse("128");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -232,7 +231,7 @@ declare function parse<T: int8>(value: `${T}`): T;
 
 parse("128");
 
-=== checked ===
+=== dir ===
 declare function parse<T: int8>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: int8)
 /// @type.symbol symbol=parse source="declare function parse<T: int8>(value: `${T}`): T" type=<T: int8>(`${T}`) => T
@@ -244,9 +243,7 @@ declare function parse<T: int8>(value: `${T}`): T;
 parse("128");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"128\")" parameters=(`${<error>}`) arguments=(provided("128") as `${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
-/// @generic.instance source="parse(\"128\")" id=parse<<error>>
-
-/// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
+/// @generic.instantiation id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"128\"' is not assignable to parameter of type '`${_}`'"
@@ -267,7 +264,7 @@ value satisfies -1n;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -277,7 +274,7 @@ declare function parse<T: bigint>(value: `${T}`): T;
 const value: -1n = parse<-1n>("-1");
 value satisfies -1n;
 
-=== checked ===
+=== dir ===
 declare function parse<T: bigint>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: bigint)
 /// @type.symbol symbol=parse source="declare function parse<T: bigint>(value: `${T}`): T" type=<T: bigint>(`${T}`) => T
@@ -291,14 +288,13 @@ const value = parse("-1");
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"-1\")" parameters=(`${-1n}`) arguments=(provided("-1") as `${-1n}`) return=-1n kind=symbol target=parse instance=parse<-1n>
-/// @generic.instance source="parse(\"-1\")" id=parse<-1n>
+/// @generic.instantiation id=parse<-1n> template=parse arguments=(-1n)
+/// @generic.instance id=parse<-1n> template=parse arguments=(-1n)
 
 value satisfies -1n;
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id=parse<-1n> template=parse arguments=(-1n)
 "#,
     );
 }
@@ -313,7 +309,7 @@ const exponent: `${1000}` = "1e3";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -321,7 +317,7 @@ const exponent: `${1000}` = "1e3";
 const canonical: `${1000}` = "1000";
 const exponent: `${1000}` = "1e3";
 
-=== checked ===
+=== dir ===
 const canonical: `${1000}` = "1000";
 /// @type.symbol symbol=canonical source=canonical type=`${1000}`
 /// @resolution.pattern source=canonical kind=binding target=canonical
@@ -341,14 +337,14 @@ const wrong: `${1000}` = "1001";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 const wrong: `${1000}` = "1001";
 
-=== checked ===
+=== dir ===
 const wrong: `${1000}` = "1001";
 /// @type.symbol symbol=wrong source=wrong type=`${1000}`
 /// @resolution.pattern source=wrong kind=binding target=wrong

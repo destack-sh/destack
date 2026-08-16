@@ -15,7 +15,7 @@ ok satisfies (string, number);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -29,7 +29,7 @@ type Args = ConstructorParameters<typeof User>;
 const ok: (string, float64) = ("Ada", 42);
 ok satisfies (string, number);
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -84,7 +84,7 @@ const value: Args = ("Ada", 42);
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -95,7 +95,7 @@ type Args = ConstructorParameters<typeof User>;
 
 const value: (string, float64) = ("Ada", 42);
 
-=== checked ===
+=== dir ===
 import { User } from "./user.ds";
 
 type Args = ConstructorParameters<typeof User>;
@@ -127,7 +127,7 @@ ok.name satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -141,7 +141,7 @@ type Value = InstanceType<typeof User>;
 const ok: User = new User();
 ok.name satisfies string;
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -190,7 +190,7 @@ const bad: Args = ("Ada", "old");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -203,7 +203,7 @@ type Args = ConstructorParameters<typeof User>;
 
 const bad: (string, float64) = ("Ada", "old");
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User

@@ -15,7 +15,7 @@ user.profile.name = "Grace";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -29,7 +29,7 @@ type User = {
 declare const user: readonly User;
 user.profile.name = "Grace";
 
-=== checked ===
+=== dir ===
 type User = {
 /// @type.symbol symbol=User type={ profile: { name: string } }
 /// @definition.type symbol=User value={ profile: { name: string } }
@@ -73,7 +73,7 @@ frozen satisfies readonly number[];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -83,7 +83,7 @@ let frozen: readonly float64[] = values;
 
 frozen satisfies readonly number[];
 
-=== checked ===
+=== dir ===
 declare let values: number[];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
@@ -112,7 +112,7 @@ let bad: number[] = frozen;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -120,7 +120,7 @@ let bad: number[] = frozen;
 declare let frozen: readonly float64[];
 let bad: float64[] = frozen;
 
-=== checked ===
+=== dir ===
 declare let frozen: readonly number[];
 /// @type.symbol symbol=frozen source=frozen type=readonly Array<float64>
 /// @resolution.pattern source=frozen kind=binding target=frozen
@@ -157,7 +157,7 @@ user.profile.name = "Grace";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -173,7 +173,7 @@ struct User {
 declare const user: readonly User;
 user.profile.name = "Grace";
 
-=== checked ===
+=== dir ===
 struct Profile {
 /// @type.symbol symbol=Profile type=Profile
 /// @definition.struct symbol=Profile

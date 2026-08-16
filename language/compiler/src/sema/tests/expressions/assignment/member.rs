@@ -9,7 +9,7 @@ state.count = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -17,7 +17,7 @@ state.count = 1;
 const state: { readonly count: int32 } = { count: 0 };
 state.count = 1;
 
-=== checked ===
+=== dir ===
 const state: { readonly count: int32 } = { count: 0 };
 /// @type.symbol symbol=state source=state type={ readonly count: int32 }
 /// @resolution.pattern source=state kind=binding target=state
@@ -52,7 +52,7 @@ counter.current++;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -66,7 +66,7 @@ declare let counter: Dynamic<Counter>;
 counter.current = 2;
 counter.current++;
 
-=== checked ===
+=== dir ===
 interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter
@@ -119,7 +119,7 @@ counter["current"]++;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -133,7 +133,7 @@ declare let counter: Dynamic<Counter>;
 counter["current"] = 2;
 counter["current"]++;
 
-=== checked ===
+=== dir ===
 interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter
@@ -184,7 +184,7 @@ const current = counter.current;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -196,7 +196,7 @@ interface Counter {
 declare const counter: Dynamic<Counter>;
 const current: int32 = counter.current;
 
-=== checked ===
+=== dir ===
 interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter
@@ -236,7 +236,7 @@ sink.value = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -248,7 +248,7 @@ interface Sink {
 declare let sink: Dynamic<Sink>;
 sink.value = 1;
 
-=== checked ===
+=== dir ===
 interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink
@@ -288,7 +288,7 @@ counter.current = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -300,7 +300,7 @@ interface Counter {
 declare let counter: Dynamic<Counter>;
 counter.current = 1;
 
-=== checked ===
+=== dir ===
 interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter
@@ -342,7 +342,7 @@ const value = sink.value;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -354,7 +354,7 @@ interface Sink {
 declare const sink: Dynamic<Sink>;
 const value = sink.value;
 
-=== checked ===
+=== dir ===
 interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink

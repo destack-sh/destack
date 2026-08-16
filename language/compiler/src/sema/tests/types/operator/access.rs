@@ -11,7 +11,7 @@ declare const name: Name;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Name = User["name"];
 
 declare const name: string;
 
-=== checked ===
+=== dir ===
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
@@ -50,7 +50,7 @@ declare const value: Right;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -60,7 +60,7 @@ type Right = Pair[1];
 
 declare const value: int32;
 
-=== checked ===
+=== dir ===
 type Pair = { 0: string; 1: int32 };
 /// @type.symbol symbol=Pair source="type Pair = { 0: string; 1: int32 }" type={ 0: string; 1: int32 }
 /// @definition.type symbol=Pair source="type Pair = { 0: string; 1: int32 }" value={ 0: string; 1: int32 }
@@ -87,7 +87,7 @@ type Missing = ObjectLike[5];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -95,7 +95,7 @@ type Missing = ObjectLike[5];
 type ObjectLike = { label: string };
 type Missing = ObjectLike[5];
 
-=== checked ===
+=== dir ===
 type ObjectLike = { label: string };
 /// @type.symbol symbol=ObjectLike source="type ObjectLike = { label: string }" type={ label: string }
 /// @definition.type symbol=ObjectLike source="type ObjectLike = { label: string }" value={ label: string }
@@ -120,14 +120,14 @@ type Missing = int32["name"];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 type Missing = int32["name"];
 
-=== checked ===
+=== dir ===
 type Missing = int32["name"];
 /// @type.symbol symbol=Missing source="type Missing = int32[\"name\"]" type=<error>
 /// @definition.type symbol=Missing source="type Missing = int32[\"name\"]" value=<error>
@@ -150,7 +150,7 @@ declare const value: Value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -160,7 +160,7 @@ type Value = User["name" | "age"];
 
 declare const value: string | int32;
 
-=== checked ===
+=== dir ===
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
@@ -189,7 +189,7 @@ const bad: Value = true;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -199,7 +199,7 @@ type Value = User["name" | "age"];
 
 const bad: string | int32 = true;
 
-=== checked ===
+=== dir ===
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
@@ -235,7 +235,7 @@ const text: Value = "hello";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -247,7 +247,7 @@ type Value = (Left | Right)["value"];
 const number: int32 | string = 1 as int32 | string;
 const text: int32 | string = "hello" as int32 | string;
 
-=== checked ===
+=== dir ===
 type Left = { kind: "left"; value: int32 };
 /// @type.symbol symbol=Left source="type Left = { kind: \"left\"; value: int32 }" type={ kind: "left"; value: int32 }
 /// @definition.type symbol=Left source="type Left = { kind: \"left\"; value: int32 }" value={ kind: "left"; value: int32 }
@@ -288,7 +288,7 @@ const text: Value = "hello";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -300,7 +300,7 @@ const missing: float64 | undefined | string = undefined as float64 | undefined |
 const number: float64 | undefined | string = 1 as float64 | undefined | string;
 const text: float64 | undefined | string = "hello" as float64 | undefined | string;
 
-=== checked ===
+=== dir ===
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @type.symbol symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" type={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
 /// @definition.type symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" value={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
@@ -339,7 +339,7 @@ const bad: Value = true;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -349,7 +349,7 @@ type Value = Input["value"];
 
 const bad: float64 | undefined | string = true;
 
-=== checked ===
+=== dir ===
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @type.symbol symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" type={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
 /// @definition.type symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" value={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
@@ -381,7 +381,7 @@ type Missing = User["missing"];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -389,7 +389,7 @@ type Missing = User["missing"];
 type User = { name: string; age: int32 };
 type Missing = User["missing"];
 
-=== checked ===
+=== dir ===
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
@@ -417,7 +417,7 @@ declare const first: First;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -427,7 +427,7 @@ type First = Pair[0];
 
 declare const first: string;
 
-=== checked ===
+=== dir ===
 type Pair = (string, int32);
 /// @type.symbol symbol=Pair source="type Pair = (string, int32)" type=(string, int32)
 /// @definition.type symbol=Pair source="type Pair = (string, int32)" value=(string, int32)
@@ -456,7 +456,7 @@ declare const value: Value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -466,7 +466,7 @@ type Value = Element<string[]>;
 
 declare const value: string;
 
-=== checked ===
+=== dir ===
 type Element<T: string[]> = T[usize];
 /// @generic.template symbol=Element parameters=(T: Array<string>)
 /// @type.symbol symbol=Element source="type Element<T: string[]> = T[usize]" type=T[usize]
@@ -499,7 +499,7 @@ declare const name: Name;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -510,7 +510,7 @@ type Name = ValueAt<User, "name">;
 
 declare const name: string;
 
-=== checked ===
+=== dir ===
 type ValueAt<T, K: keyof T> = T[K];
 /// @generic.template symbol=ValueAt parameters=(T, K: keyof T)
 /// @type.symbol symbol=ValueAt source="type ValueAt<T, K: keyof T> = T[K]" type=T[K]
@@ -547,14 +547,14 @@ type ValueAt<T, K> = T[K];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 type ValueAt<T, K> = T[K];
 
-=== checked ===
+=== dir ===
 type ValueAt<T, K> = T[K];
 /// @generic.template symbol=ValueAt parameters=(T, K)
 /// @type.symbol symbol=ValueAt source="type ValueAt<T, K> = T[K]" type=T[K]
@@ -593,7 +593,7 @@ age satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -614,7 +614,7 @@ const age: User["age"] = get<"age">(user, "age");
 name satisfies string;
 age satisfies int32;
 
-=== checked ===
+=== dir ===
 type User = {
 /// @type.symbol symbol=User type={ readonly name: string; readonly age: int32 }
 /// @definition.type symbol=User value={ readonly name: string; readonly age: int32 }
@@ -662,7 +662,8 @@ const name = get(user, "name");
 /// @type.node source=get type=(User, "name") => User["name"]
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"name\")" parameters=(User, "name") arguments=(provided(user) as User, provided("name") as "name") return=User["name"] kind=symbol target=get instance="get<\"name\">"
-/// @generic.instance source="get(user, \"name\")" id="get<\"name\">"
+/// @generic.instantiation id="get<\"name\">" template=get arguments=("name")
+/// @generic.instance id="get<\"name\">" template=get arguments=("name") evaluated=({ readonly name: string; readonly age: int32 }[K] => string)
 /// @type.node source=user type={ readonly name: string; readonly age: int32 }
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
@@ -676,7 +677,8 @@ const age = get(user, "age");
 /// @type.node source=get type=(User, "age") => User["age"]
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"age\")" parameters=(User, "age") arguments=(provided(user) as User, provided("age") as "age") return=User["age"] kind=symbol target=get instance="get<\"age\">"
-/// @generic.instance source="get(user, \"age\")" id="get<\"age\">"
+/// @generic.instantiation id="get<\"age\">" template=get arguments=("age")
+/// @generic.instance id="get<\"age\">" template=get arguments=("age") evaluated=({ readonly name: string; readonly age: int32 }[K] => int32)
 /// @type.node source=user type={ readonly name: string; readonly age: int32 }
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
@@ -696,9 +698,6 @@ age satisfies int32;
 /// @resolution.name source=age target=age
 /// @resolution.place source=age placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=age root=age
-
-/// @generic.instance id="get<\"age\">" template=get arguments=("age")
-/// @generic.instance id="get<\"name\">" template=get arguments=("name")
 "#,
     );
 }
@@ -714,7 +713,7 @@ declare const name: Name;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -724,7 +723,7 @@ type Name = User["name"];
 
 declare const name: string | undefined;
 
-=== checked ===
+=== dir ===
 type User = { name?: string };
 /// @type.symbol symbol=User source="type User = { name?: string }" type={ name?: string }
 /// @definition.type symbol=User source="type User = { name?: string }" value={ name?: string }
@@ -753,7 +752,7 @@ declare const value: Value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -763,7 +762,7 @@ type Value = Bag["name"];
 
 declare const value: int32;
 
-=== checked ===
+=== dir ===
 type Bag = { readonly [key: string]: int32 };
 /// @type.symbol symbol=Bag source="type Bag = { readonly [key: string]: int32 }" type={ readonly [key: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
@@ -795,7 +794,7 @@ declare const fixed: Fixed;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -808,7 +807,7 @@ declare const pair: 0 | 1;
 declare const open: usize;
 declare const fixed: 0 | 1 | 2;
 
-=== checked ===
+=== dir ===
 type Pair = keyof (string, int32);
 /// @type.symbol symbol=Pair source="type Pair = keyof (string, int32)" type=0 | 1
 /// @definition.type symbol=Pair source="type Pair = keyof (string, int32)" value=0 | 1

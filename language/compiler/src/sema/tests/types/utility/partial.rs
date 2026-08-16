@@ -16,7 +16,7 @@ person.age satisfies int32 | undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -31,7 +31,7 @@ declare const person: { name?: string; age?: int32 };
 person.name satisfies string | undefined;
 person.age satisfies int32 | undefined;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -86,7 +86,7 @@ person.name satisfies string | undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -100,7 +100,7 @@ const person: { name?: string; age?: int32 } = {};
 
 person.name satisfies string | undefined;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -145,7 +145,7 @@ const bad: Partial<Person> = { name: "Ada", extra: true };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -157,7 +157,7 @@ interface Person {
 
 const bad: { name?: string; age?: int32 } = { name: "Ada", extra: true };
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -200,7 +200,7 @@ const bad: Partial<Person> = { name: "Ada", age: "no" };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -212,7 +212,7 @@ interface Person {
 
 const bad: { name?: string; age?: int32 } = { name: "Ada", age: "no" };
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -256,7 +256,7 @@ person.name = "Grace";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -269,7 +269,7 @@ interface Person {
 const person: { readonly name?: string; age?: int32 } = { name: "Ada" };
 person.name = "Grace";
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person

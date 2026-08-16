@@ -23,7 +23,7 @@ function capture<T>(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -45,7 +45,7 @@ function capture<T>(): void {
     seen;
 }
 
-=== checked ===
+=== dir ===
 type Consume<T> = (value: T) => void;
 /// @generic.template symbol=Consume parameters=(T#1)
 /// @type.symbol symbol=Consume source="type Consume<T> = (value: T) => void" type=Function<(T#1,), void>
@@ -73,7 +73,6 @@ class Cell<T> {
         /// @resolution.name source=executor target=Cell.constructor.executor
         /// @resolution.place source=executor placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=executor root=Cell.constructor.executor
-        /// @generic.instance source=executor id=Consume<T#2>
 
     }
 }
@@ -95,6 +94,8 @@ function capture<T>(): void {
     /// @resolution.pattern source=cell kind=binding target=capture.cell
     /// @type.node type=Cell<T#3>
     /// @resolution.construct parameters=(Function<(Consume<T#3>,), void>) arguments=(provided(argument) as Function<(Consume<T#3>,), void>) return=Cell<T#3> kind=class target=Cell constructor=Cell.constructor instance=Cell<T#3>
+    /// @generic.instantiation id=Cell.constructor<T#3> template=Cell.constructor arguments=(T#3) owner=capture
+    /// @generic.instantiation id=Cell<T#3> template=Cell arguments=(T#3) owner=capture
     /// @resolution.name source=Cell target=Cell
     /// @resolution.name source=T target=capture.T
     /// @type.symbol symbol=capture.symbol13 type=Function<(Consume<T#3>,), void>
@@ -108,13 +109,10 @@ function capture<T>(): void {
         /// @resolution.pattern.assign source=seen kind=place
         /// @resolution.access source=seen root=capture.seen
         /// @resolution.assignment source=seen write=binding(capture.seen) type=Consume<T#3> | undefined
-        /// @generic.instance source="seen = inner" id=Consume<T#3>
-        /// @generic.instance source=seen id=Consume<T#3>
         /// @type.node source=inner type=Consume<T#3>
         /// @resolution.name source=inner target=capture.symbol13.inner
         /// @resolution.place source=inner placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=inner root=capture.symbol13.inner
-        /// @generic.instance source=inner id=Consume<T#3>
 
     });
     cell;
@@ -122,20 +120,14 @@ function capture<T>(): void {
     /// @resolution.name source=cell target=capture.cell
     /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=cell root=capture.cell
-    /// @generic.instance source=cell id=Cell<T#3>
 
     seen;
     /// @type.node source=seen type=Consume<T#3> | undefined
     /// @resolution.name source=seen target=capture.seen
     /// @resolution.place source=seen placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=seen root=capture.seen
-    /// @generic.instance source=seen id=Consume<T#3>
 
 }
-
-/// @generic.instance id=Cell<T#3> template=Cell arguments=(T#3)
-/// @generic.instance id=Consume<T#2> template=Consume arguments=(T#2)
-/// @generic.instance id=Consume<T#3> template=Consume arguments=(T#3)
 "#,
     );
 }
@@ -161,7 +153,7 @@ function capture(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -181,7 +173,7 @@ function capture(): void {
     seen;
 }
 
-=== checked ===
+=== dir ===
 class Cell<T> {
 /// @generic.template symbol=Cell parameters=(out T)
 /// @type.symbol symbol=Cell type=Cell
@@ -217,6 +209,10 @@ function capture(): void {
     /// @resolution.pattern source=cell kind=binding target=capture.cell
     /// @type.node type=Cell<int32>
     /// @resolution.construct parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=Cell<int32> kind=class target=Cell constructor=Cell.constructor instance=Cell<int32>
+    /// @generic.instantiation id=Cell.constructor<int32> template=Cell.constructor arguments=(int32)
+    /// @generic.instantiation id=Cell<int32> template=Cell arguments=(int32)
+    /// @generic.instance id=Cell.constructor<int32> template=Cell.constructor arguments=(int32)
+    /// @generic.instance id=Cell<int32> template=Cell arguments=(int32)
     /// @resolution.name source=Cell target=Cell
     /// @type.symbol symbol=capture.symbol9 type=Function<(int32,), void>
     /// @type.node type=Function<(int32,), void>
@@ -240,7 +236,6 @@ function capture(): void {
     /// @resolution.name source=cell target=capture.cell
     /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=cell root=capture.cell
-    /// @generic.instance source=cell id=Cell<int32>
 
     seen;
     /// @type.node source=seen type=int32 | undefined
@@ -249,8 +244,6 @@ function capture(): void {
     /// @resolution.access source=seen root=capture.seen
 
 }
-
-/// @generic.instance id=Cell<int32> template=Cell arguments=(int32)
 "#,
     );
 }
@@ -263,14 +256,14 @@ const callback: (value: int32) => int32 | undefined = (value) => value + 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 const callback: (arg0: int32) => int32 | undefined = (value: int32): int32 => value + 1;
 
-=== checked ===
+=== dir ===
 const callback: (value: int32) => int32 | undefined = (value) => value + 1;
 /// @type.symbol symbol=callback source=callback type=Function<(int32,), int32 | undefined>
 /// @resolution.pattern source=callback kind=binding target=callback

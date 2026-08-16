@@ -8,14 +8,14 @@ const value = undefined == undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: boolean = undefined == undefined;
 
-=== checked ===
+=== dir ===
 const value = undefined == undefined;
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
@@ -40,7 +40,7 @@ function use(onValue?: (value: unknown) => void): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -52,7 +52,7 @@ function use(onValue?: (arg0: unknown) => void): void {
     }
 }
 
-=== checked ===
+=== dir ===
 function use(onValue?: (value: unknown) => void): void {
 /// @type.symbol symbol=use type=(Function<(unknown,), void> | undefined?) => void
 /// @type.symbol symbol=use.onValue source="onValue?: (value: unknown) => void" type=Function<(unknown,), void> | undefined
@@ -91,14 +91,14 @@ const isMissing = undefined === undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const isMissing: boolean = undefined === undefined;
 
-=== checked ===
+=== dir ===
 const isMissing = undefined === undefined;
 /// @type.symbol symbol=isMissing source=isMissing type=boolean
 /// @resolution.pattern source=isMissing kind=binding target=isMissing
@@ -121,7 +121,7 @@ const same = left === right;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -131,7 +131,7 @@ declare const right: string;
 
 const same: boolean = left === right;
 
-=== checked ===
+=== dir ===
 declare const left: string;
 /// @type.symbol symbol=left source=left type=string
 /// @resolution.pattern source=left kind=binding target=left
@@ -168,7 +168,7 @@ const same = left === right;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -178,7 +178,7 @@ declare const right: bigint;
 
 const same: boolean = left === right;
 
-=== checked ===
+=== dir ===
 declare const left: bigint;
 /// @type.symbol symbol=left source=left type=bigint
 /// @resolution.pattern source=left kind=binding target=left
@@ -212,14 +212,14 @@ const same = "ready" === "done";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const same: boolean = "ready" === "done";
 
-=== checked ===
+=== dir ===
 const same = "ready" === "done";
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
@@ -249,7 +249,7 @@ const same = left === right;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -262,7 +262,7 @@ declare const left: Badge;
 declare const right: Badge;
 const same = left === right;
 
-=== checked ===
+=== dir ===
 struct Badge {
 /// @type.symbol symbol=Badge type=Badge
 /// @definition.struct symbol=Badge
@@ -314,7 +314,7 @@ const isReady = value === "ready";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -324,7 +324,7 @@ class User {}
 declare const value: string | User;
 const isReady: boolean = value === ("ready" as string | User);
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -358,7 +358,7 @@ const isPending = kind == "pending";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -367,7 +367,7 @@ declare const kind: "pending" | "fulfilled";
 
 const isPending: boolean = kind == "pending";
 
-=== checked ===
+=== dir ===
 declare const kind: "pending" | "fulfilled";
 /// @type.symbol symbol=kind source=kind type="pending" | "fulfilled"
 /// @resolution.pattern source=kind kind=binding target=kind
@@ -408,7 +408,7 @@ const same = left == right;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -429,7 +429,7 @@ declare const left: Badge;
 declare const right: Badge;
 const same: boolean = left == right;
 
-=== checked ===
+=== dir ===
 import { PartialEqual } from "destack:ops";
 
 struct Badge {
@@ -520,7 +520,7 @@ const same = measure == -0.0;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -540,7 +540,7 @@ extension of Measure implements PartialEqual<float64> {
 declare const measure: Measure;
 const same: boolean = measure == -0.0;
 
-=== checked ===
+=== dir ===
 import { PartialEqual } from "destack:ops";
 
 struct Measure {
@@ -608,7 +608,7 @@ function positive(value: &readonly int32): boolean {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -617,7 +617,7 @@ function positive<'a>(value: &'a readonly int32): boolean {
     return (value as int32) > 0;
 }
 
-=== checked ===
+=== dir ===
 function positive(value: &readonly int32): boolean {
 /// @generic.template symbol=positive parameters=('a)
 /// @type.symbol symbol=positive type=<positive.'a>(&positive.'a readonly int32) => boolean

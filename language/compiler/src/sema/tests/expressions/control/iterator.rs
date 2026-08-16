@@ -12,7 +12,7 @@ for (const value of values) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -23,7 +23,7 @@ for (const value of values) {
     value satisfies int32;
 }
 
-=== checked ===
+=== dir ===
 const values: int32[] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
@@ -61,7 +61,7 @@ for (const value of 1) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -70,7 +70,7 @@ for (const value of 1) {
     value;
 }
 
-=== checked ===
+=== dir ===
 for (const value of 1) {
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
@@ -103,7 +103,7 @@ for (const key in target) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -114,7 +114,7 @@ for (const key in target) {
     key satisfies string;
 }
 
-=== checked ===
+=== dir ===
 const target = { a: 1, b: 2 };
 /// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
 /// @resolution.pattern source=target kind=binding target=target
@@ -153,7 +153,7 @@ for (const key in target) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -164,7 +164,7 @@ for (const key in target) {
     key satisfies "a" | "b";
 }
 
-=== checked ===
+=== dir ===
 const target = { a: 1, b: 2 };
 /// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
 /// @resolution.pattern source=target kind=binding target=target
@@ -207,7 +207,7 @@ for (const key in target) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -218,7 +218,7 @@ for (const key in target) {
     key satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare const target: { a: int32 } | { b: int32 };
 /// @type.symbol symbol=target source=target type={ a: int32 } | { b: int32 }
 /// @resolution.pattern source=target kind=binding target=target
@@ -254,7 +254,7 @@ for (const key in &readonly target) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -265,7 +265,7 @@ for (const key in &readonly target) {
     key satisfies string;
 }
 
-=== checked ===
+=== dir ===
 const target = { a: 1, b: 2 };
 /// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
 /// @resolution.pattern source=target kind=binding target=target
@@ -304,7 +304,7 @@ for (const key in 1) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -313,7 +313,7 @@ for (const key in 1) {
     key;
 }
 
-=== checked ===
+=== dir ===
 for (const key in 1) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
@@ -346,7 +346,7 @@ for (const key in target) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -357,7 +357,7 @@ for (const key in target) {
     key;
 }
 
-=== checked ===
+=== dir ===
 declare const target: unknown;
 /// @type.symbol symbol=target source=target type=Dynamic<unknown>
 /// @resolution.pattern source=target kind=binding target=target
@@ -394,7 +394,7 @@ for (const key in [1, 2, 3]) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -403,7 +403,7 @@ for (const key in [1, 2, 3]) {
     key;
 }
 
-=== checked ===
+=== dir ===
 for (const key in [1, 2, 3]) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
@@ -444,7 +444,7 @@ for (const key in point) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -460,7 +460,7 @@ for (const key in point) {
     key satisfies string;
 }
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -515,7 +515,7 @@ for (const key in user) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -530,7 +530,7 @@ for (const key in user) {
     key satisfies string;
 }
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -578,7 +578,7 @@ for (const key in target) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -589,7 +589,7 @@ for (const key in target) {
     key satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare const target: { name?: string; active: boolean };
 /// @type.symbol symbol=target source=target type={ name?: string; active: boolean }
 /// @resolution.pattern source=target kind=binding target=target

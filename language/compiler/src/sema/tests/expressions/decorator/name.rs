@@ -9,7 +9,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -17,7 +17,7 @@ const value = 1;
 @missing
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 @missing
 /// @resolution.unresolved source=missing path=missing
 
@@ -50,7 +50,7 @@ const value = 1;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -61,7 +61,7 @@ import { mark } from "./second.ds";
 @mark
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 import { mark } from "./first.ds";
 import { mark } from "./second.ds";
 
@@ -89,7 +89,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -99,7 +99,7 @@ const mark: 1 = 1;
 @mark
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 const mark = 1;
 /// @type.symbol symbol=mark source=mark type=1
 /// @resolution.pattern source=mark kind=binding target=mark
@@ -135,7 +135,7 @@ const value = 1;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -145,7 +145,7 @@ import * as marks from "./marks.ds";
 @marks.mark
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 import * as marks from "./marks.ds";
 
 @marks.mark

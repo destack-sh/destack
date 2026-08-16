@@ -20,7 +20,7 @@ local class Counter {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -39,7 +39,7 @@ local class Counter {
     }
 }
 
-=== checked ===
+=== dir ===
 function label(name: string): void {}
 /// @type.symbol symbol=label source="function label(name: string): void {}" type=(string) => void
 /// @type.symbol symbol=label.name source="name: string" type=string
@@ -121,7 +121,7 @@ local class Meter {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -149,7 +149,7 @@ local class Meter {
     }
 }
 
-=== checked ===
+=== dir ===
 newtype interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink nominal=true
@@ -265,7 +265,7 @@ function label(name: string): void {}
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -284,7 +284,7 @@ local class Counter {
 
 function label(name: string): void {}
 
-=== checked ===
+=== dir ===
 local class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
@@ -355,7 +355,7 @@ person.profile.count = 5;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 struct Profile {
     count: int32;
@@ -369,7 +369,7 @@ declare const person: readonly Person;
 
 person.profile.count = 5;
 
-=== checked ===
+=== dir ===
 struct Profile {
 /// @type.symbol symbol=Profile type=Profile
 /// @definition.struct symbol=Profile
@@ -427,7 +427,7 @@ function consume(value: SinkAlias): void {}
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -441,7 +441,7 @@ type SinkAlias = Sink;
 declare const sink: Dynamic<Sink>;
 function consume(value: Dynamic<Sink>): void {}
 
-=== checked ===
+=== dir ===
 interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink

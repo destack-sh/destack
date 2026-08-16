@@ -11,7 +11,7 @@ class Foo {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -20,7 +20,7 @@ class Foo {
     like;
 }
 
-=== checked ===
+=== dir ===
 class Foo {
 /// @type.symbol symbol=Foo type=Foo
 /// @definition.class symbol=Foo
@@ -54,7 +54,7 @@ function build(): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -68,7 +68,7 @@ function build(): int32 {
     registry.value
 }
 
-=== checked ===
+=== dir ===
 function build(): int32 {
 /// @type.symbol symbol=build type=() => int32
 

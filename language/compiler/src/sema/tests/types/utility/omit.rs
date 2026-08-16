@@ -17,7 +17,7 @@ person.active satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -33,7 +33,7 @@ declare const person: { name: string; active: boolean };
 person.name satisfies string;
 person.active satisfies boolean;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -92,7 +92,7 @@ const age = person.age;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -106,7 +106,7 @@ interface Person {
 declare const person: { name: string; active: boolean };
 const age = person.age;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -162,7 +162,7 @@ person satisfies WithoutAge;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -177,7 +177,7 @@ type WithoutAge = Omit<Person, "age">;
 const person: { name: string } = { name: "Ada" };
 person satisfies WithoutAge;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -227,7 +227,7 @@ const person: WithoutAge = { name: "Ada", age: 42 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -241,7 +241,7 @@ type WithoutAge = Omit<Person, "age">;
 
 const person: { name: string } = { name: "Ada", age: 42 };
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -291,7 +291,7 @@ const person: WithoutAll = {};
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -305,7 +305,7 @@ type WithoutAll = Omit<Person, "name" | "age">;
 
 const person: {} = {};
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -350,7 +350,7 @@ person satisfies Person;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -365,7 +365,7 @@ type Same = Omit<Person, "missing">;
 const person: { name: string; age: int32 } = { name: "Ada", age: 42 };
 person satisfies Person;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -416,7 +416,7 @@ person.name = "Grace";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -431,7 +431,7 @@ type NameOnly = Omit<Person, "age">;
 const person: { readonly name: string } = { name: "Ada" };
 person.name = "Grace";
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person

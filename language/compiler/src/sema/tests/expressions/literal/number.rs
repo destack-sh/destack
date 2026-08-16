@@ -8,14 +8,14 @@ const value = 42;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 42 = 42;
 
-=== checked ===
+=== dir ===
 const value = 42;
 /// @type.symbol symbol=value source=value type=42
 /// @resolution.pattern source=value kind=binding target=value
@@ -32,14 +32,14 @@ let value = 42;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 let value: float64 = 42;
 
-=== checked ===
+=== dir ===
 let value = 42;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
@@ -56,14 +56,14 @@ const value: int32 = 42;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: int32 = 42;
 
-=== checked ===
+=== dir ===
 const value: int32 = 42;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -80,14 +80,14 @@ const value = 3.14;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 3.14 = 3.14;
 
-=== checked ===
+=== dir ===
 const value = 3.14;
 /// @type.symbol symbol=value source=value type=3.14
 /// @resolution.pattern source=value kind=binding target=value
@@ -104,14 +104,14 @@ let value = 3.14;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let value: float64 = 3.14;
 
-=== checked ===
+=== dir ===
 let value = 3.14;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
@@ -128,14 +128,14 @@ const value: string = 123;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: string = 123;
 
-=== checked ===
+=== dir ===
 const value: string = 123;
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value

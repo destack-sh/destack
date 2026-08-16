@@ -9,7 +9,7 @@ const value = *shared;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -17,7 +17,7 @@ const value = *shared;
 declare const shared: &'static readonly int32;
 const value: int32 = *shared;
 
-=== checked ===
+=== dir ===
 declare const shared: &readonly int32;
 /// @type.symbol symbol=shared source=shared type=&'static readonly int32
 /// @resolution.pattern source=shared kind=binding target=shared

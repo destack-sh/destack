@@ -13,7 +13,7 @@ declare const number: Number;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -25,7 +25,7 @@ type Number = Select<int32>;
 declare const text: "yes";
 declare const number: "no";
 
-=== checked ===
+=== dir ===
 type Select<T> = T extends string ? "yes" : "no";
 /// @generic.template symbol=Select parameters=(T)
 /// @type.symbol symbol=Select source="type Select<T> = T extends string ? \"yes\" : \"no\"" type=T extends string ? "yes" : "no"
@@ -67,7 +67,7 @@ declare const value: Result;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -77,7 +77,7 @@ type Result = OnlyStrings<string | int32>;
 
 declare const value: string;
 
-=== checked ===
+=== dir ===
 type OnlyStrings<T> = T extends string ? T : never;
 /// @generic.template symbol=OnlyStrings parameters=(T)
 /// @type.symbol symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" type=T extends string ? T : never
@@ -110,7 +110,7 @@ declare const value: Result;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -120,7 +120,7 @@ type Result = Wrapped<string | int32>;
 
 declare const value: "no";
 
-=== checked ===
+=== dir ===
 type Wrapped<T> = (T,) extends (string,) ? "yes" : "no";
 /// @generic.template symbol=Wrapped parameters=(T)
 /// @type.symbol symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" type=(T,) extends (string,) ? "yes" : "no"
@@ -152,7 +152,7 @@ let value: Result = "no";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -162,7 +162,7 @@ type Result = OnlyStrings<never>;
 
 let value: never = "no";
 
-=== checked ===
+=== dir ===
 type OnlyStrings<T> = T extends string ? T : never;
 /// @generic.template symbol=OnlyStrings parameters=(T)
 /// @type.symbol symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" type=T extends string ? T : never
@@ -201,7 +201,7 @@ declare const value: Value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -212,7 +212,7 @@ type Value = Unbox<Box<"ready">>;
 
 declare const value: "ready";
 
-=== checked ===
+=== dir ===
 type Box<T> = { value: T };
 /// @generic.template symbol=Box parameters=(T#1)
 /// @type.symbol symbol=Box source="type Box<T> = { value: T }" type={ value: T#1 }
@@ -239,8 +239,6 @@ declare const value: Value;
 /// @type.symbol symbol=value source=value type="ready"
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Box<infer U>" template=Box arguments=(infer U)
 "#,
     );
 }
@@ -257,7 +255,7 @@ declare const count: Count;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -268,7 +266,7 @@ type Count = LaneCount<Vector<string, 4>>;
 
 declare const count: 4;
 
-=== checked ===
+=== dir ===
 newtype Vector<T, const N: int> = intrinsic;
 /// @generic.template symbol=Vector parameters=(in out T#1, const N#1: int64)
 /// @type.symbol symbol=Vector source="newtype Vector<T, const N: int> = intrinsic" type=Vector
@@ -295,8 +293,6 @@ declare const count: Count;
 /// @type.symbol symbol=count source=count type=4
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=Count target=Count
-
-/// @generic.instance id="Vector<infer T, infer N>" template=Vector arguments=(infer T, infer N)
 "#,
     );
 }
@@ -313,7 +309,7 @@ let value: Value = "no";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -324,7 +320,7 @@ type Value = Text<Box<int32>>;
 
 let value: never = "no";
 
-=== checked ===
+=== dir ===
 type Box<T> = { value: T };
 /// @generic.template symbol=Box parameters=(T#1)
 /// @type.symbol symbol=Box source="type Box<T> = { value: T }" type={ value: T#1 }
@@ -351,8 +347,6 @@ let value: Value = "no";
 /// @type.symbol symbol=value source=value type=never
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Box<infer U extends string>" template=Box arguments=(infer U extends string)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'never'"
@@ -376,7 +370,7 @@ const no: No = false;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -389,7 +383,7 @@ type No = IsBox<string>;
 const yes: true = true;
 const no: false = false;
 
-=== checked ===
+=== dir ===
 type Box<T> = { value: T };
 /// @generic.template symbol=Box parameters=(T#1)
 /// @type.symbol symbol=Box source="type Box<T> = { value: T }" type={ value: T#1 }
@@ -425,8 +419,6 @@ const no: No = false;
 /// @type.symbol symbol=no source=no type=false
 /// @resolution.pattern source=no kind=binding target=no
 /// @resolution.name source=No target=No
-
-/// @generic.instance id="Box<infer _>" template=Box arguments=(infer _)
 "#,
     );
 }
@@ -444,7 +436,7 @@ const second: Value = "b";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -456,7 +448,7 @@ type Value = Unbox<Box<"a"> | Box<"b">>;
 const first: "a" | "b" = "a" as "a" | "b";
 const second: "a" | "b" = "b" as "a" | "b";
 
-=== checked ===
+=== dir ===
 type Box<T> = { value: T };
 /// @generic.template symbol=Box parameters=(T#1)
 /// @type.symbol symbol=Box source="type Box<T> = { value: T }" type={ value: T#1 }
@@ -489,8 +481,6 @@ const second: Value = "b";
 /// @type.symbol symbol=second source=second type="a" | "b"
 /// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=Value target=Value
-
-/// @generic.instance id="Box<infer U>" template=Box arguments=(infer U)
 "#,
     );
 }
@@ -508,7 +498,7 @@ const first: Element<typeof values> = values[0];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -519,7 +509,7 @@ declare const values: int32[][];
 
 const first: int32[] = values[0];
 
-=== checked ===
+=== dir ===
 type Element<T> = T extends readonly (infer U)[] ? U : never;
 /// @generic.template symbol=Element parameters=(T)
 /// @type.symbol symbol=Element source="type Element<T> = T extends readonly (infer U)[] ? U : never" type=T extends readonly Array<infer U> ? Element.U : never
@@ -543,9 +533,7 @@ const first: Element<typeof values> = values[0];
 /// @resolution.place source=values[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=Array<int32> kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static Array<int32>, \"exclusive\">)"
-/// @generic.instance source=values[0] id="Array<Array<int32>>.<extension#5>.index#1<\"exclusive\">"
-
-/// @generic.instance id="Array<Array<int32>>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(Array<int32>, "exclusive")
+/// @generic.instantiation id="collections.array.index#1<Array<int32>, \"exclusive\">" template=collections.array.index#1 arguments=(Array<int32>, "exclusive")
 "#,
         r#"
 "#,

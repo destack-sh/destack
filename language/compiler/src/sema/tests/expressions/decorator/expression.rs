@@ -13,7 +13,7 @@ interface Reader {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -25,7 +25,7 @@ interface Reader {
     read(@mark("parameter") value: string): string;
 }
 
-=== checked ===
+=== dir ===
 newtype mark = (string,);
 /// @type.symbol symbol=mark source="newtype mark = (string,)" type=mark
 /// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
@@ -65,7 +65,7 @@ declare function read(mark: int32): void;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -77,7 +77,7 @@ newtype mark = (string,);
 @mark("checked")
 declare function read(mark: int32): void;
 
-=== checked ===
+=== dir ===
 newtype mark = (string,);
 /// @type.symbol symbol=mark source="newtype mark = (string,)" type=mark
 /// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
@@ -106,7 +106,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -116,7 +116,7 @@ const subject: 1 = 1;
 @subject.field
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 const subject = 1;
 /// @type.symbol symbol=subject source=subject type=1
 /// @resolution.pattern source=subject kind=binding target=subject
@@ -147,7 +147,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -160,7 +160,7 @@ newtype mark = (Payload,);
 @mark(Payload({ reason: "intentional" }))
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 newtype Payload = { reason: string };
 /// @type.symbol symbol=Payload source="newtype Payload = { reason: string }" type=Payload
 /// @definition.newtype symbol=Payload source="newtype Payload = { reason: string }" backing={ reason: string } constructors=[({ reason: string }) => Payload]
@@ -209,7 +209,7 @@ function run(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -228,7 +228,7 @@ function run(): void {
     const array: float64[] = [@mark("array") 3,];
 }
 
-=== checked ===
+=== dir ===
 newtype mark = (string,);
 /// @type.symbol symbol=mark source="newtype mark = (string,)" type=mark
 /// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
@@ -302,7 +302,7 @@ function run(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -317,7 +317,7 @@ function run(): void {
     const text: string = `value ${@mark("interpolation") 6}`;
 }
 
-=== checked ===
+=== dir ===
 newtype mark = (string,);
 /// @type.symbol symbol=mark source="newtype mark = (string,)" type=mark
 /// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
@@ -361,7 +361,7 @@ function run(): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -373,7 +373,7 @@ function run(): void {
     );
 }
 
-=== checked ===
+=== dir ===
 function run(): void {
 /// @type.symbol symbol=run type=() => void
 
@@ -403,7 +403,7 @@ function run(): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -416,7 +416,7 @@ function run(): void {
     require(@if(false) 1);
 }
 
-=== checked ===
+=== dir ===
 declare function consume(first: int32, second?: int32): void;
 /// @type.symbol symbol=consume source="declare function consume(first: int32, second?: int32): void" type=(int32, int32 | undefined?) => void
 /// @type.symbol symbol=consume.first source="first: int32" type=int32
@@ -461,7 +461,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -471,7 +471,7 @@ newtype mark = (string,) | ("value",);
 @mark("value")
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 newtype mark = (string,) | ("value",);
 /// @type.symbol symbol=mark source="newtype mark = (string,) | (\"value\",)" type=mark
 /// @definition.newtype symbol=mark source="newtype mark = (string,) | (\"value\",)" backing=(string,) | ("value",) constructors=[(string) => mark, ("value") => mark, ((string,) | ("value",)) => mark]
@@ -503,7 +503,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -513,7 +513,7 @@ newtype mark<out T> = (T,);
 @mark(1)
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 newtype mark<T> = (T,);
 /// @generic.template symbol=mark parameters=(out T)
 /// @type.symbol symbol=mark source="newtype mark<T> = (T,)" type=mark
@@ -546,7 +546,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
@@ -556,7 +556,7 @@ newtype mark<out T> = (T,);
 @mark<int32>(1)
 const value: 1 = 1;
 
-=== checked ===
+=== dir ===
 newtype mark<T> = (T,);
 /// @generic.template symbol=mark parameters=(out T)
 /// @type.symbol symbol=mark source="newtype mark<T> = (T,)" type=mark

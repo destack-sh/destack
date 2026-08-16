@@ -17,7 +17,7 @@ person.active satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -33,7 +33,7 @@ declare const person: { name: string; active: boolean };
 person.name satisfies string;
 person.active satisfies boolean;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -92,7 +92,7 @@ const age = person.age;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -106,7 +106,7 @@ interface Person {
 declare const person: { name: string; active: boolean };
 const age = person.age;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -165,7 +165,7 @@ aged satisfies AgeOnly;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -183,7 +183,7 @@ const aged: { age?: int32 } = { age: 42 };
 empty satisfies AgeOnly;
 aged satisfies AgeOnly;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -244,7 +244,7 @@ const person: AgeOnly = { name: "Ada" };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -258,7 +258,7 @@ type AgeOnly = Pick<Person, "age">;
 
 const person: { age?: int32 } = { name: "Ada" };
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -309,7 +309,7 @@ person satisfies NameOnly;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -324,7 +324,7 @@ type NameOnly = Pick<Person, "name">;
 const person: { name: string } = { name: "Ada" };
 person satisfies NameOnly;
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -374,7 +374,7 @@ const person: NameOnly = {};
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -388,7 +388,7 @@ type NameOnly = Pick<Person, "name">;
 
 const person: { name: string } = {};
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -437,7 +437,7 @@ const person: NameOnly = { name: "Ada", age: 42 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -451,7 +451,7 @@ type NameOnly = Pick<Person, "name">;
 
 const person: { name: string } = { name: "Ada", age: 42 };
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -502,7 +502,7 @@ person.name = "Grace";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -517,7 +517,7 @@ type NameOnly = Pick<Person, "name">;
 const person: { readonly name: string } = { name: "Ada" };
 person.name = "Grace";
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person

@@ -34,7 +34,7 @@ class Counter {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -67,7 +67,7 @@ class Counter {
     }
 }
 
-=== checked ===
+=== dir ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
@@ -196,7 +196,7 @@ sharedSink.write(sharedMessage) satisfies shared Message;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -215,7 +215,7 @@ declare const sharedMessage: shared Message;
 localSink.write(localMessage) satisfies local Message;
 sharedSink.write(sharedMessage) satisfies shared Message;
 
-=== checked ===
+=== dir ===
 class Message {}
 /// @type.symbol symbol=Message source="class Message {}" type=Message
 /// @definition.class symbol=Message source="class Message {}"
@@ -296,7 +296,7 @@ sharedBuffer.clear();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -311,7 +311,7 @@ declare const sharedBuffer: shared Buffer;
 localBuffer.clear();
 sharedBuffer.clear();
 
-=== checked ===
+=== dir ===
 class Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.class symbol=Buffer
@@ -373,7 +373,7 @@ function freeze(point: readonly Point): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -390,7 +390,7 @@ function freeze(point: readonly Point): void {
     point.scale(2);
 }
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -465,7 +465,7 @@ function inspect(counter: ^Counter): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -482,7 +482,7 @@ function inspect(counter: ^Counter): int32 {
     return counter.read();
 }
 
-=== checked ===
+=== dir ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
@@ -545,7 +545,7 @@ function measure(point: readonly Point): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -562,7 +562,7 @@ function measure(point: readonly Point): int32 {
     return point.length();
 }
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -619,7 +619,7 @@ struct Counter {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -632,7 +632,7 @@ struct Counter {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
@@ -678,7 +678,7 @@ function read(counter: readonly Counter): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -695,7 +695,7 @@ function read(counter: readonly Counter): int32 {
     return counter.current;
 }
 
-=== checked ===
+=== dir ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter

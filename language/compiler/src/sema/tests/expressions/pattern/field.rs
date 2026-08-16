@@ -10,7 +10,7 @@ let { y } = point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -19,7 +19,7 @@ declare const point: { x: int32 };
 
 let { y } = point;
 
-=== checked ===
+=== dir ===
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
@@ -48,7 +48,7 @@ let { x, x: other } = point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -57,7 +57,7 @@ declare const point: { x: int32 };
 
 let { x, x: other } = point;
 
-=== checked ===
+=== dir ===
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
@@ -89,7 +89,7 @@ let { left: value, right: value } = pair;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -98,7 +98,7 @@ declare const pair: { left: int32; right: int32 };
 
 let { left: value, right: value } = pair;
 
-=== checked ===
+=== dir ===
 declare const pair: { left: int32; right: int32 };
 /// @type.symbol symbol=pair source=pair type={ left: int32; right: int32 }
 /// @resolution.pattern source=pair kind=binding target=pair

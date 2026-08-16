@@ -13,7 +13,7 @@ function label({ name, age }: { name: string; age: int32 }): string {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -25,7 +25,7 @@ function label({ name, age }: { name: string; age: int32 }): string {
     name
 }
 
-=== checked ===
+=== dir ===
 function label({ name, age }: { name: string; age: int32 }): string {
 /// @type.symbol symbol=label type=({ name: string; age: int32 }) => string
 /// @resolution.pattern source={ name, age } kind=object fields={ name, age }
@@ -67,7 +67,7 @@ function first([head]: int32[]): int32 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -76,10 +76,12 @@ function first([head]: int32[]): int32 {
     head
 }
 
-=== checked ===
+=== dir ===
 function first([head]: int32[]): int32 {
 /// @type.symbol symbol=first type=(Array<int32>) => int32
 /// @resolution.pattern source=[head] kind=sequence element=int32 arity=1 fields=(first.head)
+/// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+/// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
 /// @type.symbol symbol=first.head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=first.head
 

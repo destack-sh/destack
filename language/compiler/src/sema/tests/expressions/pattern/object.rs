@@ -13,7 +13,7 @@ y satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -25,7 +25,7 @@ let { x, y } = point;
 x satisfies int32;
 y satisfies string;
 
-=== checked ===
+=== dir ===
 declare const point: { x: int32; y: string };
 /// @type.symbol symbol=point source=point type={ x: int32; y: string }
 /// @resolution.pattern source=point kind=binding target=point
@@ -65,7 +65,7 @@ let { x }: { x: int32 } = source;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -74,7 +74,7 @@ declare const source: { x: string };
 
 let { x }: { x: int32 } = source;
 
-=== checked ===
+=== dir ===
 declare const source: { x: string };
 /// @type.symbol symbol=source source=source type={ x: string }
 /// @resolution.pattern source=source kind=binding target=source
@@ -104,14 +104,14 @@ let { value } = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 let { value } = 1;
 
-=== checked ===
+=== dir ===
 let { value } = 1;
 /// @resolution.rejected source={ value }
 /// @type.symbol symbol=value source=value type=<error>
@@ -142,7 +142,7 @@ const result = match (state) {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 type State = { inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } };
 
@@ -159,7 +159,7 @@ const result: int32 = match (state) {
     } => 0
 };
 
-=== checked ===
+=== dir ===
 type State =
 /// @type.symbol symbol=State type={ inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } }
 /// @definition.type symbol=State value={ inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } }
@@ -224,7 +224,7 @@ const result = match (state) {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending";
@@ -245,7 +245,7 @@ const result: int32 = match (state) {
     { kind: "ready", value } => value
 };
 
-=== checked ===
+=== dir ===
 struct Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.struct symbol=Pending
@@ -344,7 +344,7 @@ const result = match (frame) {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Header {
     version: 1;
@@ -365,7 +365,7 @@ const result: int32 = match (frame) {
     { version: 2, checksum } => checksum
 };
 
-=== checked ===
+=== dir ===
 struct Header {
 /// @type.symbol symbol=Header type=Header
 /// @definition.struct symbol=Header
@@ -472,7 +472,7 @@ const result = match (envelope) {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Alpha {
     kind: "a" = "a";
@@ -505,7 +505,7 @@ const result: int32 = match (envelope) {
     } => 0
 };
 
-=== checked ===
+=== dir ===
 struct Alpha {
 /// @type.symbol symbol=Alpha type=Alpha
 /// @definition.struct symbol=Alpha
@@ -627,7 +627,7 @@ const result = match (state) {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending";
@@ -648,7 +648,7 @@ const result: int32 = match (state) {
     { kind: "ready", value } => value
 };
 
-=== checked ===
+=== dir ===
 struct Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.struct symbol=Pending

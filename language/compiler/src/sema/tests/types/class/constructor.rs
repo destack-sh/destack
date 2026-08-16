@@ -12,7 +12,7 @@ const counter = new Counter();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -23,7 +23,7 @@ class Counter {
 
 const counter: Counter = new Counter();
 
-=== checked ===
+=== dir ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
@@ -63,7 +63,7 @@ const derived = new Derived(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -80,7 +80,7 @@ class Derived extends Base {}
 
 const derived: Derived = new Derived(1);
 
-=== checked ===
+=== dir ===
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
@@ -145,7 +145,7 @@ const counter = new Counter(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -160,7 +160,7 @@ class Counter {
 
 const counter: Counter = new Counter(1);
 
-=== checked ===
+=== dir ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
@@ -224,7 +224,7 @@ const number = new Box(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -244,7 +244,7 @@ class Box {
 const text: Box = new Box("x");
 const number: Box = new Box(1);
 
-=== checked ===
+=== dir ===
 class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
@@ -337,7 +337,7 @@ new Box(true);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -356,7 +356,7 @@ class Box {
 
 new Box(true);
 
-=== checked ===
+=== dir ===
 class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
@@ -438,7 +438,7 @@ declare class Box {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -450,7 +450,7 @@ declare class Box {
     constructor(value: int32);
 }
 
-=== checked ===
+=== dir ===
 declare class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
@@ -484,7 +484,7 @@ class Box {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -493,7 +493,7 @@ class Box {
     constructor(value: string);
 }
 
-=== checked ===
+=== dir ===
 class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
@@ -537,7 +537,7 @@ const dog = new Dog("rex", 3);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -561,7 +561,7 @@ class Dog extends Animal {
 
 const dog: Dog = new Dog("rex", 3);
 
-=== checked ===
+=== dir ===
 class Animal {
 /// @type.symbol symbol=Animal type=Animal
 /// @definition.class symbol=Animal
@@ -664,7 +664,7 @@ const dog = new Dog("rex");
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -675,7 +675,7 @@ class Dog extends Animal<string> {}
 
 const dog: Dog = new Dog("rex");
 
-=== checked ===
+=== dir ===
 import { Animal } from "./base.ds";
 
 class Dog extends Animal<string> {}
@@ -712,7 +712,7 @@ const broken: new (value: int32) => Counter = build;
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=not-assignable message="type '(value: int32) => Counter' is not assignable to type 'new (value: int32) => Counter'"

@@ -14,7 +14,7 @@ if (let UserId(value) = id) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -27,7 +27,7 @@ if (let UserId(value) = id) {
     value satisfies int64;
 }
 
-=== checked ===
+=== dir ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 /// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
@@ -75,7 +75,7 @@ match (point) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -91,7 +91,7 @@ match (point) {
     Point { x, y } => x + y
 }
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -153,7 +153,7 @@ match (point) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -166,7 +166,7 @@ match (point) {
     Point { x, y } => x + y
 }
 
-=== checked ===
+=== dir ===
 type Point = { x: int32; y: int32 };
 /// @type.symbol symbol=Point source="type Point = { x: int32; y: int32 }" type={ x: int32; y: int32 }
 /// @definition.type symbol=Point source="type Point = { x: int32; y: int32 }" value={ x: int32; y: int32 }
@@ -228,7 +228,7 @@ match (user) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -246,7 +246,7 @@ match (user) {
     User { displayName } => displayName
 }
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User

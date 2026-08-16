@@ -12,7 +12,7 @@ present satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -23,7 +23,7 @@ declare const present: string;
 
 present satisfies string;
 
-=== checked ===
+=== dir ===
 type Present = NonNullable<string | null | undefined>;
 /// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=string
 /// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=string
@@ -52,7 +52,7 @@ const bad: Present = null;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -61,7 +61,7 @@ type Present = NonNullable<string | null | undefined>;
 
 const bad: string = null;
 
-=== checked ===
+=== dir ===
 type Present = NonNullable<string | null | undefined>;
 /// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=string
 /// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=string
@@ -90,7 +90,7 @@ let bad: Present = "no";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -99,7 +99,7 @@ type Present = NonNullable<never>;
 
 let bad: never = "no";
 
-=== checked ===
+=== dir ===
 type Present = NonNullable<never>;
 /// @type.symbol symbol=Present source="type Present = NonNullable<never>" type=never
 /// @definition.type symbol=Present source="type Present = NonNullable<never>" value=never

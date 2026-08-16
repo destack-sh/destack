@@ -28,7 +28,7 @@ empty satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -55,7 +55,7 @@ const buffer: Buffer = Buffer { length: 3 };
 const empty: boolean = buffer.isEmpty();
 empty satisfies boolean;
 
-=== checked ===
+=== dir ===
 newtype interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized nominal=true
@@ -162,7 +162,7 @@ empty satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -193,7 +193,7 @@ const buffer: Buffer = Buffer { length: 0 };
 const empty: boolean = buffer.isEmpty();
 empty satisfies boolean;
 
-=== checked ===
+=== dir ===
 newtype interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized nominal=true

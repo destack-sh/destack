@@ -11,7 +11,7 @@ const digit: Digit = value;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Digit = 0..=9;
 declare const value: int32;
 const digit: 0..=9 = value;
 
-=== checked ===
+=== dir ===
 type Digit = 0..=9;
 /// @type.symbol symbol=Digit source="type Digit = 0..=9" type=0..=9
 /// @definition.type symbol=Digit source="type Digit = 0..=9" value=0..=9
@@ -57,7 +57,7 @@ const next: Digit = digit + 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -67,7 +67,7 @@ type Digit = 0..=9;
 declare const digit: 0..=9;
 const next: 0..=9 = digit + 1;
 
-=== checked ===
+=== dir ===
 type Digit = 0..=9;
 /// @type.symbol symbol=Digit source="type Digit = 0..=9" type=0..=9
 /// @definition.type symbol=Digit source="type Digit = 0..=9" value=0..=9
@@ -106,7 +106,7 @@ const bad: Edge = 128;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -117,7 +117,7 @@ const low: 0..=3 | 252..=255 = 2 as 0..=3 | 252..=255;
 const high: 0..=3 | 252..=255 = 254 as 0..=3 | 252..=255;
 const bad: 0..=3 | 252..=255 = 128;
 
-=== checked ===
+=== dir ===
 type Edge = 0..=3 | 252..=255;
 /// @type.symbol symbol=Edge source="type Edge = 0..=3 | 252..=255" type=0..=3 | 252..=255
 /// @definition.type symbol=Edge source="type Edge = 0..=3 | 252..=255" value=0..=3 | 252..=255
@@ -156,7 +156,7 @@ const port = Port(443);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -166,7 +166,7 @@ newtype Port = 1..=65535;
 const raw: Port = 443;
 const port: Port = Port(443);
 
-=== checked ===
+=== dir ===
 newtype Port = 1..=65535;
 /// @type.symbol symbol=Port source="newtype Port = 1..=65535" type=Port
 /// @definition.newtype symbol=Port source="newtype Port = 1..=65535" backing=1..=65535 constructors=[(1..=65535) => Port]

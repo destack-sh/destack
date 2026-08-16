@@ -13,7 +13,7 @@ for (const { name, value } of items) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -25,7 +25,7 @@ for (const { name, value } of items) {
     value satisfies int32;
 }
 
-=== checked ===
+=== dir ===
 declare const items: { name: string; value: int32 }[];
 /// @type.symbol symbol=items source=items type=Array<{ name: string; value: int32 }>
 /// @resolution.pattern source=items kind=binding target=items
@@ -69,7 +69,7 @@ for (const { name } in item) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -80,7 +80,7 @@ for (const { name } in item) {
     name;
 }
 
-=== checked ===
+=== dir ===
 declare const item: { name: string };
 /// @type.symbol symbol=item source=item type={ name: string }
 /// @resolution.pattern source=item kind=binding target=item

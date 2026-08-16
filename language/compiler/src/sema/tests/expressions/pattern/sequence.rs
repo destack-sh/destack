@@ -13,7 +13,7 @@ second satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -25,13 +25,15 @@ let [first, second] = values;
 first satisfies int32;
 second satisfies int32;
 
-=== checked ===
+=== dir ===
 declare const values: [int32; 2];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
 /// @resolution.pattern source=values kind=binding target=values
 
 let [first, second] = values;
 /// @resolution.pattern source=[first, second] kind=sequence element=int32 arity=2 fields=(first, second)
+/// @generic.instantiation id="collections.fixed-array.index#1<int32, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "exclusive")
+/// @generic.instance id="collections.fixed-array.index#1<int32, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "exclusive")
 /// @type.symbol symbol=first source=first type=int32
 /// @resolution.pattern source=first kind=binding target=first
 /// @type.symbol symbol=second source=second type=int32
@@ -67,7 +69,7 @@ let [x, y] = point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -76,7 +78,7 @@ declare const point: { x: int32; y: int32 };
 
 let [x, y] = point;
 
-=== checked ===
+=== dir ===
 declare const point: { x: int32; y: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 /// @resolution.pattern source=point kind=binding target=point

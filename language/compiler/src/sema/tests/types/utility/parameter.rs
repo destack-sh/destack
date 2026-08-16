@@ -11,7 +11,7 @@ ok satisfies (string, number);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Args = Parameters<(name: string, count: float64) => boolean>;
 const ok: (string, float64) = ("Ada", 1);
 ok satisfies (string, number);
 
-=== checked ===
+=== dir ===
 type Args = Parameters<(name: string, count: number) => boolean>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=(string, float64)
@@ -53,7 +53,7 @@ const full: Args = ("Ada", 1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -63,7 +63,7 @@ type Args = Parameters<(name: string, count?: float64) => boolean>;
 const short: (string, float64 | undefined?) = ("Ada",) as (string, float64 | undefined?);
 const full: (string, float64 | undefined?) = ("Ada", 1 as float64 | undefined);
 
-=== checked ===
+=== dir ===
 type Args = Parameters<(name: string, count?: number) => boolean>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=(string, float64 | undefined?)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=(string, float64 | undefined?)
@@ -94,7 +94,7 @@ const ok: Args = ("Ada", true, false);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -103,7 +103,7 @@ type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 
 const ok: (string, ...boolean[]) = ("Ada", true, false) as (string, ...boolean[]);
 
-=== checked ===
+=== dir ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=(string, ...boolean[])
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=(string, ...boolean[])
@@ -129,7 +129,7 @@ const bad: Args = ("Ada", "one");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -138,7 +138,7 @@ type Args = Parameters<(name: string, count: float64) => boolean>;
 
 const bad: (string, float64) = ("Ada", "one");
 
-=== checked ===
+=== dir ===
 type Args = Parameters<(name: string, count: number) => boolean>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=(string, float64)
@@ -181,7 +181,7 @@ parser satisfies ((value: int32) => int32) & ((value: string) => string);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -200,7 +200,7 @@ declare const parser: ((arg0: int32) => int32) & ((arg0: string) => string);
 
 parser satisfies ((value: int32) => int32) & ((value: string) => string);
 
-=== checked ===
+=== dir ===
 function parse(value: int32): int32 {
 /// @type.symbol symbol=parse#1 type=(int32) => int32
 /// @type.symbol symbol=parse.value#1 source="value: int32" type=int32

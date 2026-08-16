@@ -10,7 +10,7 @@ const marker: Phantom<int32> = Phantom<int32>.default();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"

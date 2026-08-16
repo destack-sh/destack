@@ -11,7 +11,7 @@ const visible = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -21,7 +21,7 @@ const hidden: MissingType = missingValue;
 
 const visible: 1 = 1;
 
-=== checked ===
+=== dir ===
 @if(false)
 const hidden: MissingType = missingValue;
 
@@ -42,7 +42,7 @@ const value: int32 = "text";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -50,7 +50,7 @@ const value: int32 = "text";
 @if(true)
 const value: int32 = "text";
 
-=== checked ===
+=== dir ===
 @if(true)
 const value: int32 = "text";
 /// @type.symbol symbol=value source=value type=int32
@@ -74,7 +74,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -82,10 +82,9 @@ const value = 1;
 @if(1)
 const value = 1;
 
-=== checked ===
+=== dir ===
 @if(1)
 const value = 1;
-
 "#,
         r#"
 /// @diagnostic.error id=invalid-static-condition message="static condition must evaluate to a boolean"
@@ -105,7 +104,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -115,7 +114,7 @@ let enabled: boolean = true;
 @if(enabled)
 const value = 1;
 
-=== checked ===
+=== dir ===
 let enabled = true;
 /// @type.symbol symbol=enabled source=enabled type=boolean
 /// @resolution.pattern source=enabled kind=binding target=enabled
@@ -140,7 +139,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -148,10 +147,9 @@ const value = 1;
 @if<boolean>(true)
 const value = 1;
 
-=== checked ===
+=== dir ===
 @if<boolean>(true)
 const value = 1;
-
 "#,
         r#"
 /// @diagnostic.error id=invalid-static-if-invocation message="`@if` must be invoked as `@if(condition)`"

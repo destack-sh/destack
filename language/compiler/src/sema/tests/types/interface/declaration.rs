@@ -14,7 +14,7 @@ extension of Value implements ForeignProtocol {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 declare interface ForeignProtocol {
     snake_name(): void;
@@ -24,7 +24,7 @@ extension of Value implements ForeignProtocol {
     snake_name(): void {}
 }
 
-=== checked ===
+=== dir ===
 declare interface ForeignProtocol {
 /// @type.symbol symbol=ForeignProtocol type=ForeignProtocol
 /// @definition.interface symbol=ForeignProtocol
@@ -67,7 +67,7 @@ interface Person {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -79,7 +79,7 @@ interface Person {
     rename(value: string): void;
 }
 
-=== checked ===
+=== dir ===
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
@@ -116,7 +116,7 @@ interface Serialize<S: Serializer> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -129,7 +129,7 @@ interface Serialize<in S: Serializer> {
     serialize(target: S): void;
 }
 
-=== checked ===
+=== dir ===
 interface Serializer {
 /// @type.symbol symbol=Serializer type=Serializer
 /// @definition.interface symbol=Serializer

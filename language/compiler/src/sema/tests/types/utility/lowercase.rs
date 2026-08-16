@@ -10,7 +10,7 @@ const ok: Value = "hello";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ type Value = Lowercase<"HELLO">;
 
 const ok: "hello" = "hello";
 
-=== checked ===
+=== dir ===
 type Value = Lowercase<"HELLO">;
 /// @type.symbol symbol=Value source="type Value = Lowercase<\"HELLO\">" type="hello"
 /// @definition.type symbol=Value source="type Value = Lowercase<\"HELLO\">" value="hello"
@@ -45,7 +45,7 @@ method satisfies "get" | "post";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -56,7 +56,7 @@ declare const method: "get" | "post";
 
 method satisfies "get" | "post";
 
-=== checked ===
+=== dir ===
 type Method = Lowercase<"GET" | "POST">;
 /// @type.symbol symbol=Method source="type Method = Lowercase<\"GET\" | \"POST\">" type="get" | "post"
 /// @definition.type symbol=Method source="type Method = Lowercase<\"GET\" | \"POST\">" value="get" | "post"
@@ -85,7 +85,7 @@ const bad: Value = "HELLO";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -94,7 +94,7 @@ type Value = Lowercase<"HELLO">;
 
 const bad: "hello" = "HELLO";
 
-=== checked ===
+=== dir ===
 type Value = Lowercase<"HELLO">;
 /// @type.symbol symbol=Value source="type Value = Lowercase<\"HELLO\">" type="hello"
 /// @definition.type symbol=Value source="type Value = Lowercase<\"HELLO\">" value="hello"

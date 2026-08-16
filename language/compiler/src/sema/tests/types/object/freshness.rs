@@ -25,7 +25,7 @@ function run(argument?: Argument): void {}
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -47,7 +47,7 @@ function skipAll(): void {
 
 function run(argument?: (() => void) | Options): void {}
 
-=== checked ===
+=== dir ===
 type Base = {
 /// @type.symbol symbol=Base type={ only?: boolean; skip?: boolean }
 /// @definition.type symbol=Base value={ only?: boolean; skip?: boolean }

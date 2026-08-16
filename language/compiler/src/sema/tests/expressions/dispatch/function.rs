@@ -8,11 +8,11 @@ function schedule(callback: (ready: boolean) => void): void {}
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 function schedule(callback: (arg0: boolean) => void): void {}
 
-=== checked ===
+=== dir ===
 function schedule(callback: (ready: boolean) => void): void {}
 /// @type.symbol symbol=schedule source="function schedule(callback: (ready: boolean) => void): void {}" type=(Function<(boolean,), void>) => void
 /// @type.symbol symbol=schedule.callback source="callback: (ready: boolean) => void" type=Function<(boolean,), void>
@@ -32,7 +32,7 @@ const value = add(1, 2);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -46,7 +46,7 @@ function add(left: int32, right: int32): int32 {
 
 const value: int32 = add(1, 2);
 
-=== checked ===
+=== dir ===
 function add(left: int32, right: int32): int32 {
 /// @type.symbol symbol=add type=(int32, int32) => int32
 /// @type.symbol symbol=add.left source="left: int32" type=int32
@@ -96,7 +96,7 @@ const value = add(1, 2);
         )
         .build();
 
-    compiler.assert_dir_checked(
+    compiler.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -107,7 +107,7 @@ import { add } from "./math.ds";
 
 const value: int32 = add(1, 2);
 
-=== checked ===
+=== dir ===
 import { add } from "./math.ds";
 
 const value = add(1, 2);
@@ -137,7 +137,7 @@ use(source);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -147,7 +147,7 @@ declare function use(callback: (arg0: Dynamic<unknown>) => void): void;
 
 use(source);
 
-=== checked ===
+=== dir ===
 function source(value?: unknown): void {}
 /// @type.symbol symbol=source source="function source(value?: unknown): void {}" type=(Dynamic<unknown> | undefined?) => void
 /// @type.symbol symbol=source.value source="value?: unknown" type=Dynamic<unknown> | undefined
@@ -184,7 +184,7 @@ const value = map(() => 1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -193,7 +193,7 @@ declare function map<T>(callback: (arg0: Dynamic<unknown>) => T): T;
 
 const value: float64 = map<float64>((): float64 => 1);
 
-=== checked ===
+=== dir ===
 declare function map<T>(callback: (value: unknown) => T): T;
 /// @generic.template symbol=map parameters=(T)
 /// @type.symbol symbol=map source="declare function map<T>(callback: (value: unknown) => T): T" type=<T>(Function<(unknown,), T>) => T
@@ -210,12 +210,11 @@ const value = map(() => 1);
 /// @type.node source=map type=(Function<(unknown,), float64>) => float64
 /// @resolution.name source=map target=map
 /// @resolution.call source="map(() => 1)" parameters=(Function<(unknown,), float64>) arguments=(provided(() => 1) as Function<(unknown,), float64>) return=float64 kind=symbol target=map instance=map<float64>
-/// @generic.instance source="map(() => 1)" id=map<float64>
+/// @generic.instantiation id=map<float64> template=map arguments=(float64)
+/// @generic.instance id=map<float64> template=map arguments=(float64)
 /// @type.symbol symbol=symbol5 source="() => 1" type=Function<(), float64>
 /// @type.node source="() => 1" type=Function<(), float64>
 /// @type.node source=1 type=1
-
-/// @generic.instance id=map<float64> template=map arguments=(float64)
 "#,
     );
 }
@@ -235,7 +234,7 @@ let long = greet("compiler");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -247,7 +246,7 @@ function greet(name: string = "world"): string {
 let short: string = greet();
 let long: string = greet("compiler");
 
-=== checked ===
+=== dir ===
 function greet(name: string = "world"): string {
 /// @type.symbol symbol=greet type=(string?) => string
 /// @type.symbol symbol=greet.name source="name: string = \"world\"" type=string

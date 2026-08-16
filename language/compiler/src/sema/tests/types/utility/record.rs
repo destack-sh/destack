@@ -13,7 +13,7 @@ flags.b satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -25,7 +25,7 @@ const flags: { a: boolean; b: boolean } = { a: true, b: false };
 flags.a satisfies boolean;
 flags.b satisfies boolean;
 
-=== checked ===
+=== dir ===
 type Flags = Record<"a" | "b", boolean>;
 /// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type={ a: boolean; b: boolean }
 /// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value={ a: boolean; b: boolean }
@@ -68,7 +68,7 @@ flags[2] satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -80,7 +80,7 @@ const flags: { 1: string; 2: string } = { 1: "one", 2: "two" };
 flags[1] satisfies string;
 flags[2] satisfies string;
 
-=== checked ===
+=== dir ===
 type Flags = Record<1 | 2, string>;
 /// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type={ 1: string; 2: string }
 /// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value={ 1: string; 2: string }
@@ -120,7 +120,7 @@ const flags: Flags = { a: true };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -129,7 +129,7 @@ type Flags = Record<"a" | "b", boolean>;
 
 const flags: { a: boolean; b: boolean } = { a: true };
 
-=== checked ===
+=== dir ===
 type Flags = Record<"a" | "b", boolean>;
 /// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type={ a: boolean; b: boolean }
 /// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value={ a: boolean; b: boolean }
@@ -158,7 +158,7 @@ const flags: Flags = { 1: "one" };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -167,7 +167,7 @@ type Flags = Record<1 | 2, string>;
 
 const flags: { 1: string; 2: string } = { 1: "one" };
 
-=== checked ===
+=== dir ===
 type Flags = Record<1 | 2, string>;
 /// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type={ 1: string; 2: string }
 /// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value={ 1: string; 2: string }
@@ -196,7 +196,7 @@ const flags: Flags = { a: true, b: false, c: true };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -205,7 +205,7 @@ type Flags = Record<"a" | "b", boolean>;
 
 const flags: { a: boolean; b: boolean } = { a: true, b: false, c: true };
 
-=== checked ===
+=== dir ===
 type Flags = Record<"a" | "b", boolean>;
 /// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type={ a: boolean; b: boolean }
 /// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value={ a: boolean; b: boolean }
@@ -233,14 +233,14 @@ type Bad = Record<{ name: string }, boolean>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 type Bad = Record<{ name: string }, boolean>;
 
-=== checked ===
+=== dir ===
 type Bad = Record<{ name: string }, boolean>;
 /// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type={ [P in { name: string }]: boolean }
 /// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value={ [P in { name: string }]: boolean }
@@ -268,7 +268,7 @@ const value = read(point);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -280,7 +280,7 @@ declare function read(bag: Bag): int32 | undefined;
 const point: { x: int32 } = { x: 1 };
 const value: int32 | undefined = read(point);
 
-=== checked ===
+=== dir ===
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
@@ -321,7 +321,7 @@ const value = read({ x: 1, y: 2 });
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -332,7 +332,7 @@ declare function read(bag: Bag): int32 | undefined;
 
 const value: int32 | undefined = read({ x: 1, y: 2 });
 
-=== checked ===
+=== dir ===
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
@@ -364,7 +364,7 @@ bag["missing"] satisfies int32 | undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -375,7 +375,7 @@ declare const bag: Bag;
 
 bag["missing"] satisfies int32 | undefined;
 
-=== checked ===
+=== dir ===
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
@@ -411,7 +411,7 @@ value satisfies int32 | undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -424,7 +424,7 @@ const value: int32 | undefined = bag["missing"];
 
 value satisfies int32 | undefined;
 
-=== checked ===
+=== dir ===
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
@@ -456,8 +456,6 @@ value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-
-/// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
 "#,
     );
 }
@@ -473,7 +471,7 @@ empty satisfies Empty;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -483,7 +481,7 @@ type Empty = Record<never, boolean>;
 const empty: {} = {};
 empty satisfies Empty;
 
-=== checked ===
+=== dir ===
 type Empty = Record<never, boolean>;
 /// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type={}
 /// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value={}
@@ -513,7 +511,7 @@ const empty: Empty = { value: true };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -522,7 +520,7 @@ type Empty = Record<never, boolean>;
 
 const empty: {} = { value: true };
 
-=== checked ===
+=== dir ===
 type Empty = Record<never, boolean>;
 /// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type={}
 /// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value={}

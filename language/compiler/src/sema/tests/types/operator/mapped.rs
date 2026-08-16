@@ -11,7 +11,7 @@ declare const value: Actual;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Actual = Flags<{ name: string; age: int32 }>;
 
 declare const value: { name: boolean; age: boolean };
 
-=== checked ===
+=== dir ===
 type Flags<T> = { [K in keyof T]: boolean };
 /// @generic.template symbol=Flags parameters=(T)
 /// @type.symbol symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" type={ [K in keyof T]: boolean }
@@ -53,7 +53,7 @@ type Actual = Clone<{ readonly name: string; age?: int32 }>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -61,7 +61,7 @@ type Actual = Clone<{ readonly name: string; age?: int32 }>;
 type Clone<T> = { [K in keyof T]: T[K] };
 type Actual = Clone<{ readonly name: string; age?: int32 }>;
 
-=== checked ===
+=== dir ===
 type Clone<T> = { [K in keyof T]: T[K] };
 /// @generic.template symbol=Clone parameters=(T)
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
@@ -90,7 +90,7 @@ type Actual = Loose<{ name: string; age: int32 }>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -98,7 +98,7 @@ type Actual = Loose<{ name: string; age: int32 }>;
 type Loose<T> = { [K in keyof T]?: T[K] };
 type Actual = Loose<{ name: string; age: int32 }>;
 
-=== checked ===
+=== dir ===
 type Loose<T> = { [K in keyof T]?: T[K] };
 /// @generic.template symbol=Loose parameters=(T)
 /// @type.symbol symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
@@ -129,7 +129,7 @@ const missing: Value = undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -139,7 +139,7 @@ type Value = Optional<{ name: string }>["name"];
 
 const missing: string | undefined = undefined as string | undefined;
 
-=== checked ===
+=== dir ===
 type Optional<T> = { [K in keyof T]?: T[K] };
 /// @generic.template symbol=Optional parameters=(T)
 /// @type.symbol symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
@@ -175,7 +175,7 @@ const bad: Value = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -185,7 +185,7 @@ type Value = Optional<{ name: string }>["name"];
 
 const bad: string | undefined = 1;
 
-=== checked ===
+=== dir ===
 type Optional<T> = { [K in keyof T]?: T[K] };
 /// @generic.template symbol=Optional parameters=(T)
 /// @type.symbol symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
@@ -224,7 +224,7 @@ type Actual = Strict<{ readonly name?: string }>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -232,7 +232,7 @@ type Actual = Strict<{ readonly name?: string }>;
 type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
 type Actual = Strict<{ readonly name?: string }>;
 
-=== checked ===
+=== dir ===
 type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
 /// @generic.template symbol=Strict parameters=(T)
 /// @type.symbol symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" type={ -readonly[K in keyof T]-?: T[K] }
@@ -260,14 +260,14 @@ type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 
-=== checked ===
+=== dir ===
 type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 /// @type.symbol symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" type={ [K in "name" | "age" as Uppercase<K>]: boolean }
 /// @definition.type symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" value={ [K in "name" | "age" as Uppercase<K>]: boolean }
@@ -275,8 +275,6 @@ type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 /// @type.symbol symbol=Caps.K source=[K in "name" | "age" as Uppercase<K>] type=K
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 /// @resolution.name source=K target=Caps.K
-
-/// @generic.instance id=Uppercase<K> template=types.string.Uppercase arguments=(K)
 "#,
     );
 }
@@ -294,7 +292,7 @@ actual.value satisfies string | int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -306,7 +304,7 @@ declare const actual: { value: string; value: int32 };
 
 actual.value satisfies string | int32;
 
-=== checked ===
+=== dir ===
 type Collide<T> = { [K in keyof T as "value"]: T[K] };
 /// @generic.template symbol=Collide parameters=(T)
 /// @type.symbol symbol=Collide source="type Collide<T> = { [K in keyof T as \"value\"]: T[K] }" type={ [K in keyof T as "value"]: T[K] }
@@ -348,7 +346,7 @@ type Actual = WithoutSecret<{ name: string; secret: string }>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -356,7 +354,7 @@ type Actual = WithoutSecret<{ name: string; secret: string }>;
 type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K] };
 type Actual = WithoutSecret<{ name: string; secret: string }>;
 
-=== checked ===
+=== dir ===
 type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K] };
 /// @generic.template symbol=WithoutSecret parameters=(T)
 /// @type.symbol symbol=WithoutSecret type={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
@@ -387,7 +385,7 @@ type Actual = Locked<{ name: string; age: int32 }>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -395,7 +393,7 @@ type Actual = Locked<{ name: string; age: int32 }>;
 type Locked<T> = { +readonly [K in keyof T]+?: T[K] };
 type Actual = Locked<{ name: string; age: int32 }>;
 
-=== checked ===
+=== dir ===
 type Locked<T> = { +readonly [K in keyof T]+?: T[K] };
 /// @generic.template symbol=Locked parameters=(T)
 /// @type.symbol symbol=Locked source="type Locked<T> = { +readonly [K in keyof T]+?: T[K] }" type={ +readonly[K in keyof T]+?: T[K] }
@@ -430,7 +428,7 @@ function build(): float64 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -447,7 +445,7 @@ function build(): float64 {
     return point.x;
 }
 
-=== checked ===
+=== dir ===
 function first<T>(value: { [K in keyof T]: T[K] }, fallback: T): T {
 /// @generic.template symbol=first parameters=(T)
 /// @type.symbol symbol=first type=<T>({ [K in keyof T]: T[K] }, T) => T
@@ -477,7 +475,8 @@ function build(): float64 {
     /// @resolution.pattern source=point kind=binding target=build.point
     /// @resolution.name source=first target=first
     /// @resolution.call source="first({ x: 1, y: 2 }, { x: 3, y: 4 })" parameters=({ [K in keyof { x: float64; y: float64 }]: { x: float64; y: float64 }[K] }, { x: float64; y: float64 }) arguments=(provided({ x: 1, y: 2 }) as { [K in keyof { x: float64; y: float64 }]: { x: float64; y: float64 }[K] }, provided({ x: 3, y: 4 }) as { x: float64; y: float64 }) return={ x: float64; y: float64 } kind=symbol target=first instance="first<{ x: float64; y: float64 }>"
-    /// @generic.instance source="first({ x: 1, y: 2 }, { x: 3, y: 4 })" id="first<{ x: float64; y: float64 }>"
+    /// @generic.instantiation id="first<{ x: float64; y: float64 }>" template=first arguments=({ x: float64; y: float64 })
+    /// @generic.instance id="first<{ x: float64; y: float64 }>" template=first arguments=({ x: float64; y: float64 }) evaluated=(T => { x: float64; y: float64 })
 
     return point.x;
     /// @resolution.name source=point target=build.point
@@ -488,8 +487,6 @@ function build(): float64 {
     /// @resolution.access source=point.x root=build.point keys=[x]
 
 }
-
-/// @generic.instance id="first<{ x: float64; y: float64 }>" template=first arguments=({ x: float64; y: float64 })
 "#,
     );
 }

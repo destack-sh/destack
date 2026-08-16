@@ -8,7 +8,7 @@ const value: _ = 1;
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
@@ -28,7 +28,7 @@ class Box {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
@@ -48,5 +48,5 @@ function build(): void {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", "");
+    session.assert_dir_diagnostics("main.ds", "");
 }

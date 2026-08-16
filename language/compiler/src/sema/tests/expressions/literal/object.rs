@@ -8,14 +8,14 @@ const value = { a: 1, b: "two" };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: { a: float64; b: string } = { a: 1, b: "two" };
 
-=== checked ===
+=== dir ===
 const value = { a: 1, b: "two" };
 /// @type.symbol symbol=value source=value type={ a: float64; b: string }
 /// @resolution.pattern source=value kind=binding target=value
@@ -36,7 +36,7 @@ const person = { name, age };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -45,7 +45,7 @@ const name: "Ada" = "Ada";
 const age: 42 = 42;
 const person: { name: string; age: float64 } = { name, age };
 
-=== checked ===
+=== dir ===
 const name = "Ada";
 /// @type.symbol symbol=name source=name type="Ada"
 /// @resolution.pattern source=name kind=binding target=name
@@ -80,14 +80,14 @@ const value = {};
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: {} = {};
 
-=== checked ===
+=== dir ===
 const value = {};
 /// @type.symbol symbol=value source=value type={}
 /// @resolution.pattern source=value kind=binding target=value
@@ -104,14 +104,14 @@ const value = { a: 1, b: "two" } as const;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: { readonly a: 1; readonly b: "two" } = { a: 1, b: "two" } as const;
 
-=== checked ===
+=== dir ===
 const value = { a: 1, b: "two" } as const;
 /// @type.symbol symbol=value source=value type={ readonly a: 1; readonly b: "two" }
 /// @resolution.pattern source=value kind=binding target=value
@@ -131,14 +131,14 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: { a: float64; b: string } = { a: 1, b: 2 };
 
-=== checked ===
+=== dir ===
 const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.symbol symbol=value source=value type={ a: float64; b: string }
 /// @resolution.pattern source=value kind=binding target=value
@@ -163,14 +163,14 @@ const state: { reactions: int32[] } = { reactions: [] };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const state: { reactions: int32[] } = { reactions: [] };
 
-=== checked ===
+=== dir ===
 const state: { reactions: int32[] } = { reactions: [] };
 /// @type.symbol symbol=state source=state type={ reactions: Array<int32> }
 /// @resolution.pattern source=state kind=binding target=state
@@ -190,7 +190,7 @@ const counts: Counts = { apples: 1, oranges: 2 };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -202,7 +202,7 @@ type Counts = { [key: string]: int32 };
 
 const counts: Counts = { apples: 1, oranges: 2 };
 
-=== checked ===
+=== dir ===
 type Counts = { [key: string]: int32 };
 /// @type.symbol symbol=Counts source="type Counts = { [key: string]: int32 }" type={ [key: string]: int32 }
 /// @definition.type symbol=Counts source="type Counts = { [key: string]: int32 }" value={ [key: string]: int32 }
@@ -233,7 +233,7 @@ const mode = config.mode;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -244,7 +244,7 @@ type Shape = { mode: Mode };
 let config: { mode: "dev" } = { mode: "dev" } satisfies Shape;
 const mode: "dev" = config.mode;
 
-=== checked ===
+=== dir ===
 type Mode = "dev" | "prod";
 /// @type.symbol symbol=Mode source="type Mode = \"dev\" | \"prod\"" type="dev" | "prod"
 /// @definition.type symbol=Mode source="type Mode = \"dev\" | \"prod\"" value="dev" | "prod"
@@ -285,7 +285,7 @@ const value = { ...base, c: true };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -293,7 +293,7 @@ const value = { ...base, c: true };
 const base: { a: float64; b: string } = { a: 1, b: "two" };
 const value: { a: float64; b: string; c: boolean } = { ...base, c: true };
 
-=== checked ===
+=== dir ===
 const base = { a: 1, b: "two" };
 /// @type.symbol symbol=base source=base type={ a: float64; b: string }
 /// @resolution.pattern source=base kind=binding target=base
@@ -322,7 +322,7 @@ const value = { ...base, b: "two" };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -330,7 +330,7 @@ const value = { ...base, b: "two" };
 const base: { a: float64; b: float64 } = { a: 1, b: 2 };
 const value: { a: float64; b: string } = { ...base, b: "two" };
 
-=== checked ===
+=== dir ===
 const base = { a: 1, b: 2 };
 /// @type.symbol symbol=base source=base type={ a: float64; b: float64 }
 /// @resolution.pattern source=base kind=binding target=base
@@ -364,7 +364,7 @@ const moved = Point { ...point, x: 3 };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -377,7 +377,7 @@ struct Point {
 const point: Point = Point { x: 1, y: 2 };
 const moved: Point = Point { ...point, x: 3 };
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -428,7 +428,7 @@ const object = { ...point, label: "origin" };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -441,7 +441,7 @@ struct Point {
 const point: Point = Point { x: 1, y: 2 };
 const object: { x: int32; y: int32; label: string } = { ...point, label: "origin" };
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -490,7 +490,7 @@ const point: Point = _ { ...base };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -503,7 +503,7 @@ struct Point {
 const base: { x: int32; y: int32 } = { x: 1, y: 2 };
 const point: Point = Point { ...base };
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -555,7 +555,7 @@ const object = { ...user };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -571,7 +571,7 @@ class User {
 const user: User = new User("Ada");
 const object: { name: string } = { ...user };
 
-=== checked ===
+=== dir ===
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -631,14 +631,14 @@ const value = { name: "Ada", name: "Grace" };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 const value: { name: string } = { name: "Ada", name: "Grace" };
 
-=== checked ===
+=== dir ===
 const value = { name: "Ada", name: "Grace" };
 /// @type.symbol symbol=value source=value type={ name: string }
 /// @resolution.pattern source=value kind=binding target=value
@@ -661,7 +661,7 @@ const store = {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
@@ -672,7 +672,7 @@ const store: { readonly value: string } = {
     },
 };
 
-=== checked ===
+=== dir ===
 const store = {
 /// @type.symbol symbol=store source=store type={ readonly value: string }
 /// @resolution.pattern source=store kind=binding target=store
@@ -700,7 +700,7 @@ const store = {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
@@ -709,7 +709,7 @@ const store: { value: string } = {
     set value(next: string): void {},
 };
 
-=== checked ===
+=== dir ===
 const store = {
 /// @type.symbol symbol=store source=store type={ set value(value: string) }
 /// @resolution.pattern source=store kind=binding target=store
@@ -738,7 +738,7 @@ const store = {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
@@ -750,7 +750,7 @@ const store: { value: string | int32 } = {
     set value(next: string | int32): void {},
 };
 
-=== checked ===
+=== dir ===
 const store = {
 /// @type.symbol symbol=store source=store type={ get value(): string; set value(value: string | int32) }
 /// @resolution.pattern source=store kind=binding target=store
@@ -787,7 +787,7 @@ const store: Store = {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
@@ -803,7 +803,7 @@ const store: Dynamic<Store> = {
     set value(next: string | int32): void {},
 } as Dynamic<Store>;
 
-=== checked ===
+=== dir ===
 interface Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.interface symbol=Store
@@ -853,7 +853,7 @@ const store: Store = {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ readonly value: int32 }' is not assignable to type 'Dynamic<Store>'"
@@ -877,7 +877,7 @@ const store: Store = {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ set value(value: int32) }' is not assignable to type 'Dynamic<Store>'"
@@ -908,7 +908,7 @@ const writable: Writable = {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ set value(value: string) }' is not assignable to type 'Dynamic<Readable>'"
@@ -933,7 +933,7 @@ const store = {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -947,7 +947,7 @@ const store: { readonly value: string } = {
     },
 };
 
-=== checked ===
+=== dir ===
 const store = {
 /// @type.symbol symbol=store source=store type={ readonly value: string }
 /// @resolution.pattern source=store kind=binding target=store
@@ -979,7 +979,7 @@ const store = {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -989,7 +989,7 @@ const store: { value: string } = {
     set value(next: string): void {},
 };
 
-=== checked ===
+=== dir ===
 const store = {
 /// @type.symbol symbol=store source=store type={ set value(value: string) }
 /// @resolution.pattern source=store kind=binding target=store
@@ -1023,7 +1023,7 @@ const store = {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1035,7 +1035,7 @@ const store: { readonly value: string } = {
     },
 };
 
-=== checked ===
+=== dir ===
 const store = {
 /// @type.symbol symbol=store source=store type={ readonly value: string }
 /// @resolution.pattern source=store kind=binding target=store

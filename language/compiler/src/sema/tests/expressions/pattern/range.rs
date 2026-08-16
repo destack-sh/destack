@@ -16,7 +16,7 @@ function isByte(value: int32): boolean {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -31,7 +31,7 @@ function isByte(value: int32): boolean {
     };
 }
 
-=== checked ===
+=== dir ===
 function isByte(value: int32): boolean {
 /// @type.symbol symbol=isByte type=(int32) => boolean
 /// @type.symbol symbol=isByte.value source="value: int32" type=int32
@@ -84,7 +84,7 @@ const label = match (value) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -98,7 +98,7 @@ const label: "low" | "two" = match (value) {
     2 => "two"
 };
 
-=== checked ===
+=== dir ===
 type Tiny = 0..=2;
 /// @type.symbol symbol=Tiny source="type Tiny = 0..=2" type=0..=2
 /// @definition.type symbol=Tiny source="type Tiny = 0..=2" value=0..=2
@@ -148,7 +148,7 @@ const isEarly = match (value) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -162,7 +162,7 @@ const isEarly: true | false = match (value) {
     'n'..='z' => false
 };
 
-=== checked ===
+=== dir ===
 type LowerAscii = 'a'..='z';
 /// @type.symbol symbol=LowerAscii source="type LowerAscii = 'a'..='z'" type='a'..='z'
 /// @definition.type symbol=LowerAscii source="type LowerAscii = 'a'..='z'" value='a'..='z'
@@ -213,7 +213,7 @@ const label = match (value) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -227,7 +227,7 @@ const label: "low" | "high" = match (value) {
     3 => "high"
 };
 
-=== checked ===
+=== dir ===
 type Tiny = 0..=3;
 /// @type.symbol symbol=Tiny source="type Tiny = 0..=3" type=0..=3
 /// @definition.type symbol=Tiny source="type Tiny = 0..=3" value=0..=3

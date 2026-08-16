@@ -12,7 +12,7 @@ letter satisfies "a" | "c";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -23,7 +23,7 @@ declare const letter: "a" | "c";
 
 letter satisfies "a" | "c";
 
-=== checked ===
+=== dir ===
 type Letter = Exclude<"a" | "b" | "c", "b">;
 /// @type.symbol symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" type="a" | "c"
 /// @definition.type symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" value="a" | "c"
@@ -52,7 +52,7 @@ const bad: Letter = "b";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -61,7 +61,7 @@ type Letter = Exclude<"a" | "b" | "c", "b">;
 
 const bad: "a" | "c" = "b";
 
-=== checked ===
+=== dir ===
 type Letter = Exclude<"a" | "b" | "c", "b">;
 /// @type.symbol symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" type="a" | "c"
 /// @definition.type symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" value="a" | "c"
@@ -90,7 +90,7 @@ let bad: Letter = "b";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -99,7 +99,7 @@ type Letter = Exclude<never, "b">;
 
 let bad: never = "b";
 
-=== checked ===
+=== dir ===
 type Letter = Exclude<never, "b">;
 /// @type.symbol symbol=Letter source="type Letter = Exclude<never, \"b\">" type=never
 /// @definition.type symbol=Letter source="type Letter = Exclude<never, \"b\">" value=never

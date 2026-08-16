@@ -15,7 +15,7 @@ sharedCount satisfies shared SharedCount;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -29,7 +29,7 @@ declare const sharedCount: SharedCount;
 localCount satisfies local LocalCount;
 sharedCount satisfies shared SharedCount;
 
-=== checked ===
+=== dir ===
 local newtype LocalCount = int32;
 /// @type.symbol symbol=LocalCount source="local newtype LocalCount = int32" type=LocalCount
 /// @definition.newtype symbol=LocalCount source="local newtype LocalCount = int32" backing=int32 constructors=[(int32) => LocalCount]
@@ -81,7 +81,7 @@ sharedBox satisfies shared SharedBox<int32>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -95,7 +95,7 @@ declare const sharedBox: SharedBox<int32>;
 localBox satisfies local LocalBox<int32>;
 sharedBox satisfies shared SharedBox<int32>;
 
-=== checked ===
+=== dir ===
 local newtype LocalBox<T> = { value: T };
 /// @generic.template symbol=LocalBox parameters=(in out T#1)
 /// @type.symbol symbol=LocalBox source="local newtype LocalBox<T> = { value: T }" type=LocalBox
@@ -131,9 +131,6 @@ sharedBox satisfies shared SharedBox<int32>;
 /// @resolution.place source=sharedBox placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedBox root=sharedBox
 /// @resolution.name source=SharedBox target=SharedBox
-
-/// @generic.instance id=LocalBox<int32> template=LocalBox arguments=(int32)
-/// @generic.instance id=SharedBox<int32> template=SharedBox arguments=(int32)
 "#,
         r#"
 "#,
@@ -173,7 +170,7 @@ sharedReadable satisfies shared SharedReadable;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -217,7 +214,7 @@ sharedStatus satisfies shared SharedStatus;
 localReadable satisfies local LocalReadable;
 sharedReadable satisfies shared SharedReadable;
 
-=== checked ===
+=== dir ===
 local class LocalUser {}
 /// @type.symbol symbol=LocalUser source="local class LocalUser {}" type=LocalUser
 /// @definition.class symbol=LocalUser source="local class LocalUser {}"
@@ -367,7 +364,7 @@ declare const sharedUser: shared SharedUser;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -378,7 +375,7 @@ shared class SharedUser {}
 declare const localUser: local LocalUser;
 declare const sharedUser: shared SharedUser;
 
-=== checked ===
+=== dir ===
 local class LocalUser {}
 /// @type.symbol symbol=LocalUser source="local class LocalUser {}" type=LocalUser
 /// @definition.class symbol=LocalUser source="local class LocalUser {}"
@@ -415,7 +412,7 @@ declare const wrongShared: local SharedUser;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -426,7 +423,7 @@ shared class SharedUser {}
 declare const wrongLocal: shared LocalUser;
 declare const wrongShared: local SharedUser;
 
-=== checked ===
+=== dir ===
 local class LocalUser {}
 /// @type.symbol symbol=LocalUser source="local class LocalUser {}" type=LocalUser
 /// @definition.class symbol=LocalUser source="local class LocalUser {}"
@@ -472,7 +469,7 @@ declare const sharedPoint: shared Point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -487,7 +484,7 @@ declare const sharedUser: shared User;
 declare const localPoint: local Point;
 declare const sharedPoint: shared Point;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -541,7 +538,7 @@ sharedDerived satisfies shared SharedDerived;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -558,7 +555,7 @@ declare const sharedDerived: SharedDerived;
 localDerived satisfies local LocalDerived;
 sharedDerived satisfies shared SharedDerived;
 
-=== checked ===
+=== dir ===
 local class LocalBase {}
 /// @type.symbol symbol=LocalBase source="local class LocalBase {}" type=LocalBase
 /// @definition.class symbol=LocalBase source="local class LocalBase {}"
@@ -625,7 +622,7 @@ sharedService satisfies shared SharedServiceImpl;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -642,7 +639,7 @@ declare const sharedService: SharedServiceImpl;
 localService satisfies local LocalServiceImpl;
 sharedService satisfies shared SharedServiceImpl;
 
-=== checked ===
+=== dir ===
 local newtype interface LocalService {}
 /// @type.symbol symbol=LocalService source="local newtype interface LocalService {}" type=LocalService
 /// @definition.interface symbol=LocalService source="local newtype interface LocalService {}" nominal=true
@@ -704,7 +701,7 @@ class Invalid extends LocalBase implements SharedService {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -714,7 +711,7 @@ shared newtype interface SharedService {}
 
 class Invalid extends LocalBase implements SharedService {}
 
-=== checked ===
+=== dir ===
 local class LocalBase {}
 /// @type.symbol symbol=LocalBase source="local class LocalBase {}" type=LocalBase
 /// @definition.class symbol=LocalBase source="local class LocalBase {}"
@@ -754,7 +751,7 @@ declare const sharedReadable: shared Readable;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -766,7 +763,7 @@ interface Readable {
 declare const localReadable: local Dynamic<Readable>;
 declare const sharedReadable: shared Dynamic<Readable>;
 
-=== checked ===
+=== dir ===
 interface Readable { read(): int32; }
 /// @type.symbol symbol=Readable source="interface Readable { read(): int32; }" type=Readable
 /// @definition.interface symbol=Readable source="interface Readable { read(): int32; }"
@@ -805,7 +802,7 @@ shared newtype interface SharedQueue<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -820,7 +817,7 @@ shared newtype interface SharedQueue<in T> {
     push(this, value: T): void;
 }
 
-=== checked ===
+=== dir ===
 local struct Continuation<T> {
 /// @generic.template symbol=Continuation parameters=(out T#1)
 /// @type.symbol symbol=Continuation type=Continuation
@@ -878,7 +875,7 @@ type Request<T> = Next<T> | Return<T>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -894,7 +891,7 @@ declare function consume<T>(request: Request<T>): void;
 
 type Request<T> = Next<T> | Return<T>;
 
-=== checked ===
+=== dir ===
 local struct Next<T> { value: T; }
 /// @generic.template symbol=Next parameters=(out T#1)
 /// @type.symbol symbol=Next source="local struct Next<T> { value: T; }" type=Next
@@ -930,10 +927,6 @@ type Request<T> = Next<T> | Return<T>;
 /// @resolution.name source=T target=Request.T
 /// @resolution.name source=Return target=Return
 /// @resolution.name source=T target=Request.T
-
-/// @generic.instance id=Next<T#4> template=Next arguments=(T#4)
-/// @generic.instance id=Request<T#3> template=Request arguments=(T#3)
-/// @generic.instance id=Return<T#4> template=Return arguments=(T#4)
 "#,
         r#"
 "#,

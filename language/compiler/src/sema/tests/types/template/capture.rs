@@ -11,7 +11,7 @@ segment satisfies "row";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 const segment: "row" = parse<"row">("row-row");
 segment satisfies "row";
 
-=== checked ===
+=== dir ===
 declare function parse<T: string>(value: `${T}-${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `${T}-${T}`): T" type=<T: string>(`${T}-${T}`) => T
@@ -36,14 +36,13 @@ const segment = parse("row-row");
 /// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"row-row\")" parameters=(`${"row"}-${"row"}`) arguments=(provided("row-row") as `${"row"}-${"row"}`) return="row" kind=symbol target=parse instance="parse<\"row\">"
-/// @generic.instance source="parse(\"row-row\")" id="parse<\"row\">"
+/// @generic.instantiation id="parse<\"row\">" template=parse arguments=("row")
+/// @generic.instance id="parse<\"row\">" template=parse arguments=("row")
 
 segment satisfies "row";
 /// @resolution.name source=segment target=segment
 /// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=segment root=segment
-
-/// @generic.instance id="parse<\"row\">" template=parse arguments=("row")
 "#,
     );
 }
@@ -58,7 +57,7 @@ parse("row-col");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -67,7 +66,7 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 
 parse("row-col");
 
-=== checked ===
+=== dir ===
 declare function parse<T: string>(value: `${T}-${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `${T}-${T}`): T" type=<T: string>(`${T}-${T}`) => T
@@ -80,9 +79,7 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 parse("row-col");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"row-col\")" parameters=(`${<error>}-${<error>}`) arguments=(provided("row-col") as `${<error>}-${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
-/// @generic.instance source="parse(\"row-col\")" id=parse<<error>>
-
-/// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
+/// @generic.instantiation id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"row-col\"' is not assignable to parameter of type '`${_}-${_}`'"
@@ -103,7 +100,7 @@ segment satisfies "users";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -116,7 +113,7 @@ const segment: "users" = withParsed<"users", "users">(
 );
 segment satisfies "users";
 
-=== checked ===
+=== dir ===
 declare function withParsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
 /// @generic.template symbol=withParsed parameters=(T: string, U)
 /// @type.symbol symbol=withParsed type=<T: string, U>(`id:${T}`, Function<(T,), U>) => U
@@ -135,7 +132,8 @@ const segment = withParsed("id:users", (segment) => segment);
 /// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=withParsed target=withParsed
 /// @resolution.call source="withParsed(\"id:users\", (segment) => segment)" parameters=(`id:${"users"}`, Function<("users",), "users">) arguments=(provided("id:users") as `id:${"users"}`, provided((segment) => segment) as Function<("users",), "users">) return="users" kind=symbol target=withParsed instance="withParsed<\"users\", \"users\">"
-/// @generic.instance source="withParsed(\"id:users\", (segment) => segment)" id="withParsed<\"users\", \"users\">"
+/// @generic.instantiation id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
+/// @generic.instance id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
 /// @type.symbol symbol=symbol7 source="(segment) => segment" type=Function<("users",), "users">
 /// @type.symbol symbol=symbol7.segment source=segment type="users"
 /// @resolution.name source=segment target=symbol7.segment
@@ -146,8 +144,6 @@ segment satisfies "users";
 /// @resolution.name source=segment target=segment
 /// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=segment root=segment
-
-/// @generic.instance id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
 "#,
     );
 }
@@ -165,7 +161,7 @@ segment satisfies "users" | "posts";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -177,7 +173,7 @@ const segment: "users" | "posts" = parse<"users" | "posts">(input);
 
 segment satisfies "users" | "posts";
 
-=== checked ===
+=== dir ===
 declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
@@ -195,7 +191,7 @@ const segment = parse(input);
 /// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=parse target=parse
 /// @resolution.call source=parse(input) parameters=(`id:${"users" | "posts"}`) arguments=(provided(input) as `id:${"users" | "posts"}`) return="users" | "posts" kind=symbol target=parse instance="parse<\"users\" | \"posts\">"
-/// @generic.instance source=parse(input) id="parse<\"users\" | \"posts\">"
+/// @generic.instantiation id="parse<\"users\" | \"posts\">" template=parse arguments=("users" | "posts")
 /// @resolution.name source=input target=input
 /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=input root=input
@@ -204,8 +200,6 @@ segment satisfies "users" | "posts";
 /// @resolution.name source=segment target=segment
 /// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=segment root=segment
-
-/// @generic.instance id="parse<\"users\" | \"posts\">" template=parse arguments=("users" | "posts")
 "#,
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"

@@ -12,7 +12,7 @@ const loose: Loose = tight;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -23,7 +23,7 @@ type Tight = `user-${string}-id`;
 declare const tight: Tight;
 const loose: Loose = tight;
 
-=== checked ===
+=== dir ===
 type Loose = `${string}-id`;
 /// @type.symbol symbol=Loose source="type Loose = `${string}-id`" type=`${string}-id`
 /// @definition.type symbol=Loose source="type Loose = `${string}-id`" value=`${string}-id`
@@ -60,7 +60,7 @@ const tight: Tight = loose;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -71,7 +71,7 @@ type Tight = `user-${string}-id`;
 declare const loose: Loose;
 const tight: Tight = loose;
 
-=== checked ===
+=== dir ===
 type Loose = `${string}-id`;
 /// @type.symbol symbol=Loose source="type Loose = `${string}-id`" type=`${string}-id`
 /// @definition.type symbol=Loose source="type Loose = `${string}-id`" value=`${string}-id`
@@ -113,7 +113,7 @@ const id: StringId = numeric;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -124,7 +124,7 @@ type StringId = `id-${string}`;
 declare const numeric: NumericId;
 const id: StringId = numeric;
 
-=== checked ===
+=== dir ===
 type NumericId = `id-${number}`;
 /// @type.symbol symbol=NumericId source="type NumericId = `id-${number}`" type=`id-${float64}`
 /// @definition.type symbol=NumericId source="type NumericId = `id-${number}`" value=`id-${float64}`
@@ -161,7 +161,7 @@ const numeric: NumericId = id;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -172,7 +172,7 @@ type StringId = `id-${string}`;
 declare const id: StringId;
 const numeric: NumericId = id;
 
-=== checked ===
+=== dir ===
 type NumericId = `id-${number}`;
 /// @type.symbol symbol=NumericId source="type NumericId = `id-${number}`" type=`id-${float64}`
 /// @definition.type symbol=NumericId source="type NumericId = `id-${number}`" value=`id-${float64}`

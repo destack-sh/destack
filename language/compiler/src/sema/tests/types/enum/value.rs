@@ -13,7 +13,7 @@ enum Status {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -24,7 +24,7 @@ enum Status {
     Waiting,
 }
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
@@ -64,7 +64,7 @@ enum Status {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -74,7 +74,7 @@ enum Status {
     Waiting,
 }
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
@@ -107,7 +107,7 @@ enum Status {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -117,7 +117,7 @@ enum Status {
     Failed = "failed",
 }
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
@@ -152,7 +152,7 @@ enum Status {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -162,7 +162,7 @@ enum Status {
     Failed,
 }
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status backing=string
@@ -196,7 +196,7 @@ enum Status {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -206,7 +206,7 @@ enum Status {
     Failed,
 }
 
-=== checked ===
+=== dir ===
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status

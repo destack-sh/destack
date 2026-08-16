@@ -13,7 +13,7 @@ channel satisfies `topic:${"orders"}`;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -25,7 +25,7 @@ class Topic<in out T: string> {
 declare const channel: "topic:orders";
 channel satisfies `topic:${"orders"}`;
 
-=== checked ===
+=== dir ===
 class Topic<T: string> {
 /// @generic.template symbol=Topic parameters=(in out T: string)
 /// @type.symbol symbol=Topic type=Topic
@@ -72,7 +72,7 @@ handlers["on-message"] satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -90,7 +90,7 @@ declare const handlers: { on-ready: boolean; on-message: string };
 handlers["on-ready"] satisfies boolean;
 handlers["on-message"] satisfies string;
 
-=== checked ===
+=== dir ===
 interface EventShape<T> {
 /// @generic.template symbol=EventShape parameters=(in out T#1)
 /// @type.symbol symbol=EventShape type=EventShape
@@ -162,7 +162,7 @@ kind satisfies "login";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -174,7 +174,7 @@ class EventName<in out T: string> {
 declare const kind: "login";
 kind satisfies "login";
 
-=== checked ===
+=== dir ===
 class EventName<T: string> {
 /// @generic.template symbol=EventName parameters=(in out T: string)
 /// @type.symbol symbol=EventName type=EventName

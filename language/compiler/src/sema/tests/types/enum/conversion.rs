@@ -15,7 +15,7 @@ const mode: Mode = 1;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -29,7 +29,7 @@ enum Mode {
 const raw: uint8 = Mode.Read;
 const mode: Mode = 1;
 
-=== checked ===
+=== dir ===
 @repr("uint8")
 /// @resolution.name source=repr target=decorator.representation.repr
 

@@ -8,14 +8,14 @@ const value = 1 as int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 const value: int32 = 1 as int32;
 
-=== checked ===
+=== dir ===
 const value = 1 as int32;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value

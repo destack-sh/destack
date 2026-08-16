@@ -10,7 +10,7 @@ class Tag<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -19,7 +19,7 @@ class Tag<T> {
     name: string;
 }
 
-=== checked ===
+=== dir ===
 class Tag<T> {
 /// @generic.template symbol=Tag parameters=(T)
 /// @type.symbol symbol=Tag type=Tag
@@ -52,7 +52,7 @@ class Tag<in out T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -61,7 +61,7 @@ class Tag<in out T> {
     name: string;
 }
 
-=== checked ===
+=== dir ===
 class Tag<in out T> {
 /// @generic.template symbol=Tag parameters=(in out T)
 /// @type.symbol symbol=Tag type=Tag
@@ -92,7 +92,7 @@ struct Fixed<const N: int> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -101,7 +101,7 @@ struct Fixed<const N: int> {
     name: string;
 }
 
-=== checked ===
+=== dir ===
 struct Fixed<const N: int> {
 /// @generic.template symbol=Fixed parameters=(const N: int64)
 /// @type.symbol symbol=Fixed type=Fixed

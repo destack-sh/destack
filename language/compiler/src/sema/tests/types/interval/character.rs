@@ -11,7 +11,7 @@ const bad: LowerAscii = 'A';
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type LowerAscii = 'a'..='z';
 const letter: 'a'..='z' = 'm';
 const bad: 'a'..='z' = 'A';
 
-=== checked ===
+=== dir ===
 type LowerAscii = 'a'..='z';
 /// @type.symbol symbol=LowerAscii source="type LowerAscii = 'a'..='z'" type='a'..='z'
 /// @definition.type symbol=LowerAscii source="type LowerAscii = 'a'..='z'" value='a'..='z'

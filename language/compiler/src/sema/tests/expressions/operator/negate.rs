@@ -23,7 +23,7 @@ const flipped = -charge;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -45,7 +45,7 @@ extension of Charge implements Negate {
 declare const charge: Charge;
 const flipped: Charge = -charge;
 
-=== checked ===
+=== dir ===
 import { Negate } from "destack:ops";
 
 struct Charge {

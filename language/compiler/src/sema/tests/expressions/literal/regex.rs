@@ -8,14 +8,14 @@ const value: RegExp = /abc/;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: RegExp = /abc/;
 
-=== checked ===
+=== dir ===
 const value: RegExp = /abc/;
 /// @type.symbol symbol=value source=value type=RegExp
 /// @resolution.pattern source=value kind=binding target=value
@@ -33,14 +33,14 @@ const value: string = /abc/;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: string = /abc/;
 
-=== checked ===
+=== dir ===
 const value: string = /abc/;
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
@@ -62,14 +62,14 @@ const value: RegExp | int32 = /abc/;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: RegExp | int32 = /abc/ as RegExp | int32;
 
-=== checked ===
+=== dir ===
 const value: RegExp | int32 = /abc/;
 /// @type.symbol symbol=value source=value type=RegExp | int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -87,14 +87,14 @@ const value: boolean = /abc/;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: boolean = /abc/;
 
-=== checked ===
+=== dir ===
 const value: boolean = /abc/;
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value

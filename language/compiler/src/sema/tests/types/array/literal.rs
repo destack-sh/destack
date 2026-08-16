@@ -8,14 +8,14 @@ const pair: [int32; 2] = [1, 2];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const pair: [int32; 2] = [1, 2];
 
-=== checked ===
+=== dir ===
 const pair: [int32; 2] = [1, 2];
 /// @type.symbol symbol=pair source=pair type=FixedArray<int32, 2>
 /// @resolution.pattern source=pair kind=binding target=pair
@@ -34,14 +34,14 @@ const pair: [int32; 2] = [1, 2, 3];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const pair: [int32; 2] = [1, 2, 3];
 
-=== checked ===
+=== dir ===
 const pair: [int32; 2] = [1, 2, 3];
 /// @type.symbol symbol=pair source=pair type=FixedArray<int32, 2>
 /// @resolution.pattern source=pair kind=binding target=pair
@@ -69,7 +69,7 @@ function build(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -78,7 +78,7 @@ function build(): void {
     const bytes: [uint8; 4] = [1, 2, 3, 4];
 }
 
-=== checked ===
+=== dir ===
 function build(): void {
 /// @type.symbol symbol=build type=() => void
 
@@ -106,7 +106,7 @@ function build(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -115,7 +115,7 @@ function build(): void {
     const values: [float64; 4] = [1, 2, 3, 4];
 }
 
-=== checked ===
+=== dir ===
 function build(): void {
 /// @type.symbol symbol=build type=() => void
 
@@ -143,7 +143,7 @@ function build(): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -152,7 +152,7 @@ function build(): void {
     const values: [float64; 3] = [1, 2, 3];
 }
 
-=== checked ===
+=== dir ===
 function build(): void {
 /// @type.symbol symbol=build type=() => void
 
@@ -177,14 +177,14 @@ const values: [1 | 2 | 3; 3] = [1, 2, 3];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const values: [1 | 2 | 3; 3] = [1 as 1 | 2 | 3, 2 as 1 | 2 | 3, 3 as 1 | 2 | 3];
 
-=== checked ===
+=== dir ===
 const values: [1 | 2 | 3; 3] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=FixedArray<1 | 2 | 3, 3>
 /// @resolution.pattern source=values kind=binding target=values
@@ -204,14 +204,14 @@ const values = [1, 2, 3] as [_; _];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 const values: [float64; 3] = [1, 2, 3] as [float64; 3];
 
-=== checked ===
+=== dir ===
 const values = [1, 2, 3] as [_; _];
 /// @type.symbol symbol=values source=values type=FixedArray<float64, 3>
 /// @resolution.pattern source=values kind=binding target=values
@@ -232,26 +232,23 @@ const values = [1, 2, 3] as Slice<_>;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 const values: Slice<float64> = [1, 2, 3] as Slice<float64>;
 
-=== checked ===
+=== dir ===
 const values = [1, 2, 3] as Slice<_>;
 /// @type.symbol symbol=values source=values type=Slice<float64>
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
-/// @generic.instance source="[1, 2, 3] as Slice<_>" id=Slice<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 /// @resolution.name source=Slice target=collections.slice.Slice
-
-/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 "#,
     );
 }
@@ -264,14 +261,14 @@ const values = [1, 2, 3] as [_];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 const values: [float64] = [1, 2, 3] as [float64];
 
-=== checked ===
+=== dir ===
 const values = [1, 2, 3] as [_];
 /// @type.symbol symbol=values source=values type=Slice<float64>
 /// @resolution.pattern source=values kind=binding target=values
@@ -297,7 +294,7 @@ matrix satisfies [[int32; 2]; 2];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -309,7 +306,7 @@ const matrix: [[int32; 2]; 2] = [
 
 matrix satisfies [[int32; 2]; 2];
 
-=== checked ===
+=== dir ===
 const matrix: [[int32; 2]; 2] = [
 /// @type.symbol symbol=matrix source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
 /// @resolution.pattern source=matrix kind=binding target=matrix
@@ -345,14 +342,14 @@ const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
 
-=== checked ===
+=== dir ===
 const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
 /// @type.symbol symbol=matrix source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
 /// @resolution.pattern source=matrix kind=binding target=matrix
@@ -382,7 +379,7 @@ const values = make();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -391,7 +388,7 @@ declare function make(): Slice<float64>;
 
 const values: Slice<float64> = make();
 
-=== checked ===
+=== dir ===
 declare function make(): Slice<float64>;
 /// @type.symbol symbol=make source="declare function make(): Slice<float64>" type=() => Slice<float64>
 /// @resolution.name source=Slice target=collections.slice.Slice
@@ -403,10 +400,6 @@ const values = make();
 /// @type.node source=make() type=Slice<float64>
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=Slice<float64> kind=symbol target=make
-/// @generic.instance source=make id=Slice<float64>
-/// @generic.instance source=make() id=Slice<float64>
-
-/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 "#,
     );
 }
@@ -419,20 +412,18 @@ const items: Iterable<int32> = [1, 2];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 const items: Dynamic<Iterable<int32, void>> = [1, 2];
 
-=== checked ===
+=== dir ===
 const items: Iterable<int32> = [1, 2];
 /// @type.symbol symbol=items source=items type=Dynamic<Iterable<int32, void>>
 /// @resolution.pattern source=items kind=binding target=items
 /// @resolution.name source=Iterable target=iter.iterator.Iterable
-
-/// @generic.instance id="Iterable<int32, void>" template=iter.iterator.Iterable arguments=(int32, void)
 "#,
     );
 }

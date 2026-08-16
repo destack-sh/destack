@@ -23,7 +23,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -45,7 +45,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Ok<T> {
 /// @generic.template symbol=Ok parameters=(out T#1)
 /// @type.symbol symbol=Ok type=Ok
@@ -102,12 +102,11 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     /// @resolution.name source=outcome target=unwrapOr.outcome
     /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=outcome root=unwrapOr.outcome
-    /// @generic.instance source=outcome id="Outcome<T#3, E#3>"
 
         Ok { value } => value
         /// @resolution.name source=Ok target=Ok
         /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
-        /// @generic.instance source="Ok { value }" id=Ok<T#3>
+        /// @generic.instantiation id=Ok<T#3> template=Ok arguments=(T#3) owner=unwrapOr
         /// @type.symbol symbol=unwrapOr.value source=value type=T#3
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=unwrapOr.value
@@ -117,7 +116,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
         Err { error } => fallback
         /// @resolution.name source=Err target=Err
         /// @resolution.pattern source="Err { error }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error }
-        /// @generic.instance source="Err { error }" id=Err<E#3>
+        /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=unwrapOr
         /// @type.symbol symbol=unwrapOr.error source=error type=E#3
         /// @type.node source=fallback type=T#3
         /// @resolution.name source=fallback target=unwrapOr.fallback
@@ -126,10 +125,6 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
 
     }
 }
-
-/// @generic.instance id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3)
-/// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
-/// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
 "#,
     );
 }
@@ -156,7 +151,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -177,7 +172,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Ok<T> {
 /// @generic.template symbol=Ok parameters=(out T#1)
 /// @type.symbol symbol=Ok type=Ok
@@ -232,12 +227,11 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
     /// @resolution.name source=outcome target=unwrap.outcome
     /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=outcome root=unwrap.outcome
-    /// @generic.instance source=outcome id="Outcome<T#3, E#3>"
 
         Ok { value } => value
         /// @resolution.name source=Ok target=Ok
         /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
-        /// @generic.instance source="Ok { value }" id=Ok<T#3>
+        /// @generic.instantiation id=Ok<T#3> template=Ok arguments=(T#3) owner=unwrap
         /// @type.symbol symbol=unwrap.value source=value type=T#3
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=unwrap.value
@@ -246,9 +240,6 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
 
     }
 }
-
-/// @generic.instance id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3)
-/// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
 "#,
         r#"
 /// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: 'Err<E>' is not covered"

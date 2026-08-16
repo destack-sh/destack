@@ -10,7 +10,7 @@ const value: Person = { name: "Ada", extra: true };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -19,7 +19,7 @@ type Person = { name: string };
 
 const value: { name: string } = { name: "Ada", extra: true };
 
-=== checked ===
+=== dir ===
 type Person = { name: string };
 /// @type.symbol symbol=Person source="type Person = { name: string }" type={ name: string }
 /// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
@@ -53,7 +53,7 @@ const value: Person = source;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -63,7 +63,7 @@ type Person = { name: string };
 const source: { name: string; extra: boolean } = { name: "Ada", extra: true };
 const value: { name: string } = source;
 
-=== checked ===
+=== dir ===
 type Person = { name: string };
 /// @type.symbol symbol=Person source="type Person = { name: string }" type={ name: string }
 /// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
@@ -106,7 +106,7 @@ const extra = value.extra;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -121,7 +121,7 @@ const value: { name: string; extra: boolean } = keep<{ name: string; extra: bool
 });
 const extra: boolean = value.extra;
 
-=== checked ===
+=== dir ===
 function keep<T: { name: string }>(value: T): T {
 /// @generic.template symbol=keep parameters=(T: { name: string })
 /// @type.symbol symbol=keep type=<T: { name: string }>(T) => T
@@ -145,7 +145,8 @@ const value = keep({ name: "Ada", extra: true });
 /// @type.node source=keep type=({ name: string; extra: boolean }) => { name: string; extra: boolean }
 /// @resolution.name source=keep target=keep
 /// @resolution.call source="keep({ name: \"Ada\", extra: true })" parameters=({ name: string; extra: boolean }) arguments=(provided({ name: "Ada", extra: true }) as { name: string; extra: boolean }) return={ name: string; extra: boolean } kind=symbol target=keep instance="keep<{ name: string; extra: boolean }>"
-/// @generic.instance source="keep({ name: \"Ada\", extra: true })" id="keep<{ name: string; extra: boolean }>"
+/// @generic.instantiation id="keep<{ name: string; extra: boolean }>" template=keep arguments=({ name: string; extra: boolean })
+/// @generic.instance id="keep<{ name: string; extra: boolean }>" template=keep arguments=({ name: string; extra: boolean }) evaluated=(T => { name: string; extra: boolean })
 /// @type.node source={ name: "Ada", extra: true } type={ name: string; extra: boolean }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
@@ -160,8 +161,6 @@ const extra = value.extra;
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.access source=value.extra root=value keys=[extra]
-
-/// @generic.instance id="keep<{ name: string; extra: boolean }>" template=keep arguments=({ name: string; extra: boolean })
 "#,
     );
 }

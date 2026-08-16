@@ -12,7 +12,7 @@ if (value is string) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -23,7 +23,7 @@ if (value is string) {
     value satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare const value: unknown;
 /// @type.symbol symbol=value source=value type=Dynamic<unknown>
 /// @resolution.pattern source=value kind=binding target=value
@@ -59,7 +59,7 @@ if (value is { name: string }) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -69,7 +69,7 @@ declare const value: Dynamic<unknown>;
 if (value is { name: string }) {
 }
 
-=== checked ===
+=== dir ===
 declare const value: Dynamic<unknown>;
 /// @type.symbol symbol=value source=value type=Dynamic<unknown>
 /// @resolution.pattern source=value kind=binding target=value
@@ -106,7 +106,7 @@ if (value is string) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -119,7 +119,7 @@ if (value is string) {
     value satisfies int32;
 }
 
-=== checked ===
+=== dir ===
 declare const value: string | int32;
 /// @type.symbol symbol=value source=value type=string | int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -163,7 +163,7 @@ if (value is int32) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -173,7 +173,7 @@ declare const value: string;
 if (value is int32) {
 }
 
-=== checked ===
+=== dir ===
 declare const value: string;
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
@@ -211,7 +211,7 @@ if (value is &readonly Node) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -226,7 +226,7 @@ if (value is &readonly Node) {
     value.id satisfies int32;
 }
 
-=== checked ===
+=== dir ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
 /// @definition.struct symbol=Node
@@ -277,7 +277,7 @@ function check<T>(value: unknown): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -287,7 +287,7 @@ function check<T>(value: Dynamic<unknown>): void {
     }
 }
 
-=== checked ===
+=== dir ===
 function check<T>(value: unknown): void {
 /// @generic.template symbol=check parameters=(T)
 /// @type.symbol symbol=check type=<T>(Dynamic<unknown>) => void

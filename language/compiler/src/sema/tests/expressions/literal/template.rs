@@ -9,7 +9,7 @@ const greeting = `hello ${name}`;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -17,7 +17,7 @@ const greeting = `hello ${name}`;
 const name: "Ada" = "Ada";
 const greeting: string = `hello ${name}`;
 
-=== checked ===
+=== dir ===
 const name = "Ada";
 /// @type.symbol symbol=name source=name type="Ada"
 /// @resolution.pattern source=name kind=binding target=name
@@ -43,14 +43,14 @@ const greeting: string = `hello`;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const greeting: string = `hello`;
 
-=== checked ===
+=== dir ===
 const greeting: string = `hello`;
 /// @type.symbol symbol=greeting source=greeting type=string
 /// @resolution.pattern source=greeting kind=binding target=greeting
@@ -67,14 +67,14 @@ const value: number = `hello`;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: float64 = `hello`;
 
-=== checked ===
+=== dir ===
 const value: number = `hello`;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
@@ -112,7 +112,7 @@ function label(point: Point): string {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -135,7 +135,7 @@ function label(point: Point): string {
     return `point ${point}`;
 }
 
-=== checked ===
+=== dir ===
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 import { Display } from "destack:ops";
@@ -187,8 +187,6 @@ function label(point: Point): string {
     /// @resolution.access source=point root=label.point
 
 }
-
-/// @generic.instance id=memory.cow.cow.MaybeOwned<string> template=memory.cow.cow.MaybeOwned arguments=(string)
 "#,
     );
 }
@@ -207,7 +205,7 @@ function label(point: Point): string {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds", r#"
 "#,
     );

@@ -20,7 +20,7 @@ const value = point.sum();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -39,7 +39,7 @@ extension of Point {
 declare const point: Point;
 const value: int32 = point.sum();
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -125,7 +125,7 @@ point.length();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -144,7 +144,7 @@ extension of Point {
 declare const point: Point;
 point.length();
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -233,7 +233,7 @@ extension<T> of Slice<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -252,7 +252,7 @@ extension<T> of Slice<T> {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Slice<in out T> {
 /// @generic.template symbol=Slice parameters=(in out T#1)
 /// @type.symbol symbol=Slice type=Slice
@@ -303,13 +303,10 @@ extension<T> of Slice<T> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&first.'a readonly Slice<T#2>
         /// @resolution.place source=this placement="local" lifetime=first.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instance source=this.size id=Slice<T#2>.<extension#1>.size
+        /// @generic.instantiation id=size<T#2> template=size arguments=(T#2) owner=<module>#2
 
     }
 }
-
-/// @generic.instance id=Slice<T#2> template=Slice arguments=(T#2)
-/// @generic.instance id=Slice<T#2>.<extension#1>.size template=size arguments=(T#2)
 "#,
         r#"
 "#,
@@ -334,7 +331,7 @@ extension of Buffer {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -351,7 +348,7 @@ extension of Buffer {
     }
 }
 
-=== checked ===
+=== dir ===
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
@@ -413,7 +410,7 @@ const value = 1.double();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -428,7 +425,7 @@ extension Doubling<T: Scalar> of T {
 
 const value: 1 = (1).double<1>();
 
-=== checked ===
+=== dir ===
 interface Scalar {}
 /// @type.symbol symbol=Scalar source="interface Scalar {}" type=Scalar
 /// @definition.interface symbol=Scalar source="interface Scalar {}"
@@ -463,9 +460,8 @@ const value = 1.double();
 /// @type.node source=1.double() type=1
 /// @resolution.member source=1.double receiver=1 type=(this: 1) => 1 kind=symbol target_receiver=1 target=Doubling.double
 /// @resolution.call source=1.double() parameters=() return=1 kind=symbol target=Doubling.double receiver=1 instance=Doubling<1>.double
-/// @generic.instance source=1.double() id=Doubling<1>.double
-
-/// @generic.instance id=Doubling<1>.double template=Doubling.double arguments=(1)
+/// @generic.instantiation id=Doubling.double<1> template=Doubling.double arguments=(1)
+/// @generic.instantiation id=Doubling.double<1> template=Doubling.double arguments=(1)
 "#,
         "",
     );

@@ -9,7 +9,7 @@ value = 42;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -17,7 +17,7 @@ value = 42;
 let value: string | int32 = "hello" as string | int32;
 value = 42 as string | int32;
 
-=== checked ===
+=== dir ===
 let value: string | int32 = "hello";
 /// @type.symbol symbol=value source=value type=string | int32
 /// @resolution.pattern source=value kind=binding target=value
@@ -40,7 +40,7 @@ const value: string | int32 = text;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -48,7 +48,7 @@ const value: string | int32 = text;
 const text: string = "hello";
 const value: string | int32 = text as string | int32;
 
-=== checked ===
+=== dir ===
 const text: string = "hello";
 /// @type.symbol symbol=text source=text type=string
 /// @resolution.pattern source=text kind=binding target=text
@@ -75,7 +75,7 @@ value satisfies { a: int32 } | { b: string } | { c: boolean };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -88,7 +88,7 @@ const value: { a: int32 } | { b: string } | { c: boolean } = { c: true } as | { 
 | { c: boolean };
 value satisfies { a: int32 } | { b: string } | { c: boolean };
 
-=== checked ===
+=== dir ===
 type A = { a: int32 } | { b: string };
 /// @type.symbol symbol=A source="type A = { a: int32 } | { b: string }" type={ a: int32 } | { b: string }
 /// @definition.type symbol=A source="type A = { a: int32 } | { b: string }" value={ a: int32 } | { b: string }
@@ -122,7 +122,7 @@ value satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -132,7 +132,7 @@ type A = never | string;
 const value: string = "hello";
 value satisfies string;
 
-=== checked ===
+=== dir ===
 type A = never | string;
 /// @type.symbol symbol=A source="type A = never | string" type=string
 /// @definition.type symbol=A source="type A = never | string" value=string
@@ -161,7 +161,7 @@ value satisfies void;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -171,7 +171,7 @@ type Value = void | never;
 const value: void = ();
 value satisfies void;
 
-=== checked ===
+=== dir ===
 type Value = void | never;
 /// @type.symbol symbol=Value source="type Value = void | never" type=void
 /// @definition.type symbol=Value source="type Value = void | never" value=void
@@ -206,7 +206,7 @@ shape.draw();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -222,7 +222,7 @@ struct Circle {
 let shape: Rectangle | Circle = Rectangle {} as Rectangle | Circle;
 shape.draw();
 
-=== checked ===
+=== dir ===
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
@@ -281,7 +281,7 @@ function draw(shape: Shape): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -300,7 +300,7 @@ function draw(shape: Rectangle | Circle): void {
     shape.draw();
 }
 
-=== checked ===
+=== dir ===
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
@@ -375,7 +375,7 @@ const result = parser.parse(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -403,7 +403,7 @@ struct Right {
 declare const parser: Left | Right;
 const result: "left-integer" | "right-integer" = parser.parse(1);
 
-=== checked ===
+=== dir ===
 struct Left {
 /// @type.symbol symbol=Left type=Left
 /// @definition.struct symbol=Left
@@ -477,7 +477,7 @@ const first = values[0];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -485,7 +485,7 @@ const first = values[0];
 declare const values: int32[] | string[];
 const first: int32 | string = values[0];
 
-=== checked ===
+=== dir ===
 declare const values: int32[] | string[];
 /// @type.symbol symbol=values source=values type=Array<int32> | Array<string>
 /// @resolution.pattern source=values kind=binding target=values
@@ -498,11 +498,10 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int32, "exclusive">), collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static string, "exclusive">)]
-/// @generic.instance source=values[0] id="Array<int32>.<extension#5>.index#1<\"exclusive\">"
-/// @generic.instance source=values[0] id="Array<string>.<extension#5>.index#1<\"exclusive\">"
-
-/// @generic.instance id="Array<int32>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-/// @generic.instance id="Array<string>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(string, "exclusive")
+/// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+/// @generic.instantiation id="collections.array.index#1<string, \"exclusive\">" template=collections.array.index#1 arguments=(string, "exclusive")
+/// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+/// @generic.instance id="collections.array.index#1<string, \"exclusive\">" template=collections.array.index#1 arguments=(string, "exclusive")
 "#,
     );
 }

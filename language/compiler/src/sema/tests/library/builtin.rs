@@ -117,7 +117,7 @@ requireEqual(undefined);
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", "");
+    session.assert_dir_diagnostics("main.ds", "");
 }
 
 /// Keep floating point equality partial because NaN is not equal to itself.
@@ -134,7 +134,7 @@ requireEqual(value);
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'float64' does not satisfy 'Equal<float64>'"
@@ -158,7 +158,7 @@ requireStringEqual(value);
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'PartialEqual<string>'"
@@ -195,5 +195,5 @@ stringSet.has(stringSlice);
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", "");
+    session.assert_dir_diagnostics("main.ds", "");
 }

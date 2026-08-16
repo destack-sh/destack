@@ -11,7 +11,7 @@ hasX satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -21,7 +21,7 @@ const point: { x: float64; y: float64 } = { x: 1, y: 2 };
 const hasX: boolean = "x" in point;
 hasX satisfies boolean;
 
-=== checked ===
+=== dir ===
 const point = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
 /// @resolution.pattern source=point kind=binding target=point
@@ -61,7 +61,7 @@ hasName satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -71,7 +71,7 @@ const point: { x: float64; y: float64 } = { x: 1, y: 2 };
 const hasName: boolean = "name" in point;
 hasName satisfies boolean;
 
-=== checked ===
+=== dir ===
 const point = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
 /// @resolution.pattern source=point kind=binding target=point
@@ -117,7 +117,7 @@ found satisfies boolean;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -133,7 +133,7 @@ declare const bag: Bag;
 const found: boolean = "name" in bag;
 found satisfies boolean;
 
-=== checked ===
+=== dir ===
 class Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
@@ -190,7 +190,7 @@ declare const user: User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -203,7 +203,7 @@ declare const user: User;
 
 "name" in user;
 
-=== checked ===
+=== dir ===
 declare class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -246,7 +246,7 @@ if ("name" in value) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -260,7 +260,7 @@ if ("name" in value) {
     value.name satisfies string;
 }
 
-=== checked ===
+=== dir ===
 type Named = { name: string };
 /// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
 /// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
@@ -316,7 +316,7 @@ if ("name" in value) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -331,7 +331,7 @@ if ("name" in value) {
     value.id satisfies int32;
 }
 
-=== checked ===
+=== dir ===
 type Named = { name: string };
 /// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
 /// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
@@ -380,14 +380,14 @@ fn test_in_rejects_primitive_receiver() {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 "x" in 1;
 
-=== checked ===
+=== dir ===
 "x" in 1;
 /// @type.node source="\"x\" in 1" type=boolean
 /// @type.node source="\"x\"" type="x"
@@ -411,7 +411,7 @@ true in point;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -420,7 +420,7 @@ const point: { x: float64 } = { x: 1 };
 
 true in point;
 
-=== checked ===
+=== dir ===
 const point = { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: float64 }
 /// @resolution.pattern source=point kind=binding target=point
@@ -453,7 +453,7 @@ declare const value: unknown;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -462,7 +462,7 @@ declare const value: Dynamic<unknown>;
 
 "name" in value;
 
-=== checked ===
+=== dir ===
 declare const value: unknown;
 /// @type.symbol symbol=value source=value type=Dynamic<unknown>
 /// @resolution.pattern source=value kind=binding target=value

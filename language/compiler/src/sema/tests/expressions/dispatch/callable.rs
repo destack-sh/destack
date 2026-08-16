@@ -10,7 +10,7 @@ const text = transform(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -21,7 +21,7 @@ declare const transform: (arg0: int32) => string;
 
 const text: string = transform(1);
 
-=== checked ===
+=== dir ===
 declare const transform: Function<(int32,), string>;
 /// @type.symbol symbol=transform source=transform type=Function<(int32,), string>
 /// @resolution.pattern source=transform kind=binding target=transform
@@ -52,7 +52,7 @@ const result = transform("value");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -63,7 +63,7 @@ declare const transform: Function<(string,), "left"> | Function<(string,), "righ
 
 const result: "left" | "right" = transform("value");
 
-=== checked ===
+=== dir ===
 declare const transform:
 /// @type.symbol symbol=transform source=transform type=Function<(string,), "left"> | Function<(string,), "right">
 /// @resolution.pattern source=transform kind=binding target=transform
@@ -83,9 +83,6 @@ const result = transform("value");
 /// @resolution.place source=transform placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=transform root=transform
 /// @type.node source="\"value\"" type="value"
-
-/// @generic.instance id="Function<(string,), \"left\">" template=types.function.Function arguments=((string,), "left")
-/// @generic.instance id="Function<(string,), \"right\">" template=types.function.Function arguments=((string,), "right")
 "#,
     );
 }
@@ -102,7 +99,7 @@ const result: "left" | "right" = transform(1);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -115,7 +112,7 @@ declare const transform:
 
 const result: "left" | "right" = transform(1);
 
-=== checked ===
+=== dir ===
 declare const transform:
 /// @type.symbol symbol=transform source=transform type=Function<(int32,), "common"> & Function<(int32,), "left"> | Function<(int32,), "common"> & Function<(int32,), "right">
 /// @resolution.pattern source=transform kind=binding target=transform
@@ -137,10 +134,6 @@ const result: "left" | "right" = transform(1);
 /// @resolution.place source=transform placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=transform root=transform
 /// @type.node source=1 type=1
-
-/// @generic.instance id="Function<(int32,), \"common\">" template=types.function.Function arguments=((int32,), "common")
-/// @generic.instance id="Function<(int32,), \"left\">" template=types.function.Function arguments=((int32,), "left")
-/// @generic.instance id="Function<(int32,), \"right\">" template=types.function.Function arguments=((int32,), "right")
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"common\"' is not assignable to type '\"left\" | \"right\"'"
@@ -159,7 +152,7 @@ value();
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -169,7 +162,7 @@ value();
 const value: 1 = 1;
 value();
 
-=== checked ===
+=== dir ===
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value
@@ -202,7 +195,7 @@ const sum = add(1, 2);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -214,7 +207,7 @@ interface Adder {
 declare const add: Dynamic<Adder>;
 const sum: int32 = add(1, 2);
 
-=== checked ===
+=== dir ===
 interface Adder {
 /// @type.symbol symbol=Adder type=Adder
 /// @definition.interface symbol=Adder
@@ -259,7 +252,7 @@ const counter = new factory(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -275,7 +268,7 @@ interface Factory {
 declare const factory: Dynamic<Factory>;
 const counter: Counter = new factory(1);
 
-=== checked ===
+=== dir ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
@@ -323,7 +316,7 @@ const add: Adder = (left: int32, right: int32): int32 => left + right;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -334,7 +327,7 @@ interface Adder {
 
 const add: Dynamic<Adder> = ((left: int32, right: int32): int32 => left + right) as Dynamic<Adder>;
 
-=== checked ===
+=== dir ===
 interface Adder {
 /// @type.symbol symbol=Adder type=Adder
 /// @definition.interface symbol=Adder

@@ -22,7 +22,7 @@ rectangle.start.x satisfies int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -43,7 +43,7 @@ const rectangle: Rectangle = Rectangle {
 rectangle.start satisfies Point;
 rectangle.start.x satisfies int32;
 
-=== checked ===
+=== dir ===
 type Point = {
 /// @type.symbol symbol=Point type={ x: int32; y: int32 }
 /// @definition.type symbol=Point value={ x: int32; y: int32 }
@@ -113,7 +113,7 @@ const rectangle = Rectangle {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -131,7 +131,7 @@ const rectangle: Rectangle = Rectangle {
     start: { x: 0, y: 0, z: 0 },
 };
 
-=== checked ===
+=== dir ===
 type Point = {
 /// @type.symbol symbol=Point type={ x: int32; y: int32 }
 /// @definition.type symbol=Point value={ x: int32; y: int32 }
@@ -204,7 +204,7 @@ rectangle.end satisfies PointLike;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -237,7 +237,7 @@ const rectangle: Rectangle = Rectangle {
 rectangle.start satisfies PointLike;
 rectangle.end satisfies PointLike;
 
-=== checked ===
+=== dir ===
 interface PointLike {
 /// @type.symbol symbol=PointLike type=PointLike
 /// @definition.interface symbol=PointLike
@@ -365,7 +365,7 @@ first satisfies Shape;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -389,7 +389,7 @@ const shapes: Shape[] = [
 const first: Shape = shapes[0];
 first satisfies Shape;
 
-=== checked ===
+=== dir ===
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
@@ -442,15 +442,14 @@ const first = shapes[0];
 /// @resolution.access source=shapes root=shapes
 /// @resolution.access source=shapes[0] root=shapes keys=[0]
 /// @resolution.subscript source=shapes[0] type=Shape kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
-/// @generic.instance source=shapes[0] id="Array<Shape>.<extension#5>.index#1<\"exclusive\">"
+/// @generic.instantiation id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
+/// @generic.instance id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
 
 first satisfies Shape;
 /// @resolution.name source=first target=first
 /// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=first root=first
 /// @resolution.name source=Shape target=Shape
-
-/// @generic.instance id="Array<Shape>.<extension#5>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
 "#,
     );
 }
@@ -473,7 +472,7 @@ player.mode satisfies Mode;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -490,7 +489,7 @@ const player: Player = Player {
 
 player.mode satisfies Mode;
 
-=== checked ===
+=== dir ===
 type Mode = "active" | "paused";
 /// @type.symbol symbol=Mode source="type Mode = \"active\" | \"paused\"" type="active" | "paused"
 /// @definition.type symbol=Mode source="type Mode = \"active\" | \"paused\"" value="active" | "paused"
@@ -548,7 +547,7 @@ marker.position satisfies Point;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -569,7 +568,7 @@ declare const marker: Marker;
 segment.start satisfies Point;
 marker.position satisfies Point;
 
-=== checked ===
+=== dir ===
 type Point = { x: int32; y: int32 };
 /// @type.symbol symbol=Point source="type Point = { x: int32; y: int32 }" type={ x: int32; y: int32 }
 /// @definition.type symbol=Point source="type Point = { x: int32; y: int32 }" value={ x: int32; y: int32 }

@@ -29,7 +29,7 @@ extension of Widget {
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -42,7 +42,7 @@ extension of Widget {
     }
 }
 
-=== checked ===
+=== dir ===
 import { Widget } from "./widget.ds";
 
 extension of Widget {
@@ -81,7 +81,7 @@ const size = widget.size;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -103,7 +103,7 @@ extension of Widget {
 declare const widget: Widget;
 const size: usize = widget.size;
 
-=== checked ===
+=== dir ===
 struct Widget {}
 
 extension of Widget {
@@ -149,7 +149,7 @@ export extension of Widget {
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),
         r#"
@@ -162,7 +162,7 @@ export extension of Widget {
     }
 }
 
-=== checked ===
+=== dir ===
 import { Widget } from "./widget.ds";
 
 export extension of Widget {

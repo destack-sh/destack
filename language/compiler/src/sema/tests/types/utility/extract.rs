@@ -12,7 +12,7 @@ matched satisfies "a" | "c";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -23,7 +23,7 @@ declare const matched: "a" | "c";
 
 matched satisfies "a" | "c";
 
-=== checked ===
+=== dir ===
 type Match = Extract<"a" | "b" | "c", "a" | "c">;
 /// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type="a" | "c"
 /// @definition.type symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" value="a" | "c"
@@ -52,7 +52,7 @@ const bad: Match = "b";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -61,7 +61,7 @@ type Match = Extract<"a" | "b" | "c", "a" | "c">;
 
 const bad: "a" | "c" = "b";
 
-=== checked ===
+=== dir ===
 type Match = Extract<"a" | "b" | "c", "a" | "c">;
 /// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type="a" | "c"
 /// @definition.type symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" value="a" | "c"
@@ -90,7 +90,7 @@ let bad: Match = "a";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -99,7 +99,7 @@ type Match = Extract<never, "a">;
 
 let bad: never = "a";
 
-=== checked ===
+=== dir ===
 type Match = Extract<never, "a">;
 /// @type.symbol symbol=Match source="type Match = Extract<never, \"a\">" type=never
 /// @definition.type symbol=Match source="type Match = Extract<never, \"a\">" value=never

@@ -9,7 +9,7 @@ const byte = bytes[1];
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -17,7 +17,7 @@ const byte = bytes[1];
 declare const bytes: [uint8; 4];
 const byte: uint8 = bytes[1];
 
-=== checked ===
+=== dir ===
 declare const bytes: [uint8; 4];
 /// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
 /// @resolution.pattern source=bytes kind=binding target=bytes
@@ -30,9 +30,8 @@ const byte = bytes[1];
 /// @resolution.access source=bytes root=bytes
 /// @resolution.access source=bytes[1] root=bytes keys=[1]
 /// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(1) as isize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
-/// @generic.instance source=bytes[1] id="FixedArray<uint8, 4>.<extension#2>.index#1<\"exclusive\">"
-
-/// @generic.instance id="FixedArray<uint8, 4>.<extension#2>.index#1<\"exclusive\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "exclusive")
+/// @generic.instantiation id="collections.fixed-array.index#1<uint8, 4, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "exclusive")
+/// @generic.instance id="collections.fixed-array.index#1<uint8, 4, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "exclusive")
 "#,
     );
 }
@@ -47,7 +46,7 @@ const copied: int32[] = [...fixed];
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -56,7 +55,7 @@ declare const fixed: [int32; 3];
 const grown: int32[] = fixed;
 const copied: int32[] = [...fixed];
 
-=== checked ===
+=== dir ===
 declare const fixed: [int32; 3];
 /// @type.symbol symbol=fixed source=fixed type=FixedArray<int32, 3>
 /// @resolution.pattern source=fixed kind=binding target=fixed
@@ -92,7 +91,7 @@ const size = bytes.size;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -100,7 +99,7 @@ const size = bytes.size;
 declare const bytes: [uint8; 4];
 const size: isize = bytes.size;
 
-=== checked ===
+=== dir ===
 declare const bytes: [uint8; 4];
 /// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
 /// @resolution.pattern source=bytes kind=binding target=bytes
@@ -114,9 +113,8 @@ const size = bytes.size;
 /// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="collections.fixed-array.size(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
-/// @generic.instance source=bytes.size id="FixedArray<uint8, 4>.<extension#2>.size"
-
-/// @generic.instance id="FixedArray<uint8, 4>.<extension#2>.size" template=collections.fixed-array.size arguments=(uint8, 4)
+/// @generic.instantiation id="collections.fixed-array.size<uint8, 4>" template=collections.fixed-array.size arguments=(uint8, 4)
+/// @generic.instance id="collections.fixed-array.size<uint8, 4>" template=collections.fixed-array.size arguments=(uint8, 4)
 "#,
     );
 }

@@ -12,7 +12,7 @@ struct Header {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -22,7 +22,7 @@ struct Header {
     value: uint8;
 }
 
-=== checked ===
+=== dir ===
 @repr("C")
 /// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
 
@@ -46,7 +46,7 @@ newtype Handle = int32;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -54,7 +54,7 @@ newtype Handle = int32;
 @repr("transparent")
 newtype Handle = int32;
 
-=== checked ===
+=== dir ===
 @repr("transparent")
 /// @decorator.node source="@repr(\"transparent\")" owner="newtype Handle = int32" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("transparent") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"transparent\")"
 
@@ -76,7 +76,7 @@ struct Handle {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -86,7 +86,7 @@ struct Handle {
     value: uint8;
 }
 
-=== checked ===
+=== dir ===
 @repr("transparent")
 /// @decorator.node source="@repr(\"transparent\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("transparent") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"transparent\")"
 
@@ -110,7 +110,7 @@ class Handle {}
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -118,7 +118,7 @@ class Handle {}
 @repr("C")
 class Handle {}
 
-=== checked ===
+=== dir ===
 @repr("C")
 /// @decorator.node source="@repr(\"C\")" owner="class Handle {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
 
@@ -140,7 +140,7 @@ class Handle {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -152,7 +152,7 @@ class Handle {
     }
 }
 
-=== checked ===
+=== dir ===
 @repr("C")
 /// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
 
@@ -184,7 +184,7 @@ abstract class Handle extends Base {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -196,7 +196,7 @@ abstract class Base {
 @repr("C")
 abstract class Handle extends Base {}
 
-=== checked ===
+=== dir ===
 abstract class Base {
 /// @definition.class symbol=Base abstract=true
 /// @definition.method symbol=Base.read source="abstract read(): uint8" slot=read abstraction=abstract type=(this: this) => uint8
@@ -228,7 +228,7 @@ struct Header {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -236,7 +236,7 @@ struct Header {}
 @repr("transparent")
 struct Header {}
 
-=== checked ===
+=== dir ===
 @repr("transparent")
 /// @decorator.node source="@repr(\"transparent\")" owner="struct Header {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("transparent") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"transparent\")"
 
@@ -261,7 +261,7 @@ struct Header {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -270,7 +270,7 @@ struct Header {}
 @repr("C")
 struct Header {}
 
-=== checked ===
+=== dir ===
 @repr("C")
 /// @decorator.node source="@repr(\"C\")" owner="struct Header {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
 
@@ -300,7 +300,7 @@ enum Mode {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -310,7 +310,7 @@ enum Mode {
     Read = "read",
 }
 
-=== checked ===
+=== dir ===
 @repr("C")
 /// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
 
@@ -340,7 +340,7 @@ enum Mode {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none().with_definitions().with_decorators(),
         r#"
@@ -350,7 +350,7 @@ enum Mode {
     Read = 256,
 }
 
-=== checked ===
+=== dir ===
 @repr("uint8")
 /// @decorator.node source="@repr(\"uint8\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("uint8") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"uint8\")"
 

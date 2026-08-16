@@ -10,7 +10,7 @@ value satisfies void;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -19,7 +19,7 @@ const value: () = ();
 value satisfies ();
 value satisfies void;
 
-=== checked ===
+=== dir ===
 const value = ();
 /// @type.symbol symbol=value source=value type=()
 /// @resolution.pattern source=value kind=binding target=value
@@ -51,7 +51,7 @@ value satisfies ();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -59,7 +59,7 @@ value satisfies ();
 const value: void = ();
 value satisfies ();
 
-=== checked ===
+=== dir ===
 const value: void = ();
 /// @type.symbol symbol=value source=value type=void
 /// @resolution.pattern source=value kind=binding target=value

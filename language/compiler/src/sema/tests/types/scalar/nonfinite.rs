@@ -11,7 +11,7 @@ const half: float32 = 1.0 / 0.0;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -21,7 +21,7 @@ const negative: float64 = -1.0 / 0.0;
 const nan: float64 = 0.0 / 0.0;
 const half: float32 = 1.0 / 0.0;
 
-=== checked ===
+=== dir ===
 const infinity: float64 = 1.0 / 0.0;
 /// @type.symbol symbol=infinity source=infinity type=float64
 /// @resolution.pattern source=infinity kind=binding target=infinity

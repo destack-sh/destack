@@ -13,7 +13,7 @@ declare const lane: Segment<string>.Lane;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -25,7 +25,7 @@ class Segment<in out Row> {
 
 declare const lane: [uint8; 8];
 
-=== checked ===
+=== dir ===
 class Segment<in out Row> {
 /// @generic.template symbol=Segment parameters=(in out Row)
 /// @type.symbol symbol=Segment type=Segment
@@ -70,7 +70,7 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -85,7 +85,7 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
     return block.read();
 }
 
-=== checked ===
+=== dir ===
 interface RegisterBlock {
 /// @type.symbol symbol=RegisterBlock type=RegisterBlock
 /// @definition.interface symbol=RegisterBlock

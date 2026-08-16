@@ -11,7 +11,7 @@ const ok = value instanceof User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -21,7 +21,7 @@ declare const value: Dynamic<unknown>;
 
 const ok: boolean = value instanceof User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -65,7 +65,7 @@ if (value instanceof User) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -84,7 +84,7 @@ if (value instanceof User) {
     value.name satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -158,7 +158,7 @@ if (value instanceof User) {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -178,7 +178,7 @@ if (value instanceof User) {
     value.title satisfies string;
 }
 
-=== checked ===
+=== dir ===
 declare class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
@@ -246,7 +246,7 @@ const ok = value instanceof Named;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -259,7 +259,7 @@ declare const value: Dynamic<unknown>;
 
 const ok = value instanceof Named;
 
-=== checked ===
+=== dir ===
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
@@ -304,7 +304,7 @@ const ok = value instanceof User;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -314,7 +314,7 @@ declare const value: string;
 
 const ok: boolean = value instanceof User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -358,7 +358,7 @@ function adopt<T>(value: T): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -373,7 +373,7 @@ function adopt<T>(value: T): void {
     }
 }
 
-=== checked ===
+=== dir ===
 class Deferred<T> {
 /// @generic.template symbol=Deferred parameters=(out T#1)
 /// @type.symbol symbol=Deferred type=Deferred
@@ -415,18 +415,14 @@ function adopt<T>(value: T): void {
         /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=Narrow<T#2, Deferred<*>> instance=Deferred<*>.then
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=adopt.value
-        /// @generic.instance source="value.then((value) => {})" id=Deferred<*>.then
-        /// @generic.instance source=value id=Deferred<*>
-        /// @generic.instance source=value.then id=Deferred<*>
+        /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
+        /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
         /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void>
         /// @type.node source="(value) => {}" type=Function<(*,), void>
         /// @type.symbol symbol=adopt.symbol10.value source=value type=*
 
     }
 }
-
-/// @generic.instance id=Deferred<*> template=Deferred arguments=(*)
-/// @generic.instance id=Deferred<*>.then template=Deferred.then arguments=(*)
 "#,
     );
 }
@@ -447,7 +443,7 @@ function adopt<T>(value: T | Deferred<T>): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -462,7 +458,7 @@ function adopt<T>(value: T | Deferred<T>): void {
     }
 }
 
-=== checked ===
+=== dir ===
 class Deferred<T> {
 /// @generic.template symbol=Deferred parameters=(out T#1)
 /// @type.symbol symbol=Deferred type=Deferred
@@ -494,7 +490,6 @@ function adopt<T>(value: T | Deferred<T>): void {
     /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=Narrow<T#2 | Deferred<T#2>, Deferred<*>>
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=adopt.value
-    /// @generic.instance source=value id=Deferred<T#2>
     /// @type.node source=Deferred type=Deferred
     /// @resolution.name source=Deferred target=Deferred
 
@@ -507,23 +502,16 @@ function adopt<T>(value: T | Deferred<T>): void {
         /// @resolution.call source="value.then((value) => {})" return=void kind=union arms=[Deferred.then(parameters=(Function<(*,), void>), arguments=(provided((value) => {}) as Function<(*,), void>), return=void), Deferred.then(parameters=(Function<(T#2,), void>), arguments=(provided((value) => {}) as Function<(T#2,), void>), return=void)]
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=adopt.value
-        /// @generic.instance source="value.then((value) => {})" id=Deferred<*>.then
-        /// @generic.instance source="value.then((value) => {})" id=Deferred<T#2>.then
-        /// @generic.instance source=value id=Deferred<*>
-        /// @generic.instance source=value id=Deferred<T#2>
-        /// @generic.instance source=value.then id=Deferred<*>
-        /// @generic.instance source=value.then id=Deferred<T#2>
+        /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
+        /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
+        /// @generic.instantiation id=Deferred.then<T#2> template=Deferred.then arguments=(T#2) owner=adopt
+        /// @generic.instantiation id=Deferred.then<T#2> template=Deferred.then arguments=(T#2) owner=adopt
         /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(<error>,), void>
         /// @type.node source="(value) => {}" type=Function<(<error>,), void>
         /// @type.symbol symbol=adopt.symbol10.value source=value type=<error>
 
     }
 }
-
-/// @generic.instance id=Deferred<*> template=Deferred arguments=(*)
-/// @generic.instance id=Deferred<*>.then template=Deferred.then arguments=(*)
-/// @generic.instance id=Deferred<T#2> template=Deferred arguments=(T#2)
-/// @generic.instance id=Deferred<T#2>.then template=Deferred.then arguments=(T#2)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '*' is not assignable to type '* | T'"
@@ -550,7 +538,7 @@ function adopt<T>(value: T | Deferred<T>): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -565,7 +553,7 @@ function adopt<T>(value: T | Deferred<T>): void {
     }
 }
 
-=== checked ===
+=== dir ===
 class Deferred<T> {
 /// @generic.template symbol=Deferred parameters=(out T#1)
 /// @type.symbol symbol=Deferred type=Deferred
@@ -597,7 +585,6 @@ function adopt<T>(value: T | Deferred<T>): void {
     /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=Narrow<T#2 | Deferred<T#2>, Deferred<*>>
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=adopt.value
-    /// @generic.instance source=value id=Deferred<T#2>
     /// @type.node source=Deferred type=Deferred
     /// @resolution.name source=Deferred target=Deferred
 
@@ -610,22 +597,15 @@ function adopt<T>(value: T | Deferred<T>): void {
         /// @resolution.call source="value.then(() => {})" return=void kind=union arms=[Deferred.then(parameters=(Function<(*,), void>), arguments=(provided(() => {}) as Function<(*,), void>), return=void), Deferred.then(parameters=(Function<(T#2,), void>), arguments=(provided(() => {}) as Function<(T#2,), void>), return=void)]
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=adopt.value
-        /// @generic.instance source="value.then(() => {})" id=Deferred<*>.then
-        /// @generic.instance source="value.then(() => {})" id=Deferred<T#2>.then
-        /// @generic.instance source=value id=Deferred<*>
-        /// @generic.instance source=value id=Deferred<T#2>
-        /// @generic.instance source=value.then id=Deferred<*>
-        /// @generic.instance source=value.then id=Deferred<T#2>
+        /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
+        /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
+        /// @generic.instantiation id=Deferred.then<T#2> template=Deferred.then arguments=(T#2) owner=adopt
+        /// @generic.instantiation id=Deferred.then<T#2> template=Deferred.then arguments=(T#2) owner=adopt
         /// @type.symbol symbol=adopt.symbol10 source="() => {}" type=Function<(), void>
         /// @type.node source="() => {}" type=Function<(), void>
 
     }
 }
-
-/// @generic.instance id=Deferred<*> template=Deferred arguments=(*)
-/// @generic.instance id=Deferred<*>.then template=Deferred.then arguments=(*)
-/// @generic.instance id=Deferred<T#2> template=Deferred arguments=(T#2)
-/// @generic.instance id=Deferred<T#2>.then template=Deferred.then arguments=(T#2)
 "#,
     );
 }

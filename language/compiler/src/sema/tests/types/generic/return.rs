@@ -10,7 +10,7 @@ function make<T: int8 | int64>(): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -19,7 +19,7 @@ function make<T: int8 | int64>(): T {
     return 1;
 }
 
-=== checked ===
+=== dir ===
 function make<T: int8 | int64>(): T {
 /// @generic.template symbol=make parameters=(T: int8 | int64)
 /// @type.symbol symbol=make type=<T: int8 | int64>() => T
@@ -44,7 +44,7 @@ function capture<T>(value: T): { reactions: T[] } {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -53,7 +53,7 @@ function capture<T>(value: T): { reactions: T[] } {
     return { reactions: [] };
 }
 
-=== checked ===
+=== dir ===
 function capture<T>(value: T): { reactions: T[] } {
 /// @generic.template symbol=capture parameters=(T)
 /// @type.symbol symbol=capture type=<T>(T) => { reactions: Array<T> }
@@ -93,7 +93,7 @@ function pending<T>(): State<T> {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -114,7 +114,7 @@ function pending<T>(): State<T> {
     return { kind: "pending", reactions: [] } as Dynamic<Pending<T>> | Dynamic<Done<T>>;
 }
 
-=== checked ===
+=== dir ===
 interface Pending<T> {
 /// @generic.template symbol=Pending parameters=(in out T#1)
 /// @type.symbol symbol=Pending type=Pending
@@ -174,10 +174,6 @@ function pending<T>(): State<T> {
     /// @type.node source=[] type=Array<T#4>
 
 }
-
-/// @generic.instance id=Done<T#3> template=Done arguments=(T#3)
-/// @generic.instance id=Pending<T#3> template=Pending arguments=(T#3)
-/// @generic.instance id=State<T#4> template=State arguments=(T#4)
 "#,
     );
 }
@@ -192,7 +188,7 @@ function countdown(n: float64) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -201,7 +197,7 @@ function countdown(n: float64) {
     return n > 0 ? countdown(n - 1) : n;
 }
 
-=== checked ===
+=== dir ===
 function countdown(n: float64) {
 /// @type.symbol symbol=countdown type=(float64) => <error>
 /// @type.symbol symbol=countdown.n source="n: float64" type=float64
@@ -244,7 +240,7 @@ function pong(n: float64) {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -257,7 +253,7 @@ function pong(n: float64) {
     return n > 0 ? ping(n - 1) : n;
 }
 
-=== checked ===
+=== dir ===
 function ping(n: float64) {
 /// @type.symbol symbol=ping type=(float64) => <error>
 /// @type.symbol symbol=ping.n source="n: float64" type=float64
@@ -343,7 +339,7 @@ function make<T, E>(value: T): AsyncResult<T, E> {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 declare class Promise<in out T> {
     static resolve<T>(value: Promise<T>): Promise<T>;
@@ -370,7 +366,7 @@ function make<T, E>(value: T): AsyncResult<T, E> {
     return AsyncResult(Promise.resolve<Result<T, E>>(ok<T, E>(value)));
 }
 
-=== checked ===
+=== dir ===
 declare class Promise<in out T> {
 /// @generic.template symbol=Promise parameters=(in out T#1)
 /// @type.symbol symbol=Promise type=Promise
@@ -485,39 +481,24 @@ function make<T, E>(value: T): AsyncResult<T, E> {
     /// @type.node source=AsyncResult(Promise.resolve(ok(value))) type=AsyncResult<T#8, E#5>
     /// @resolution.name source=AsyncResult target=AsyncResult
     /// @resolution.construct source=AsyncResult(Promise.resolve(ok(value))) parameters=(Promise<Result<T#8, E#5>>) arguments=(provided(Promise.resolve(ok(value))) as Promise<Result<T#8, E#5>>) return=AsyncResult<T#8, E#5> kind=newtype target=AsyncResult backing=Promise<Result<T#8, E#5>> instance="AsyncResult<T#8, E#5>"
-    /// @generic.instance source=AsyncResult(Promise.resolve(ok(value))) id="AsyncResult<T#8, E#5>"
+    /// @generic.instantiation id="AsyncResult<T#8, E#5>" template=AsyncResult arguments=(T#8, E#5) owner=make
     /// @type.node source=Promise type=Promise
     /// @type.node source=Promise.resolve type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3>
     /// @type.node source=Promise.resolve(ok(value)) type=Promise<Result<T#8, E#5>>
     /// @resolution.name source=Promise target=Promise
     /// @resolution.member source=Promise.resolve receiver=Promise type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3> kind=existential targets=[Promise.resolve#1, Promise.resolve#2]
     /// @resolution.call source=Promise.resolve(ok(value)) parameters=(Result<T#8, E#5>) arguments=(provided(ok(value)) as Result<T#8, E#5>) return=Promise<Result<T#8, E#5>> kind=symbol target=Promise.resolve#2 instance="Promise.resolve#2<Result<T#8, E#5>>"
-    /// @generic.instance source=Promise.resolve id=Promise<T#2>
-    /// @generic.instance source=Promise.resolve id=Promise<T#3>
-    /// @generic.instance source=Promise.resolve(ok(value)) id="Promise.resolve#2<Result<T#8, E#5>>"
-    /// @generic.instance source=Promise.resolve(ok(value)) id="Promise<Result<T#8, E#5>>"
-    /// @generic.instance source=Promise.resolve(ok(value)) id="Result<T#8, E#5>"
+    /// @generic.instantiation id="Promise.resolve#2<Result<T#8, E#5>>" template=Promise.resolve#2 arguments=(Result<T#8, E#5>) owner=make
     /// @type.node source=ok type=(T#8) => Result<T#8, E#5>
     /// @type.node source=ok(value) type=Result<T#8, E#5>
     /// @resolution.name source=ok target=ok
     /// @resolution.call source=ok(value) parameters=(T#8) arguments=(provided(value) as T#8) return=Result<T#8, E#5> kind=symbol target=ok instance="ok<T#8, E#5>"
-    /// @generic.instance source=ok id="Result<T#8, E#5>"
-    /// @generic.instance source=ok(value) id="Result<T#8, E#5>"
-    /// @generic.instance source=ok(value) id="ok<T#8, E#5>"
+    /// @generic.instantiation id="ok<T#8, E#5>" template=ok arguments=(T#8, E#5) owner=make
     /// @type.node source=value type=T#8
     /// @resolution.name source=value target=make.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=make.value
 
 }
-
-/// @generic.instance id="AsyncResult<T#8, E#5>" template=AsyncResult arguments=(T#8, E#5)
-/// @generic.instance id="Promise.resolve#2<Result<T#8, E#5>>" template=Promise.resolve#2 arguments=(Result<T#8, E#5>)
-/// @generic.instance id="Promise<Result<T#8, E#5>>" template=Promise arguments=(Result<T#8, E#5>)
-/// @generic.instance id="Result<T#6, E#3>" template=Result arguments=(T#6, E#3)
-/// @generic.instance id="Result<T#8, E#5>" template=Result arguments=(T#8, E#5)
-/// @generic.instance id="ok<T#8, E#5>" template=ok arguments=(T#8, E#5)
-/// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
-/// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
 "#);
 }

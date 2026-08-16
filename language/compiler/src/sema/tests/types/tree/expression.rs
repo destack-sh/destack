@@ -37,7 +37,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -78,7 +78,7 @@ function render(): Panel {
     return page;
 }
 
-=== checked ===
+=== dir ===
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
@@ -162,8 +162,13 @@ function render(): Panel {
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source=<><span/><span/></> builder=Panel form=fragment call=fragment children=(Panel, Panel) type=Panel
+    /// @generic.instantiation id="fragment<(Panel, Panel)>" template=fragment arguments=((Panel, Panel))
+    /// @generic.instance id="fragment<(Panel, Panel)>" template=fragment arguments=((Panel, Panel))
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
+    /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
+    /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ())
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
+    /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
 
     return page;
     /// @resolution.name source=page target=render.page
@@ -212,7 +217,7 @@ function render(title: string): Panel {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -253,7 +258,7 @@ function render(title: string): Panel {
     return page;
 }
 
-=== checked ===
+=== dir ===
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
@@ -338,7 +343,11 @@ function render(title: string): Panel {
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source=<div>hello<span/>{title}</div> builder=Panel form=element tag=div call=element children=("hello", Panel, string) type=Panel
+    /// @generic.instantiation id="element<\"div\", (string, Panel, string)>" template=element arguments=("div", (string, Panel, string))
+    /// @generic.instance id="element<\"div\", (string, Panel, string)>" template=element arguments=("div", (string, Panel, string))
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
+    /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
+    /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ())
     /// @resolution.name source=title target=render.title
     /// @resolution.place source=title placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=title root=render.title
@@ -390,7 +399,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds",
         r#"
 /// @diagnostic.error id=unknown-tree-tag message="builder 'Panel' declares no 'blink' tag"
@@ -436,7 +445,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
+    session.assert_dir_diagnostics("main.ds", r#"
 /// @diagnostic.error id=unknown-tree-attribute message="attribute row '{ div: { class?: string }; img: { src: string }; span: {} }[\"div\"]' declares no 'misspelled' attribute"
 /// @diagnostic.label line=29 column=25 span="<div misspelled=\"1\"/>" line_source="const page: Panel = <div misspelled=\"1\"/>;"
 "#);
@@ -479,7 +488,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds", r#"
 "#,
     );
@@ -522,7 +531,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
+    session.assert_dir_diagnostics("main.ds", r#"
 /// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'string'"
 /// @diagnostic.label line=29 column=25 span="<img src={1}/>" line_source="const page: Panel = <img src={1}/>;"
 /// @diagnostic.related line=29 column=35 span="1" line_source="const page: Panel = <img src={1}/>;" message="expected due to the type of this target"
@@ -567,7 +576,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_diagnostics(
         "main.ds", r#"
 "#,
     );
@@ -614,7 +623,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -654,7 +663,7 @@ function render(): Panel {
     return page;
 }
 
-=== checked ===
+=== dir ===
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
@@ -800,7 +809,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -837,7 +846,7 @@ function render(): Panel {
     return page;
 }
 
-=== checked ===
+=== dir ===
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
@@ -922,13 +931,18 @@ function render(): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
+    /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
+    /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ())
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
+    /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
 
     const page: Panel = <div>{...pair}</div>;
     /// @type.symbol symbol=render.page source=page type=Panel
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source=<div>{...pair}</div> builder=Panel form=element tag=div call=element children=((Panel, Panel)) type=Panel
+    /// @generic.instantiation id="element<\"div\", (Panel, Panel)>" template=element arguments=("div", (Panel, Panel))
+    /// @generic.instance id="element<\"div\", (Panel, Panel)>" template=element arguments=("div", (Panel, Panel))
     /// @resolution.name source=pair target=render.pair
     /// @resolution.place source=pair placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=pair root=render.pair
@@ -980,7 +994,7 @@ function render(items: Panel[]): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
+    session.assert_dir_diagnostics("main.ds", r#"
 /// @diagnostic.error id=tree-spread-not-tuple message="spread children splat tuples, found 'Array<Panel>'"
 /// @diagnostic.label line=29 column=25 span="<div>{...items}</div>" line_source="const page: Panel = <div>{...items}</div>;"
 "#);
@@ -1027,7 +1041,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1071,7 +1085,7 @@ function render(): Panel {
     return page;
 }
 
-=== checked ===
+=== dir ===
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
@@ -1170,6 +1184,8 @@ function render(): Panel {
     /// @resolution.name source=Stack target=Stack
     /// @resolution.function source=Stack type=({ title: string; children: (Panel,) }) => Panel target=Stack
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
+    /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
+    /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ())
 
     return page;
     /// @resolution.name source=page target=render.page
@@ -1222,7 +1238,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
+    session.assert_dir_diagnostics("main.ds", r#"
 /// @diagnostic.error id=unknown-tree-attribute message="attribute row '{ title: string }' declares no 'children' attribute"
 /// @diagnostic.label line=33 column=25 span="<Header title=\"hello\"><span/></Header>" line_source="const page: Panel = <Header title=\"hello\"><span/></Header>;"
 "#);
@@ -1273,7 +1289,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1321,7 +1337,7 @@ function render(): Panel {
     return page;
 }
 
-=== checked ===
+=== dir ===
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
@@ -1435,6 +1451,8 @@ function render(): Panel {
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source="<><Card heading=\"hi\"/></>" builder=Panel form=fragment call=fragment children=(Card) type=Panel
+    /// @generic.instantiation id=fragment<(Card,)> template=fragment arguments=((Card,))
+    /// @generic.instance id=fragment<(Card,)> template=fragment arguments=((Card,))
     /// @resolution.tree source="<Card heading=\"hi\"/>" builder=Panel form=component callee=Card construct=Card attributes=(heading: "hi") children=() type=Card
     /// @resolution.name source=Card target=Card
 
@@ -1489,7 +1507,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1533,7 +1551,7 @@ function render(): Panel {
     return page;
 }
 
-=== checked ===
+=== dir ===
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
@@ -1627,6 +1645,8 @@ function render(): Panel {
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source="<><Badge label=\"new\"/></>" builder=Panel form=fragment call=fragment children=(Badge) type=Panel
+    /// @generic.instantiation id=fragment<(Badge,)> template=fragment arguments=((Badge,))
+    /// @generic.instance id=fragment<(Badge,)> template=fragment arguments=((Badge,))
     /// @resolution.tree source="<Badge label=\"new\"/>" builder=Panel form=component callee=Badge struct=Badge attributes=(label: "new") children=() type=Badge
     /// @resolution.name source=Badge target=Badge
 
@@ -1681,7 +1701,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
+    session.assert_dir_diagnostics("main.ds", r#"
 /// @diagnostic.error id=missing-tree-attribute message="required attribute 'label' of row 'Badge' is missing"
 /// @diagnostic.label line=33 column=27 span="<Badge/>" line_source="const page: Panel = <><Badge/></>;"
 "#);
@@ -1735,6 +1755,8 @@ export extension of Panel implements TreeBuilder {
         .module(
             "main.ds",
             r#"
+import { Panel } from "./panel.ds";
+
 function render(): Panel {
     const page = <span/>;
     return page;
@@ -1743,25 +1765,31 @@ function render(): Panel {
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
+import { Panel } from "./panel.ds";
+
 function render(): Panel {
     const page: Panel = <span />;
     return page;
 }
 
-=== checked ===
+=== dir ===
+import { Panel } from "./panel.ds";
+
 function render(): Panel {
-/// @type.symbol symbol=render type=() => <error>
-/// @resolution.unresolved source=Panel path=Panel
+/// @type.symbol symbol=render type=() => panel.Panel
+/// @resolution.name source=Panel target=panel.Panel
 
     const page = <span/>;
     /// @type.symbol symbol=render.page source=page type=panel.Panel
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.tree source=<span/> builder=panel.Panel form=element tag=span call=panel.element children=() type=panel.Panel
+    /// @generic.instantiation id="panel.element<\"span\", ()>" template=panel.element arguments=("span", ())
+    /// @generic.instance id="panel.element<\"span\", ()>" template=panel.element arguments=("span", ())
 
     return page;
     /// @resolution.name source=page target=render.page

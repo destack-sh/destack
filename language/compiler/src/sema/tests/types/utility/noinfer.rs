@@ -11,7 +11,7 @@ ok satisfies "red" | "blue";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -24,7 +24,7 @@ const ok: "red" | "blue" = choose<"red" | "blue">(
 );
 ok satisfies "red" | "blue";
 
-=== checked ===
+=== dir ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
 /// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C> | undefined?) => C
@@ -41,15 +41,13 @@ const ok = choose(["red", "blue"], "red");
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=(Array<"red" | "blue">, "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("red") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
-/// @generic.instance source="choose([\"red\", \"blue\"], \"red\")" id="choose<\"red\" | \"blue\">"
+/// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
+/// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 
 ok satisfies "red" | "blue";
 /// @resolution.name source=ok target=ok
 /// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=ok root=ok
-
-/// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
-/// @generic.instance id=NoInfer<C> template=types.object.NoInfer arguments=(C)
 "#,
     );
 }
@@ -67,7 +65,7 @@ const reds: "red"[] = values;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -79,7 +77,7 @@ const values: "red"[] = make<"red">();
 const picked: "red" = choose<"red">(values, "green");
 const reds: "red"[] = values;
 
-=== checked ===
+=== dir ===
 declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
 /// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C>) => C
@@ -102,14 +100,14 @@ const values = make();
 /// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
-/// @generic.instance source=make() id="make<\"red\">"
+/// @generic.instantiation id="make<\"red\">" template=make arguments=("red")
 
 const picked = choose(values, "green");
 /// @type.symbol symbol=picked source=picked type="red"
 /// @resolution.pattern source=picked kind=binding target=picked
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose(values, \"green\")" parameters=(Array<"red">, "red") arguments=(provided(values) as Array<"red">, provided("green") as "red") return="red" kind=symbol target=choose instance="choose<\"red\">"
-/// @generic.instance source="choose(values, \"green\")" id="choose<\"red\">"
+/// @generic.instantiation id="choose<\"red\">" template=choose arguments=("red")
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
@@ -120,10 +118,6 @@ const reds: "red"[] = values;
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-
-/// @generic.instance id="choose<\"red\">" template=choose arguments=("red")
-/// @generic.instance id="make<\"red\">" template=make arguments=("red")
-/// @generic.instance id=NoInfer<C> template=types.object.NoInfer arguments=(C)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"green\"' is not assignable to parameter of type '\"red\"'"
@@ -146,7 +140,7 @@ const reds: "red"[] = values;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -158,7 +152,7 @@ const values: "red"[] = make<"red">();
 const kept: "red" = keep<"red">(values, ["green"]);
 const reds: "red"[] = values;
 
-=== checked ===
+=== dir ===
 declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C;
 /// @generic.template symbol=keep parameters=(C: string)
 /// @type.symbol symbol=keep source="declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C" type=<C: string>(Array<C>, NoInfer<Array<C>>) => C
@@ -181,14 +175,14 @@ const values = make();
 /// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
-/// @generic.instance source=make() id="make<\"red\">"
+/// @generic.instantiation id="make<\"red\">" template=make arguments=("red")
 
 const kept = keep(values, ["green"]);
 /// @type.symbol symbol=kept source=kept type="red"
 /// @resolution.pattern source=kept kind=binding target=kept
 /// @resolution.name source=keep target=keep
 /// @resolution.call source="keep(values, [\"green\"])" parameters=(Array<"red">, Array<"red">) arguments=(provided(values) as Array<"red">, provided(["green"]) as Array<"red">) return="red" kind=symbol target=keep instance="keep<\"red\">"
-/// @generic.instance source="keep(values, [\"green\"])" id="keep<\"red\">"
+/// @generic.instantiation id="keep<\"red\">" template=keep arguments=("red")
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
@@ -199,10 +193,6 @@ const reds: "red"[] = values;
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-
-/// @generic.instance id="keep<\"red\">" template=keep arguments=("red")
-/// @generic.instance id="make<\"red\">" template=make arguments=("red")
-/// @generic.instance id=NoInfer<Array<C>> template=types.object.NoInfer arguments=(Array<C>)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"green\"' is not assignable to parameter of type '\"red\"'"
@@ -223,7 +213,7 @@ const value = first((1, "text"));
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -232,7 +222,7 @@ declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
 
 const value: float64 = first<float64, string>((1, "text"));
 
-=== checked ===
+=== dir ===
 declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
 /// @generic.template symbol=first parameters=(T, U = string)
 /// @type.symbol symbol=first source="declare function first<T, U = string>(value: (T, NoInfer<U>)): T" type=<T, U = string>((T, NoInfer<U>)) => T
@@ -249,10 +239,7 @@ const value = first((1, "text"));
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=first target=first
 /// @resolution.call source="first((1, \"text\"))" parameters=((float64, string)) arguments=(provided((1, "text")) as (float64, string)) return=float64 kind=symbol target=first instance="first<float64, string>"
-/// @generic.instance source="first((1, \"text\"))" id="first<float64, string>"
-
-/// @generic.instance id="first<float64, string>" template=first arguments=(float64, string)
-/// @generic.instance id=NoInfer<U> template=types.object.NoInfer arguments=(U)
+/// @generic.instantiation id="first<float64, string>" template=first arguments=(float64, string)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'NoInfer<string>' is not assignable to parameter of type 'string'"
@@ -276,7 +263,7 @@ const reds: "red"[] = seeds;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -288,7 +275,7 @@ const seeds: "red"[] = make<"red">();
 on<"red">(seeds, (value: "red"): void => {});
 const reds: "red"[] = seeds;
 
-=== checked ===
+=== dir ===
 declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
 /// @generic.template symbol=on parameters=(T#1)
 /// @type.symbol symbol=on source="declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void" type=<T#1>(Array<T#1>, NoInfer<Function<(T#1,), void>>) => void
@@ -311,12 +298,12 @@ const seeds = make();
 /// @resolution.pattern source=seeds kind=binding target=seeds
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
-/// @generic.instance source=make() id="make<\"red\">"
+/// @generic.instantiation id="make<\"red\">" template=make arguments=("red")
 
 on(seeds, (value) => {});
 /// @resolution.name source=on target=on
 /// @resolution.call source="on(seeds, (value) => {})" parameters=(Array<"red">, Function<("red",), void>) arguments=(provided(seeds) as Array<"red">, provided((value) => {}) as Function<("red",), void>) return=void kind=symbol target=on instance="on<\"red\">"
-/// @generic.instance source="on(seeds, (value) => {})" id="on<\"red\">"
+/// @generic.instantiation id="on<\"red\">" template=on arguments=("red")
 /// @resolution.name source=seeds target=seeds
 /// @resolution.place source=seeds placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=seeds root=seeds
@@ -329,10 +316,6 @@ const reds: "red"[] = seeds;
 /// @resolution.name source=seeds target=seeds
 /// @resolution.place source=seeds placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=seeds root=seeds
-
-/// @generic.instance id="NoInfer<Function<(T#1,), void>>" template=types.object.NoInfer arguments=(Function<(T#1,), void>)
-/// @generic.instance id="make<\"red\">" template=make arguments=("red")
-/// @generic.instance id="on<\"red\">" template=on arguments=("red")
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'NoInfer<(value: \"red\") => void>' is not assignable to parameter of type '(value: \"red\") => void'"
@@ -352,7 +335,7 @@ choose(["red", "blue"], "green");
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -361,7 +344,7 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 
 choose<"red" | "blue">(["red" as "red" | "blue", "blue" as "red" | "blue"], "green");
 
-=== checked ===
+=== dir ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
 /// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C> | undefined?) => C
@@ -376,10 +359,7 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 choose(["red", "blue"], "green");
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose([\"red\", \"blue\"], \"green\")" parameters=(Array<"red" | "blue">, "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("green") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
-/// @generic.instance source="choose([\"red\", \"blue\"], \"green\")" id="choose<\"red\" | \"blue\">"
-
-/// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
-/// @generic.instance id=NoInfer<C> template=types.object.NoInfer arguments=(C)
+/// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"green\"' is not assignable to parameter of type '\"red\" | \"blue\" | undefined'"

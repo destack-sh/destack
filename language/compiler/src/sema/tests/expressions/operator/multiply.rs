@@ -23,7 +23,7 @@ const scaled = force * 2.0;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -45,7 +45,7 @@ extension of Force implements Multiply<float64> {
 declare const force: Force;
 const scaled: Force = force * 2.0;
 
-=== checked ===
+=== dir ===
 import { Multiply } from "destack:ops";
 
 struct Force {
@@ -132,7 +132,7 @@ const area = width * height;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -153,7 +153,7 @@ declare const width: Meters;
 declare const height: Meters;
 const area: float64 = width * height;
 
-=== checked ===
+=== dir ===
 import { Multiply } from "destack:ops";
 
 newtype Meters = float64;

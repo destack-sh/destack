@@ -13,7 +13,7 @@ let copy = user;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -25,7 +25,7 @@ declare function load(): User;
 const user: User = load();
 let copy: User = user;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -64,7 +64,7 @@ user satisfies shared User;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -76,7 +76,7 @@ declare function load(): shared User;
 const user: shared User = load();
 user satisfies shared User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -116,7 +116,7 @@ user satisfies shared User;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -128,7 +128,7 @@ declare function load(): User;
 shared const user: shared User = load();
 user satisfies shared User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -166,7 +166,7 @@ const sharedPoint: shared Point = Point { x: 2 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -178,7 +178,7 @@ struct Point {
 const localPoint: local Point = local Point { x: 1 };
 const sharedPoint: shared Point = shared Point { x: 2 };
 
-=== checked ===
+=== dir ===
 struct Point { x: int32; }
 /// @type.symbol symbol=Point source="struct Point { x: int32; }" type=Point
 /// @definition.struct symbol=Point source="struct Point { x: int32; }"
@@ -217,7 +217,7 @@ register({ skip: true });
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -230,7 +230,7 @@ declare function register(argument?: Options | (() => void)): void;
 
 register({ skip: true } as Options | (() => void) | undefined);
 
-=== checked ===
+=== dir ===
 type Options = { skip?: boolean };
 /// @type.symbol symbol=Options source="type Options = { skip?: boolean }" type={ skip?: boolean }
 /// @definition.type symbol=Options source="type Options = { skip?: boolean }" value={ skip?: boolean }
@@ -266,7 +266,7 @@ sharedPoint.x satisfies shared int32;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -281,7 +281,7 @@ declare const sharedPoint: shared Point;
 localPoint.x satisfies local int32;
 sharedPoint.x satisfies shared int32;
 
-=== checked ===
+=== dir ===
 struct Point { x: int32; }
 /// @type.symbol symbol=Point source="struct Point { x: int32; }" type=Point
 /// @definition.struct symbol=Point source="struct Point { x: int32; }"
@@ -332,7 +332,7 @@ state.user satisfies shared User;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -346,7 +346,7 @@ struct State {
 declare const state: local State;
 state.user satisfies shared User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -386,7 +386,7 @@ values[0] satisfies shared int32;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -394,7 +394,7 @@ values[0] satisfies shared int32;
 declare const values: shared [int32; 2];
 values[0] satisfies shared int32;
 
-=== checked ===
+=== dir ===
 declare const values: shared [int32; 2];
 /// @type.symbol symbol=values source=values type=Placed<FixedArray<int32, 2>, "shared">
 /// @resolution.pattern source=values kind=binding target=values
@@ -406,9 +406,7 @@ values[0] satisfies shared int32;
 /// @resolution.place source=values[0] placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=&'static int32 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=Placed<memory.type.WithAccess<&'static int32, \"mutable\">, \"shared\">)"
-/// @generic.instance source=values[0] id="FixedArray<int32, 2>.<extension#2>.index#1<\"mutable\">"
-
-/// @generic.instance id="FixedArray<int32, 2>.<extension#2>.index#1<\"mutable\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "mutable")
+/// @generic.instantiation id="collections.fixed-array.index#1<int32, 2, \"mutable\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "mutable")
 "#,
         r#"
 
@@ -426,7 +424,7 @@ value satisfies local int32;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -435,7 +433,7 @@ declare const source: shared int32;
 const value: shared int32 = source;
 value satisfies local int32;
 
-=== checked ===
+=== dir ===
 declare const source: shared int32;
 /// @type.symbol symbol=source source=source type=Placed<int32, "shared">
 /// @resolution.pattern source=source kind=binding target=source
@@ -467,7 +465,7 @@ shared const sharedWorld: ^World = world;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -477,7 +475,7 @@ declare const world: ^World;
 
 shared const sharedWorld: shared ^World = world;
 
-=== checked ===
+=== dir ===
 class World {}
 /// @type.symbol symbol=World source="class World {}" type=World
 /// @definition.class symbol=World source="class World {}"
@@ -513,7 +511,7 @@ const transform = (value: User): User => value;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -524,7 +522,7 @@ type Transform = (value: User) => User;
 
 const transform: (arg0: User) => User = (value: User): User => value;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
@@ -564,7 +562,7 @@ Registry.current satisfies local User;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -577,7 +575,7 @@ class Registry {
 
 Registry.current satisfies local User;
 
-=== checked ===
+=== dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"

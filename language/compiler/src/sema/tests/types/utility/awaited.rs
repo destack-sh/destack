@@ -11,7 +11,7 @@ ok satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -21,7 +21,7 @@ type Value = Awaited<string>;
 const ok: string = "ready";
 ok satisfies string;
 
-=== checked ===
+=== dir ===
 type Value = Awaited<string>;
 /// @type.symbol symbol=Value source="type Value = Awaited<string>" type=string
 /// @definition.type symbol=Value source="type Value = Awaited<string>" value=string
@@ -51,7 +51,7 @@ ok satisfies string;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -61,7 +61,7 @@ type Value = Awaited<Promise<Promise<string>>>;
 const ok: string = "ready";
 ok satisfies string;
 
-=== checked ===
+=== dir ===
 type Value = Awaited<Promise<Promise<string>>>;
 /// @type.symbol symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" type=string
 /// @definition.type symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" value=string
@@ -93,7 +93,7 @@ const second: Value = undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -103,7 +103,7 @@ type Value = Awaited<null | undefined>;
 const first: null | undefined = null as null | undefined;
 const second: null | undefined = undefined as null | undefined;
 
-=== checked ===
+=== dir ===
 type Value = Awaited<null | undefined>;
 /// @type.symbol symbol=Value source="type Value = Awaited<null | undefined>" type=null | undefined
 /// @definition.type symbol=Value source="type Value = Awaited<null | undefined>" value=null | undefined
@@ -133,7 +133,7 @@ const bad: Value = promise;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -143,7 +143,7 @@ type Value = Awaited<Promise<string>>;
 declare const promise: Promise<string>;
 const bad: string = promise;
 
-=== checked ===
+=== dir ===
 type Value = Awaited<Promise<string>>;
 /// @type.symbol symbol=Value source="type Value = Awaited<Promise<string>>" type=string
 /// @definition.type symbol=Value source="type Value = Awaited<Promise<string>>" value=string
@@ -162,8 +162,6 @@ const bad: Value = promise;
 /// @resolution.name source=promise target=promise
 /// @resolution.place source=promise placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=promise root=promise
-
-/// @generic.instance id=Promise<string> template=async.promise.Promise arguments=(string)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Promise<string>' is not assignable to type 'string'"

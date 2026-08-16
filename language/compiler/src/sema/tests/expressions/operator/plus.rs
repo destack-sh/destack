@@ -8,14 +8,14 @@ const value = 1 + 2;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const value: 3 = 1 + 2;
 
-=== checked ===
+=== dir ===
 const value = 1 + 2;
 /// @type.symbol symbol=value source=value type=3
 /// @resolution.pattern source=value kind=binding target=value
@@ -54,7 +54,7 @@ const sum = left + right;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -80,7 +80,7 @@ declare const right: Vector;
 
 const sum: Vector = left + right;
 
-=== checked ===
+=== dir ===
 struct Vector {
 /// @type.symbol symbol=Vector type=Vector
 /// @definition.struct symbol=Vector
@@ -217,7 +217,7 @@ const sum = left + right;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -241,7 +241,7 @@ declare const right: Score;
 
 const sum: string = left + right;
 
-=== checked ===
+=== dir ===
 struct Score {}
 /// @type.symbol symbol=Score source="struct Score {}" type=Score
 /// @definition.struct symbol=Score source="struct Score {}"
@@ -342,7 +342,7 @@ total += bonus;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 import { Add } from "destack:ops";
 
@@ -362,7 +362,7 @@ declare let total: Score;
 declare const bonus: Score;
 total += bonus;
 
-=== checked ===
+=== dir ===
 import { Add } from "destack:ops";
 
 struct Score {
@@ -463,7 +463,7 @@ total += bonus;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 import { Add } from "destack:ops";
 
@@ -483,7 +483,7 @@ declare let total: Score;
 declare const bonus: Score;
 total += bonus;
 
-=== checked ===
+=== dir ===
 import { Add } from "destack:ops";
 
 struct Score {

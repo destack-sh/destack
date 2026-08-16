@@ -32,7 +32,7 @@ const scaled = force * 2.0;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -42,7 +42,7 @@ import { Force } from "./force.ds";
 declare const force: Force;
 const scaled: Force = force * 2.0;
 
-=== checked ===
+=== dir ===
 import { Force } from "./force.ds";
 
 declare const force: Force;
@@ -97,7 +97,7 @@ const scaled = force * 2.0;
         .build();
 
     // the extension resolves inside its own module
-    session.assert_dir_checked(
+    session.assert_dir(
         "force.ds",
         DirRows::checked(),
         r#"
@@ -119,7 +119,7 @@ extension of Force implements Multiply<float64> {
 declare const inside: Force;
 export const doubled: Force = inside * 2.0;
 
-=== checked ===
+=== dir ===
 import { Multiply } from "destack:ops";
 
 export struct Force {
@@ -185,7 +185,7 @@ export const doubled: Force = inside * 2.0;
     );
 
     // other modules never see the local extension
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -195,7 +195,7 @@ import { Force } from "./force.ds";
 declare const force: Force;
 const scaled = force * 2.0;
 
-=== checked ===
+=== dir ===
 import { Force } from "./force.ds";
 
 declare const force: Force;
@@ -249,7 +249,7 @@ const scaled = force * 2.0;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -269,7 +269,7 @@ extension of Force implements Multiply<float64> {
 declare const force: Force;
 const scaled: Force = force * 2.0;
 
-=== checked ===
+=== dir ===
 import { Multiply } from "destack:ops";
 import { Force } from "./force.ds";
 
@@ -362,7 +362,7 @@ const scaled = force * 2.0;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -373,7 +373,7 @@ import { Scaling } from "./scaling.ds";
 declare const force: Force;
 const scaled: Force = force * 2.0;
 
-=== checked ===
+=== dir ===
 import { Force } from "./force.ds";
 import { Scaling } from "./scaling.ds";
 

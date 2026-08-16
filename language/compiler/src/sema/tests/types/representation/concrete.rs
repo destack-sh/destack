@@ -14,7 +14,7 @@ size satisfies usize;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -27,7 +27,7 @@ function storageSize<T: Concrete>(): usize {
 const size: usize = storageSize<int32>();
 size satisfies usize;
 
-=== checked ===
+=== dir ===
 function storageSize<T: Concrete>(): usize {
 /// @generic.template symbol=storageSize parameters=(T: Concrete)
 /// @type.symbol symbol=storageSize type=<T: Concrete>() => usize
@@ -39,7 +39,7 @@ function storageSize<T: Concrete>(): usize {
     /// @resolution.pattern source=size kind=binding target=storageSize.size
     /// @resolution.name source=sizeOf target=reflect.type.sizeOf
     /// @resolution.call source=sizeOf<T>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<T>
-    /// @generic.instance source=sizeOf<T>() id=sizeOf<T>
+    /// @generic.instantiation id=sizeOf<T> template=reflect.type.sizeOf arguments=(T) owner=storageSize
     /// @resolution.name source=T target=storageSize.T
 
     return size;
@@ -54,15 +54,14 @@ const size = storageSize<int32>();
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=storageSize target=storageSize
 /// @resolution.call source=storageSize<int32>() parameters=() return=usize kind=symbol target=storageSize instance=storageSize<int32>
-/// @generic.instance source=storageSize<int32>() id=storageSize<int32>
+/// @generic.instantiation id=storageSize<int32> template=storageSize arguments=(int32)
+/// @generic.instance id=sizeOf<int32> template=reflect.type.sizeOf arguments=(int32)
+/// @generic.instance id=storageSize<int32> template=storageSize arguments=(int32)
 
 size satisfies usize;
 /// @resolution.name source=size target=size
 /// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=size root=size
-
-/// @generic.instance id=sizeOf<T> template=reflect.type.sizeOf arguments=(T)
-/// @generic.instance id=storageSize<int32> template=storageSize arguments=(int32)
 "#,
     );
 }
@@ -87,7 +86,7 @@ size satisfies usize;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -106,7 +105,7 @@ newtype Shape = Circle | Rectangle;
 const size: usize = const sizeOf<Shape>();
 size satisfies usize;
 
-=== checked ===
+=== dir ===
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
@@ -142,15 +141,14 @@ const size = const sizeOf<Shape>();
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=sizeOf target=reflect.type.sizeOf
 /// @resolution.call source=sizeOf<Shape>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<Shape>
-/// @generic.instance source=sizeOf<Shape>() id=sizeOf<Shape>
+/// @generic.instantiation id=sizeOf<Shape> template=reflect.type.sizeOf arguments=(Shape)
+/// @generic.instance id=sizeOf<Shape> template=reflect.type.sizeOf arguments=(Shape)
 /// @resolution.name source=Shape target=Shape
 
 size satisfies usize;
 /// @resolution.name source=size target=size
 /// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=size root=size
-
-/// @generic.instance id=sizeOf<Shape> template=reflect.type.sizeOf arguments=(Shape)
 "#,
     );
 }
@@ -168,7 +166,7 @@ size satisfies usize;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -180,7 +178,7 @@ interface Writer {
 const size: usize = const sizeOf<Dynamic<Writer>>();
 size satisfies usize;
 
-=== checked ===
+=== dir ===
 interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer
@@ -197,7 +195,8 @@ const size = const sizeOf<Dynamic<Writer>>();
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=sizeOf target=reflect.type.sizeOf
 /// @resolution.call source=sizeOf<Dynamic<Writer>>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<Dynamic<Writer>>
-/// @generic.instance source=sizeOf<Dynamic<Writer>>() id=sizeOf<Dynamic<Writer>>
+/// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
+/// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @resolution.name source=Writer target=Writer
 
@@ -205,8 +204,6 @@ size satisfies usize;
 /// @resolution.name source=size target=size
 /// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=size root=size
-
-/// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 "#,
     );
 }
@@ -224,7 +221,7 @@ size satisfies usize;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_statics(),
         r#"
@@ -236,7 +233,7 @@ type Writer = {
 const size: usize = const sizeOf<Dynamic<Writer>>();
 size satisfies usize;
 
-=== checked ===
+=== dir ===
 type Writer = {
 /// @type.symbol symbol=Writer type={ write(readonly Array<uint8>): uint64 }
 /// @definition.type symbol=Writer value={ write(readonly Array<uint8>): uint64 }
@@ -251,7 +248,8 @@ const size = const sizeOf<Dynamic<Writer>>();
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=sizeOf target=reflect.type.sizeOf
 /// @resolution.call source=sizeOf<Dynamic<Writer>>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<Dynamic<Writer>>
-/// @generic.instance source=sizeOf<Dynamic<Writer>>() id=sizeOf<Dynamic<Writer>>
+/// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
+/// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @resolution.name source=Writer target=Writer
 
@@ -259,8 +257,6 @@ size satisfies usize;
 /// @resolution.name source=size target=size
 /// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=size root=size
-
-/// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 "#,
     );
 }
@@ -273,14 +269,14 @@ declare const value: Dynamic<<T>(input: T) => T>;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
 declare const value: Dynamic<<T>(input: T) => T>;
 
-=== checked ===
+=== dir ===
 declare const value: Dynamic<<T>(input: T) => T>;
 /// @type.symbol symbol=value source=value type=Dynamic<Function<(T,), T>>
 /// @resolution.pattern source=value kind=binding target=value
@@ -290,8 +286,6 @@ declare const value: Dynamic<<T>(input: T) => T>;
 /// @type.symbol symbol=input source="input: T" type=T
 /// @resolution.name source=T target=T
 /// @resolution.name source=T target=T
-
-/// @generic.instance id="Dynamic<Function<(T,), T>>" template=memory.dynamic.Dynamic arguments=(Function<(T,), T>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '<T>(input: T) => T' does not satisfy 'DynamicSafe'"
@@ -324,7 +318,7 @@ makeCircle() satisfies Shape;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -346,7 +340,7 @@ function makeCircle(): Shape {
 
 makeCircle() satisfies Shape;
 
-=== checked ===
+=== dir ===
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
@@ -426,7 +420,7 @@ makeShape(true) satisfies Shape;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -452,7 +446,7 @@ function makeShape(flag: boolean): Shape {
 
 makeShape(true) satisfies Shape;
 
-=== checked ===
+=== dir ===
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
@@ -562,7 +556,7 @@ makeShape(true) satisfies Shape;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -588,7 +582,7 @@ function makeShape(flag: boolean): Shape {
 
 makeShape(true) satisfies Shape;
 
-=== checked ===
+=== dir ===
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
