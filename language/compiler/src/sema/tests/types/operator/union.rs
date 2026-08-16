@@ -509,10 +509,10 @@ const first = values[0];
 /// @generic.instantiation id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
 /// @generic.instance id="collections.array.index#1<int32, \"readonly\">" template=collections.array.index#1 arguments=(int32, "readonly")
 /// @generic.instance id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<int32>, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<int32>, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<string>, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<string>, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a int32, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a int32, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a string, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a string, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&'frame Array<int32>, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame Array<int32>, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&'frame Array<string>, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame Array<string>, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&'frame int32, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame int32, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&'frame string, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame string, "readonly")
 "#,
     );
 }

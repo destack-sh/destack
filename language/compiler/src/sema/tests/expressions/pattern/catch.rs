@@ -36,8 +36,6 @@ declare function read(): Result<string, { code: int32; message: string }>;
 /// @generic.instance id="error.result.Err<{ code: int32; message: string }>" template=error.result.Err arguments=({ code: int32; message: string })
 /// @generic.instance id=error.result.Ok<string> template=error.result.Ok arguments=(string)
 /// @resolution.name source=Result target=error.result.Result
-/// @generic.instance id="Result<string, { code: int32; message: string }>" template=error.result.Result arguments=(string, { code: int32; message: string })
-/// @generic.instance id="error.result.Err<{ code: int32; message: string }>" template=error.result.Err arguments=({ code: int32; message: string })
 
 try {
 /// @type.node type=string | void
@@ -163,8 +161,6 @@ declare function read(): Result<string, { message: string }>;
 /// @generic.instance id="error.result.Err<{ message: string }>" template=error.result.Err arguments=({ message: string })
 /// @generic.instance id=error.result.Ok<string> template=error.result.Ok arguments=(string)
 /// @resolution.name source=Result target=error.result.Result
-/// @generic.instance id="Result<string, { message: string }>" template=error.result.Result arguments=(string, { message: string })
-/// @generic.instance id="error.result.Err<{ message: string }>" template=error.result.Err arguments=({ message: string })
 
 try {
 /// @type.node type=string | void

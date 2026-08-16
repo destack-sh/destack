@@ -448,8 +448,8 @@ const first = shapes[0];
 /// @resolution.subscript source=shapes[0] type=Shape kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
 /// @generic.instance id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<Shape>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<Shape>, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Shape, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Shape, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame Array<Shape>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<Shape>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame Shape, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Shape, "exclusive")
 
 first satisfies Shape;
 /// @resolution.name source=first target=first

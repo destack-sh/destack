@@ -72,8 +72,6 @@ declare const transform:
 
     Function<(string,), "left"> |
     /// @resolution.name source=Function target=types.function.Function
-    /// @generic.instance id="Function<(string,), \"left\", \"repeatable\">" template=types.function.Function arguments=((string,), "left", "repeatable")
-    /// @generic.instance id="Function<(string,), \"right\", \"repeatable\">" template=types.function.Function arguments=((string,), "right", "repeatable")
 
     Function<(string,), "right">;
     /// @resolution.name source=Function target=types.function.Function

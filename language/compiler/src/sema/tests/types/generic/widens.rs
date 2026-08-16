@@ -435,7 +435,6 @@ declare const makers: Holder<() => Circle>;
 /// @resolution.pattern source=makers kind=binding target=makers
 /// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
 /// @resolution.name source=Holder target=Holder
-/// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
 /// @resolution.name source=Circle target=Circle
 
 const widened: Holder<() => Shape> = makers;
@@ -443,7 +442,6 @@ const widened: Holder<() => Shape> = makers;
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @generic.instance id="Holder<Function<(), Shape>>" template=Holder arguments=(Function<(), Shape>)
 /// @resolution.name source=Holder target=Holder
-/// @generic.instance id="Holder<Function<(), Shape>>" template=Holder arguments=(Function<(), Shape>)
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=makers target=makers
 /// @resolution.place source=makers placement="local" lifetime="static" access="readonly"

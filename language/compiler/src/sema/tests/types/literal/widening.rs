@@ -41,8 +41,8 @@ const first = values[0];
 /// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 /// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<float64>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<float64>, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a float64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame Array<float64>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<float64>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64, "exclusive")
 /// @type.node source=0 type=0
 "#,
     );
@@ -89,8 +89,8 @@ const first = values[0];
 /// @resolution.subscript source=values[0] type=1 | 2 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static 1 | 2, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<1 | 2, \"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
 /// @generic.instance id="collections.array.index#1<1 | 2, \"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a 1 | 2, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a 1 | 2, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<1 | 2>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<1 | 2>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame 1 | 2, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame 1 | 2, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame Array<1 | 2>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<1 | 2>, "exclusive")
 /// @type.node source=0 type=0
 "#,
     );

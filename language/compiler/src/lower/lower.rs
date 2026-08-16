@@ -218,6 +218,10 @@ impl<'a> ModuleLowerer<'a> {
     ) -> CompilerResult<bool> {
         Ok(match self.ty(ty)? {
             dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)) => true,
+            // written memory literals spell lifetimes as strings
+            dir::Type::Literal(dir::ScalarLiteral::String(name)) => {
+                matches!(self.strings.get(name), "static" | "frame")
+            }
             dir::Type::Parameter(parameter) => {
                 let binding = self
                     .state(parameter.module_id)?

@@ -943,8 +943,8 @@ inspect(state.users[0]);
 /// @resolution.subscript source=state.users[0] type=User kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static User, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<User, \"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
 /// @generic.instance id="collections.array.index#1<User, \"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<User>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<User>, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a User, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a User, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame Array<User>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<User>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame User, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame User, "exclusive")
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 "#,
     );

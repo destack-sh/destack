@@ -80,8 +80,8 @@ declare const values: [int32; 1];
 /// @resolution.pattern.assign source=[value = fallback] kind=sequence element=int32 arity=1 fields=(value)
 /// @generic.instantiation id="collections.fixed-array.index#1<int32, 1, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 1, "exclusive")
 /// @generic.instance id="collections.fixed-array.index#1<int32, 1, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 1, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a FixedArray<int32, 1>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a FixedArray<int32, 1>, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a int32, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame FixedArray<int32, 1>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame FixedArray<int32, 1>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32, "exclusive")
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source="value = fallback" kind=default pattern=value value=expression

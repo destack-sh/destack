@@ -154,6 +154,35 @@ impl CheckState<'_> {
         )
     }
 
+    /// Rewrite one instance argument with every lifetime erased to the frame literal.
+    fn erase_argument_lifetimes(
+        &mut self,
+        id: dir::GlobalTypeId,
+        visiting: &mut Vec<dir::GlobalTypeId>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // keep a revisited cycle member as written
+        if visiting.contains(&id) {
+            return Ok(id);
+        }
+
+        // lifetime spellings all erase to one canonical literal
+        if self.written_argument_is_lifetime(id)? {
+            return self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
+                dir::Lifetime::Frame,
+            )));
+        }
+
+        visiting.push(id);
+        let ty = self.ty(id)?;
+        let rebuilt =
+            self.map_type_children(id.module_id, self.module_id, ty, &mut |state, child| {
+                state.erase_argument_lifetimes(child, visiting)
+            })?;
+        visiting.pop();
+
+        self.intern_type(rebuilt)
+    }
+
     /// Return whether one type mentions a non-lifetime parameter.
     fn type_has_open_parameter(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         let mut pending = vec![ty];
@@ -206,6 +235,7 @@ impl CheckState<'_> {
             }
 
             let argument = self.deeply_resolve(origin, binding.argument)?;
+            let argument = self.erase_argument_lifetimes(argument, &mut Vec::new())?;
 
             // leave open instantiations to close under their enclosing instance
             let flags = self.type_flags(argument)?;

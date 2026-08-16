@@ -41,8 +41,8 @@ const byte = bytes[index];
 /// @resolution.subscript source=bytes[index] type=uint8 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(index) as isize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 /// @generic.instance id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<uint8>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<uint8>, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a uint8, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a uint8, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame Array<uint8>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<uint8>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame uint8, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame uint8, "exclusive")
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=index root=index
@@ -139,8 +139,8 @@ bytes[index] += 1;
 /// @generic.instantiation id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 /// @generic.instantiation id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
 /// @generic.instance id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<uint8>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<uint8>, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a uint8, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a uint8, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame Array<uint8>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<uint8>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame uint8, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame uint8, "exclusive")
 /// @generic.instance id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="readonly"
