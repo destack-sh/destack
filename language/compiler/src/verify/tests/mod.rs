@@ -1,2 +1,11 @@
-mod ownership;
+mod access;
+mod alias;
+mod call;
+mod initialization;
+mod lifetime;
+mod r#move;
+mod park;
 mod program;
+mod provenance;
+mod storage;
+mod transfer;

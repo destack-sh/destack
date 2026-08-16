@@ -1,15 +1,95 @@
-use crate::DiagnosticAnchor;
 use destack_artifact_macros::Diagnostic;
+
+use crate::DiagnosticAnchor;
 
 /// Errors during the verify phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
 #[diagnostic(severity = Error, phase = Verify)]
 pub enum VerifyError {
-    /// Value used after ownership was transferred.
+    // Move checking
+    /// A conditional selection attempts to duplicate move-only operands.
     ///
     /// ```mir
-    /// v1: ref<int32, unique, mutable> = field.get v0, 0
-    /// v2: ref<int32, unique, mutable> = field.get v0, 0 // moved by v1
+    /// type Box {
+    ///     value: int32;
+    /// }
+    ///
+    /// function test(v0: Box, v1: Box, v2: boolean): Box {
+    /// entry(v0: Box, v1: Box, v2: boolean):
+    ///     v3: Box = select v2, v0, v1
+    ///     return v3
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "select-of-move-only-value",
+        message = "invalid MIR: select operands must implement Copy"
+    )]
+    SelectOfMoveOnlyValue {
+        /// The invalid selection.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A place is read before it is initialized.
+    ///
+    /// ```mir
+    /// function test(): int32 {
+    ///     local l0: int32
+    ///
+    /// entry:
+    ///     v0: int32 = local.get l0
+    ///     return v0
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "use-of-uninitialized-place",
+        message = "use of uninitialized value"
+    )]
+    UseOfUninitializedPlace {
+        /// The invalid use.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A place is initialized on only some incoming control-flow paths.
+    ///
+    /// ```mir
+    /// function test(v0: boolean, v1: int32): int32 {
+    ///     local l0: int32
+    ///
+    /// entry(v0: boolean, v1: int32):
+    ///     branch v0 => initialize | skip
+    ///
+    /// initialize:
+    ///     local.set l0, v1
+    ///     jump done
+    ///
+    /// skip:
+    ///     jump done
+    ///
+    /// done:
+    ///     v2: int32 = local.get l0
+    ///     return v2
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "maybe-use-of-uninitialized-place",
+        message = "value may be uninitialized"
+    )]
+    MaybeUseOfUninitializedPlace {
+        /// The invalid use.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A value is used after ownership was transferred.
+    ///
+    /// ```mir
+    /// external function consume(ref<int32, unique, mutable>): void
+    ///
+    /// function test(v0: ref<int32, unique, mutable>): int32 {
+    /// entry(v0: ref<int32, unique, mutable>):
+    ///     call consume(v0): (ref<int32, unique, mutable>) => void
+    ///     v1: int32 = load v0
+    ///     return v1
+    /// }
     /// ```
     #[diagnostic(id = "use-after-move", message = "use of moved value")]
     UseAfterMove {
@@ -19,17 +99,26 @@ pub enum VerifyError {
         moved_at: DiagnosticAnchor,
     },
 
-    /// Value may have been moved on one control-flow path.
+    /// A value may have been moved on one control-flow path.
     ///
     /// ```mir
-    /// branch v1, b1, b2
-    /// b1:
-    ///     call consume(v0)
-    ///     jump b3
-    /// b2:
-    ///     jump b3
-    /// b3:
-    ///     load v0 // moved when reached through b1
+    /// external function consume(ref<int32, unique, mutable>): void
+    ///
+    /// function test(v0: ref<int32, unique, mutable>, v1: boolean): int32 {
+    /// entry(v0: ref<int32, unique, mutable>, v1: boolean):
+    ///     branch v1 => consume | preserve
+    ///
+    /// consume:
+    ///     call consume(v0): (ref<int32, unique, mutable>) => void
+    ///     jump done
+    ///
+    /// preserve:
+    ///     jump done
+    ///
+    /// done:
+    ///     v2: int32 = load v0
+    ///     return v2
+    /// }
     /// ```
     #[diagnostic(id = "maybe-use-after-move", message = "value may have been moved")]
     MaybeUseAfterMove {
@@ -39,22 +128,22 @@ pub enum VerifyError {
         moved_at: DiagnosticAnchor,
     },
 
-    /// An aggregate remains partially moved before another operation.
+    /// A field is moved out of a type that implements Drop.
     ///
     /// ```mir
-    /// v1: Row = aggregate (v0, v2)
-    /// v3: ref<int32, unique, mutable> = field.get v1, 0
-    /// call consume(v3) // v1 still owns its other field
+    /// type Row {
+    ///     left: ref<int32, unique, mutable>;
+    ///     right: ref<int32, unique, mutable>;
+    /// }
+    ///
+    /// external function dropRow(ref<Row, borrowed, exclusive>): void // Row drop hook
+    ///
+    /// function test(v0: Row): ref<int32, unique, mutable> {
+    /// entry(v0: Row):
+    ///     v1: ref<int32, unique, mutable> = field.get v0, 0
+    ///     return v1
+    /// }
     /// ```
-    #[diagnostic(id = "partial-move", message = "aggregate is only partially moved")]
-    PartialMove {
-        /// The operation reached before decomposition completed.
-        anchor: DiagnosticAnchor,
-        /// The projection that began decomposition.
-        moved_at: DiagnosticAnchor,
-    },
-
-    /// Cannot move a field out of a type that implements Drop.
     #[diagnostic(
         id = "move-out-of-drop",
         message = "cannot move out of a value that implements Drop"
@@ -64,11 +153,67 @@ pub enum VerifyError {
         anchor: DiagnosticAnchor,
     },
 
+    /// A safe load cannot move a value out through a reference.
+    ///
+    /// ```mir
+    /// type Box {
+    ///     value: ref<int32, unique, mutable>;
+    /// }
+    ///
+    /// function test(v0: ref<Box, borrowed, exclusive>): void {
+    /// entry(v0: ref<Box, borrowed, exclusive>):
+    ///     v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+    ///     v2: ref<int32, unique, mutable> = load v1
+    ///     return
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "move-out-of-reference",
+        message = "cannot move out through a reference"
+    )]
+    MoveOutOfReference {
+        /// The invalid load.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A safe store cannot discard a move-only value already in memory.
+    ///
+    /// ```mir
+    /// type Box {
+    ///     value: ref<int32, unique, mutable>;
+    /// }
+    ///
+    /// function test(v0: ref<Box, borrowed, exclusive>, v1: ref<int32, unique, mutable>): void {
+    /// entry(v0: ref<Box, borrowed, exclusive>, v1: ref<int32, unique, mutable>):
+    ///     v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+    ///     store v2, v1
+    ///     return
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "overwrite-of-move-only-place",
+        message = "cannot overwrite move-only storage without taking its value"
+    )]
+    OverwriteOfMoveOnlyPlace {
+        /// The invalid store.
+        anchor: DiagnosticAnchor,
+    },
+
+    // Borrow checking
     /// A new borrow conflicts with an active borrow.
     ///
     /// ```mir
-    /// v1: ref<int32, borrowed, exclusive> = field.address v0, 0
-    /// v2: ref<int32, borrowed, readonly> = field.address v0, 0 // overlaps v1
+    /// type Box {
+    ///     value: int32;
+    /// }
+    ///
+    /// function test(v0: ref<Box, borrowed, mutable>): int32 {
+    /// entry(v0: ref<Box, borrowed, mutable>):
+    ///     v1: ref<int32, borrowed, readonly> = field.address v0, 0
+    ///     v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    ///     v3: int32 = load v1
+    ///     return v3
+    /// }
     /// ```
     #[diagnostic(
         id = "borrow-conflict",
@@ -81,11 +226,61 @@ pub enum VerifyError {
         active_borrow: DiagnosticAnchor,
     },
 
-    /// Cannot invalidate a place while an overlapping loan is live.
+    /// A writable borrow is created through a readonly reference.
     ///
     /// ```mir
-    /// v1: ref<int32, borrowed, mutable> = field.address v0, 0
-    /// call consume(v0) // moves the borrowed root
+    /// type Box {
+    ///     value: int32;
+    /// }
+    ///
+    /// function test(v0: ref<Box, borrowed, readonly>): void {
+    /// entry(v0: ref<Box, borrowed, readonly>):
+    ///     v1: ref<int32, borrowed, exclusive> = field.address v0, 0
+    ///     return
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "borrow-through-readonly-reference",
+        message = "cannot create a writable borrow through a readonly reference"
+    )]
+    BorrowThroughReadonlyReference {
+        /// The invalid borrow.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// Exclusive call arguments overlap.
+    ///
+    /// ```mir
+    /// external function update(ref<int32, borrowed, exclusive>, ref<int32, borrowed, exclusive>): void
+    ///
+    /// function test(v0: ref<int32, borrowed, mutable>): void {
+    /// entry(v0: ref<int32, borrowed, mutable>):
+    ///     call update(v0, v0): (ref<int32, borrowed, exclusive>, ref<int32, borrowed, exclusive>) => void
+    ///     return
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "exclusive-argument-alias",
+        message = "exclusive call arguments may refer to the same storage"
+    )]
+    ExclusiveArgumentAlias {
+        /// The invalid call.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A place is invalidated while an overlapping loan is live.
+    ///
+    /// ```mir
+    /// function test(v0: int32, v1: int32): int32 {
+    ///     local l0: int32
+    ///
+    /// entry(v0: int32, v1: int32):
+    ///     local.set l0, v0
+    ///     v2: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     local.set l0, v1
+    ///     v3: int32 = load v2
+    ///     return v3
+    /// }
     /// ```
     #[diagnostic(
         id = "invalidation-of-borrowed-place",
@@ -98,10 +293,38 @@ pub enum VerifyError {
         borrowed_at: DiagnosticAnchor,
     },
 
+    /// A place cannot be read through another reference during an exclusive borrow.
+    ///
+    /// ```mir
+    /// function test(v0: int32): int32 {
+    ///     local l0: int32
+    ///
+    /// entry(v0: int32):
+    ///     local.set l0, v0
+    ///     v1: ref<int32, borrowed, exclusive, frame> = local.address l0
+    ///     v2: int32 = local.get l0
+    ///     return v2
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "use-of-exclusively-borrowed-place",
+        message = "cannot use exclusively borrowed place"
+    )]
+    UseOfExclusivelyBorrowedPlace {
+        /// The conflicting read.
+        anchor: DiagnosticAnchor,
+        /// The exclusive borrow.
+        borrowed_at: DiagnosticAnchor,
+    },
+
     /// A MIR store cannot write through a readonly reference.
     ///
     /// ```mir
-    /// store v0, v1 // v0: ref<int32, borrowed, readonly>
+    /// function test(v0: ref<int32, borrowed, readonly>, v1: int32): void {
+    /// entry(v0: ref<int32, borrowed, readonly>, v1: int32):
+    ///     store v0, v1
+    ///     return
+    /// }
     /// ```
     #[diagnostic(
         id = "write-through-readonly-reference",
@@ -112,17 +335,25 @@ pub enum VerifyError {
         anchor: DiagnosticAnchor,
     },
 
-    /// Exclusive borrowed access cannot be created from shared managed storage.
+    /// Exclusive borrowed access cannot be created from shared storage.
     ///
     /// ```mir
-    /// v1: ref<int32, borrowed, exclusive, shared> = field.address v0, 0
-    /// // v0: ref<User, managed, mutable, shared>
+    /// type User {
+    ///     id: int32;
+    /// }
+    ///
+    /// function test(v0: ref<User, managed, mutable, shared>): int32 {
+    /// entry(v0: ref<User, managed, mutable, shared>):
+    ///     v1: ref<int32, borrowed, exclusive, shared> = field.address v0, 0
+    ///     v2: int32 = load v1
+    ///     return v2
+    /// }
     /// ```
     #[diagnostic(
-        id = "exclusive-borrow-from-shared-managed",
-        message = "cannot borrow shared managed storage exclusively"
+        id = "exclusive-borrow-from-shared-storage",
+        message = "cannot borrow shared storage exclusively"
     )]
-    ExclusiveBorrowFromSharedManaged {
+    ExclusiveBorrowFromSharedStorage {
         /// The exclusive borrow.
         anchor: DiagnosticAnchor,
     },
@@ -130,9 +361,12 @@ pub enum VerifyError {
     /// An escaping borrow is not covered by the required lifetime.
     ///
     /// ```mir
-    /// function test(v0: ref<User, managed, mutable>): ref<int32, borrowed, lifetime(static), mutable> {
-    ///     v1: ref<int32, borrowed, mutable> = field.address v0, 0
-    ///     return v1 // managed borrow is not static
+    /// function test(): ref<int32, borrowed, readonly> {
+    ///     local l0: int32
+    ///
+    /// entry:
+    ///     v0: ref<int32, borrowed, readonly, frame> = local.address l0
+    ///     return v0
     /// }
     /// ```
     #[diagnostic(
@@ -142,5 +376,34 @@ pub enum VerifyError {
     BorrowOutlivesOrigin {
         /// The escaping borrow.
         anchor: DiagnosticAnchor,
+    },
+
+    /// A borrow of managed storage remains live while its fiber may park.
+    ///
+    /// ```mir
+    /// type Box {
+    ///     value: int32;
+    /// }
+    ///
+    /// @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
+    /// external function park(): void
+    ///
+    /// function test(v0: ref<Box, managed, mutable>): int32 {
+    /// entry(v0: ref<Box, managed, mutable>):
+    ///     v1: ref<int32, borrowed, readonly> = field.address v0, 0
+    ///     call park(): () => void
+    ///     v2: int32 = load v1
+    ///     return v2
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "managed-borrow-across-park",
+        message = "borrow of managed storage cannot remain live while this call parks"
+    )]
+    ManagedBorrowAcrossPark {
+        /// The parking call.
+        anchor: DiagnosticAnchor,
+        /// The active borrow.
+        borrowed_at: DiagnosticAnchor,
     },
 }

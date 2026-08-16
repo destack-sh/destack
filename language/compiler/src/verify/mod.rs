@@ -1,12 +1,13 @@
+mod borrow;
 mod error;
-mod ownership;
+mod r#move;
 mod provide;
-mod state;
-mod warning;
+mod verifier;
 
+pub(in crate::verify) use borrow::*;
 pub use error::*;
-pub(crate) use state::*;
-pub use warning::*;
+pub(in crate::verify) use r#move::*;
+pub(crate) use verifier::*;
 
 #[cfg(test)]
 mod tests;
