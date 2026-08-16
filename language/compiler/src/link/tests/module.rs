@@ -93,7 +93,7 @@ impl TestModule {
             .expect("test MIR should be text");
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
         let (
-            mut tree,
+            tree,
             target,
             types,
             mut layouts,
@@ -107,7 +107,7 @@ impl TestModule {
         ) = parsed.into_parts();
 
         // compute physical layouts required by object emission
-        let mut layout_builder = LayoutBuilder::new(module, &mut tree, &mut layouts, target);
+        let mut layout_builder = LayoutBuilder::new(module, &tree, &mut layouts, target);
         layout_builder
             .layout_reachable_types()
             .expect("test MIR layouts should lower");

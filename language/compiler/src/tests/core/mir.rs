@@ -231,16 +231,12 @@ impl TestProgram {
 
     /// Complete the physical MIR required by execution emitters.
     fn optimized(&self) -> MirOptimized {
-        let mut tree = self.lowered.tree.clone();
+        let tree = self.lowered.tree.clone();
         let mut layouts = self.lowered.layouts.clone();
 
         // complete physical layouts before exercising the emission boundary
-        let mut builder = LayoutBuilder::new(
-            self.module_id(),
-            &mut tree,
-            &mut layouts,
-            self.lowered.target,
-        );
+        let mut builder =
+            LayoutBuilder::new(self.module_id(), &tree, &mut layouts, self.lowered.target);
         builder
             .layout_reachable_types()
             .expect("test MIR layouts should lower");

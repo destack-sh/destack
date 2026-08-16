@@ -271,12 +271,20 @@ impl fmt::Debug for NativeTable {
             .field("virtual_table_count", &self.virtuals.len())
             .field(
                 "virtual_method_count",
-                &self.virtual_tables.iter().map(|row| row.len()).sum::<usize>(),
+                &self
+                    .virtual_tables
+                    .iter()
+                    .map(|row| row.len())
+                    .sum::<usize>(),
             )
             .field("dynamic_table_count", &self.dynamics.len())
             .field(
                 "dynamic_entry_count",
-                &self.dynamic_tables.iter().map(|row| row.len()).sum::<usize>(),
+                &self
+                    .dynamic_tables
+                    .iter()
+                    .map(|row| row.len())
+                    .sum::<usize>(),
             )
             .finish()
     }

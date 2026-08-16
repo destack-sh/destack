@@ -407,9 +407,7 @@ impl ModuleQueryContext<'_> {
         let member = view.get::<dir::Member>(member_id);
         if matches!(
             member,
-            dir::Member::StaticBlock { .. }
-                | dir::Member::ConstBlock { .. }
-                | dir::Member::Error
+            dir::Member::StaticBlock { .. } | dir::Member::ConstBlock { .. } | dir::Member::Error
         ) {
             return Ok(None);
         }

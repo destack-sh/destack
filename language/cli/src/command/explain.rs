@@ -240,9 +240,7 @@ fn collect_diagnostics(
 
 /// Collect every lint rule.
 fn collect_lints() -> Vec<LintEntry> {
-    let mut entries = linter::Lint::all()
-        .map(lint_entry)
-        .collect::<Vec<_>>();
+    let mut entries = linter::Lint::all().map(lint_entry).collect::<Vec<_>>();
     entries.sort_unstable_by_key(|entry| (entry.category, entry.id));
 
     entries
