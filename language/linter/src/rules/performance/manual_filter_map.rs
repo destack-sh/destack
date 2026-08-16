@@ -168,7 +168,7 @@ mod tests {
         let session = TestSession::dir(
             &MANUAL_FILTER_MAP,
             r#"
-function defined(values: (int32 | undefined)[]): int32[] {
+function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     return values.map((value) => value).filter((value) => value !== undefined);
 }
 "#,
@@ -179,7 +179,7 @@ function defined(values: (int32 | undefined)[]): int32[] {
 warning[manual-filter-map]: mapped array is filtered only for defined values
  ──▶ main.ds:2:12
   │
-1 │ function defined(values: (int32 | undefined)[]): int32[] {
+1 │ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 2 │     return values.map((value) => value).filter((value) => value !== undefined);
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │ }
@@ -189,14 +189,14 @@ warning[manual-filter-map]: mapped array is filtered only for defined values
 --- a/main.ds
 +++ b/main.ds
 
-    1│ function defined(values: (int32 | undefined)[]): int32[] {
+    1│ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 -   2│     return values.map((value) => value).filter((value) => value !== undefined);
 +   2│     return values.filterMap((value) => value);
 "#,
         );
         session.assert_suggestions(
             r#"
-function defined(values: (int32 | undefined)[]): int32[] {
+function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     return values.filterMap((value) => value);
 }
 "#,
@@ -209,7 +209,7 @@ function defined(values: (int32 | undefined)[]): int32[] {
         let session = TestSession::dir(
             &MANUAL_FILTER_MAP,
             r#"
-function defined(values: (int32 | undefined)[]): int32[] {
+function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     return values.map((value) => value).filter((value) => undefined !== value);
 }
 "#,
@@ -217,7 +217,7 @@ function defined(values: (int32 | undefined)[]): int32[] {
 
         session.assert_suggestions(
             r#"
-function defined(values: (int32 | undefined)[]): int32[] {
+function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     return values.filterMap((value) => value);
 }
 "#,

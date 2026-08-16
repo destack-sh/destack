@@ -51,6 +51,8 @@ pub struct DirModule<'a> {
     pub coercions: &'a dir::CoercionTable<'static>,
     /// The capture table.
     pub captures: &'a dir::CaptureTable<'static>,
+    /// The flow conclusion table.
+    pub flows: &'a dir::FlowTable<'static>,
     /// The top-level expression roots.
     pub roots: &'a [dir::LocalNodeId<dir::Expression>],
     /// The stable module node.
@@ -98,6 +100,8 @@ pub(super) struct DirModuleStorage {
     coercions: dir::CoercionTable<'static>,
     /// The capture table.
     captures: dir::CaptureTable<'static>,
+    /// The flow conclusion table.
+    flows: dir::FlowTable<'static>,
     /// The top-level expression roots.
     roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The stable module node.
@@ -129,6 +133,7 @@ impl<'a> DirModule<'a> {
             definitions: &storage.definitions,
             coercions: &storage.coercions,
             captures: &storage.captures,
+            flows: &storage.flows,
             roots: &storage.roots,
             module_node: storage.module_node,
             namespace_scope: storage.namespace_scope,
@@ -241,6 +246,7 @@ impl DirModuleStorage {
         let definitions = checked.definition_table(&elaborated);
         let coercions = checked.coercion_table();
         let captures = checked.capture_table();
+        let flows = checked.flow_table(&declared, &elaborated);
         let roots = expanded.roots.clone();
         let module_node = bound.module_node;
         let namespace_scope = bound.namespace_scope;
@@ -264,6 +270,7 @@ impl DirModuleStorage {
             definitions,
             coercions,
             captures,
+            flows,
             roots,
             module_node,
             namespace_scope,

@@ -1,6 +1,24 @@
-use crate::rules::declare_lint_stub;
+use std::collections::BTreeMap;
 
-declare_lint_stub! {
+use destack_dir as dir;
+use destack_source::Patch;
+
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+/// One mutable binding declared by a let expression.
+struct LetBinding {
+    /// The let expression that owns the binding.
+    declaration: dir::LocalNodeId<dir::Expression>,
+    /// The node that introduces the binding.
+    node: dir::LocalNodeIdAny,
+    /// The checked binding symbol.
+    symbol: dir::LocalSymbolId,
+    /// Whether the declarator initializes the binding.
+    is_initialized: bool,
+}
+
+declare_lint! {
     /// Require const for bindings never reassigned after initialization.
     pub PREFER_CONST {
         id: "prefer-const",
@@ -9,7 +27,7 @@ declare_lint_stub! {
 A `let` binding that is never reassigned permits a write the function does not perform.
 Instead, you SHOULD declare the binding with `const`.
 
-`const` prevents reassignment of the binding and still permits mutation through the stored value's API.
+`const` freezes directly stored values while preserving the access carried by references.
 "#,
         example: {
             reported: r#"
@@ -28,8 +46,149 @@ function identity(value: int32): int32 {
         category: Style,
         level: Warning,
         fixable: Automatic,
-        check: DirModule,
+        check: DirModule(check),
     }
+}
+
+/// Report mutable bindings whose storage does not require further writes.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+    let mut let_bindings = Vec::new();
+    let mut binding_uses = BTreeMap::<dir::LocalSymbolId, dir::BindingUse>::new();
+    let mut binding_writes = BTreeMap::<dir::LocalSymbolId, Vec<dir::LocalNodeIdAny>>::new();
+
+    // index uses and writes by their local binding
+    for occurrence in module.flows.occurrences() {
+        // ignore foreign declarations
+        if occurrence.symbol.module_id != module.flows.module_id {
+            continue;
+        }
+
+        // merge the occurrence uses
+        let symbol = occurrence.symbol.local_id;
+        *binding_uses.entry(symbol).or_default() |= occurrence.uses;
+
+        // retain every write site
+        if occurrence.uses.contains(dir::BindingUse::WRITTEN) {
+            binding_writes
+                .entry(symbol)
+                .or_default()
+                .push(occurrence.node);
+        }
+    }
+
+    // collect mutable local bindings under their owning let declarations
+    for symbol in module.bindings.symbol_ids() {
+        let binding = module.bindings.get_symbol(symbol);
+        if binding.kind != dir::SymbolKind::Variable
+            || binding.binding_mutability != Some(dir::Mutability::Mutable)
+        {
+            continue;
+        }
+        let Some(declaration) = binding.declaration else {
+            continue;
+        };
+        let node = declaration.local_id;
+        let Some(declarator) = view.ancestor::<dir::Declarator>(node) else {
+            continue;
+        };
+        let Some(declaration) = view.ancestor::<dir::Expression>(declarator.into_any()) else {
+            continue;
+        };
+        if !matches!(
+            view.get(declaration),
+            dir::Expression::Let {
+                mutability: dir::Mutability::Mutable,
+                ..
+            }
+        ) {
+            continue;
+        }
+
+        let_bindings.push(LetBinding {
+            declaration,
+            node,
+            symbol,
+            is_initialized: view.get(declarator).value.is_some(),
+        });
+    }
+
+    // inspect each mutable declaration once in source order
+    for declaration in view.iter_node_ids_of_type::<dir::Expression>() {
+        let dir::Expression::Let {
+            mutability: dir::Mutability::Mutable,
+            ..
+        } = view.get(declaration)
+        else {
+            continue;
+        };
+        let declared = let_bindings
+            .iter()
+            .filter(|binding| binding.declaration == declaration)
+            .collect::<Vec<_>>();
+        if declared.is_empty() {
+            continue;
+        }
+
+        // retain bindings with no mutable storage use and no reassignment
+        let mut candidates = Vec::new();
+        for binding in &declared {
+            let uses = binding_uses
+                .get(&binding.symbol)
+                .copied()
+                .unwrap_or_default();
+            if uses.contains(dir::BindingUse::MUTABLE) {
+                continue;
+            }
+            let writes = binding_writes
+                .get(&binding.symbol)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+
+            // initialized bindings qualify only when their slot is never written again
+            if binding.is_initialized {
+                if writes.is_empty() {
+                    candidates.push(*binding);
+                }
+                continue;
+            }
+
+            // one later write qualifies only when it initializes in the declaration's block
+            let declaration_block = view.ancestor::<dir::Block>(binding.node);
+            let is_initialized_once =
+                writes.len() == 1 && view.ancestor::<dir::Block>(writes[0]) == declaration_block;
+            if is_initialized_once {
+                candidates.push(*binding);
+            }
+        }
+        if candidates.is_empty() {
+            continue;
+        }
+
+        // replace one fully initialized declaration when every binding qualifies
+        let can_fix = candidates.len() == declared.len()
+            && declared.iter().all(|binding| binding.is_initialized);
+        if can_fix {
+            let keyword = module.main_span(declaration.into_any())?;
+            let patch = Patch::replace(keyword, "const");
+            let suggestion = lint.fix("declare the binding with const", patch)?;
+            let diagnostic = lint
+                .diagnostic("binding is never reassigned", keyword)
+                .suggestion(suggestion);
+            output.report(diagnostic);
+
+            continue;
+        }
+
+        // report individual bindings when rewriting the declaration would change siblings
+        for binding in candidates {
+            let span = module.main_span(binding.node)?;
+            output.report(lint.diagnostic("binding is never reassigned", span));
+        }
+    }
+
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -38,14 +197,12 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
-    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&PREFER_CONST);
     }
 
     /// Accept a binding that is reassigned after initialization.
-    #[ignore]
     #[test]
     fn test_accepts_reassigned_binding() {
         let session = TestSession::dir(
@@ -63,7 +220,6 @@ function replace(value: int32): int32 {
     }
 
     /// Accept a binding whose storage is borrowed mutably.
-    #[ignore]
     #[test]
     fn test_accepts_mutably_borrowed_binding() {
         let session = TestSession::dir(
@@ -81,8 +237,25 @@ function replace(): int32 {
         session.assert_no_diagnostics();
     }
 
+    /// Accept a binding whose storage is borrowed exclusively.
+    #[test]
+    fn test_accepts_exclusively_borrowed_binding() {
+        let session = TestSession::dir(
+            &PREFER_CONST,
+            r#"
+function replace(): int32 {
+    let value: int32 = 0;
+    const borrowed = &exclusive value;
+    *borrowed = 1;
+    return value;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Replace a binding whose storage is only borrowed read-only.
-    #[ignore]
     #[test]
     fn test_replaces_readonly_borrowed_binding() {
         let session = TestSession::dir(
@@ -108,7 +281,6 @@ function read(): int32 {
     }
 
     /// Accept a binding implicitly borrowed with mutable access.
-    #[ignore]
     #[test]
     fn test_accepts_implicitly_borrowed_binding() {
         let session = TestSession::dir(
@@ -127,7 +299,6 @@ function update(): int32 {
     }
 
     /// Replace a binding implicitly borrowed with read-only access.
-    #[ignore]
     #[test]
     fn test_replaces_implicitly_readonly_borrowed_binding() {
         let session = TestSession::dir(
@@ -153,7 +324,6 @@ function inspect(): int32 {
     }
 
     /// Report a separately initialized binding without offering an unsafe rewrite.
-    #[ignore]
     #[test]
     fn test_reports_separately_initialized_binding() {
         let session = TestSession::dir(
@@ -183,7 +353,6 @@ warning[prefer-const]: binding is never reassigned
     }
 
     /// Accept a separately initialized binding with another write.
-    #[ignore]
     #[test]
     fn test_accepts_separately_reassigned_binding() {
         let session = TestSession::dir(
@@ -202,7 +371,6 @@ function replace(value: int32): int32 {
     }
 
     /// Accept a binding initialized only inside a nested block.
-    #[ignore]
     #[test]
     fn test_accepts_nested_initialization() {
         let session = TestSession::dir(
@@ -221,7 +389,6 @@ function initialize(active: boolean): void {
     }
 
     /// Ignore mutation behind a binding because const only prevents rebinding.
-    #[ignore]
     #[test]
     fn test_replaces_binding_with_mutated_value() {
         let session = TestSession::dir(
@@ -282,8 +449,57 @@ function increment(counter: Counter): Counter {
         );
     }
 
+    /// Accept direct storage mutated through a field and an exclusive receiver.
+    #[test]
+    fn test_accepts_mutated_direct_storage() {
+        let session = TestSession::dir(
+            &PREFER_CONST,
+            r#"
+struct Counter {
+    value: int32;
+
+    increment(&exclusive this): void {
+        this.value += 1;
+    }
+}
+function increment(): int32 {
+    let field = Counter { value: 0 };
+    field.value = 1;
+
+    let called = Counter { value: 0 };
+    called.increment();
+    return field.value + called.value;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Replace a binding whose borrowed referent is mutated.
+    #[test]
+    fn test_replaces_mutable_reference_binding() {
+        let session = TestSession::dir(
+            &PREFER_CONST,
+            r#"
+function replace(value: &exclusive int32): void {
+    let reference = value;
+    *reference = 1;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function replace(value: &exclusive int32): void {
+    const reference = value;
+    *reference = 1;
+}
+"#,
+        );
+    }
+
     /// Replace an initialized destructuring declaration when no binding is reassigned.
-    #[ignore]
     #[test]
     fn test_replaces_destructured_bindings() {
         let session = TestSession::dir(
@@ -307,7 +523,6 @@ function sum(point: { x: int32; y: int32 }): int32 {
     }
 
     /// Report only the constant binding in a partially reassigned destructuring declaration.
-    #[ignore]
     #[test]
     fn test_reports_constant_destructured_binding() {
         let session = TestSession::dir(
