@@ -601,6 +601,16 @@ pub struct FunctionValue {
     pub callable_type: GlobalTypeId,
 }
 
+impl FunctionValue {
+    /// Return the selected declaration, when this value has one.
+    pub fn selection(&self) -> Option<&Selection> {
+        match &self.target {
+            CallableTarget::Symbol { function, .. } => Some(&function.selection),
+            CallableTarget::Expression { .. } | CallableTarget::Dynamic { .. } => None,
+        }
+    }
+}
+
 /// Function value selected at a usage site.
 pub type FunctionDecision = OperationResolution<FunctionValue>;
 

@@ -55,7 +55,9 @@ impl BodyState<'_, '_> {
                 _ => None,
             },
             None => match self.decision(receiver) {
-                Some(dir::Decision::Instantiation(resolution)) => Some(resolution.symbol),
+                Some(dir::Decision::Function(dir::OperationResolution::One(value))) => {
+                    value.target.symbol()
+                }
                 _ => None,
             },
         };

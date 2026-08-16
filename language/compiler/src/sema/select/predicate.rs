@@ -108,12 +108,15 @@ impl BodyState<'_, '_> {
                 _ => None,
             },
             None => match self.decide_node(target)? {
-                dir::Decision::Instantiation(resolution) => {
-                    let resolution = &resolution;
+                dir::Decision::Function(dir::OperationResolution::One(dir::FunctionValue {
+                    target: dir::CallableTarget::Symbol { function, .. },
+                    ..
+                })) => {
+                    let selection = &function.selection;
                     let arguments =
-                        dir::GenericArgumentBinding::values(&resolution.arguments).collect();
+                        dir::GenericArgumentBinding::values(&selection.arguments).collect();
 
-                    Some((resolution.symbol, Some(arguments)))
+                    Some((selection.symbol, Some(arguments)))
                 }
                 dir::Decision::Rejected | dir::Decision::Poisoned => return Ok(None),
                 _ => None,

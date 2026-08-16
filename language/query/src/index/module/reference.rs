@@ -51,10 +51,18 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     fn collect_decisions(&mut self) -> ProviderResult<()> {
         for (source, decision) in self.module.decisions().decision_entries() {
             match decision {
-                // record explicit generic selections
-                dir::Decision::Instantiation(resolution) => {
-                    let sources = self.instantiation_sources(source)?;
-                    self.record_selection(sources, vec![resolution.symbol])?;
+                // record symbol-backed function value selections
+                dir::Decision::Function(resolution) => {
+                    let targets = resolution
+                        .arms()
+                        .iter()
+                        .filter_map(|value| value.target.symbol())
+                        .collect::<Vec<_>>();
+                    if targets.is_empty() {
+                        continue;
+                    }
+                    let sources = self.function_sources(source)?;
+                    self.record_selection(sources, targets)?;
                 }
                 // record symbol-backed call selections
                 dir::Decision::Call(resolution) => {
@@ -987,14 +995,14 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         Ok(())
     }
 
-    /// Return the authored source chain for one generic instantiation.
-    fn instantiation_sources(
+    /// Return the authored source chain for one function value resolution.
+    fn function_sources(
         &self,
         source: dir::GlobalNodeIdAny,
     ) -> ProviderResult<Vec<dir::GlobalNodeIdAny>> {
         if source.local_id.ty != dir::NodeType::Expression {
             return Err(ProviderError::internal(format!(
-                "instantiation resolution source is not an expression: {source:?}"
+                "function resolution source is not an expression: {source:?}"
             ))
             .into());
         }

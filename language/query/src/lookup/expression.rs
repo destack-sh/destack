@@ -17,10 +17,21 @@ impl ModuleQueryContext<'_> {
         if let Some(resolution) = self.decisions()?.subscript_decision(node_id) {
             selections.push(resolution.target_symbols());
         }
-        if let Some(resolution) = self.decisions()?.instantiation_decision(node_id) {
-            selections.push(vec![resolution.symbol]);
-        }
-        if let Some(resolution) = self.resolutions()?.name_resolution(node_id) {
+        // prefer a selected function value over the name resolution it decides
+        let function_targets = self
+            .decisions()?
+            .function_decision(node_id)
+            .map(|resolution| {
+                resolution
+                    .arms()
+                    .iter()
+                    .filter_map(|value| value.target.symbol())
+                    .collect::<Vec<_>>()
+            })
+            .filter(|targets| !targets.is_empty());
+        if let Some(targets) = function_targets {
+            selections.push(targets);
+        } else if let Some(resolution) = self.resolutions()?.name_resolution(node_id) {
             selections.push(resolution.symbols().to_vec());
         }
         if let Some(resolution) = self.decisions()?.receiver_decision(node_id) {

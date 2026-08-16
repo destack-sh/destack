@@ -354,9 +354,23 @@ impl BodyState<'_, '_> {
             None => declared,
         };
 
+        // record the applied callable value with its selected arguments
         let arguments = self.symbol_generic_argument_bindings(symbol, &applied)?;
-        let resolution = dir::Selection::new(symbol, arguments);
-        self.commit_decision(node, dir::Decision::Instantiation(resolution))?;
+        let value = dir::FunctionValue {
+            target: dir::CallableTarget::Symbol {
+                function: dir::FunctionTarget {
+                    receiver: None,
+                    generic_scope: None,
+                    selection: dir::Selection::new(symbol, arguments),
+                },
+                dispatch: dir::FunctionDispatch::Direct,
+            },
+            callable_type: specialized,
+        };
+        self.commit_decision(
+            node,
+            dir::Decision::Function(dir::OperationResolution::One(value)),
+        )?;
         self.commit_node_type(node, specialized)?;
 
         Ok(())

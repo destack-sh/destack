@@ -18,9 +18,16 @@ impl ModuleContext {
             return symbols;
         }
 
-        // prefer explicit generic instantiations
-        if let Some(resolution) = self.decisions().instantiation_decision(node) {
-            return vec![resolution.symbol];
+        // prefer selected function values
+        if let Some(resolution) = self.decisions().function_decision(node) {
+            let symbols = resolution
+                .arms()
+                .iter()
+                .filter_map(|value| value.target.symbol())
+                .collect::<Vec<_>>();
+            if !symbols.is_empty() {
+                return symbols;
+            }
         }
 
         // read the name resolution

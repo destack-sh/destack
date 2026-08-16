@@ -11,15 +11,13 @@ use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, Call,
     CallDecision, ConstructDecision, FunctionDecision, GlobalNodeIdAny, GlobalSymbolId,
     GlobalTypeId, GuardDecision, MemberAccess, MemberDecision, OperationResolution,
-    OperatorDecision, PatternDecision, PlaceResolution, ReceiverDecision, SegmentView, Selection,
+    OperatorDecision, PatternDecision, PlaceResolution, ReceiverDecision, SegmentView,
     SubscriptDecision, SubscriptTarget, TreeDecision, TypeFold, WalkSelections,
 };
 
 /// The one decision inference made for a DIR node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
 pub enum Decision {
-    /// Resolved explicit generic application.
-    Instantiation(Selection),
     /// Resolved contextual receiver.
     Receiver(ReceiverDecision),
     /// Resolved member access.
@@ -124,14 +122,6 @@ impl<'a> DecisionTable<'a> {
             .iter()
             .rev()
             .find_map(|segment| segment.decision(node_id))
-    }
-
-    /// Get the instantiation decision for a node.
-    pub fn instantiation_decision(&self, node_id: GlobalNodeIdAny) -> Option<&Selection> {
-        match self.decision(node_id) {
-            Some(Decision::Instantiation(decision)) => Some(decision),
-            _ => None,
-        }
     }
 
     /// Get the label target decided for a node.
@@ -386,14 +376,6 @@ impl DecisionSegment {
     pub fn construct_decision(&self, node_id: GlobalNodeIdAny) -> Option<&ConstructDecision> {
         match self.decision(node_id) {
             Some(Decision::Construct(decision)) => Some(decision),
-            _ => None,
-        }
-    }
-
-    /// Get the instantiation decision for a node.
-    pub fn instantiation_decision(&self, node_id: GlobalNodeIdAny) -> Option<&Selection> {
-        match self.decision(node_id) {
-            Some(Decision::Instantiation(decision)) => Some(decision),
             _ => None,
         }
     }
