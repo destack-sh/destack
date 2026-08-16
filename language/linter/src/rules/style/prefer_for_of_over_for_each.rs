@@ -1,17 +1,17 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use destack_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Prefer for-of over Array.forEach callbacks.
+    /// Prefer for-of over sequential forEach callbacks.
     pub PREFER_FOR_OF_OVER_FOR_EACH {
         id: "prefer-for-of-over-for-each",
-        summary: "Prefer for-of over Array.forEach callbacks",
+        summary: "Prefer for-of over sequential forEach callbacks",
         explanation: r#"
-An Array.forEach callback introduces a function boundary for ordinary sequential iteration.
+A `forEach` callback introduces a function boundary for ordinary sequential iteration.
 Instead, you SHOULD use a for-of loop when the callback boundary is unnecessary.
 
 A `return` inside the callback exits only that callback and requires manual restructuring.
@@ -39,27 +39,38 @@ function copy(values: int32[], output: int32[]): void {
     }
 }
 
-/// Report canonical Array.forEach calls.
+/// Report canonical sequential forEach calls.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // inspect canonical Array.forEach calls
+    // inspect canonical Array and Iterator forEach calls
     for expression in module.call_expressions() {
         let expression = expression?;
         let Some(call) = module.member_call(expression) else {
             continue;
         };
-        if module.language_member(expression)? != Some(dir::LanguageItem::Array.member("forEach")) {
+        let Some(member) = module.language_member(expression)? else {
+            continue;
+        };
+        if member != dir::LanguageItem::Array.member("forEach")
+            && member != dir::LanguageItem::Iterator.member("forEach")
+        {
             continue;
         }
 
         // report the callback iteration and offer a loop when control flow permits
         let span = module.source_extent(expression.into_any())?;
-        let mut diagnostic = lint.diagnostic("array iteration uses a forEach callback", span);
+        let mut diagnostic = lint.diagnostic("iteration uses a forEach callback", span);
         if !call.is_optional
             && !call.is_member_optional
-            && let Some(suggestion) =
-                suggestion(module, lint, expression, call.receiver, call.arguments)?
+            && let Some(suggestion) = suggestion(
+                module,
+                lint,
+                expression,
+                call.receiver,
+                call.arguments,
+                member.owner,
+            )?
         {
             diagnostic = diagnostic.suggestion(suggestion);
         }
@@ -76,6 +87,7 @@ fn suggestion(
     expression: dir::LocalNodeId<dir::Expression>,
     receiver: dir::LocalNodeId<dir::Expression>,
     arguments: &[dir::LocalNodeId<dir::Argument>],
+    owner: dir::LanguageItem,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let view = module.view();
 
@@ -98,10 +110,8 @@ fn suggestion(
     if lambda.signature.asynchrony != dir::Asynchrony::Sync || lambda.signature.is_generator {
         return Ok(None);
     }
-    let [parameter] = lambda.signature.parameters.as_slice() else {
-        return Ok(None);
-    };
-    if !matches!(view.get(*parameter), dir::Parameter::Named { .. }) {
+    let parameters = lambda.signature.parameters.as_slice();
+    if parameters.len() > 2 {
         return Ok(None);
     }
     let Some(body) = lambda.body else {
@@ -111,35 +121,110 @@ fn suggestion(
         return Ok(None);
     }
 
-    // reject callback-local returns whose meaning changes after inlining
-    let has_return = view
-        .iter_nodes::<dir::Expression>()
-        .any(|(node, expression)| {
-            matches!(expression, dir::Expression::Return { .. })
-                && module.enclosing_callable_body(node.into_any()) == lambda.body
-        });
-    if has_return {
+    // preserve only parameters that map directly to loop binding patterns
+    let mut parameter_spans = Vec::with_capacity(parameters.len());
+    for parameter in parameters {
+        let Some(span) = parameter_pattern_span(module, *parameter)? else {
+            return Ok(None);
+        };
+
+        parameter_spans.push(span);
+    }
+
+    // reject callback control whose target would change after inlining
+    if module.uses_enclosing_control(body)? {
         return Ok(None);
     }
 
     // retain comments only when they remain inside the parameter, receiver, or body
     let replacement_extent = module.statement_span(expression)?;
-    let parameter = module.main_span(parameter.into_any())?;
     let receiver_extent = module.source_extent(receiver.into_any())?;
     let body = module.source_extent(body.into_any())?;
-    if module.has_unretained_comment(replacement_extent, &[parameter, receiver_extent, body])? {
+    let mut retained = parameter_spans.clone();
+    retained.extend([receiver_extent, body]);
+    if module.has_unretained_comment(replacement_extent, &retained)? {
         return Ok(None);
     }
 
-    // compose the equivalent source loop from authored subexpressions
-    let parameter = module.source(parameter)?;
+    // preserve mutable callback parameters as mutable loop bindings
+    let keyword = match parameter_binding_keyword(module, parameters) {
+        dir::BindingKeyword::Const => "const",
+        dir::BindingKeyword::Let => "let",
+    };
+
+    // compose the equivalent iteration binding and source
+    let parameters = parameter_spans
+        .iter()
+        .map(|span| module.source(*span))
+        .collect::<Result<Vec<_>, _>>()?;
     let receiver = module.expression_source(receiver, dir::OperatorPrecedence::Lowest)?;
+    let (binding, iterator) = match parameters.as_slice() {
+        [] => ("_".to_owned(), receiver.into_owned()),
+        [value] => ((*value).to_owned(), receiver.into_owned()),
+        [value, index] => {
+            let iterator = match owner {
+                dir::LanguageItem::Array => format!("{receiver}.entries()"),
+                dir::LanguageItem::Iterator => format!("{receiver}.enumerate()"),
+                _ => return Ok(None),
+            };
+
+            (format!("({index}, {value})"), iterator)
+        }
+        _ => return Ok(None),
+    };
     let body = module.source(body)?;
-    let replacement = format!("for (const {parameter} of {receiver}) {body}");
+    let replacement = format!("for ({keyword} {binding} of {iterator}) {body}");
     let patch = Patch::replace(replacement_extent, replacement);
     let suggestion = lint.suggestion("use a for-of loop", patch)?;
 
     Ok(Some(suggestion))
+}
+
+/// Return one callback parameter's direct loop binding span.
+fn parameter_pattern_span(
+    module: &DirModule<'_>,
+    parameter: dir::LocalNodeId<dir::Parameter>,
+) -> Result<Option<Span>, ProviderError> {
+    let span = match module.view().get(parameter) {
+        dir::Parameter::Named {
+            declared_type: None,
+            default: None,
+            is_optional: false,
+            ..
+        } => module.main_span(parameter.into_any())?,
+        dir::Parameter::Pattern {
+            pattern,
+            declared_type: None,
+            default: None,
+            is_optional: false,
+        } => module.source_extent(pattern.into_any())?,
+        _ => return Ok(None),
+    };
+
+    Ok(Some(span))
+}
+
+/// Return the loop keyword required by callback parameter storage.
+fn parameter_binding_keyword(
+    module: &DirModule<'_>,
+    parameters: &[dir::LocalNodeId<dir::Parameter>],
+) -> dir::BindingKeyword {
+    let mutable = module
+        .flows
+        .binding_uses()
+        .filter(|(_, uses)| uses.may_mutate())
+        .map(|(symbol, _)| symbol)
+        .collect::<Vec<_>>();
+    let is_mutable = parameters.iter().any(|parameter| {
+        module
+            .symbols_declared_within(parameter.into_any())
+            .any(|symbol| mutable.contains(&symbol.local_id))
+    });
+
+    match is_mutable {
+        true => dir::BindingKeyword::Let,
+        false => dir::BindingKeyword::Const,
+    }
 }
 
 #[cfg(test)]
@@ -163,7 +248,7 @@ function copy(values: int32[], output: int32[]): void {
 
         session.assert_diagnostics(
             r#"
-warning[prefer-for-of-over-for-each]: array iteration uses a forEach callback
+warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
  ──▶ main.ds:2:5
   │
 1 │ function copy(values: int32[], output: int32[]): void {
@@ -192,6 +277,118 @@ warning[prefer-for-of-over-for-each]: array iteration uses a forEach callback
         session.assert_suggestions(PREFER_FOR_OF_OVER_FOR_EACH.example.accepted());
     }
 
+    /// Bind a wildcard when the callback ignores each value.
+    #[test]
+    fn test_replaces_parameterless_array_for_each() {
+        let session = TestSession::dir(
+            &PREFER_FOR_OF_OVER_FOR_EACH,
+            r#"
+declare function visit(): void;
+
+function visitAll(values: int32[]): void {
+    values.forEach(() => {
+        visit();
+    });
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+declare function visit(): void;
+
+function visitAll(values: int32[]): void {
+    for (const _ of values) {
+        visit();
+    }
+}
+"#,
+        );
+    }
+
+    /// Bind the Array.forEach index from Array.entries.
+    #[test]
+    fn test_replaces_indexed_array_for_each() {
+        let session = TestSession::dir(
+            &PREFER_FOR_OF_OVER_FOR_EACH,
+            r#"
+function copy(values: int32[], output: isize[]): void {
+    values.forEach((value, index) => {
+        value;
+        output.push(index);
+    });
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function copy(values: int32[], output: isize[]): void {
+    for (const (index, value) of values.entries()) {
+        value;
+        output.push(index);
+    }
+}
+"#,
+        );
+    }
+
+    /// Preserve callback parameter mutation with a mutable loop binding.
+    #[test]
+    fn test_replaces_mutated_callback_parameter() {
+        let session = TestSession::dir(
+            &PREFER_FOR_OF_OVER_FOR_EACH,
+            r#"
+declare function mutate(value: &exclusive int32): void;
+
+function increment(values: int32[], output: int32[]): void {
+    values.forEach((value) => {
+        mutate(&exclusive value);
+        output.push(value);
+    });
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+declare function mutate(value: &exclusive int32): void;
+
+function increment(values: int32[], output: int32[]): void {
+    for (let value of values) {
+        mutate(&exclusive value);
+        output.push(value);
+    }
+}
+"#,
+        );
+    }
+
+    /// Preserve a destructured callback parameter as the loop pattern.
+    #[test]
+    fn test_replaces_destructured_callback_parameter() {
+        let session = TestSession::dir(
+            &PREFER_FOR_OF_OVER_FOR_EACH,
+            r#"
+function copy(values: { value: int32 }[], output: int32[]): void {
+    values.forEach(({ value }) => {
+        output.push(value);
+    });
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function copy(values: { value: int32 }[], output: int32[]): void {
+    for (const { value } of values) {
+        output.push(value);
+    }
+}
+"#,
+        );
+    }
+
     /// Report callback-local return without offering an unsafe rewrite.
     #[test]
     fn test_reports_callback_return_without_suggestion() {
@@ -211,7 +408,7 @@ function copy(values: int32[], output: int32[]): void {
 
         session.assert_diagnostics(
             r#"
-warning[prefer-for-of-over-for-each]: array iteration uses a forEach callback
+warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
  ──▶ main.ds:2:5
   │
 1 │ function copy(values: int32[], output: int32[]): void {
@@ -233,15 +430,14 @@ warning[prefer-for-of-over-for-each]: array iteration uses a forEach callback
         );
     }
 
-    /// Report use of the index parameter without guessing a loop rewrite.
+    /// Report a defaulted callback parameter without changing its binding semantics.
     #[test]
-    fn test_reports_indexed_callback_without_suggestion() {
+    fn test_reports_defaulted_callback_without_suggestion() {
         let session = TestSession::dir(
             &PREFER_FOR_OF_OVER_FOR_EACH,
             r#"
-function copy(values: int32[], indexes: isize[], output: int32[]): void {
-    values.forEach((value, index) => {
-        indexes.push(index);
+function copy(values: int32[], output: int32[]): void {
+    values.forEach((value = 0) => {
         output.push(value);
     });
 }
@@ -250,20 +446,47 @@ function copy(values: int32[], indexes: isize[], output: int32[]): void {
 
         session.assert_diagnostics(
             r#"
-warning[prefer-for-of-over-for-each]: array iteration uses a forEach callback
+warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
  ──▶ main.ds:2:5
   │
-1 │ function copy(values: int32[], indexes: isize[], output: int32[]): void {
-2 │     values.forEach((value, index) => {
-  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-3 │         indexes.push(index);
-  │         ^^^^^^^^^^^^^^^^^^^^
-4 │         output.push(value);
+1 │ function copy(values: int32[], output: int32[]): void {
+2 │     values.forEach((value = 0) => {
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │         output.push(value);
   │         ^^^^^^^^^^^^^^^^^^^
-5 │     });
+4 │     });
   │     ^^
-6 │ }
+5 │ }
   │
+"#,
+        );
+    }
+
+    /// Replace a direct one-parameter Iterator.forEach statement.
+    #[test]
+    fn test_replaces_iterator_for_each() {
+        let session = TestSession::dir(
+            &PREFER_FOR_OF_OVER_FOR_EACH,
+            r#"
+import { Iterator } from "destack:iter";
+
+function copy(values: Iterator<int32>, output: int32[]): void {
+    values.forEach((value) => {
+        output.push(value);
+    });
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+import { Iterator } from "destack:iter";
+
+function copy(values: Iterator<int32>, output: int32[]): void {
+    for (const value of values) {
+        output.push(value);
+    }
+}
 "#,
         );
     }
@@ -307,7 +530,7 @@ function copy(values: int32[], output: int32[]): void {
 
         session.assert_diagnostics(
             r#"
-warning[prefer-for-of-over-for-each]: array iteration uses a forEach callback
+warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
  ──▶ main.ds:2:5
   │
 1 │ function copy(values: int32[], output: int32[]): void {

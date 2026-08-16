@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use destack_dir as dir;
-use destack_source::Patch;
+use destack_source::{NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -59,7 +59,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut binding_writes = BTreeMap::<dir::LocalSymbolId, Vec<dir::LocalNodeIdAny>>::new();
 
     // index uses and writes by their local binding
-    for occurrence in module.flows.occurrences() {
+    for occurrence in module.flows.binding_occurrences() {
         // ignore foreign declarations
         if occurrence.symbol.module_id != module.flows.module_id {
             continue;
@@ -134,21 +134,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // retain bindings with no mutable storage use and no reassignment
         let mut candidates = Vec::new();
         for binding in &declared {
-            let uses = binding_uses
+            let is_mutable = binding_uses
                 .get(&binding.symbol)
                 .copied()
-                .unwrap_or_default();
-            if uses.contains(dir::BindingUse::MUTABLE) {
+                .is_some_and(|uses| uses.contains(dir::BindingUse::MUTABLE));
+            if is_mutable {
                 continue;
             }
-            let writes = binding_writes
-                .get(&binding.symbol)
-                .map(Vec::as_slice)
-                .unwrap_or_default();
+            let writes = binding_writes.get(&binding.symbol);
 
             // initialized bindings qualify only when their slot is never written again
             if binding.is_initialized {
-                if writes.is_empty() {
+                if writes.is_none() {
                     candidates.push(*binding);
                 }
                 continue;
@@ -156,8 +153,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
             // one later write qualifies only when it initializes in the declaration's block
             let declaration_block = view.ancestor::<dir::Block>(binding.node);
-            let is_initialized_once =
-                writes.len() == 1 && view.ancestor::<dir::Block>(writes[0]) == declaration_block;
+            let is_initialized_once = writes.is_some_and(|writes| {
+                writes.len() == 1 && view.ancestor::<dir::Block>(writes[0]) == declaration_block
+            });
             if is_initialized_once {
                 candidates.push(*binding);
             }
@@ -186,6 +184,57 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let span = module.main_span(binding.node)?;
             output.report(lint.diagnostic("binding is never reassigned", span));
         }
+    }
+
+    // inspect mutable bindings initialized by each for-in or for-of iteration
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
+        let dir::Expression::ForEach {
+            binding:
+                dir::ForEachBinding::Pattern {
+                    pattern,
+                    keyword: Some(dir::BindingKeyword::Let),
+                },
+            ..
+        } = view.get(expression)
+        else {
+            continue;
+        };
+        let declared = module
+            .symbols_declared_within(pattern.into_any())
+            .map(|symbol| symbol.local_id)
+            .filter(|symbol| {
+                let binding = module.bindings.get_symbol(*symbol);
+                binding.kind == dir::SymbolKind::Variable
+                    && binding.binding_mutability == Some(dir::Mutability::Mutable)
+            })
+            .collect::<Vec<_>>();
+        if declared.is_empty() {
+            continue;
+        }
+
+        // require every binding under the shared keyword to remain immutable
+        let is_const = declared.iter().all(|symbol| {
+            let is_mutable = binding_uses
+                .get(symbol)
+                .copied()
+                .is_some_and(|uses| uses.contains(dir::BindingUse::MUTABLE));
+            let is_written = binding_writes.contains_key(symbol);
+
+            !is_mutable && !is_written
+        });
+        if !is_const {
+            continue;
+        }
+
+        // replace the shared declaration keyword
+        let keyword =
+            module.source_region(expression.into_any(), NodeSpanRegion::BindingKeyword)?;
+        let patch = Patch::replace(keyword, "const");
+        let suggestion = lint.fix("declare the binding with const", patch)?;
+        let diagnostic = lint
+            .diagnostic("binding is never reassigned", keyword)
+            .suggestion(suggestion);
+        output.report(diagnostic);
     }
 
     Ok(output)
@@ -388,7 +437,7 @@ function initialize(active: boolean): void {
         session.assert_no_diagnostics();
     }
 
-    /// Ignore mutation behind a binding because const only prevents rebinding.
+    /// Replace a binding while preserving mutation of its managed referent.
     #[test]
     fn test_replaces_binding_with_mutated_value() {
         let session = TestSession::dir(
@@ -549,5 +598,90 @@ warning[prefer-const]: binding is never reassigned
   │
 "#,
         );
+    }
+
+    /// Replace a for-of binding that remains immutable during each iteration.
+    #[test]
+    fn test_replaces_for_of_binding() {
+        let session = TestSession::dir(
+            &PREFER_CONST,
+            r#"
+function visit(values: int32[]): void {
+    for (let value of values) {
+        value;
+    }
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function visit(values: int32[]): void {
+    for (const value of values) {
+        value;
+    }
+}
+"#,
+        );
+    }
+
+    /// Replace a for-in binding that remains immutable during each iteration.
+    #[test]
+    fn test_replaces_for_in_binding() {
+        let session = TestSession::dir(
+            &PREFER_CONST,
+            r#"
+function visit(target: { first: int32; second: int32 }): void {
+    for (let key in target) {
+        key;
+    }
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function visit(target: { first: int32; second: int32 }): void {
+    for (const key in target) {
+        key;
+    }
+}
+"#,
+        );
+    }
+
+    /// Accept a for-of binding whose storage is mutated.
+    #[test]
+    fn test_accepts_mutated_for_of_binding() {
+        let session = TestSession::dir(
+            &PREFER_CONST,
+            r#"
+function visit(values: int32[]): void {
+    for (let value of values) {
+        value += 1;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept destructured iteration when any binding requires mutable storage.
+    #[test]
+    fn test_accepts_partially_mutated_for_of_binding() {
+        let session = TestSession::dir(
+            &PREFER_CONST,
+            r#"
+function visit(entries: (int32, int32)[]): void {
+    for (let (key, value) of entries) {
+        key += 1;
+        value;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 }
