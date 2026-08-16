@@ -2,6 +2,7 @@ use destack_dir::{
     Asynchrony, BindingKeyword, BlockContext, Expression, ForEachBinding, ForEachOperator, Keyword,
     LocalNodeId, NodeType, Pattern, TokenType, WhileForm,
 };
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::context::{
     ExpressionContext, ExpressionStops, FunctionContext, PatternContext, StatementPosition,
@@ -133,6 +134,11 @@ impl Parser {
         }
         // for [await] (binding in|of iterator) body
         else {
+            // retain the binding declaration keyword
+            let binding_keyword_range = self
+                .peek_for_each_keyword()
+                .map(|_| self.peek_token_span().token.range());
+
             // binding
             let binding = self.parse_for_each_binding(function)?;
 
@@ -177,6 +183,13 @@ impl Parser {
                 self.range_since(&start),
             );
             self.set_node_keyword_range(for_id, keyword_range);
+            if let Some(binding_keyword_range) = binding_keyword_range {
+                self.tree.set_side_range(
+                    for_id,
+                    NodeSpanType::Region(NodeSpanRegion::BindingKeyword),
+                    binding_keyword_range,
+                );
+            }
 
             Ok(for_id)
         }
