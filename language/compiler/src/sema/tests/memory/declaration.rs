@@ -50,13 +50,13 @@ declare const sharedCount: SharedCount;
 
 localCount satisfies local LocalCount;
 /// @resolution.name source=localCount target=localCount
-/// @resolution.place source=localCount placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localCount placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localCount root=localCount
 /// @resolution.name source=LocalCount target=LocalCount
 
 sharedCount satisfies shared SharedCount;
 /// @resolution.name source=sharedCount target=sharedCount
-/// @resolution.place source=sharedCount placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedCount placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=sharedCount root=sharedCount
 /// @resolution.name source=SharedCount target=SharedCount
 "#,
@@ -313,25 +313,25 @@ sharedUser satisfies shared SharedUser;
 
 localPoint satisfies local LocalPoint;
 /// @resolution.name source=localPoint target=localPoint
-/// @resolution.place source=localPoint placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localPoint placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localPoint root=localPoint
 /// @resolution.name source=LocalPoint target=LocalPoint
 
 sharedPoint satisfies shared SharedPoint;
 /// @resolution.name source=sharedPoint target=sharedPoint
-/// @resolution.place source=sharedPoint placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedPoint placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=sharedPoint root=sharedPoint
 /// @resolution.name source=SharedPoint target=SharedPoint
 
 localStatus satisfies local LocalStatus;
 /// @resolution.name source=localStatus target=localStatus
-/// @resolution.place source=localStatus placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localStatus placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localStatus root=localStatus
 /// @resolution.name source=LocalStatus target=LocalStatus
 
 sharedStatus satisfies shared SharedStatus;
 /// @resolution.name source=sharedStatus target=sharedStatus
-/// @resolution.place source=sharedStatus placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedStatus placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=sharedStatus root=sharedStatus
 /// @resolution.name source=SharedStatus target=SharedStatus
 

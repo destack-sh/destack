@@ -40,7 +40,7 @@ if (value is string) {
     /// @type.node source="value satisfies string" type=Narrow<Dynamic<unknown>, string>
     /// @type.node source=value type=Narrow<Dynamic<unknown>, string>
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
 
 }
@@ -129,14 +129,14 @@ if (value is string) {
 /// @type.node source=value type=string | int32
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value is string" kind=is value=string | int32 target=string predicate="string | int32 is string" narrowed=Narrow<string | int32, string>
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     value satisfies string;
     /// @type.node source="value satisfies string" type=Narrow<string | int32, string>
     /// @type.node source=value type=Narrow<string | int32, string>
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
 
 } else {
@@ -144,7 +144,7 @@ if (value is string) {
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
 
 }
@@ -256,9 +256,9 @@ if (value is &readonly Node) {
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.id receiver=Narrow<Dynamic<unknown>, &'frame readonly Node> type=int32 kind=field target_receiver=Narrow<Dynamic<unknown>, &'frame readonly Node> key=id target=Node.id target_type=int32
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
-    /// @resolution.place source=value.id placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value.id placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value.id root=value keys=[id]
 
 }

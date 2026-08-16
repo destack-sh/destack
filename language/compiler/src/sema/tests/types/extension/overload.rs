@@ -42,20 +42,20 @@ struct User {}
 
 extension of User {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=display#1 slot=display type=<display#1.'a>(this: &display#1.'a exclusive this) => string
-/// @definition.method symbol=display#2 slot=display type=<display#2.'a>(this: &display#2.'a exclusive this) => string
+/// @definition.method symbol=display#1 slot=display type=<display#1.'a>(this: &display#1.'a readonly this) => string
+/// @definition.method symbol=display#2 slot=display type=<display#2.'a>(this: &display#2.'a readonly this) => string
 /// @resolution.name source=User target=User
 
     display(): string {
     /// @generic.template symbol=display#1 parameters=('a)
-    /// @type.symbol symbol=display#1 type=<display#1.'a>(this: &display#1.'a exclusive this) => string
+    /// @type.symbol symbol=display#1 type=<display#1.'a>(this: &display#1.'a readonly this) => string
 
         return "first";
     }
 
     display(): string {
     /// @generic.template symbol=display#2 parameters=('a)
-    /// @type.symbol symbol=display#2 type=<display#2.'a>(this: &display#2.'a exclusive this) => string
+    /// @type.symbol symbol=display#2 type=<display#2.'a>(this: &display#2.'a readonly this) => string
 
         return "second";
     }

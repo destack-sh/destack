@@ -580,7 +580,7 @@ const ownedBox: shared OwnedBox = OwnedBox { value: owned };
 /// @resolution.name source=OwnedBox target=OwnedBox
 /// @resolution.name source=OwnedBox target=OwnedBox
 /// @resolution.name source=owned target=owned
-/// @resolution.place source=owned placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=owned placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 
 const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
@@ -823,7 +823,7 @@ publish<CleanEnvelope>(cleanEnvelope);
 /// @generic.instantiation id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
 /// @resolution.name source=CleanEnvelope target=CleanEnvelope
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
-/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 
 publish<LocalEnvelope>(localEnvelope);
@@ -838,7 +838,7 @@ publish(cleanEnvelope);
 /// @resolution.call source=publish(cleanEnvelope) parameters=(CleanEnvelope) arguments=(provided(cleanEnvelope) as CleanEnvelope) return=void kind=symbol target=publish instance=publish<CleanEnvelope>
 /// @generic.instantiation id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
-/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 
 publish(handle);
@@ -851,7 +851,7 @@ publish(handle);
 
 cleanEnvelope satisfies SharedSafe;
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
-/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 /// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
 "#,

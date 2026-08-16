@@ -71,7 +71,7 @@ extension<T: Copy> of Wrapper<T> {
         value
         /// @type.node source=value type=T#2
         /// @resolution.name source=value target=take.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=value root=take.value
 
     }

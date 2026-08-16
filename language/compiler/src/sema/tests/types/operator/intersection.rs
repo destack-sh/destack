@@ -52,7 +52,7 @@ const name = person.name;
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=Named & Aged type=string kind=field target_receiver=Named & Aged key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person root=person
 /// @resolution.access source=person.name root=person keys=[name]
 
@@ -61,7 +61,7 @@ const age = person.age;
 /// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.age receiver=Named & Aged type=int32 kind=field target_receiver=Named & Aged key=age target_type=int32
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person root=person
 /// @resolution.access source=person.age root=person keys=[age]
 "#,
@@ -133,7 +133,7 @@ const value = both.value;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=both target=both
 /// @resolution.member source=both.value receiver=Left & Right type=string kind=intersection targets=[field(receiver=Left & Right, target=Left.value, type=string), field(receiver=Left & Right, target=Right.value, type=string)]
-/// @resolution.place source=both placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=both placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=both root=both
 /// @resolution.access source=both.value root=both keys=[value]
 "#,
@@ -293,17 +293,17 @@ const value: Value = { value: "ok", extra: "yes" };
 value.value satisfies string;
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.value receiver=Wide & Narrow type=string | int32 & string kind=intersection targets=[field(receiver=Wide & Narrow, target=value, type=string | int32), field(receiver=Wide & Narrow, target=value, type=string)]
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
-/// @resolution.place source=value.value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value.value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value.value root=value keys=[value]
 
 value.extra satisfies string;
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.extra receiver=Wide & Narrow type=string kind=field target_receiver=Wide & Narrow key=extra target_type=string
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
-/// @resolution.place source=value.extra placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value.extra placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value.extra root=value keys=[extra]
 "#,
     );

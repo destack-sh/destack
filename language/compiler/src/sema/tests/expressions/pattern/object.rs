@@ -176,7 +176,7 @@ const result = match (state) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
 
     { inner: { kind: "a", value } } => value
@@ -185,7 +185,7 @@ const result = match (state) {
     /// @resolution.pattern source="\"a\"" kind=literal value="a"
     /// @type.symbol symbol=value source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=value root=value
 
     { inner: { kind: "b", flag } } => 0
@@ -291,7 +291,7 @@ const result = match (state) {
 /// @type.node type=int32
 /// @type.node source=state type=Pending | Ready
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
 
     { kind: "pending", waiting } => waiting
@@ -301,7 +301,7 @@ const result = match (state) {
     /// @type.symbol symbol=waiting source=waiting type=int32
     /// @type.node source=waiting type=int32
     /// @resolution.name source=waiting target=waiting
-    /// @resolution.place source=waiting placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=waiting placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=waiting root=waiting
 
     { kind: "ready", value } => value
@@ -311,7 +311,7 @@ const result = match (state) {
     /// @type.symbol symbol=value source=value type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=value root=value
 
 };
@@ -411,7 +411,7 @@ const result = match (frame) {
 /// @type.node type=int32
 /// @type.node source=frame type=Header | Trailer
 /// @resolution.name source=frame target=frame
-/// @resolution.place source=frame placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=frame placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=frame root=frame
 
     { version: 1, length } => length
@@ -421,7 +421,7 @@ const result = match (frame) {
     /// @type.symbol symbol=length source=length type=int32
     /// @type.node source=length type=int32
     /// @resolution.name source=length target=length
-    /// @resolution.place source=length placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=length placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=length root=length
 
     { version: 2, checksum } => checksum
@@ -431,7 +431,7 @@ const result = match (frame) {
     /// @type.symbol symbol=checksum source=checksum type=int32
     /// @type.node source=checksum type=int32
     /// @resolution.name source=checksum target=checksum
-    /// @resolution.place source=checksum placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=checksum placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=checksum root=checksum
 
 };
@@ -575,7 +575,7 @@ const result = match (envelope) {
 /// @type.node type=int32
 /// @type.node source=envelope type=Envelope
 /// @resolution.name source=envelope target=envelope
-/// @resolution.place source=envelope placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=envelope placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=envelope root=envelope
 
     { inner: { kind: "a", value } } => value
@@ -586,7 +586,7 @@ const result = match (envelope) {
     /// @type.symbol symbol=value source=value type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=value root=value
 
     { inner: { kind: "b", flag } } => 0
@@ -704,7 +704,7 @@ const result = match (state) {
     /// @type.symbol symbol=waiting source=waiting type=int32
     /// @type.node source=waiting type=int32
     /// @resolution.name source=waiting target=waiting
-    /// @resolution.place source=waiting placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=waiting placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=waiting root=waiting
 
     { kind: "ready", value } => value
@@ -714,7 +714,7 @@ const result = match (state) {
     /// @type.symbol symbol=value source=value type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=value root=value
 
 };

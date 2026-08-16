@@ -88,11 +88,11 @@ declare const values: [int32; 1];
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=fallback type=int32
 /// @resolution.name source=fallback target=fallback
-/// @resolution.place source=fallback placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=fallback placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=fallback root=fallback
 /// @type.node source=values type=FixedArray<int32, 1>
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 "#,
     );

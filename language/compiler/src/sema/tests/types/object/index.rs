@@ -67,12 +67,12 @@ function read(bag: Bag): int32 | undefined {
 
     missing satisfies int32 | undefined;
     /// @resolution.name source=missing target=read.missing
-    /// @resolution.place source=missing placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=missing placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=missing root=read.missing
 
     return x;
     /// @resolution.name source=x target=read.x
-    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=x root=read.x
 
 }
@@ -92,7 +92,7 @@ const x = read(point);
 
 x satisfies int32 | undefined;
 /// @resolution.name source=x target=x#2
-/// @resolution.place source=x placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=x placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=x root=x#2
 "#,
     );
@@ -333,7 +333,7 @@ const value = write(map);
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -425,7 +425,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target="IndexSet<string, int32>"
 /// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
-/// @definition.method symbol=index slot=index type=<index.'a>(this: &index.'a exclusive this, string) => this.Output
+/// @definition.method symbol=index slot=index type=<index.'a>(this: &index.'a readonly this, string) => this.Output
 /// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32) => void
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.subscript.Index.Output
 /// @definition.conformance symbol=<module>#2 member=index requirement=ops.subscript.Index.index
@@ -440,19 +440,19 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 
     index(key: string): this.Output {
     /// @generic.template symbol=index parent=template#0 parameters=('a)
-    /// @type.symbol symbol=index type=<index.'a>(this: &index.'a exclusive this, string) => this.Output
+    /// @type.symbol symbol=index type=<index.'a>(this: &index.'a readonly this, string) => this.Output
     /// @type.symbol symbol=index.key source="key: string" type=string
 
         return this.storage[key];
-        /// @resolution.member source=this.storage receiver=&index.'a exclusive Store type=Map<string, int32> kind=field target_receiver=&index.'a exclusive Store key=storage target=Store.storage target_type=Map<string, int32>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&index.'a exclusive Store
-        /// @resolution.place source=this placement="local" lifetime=index.'a access="exclusive"
+        /// @resolution.member source=this.storage receiver=&index.'a readonly Store type=Readonly<Map<string, int32>> kind=field target_receiver=&index.'a readonly Store key=storage target=Store.storage target_type=Readonly<Map<string, int32>>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&index.'a readonly Store
+        /// @resolution.place source=this placement="local" lifetime=index.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.storage placement="local" lifetime=index.'a access="exclusive"
+        /// @resolution.place source=this.storage placement="local" lifetime=index.'a access="readonly"
         /// @resolution.access source=this.storage root=this keys=[storage]
-        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="collections.map.index(parameters=(string), arguments=(provided(key) as string), return=memory.type.WithAccess<&index.'a int32, \"exclusive\"> | undefined)"
-        /// @generic.instantiation id="collections.map.index<string, int32, \"exclusive\">" template=collections.map.index arguments=(string, int32, "exclusive")
-        /// @generic.instance id="collections.map.index<string, int32, \"exclusive\">" template=collections.map.index arguments=(string, int32, "exclusive")
+        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="collections.map.index(parameters=(string), arguments=(provided(key) as string), return=memory.type.WithAccess<&index.'a int32, \"readonly\"> | undefined)"
+        /// @generic.instantiation id="collections.map.index<string, int32, \"readonly\">" template=collections.map.index arguments=(string, int32, "readonly")
+        /// @generic.instance id="collections.map.index<string, int32, \"readonly\">" template=collections.map.index arguments=(string, int32, "readonly")
         /// @resolution.name source=key target=index.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=key root=index.key
@@ -508,7 +508,7 @@ const value = write(store);
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -615,7 +615,7 @@ const value = bag["missing"];
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -668,7 +668,7 @@ const value = bag[1];
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );

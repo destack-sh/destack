@@ -147,7 +147,7 @@ let observed: int32;
 switch (selected) {
 /// @type.node source=selected type=int32
 /// @resolution.name source=selected target=selected
-/// @resolution.place source=selected placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=selected placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=selected root=selected
 
     default: break;
@@ -386,7 +386,7 @@ declare const mode: Mode;
 switch (mode) {
 /// @type.node source=mode type=Mode
 /// @resolution.name source=mode target=mode
-/// @resolution.place source=mode placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=mode root=mode
 
     case Mode.Read:
@@ -399,7 +399,7 @@ switch (mode) {
         mode;
         /// @type.node source=mode type=Mode.Read
         /// @resolution.name source=mode target=mode
-        /// @resolution.place source=mode placement="local" lifetime="static" access="exclusive"
+        /// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
         /// @resolution.access source=mode root=mode
 
         break;
@@ -415,7 +415,7 @@ switch (mode) {
         mode;
         /// @type.node source=mode type=Mode.Write
         /// @resolution.name source=mode target=mode
-        /// @resolution.place source=mode placement="local" lifetime="static" access="exclusive"
+        /// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
         /// @resolution.access source=mode root=mode
 
         break;
@@ -425,7 +425,7 @@ switch (mode) {
         mode;
         /// @type.node source=mode type=Mode.Execute
         /// @resolution.name source=mode target=mode
-        /// @resolution.place source=mode placement="local" lifetime="static" access="exclusive"
+        /// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
         /// @resolution.access source=mode root=mode
 
 }
@@ -486,7 +486,7 @@ declare const state: Ready | Pending;
 switch (state) {
 /// @type.node source=state type=Ready | Pending
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
 
     case Ready("ready"):
@@ -558,7 +558,7 @@ const label = match (value) {
 /// @type.node type="yes" | "no"
 /// @type.node source=value type=boolean
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     true => "yes"
@@ -577,7 +577,7 @@ label satisfies "yes" | "no";
 /// @type.node source="label satisfies \"yes\" | \"no\"" type="yes" | "no"
 /// @type.node source=label type="yes" | "no"
 /// @resolution.name source=label target=label
-/// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=label placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=label root=label
 "#,
     );
@@ -617,14 +617,14 @@ const result = match (value) {};
 /// @type.node source="match (value) {}" type=never
 /// @type.node source=value type=never
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
 result satisfies never;
 /// @type.node source="result satisfies never" type=never
 /// @type.node source=result type=never
 /// @resolution.name source=result target=result
-/// @resolution.place source=result placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=result placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=result root=result
 "#,
     );
@@ -670,7 +670,7 @@ const label = match (status) {
 /// @type.node type="go" | "stop"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     "ready" => "go"
@@ -689,7 +689,7 @@ label satisfies "go" | "stop";
 /// @type.node source="label satisfies \"go\" | \"stop\"" type="go" | "stop"
 /// @type.node source=label type="go" | "stop"
 /// @resolution.name source=label target=label
-/// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=label placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=label root=label
 "#,
     );
@@ -729,7 +729,7 @@ const label = match (status) {
 /// @type.node type="go"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     "ready" => "go"
@@ -783,7 +783,7 @@ const label = match (status) {
 /// @type.node type="go" | "stop"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     "ready" if (true) => "go"
@@ -860,15 +860,15 @@ const result = match (point) {
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x#2
     /// @resolution.operator source="x == x" type=boolean operator="==" kind=builtin operands=[x as int32 families=(integer), x as int32 families=(integer)]
-    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=x root=x#2
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x#2
-    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=x root=x#2
     /// @type.node source=y type=int32
     /// @resolution.name source=y target=y#2
-    /// @resolution.place source=y placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=y placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=y root=y#2
 
     _ => 0
@@ -881,7 +881,7 @@ result satisfies int32;
 /// @type.node source="result satisfies int32" type=int32
 /// @type.node source=result type=int32
 /// @resolution.name source=result target=result
-/// @resolution.place source=result placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=result placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=result root=result
 "#,
     );
@@ -936,14 +936,14 @@ match (config) {
         /// @type.node source="enabled satisfies boolean" type=boolean
         /// @type.node source=enabled type=boolean
         /// @resolution.name source=enabled target=enabled#2
-        /// @resolution.place source=enabled placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=enabled placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=enabled root=enabled#2
 
         retries satisfies int32;
         /// @type.node source="retries satisfies int32" type=int32
         /// @type.node source=retries type=int32
         /// @resolution.name source=retries target=retries#2
-        /// @resolution.place source=retries placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=retries placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=retries root=retries#2
 
     }
@@ -1024,14 +1024,14 @@ match (packet) {
         /// @type.node source="x satisfies int32" type=int32
         /// @type.node source=x type=int32
         /// @resolution.name source=x target=x#2
-        /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=x placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=x root=x#2
 
         y satisfies int32;
         /// @type.node source="y satisfies int32" type=int32
         /// @type.node source=y type=int32
         /// @resolution.name source=y target=y#2
-        /// @resolution.place source=y placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=y placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=y root=y#2
 
         first satisfies string;
@@ -1207,14 +1207,14 @@ match (values) {
         /// @type.node source="head satisfies int32" type=int32
         /// @type.node source=head type=int32
         /// @resolution.name source=head target=head
-        /// @resolution.place source=head placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=head placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=head root=head
 
         tail satisfies ^int32[];
         /// @type.node source="tail satisfies ^int32[]" type=Owned<Array<int32>>
         /// @type.node source=tail type=Owned<Array<int32>>
         /// @resolution.name source=tail target=tail
-        /// @resolution.place source=tail placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=tail placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=tail root=tail
 
     }
@@ -1255,7 +1255,7 @@ match (value) {
 /// @type.node type=int32
 /// @type.node source=value type={ left: int32 } | { right: int32 }
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     { left: item } | { right: item } => item satisfies int32
@@ -1268,7 +1268,7 @@ match (value) {
     /// @type.node source="item satisfies int32" type=int32
     /// @type.node source=item type=int32
     /// @resolution.name source=item target=item
-    /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=item placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=item root=item
 
 }
@@ -1312,7 +1312,7 @@ const label = match (status) {
 /// @type.node type="go" | "error"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     "ready" => "go"

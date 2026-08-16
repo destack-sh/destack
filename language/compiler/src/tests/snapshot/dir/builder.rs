@@ -322,7 +322,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if selection.flow {
-            self.add_table(checked.flows.as_ref());
+            self.add_table(&checked.flow_table(declared, elaborated));
         }
     }
 

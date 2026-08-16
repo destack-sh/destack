@@ -66,7 +66,7 @@ const person = { name, age };
 /// @resolution.access source=name root=name
 /// @type.node source=age type=42
 /// @resolution.name source=age target=age
-/// @resolution.place source=age placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=age placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=age root=age
 "#,
     );
@@ -407,7 +407,7 @@ const moved = Point { ...point, x: 3 };
 /// @resolution.name source=Point target=Point
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @type.node source=3 type=3
 "#,

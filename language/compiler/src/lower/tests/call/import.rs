@@ -141,12 +141,12 @@ function test.main.measure(v0: int32): int32 {
 entry(v0: int32):
     v1: test.point.Point = aggregate (v0, v0)
     local.set l0, v1
-    v2: ref<test.point.Point, borrowed, 'frame, exclusive> = local.address l0
-    v3: int32 = call test.point.Point.length(v2): <'a>(ref<test.point.Point, borrowed, 'a, exclusive>) => int32
+    v2: ref<test.point.Point, borrowed, 'frame, readonly> = local.address l0
+    v3: int32 = call test.point.Point.length(v2): <'a>(ref<test.point.Point, borrowed, 'a, readonly>) => int32
     return v3
 }
 
-external function test.point.Point.length<'a>(ref<test.point.Point, borrowed, 'a, exclusive>): int32
+external function test.point.Point.length<'a>(ref<test.point.Point, borrowed, 'a, readonly>): int32
 /// @layout.struct name=test.point.Point size=8 align=4
 /// @layout.field owner=test.point.Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=test.point.Point index=1 name=y offset=4 size=4 align=4

@@ -99,9 +99,6 @@ impl CheckState<'_> {
             })?;
         }
 
-        // write the symbol uses the resolutions and captures prove
-        self.write_flows();
-
         Ok(())
     }
 

@@ -328,7 +328,7 @@ matrix satisfies [[int32; 2]; 2];
 /// @type.node source="matrix satisfies [[int32; 2]; 2]" type=FixedArray<FixedArray<int32, 2>, 2>
 /// @type.node source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
 /// @resolution.name source=matrix target=matrix
-/// @resolution.place source=matrix placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=matrix placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=matrix root=matrix
 "#,
     );

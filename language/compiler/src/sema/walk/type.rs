@@ -539,7 +539,7 @@ impl WalkState<'_, '_> {
             Some(dir::Reference::Bound(symbols)) => {
                 let symbols = self.check.present_symbols(&symbols);
                 for symbol in symbols.iter().copied() {
-                    self.capture_symbol_reference(symbol);
+                    self.capture_symbol_reference(source, symbol);
                 }
 
                 self.check
@@ -760,7 +760,7 @@ impl WalkState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        self.capture_symbol_reference(symbol);
+        self.capture_symbol_reference(source, symbol);
         self.check
             .commit_name(source, dir::NameResolution::new(symbol))
     }

@@ -518,7 +518,7 @@ let value: string;
 if (condition) {
 /// @type.node source=condition type=boolean
 /// @resolution.name source=condition target=condition
-/// @resolution.place source=condition placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=condition placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=condition root=condition
 
     value = "ready";
@@ -586,7 +586,7 @@ let value: string | undefined = undefined;
 if (condition) {
 /// @type.node source=condition type=boolean
 /// @resolution.name source=condition target=condition
-/// @resolution.place source=condition placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=condition placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=condition root=condition
 
     value = "ready";

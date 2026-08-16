@@ -29,11 +29,11 @@ type Point {
     x: int32;
 }
 
-function test.main.Point.double<'a>(v0: ref<Point, borrowed, 'a, exclusive>): int32 {
-entry(v0: ref<Point, borrowed, 'a, exclusive>):
-    v1: ref<int32, borrowed, exclusive> = field.address v0, 0
+function test.main.Point.double<'a>(v0: ref<Point, borrowed, 'a, readonly>): int32 {
+entry(v0: ref<Point, borrowed, 'a, readonly>):
+    v1: ref<int32, borrowed, readonly> = field.address v0, 0
     v2: int32 = load v1
-    v3: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v3: ref<int32, borrowed, readonly> = field.address v0, 0
     v4: int32 = load v3
     v5: int32 = int.add v2, v4
     return v5
@@ -46,8 +46,8 @@ entry:
     v0: int32 = 3
     v1: Point = aggregate (v0)
     local.set l0, v1
-    v2: ref<Point, borrowed, 'frame, exclusive> = local.address l0
-    v3: int32 = call test.main.Point.double(v2): <'a>(ref<Point, borrowed, 'a, exclusive>) => int32
+    v2: ref<Point, borrowed, 'frame, readonly> = local.address l0
+    v3: int32 = call test.main.Point.double(v2): <'a>(ref<Point, borrowed, 'a, readonly>) => int32
     return v3
 }
 /// @layout.struct name=Point size=4 align=4

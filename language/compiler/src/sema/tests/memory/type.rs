@@ -124,7 +124,7 @@ declare const payload: Payload;
 
 base satisfies Cell;
 /// @resolution.name source=base target=base
-/// @resolution.place source=base placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=base placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=base root=base
 /// @resolution.name source=Cell target=Cell
 
@@ -219,7 +219,7 @@ declare const borrowedAccess: BorrowedAccess;
 
 borrowedLifetime satisfies "static";
 /// @resolution.name source=borrowedLifetime target=borrowedLifetime
-/// @resolution.place source=borrowedLifetime placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=borrowedLifetime placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=borrowedLifetime root=borrowedLifetime
 
 borrowedAccess satisfies "mutable";
@@ -419,13 +419,13 @@ declare const sharedCell: PreservePlace<shared Cell>;
 
 localCell satisfies local Cell;
 /// @resolution.name source=localCell target=localCell
-/// @resolution.place source=localCell placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localCell placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localCell root=localCell
 /// @resolution.name source=Cell target=Cell
 
 sharedCell satisfies shared Cell;
 /// @resolution.name source=sharedCell target=sharedCell
-/// @resolution.place source=sharedCell placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedCell placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=sharedCell root=sharedCell
 /// @resolution.name source=Cell target=Cell
 "#,
@@ -896,7 +896,7 @@ declare const borrowedCell: BorrowedCell;
 
 ownedCell satisfies ^Cell;
 /// @resolution.name source=ownedCell target=ownedCell
-/// @resolution.place source=ownedCell placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ownedCell placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=ownedCell root=ownedCell
 /// @resolution.name source=Cell target=Cell
 
@@ -965,7 +965,7 @@ declare const sharedOwned: SharedOwned;
 
 sharedOwned satisfies shared ^Cell;
 /// @resolution.name source=sharedOwned target=sharedOwned
-/// @resolution.place source=sharedOwned placement="shared" lifetime="static" access="exclusive"
+/// @resolution.place source=sharedOwned placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=sharedOwned root=sharedOwned
 /// @resolution.name source=Cell target=Cell
 "#,
@@ -1090,7 +1090,7 @@ declare const sharedOwned: SharedOwned;
 
 sharedOwned satisfies shared ^Cell;
 /// @resolution.name source=sharedOwned target=sharedOwned
-/// @resolution.place source=sharedOwned placement="shared" lifetime="static" access="exclusive"
+/// @resolution.place source=sharedOwned placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=sharedOwned root=sharedOwned
 /// @resolution.name source=Cell target=Cell
 "#,
@@ -1150,7 +1150,7 @@ declare const value: StillShared;
 
 value satisfies shared ^Cell;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="shared" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @resolution.name source=Cell target=Cell
 "#,

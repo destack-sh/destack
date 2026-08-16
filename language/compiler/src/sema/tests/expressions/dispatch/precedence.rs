@@ -513,7 +513,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @resolution.access source=f root=map.f
             /// @type.node source=value type=T#3
             /// @resolution.name source=value target=map.value#2
-            /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
             /// @resolution.access source=value root=map.value#2
 
             Err { error } => Outcome.err(error)
@@ -530,7 +530,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @generic.instantiation id="err<U, E#3>" template=err arguments=(U, E#3) owner=map
             /// @type.node source=error type=E#3
             /// @resolution.name source=error target=map.error
-            /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=error placement="local" lifetime="frame" access="readonly"
             /// @resolution.access source=error root=map.error
 
         }
@@ -1027,7 +1027,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @resolution.access source=f root=map.f
             /// @type.node source=value type=T#3
             /// @resolution.name source=value target=map.value#2
-            /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
             /// @resolution.access source=value root=map.value#2
 
             Err { error } => Outcome.err(error)
@@ -1044,7 +1044,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @generic.instantiation id="err<U, E#3>" template=err arguments=(U, E#3) owner=map
             /// @type.node source=error type=E#3
             /// @resolution.name source=error target=map.error
-            /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=error placement="local" lifetime="frame" access="readonly"
             /// @resolution.access source=error root=map.error
 
         }

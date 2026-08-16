@@ -279,6 +279,8 @@ pub struct DirDeclared {
     pub decisions: Arc<dir::DecisionSegment>,
     /// Authored member lookup subjects.
     pub members: Arc<dir::MemberSegment>,
+    /// Flow conclusions proved while declaring.
+    pub flows: Arc<dir::FlowSegment>,
 }
 
 impl DirDeclared {
@@ -360,6 +362,8 @@ pub struct DirElaborated {
     pub decisions: Arc<dir::DecisionSegment>,
     /// Static values evaluated for decorator applications.
     pub statics: Arc<dir::StaticSegment>,
+    /// Flow conclusions proved while elaborating.
+    pub flows: Arc<dir::FlowSegment>,
     /// Diagnostic controls applied by decorators.
     pub controls: Arc<DiagnosticControlTable>,
 }
@@ -586,6 +590,19 @@ impl DirChecked {
     /// Return the cumulative capture table for checked DIR.
     pub fn capture_table(&self) -> dir::CaptureTable<'static> {
         dir::CaptureTable::from_segment(self.captures.clone())
+    }
+
+    /// Return the cumulative flow table for checked DIR.
+    pub fn flow_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+    ) -> dir::FlowTable<'static> {
+        dir::FlowTable::from_segments(vec![
+            declared.flows.clone(),
+            elaborated.flows.clone(),
+            self.flows.clone(),
+        ])
     }
 }
 

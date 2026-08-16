@@ -28,7 +28,7 @@ const triple: (int32, int32, int32?) = pair;
 /// @type.symbol symbol=triple source=triple type=(int32, int32, int32?)
 /// @resolution.pattern source=triple kind=binding target=triple
 /// @resolution.name source=pair target=pair
-/// @resolution.place source=pair placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=pair placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
 /// @coercion.node source=pair from=(int32, int32) adjustments=[{ kind: tuple, target: (int32, int32, int32?) }] origin=implicit
 
@@ -36,7 +36,7 @@ const same: (int32, int32) = pair;
 /// @type.symbol symbol=same source=same type=(int32, int32)
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=pair target=pair
-/// @resolution.place source=pair placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=pair placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
 "#,
     );

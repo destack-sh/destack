@@ -217,7 +217,7 @@ declare const carrierPlace: CarrierPlace;
 
 localChoice satisfies local (User | shared Team);
 /// @resolution.name source=localChoice target=localChoice
-/// @resolution.place source=localChoice placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localChoice placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localChoice root=localChoice
 /// @resolution.name source=User target=User
 /// @resolution.name source=Team target=Team
@@ -279,7 +279,7 @@ const sharedFromLocal: shared ^User = localUser;
 /// @resolution.pattern source=sharedFromLocal kind=binding target=sharedFromLocal
 /// @resolution.name source=User target=User
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localUser placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localUser root=localUser
 
 const localFromShared: local ^User = sharedUser;
@@ -287,7 +287,7 @@ const localFromShared: local ^User = sharedUser;
 /// @resolution.pattern source=localFromShared kind=binding target=localFromShared
 /// @resolution.name source=User target=User
 /// @resolution.name source=sharedUser target=sharedUser
-/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="exclusive"
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=sharedUser root=sharedUser
 "#,
         r#"

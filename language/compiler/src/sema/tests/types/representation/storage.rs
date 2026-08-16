@@ -74,9 +74,9 @@ const rectangle = Rectangle {
 rectangle.start satisfies Point;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.start receiver=Rectangle type=Point kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=Point
-/// @resolution.place source=rectangle placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.start placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=rectangle.start placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.start root=rectangle keys=[start]
 /// @resolution.name source=Point target=Point
 
@@ -84,11 +84,11 @@ rectangle.start.x satisfies int32;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.start receiver=Rectangle type=Point kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=Point
 /// @resolution.member source=rectangle.start.x receiver=Point type=int32 kind=field target_receiver=Point key=x target_type=int32
-/// @resolution.place source=rectangle placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.start placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=rectangle.start placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.start root=rectangle keys=[start]
-/// @resolution.place source=rectangle.start.x placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=rectangle.start.x placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.start.x root=rectangle keys=[start, x]
 "#,
     );
@@ -322,18 +322,18 @@ const rectangle = Rectangle {
 rectangle.start satisfies PointLike;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.start receiver=Rectangle type=Dynamic<PointLike> kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=Dynamic<PointLike>
-/// @resolution.place source=rectangle placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.start placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=rectangle.start placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.start root=rectangle keys=[start]
 /// @resolution.name source=PointLike target=PointLike
 
 rectangle.end satisfies PointLike;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.end receiver=Rectangle type=Dynamic<PointLike> kind=field target_receiver=Rectangle key=end target=Rectangle.end target_type=Dynamic<PointLike>
-/// @resolution.place source=rectangle placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.end placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=rectangle.end placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.end root=rectangle keys=[end]
 /// @resolution.name source=PointLike target=PointLike
 "#,
@@ -447,7 +447,7 @@ const first = shapes[0];
 
 first satisfies Shape;
 /// @resolution.name source=first target=first
-/// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=first placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=first root=first
 /// @resolution.name source=Shape target=Shape
 "#,
@@ -516,9 +516,9 @@ const player = Player {
 player.mode satisfies Mode;
 /// @resolution.name source=player target=player
 /// @resolution.member source=player.mode receiver=Player type=Mode kind=field target_receiver=Player key=mode target=Player.mode target_type=Mode
-/// @resolution.place source=player placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=player placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=player root=player
-/// @resolution.place source=player.mode placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=player.mode placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=player.mode root=player keys=[mode]
 /// @resolution.name source=Mode target=Mode
 "#,
@@ -608,9 +608,9 @@ declare const marker: Marker;
 segment.start satisfies Point;
 /// @resolution.name source=segment target=segment
 /// @resolution.member source=segment.start receiver=Segment type=Point kind=field target_receiver=Segment key=start target=Segment.start target_type=Point
-/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=segment root=segment
-/// @resolution.place source=segment.start placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=segment.start placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=segment.start root=segment keys=[start]
 /// @resolution.name source=Point target=Point
 

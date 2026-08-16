@@ -421,16 +421,16 @@ declare const mixedBox: local Box<shared User>;
 localBox.value satisfies local User;
 /// @resolution.name source=localBox target=localBox
 /// @resolution.member source=localBox.value receiver=Placed<Box<User>, "local"> type=User kind=field target_receiver=Placed<Box<User>, "local"> key=value target=Box.value target_type=User
-/// @resolution.place source=localBox placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localBox placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localBox root=localBox
-/// @resolution.place source=localBox.value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localBox.value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localBox.value root=localBox keys=[value]
 /// @resolution.name source=User target=User
 
 sharedBox.value satisfies shared User;
 /// @resolution.name source=sharedBox target=sharedBox
 /// @resolution.member source=sharedBox.value receiver=Placed<Box<User>, "shared"> type=Placed<User, "shared"> kind=field target_receiver=Placed<Box<User>, "shared"> key=value target=Box.value target_type=Placed<User, "shared">
-/// @resolution.place source=sharedBox placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedBox placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=sharedBox root=sharedBox
 /// @resolution.place source=sharedBox.value placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedBox.value root=sharedBox keys=[value]
@@ -439,7 +439,7 @@ sharedBox.value satisfies shared User;
 mixedBox.value satisfies shared User;
 /// @resolution.name source=mixedBox target=mixedBox
 /// @resolution.member source=mixedBox.value receiver=Placed<Box<Placed<User, "shared">>, "local"> type=Placed<User, "shared"> kind=field target_receiver=Placed<Box<Placed<User, "shared">>, "local"> key=value target=Box.value target_type=Placed<User, "shared">
-/// @resolution.place source=mixedBox placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=mixedBox placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=mixedBox root=mixedBox
 /// @resolution.place source=mixedBox.value placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=mixedBox.value root=mixedBox keys=[value]

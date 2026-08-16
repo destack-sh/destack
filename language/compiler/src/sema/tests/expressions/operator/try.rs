@@ -55,7 +55,7 @@ extension of Token implements Add<Token> {
 /// @definition.extension symbol=<module>#2 form=local target=Token
 /// @definition.implements symbol=<module>#2 source=Add<Token> target=ops.plus.Add<Token>
 /// @definition.associated.type symbol=Output source="type Output = string" key=Output value=string
-/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a exclusive this, Token) => string
+/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly this, Token) => string
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
 /// @resolution.name source=Token target=Token
@@ -67,7 +67,7 @@ extension of Token implements Add<Token> {
 
     add(other: Token): string {
     /// @generic.template symbol=add parent=template#0 parameters=('a)
-    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a exclusive this, Token) => string
+    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly this, Token) => string
     /// @type.symbol symbol=add.other source="other: Token" type=Token
     /// @resolution.name source=Token target=Token
 
@@ -90,10 +90,10 @@ const selected = token ?? fallback;
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=token target=token
 /// @resolution.operator source="token ?? fallback" type=Token operator="??" kind=builtin operands=[token as Token | undefined, fallback as Token]
-/// @resolution.place source=token placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=token placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=token root=token
 /// @resolution.name source=fallback target=fallback
-/// @resolution.place source=fallback placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=fallback placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=fallback root=fallback
 "#,
     );
@@ -181,7 +181,7 @@ extension of Attempt implements Try {
 /// @definition.implements symbol=<module>#2 source=Try target=ops.try.Try
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.associated.type symbol=Residual source="type Residual = string" key=Residual value=string
-/// @definition.method symbol=branch slot=branch type=<branch.'a>(this: &branch.'a exclusive this) => ops.try.ControlFlow<string, int32>
+/// @definition.method symbol=branch slot=branch type=<branch.'a>(this: &branch.'a readonly this) => ops.try.ControlFlow<string, int32>
 /// @definition.method symbol=fromOutput slot=fromOutput static=true type=(int32) => Attempt
 /// @definition.method symbol=fromResidual slot=fromResidual static=true type=(string) => Attempt
 /// @definition.conformance symbol=<module>#2 member=Output requirement=ops.try.Try.Output
@@ -223,7 +223,7 @@ extension of Attempt implements Try {
 
     branch(): ControlFlow<string, int32> {
     /// @generic.template symbol=branch parent=template#0 parameters=('a)
-    /// @type.symbol symbol=branch type=<branch.'a>(this: &branch.'a exclusive this) => ops.try.ControlFlow<string, int32>
+    /// @type.symbol symbol=branch type=<branch.'a>(this: &branch.'a readonly this) => ops.try.ControlFlow<string, int32>
     /// @resolution.name source=ControlFlow target=ops.try.ControlFlow
 
         return ControlFlow.continue(this.value);
@@ -232,11 +232,11 @@ extension of Attempt implements Try {
         /// @resolution.call source=ControlFlow.continue(this.value) parameters=(int32) arguments=(provided(this.value) as int32) return=ops.try.ControlFlow<string, int32> kind=symbol target=ops.try.continue instance="ops.try.ControlFlow<string, int32>.<extension#1>.continue"
         /// @generic.instantiation id="ops.try.continue<string, int32>" template=ops.try.continue arguments=(string, int32)
         /// @generic.instance id="ops.try.continue<string, int32>" template=ops.try.continue arguments=(string, int32)
-        /// @resolution.member source=this.value receiver=&branch.'a exclusive Attempt type=int32 kind=field target_receiver=&branch.'a exclusive Attempt key=value target=Attempt.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&branch.'a exclusive Attempt
-        /// @resolution.place source=this placement="local" lifetime=branch.'a access="exclusive"
+        /// @resolution.member source=this.value receiver=&branch.'a readonly Attempt type=int32 kind=field target_receiver=&branch.'a readonly Attempt key=value target=Attempt.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&branch.'a readonly Attempt
+        /// @resolution.place source=this placement="local" lifetime=branch.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime=branch.'a access="exclusive"
+        /// @resolution.place source=this.value placement="local" lifetime=branch.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }
@@ -252,7 +252,7 @@ const selected = attempt ?? 0;
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=attempt target=attempt
 /// @resolution.operator source="attempt ?? 0" type=int32 operator="??" kind=builtin operands=[attempt as Attempt, 0 as 0 families=(integer)]
-/// @resolution.place source=attempt placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=attempt placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=attempt root=attempt
 "#,
     );

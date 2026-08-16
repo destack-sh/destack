@@ -301,15 +301,15 @@ declare const sharedPoint: shared Point;
 localPoint.x satisfies local int32;
 /// @resolution.name source=localPoint target=localPoint
 /// @resolution.member source=localPoint.x receiver=Placed<Point, "local"> type=int32 kind=field target_receiver=Placed<Point, "local"> key=x target=Point.x target_type=int32
-/// @resolution.place source=localPoint placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localPoint placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localPoint root=localPoint
-/// @resolution.place source=localPoint.x placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localPoint.x placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=localPoint.x root=localPoint keys=[x]
 
 sharedPoint.x satisfies shared int32;
 /// @resolution.name source=sharedPoint target=sharedPoint
 /// @resolution.member source=sharedPoint.x receiver=Placed<Point, "shared"> type=int32 kind=field target_receiver=Placed<Point, "shared"> key=x target=Point.x target_type=int32
-/// @resolution.place source=sharedPoint placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedPoint placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=sharedPoint root=sharedPoint
 /// @resolution.place source=sharedPoint.x placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedPoint.x root=sharedPoint keys=[x]
@@ -366,7 +366,7 @@ declare const state: local State;
 state.user satisfies shared User;
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.user receiver=Placed<State, "local"> type=Placed<User, "shared"> kind=field target_receiver=Placed<State, "local"> key=user target=State.user target_type=Placed<User, "shared">
-/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
 /// @resolution.place source=state.user placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=state.user root=state keys=[user]
@@ -401,12 +401,12 @@ declare const values: shared [int32; 2];
 
 values[0] satisfies shared int32;
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=values placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
-/// @resolution.place source=values[0] placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=values[0] placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=&'static int32 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=Placed<memory.type.WithAccess<&'static int32, \"mutable\">, \"shared\">)"
-/// @generic.instantiation id="collections.fixed-array.index#1<int32, 2, \"mutable\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "mutable")
+/// @resolution.subscript source=values[0] type=&'static readonly int32 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=Placed<memory.type.WithAccess<&'static int32, \"readonly\">, \"shared\">)"
+/// @generic.instantiation id="collections.fixed-array.index#1<int32, 2, \"readonly\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "readonly")
 "#,
         r#"
 
@@ -446,7 +446,7 @@ const value = source;
 
 value satisfies local int32;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=value placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -490,7 +490,7 @@ shared const sharedWorld: ^World = world;
 /// @resolution.pattern source=sharedWorld kind=binding target=sharedWorld
 /// @resolution.name source=World target=World
 /// @resolution.name source=world target=world
-/// @resolution.place source=world placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=world placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=world root=world
 "#,
         r#"

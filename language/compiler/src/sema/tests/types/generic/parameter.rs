@@ -81,7 +81,7 @@ const first = values[0];
 /// @type.symbol symbol=first source=first type=1
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 kind=member target="receiver=[1, 2], target=field(receiver=[1, 2], target=0, type=1), type=1"

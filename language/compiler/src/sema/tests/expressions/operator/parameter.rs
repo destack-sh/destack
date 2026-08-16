@@ -697,10 +697,10 @@ const doubled = value * value;
 /// @resolution.pattern source=doubled kind=binding target=doubled
 /// @resolution.name source=value target=value
 /// @resolution.operator source="value * value" type=int32 | float64 operator="*" kind=builtin operands=[value as int32 | float64 families=(integer | float), value as int32 | float64 families=(integer | float)]
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );

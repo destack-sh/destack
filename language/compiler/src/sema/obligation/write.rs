@@ -57,16 +57,26 @@ impl CheckState<'_> {
         let target = &obligation.target;
         let check =
             self.check_writable_target(origin, target.source, &target.write, target.mode)?;
-
-        match check {
-            ObligationCheck::Fails(_) | ObligationCheck::Ambiguous(_) => Ok(check),
-            ObligationCheck::Holds => match target.mode {
-                WriteMode::Direct | WriteMode::Initialize { .. } => Ok(ObligationCheck::holds()),
-                WriteMode::Indirect { receiver } => {
-                    self.check_indirect_write(origin, target.source, receiver, obligation.ty)
-                }
-            },
+        if !matches!(check, ObligationCheck::Holds) {
+            return Ok(check);
         }
+
+        // validate writes that cross potentially shared indirection
+        let check = match target.mode {
+            WriteMode::Direct | WriteMode::Initialize { .. } => ObligationCheck::holds(),
+            WriteMode::Indirect { receiver } => {
+                self.check_indirect_write(origin, target.source, receiver, obligation.ty)?
+            }
+        };
+
+        // record direct mutation below a binding without treating rebinding as interior mutation
+        let mutates_direct_value = target.mode == WriteMode::Direct
+            && !matches!(target.write, dir::WriteResolution::Binding { .. });
+        if matches!(check, ObligationCheck::Holds) && mutates_direct_value {
+            self.record_access_use(target.source, dir::BindingUse::MUTABLE);
+        }
+
+        Ok(check)
     }
 
     /// Check one write target tree for writable leaves.

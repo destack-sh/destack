@@ -156,7 +156,7 @@ declare const picture: Picture;
 
 picture satisfies Drawable;
 /// @resolution.name source=picture target=picture
-/// @resolution.place source=picture placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=picture placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=picture root=picture
 /// @resolution.name source=Drawable target=Drawable
 "#,
@@ -258,7 +258,7 @@ declare const picture: Picture;
 
 picture satisfies Drawable;
 /// @resolution.name source=picture target=picture
-/// @resolution.place source=picture placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=picture placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=picture root=picture
 /// @resolution.name source=Drawable target=Drawable
 "#,
@@ -313,7 +313,7 @@ const value: { readonly x: int32 } = point;
 /// @type.symbol symbol=value source=value type={ readonly x: int32 }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 
 value satisfies { readonly x: int32 };
@@ -581,7 +581,7 @@ const value: PointClass = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=PointClass target=PointClass
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 "#,
         r#"

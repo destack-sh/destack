@@ -501,6 +501,8 @@ pub(in crate::sema) struct ValueCheck {
 pub(in crate::sema) struct Value {
     /// The checked value type.
     pub(in crate::sema) ty: dir::GlobalTypeId,
+    /// The authored node producing the value, when any.
+    pub(in crate::sema) node: Option<dir::GlobalNodeIdAny>,
     /// The storage designated by the source expression.
     pub(in crate::sema) place: Option<dir::PlaceResolution>,
 }

@@ -119,12 +119,12 @@ const empty = buffer.isEmpty();
 /// @resolution.name source=buffer target=buffer
 /// @resolution.member source=buffer.isEmpty receiver=Buffer type=(this: Buffer) => boolean kind=symbol target_receiver=Buffer target=Sized.isEmpty
 /// @resolution.call source=buffer.isEmpty() parameters=() return=boolean kind=symbol target=Sized.isEmpty receiver=Buffer
-/// @resolution.place source=buffer placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=buffer placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=buffer root=buffer
 
 empty satisfies boolean;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=empty placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=empty root=empty
 "#,
     );
@@ -265,12 +265,12 @@ const empty = buffer.isEmpty();
 /// @resolution.name source=buffer target=buffer
 /// @resolution.member source=buffer.isEmpty receiver=Buffer type=(this: Buffer) => boolean kind=symbol target_receiver=Buffer target=isEmpty
 /// @resolution.call source=buffer.isEmpty() parameters=() return=boolean kind=symbol target=isEmpty receiver=Buffer
-/// @resolution.place source=buffer placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=buffer placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=buffer root=buffer
 
 empty satisfies boolean;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=empty placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=empty root=empty
 "#,
     );

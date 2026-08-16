@@ -337,8 +337,31 @@ impl BodyState<'_, '_> {
             source_value,
             conversion.borrow.value,
         )?;
+        let verdict = verdict.and(payload);
 
-        Ok(verdict.and(payload))
+        // record borrows that require mutable access to directly stored binding values
+        if verdict == Verdict::Holds
+            && !self.type_is_aliased(origin, source.ty)?
+            && let Some(node) = source.node
+        {
+            let readonly = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+                dir::Access::Readonly,
+            )))?;
+            match self.relate_access_assignable(origin, readonly, borrow.access)? {
+                Verdict::Holds => {}
+                Verdict::Fails => self.record_access_use(node, dir::BindingUse::MUTABLE),
+                Verdict::Ambiguous => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "settled borrow at {} has undecided access requirements",
+                            self.node_label(node)
+                        ),
+                    });
+                }
+            }
+        }
+
+        Ok(verdict)
     }
 
     /// Convert one value whose inference variables have settled.
@@ -714,6 +737,7 @@ impl BodyState<'_, '_> {
             let payload = source_chain.base();
             let payload_value = Value {
                 ty: payload,
+                node: None,
                 place: None,
             };
             let conversion =

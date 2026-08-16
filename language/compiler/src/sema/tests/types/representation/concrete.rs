@@ -44,7 +44,7 @@ function storageSize<T: Concrete>(): usize {
 
     return size;
     /// @resolution.name source=size target=storageSize.size
-    /// @resolution.place source=size placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=size placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=size root=storageSize.size
 
 }
@@ -60,7 +60,7 @@ const size = storageSize<int32>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=size placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=size root=size
 "#,
     );
@@ -147,7 +147,7 @@ const size = const sizeOf<Shape>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=size placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=size root=size
 "#,
     );
@@ -202,7 +202,7 @@ const size = const sizeOf<Dynamic<Writer>>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=size placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=size root=size
 "#,
     );
@@ -255,7 +255,7 @@ const size = const sizeOf<Dynamic<Writer>>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=size placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=size root=size
 "#,
     );

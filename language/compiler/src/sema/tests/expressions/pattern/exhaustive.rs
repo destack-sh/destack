@@ -110,7 +110,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
         /// @type.symbol symbol=unwrapOr.value source=value type=T#3
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=unwrapOr.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=value root=unwrapOr.value
 
         Err { error } => fallback
@@ -235,7 +235,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
         /// @type.symbol symbol=unwrap.value source=value type=T#3
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=unwrap.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=value root=unwrap.value
 
     }

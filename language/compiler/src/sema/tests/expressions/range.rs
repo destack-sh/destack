@@ -57,7 +57,7 @@ for (const value of 0..10) {
     /// @type.node source="value satisfies int64" type=int64
     /// @type.node source=value type=int64
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=value root=value
 
 }
@@ -100,14 +100,14 @@ for (const value of 0..limit) {
 /// @type.node source=0..limit type=Range<int32>
 /// @type.node source=limit type=int32
 /// @resolution.name source=limit target=limit
-/// @resolution.place source=limit placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=limit placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=limit root=limit
 
     value satisfies int32;
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=value root=value
 
 }
@@ -146,7 +146,7 @@ const counted = 0..limit;
 /// @type.node source=0..limit type=Range<int32>
 /// @type.node source=limit type=int32
 /// @resolution.name source=limit target=limit
-/// @resolution.place source=limit placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=limit placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=limit root=limit
 "#,
     );
@@ -188,11 +188,11 @@ const counted = low..high;
 /// @type.node source=low type=float64
 /// @type.node source=low..high type=Range<float64 | int32>
 /// @resolution.name source=low target=low
-/// @resolution.place source=low placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=low placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=low root=low
 /// @type.node source=high type=int32
 /// @resolution.name source=high target=high
-/// @resolution.place source=high placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=high placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=high root=high
 "#,
         r#"

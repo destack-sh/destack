@@ -38,7 +38,7 @@ const byte = bytes[index];
 /// @generic.instantiation id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 /// @generic.instance id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 /// @resolution.name source=index target=index
-/// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=index placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=index root=index
 "#,
     );
@@ -81,7 +81,7 @@ bytes[index] = 255;
 /// @generic.instantiation id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
 /// @generic.instance id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
 /// @resolution.name source=index target=index
-/// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=index placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=index root=index
 "#,
     );
@@ -127,7 +127,7 @@ bytes[index] += 1;
 /// @generic.instance id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 /// @generic.instance id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
 /// @resolution.name source=index target=index
-/// @resolution.place source=index placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=index placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=index root=index
 "#,
     );

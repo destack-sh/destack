@@ -114,7 +114,7 @@ const label = match (value) {
 /// @type.node type="low" | "two"
 /// @type.node source=value type=0..=2
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     0..=1 => "low"
@@ -178,7 +178,7 @@ const isEarly = match (value) {
 /// @type.node type=true | false
 /// @type.node source=value type='a'..='z'
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     'a'..='m' => true
@@ -243,7 +243,7 @@ const label = match (value) {
 /// @type.node type="low" | "high"
 /// @type.node source=value type=0..=3
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     0..=1 => "low"

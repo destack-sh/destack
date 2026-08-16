@@ -67,7 +67,7 @@ const shapes: Holder<Shape> = circles;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=circles root=circles
 "#,
     );
@@ -149,7 +149,7 @@ const either: Holder<Circle | Square> = circles;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -210,7 +210,7 @@ const wide: Holder<int32> = one;
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=one target=one
-/// @resolution.place source=one placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=one placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=one root=one
 "#,
         r#"
@@ -280,7 +280,7 @@ const opaque: Holder<unknown> = circles;
 /// @resolution.pattern source=opaque kind=binding target=opaque
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -361,7 +361,7 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @resolution.name source=Draw target=Draw
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -440,7 +440,7 @@ const widened: Holder<() => Shape> = makers;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=makers target=makers
-/// @resolution.place source=makers placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=makers placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=makers root=makers
 "#,
     );
@@ -522,7 +522,7 @@ const either: Holder<() => Circle | Square> = makers;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=makers target=makers
-/// @resolution.place source=makers placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=makers placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=makers root=makers
 "#,
         r#"
@@ -753,7 +753,7 @@ const widened: ^Box<Shape> = boxed;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
-/// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=boxed placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=boxed root=boxed
 "#,
     );
@@ -837,7 +837,7 @@ const widened: ^Pipe<Shape> = pipe;
 /// @resolution.name source=Pipe target=Pipe
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=pipe target=pipe
-/// @resolution.place source=pipe placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=pipe placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=pipe root=pipe
 "#,
         r#"
@@ -1242,7 +1242,7 @@ const widened: Handle<Shape> = handle;
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handle placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=handle root=handle
 "#,
     );
@@ -1313,7 +1313,7 @@ const either: Handle<Circle | Square> = handle;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handle placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=handle root=handle
 "#,
         r#"
@@ -1471,7 +1471,7 @@ const view: &readonly Holder<Shape> = &readonly holder;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=holder target=holder
-/// @resolution.place source=holder placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=holder placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=holder root=holder
 
 const either: &readonly Holder<Circle | Square> = &readonly holder;
@@ -1481,7 +1481,7 @@ const either: &readonly Holder<Circle | Square> = &readonly holder;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=holder target=holder
-/// @resolution.place source=holder placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=holder placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=holder root=holder
 "#,
         r#"

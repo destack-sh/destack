@@ -79,10 +79,10 @@ async function double(): Promise<int32> {
     return count + count;
     /// @resolution.name source=count target=double.count
     /// @resolution.operator source="count + count" type=int32 operator="+" kind=builtin operands=[count as int32 families=(integer), count as int32 families=(integer)]
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=count root=double.count
     /// @resolution.name source=count target=double.count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=count root=double.count
 
 }
@@ -152,7 +152,7 @@ async function sum(): Promise<int32> {
         /// @resolution.assignment source=total read=binding(sum.total) write=binding(sum.total) type=int32
         /// @resolution.access source=total root=sum.total
         /// @resolution.name source=value target=sum.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=value root=sum.value
 
     }

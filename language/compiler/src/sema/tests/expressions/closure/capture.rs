@@ -367,11 +367,11 @@ function connect(): void {
 struct Socket {
 /// @type.symbol symbol=Socket type=Socket
 /// @definition.struct symbol=Socket
-/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=<Socket.write.'a>(this: &Socket.write.'a exclusive this, string) => void
+/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=<Socket.write.'a>(this: &Socket.write.'a readonly this, string) => void
 
     write(message: string): void {}
     /// @generic.template symbol=Socket.write parameters=('a)
-    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<Socket.write.'a>(this: &Socket.write.'a exclusive this, string) => void
+    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<Socket.write.'a>(this: &Socket.write.'a readonly this, string) => void
     /// @capture.function function=Socket.write bindings=0
     /// @type.symbol symbol=Socket.write.message source="message: string" type=string
 
@@ -431,11 +431,11 @@ function connect(): void {
 
         socket.write(message);
         /// @type.node source=socket type=Socket
-        /// @type.node source=socket.write type=<Socket.write.'a>(this: &Socket.write.'a exclusive Socket, string) => void
+        /// @type.node source=socket.write type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void
         /// @type.node source=socket.write(message) type=void
         /// @resolution.name source=socket target=connect.socket
-        /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a>(this: &Socket.write.'a exclusive Socket, string) => void kind=symbol target_receiver=Socket target=Socket.write
-        /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'frame exclusive Socket))
+        /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void kind=symbol target_receiver=Socket target=Socket.write
+        /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'frame readonly Socket))
         /// @resolution.place source=socket placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=socket root=connect.socket
         /// @type.node source=message type=string
@@ -450,7 +450,7 @@ function connect(): void {
     /// @type.node source=send type=Owned<Function<(string,), void>>
     /// @resolution.name source=send target=connect.send
     /// @resolution.call source="send(\"ping\")" parameters=(string) arguments=(provided("ping") as string) return=void kind=expression target=expression
-    /// @resolution.place source=send placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=send placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=send root=connect.send
     /// @type.node source="\"ping\"" type="ping"
 

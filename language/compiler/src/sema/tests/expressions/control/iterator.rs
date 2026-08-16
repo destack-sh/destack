@@ -43,7 +43,7 @@ for (const value of values) {
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=value root=value
 
 }
@@ -79,7 +79,7 @@ for (const value of 1) {
     value;
     /// @type.node source=value type=<error>
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=value root=value
 
 }

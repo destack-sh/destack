@@ -220,7 +220,7 @@ declare const status: Status;
 
 match (status) {
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     Other.Ready => 0
@@ -290,7 +290,7 @@ declare const status: Status;
 
 match (status) {
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     Status.Done => 0

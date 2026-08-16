@@ -114,7 +114,7 @@ declare const values: [int32; 3];
 /// @resolution.assignment source=last write=binding(last) type=int32
 /// @type.node source=values type=FixedArray<int32, 3>
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 "#,
     );

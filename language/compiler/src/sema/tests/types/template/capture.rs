@@ -193,12 +193,12 @@ const segment = parse(input);
 /// @resolution.call source=parse(input) parameters=(`id:${"users" | "posts"}`) arguments=(provided(input) as `id:${"users" | "posts"}`) return="users" | "posts" kind=symbol target=parse instance="parse<\"users\" | \"posts\">"
 /// @generic.instantiation id="parse<\"users\" | \"posts\">" template=parse arguments=("users" | "posts")
 /// @resolution.name source=input target=input
-/// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=input placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=input root=input
 
 segment satisfies "users" | "posts";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=segment root=segment
 "#,
         r#"

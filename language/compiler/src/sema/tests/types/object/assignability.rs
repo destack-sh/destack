@@ -110,7 +110,7 @@ const undecided: Options = { retries: maybe };
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
-/// @resolution.place source=maybe placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=maybe placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=maybe root=maybe
 "#,
         r#"
@@ -161,7 +161,7 @@ const undecided: Options = { retries: maybe };
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
-/// @resolution.place source=maybe placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=maybe placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=maybe root=maybe
 
 const cleared: Options = { retries: undefined };

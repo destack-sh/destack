@@ -41,14 +41,14 @@ struct Value {}
 extension of Value implements ForeignProtocol {
 /// @definition.extension symbol=<module>#2 form=local target=Value
 /// @definition.implements symbol=<module>#2 source=ForeignProtocol target=ForeignProtocol
-/// @definition.method symbol=snake_name source="snake_name(): void {}" slot=snake_name type=<snake_name.'a>(this: &snake_name.'a exclusive this) => void
+/// @definition.method symbol=snake_name source="snake_name(): void {}" slot=snake_name type=<snake_name.'a>(this: &snake_name.'a readonly this) => void
 /// @definition.conformance symbol=<module>#2 member=snake_name requirement=ForeignProtocol.snake_name
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=ForeignProtocol target=ForeignProtocol
 
     snake_name(): void {}
     /// @generic.template symbol=snake_name parent=template#1 parameters=('a)
-    /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a>(this: &snake_name.'a exclusive this) => void
+    /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a>(this: &snake_name.'a readonly this) => void
 
 }
 "#);

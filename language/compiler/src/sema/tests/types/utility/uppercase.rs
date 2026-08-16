@@ -69,7 +69,7 @@ declare const method: Method;
 
 method satisfies "GET" | "POST";
 /// @resolution.name source=method target=method
-/// @resolution.place source=method placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=method placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=method root=method
 "#,
     );

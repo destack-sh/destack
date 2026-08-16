@@ -116,7 +116,7 @@ if (value instanceof User) {
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=Narrow<User | Team, User>
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
@@ -127,9 +127,9 @@ if (value instanceof User) {
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.name receiver=Narrow<User | Team, User> type=string kind=field target_receiver=Narrow<User | Team, User> key=name target=User.name target_type=string
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
-    /// @resolution.place source=value.name placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value.name placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value.name root=value keys=[name]
 
 }
@@ -210,7 +210,7 @@ if (value instanceof User) {
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=Narrow<User | Team, User>
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User

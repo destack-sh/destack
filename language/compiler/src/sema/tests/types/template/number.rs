@@ -206,7 +206,7 @@ const value = parse("1e3");
 
 value satisfies number;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );

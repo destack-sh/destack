@@ -332,7 +332,7 @@ impl WalkState<'_, '_> {
 
                 // record the name edge for checked output
                 let global_source = expression.into_global_any(self.module);
-                self.capture_symbol_reference(symbol);
+                self.capture_symbol_reference(global_source, symbol);
                 self.check
                     .commit_name(global_source, dir::NameResolution::new(symbol))?;
 

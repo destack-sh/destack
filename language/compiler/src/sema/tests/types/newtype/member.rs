@@ -154,7 +154,7 @@ const number = value().open();
 
 number satisfies int32;
 /// @resolution.name source=number target=number
-/// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=number placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=number root=number
 "#,
     );

@@ -40,12 +40,12 @@ declare const route: Route | undefined;
 if (route != undefined) {
 /// @resolution.name source=route target=route
 /// @resolution.operator source="route != undefined" type=boolean operator="!=" kind=builtin operands=[route as `api:${string}` | undefined families=(string | undefined), undefined as undefined families=(undefined)]
-/// @resolution.place source=route placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=route placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=route root=route
 
     route satisfies Route;
     /// @resolution.name source=route target=route
-    /// @resolution.place source=route placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=route placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
 
@@ -98,19 +98,19 @@ declare const route: Route;
 if (route == "api:users") {
 /// @resolution.name source=route target=route
 /// @resolution.operator source="route == \"api:users\"" type=boolean operator="==" kind=builtin operands=[route as `api:${string}` families=(string), "api:users" as "api:users" families=(string)]
-/// @resolution.place source=route placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=route placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=route root=route
 
     route satisfies Route;
     /// @resolution.name source=route target=route
-    /// @resolution.place source=route placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=route placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
 
 } else {
     route satisfies Route;
     /// @resolution.name source=route target=route
-    /// @resolution.place source=route placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=route placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
 
@@ -166,7 +166,7 @@ const section = match (route) {
 /// @type.symbol symbol=section source=section type="users" | "posts"
 /// @resolution.pattern source=section kind=binding target=section
 /// @resolution.name source=route target=route
-/// @resolution.place source=route placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=route placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=route root=route
 
     "api:users" => "users"
@@ -179,7 +179,7 @@ const section = match (route) {
 
 section satisfies "users" | "posts";
 /// @resolution.name source=section target=section
-/// @resolution.place source=section placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=section placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=section root=section
 "#,
     );

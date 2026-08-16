@@ -45,7 +45,11 @@ impl CheckState<'_> {
     }
 
     /// Capture one lexical value reference when required.
-    pub(in crate::sema) fn capture_symbol_reference(&mut self, symbol: dir::GlobalSymbolId) {
+    pub(in crate::sema) fn capture_symbol_reference(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) {
         // ignore references outside function bodies
         let Some(function) = self.flow.current_function_symbol() else {
             return;
@@ -58,6 +62,11 @@ impl CheckState<'_> {
 
         // capture the outer symbol
         self.flow.capture_symbol(symbol);
+        self.module_mut(source.module_id).flows.record_use(
+            source.local_id,
+            symbol,
+            dir::BindingUse::CAPTURED,
+        );
     }
 
     /// Return whether one value reference crosses into an outer function.

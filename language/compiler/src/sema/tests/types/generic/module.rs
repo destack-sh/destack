@@ -800,7 +800,7 @@ function unwrap(wrapped: Wrap<float64>): float64 {
         /// @generic.instantiation id=Wrap<float64> template=Wrap arguments=(float64)
         /// @type.symbol symbol=unwrap.value source=value type=float64
         /// @resolution.name source=value target=unwrap.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=value root=unwrap.value
 
     }
@@ -817,7 +817,7 @@ const out = unwrap(built);
 /// @resolution.name source=unwrap target=unwrap
 /// @resolution.call source=unwrap(built) parameters=(Wrap<float64>) arguments=(provided(built) as Wrap<float64>) return=float64 kind=symbol target=unwrap
 /// @resolution.name source=built target=built
-/// @resolution.place source=built placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=built placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=built root=built
 "#,
         "",

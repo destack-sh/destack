@@ -5,16 +5,6 @@ use destack_dir::{TypeFold, WalkSelections};
 use crate::sema::{CheckModuleState, CheckState};
 use crate::{CompilerError, CompilerResult};
 
-/// One proved symbol use, recorded against the occurrence node that proved it.
-struct SymbolUse {
-    /// The node the use occurred at, when the use has one.
-    node: Option<dir::GlobalNodeIdAny>,
-    /// The used symbol.
-    symbol: dir::GlobalSymbolId,
-    /// How the symbol was used.
-    binding: dir::BindingUse,
-}
-
 impl CheckState<'_> {
     /// Write every commit since the last write into the module tail.
     pub(in crate::sema) fn write_back(&mut self) -> CompilerResult<()> {
@@ -179,132 +169,6 @@ impl CheckState<'_> {
         }
 
         None
-    }
-
-    /// Record the symbol uses this pass proved in the flow segment.
-    pub(in crate::sema) fn write_flows(&mut self) {
-        let mut uses: Vec<SymbolUse> = Vec::new();
-
-        // collect named references from every carried segment, covering reads by name
-        let declared = self.module.declared.clone();
-        let elaborated = self.module.elaborated.clone();
-        let carried = [
-            declared.as_deref().map(|declared| &declared.resolutions),
-            elaborated
-                .as_deref()
-                .map(|elaborated| &elaborated.resolutions),
-        ];
-        for segment in carried.into_iter().flatten() {
-            for (node, resolution) in segment.name_entries() {
-                if let Some(symbol) = resolution.single_symbol() {
-                    uses.push(SymbolUse {
-                        node: Some(node),
-                        symbol,
-                        binding: dir::BindingUse::READ,
-                    });
-                }
-            }
-        }
-        for (node, resolution) in self.module.resolutions.name_entries() {
-            if let Some(symbol) = resolution.single_symbol() {
-                uses.push(SymbolUse {
-                    node: Some(node),
-                    symbol,
-                    binding: dir::BindingUse::READ,
-                });
-            }
-        }
-
-        // collect keyed member selections and written targets from the decisions
-        for (node, decision) in self.module.decisions.decision_entries() {
-            match decision {
-                dir::Decision::Member(member) => match member {
-                    dir::OperationResolution::One(access) => {
-                        collect_member_target_uses(
-                            node,
-                            &access.target,
-                            dir::BindingUse::READ,
-                            &mut uses,
-                        );
-                    }
-                    dir::OperationResolution::Union { arms, .. } => {
-                        for access in arms {
-                            collect_member_target_uses(
-                                node,
-                                &access.target,
-                                dir::BindingUse::READ,
-                                &mut uses,
-                            );
-                        }
-                    }
-                },
-                dir::Decision::Assignment(assignment) => match &assignment.write {
-                    dir::WriteResolution::Binding { symbol, .. } => {
-                        uses.push(SymbolUse {
-                            node: Some(node),
-                            symbol: *symbol,
-                            binding: dir::BindingUse::WRITTEN,
-                        });
-                    }
-                    dir::WriteResolution::Member(member) => match member {
-                        dir::OperationResolution::One(access) => {
-                            collect_member_target_uses(
-                                node,
-                                &access.target,
-                                dir::BindingUse::WRITTEN,
-                                &mut uses,
-                            );
-                        }
-                        dir::OperationResolution::Union { arms, .. } => {
-                            for access in arms {
-                                collect_member_target_uses(
-                                    node,
-                                    &access.target,
-                                    dir::BindingUse::WRITTEN,
-                                    &mut uses,
-                                );
-                            }
-                        }
-                    },
-                    _ => {}
-                },
-                _ => {}
-            }
-        }
-
-        // collect closure uses from the captures
-        for capture in self.module.captures.capture_by_function.values() {
-            for binding in &capture.captures {
-                uses.push(SymbolUse {
-                    node: None,
-                    symbol: binding.symbol(),
-                    binding: dir::BindingUse::CAPTURED,
-                });
-            }
-        }
-
-        // record each use against its owning module, keeping the occurrence node
-        for SymbolUse {
-            node,
-            symbol,
-            binding: binding_use,
-        } in uses
-        {
-            if symbol.module_id == self.module_id {
-                self.module.flows.record_use(symbol.local_id, binding_use);
-                if let Some(node) = node
-                    && node.module_id == self.module_id
-                {
-                    self.module.flows.record_occurrence(
-                        node.local_id,
-                        symbol.local_id,
-                        binding_use,
-                    );
-                }
-            } else {
-                self.module.flows.record_foreign_use(symbol, binding_use);
-            }
-        }
     }
 
     /// Resolve every type one written module segment carries.
@@ -531,41 +395,5 @@ impl CheckState<'_> {
 
             _ => Ok(false),
         }
-    }
-}
-
-/// Collect the declared symbols one member target selects.
-fn collect_member_target_uses(
-    node: dir::GlobalNodeIdAny,
-    target: &dir::MemberTarget,
-    binding: dir::BindingUse,
-    uses: &mut Vec<SymbolUse>,
-) {
-    match target {
-        // record the declared field a nominal access selects
-        dir::MemberTarget::Field(field) => {
-            if let dir::FieldTarget::Member { symbol, .. } = field.target {
-                uses.push(SymbolUse {
-                    node: Some(node),
-                    symbol,
-                    binding,
-                });
-            }
-        }
-        // record the declared member a symbol access selects
-        dir::MemberTarget::Symbol(candidate) => uses.push(SymbolUse {
-            node: Some(node),
-            symbol: candidate.selection.symbol,
-            binding,
-        }),
-        // walk grouped targets member by member
-        dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
-            for target in targets {
-                collect_member_target_uses(node, target, binding, uses);
-            }
-        }
-        dir::MemberTarget::Projection { .. }
-        | dir::MemberTarget::Call(_)
-        | dir::MemberTarget::Index(_) => {}
     }
 }

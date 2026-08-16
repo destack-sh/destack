@@ -35,6 +35,7 @@ impl CheckState<'_> {
             generics_tail: generics,
             resolutions,
             decisions,
+            flows,
             ..
         } = self.module;
 
@@ -53,6 +54,7 @@ impl CheckState<'_> {
             &decisions,
             &resolutions,
             &members,
+            &flows,
         ))
         .map_err(|error| CompilerError::Internal {
             message: format!(
@@ -72,6 +74,7 @@ impl CheckState<'_> {
             resolutions: Arc::new(resolutions),
             decisions: Arc::new(decisions),
             members: Arc::new(members),
+            flows: Arc::new(flows),
         })
     }
 
@@ -91,6 +94,7 @@ impl CheckState<'_> {
         let controls = self.module.controls;
         let resolutions = self.module.resolutions;
         let decisions = self.module.decisions;
+        let flows = self.module.flows;
 
         // collect the foreign modules the stored entries recorded as they interned
         let references = self.module.references.iter().copied().collect::<Vec<_>>();
@@ -109,6 +113,7 @@ impl CheckState<'_> {
             &controls,
             &resolutions,
             &decisions,
+            &flows,
         ))
         .map_err(|error| CompilerError::Internal {
             message: format!(
@@ -130,6 +135,7 @@ impl CheckState<'_> {
             controls: Arc::new(controls),
             resolutions: Arc::new(resolutions),
             decisions: Arc::new(decisions),
+            flows: Arc::new(flows),
         })
     }
 

@@ -55,7 +55,7 @@ const ok: Args = ("Ada", 42);
 
 ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ok placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=ok root=ok
 "#,
     );

@@ -56,7 +56,7 @@ const moduleBorrow = &readonly modulePoint;
 /// @type.symbol symbol=moduleBorrow source=moduleBorrow type=&'static readonly Owned<Point>
 /// @resolution.pattern source=moduleBorrow kind=binding target=moduleBorrow
 /// @resolution.name source=modulePoint target=modulePoint
-/// @resolution.place source=modulePoint placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=modulePoint placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=modulePoint root=modulePoint
 
 function inspectFrame(): void {
@@ -72,7 +72,7 @@ function inspectFrame(): void {
     /// @type.symbol symbol=inspectFrame.frameBorrow source=frameBorrow type=&'frame readonly Owned<Point>
     /// @resolution.pattern source=frameBorrow kind=binding target=inspectFrame.frameBorrow
     /// @resolution.name source=framePoint target=inspectFrame.framePoint
-    /// @resolution.place source=framePoint placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=framePoint placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=framePoint root=inspectFrame.framePoint
 
     moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
@@ -737,7 +737,7 @@ function inspect(user: &readonly User): int32 {
     /// @resolution.name source=view target=inspect.view
     /// @resolution.member source=view.user receiver=View<inspect.'a> type=&inspect.'a readonly User kind=field target_receiver=View<inspect.'a> key=user target=View.user target_type=&inspect.'a readonly User
     /// @resolution.member source=view.user.id receiver=&inspect.'a readonly User type=int32 kind=field target_receiver=&inspect.'a readonly User key=id target=User.id target_type=int32
-    /// @resolution.place source=view placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=view placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=view root=inspect.view
     /// @resolution.place source=view.user placement="local" lifetime=inspect.'a access="readonly"
     /// @resolution.access source=view.user root=inspect.view keys=[user]

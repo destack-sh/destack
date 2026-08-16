@@ -36,7 +36,7 @@ declare const matched: Match;
 
 matched satisfies "a" | "c";
 /// @resolution.name source=matched target=matched
-/// @resolution.place source=matched placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=matched placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=matched root=matched
 "#,
     );

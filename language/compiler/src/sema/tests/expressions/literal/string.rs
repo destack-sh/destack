@@ -159,7 +159,7 @@ isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
 /// @type.node source=isEmpty type=boolean
 /// @resolution.name source=isEmpty target=isEmpty
-/// @resolution.place source=isEmpty placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=isEmpty placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=isEmpty root=isEmpty
 "#,
     );
@@ -209,7 +209,7 @@ isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
 /// @type.node source=isEmpty type=boolean
 /// @resolution.name source=isEmpty target=isEmpty
-/// @resolution.place source=isEmpty placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=isEmpty placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=isEmpty root=isEmpty
 "#,
     );

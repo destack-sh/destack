@@ -36,7 +36,7 @@ declare const letter: Letter;
 
 letter satisfies "a" | "c";
 /// @resolution.name source=letter target=letter
-/// @resolution.place source=letter placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=letter placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=letter root=letter
 "#,
     );

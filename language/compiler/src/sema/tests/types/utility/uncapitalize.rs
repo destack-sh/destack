@@ -69,7 +69,7 @@ declare const value: Value;
 
 value satisfies "yes" | "no";
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );

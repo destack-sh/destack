@@ -36,13 +36,13 @@ type Vector {
     y: int32;
 }
 
-function test.main.Vector.add<'a>(v0: ref<Vector, borrowed, 'a, exclusive>, v1: Vector): Vector {
-entry(v0: ref<Vector, borrowed, 'a, exclusive>, v1: Vector):
-    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+function test.main.Vector.add<'a>(v0: ref<Vector, borrowed, 'a, readonly>, v1: Vector): Vector {
+entry(v0: ref<Vector, borrowed, 'a, readonly>, v1: Vector):
+    v2: ref<int32, borrowed, readonly> = field.address v0, 0
     v3: int32 = load v2
     v4: int32 = field.get v1, 0
     v5: int32 = int.add v3, v4
-    v6: ref<int32, borrowed, exclusive> = field.address v0, 1
+    v6: ref<int32, borrowed, readonly> = field.address v0, 1
     v7: int32 = load v6
     v8: int32 = field.get v1, 1
     v9: int32 = int.add v7, v8
@@ -64,9 +64,9 @@ entry:
     v4: int32 = 4
     v5: Vector = aggregate (v3, v4)
     local.set l1, v5
-    v6: ref<Vector, borrowed, 'frame, exclusive> = local.address l0
+    v6: ref<Vector, borrowed, 'frame, readonly> = local.address l0
     v7: Vector = local.get l1
-    v8: Vector = call test.main.Vector.add(v6, v7): <'a>(ref<Vector, borrowed, 'a, exclusive>, Vector) => Vector
+    v8: Vector = call test.main.Vector.add(v6, v7): <'a>(ref<Vector, borrowed, 'a, readonly>, Vector) => Vector
     local.set l2, v8
     v9: Vector = local.get l2
     v10: int32 = field.get v9, 0
@@ -109,9 +109,9 @@ type Charge {
     amount: int32;
 }
 
-function test.main.Charge.negate<'a>(v0: ref<Charge, borrowed, 'a, exclusive>): Charge {
-entry(v0: ref<Charge, borrowed, 'a, exclusive>):
-    v1: ref<int32, borrowed, exclusive> = field.address v0, 0
+function test.main.Charge.negate<'a>(v0: ref<Charge, borrowed, 'a, readonly>): Charge {
+entry(v0: ref<Charge, borrowed, 'a, readonly>):
+    v1: ref<int32, borrowed, readonly> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = int.negate v2
     v4: Charge = aggregate (v3)
@@ -126,8 +126,8 @@ entry:
     v0: int32 = 5
     v1: Charge = aggregate (v0)
     local.set l0, v1
-    v2: ref<Charge, borrowed, 'frame, exclusive> = local.address l0
-    v3: Charge = call test.main.Charge.negate(v2): <'a>(ref<Charge, borrowed, 'a, exclusive>) => Charge
+    v2: ref<Charge, borrowed, 'frame, readonly> = local.address l0
+    v3: Charge = call test.main.Charge.negate(v2): <'a>(ref<Charge, borrowed, 'a, readonly>) => Charge
     local.set l1, v3
     v4: Charge = local.get l1
     v5: int32 = field.get v4, 0

@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::sema::{CheckEvent, CheckState};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Commit one node decision into its module's decision segment.
@@ -11,7 +11,29 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         resolution: dir::Decision,
     ) -> CompilerResult<()> {
-        // later derivations refine the same answer, the last settled one stays
+        let uses = resolution.binding_uses();
+
+        // reject refinements that would invalidate already committed uses
+        if let Some(previous) = self.module(node.module_id).decisions.decision(node) {
+            let previous_uses = previous.binding_uses();
+            if !previous_uses.is_empty() && previous_uses != uses {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "check node {} refined its selected declaration uses: previous = {previous_uses:?}, new = {uses:?}",
+                        self.node_label(node),
+                    ),
+                });
+            }
+        }
+
+        // record the selected declaration uses
+        for (symbol, binding_use) in uses {
+            self.module_mut(node.module_id)
+                .flows
+                .record_use(node.local_id, symbol, binding_use);
+        }
+
+        // later derivations refine the same targets, the last settled payload stays
         self.module_mut(node.module_id)
             .decisions
             .set_decision(node, resolution);
@@ -26,6 +48,15 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         resolution: dir::NameResolution,
     ) -> CompilerResult<()> {
+        // record one unambiguous lexical reference
+        if let Some(symbol) = resolution.single_symbol() {
+            self.module_mut(node.module_id).flows.record_use(
+                node.local_id,
+                symbol,
+                dir::BindingUse::READ,
+            );
+        }
+
         self.module_mut(node.module_id)
             .resolutions
             .set_name_resolution(node, resolution);

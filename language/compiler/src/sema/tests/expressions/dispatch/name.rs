@@ -129,7 +129,7 @@ const same = value as int32;
 /// @type.symbol symbol=same source=same type=int32
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -185,7 +185,7 @@ const size = point.lenght;
 /// @type.symbol symbol=size source=size type=<error>
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @resolution.rejected source=point.lenght
 "#,

@@ -419,7 +419,7 @@ const result: Promise<string | Promise<string>> = input.then(() => {
     /// @type.node source="usePromise ? next : \"done\"" type=async.promise.Promise<string> | string
     /// @type.node source=usePromise type=boolean
     /// @resolution.name source=usePromise target=usePromise
-    /// @resolution.place source=usePromise placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=usePromise placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=usePromise root=usePromise
     /// @type.node source=next type=async.promise.Promise<string>
     /// @resolution.name source=next target=next
@@ -1292,7 +1292,7 @@ const kept = values
 /// @resolution.member receiver=Owned<Array<int32>> type=<collections.array.map.U#1>(this: Owned<Array<int32>>, Function<(int32, isize), collections.array.map.U#1>) => Owned<Array<collections.array.map.U#1>> & <collections.array.map.U#2>(this: Owned<Array<int32>>, Function<(int32, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=existential targets=[collections.array.map#1, collections.array.map#2]
 /// @resolution.call parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
 /// @resolution.call parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value) as Function<(int32, isize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.map#1<int32>
-/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="collections.array.map#1<int32, int32>" template=collections.array.map#1 arguments=(int32, int32)
 /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
@@ -1924,7 +1924,7 @@ requireCopy(value);
 /// @resolution.call source=requireCopy(value) parameters=(int32 | Array<int32>) arguments=(provided(value) as int32 | Array<int32>) return=void kind=symbol target=requireCopy instance="requireCopy<int32 | Array<int32>>"
 /// @generic.instantiation id="requireCopy<int32 | Array<int32>>" template=requireCopy arguments=(int32 | Array<int32>)
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -2118,7 +2118,7 @@ if (value != null) {
 /// @type.node source=value type=int32 | null | undefined
 /// @resolution.name source=value target=value
 /// @resolution.operator source="value != null" type=boolean operator="!=" kind=builtin operands=[value as int32 | null | undefined families=(integer | null | undefined), null as null families=(null)]
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @type.node source=null type=null
 
@@ -2126,7 +2126,7 @@ if (value != null) {
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
 
 }
@@ -2169,7 +2169,7 @@ const positive = values.filter((value) => value > 0);
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.filter receiver=Owned<Array<int32>> type=(this: Owned<Array<int32>>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<Array<int32>> & (this: Owned<Array<int32>>, Function<(int32, isize), boolean>) => Owned<Array<int32>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
 /// @resolution.call source="values.filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<Array<int32>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
-/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
 /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
@@ -2291,7 +2291,7 @@ for (const value of 0..10) {
 
     value;
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=value root=value
 
 }

@@ -944,7 +944,7 @@ function render(): Panel {
     /// @generic.instantiation id="element<\"div\", (Panel, Panel)>" template=element arguments=("div", (Panel, Panel))
     /// @generic.instance id="element<\"div\", (Panel, Panel)>" template=element arguments=("div", (Panel, Panel))
     /// @resolution.name source=pair target=render.pair
-    /// @resolution.place source=pair placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=pair placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=pair root=render.pair
 
     return page;

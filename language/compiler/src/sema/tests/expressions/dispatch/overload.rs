@@ -252,7 +252,7 @@ struct Buffer {
 extension of Buffer {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
 /// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=<capacity.'a>(this: &capacity.'a readonly this) => usize
-/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=<trailing.'a>(this: &trailing.'a exclusive this) => usize
+/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=<trailing.'a>(this: &trailing.'a readonly this) => usize
 /// @resolution.name source=Buffer target=Buffer
 
     @intrinsic("buffer.capacity")
@@ -264,7 +264,7 @@ extension of Buffer {
 
     trailing(): usize;
     /// @generic.template symbol=trailing parameters=('a)
-    /// @type.symbol symbol=trailing source="trailing(): usize" type=<trailing.'a>(this: &trailing.'a exclusive this) => usize
+    /// @type.symbol symbol=trailing source="trailing(): usize" type=<trailing.'a>(this: &trailing.'a readonly this) => usize
 
 }
 "#,

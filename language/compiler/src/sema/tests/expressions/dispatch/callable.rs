@@ -80,7 +80,7 @@ const result = transform("value");
 /// @type.node source="transform(\"value\")" type="left" | "right"
 /// @resolution.name source=transform target=transform
 /// @resolution.call source="transform(\"value\")" return="left" | "right" kind=union arms=[expression(parameters=(string), arguments=(provided("value") as string), return="left"), expression(parameters=(string), arguments=(provided("value") as string), return="right")]
-/// @resolution.place source=transform placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=transform placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=transform root=transform
 /// @type.node source="\"value\"" type="value"
 "#,
@@ -131,7 +131,7 @@ const result: "left" | "right" = transform(1);
 /// @type.node source=transform(1) type="common"
 /// @resolution.name source=transform target=transform
 /// @resolution.call source=transform(1) return="common" kind=union arms=[expression(parameters=(int32), arguments=(provided(1) as int32), return="common"), expression(parameters=(int32), arguments=(provided(1) as int32), return="common")]
-/// @resolution.place source=transform placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=transform placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=transform root=transform
 /// @type.node source=1 type=1
 "#,
@@ -171,7 +171,7 @@ const value = 1;
 value();
 /// @type.node source=value() type=<error>
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @resolution.rejected source=value()
 "#,

@@ -29,14 +29,14 @@ value satisfies ();
 /// @type.node source="value satisfies ()" type=()
 /// @type.node source=value type=()
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
 value satisfies void;
 /// @type.node source="value satisfies void" type=()
 /// @type.node source=value type=()
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -69,7 +69,7 @@ value satisfies ();
 /// @type.node source="value satisfies ()" type=void
 /// @type.node source=value type=void
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );

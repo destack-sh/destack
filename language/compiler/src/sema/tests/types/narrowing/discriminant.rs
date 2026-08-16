@@ -1298,7 +1298,7 @@ class Child extends Base {
 
         return cleared;
         /// @resolution.name source=cleared target=Child.read.cleared
-        /// @resolution.place source=cleared placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=cleared placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=cleared root=Child.read.cleared
 
     }
@@ -1416,7 +1416,7 @@ class Child extends Base {
 
         return cleared;
         /// @resolution.name source=cleared target=Child.read.cleared
-        /// @resolution.place source=cleared placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=cleared placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=cleared root=Child.read.cleared
 
     }
@@ -1542,7 +1542,7 @@ class Child extends Base {
 
             return cleared;
             /// @resolution.name source=cleared target=Child.read.symbol8.cleared
-            /// @resolution.place source=cleared placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=cleared placement="local" lifetime="frame" access="readonly"
             /// @resolution.access source=cleared root=Child.read.symbol8.cleared
 
         };

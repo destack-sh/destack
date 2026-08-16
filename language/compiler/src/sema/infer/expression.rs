@@ -665,7 +665,7 @@ impl BodyState<'_, '_> {
                     _ => dir::NameResolution::from_symbols(symbols.to_vec()),
                 };
                 for symbol in resolution.symbols().iter().copied() {
-                    self.check.capture_symbol_reference(symbol);
+                    self.check.capture_symbol_reference(source, symbol);
                 }
                 self.check.commit_name(source, resolution.clone())?;
 

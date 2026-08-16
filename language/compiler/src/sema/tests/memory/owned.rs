@@ -1,6 +1,74 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_pass_const_owned_binding_by_value() {
+    let session = TestSession::single(
+        r#"
+struct Payload {
+    value: int32;
+}
+
+declare function consume(value: ^Payload): void;
+
+const payload: ^Payload = Payload { value: 1 };
+consume(payload);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+struct Payload {
+    value: int32;
+}
+
+declare function consume(value: ^Payload): void;
+
+const payload: ^Payload = ^Payload { value: 1 };
+consume(payload);
+
+=== dir ===
+struct Payload {
+/// @type.symbol symbol=Payload type=Payload
+/// @definition.struct symbol=Payload
+/// @definition.field symbol=Payload.value source="value: int32" key=value type=int32
+
+    value: int32;
+    /// @type.symbol symbol=Payload.value source="value: int32" type=int32
+
+}
+
+declare function consume(value: ^Payload): void;
+/// @type.symbol symbol=consume source="declare function consume(value: ^Payload): void" type=(Owned<Payload>) => void
+/// @type.symbol symbol=consume.value source="value: ^Payload" type=Owned<Payload>
+/// @resolution.name source=Payload target=Payload
+
+const payload: ^Payload = Payload { value: 1 };
+/// @type.symbol symbol=payload source=payload type=Owned<Payload>
+/// @resolution.pattern source=payload kind=binding target=payload
+/// @resolution.name source=Payload target=Payload
+/// @type.node source="Payload { value: 1 }" type=Owned<Payload>
+/// @resolution.name source=Payload target=Payload
+/// @type.node source=1 type=1
+
+consume(payload);
+/// @type.node source=consume type=(Owned<Payload>) => void
+/// @type.node source=consume(payload) type=void
+/// @resolution.name source=consume target=consume
+/// @resolution.call source=consume(payload) parameters=(Owned<Payload>) arguments=(provided(payload) as Owned<Payload>) return=void kind=symbol target=consume
+/// @type.node source=payload type=Owned<Payload>
+/// @resolution.name source=payload target=payload
+/// @resolution.place source=payload placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=payload root=payload
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
 fn test_yield_owned_value_from_move_expression() {
     let session = TestSession::single(
         r#"
@@ -232,9 +300,9 @@ container.data satisfies ^Data;
 /// @type.node source=container.data type=Owned<Data>
 /// @resolution.name source=container target=container
 /// @resolution.member source=container.data receiver=Container type=Owned<Data> kind=field target_receiver=Container key=data target=Container.data target_type=Owned<Data>
-/// @resolution.place source=container placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=container placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=container root=container
-/// @resolution.place source=container.data placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=container.data placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=container.data root=container keys=[data]
 /// @resolution.name source=Data target=Data
 "#,

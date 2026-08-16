@@ -44,7 +44,7 @@ hasX satisfies boolean;
 /// @type.node source="hasX satisfies boolean" type=boolean
 /// @type.node source=hasX type=boolean
 /// @resolution.name source=hasX target=hasX
-/// @resolution.place source=hasX placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=hasX placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=hasX root=hasX
 "#,
     );
@@ -94,7 +94,7 @@ hasName satisfies boolean;
 /// @type.node source="hasName satisfies boolean" type=boolean
 /// @type.node source=hasName type=boolean
 /// @resolution.name source=hasName target=hasName
-/// @resolution.place source=hasName placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=hasName placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=hasName root=hasName
 "#,
     );
@@ -170,7 +170,7 @@ found satisfies boolean;
 /// @type.node source="found satisfies boolean" type=boolean
 /// @type.node source=found type=boolean
 /// @resolution.name source=found target=found
-/// @resolution.place source=found placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=found placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=found root=found
 "#,
     );
@@ -281,7 +281,7 @@ if ("name" in value) {
 /// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
 /// @type.node source=value type=Named | Numbered
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     value.name satisfies string;
@@ -352,7 +352,7 @@ if ("name" in value) {
 /// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
 /// @type.node source=value type=Named | Numbered
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
 } else {

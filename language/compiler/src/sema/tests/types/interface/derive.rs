@@ -77,7 +77,7 @@ const value = requireEqual(Point { x: 1, y: 2 });
 
 value satisfies Point;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @resolution.name source=Point target=Point
 "#,
@@ -277,7 +277,7 @@ const node = requireClone(Node { value: 1, next: null });
 
 node satisfies Node;
 /// @resolution.name source=node target=node
-/// @resolution.place source=node placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=node placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=node root=node
 /// @resolution.name source=Node target=Node
 "#,
@@ -982,15 +982,15 @@ const same = a == b;
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=a target=a
 /// @resolution.operator source="a == b" type=boolean operator="==" kind=builtin operands=[a as Point, b as Point]
-/// @resolution.place source=a placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=a placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=a root=a
 /// @resolution.name source=b target=b
-/// @resolution.place source=b placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=b placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=b root=b
 
 same satisfies boolean;
 /// @resolution.name source=same target=same
-/// @resolution.place source=same placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=same placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=same root=same
 
 const s1 = new Session();
@@ -1029,12 +1029,12 @@ const cstrict = s1 === s2;
 
 csame satisfies boolean;
 /// @resolution.name source=csame target=csame
-/// @resolution.place source=csame placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=csame placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=csame root=csame
 
 cstrict satisfies boolean;
 /// @resolution.name source=cstrict target=cstrict
-/// @resolution.place source=cstrict placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=cstrict placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=cstrict root=cstrict
 "#,
     );
@@ -1092,10 +1092,10 @@ const strict = a === b;
 /// @type.symbol symbol=strict source=strict type=<error>
 /// @resolution.pattern source=strict kind=binding target=strict
 /// @resolution.name source=a target=a
-/// @resolution.place source=a placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=a placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=a root=a
 /// @resolution.name source=b target=b
-/// @resolution.place source=b placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=b placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=b root=b
 "#,
         r#"

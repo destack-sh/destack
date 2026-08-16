@@ -153,7 +153,7 @@ declare const pair: (int32, string) | null;
 if (ready && let (count, label) = pair && count > 0) {
 /// @type.node source=ready type=boolean
 /// @resolution.name source=ready target=ready
-/// @resolution.place source=ready placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ready placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=ready root=ready
 /// @resolution.pattern source=(count, label) kind=tuple fields=(count, label)
 /// @type.symbol symbol=count source=count type=int32
@@ -288,7 +288,7 @@ if (let 1 | 2 = value) {
     /// @type.node source="value satisfies 1 | 2" type=1 | 2
     /// @type.node source=value type=1 | 2
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
 
 } else {
@@ -296,7 +296,7 @@ if (let 1 | 2 = value) {
     /// @type.node source="value satisfies 3" type=3
     /// @type.node source=value type=3
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
 
 }
@@ -341,7 +341,7 @@ declare const user: { name: string } | null;
 if (ready && let { name } = user) {
 /// @type.node source=ready type=boolean
 /// @resolution.name source=ready target=ready
-/// @resolution.place source=ready placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ready placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=ready root=ready
 /// @resolution.pattern source={ name } kind=object fields={ name }
 /// @type.symbol symbol=name#2 source=name type=string
@@ -583,18 +583,18 @@ if (left && right) {
 /// @type.node source=left type=boolean
 /// @resolution.name source=left target=left
 /// @resolution.operator source="left && right" type=boolean operator="&&" kind=builtin operands=[left as boolean families=(boolean), right as boolean families=(boolean)]
-/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=left placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=left root=left
 /// @type.node source=right type=boolean
 /// @resolution.name source=right target=right
-/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=right placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=right root=right
 
     left satisfies boolean;
     /// @type.node source="left satisfies boolean" type=boolean
     /// @type.node source=left type=boolean
     /// @resolution.name source=left target=left
-    /// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=left placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=left root=left
 
 }

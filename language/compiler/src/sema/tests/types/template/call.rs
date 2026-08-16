@@ -90,7 +90,7 @@ const key = build("users");
 
 key satisfies "id:users";
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=key root=key
 "#,
     );
@@ -297,7 +297,7 @@ const value = parse("42");
 
 value satisfies 42;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );

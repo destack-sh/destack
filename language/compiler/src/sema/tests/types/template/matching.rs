@@ -44,12 +44,12 @@ const posts: Route = "api:posts";
 
 users satisfies "api:users" | "api:posts";
 /// @resolution.name source=users target=users
-/// @resolution.place source=users placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=users placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=users root=users
 
 posts satisfies Route;
 /// @resolution.name source=posts target=posts
-/// @resolution.place source=posts placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=posts placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=posts root=posts
 /// @resolution.name source=Route target=Route
 "#,
@@ -307,7 +307,7 @@ const item: NumericRoute = "item:42";
 
 item satisfies `item:${number}`;
 /// @resolution.name source=item target=item
-/// @resolution.place source=item placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=item placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=item root=item
 "#,
     );

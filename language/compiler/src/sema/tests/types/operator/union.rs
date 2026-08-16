@@ -105,7 +105,7 @@ const value: B = { c: true };
 
 value satisfies { a: int32 } | { b: string } | { c: boolean };
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -183,7 +183,7 @@ const value: Value = ();
 
 value satisfies void;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -226,22 +226,22 @@ shape.draw();
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive this) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly this) => void
 
     draw(): void {}
     /// @generic.template symbol=Rectangle.draw parameters=('a)
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive this) => void
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly this) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive this) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a readonly this) => void
 
     draw(): void {}
     /// @generic.template symbol=Circle.draw parameters=('a)
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive this) => void
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a readonly this) => void
 
 }
 
@@ -254,7 +254,7 @@ let shape: Rectangle | Circle = Rectangle {};
 
 shape.draw();
 /// @resolution.name source=shape target=shape
-/// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a exclusive Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive Circle) => void]
+/// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void]
 /// @resolution.call source=shape.draw() return=void kind=union arms=[Rectangle.draw(parameters=(), arguments=(), return=void), Circle.draw(parameters=(), arguments=(), return=void)]
 /// @resolution.place source=shape placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=shape root=shape
@@ -304,22 +304,22 @@ function draw(shape: Rectangle | Circle): void {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive this) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly this) => void
 
     draw(): void {}
     /// @generic.template symbol=Rectangle.draw parameters=('a)
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive this) => void
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly this) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive this) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a readonly this) => void
 
     draw(): void {}
     /// @generic.template symbol=Circle.draw parameters=('a)
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive this) => void
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a readonly this) => void
 
 }
 
@@ -337,7 +337,7 @@ function draw(shape: Shape): void {
 
     shape.draw();
     /// @resolution.name source=shape target=draw.shape
-    /// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a exclusive Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive Circle) => void]
+    /// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void]
     /// @resolution.call source=shape.draw() return=void kind=union arms=[Rectangle.draw(parameters=(), arguments=(), return=void), Circle.draw(parameters=(), arguments=(), return=void)]
     /// @resolution.place source=shape placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=shape root=draw.shape
@@ -407,12 +407,12 @@ const result: "left-integer" | "right-integer" = parser.parse(1);
 struct Left {
 /// @type.symbol symbol=Left type=Left
 /// @definition.struct symbol=Left
-/// @definition.method symbol=Left.parse#1 slot=parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a exclusive this, string) => "left-string"
-/// @definition.method symbol=Left.parse#2 slot=parse type=<Left.parse#2.'a>(this: &Left.parse#2.'a exclusive this, int32) => "left-integer"
+/// @definition.method symbol=Left.parse#1 slot=parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly this, string) => "left-string"
+/// @definition.method symbol=Left.parse#2 slot=parse type=<Left.parse#2.'a>(this: &Left.parse#2.'a readonly this, int32) => "left-integer"
 
     parse(value: string): "left-string" {
     /// @generic.template symbol=Left.parse#1 parameters=('a)
-    /// @type.symbol symbol=Left.parse#1 type=<Left.parse#1.'a>(this: &Left.parse#1.'a exclusive this, string) => "left-string"
+    /// @type.symbol symbol=Left.parse#1 type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly this, string) => "left-string"
     /// @type.symbol symbol=Left.parse.value#1 source="value: string" type=string
 
         return "left-string";
@@ -420,7 +420,7 @@ struct Left {
 
     parse(value: int32): "left-integer" {
     /// @generic.template symbol=Left.parse#2 parameters=('a)
-    /// @type.symbol symbol=Left.parse#2 type=<Left.parse#2.'a>(this: &Left.parse#2.'a exclusive this, int32) => "left-integer"
+    /// @type.symbol symbol=Left.parse#2 type=<Left.parse#2.'a>(this: &Left.parse#2.'a readonly this, int32) => "left-integer"
     /// @type.symbol symbol=Left.parse.value#2 source="value: int32" type=int32
 
         return "left-integer";
@@ -430,12 +430,12 @@ struct Left {
 struct Right {
 /// @type.symbol symbol=Right type=Right
 /// @definition.struct symbol=Right
-/// @definition.method symbol=Right.parse#1 slot=parse type=<Right.parse#1.'a>(this: &Right.parse#1.'a exclusive this, string) => "right-string"
-/// @definition.method symbol=Right.parse#2 slot=parse type=<Right.parse#2.'a>(this: &Right.parse#2.'a exclusive this, int32) => "right-integer"
+/// @definition.method symbol=Right.parse#1 slot=parse type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly this, string) => "right-string"
+/// @definition.method symbol=Right.parse#2 slot=parse type=<Right.parse#2.'a>(this: &Right.parse#2.'a readonly this, int32) => "right-integer"
 
     parse(value: string): "right-string" {
     /// @generic.template symbol=Right.parse#1 parameters=('a)
-    /// @type.symbol symbol=Right.parse#1 type=<Right.parse#1.'a>(this: &Right.parse#1.'a exclusive this, string) => "right-string"
+    /// @type.symbol symbol=Right.parse#1 type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly this, string) => "right-string"
     /// @type.symbol symbol=Right.parse.value#1 source="value: string" type=string
 
         return "right-string";
@@ -443,7 +443,7 @@ struct Right {
 
     parse(value: int32): "right-integer" {
     /// @generic.template symbol=Right.parse#2 parameters=('a)
-    /// @type.symbol symbol=Right.parse#2 type=<Right.parse#2.'a>(this: &Right.parse#2.'a exclusive this, int32) => "right-integer"
+    /// @type.symbol symbol=Right.parse#2 type=<Right.parse#2.'a>(this: &Right.parse#2.'a readonly this, int32) => "right-integer"
     /// @type.symbol symbol=Right.parse.value#2 source="value: int32" type=int32
 
         return "right-integer";
@@ -460,9 +460,9 @@ const result = parser.parse(1);
 /// @type.symbol symbol=result source=result type="left-integer" | "right-integer"
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=parser target=parser
-/// @resolution.member source=parser.parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a exclusive Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a exclusive Left, int32) => "left-integer" | <Right.parse#1.'a>(this: &Right.parse#1.'a exclusive Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a exclusive Right, int32) => "right-integer" kind=union arms=[receiver=Left, target=Left.parse#1 | Left.parse#2, type=<Left.parse#1.'a>(this: &Left.parse#1.'a exclusive Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a exclusive Left, int32) => "left-integer", receiver=Right, target=Right.parse#1 | Right.parse#2, type=<Right.parse#1.'a>(this: &Right.parse#1.'a exclusive Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a exclusive Right, int32) => "right-integer"]
+/// @resolution.member source=parser.parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer" | <Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer" kind=union arms=[receiver=Left, target=Left.parse#1 | Left.parse#2, type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer", receiver=Right, target=Right.parse#1 | Right.parse#2, type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer"]
 /// @resolution.call source=parser.parse(1) return="left-integer" | "right-integer" kind=union arms=[Left.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="left-integer"), Right.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="right-integer")]
-/// @resolution.place source=parser placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=parser placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=parser root=parser
 "#,
     );
@@ -494,14 +494,14 @@ const first = values[0];
 /// @type.symbol symbol=first source=first type=int32 | string
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int32, "exclusive">), collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static string, "exclusive">)]
-/// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-/// @generic.instantiation id="collections.array.index#1<string, \"exclusive\">" template=collections.array.index#1 arguments=(string, "exclusive")
-/// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-/// @generic.instance id="collections.array.index#1<string, \"exclusive\">" template=collections.array.index#1 arguments=(string, "exclusive")
+/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int32, "readonly">), collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static string, "readonly">)]
+/// @generic.instantiation id="collections.array.index#1<int32, \"readonly\">" template=collections.array.index#1 arguments=(int32, "readonly")
+/// @generic.instantiation id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
+/// @generic.instance id="collections.array.index#1<int32, \"readonly\">" template=collections.array.index#1 arguments=(int32, "readonly")
+/// @generic.instance id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
 "#,
     );
 }

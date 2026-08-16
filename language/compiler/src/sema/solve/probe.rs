@@ -75,6 +75,8 @@ struct ModuleProbeMark {
     members: dir::MemberMark,
     /// Coercion segment mark before the probe.
     coercions: dir::CoercionMark,
+    /// Flow segment mark before the probe.
+    flows: dir::FlowMark,
     /// Diagnostic count before the probe.
     diagnostics: usize,
     /// Warning count before the probe.
@@ -372,6 +374,7 @@ impl CheckState<'_> {
                         decisions: state.decisions.mark(),
                         members: state.members_tail.mark(),
                         coercions: state.coercions.mark(),
+                        flows: state.flows.mark(),
                         diagnostics: state.diagnostics.len(),
                         warnings: state.warnings.len(),
                     },
@@ -448,6 +451,7 @@ impl CheckState<'_> {
                 state.decisions.truncate_to(mark.decisions);
                 state.members_tail.truncate_to(mark.members);
                 state.coercions.truncate_to(mark.coercions);
+                state.flows.truncate_to(mark.flows);
                 state.diagnostics.truncate(mark.diagnostics);
                 state.warnings.truncate(mark.warnings);
             }

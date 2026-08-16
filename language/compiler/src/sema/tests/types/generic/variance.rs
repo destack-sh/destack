@@ -398,7 +398,7 @@ const copy: Box<Shape> = owned;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=owned target=owned
-/// @resolution.place source=owned placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=owned placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 
 declare const aliased: Managed<Box<Circle>>;
@@ -695,7 +695,7 @@ const target: Handle<string> = source;
 /// @resolution.name source=Handle target=Handle
 /// @type.node source=source type=Handle<int32>
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=source placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=source root=source
 "#,
         r#"
@@ -990,7 +990,7 @@ const widened: Box<Shape> = exact;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact
-/// @resolution.place source=exact placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=exact placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=exact root=exact
 "#,
     );
@@ -1010,7 +1010,7 @@ struct Box<Value> {
 declare const circle: Circle;
 
 const exact: Box<Circle> = Box { value: circle };
-const widened: &readonly Box<Shape> = &exact;
+const widened: &readonly Box<Shape> = &readonly exact;
 "#,
     );
 
@@ -1029,7 +1029,7 @@ struct Box<out Value> {
 declare const circle: Circle;
 
 const exact: Box<Circle> = Box<Circle> { value: circle };
-const widened: &'static readonly Box<Shape> = &exact;
+const widened: &'static readonly Box<Shape> = &readonly exact;
 
 === dir ===
 class Shape {}
@@ -1070,13 +1070,13 @@ const exact: Box<Circle> = Box { value: circle };
 /// @resolution.place source=circle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=circle root=circle
 
-const widened: &readonly Box<Shape> = &exact;
+const widened: &readonly Box<Shape> = &readonly exact;
 /// @type.symbol symbol=widened source=widened type=&'static readonly Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact
-/// @resolution.place source=exact placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=exact placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=exact root=exact
 "#,
     );

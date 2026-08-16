@@ -689,14 +689,14 @@ name satisfies string;
 /// @type.node source="name satisfies string" type=User["name"]
 /// @type.node source=name type=User["name"]
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=name root=name
 
 age satisfies int32;
 /// @type.node source="age satisfies int32" type=User["age"]
 /// @type.node source=age type=User["age"]
 /// @resolution.name source=age target=age
-/// @resolution.place source=age placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=age placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=age root=age
 "#,
     );

@@ -115,7 +115,7 @@ match (point) {
 /// @type.node type=int32
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 
     Point { x, y } => x + y
@@ -127,11 +127,11 @@ match (point) {
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
     /// @resolution.operator source="x + y" type=int32 operator="+" kind=builtin operands=[x as int32 families=(integer), y as int32 families=(integer)]
-    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=x root=x
     /// @type.node source=y type=int32
     /// @resolution.name source=y target=y
-    /// @resolution.place source=y placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=y placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=y root=y
 
 }
@@ -192,11 +192,11 @@ match (point) {
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
     /// @resolution.operator source="x + y" type=int32 operator="+" kind=builtin operands=[x as int32 families=(integer), y as int32 families=(integer)]
-    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=x root=x
     /// @type.node source=y type=int32
     /// @resolution.name source=y target=y
-    /// @resolution.place source=y placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=y placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=y root=y
 
 }
@@ -291,7 +291,7 @@ match (user) {
     /// @type.symbol symbol=displayName source=displayName type=<error>
     /// @type.node source=displayName type=<error>
     /// @resolution.name source=displayName target=displayName
-    /// @resolution.place source=displayName placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=displayName placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=displayName root=displayName
 
 }

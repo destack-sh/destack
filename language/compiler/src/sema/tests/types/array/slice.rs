@@ -28,11 +28,11 @@ const slice = bytes[1..3];
 /// @type.node source=bytes type=FixedArray<uint8, 4>
 /// @type.node source=bytes[1..3] type=Slice<uint8>
 /// @resolution.name source=bytes target=bytes
-/// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=bytes placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=bytes root=bytes
-/// @resolution.subscript source=bytes[1..3] type=Slice<uint8> kind=call target="collections.fixed-array.index#2(parameters=(Range<isize>), arguments=(provided(1..3) as Range<isize>), return=&'static exclusive Slice<uint8>)"
-/// @generic.instantiation id="collections.fixed-array.index#2<uint8, 4, Range<isize>, \"exclusive\">" template=collections.fixed-array.index#2 arguments=(uint8, 4, Range<isize>, "exclusive")
-/// @generic.instance id="collections.fixed-array.index#2<uint8, 4, Range<isize>, \"exclusive\">" template=collections.fixed-array.index#2 arguments=(uint8, 4, Range<isize>, "exclusive")
+/// @resolution.subscript source=bytes[1..3] type=Slice<uint8> kind=call target="collections.fixed-array.index#2(parameters=(Range<isize>), arguments=(provided(1..3) as Range<isize>), return=&'static readonly Slice<uint8>)"
+/// @generic.instantiation id="collections.fixed-array.index#2<uint8, 4, Range<isize>, \"readonly\">" template=collections.fixed-array.index#2 arguments=(uint8, 4, Range<isize>, "readonly")
+/// @generic.instance id="collections.fixed-array.index#2<uint8, 4, Range<isize>, \"readonly\">" template=collections.fixed-array.index#2 arguments=(uint8, 4, Range<isize>, "readonly")
 /// @type.node source=1 type=1
 /// @type.node source=1..3 type=Range<isize>
 /// @type.node source=3 type=3

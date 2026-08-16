@@ -26,12 +26,12 @@ const byte = bytes[1];
 /// @type.symbol symbol=byte source=byte type=uint8
 /// @resolution.pattern source=byte kind=binding target=byte
 /// @resolution.name source=bytes target=bytes
-/// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=bytes placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.access source=bytes[1] root=bytes keys=[1]
-/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(1) as isize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
-/// @generic.instantiation id="collections.fixed-array.index#1<uint8, 4, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "exclusive")
-/// @generic.instance id="collections.fixed-array.index#1<uint8, 4, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "exclusive")
+/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(1) as isize), return=memory.type.WithAccess<&'static uint8, \"readonly\">)"
+/// @generic.instantiation id="collections.fixed-array.index#1<uint8, 4, \"readonly\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "readonly")
+/// @generic.instance id="collections.fixed-array.index#1<uint8, 4, \"readonly\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "readonly")
 "#,
     );
 }
@@ -64,14 +64,14 @@ const grown: int32[] = fixed;
 /// @type.symbol symbol=grown source=grown type=Array<int32>
 /// @resolution.pattern source=grown kind=binding target=grown
 /// @resolution.name source=fixed target=fixed
-/// @resolution.place source=fixed placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=fixed placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=fixed root=fixed
 
 const copied: int32[] = [...fixed];
 /// @type.symbol symbol=copied source=copied type=Array<int32>
 /// @resolution.pattern source=copied kind=binding target=copied
 /// @resolution.name source=fixed target=fixed
-/// @resolution.place source=fixed placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=fixed placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=fixed root=fixed
 "#,
         r#"
@@ -111,7 +111,7 @@ const size = bytes.size;
 /// @type.node source=bytes.size type=isize
 /// @resolution.name source=bytes target=bytes
 /// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="collections.fixed-array.size(parameters=(), arguments=(), return=isize)"
-/// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=bytes placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=bytes root=bytes
 /// @generic.instantiation id="collections.fixed-array.size<uint8, 4>" template=collections.fixed-array.size arguments=(uint8, 4)
 /// @generic.instance id="collections.fixed-array.size<uint8, 4>" template=collections.fixed-array.size arguments=(uint8, 4)

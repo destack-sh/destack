@@ -36,7 +36,7 @@ const ok: Args = ("Ada", 1);
 
 ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ok placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=ok root=ok
 "#,
     );
@@ -235,7 +235,7 @@ declare const parser: Parser;
 
 parser satisfies ((value: int32) => int32) & ((value: string) => string);
 /// @resolution.name source=parser target=parser
-/// @resolution.place source=parser placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=parser placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=parser root=parser
 /// @type.symbol symbol=value#1 source="value: int32" type=int32
 /// @type.symbol symbol=value#2 source="value: string" type=string
