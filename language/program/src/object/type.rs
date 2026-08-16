@@ -16,6 +16,6 @@ pub struct Type {
     pub symbol: Option<mir::Symbol>,
     /// The source-facing declaration name when present.
     pub name: Option<StringId>,
-    /// The nominal lineage when present.
-    pub lineage: Option<mir::TypeLineage>,
+    /// The direct nominal heritage when present.
+    pub heritage: Option<mir::TypeHeritage>,
 }
