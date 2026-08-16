@@ -617,6 +617,10 @@ pub struct DirMaterialized {
     pub generics: Arc<dir::GenericSegment>,
     /// Evaluated declaration definitions.
     pub definitions: Arc<dir::DefinitionSegment>,
+    /// Grounded node decisions.
+    pub decisions: Arc<dir::DecisionSegment>,
+    /// Grounded implicit coercions.
+    pub coercions: Arc<dir::CoercionSegment>,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 }
@@ -667,5 +671,25 @@ impl DirMaterialized {
             checked.definitions.clone(),
             self.definitions.clone(),
         ])
+    }
+
+    /// Return the cumulative decision table for materialized DIR.
+    pub fn decision_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+        checked: &DirChecked,
+    ) -> dir::DecisionTable<'static> {
+        dir::DecisionTable::from_segments(vec![
+            declared.decisions.clone(),
+            elaborated.decisions.clone(),
+            checked.decisions.clone(),
+            self.decisions.clone(),
+        ])
+    }
+
+    /// Return the cumulative coercion table for materialized DIR.
+    pub fn coercion_table(&self, checked: &DirChecked) -> dir::CoercionTable<'static> {
+        dir::CoercionTable::from_segments(vec![checked.coercions.clone(), self.coercions.clone()])
     }
 }
