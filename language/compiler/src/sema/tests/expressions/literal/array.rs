@@ -19,6 +19,10 @@ let values: float64[] = [1, 2];
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source=[1, 2] type=Array<float64>
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
@@ -47,6 +51,10 @@ const values: float64[] = [1, 2];
 const values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source=[1, 2] type=Array<float64>
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
@@ -116,6 +124,10 @@ const values: never[] = [];
 const values = [];
 /// @type.symbol symbol=values source=values type=Array<never>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<never> template=collections.array.Array arguments=(never)
+/// @generic.instance id=memory.init.MaybeUninit<never> template=memory.init.MaybeUninit arguments=(never)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<never>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<never>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<never>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<never>)
 /// @type.node source=[] type=Array<never>
 "#,
     );
@@ -140,6 +152,10 @@ const values: int32[] = [];
 const values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @type.node source=[] type=Array<int32>
 "#,
     );
@@ -171,6 +187,10 @@ let values: (float64 | string | boolean)[] = [
 let values = [1, "two", true];
 /// @type.symbol symbol=values source=values type=Array<float64 | string | boolean>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id="Array<float64 | string | boolean>" template=collections.array.Array arguments=(float64 | string | boolean)
+/// @generic.instance id="memory.init.MaybeUninit<float64 | string | boolean>" template=memory.init.MaybeUninit arguments=(float64 | string | boolean)
+/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<float64 | string | boolean>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64 | string | boolean>>)
+/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<float64 | string | boolean>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64 | string | boolean>)
 /// @type.node source=[1, "two", true] type=Array<float64 | string | boolean>
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: 1, target: float64, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
@@ -201,6 +221,10 @@ const values: float64[] = [1, 2, 3];
 const values: number[] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source=[1, 2, 3] type=Array<float64>
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
@@ -231,10 +255,18 @@ const values: (1 | 2)[] = [1, 2] satisfies readonly number[];
 const values = [1, 2] satisfies readonly number[];
 /// @type.symbol symbol=values source=values type=Array<1 | 2>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id="Array<1 | 2>" template=collections.array.Array arguments=(1 | 2)
+/// @generic.instance id="memory.init.MaybeUninit<1 | 2>" template=memory.init.MaybeUninit arguments=(1 | 2)
+/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<1 | 2>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<1 | 2>>)
+/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<1 | 2>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<1 | 2>)
 /// @type.node source=[1, 2] satisfies readonly number[] type=Array<1 | 2>
 /// @type.node source=[1, 2] type=Array<1 | 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 "#,
     );
 }

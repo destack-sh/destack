@@ -93,11 +93,19 @@ class Circle extends Shape {}
 declare const circles: Circle[];
 /// @type.symbol symbol=circles source=circles type=Array<Circle>
 /// @resolution.pattern source=circles kind=binding target=circles
+/// @generic.instance id=Array<Circle> template=collections.array.Array arguments=(Circle)
+/// @generic.instance id=memory.init.MaybeUninit<Circle> template=memory.init.MaybeUninit arguments=(Circle)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Circle>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Circle>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Circle>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Circle>)
 /// @resolution.name source=Circle target=Circle
 
 const shapes: readonly Shape[] = circles;
 /// @type.symbol symbol=shapes source=shapes type=readonly Array<Shape>
 /// @resolution.pattern source=shapes kind=binding target=shapes
+/// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
+/// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Shape>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Shape>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Shape>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Shape>)
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
 /// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"

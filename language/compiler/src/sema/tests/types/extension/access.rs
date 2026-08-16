@@ -207,6 +207,7 @@ function read(grid: &readonly Grid): int32 {
     /// @resolution.place source=grid placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=grid root=read.grid
     /// @generic.instantiation id="view<\"readonly\">" template=view arguments=("readonly")
+    /// @generic.instance id="WithAccess<&view.'a Grid, \"readonly\">" template=memory.type.WithAccess arguments=(&view.'a Grid, "readonly")
     /// @generic.instance id="view<\"readonly\">" template=view arguments=("readonly")
 
 }
@@ -227,6 +228,7 @@ function write(grid: &exclusive Grid): int32 {
     /// @resolution.place source=grid placement="local" lifetime=write.'a access="exclusive"
     /// @resolution.access source=grid root=write.grid
     /// @generic.instantiation id="view<\"exclusive\">" template=view arguments=("exclusive")
+    /// @generic.instance id="WithAccess<&view.'a Grid, \"exclusive\">" template=memory.type.WithAccess arguments=(&view.'a Grid, "exclusive")
     /// @generic.instance id="view<\"exclusive\">" template=view arguments=("exclusive")
 
 }

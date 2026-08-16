@@ -23,6 +23,10 @@ const byte: uint8 = bytes[index];
 declare const bytes: uint8[];
 /// @type.symbol symbol=bytes source=bytes type=Array<uint8>
 /// @resolution.pattern source=bytes kind=binding target=bytes
+/// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
+/// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
 
 declare const index: isize;
 /// @type.symbol symbol=index source=index type=isize
@@ -37,10 +41,8 @@ const byte = bytes[index];
 /// @resolution.subscript source=bytes[index] type=uint8 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(index) as isize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 /// @generic.instance id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
-/// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
-/// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<uint8>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<uint8>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a uint8, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a uint8, "exclusive")
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=index root=index
@@ -71,6 +73,10 @@ bytes[index] = 255;
 declare const bytes: uint8[];
 /// @type.symbol symbol=bytes source=bytes type=Array<uint8>
 /// @resolution.pattern source=bytes kind=binding target=bytes
+/// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
+/// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
 
 declare const index: isize;
 /// @type.symbol symbol=index source=index type=isize
@@ -114,6 +120,10 @@ bytes[index] += 1;
 declare const bytes: uint8[];
 /// @type.symbol symbol=bytes source=bytes type=Array<uint8>
 /// @resolution.pattern source=bytes kind=binding target=bytes
+/// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
+/// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
 
 declare const index: isize;
 /// @type.symbol symbol=index source=index type=isize
@@ -129,11 +139,9 @@ bytes[index] += 1;
 /// @generic.instantiation id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
 /// @generic.instantiation id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
 /// @generic.instance id="collections.array.index#1<uint8, \"exclusive\">" template=collections.array.index#1 arguments=(uint8, "exclusive")
-/// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<uint8>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<uint8>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a uint8, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a uint8, "exclusive")
 /// @generic.instance id=collections.array.indexSet<uint8> template=collections.array.indexSet arguments=(uint8)
-/// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=index root=index

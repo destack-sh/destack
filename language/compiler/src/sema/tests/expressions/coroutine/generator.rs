@@ -23,13 +23,13 @@ function* count(limit: int32): Generator<int32, void, void> {
 === dir ===
 function* count(limit: int32): Generator<int32, void, void> {
 /// @type.symbol symbol=count type=(int32) => *Generator<int32, void, void>
-/// @type.symbol symbol=count.limit source="limit: int32" type=int32
-/// @resolution.name source=Generator target=async.generator.Generator
 /// @generic.instance id="Generator<int32, void, void>" template=async.generator.Generator arguments=(int32, void, void)
 /// @generic.instance id="async.generator.GeneratorResult<int32, void>" template=async.generator.GeneratorResult arguments=(int32, void)
 /// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
 /// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
 /// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
+/// @type.symbol symbol=count.limit source="limit: int32" type=int32
+/// @resolution.name source=Generator target=async.generator.Generator
 
     for (let value: int32 = 0; value < limit; value += 1) {
     /// @type.symbol symbol=count.value source=value type=int32

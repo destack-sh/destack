@@ -416,7 +416,6 @@ struct Store {
 
     storage: Map<string, int32>;
     /// @type.symbol symbol=Store.storage source="storage: Map<string, int32>" type=Map<string, int32>
-    /// @resolution.name source=Map target=collections.map.Map
     /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
     /// @generic.instance id="collections.map.MapEntry<string, int32>" template=collections.map.MapEntry arguments=(string, int32)
     /// @generic.instance id="collections.map.MapSlot<string, int32>" template=collections.map.MapSlot arguments=(string, int32)
@@ -425,6 +424,7 @@ struct Store {
     /// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>)
     /// @generic.instance id=memory.unique.Unique<Slice<uint32>> template=memory.unique.Unique arguments=(Slice<uint32>)
     /// @generic.instance id=memory.unique.empty<uint32> template=memory.unique.empty arguments=(uint32)
+    /// @resolution.name source=Map target=collections.map.Map
 
 }
 
@@ -463,6 +463,8 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="collections.map.index(parameters=(string), arguments=(provided(key) as string), return=memory.type.WithAccess<&index.'a int32, \"readonly\"> | undefined)"
         /// @generic.instantiation id="collections.map.index<string, int32, \"readonly\">" template=collections.map.index arguments=(string, int32, "readonly")
         /// @generic.instance id="collections.map.index<string, int32, \"readonly\">" template=collections.map.index arguments=(string, int32, "readonly")
+        /// @generic.instance id="memory.type.WithAccess<&collections.map.index.'a Map<string, int32>, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.map.index.'a Map<string, int32>, "readonly")
+        /// @generic.instance id="memory.type.WithAccess<&collections.map.index.'a int32, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.map.index.'a int32, "readonly")
         /// @resolution.name source=key target=index.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=key root=index.key

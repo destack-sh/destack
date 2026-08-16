@@ -46,10 +46,10 @@ const value = use(() => {});
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => {})" parameters=(Function<(), void | Box<void>>) arguments=(provided(() => {}) as Function<(), void | Box<void>>) return=void kind=symbol target=use instance=use<void>
 /// @generic.instantiation id=use<void> template=use arguments=(void)
-/// @generic.instance id=Box<void> template=Box arguments=(void)
 /// @generic.instance id=use<void> template=use arguments=(void)
 /// @type.symbol symbol=symbol6 source="() => {}" type=Function<(), void | Box<void>>
 /// @type.node source="() => {}" type=Function<(), void | Box<void>>
+/// @generic.instance id=Box<void> template=Box arguments=(void)
 "#,
     );
 }
@@ -89,9 +89,9 @@ declare function load(): int32;
 
 declare function use(callback: () => int32 | Box<int32>): int32;
 /// @type.symbol symbol=use source="declare function use(callback: () => int32 | Box<int32>): int32" type=(Function<(), int32 | Box<int32>>) => int32
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
 /// @type.symbol symbol=use.callback source="callback: () => int32 | Box<int32>" type=Function<(), int32 | Box<int32>>
 /// @resolution.name source=Box target=Box
-/// @generic.instance id=Box<int32> template=Box arguments=(int32)
 
 const value = use(() => load());
 /// @type.symbol symbol=value source=value type=int32

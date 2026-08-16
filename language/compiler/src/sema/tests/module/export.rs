@@ -188,6 +188,10 @@ export const label = `name`;
 export const pair = [1, 2];
 /// @type.symbol symbol=pair source=pair type=Array<float64>
 /// @resolution.pattern source=pair kind=binding target=pair
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 
 export const config = { retries: 3, name: "job" };
 /// @type.symbol symbol=config source=config type={ retries: float64; name: string }

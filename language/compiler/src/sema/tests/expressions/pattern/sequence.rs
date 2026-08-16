@@ -34,6 +34,8 @@ let [first, second] = values;
 /// @resolution.pattern source=[first, second] kind=sequence element=int32 arity=2 fields=(first, second)
 /// @generic.instantiation id="collections.fixed-array.index#1<int32, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "exclusive")
 /// @generic.instance id="collections.fixed-array.index#1<int32, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a FixedArray<int32, 2>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a FixedArray<int32, 2>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a int32, "exclusive")
 /// @type.symbol symbol=first source=first type=int32
 /// @resolution.pattern source=first kind=binding target=first
 /// @type.symbol symbol=second source=second type=int32

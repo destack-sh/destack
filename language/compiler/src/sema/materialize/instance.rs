@@ -108,38 +108,74 @@ impl CheckState<'_> {
             }
 
             let ty = self.ty(id)?;
-            if let dir::Type::Application(application) = &ty {
-                let arguments = self.type_ids(id.module_id, application.arguments)?.to_vec();
-                if !arguments.is_empty()
-                    && let Some(template_id) = self.symbol_template(application.symbol)?
-                    && let Some(template) = self.generic_template(template_id)
-                {
-                    // pair the applied arguments with the declared parameters
-                    let parameters = template.parameters.clone();
-                    let bindings: Vec<_> = parameters
-                        .iter()
-                        .map(|parameter| parameter.into_global(template_id.module_id))
-                        .zip(arguments.iter().copied())
-                        .map(|(parameter, argument)| {
-                            dir::GenericArgumentBinding::new(parameter, argument)
-                        })
-                        .collect();
-
-                    self.intern_instance(
-                        application.symbol,
-                        bindings,
-                        source,
-                        dir::InstanceOrigin::Application,
-                        depth,
-                        worklist,
-                    )?;
+            match &ty {
+                dir::Type::Application(application) => {
+                    let application = *application;
+                    self.intern_application(id.module_id, &application, source, depth, worklist)?;
                 }
+                // arrays run on the Array representation class
+                dir::Type::Array(array) => {
+                    let application = dir::GenericApplication {
+                        symbol: self.language_symbol(dir::LanguageItem::Array)?,
+                        arguments: self.intern_type_ids(&[array.element])?,
+                    };
+                    self.intern_application(self.module_id, &application, source, depth, worklist)?;
+                }
+                _ => {}
             }
 
             self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
         }
 
         Ok(())
+    }
+
+    /// Intern one written application as an instance through its canonical pairing.
+    fn intern_application(
+        &mut self,
+        module: ModuleId,
+        application: &dir::GenericApplication,
+        source: dir::GlobalNodeIdAny,
+        depth: u32,
+        worklist: &mut InstanceWorklist,
+    ) -> CompilerResult<()> {
+        // spellings that pair no instance stay open
+        let Ok(substitution) = self.instance_substitution(module, application) else {
+            return Ok(());
+        };
+
+        self.intern_instance(
+            application.symbol,
+            substitution.bindings.to_vec(),
+            source,
+            dir::InstanceOrigin::Application,
+            depth,
+            worklist,
+        )
+    }
+
+    /// Return whether one type mentions a non-lifetime parameter.
+    fn type_has_open_parameter(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let mut pending = vec![ty];
+        let mut visited = FxIndexSet::default();
+        while let Some(id) = pending.pop() {
+            if !visited.insert(id) {
+                continue;
+            }
+
+            let kind = self.ty(id)?;
+            match &kind {
+                dir::Type::Parameter(parameter) if !self.is_lifetime_parameter(*parameter) => {
+                    return Ok(true);
+                }
+                dir::Type::Erased(_) => return Ok(true),
+                _ => {}
+            }
+
+            self.for_each_type_child(id.module_id, &kind, |child| pending.push(child))?;
+        }
+
+        Ok(false)
     }
 
     /// Intern one instantiation as an instance, deduplicating structurally.
@@ -173,7 +209,10 @@ impl CheckState<'_> {
 
             // leave open instantiations to close under their enclosing instance
             let flags = self.type_flags(argument)?;
-            if flags.has_parameter() || flags.has_variable() || flags.has_this() {
+            if flags.has_variable() || flags.has_this() {
+                return Ok(());
+            }
+            if flags.has_parameter() && self.type_has_open_parameter(argument)? {
                 return Ok(());
             }
 
@@ -414,7 +453,10 @@ impl CheckState<'_> {
         }
 
         let substituted = self.substitute_type(ty, substitution)?;
-        let resolved = self.evaluate_type(origin, substituted)?;
+        let resolved = match self.type_reaches_computation(substituted)? {
+            true => self.evaluate_type(origin, substituted)?,
+            false => substituted,
+        };
 
         // admit the concrete applications the grounded type reaches
         let source = match origin {

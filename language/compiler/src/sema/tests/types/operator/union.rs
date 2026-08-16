@@ -488,6 +488,14 @@ const first: int32 | string = values[0];
 declare const values: int32[] | string[];
 /// @type.symbol symbol=values source=values type=Array<int32> | Array<string>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=Array<string> template=collections.array.Array arguments=(string)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<string> template=memory.init.MaybeUninit arguments=(string)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<string>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<string>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<string>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<string>)
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=int32 | string
@@ -501,14 +509,10 @@ const first = values[0];
 /// @generic.instantiation id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
 /// @generic.instance id="collections.array.index#1<int32, \"readonly\">" template=collections.array.index#1 arguments=(int32, "readonly")
 /// @generic.instance id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=Array<string> template=collections.array.Array arguments=(string)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @generic.instance id=memory.init.MaybeUninit<string> template=memory.init.MaybeUninit arguments=(string)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<string>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<string>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<string>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<string>)
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<int32>, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<int32>, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<string>, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<string>, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a int32, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a int32, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a string, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a string, "readonly")
 "#,
     );
 }

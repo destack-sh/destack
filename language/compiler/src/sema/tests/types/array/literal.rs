@@ -246,6 +246,10 @@ const values = [1, 2, 3] as Slice<_>;
 /// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 /// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
@@ -275,6 +279,10 @@ const values = [1, 2, 3] as [_];
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] as [_] type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
@@ -392,12 +400,12 @@ const values: Slice<float64> = make();
 === dir ===
 declare function make(): Slice<float64>;
 /// @type.symbol symbol=make source="declare function make(): Slice<float64>" type=() => Slice<float64>
+/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 /// @resolution.name source=Slice target=collections.slice.Slice
 
 const values = make();
 /// @type.symbol symbol=values source=values type=Slice<float64>
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 /// @type.node source=make type=() => Slice<float64>
 /// @type.node source=make() type=Slice<float64>
 /// @resolution.name source=make target=make

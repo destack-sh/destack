@@ -15,6 +15,7 @@ impl CheckState<'_> {
         // materialize the module's own types, then the instances they reach
         let mut worklist = InstanceWorklist::default();
         self.materialize_definitions(&mut worklist)?;
+        self.materialize_symbol_types(&mut worklist)?;
         self.materialize_node_types(&mut worklist)?;
         self.materialize_member_bodies(&mut worklist)?;
         self.materialize_instances(&mut worklist)
@@ -51,6 +52,45 @@ impl CheckState<'_> {
                     .definitions_tail
                     .insert_definition(symbol, source, resolved);
             }
+        }
+
+        Ok(())
+    }
+
+    /// Materialize each committed symbol type.
+    fn materialize_symbol_types(&mut self, worklist: &mut InstanceWorklist) -> CompilerResult<()> {
+        // collect the committed rows once, evaluating outside the module borrow
+        let committed: Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)> =
+            self.module.types.symbol_types().collect();
+
+        // materialize every closed symbol type, overriding the ones evaluation moves
+        for (symbol, ty) in committed {
+            let flags = self.type_flags(ty)?;
+            if flags.has_parameter() || flags.has_this() || flags.has_variable() {
+                continue;
+            }
+
+            // skip synthesized symbols without a declaration
+            let declaration = self
+                .binding_table(symbol.module_id)
+                .get_symbol(symbol.local_id)
+                .declaration;
+            let Some(source) = declaration else {
+                continue;
+            };
+
+            // evaluate only computation results, keeping written alias spellings
+            let mut resolved = ty;
+            if self.type_reaches_computation(ty)? {
+                let origin = Origin::Node(source, None);
+                resolved = self.evaluate_type(origin, ty)?;
+                if resolved != ty {
+                    self.module.types_tail.set_symbol_type(symbol, resolved);
+                }
+            }
+
+            // intern the concrete applications the materialized type reaches
+            self.intern_applications(resolved, source, 0, worklist)?;
         }
 
         Ok(())
@@ -111,7 +151,10 @@ impl CheckState<'_> {
     }
 
     /// Return whether one symbol's template declares type parameters.
-    fn symbol_has_type_parameters(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
+    pub(in crate::sema) fn symbol_has_type_parameters(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
         let Some(template_id) = self.symbol_template(symbol)? else {
             return Ok(false);
         };

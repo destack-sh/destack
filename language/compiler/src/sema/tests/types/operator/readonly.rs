@@ -87,6 +87,10 @@ frozen satisfies readonly number[];
 declare let values: number[];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 
 let frozen: readonly number[] = values;
 /// @type.symbol symbol=frozen source=frozen type=readonly Array<float64>

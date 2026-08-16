@@ -614,9 +614,9 @@ import { Iter } from "./lib.ds";
 
 declare function probe(values: Iter<int32>): boolean;
 /// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<inner.Iter<int32>>) => boolean
+/// @generic.instance id="inner.Iter<int32, unknown>" template=inner.Iter arguments=(int32, unknown)
 /// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<inner.Iter<int32, unknown>>
 /// @resolution.name source=Iter target=inner.Iter
-/// @generic.instance id="inner.Iter<int32, unknown>" template=inner.Iter arguments=(int32, unknown)
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
@@ -689,9 +689,9 @@ export interface Marker {
 
 declare function probe(values: Iter<int32>): boolean;
 /// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<b.Iter<int32>>) => boolean
+/// @generic.instance id="b.Iter<int32, unknown>" template=b.Iter arguments=(int32, unknown)
 /// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<b.Iter<int32, unknown>>
 /// @resolution.name source=Iter target=b.Iter
-/// @generic.instance id="b.Iter<int32, unknown>" template=b.Iter arguments=(int32, unknown)
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean

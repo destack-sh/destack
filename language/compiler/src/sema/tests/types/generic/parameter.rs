@@ -122,6 +122,10 @@ declare function id<T>(value: T): T;
 const values = id([1, 2]);
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([1, 2])" parameters=(Array<float64>) arguments=(provided([1, 2]) as Array<float64>) return=Array<float64> kind=symbol target=id instance=id<Array<float64>>
 /// @generic.instantiation id=id<Array<float64>> template=id arguments=(Array<float64>)
@@ -137,10 +141,8 @@ const first = values[0];
 /// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 /// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<float64>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<float64>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a float64, "exclusive")
 "#,
     );
 }
@@ -213,13 +215,17 @@ take([1, 2]);
 === dir ===
 declare function take(values: Slice<float64>): void;
 /// @type.symbol symbol=take source="declare function take(values: Slice<float64>): void" type=(Slice<float64>) => void
+/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 /// @type.symbol symbol=take.values source="values: Slice<float64>" type=Slice<float64>
 /// @resolution.name source=Slice target=collections.slice.Slice
 
 take([1, 2]);
 /// @resolution.name source=take target=take
 /// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
-/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 "#,
     );
 }
@@ -366,6 +372,10 @@ declare function collect<const T>(values: T[]): T[];
 const values = collect([{ kind: "ready" }]);
 /// @type.symbol symbol=values source=values type=Array<{ readonly kind: "ready" }>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id="Array<{ readonly kind: \"ready\" }>" template=collections.array.Array arguments=({ readonly kind: "ready" })
+/// @generic.instance id="memory.init.MaybeUninit<{ readonly kind: \"ready\" }>" template=memory.init.MaybeUninit arguments=({ readonly kind: "ready" })
+/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<{ readonly kind: "ready" }>>)
+/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
 /// @resolution.name source=collect target=collect
 /// @resolution.call source="collect([{ kind: \"ready\" }])" parameters=(Array<{ readonly kind: "ready" }>) arguments=(provided([{ kind: "ready" }]) as Array<{ readonly kind: "ready" }>) return=Array<{ readonly kind: "ready" }> kind=symbol target=collect instance="collect<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
@@ -383,11 +393,9 @@ const kind = values[0].kind;
 /// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
 /// @resolution.access source=values[0].kind root=values keys=[0, kind]
 /// @generic.instantiation id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
-/// @generic.instance id="Array<{ readonly kind: \"ready\" }>" template=collections.array.Array arguments=({ readonly kind: "ready" })
 /// @generic.instance id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
-/// @generic.instance id="memory.init.MaybeUninit<{ readonly kind: \"ready\" }>" template=memory.init.MaybeUninit arguments=({ readonly kind: "ready" })
-/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<{ readonly kind: "ready" }>>)
-/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<{ readonly kind: \"ready\" }>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<{ readonly kind: "ready" }>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a { readonly kind: \"ready\" }, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a { readonly kind: "ready" }, "exclusive")
 "#,
     );
 }

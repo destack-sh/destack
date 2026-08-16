@@ -187,6 +187,10 @@ interface Writer {
     write(bytes: readonly uint8[]): uint;
     /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(this: Writer, readonly Array<uint8>) => uint64
     /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly Array<uint8>
+    /// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
+    /// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
+    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
 
 }
 
@@ -237,6 +241,10 @@ size satisfies usize;
 === dir ===
 type Writer = {
 /// @type.symbol symbol=Writer type={ write(readonly Array<uint8>): uint64 }
+/// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
+/// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
 /// @definition.type symbol=Writer value={ write(readonly Array<uint8>): uint64 }
 
     write(bytes: readonly uint8[]): uint;

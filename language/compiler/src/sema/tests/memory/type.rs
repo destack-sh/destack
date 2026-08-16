@@ -1015,6 +1015,7 @@ struct Cell {
 type Reborrow<const Source: Lifetime, const Target: Lifetime> = WithLifetime<
 /// @generic.template symbol=Reborrow parameters=(const Source: Lifetime, const Target: Lifetime)
 /// @type.symbol symbol=Reborrow type=WithLifetime<Borrowed<Cell, Source, "mutable">, Target>
+/// @generic.instance id="WithLifetime<Borrowed<Cell, Source, \"mutable\">>" template=memory.type.WithLifetime arguments=(Borrowed<Cell, Source, "mutable">)
 /// @definition.type symbol=Reborrow template=(const Source: Lifetime, const Target: Lifetime) value=WithLifetime<Borrowed<Cell, Source, "mutable">, Target>
 /// @type.symbol symbol=Reborrow.Source source="const Source: Lifetime" type=Source
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime

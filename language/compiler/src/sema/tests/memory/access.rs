@@ -954,6 +954,10 @@ items.push<int32>(1);
 declare const items: Array<int32>;
 /// @type.symbol symbol=items source=items type=Array<int32>
 /// @resolution.pattern source=items kind=binding target=items
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @resolution.name source=Array target=collections.array.Array
 
 items.push(1);

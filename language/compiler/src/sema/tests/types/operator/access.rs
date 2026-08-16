@@ -472,6 +472,10 @@ type Element<T: string[]> = T[usize];
 /// @type.symbol symbol=Element source="type Element<T: string[]> = T[usize]" type=T[usize]
 /// @definition.type symbol=Element source="type Element<T: string[]> = T[usize]" template=(T: Array<string>) value=T[usize]
 /// @type.symbol symbol=Element.T source="T: string[]" type=T
+/// @generic.instance id=Array<string> template=collections.array.Array arguments=(string)
+/// @generic.instance id=memory.init.MaybeUninit<string> template=memory.init.MaybeUninit arguments=(string)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<string>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<string>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<string>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<string>)
 /// @resolution.name source=T target=Element.T
 
 type Value = Element<string[]>;
@@ -656,7 +660,7 @@ declare const user: User;
 /// @resolution.name source=User target=User
 
 const name = get(user, "name");
-/// @type.symbol symbol=name source=name type=User["name"]
+/// @type.symbol symbol=name source=name type=string
 /// @resolution.pattern source=name kind=binding target=name
 /// @type.node source="get(user, \"name\")" type=string
 /// @type.node source=get type=(User, "name") => User["name"]
@@ -671,7 +675,7 @@ const name = get(user, "name");
 /// @type.node source="\"name\"" type="name"
 
 const age = get(user, "age");
-/// @type.symbol symbol=age source=age type=User["age"]
+/// @type.symbol symbol=age source=age type=int32
 /// @resolution.pattern source=age kind=binding target=age
 /// @type.node source="get(user, \"age\")" type=int32
 /// @type.node source=get type=(User, "age") => User["age"]

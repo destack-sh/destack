@@ -22,7 +22,6 @@ async function fetchCount(): Promise<int32> {
 === dir ===
 async function fetchCount(): Promise<int32> {
 /// @type.symbol symbol=fetchCount type=async () => Promise<int32>
-/// @resolution.name source=Promise target=async.promise.Promise
 /// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
 /// @generic.instance id=Promise<void> template=async.promise.Promise arguments=(void)
 /// @generic.instance id=async.awaitable.Awaitable<int32> template=async.awaitable.Awaitable arguments=(int32)
@@ -71,6 +70,7 @@ async function fetchCount(): Promise<int32> {
 /// @generic.instance id=async.promise.PromiseState<void> template=async.promise.PromiseState arguments=(void)
 /// @generic.instance id=async.promise.PromiseWaiter<int32> template=async.promise.PromiseWaiter arguments=(int32)
 /// @generic.instance id=async.promise.PromiseWaiter<void> template=async.promise.PromiseWaiter arguments=(void)
+/// @resolution.name source=Promise target=async.promise.Promise
 
     return 1;
 }
@@ -109,7 +109,6 @@ async function double(): Promise<int32> {
 === dir ===
 async function fetchCount(): Promise<int32> {
 /// @type.symbol symbol=fetchCount type=async () => Promise<int32>
-/// @resolution.name source=Promise target=async.promise.Promise
 /// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
 /// @generic.instance id=Promise<void> template=async.promise.Promise arguments=(void)
 /// @generic.instance id=async.awaitable.Awaitable<int32> template=async.awaitable.Awaitable arguments=(int32)
@@ -158,6 +157,7 @@ async function fetchCount(): Promise<int32> {
 /// @generic.instance id=async.promise.PromiseState<void> template=async.promise.PromiseState arguments=(void)
 /// @generic.instance id=async.promise.PromiseWaiter<int32> template=async.promise.PromiseWaiter arguments=(int32)
 /// @generic.instance id=async.promise.PromiseWaiter<void> template=async.promise.PromiseWaiter arguments=(void)
+/// @resolution.name source=Promise target=async.promise.Promise
 
     return 1;
 }

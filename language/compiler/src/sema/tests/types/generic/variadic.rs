@@ -54,6 +54,10 @@ newtype Sharding<...Axes: Axis[]> = intrinsic;
 /// @definition.newtype symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" template=(in out ...Axes#1: Array<Axis>) backing=intrinsic constructors=[<...Axes#1: Array<Axis>>(intrinsic) => Sharding<Axes#1>]
 /// @type.symbol symbol=Sharding.Axes source="...Axes: Axis[]" type=Axes#1
 /// @resolution.name source=Axis target=Axis
+/// @generic.instance id=Array<Axis> template=collections.array.Array arguments=(Axis)
+/// @generic.instance id=memory.init.MaybeUninit<Axis> template=memory.init.MaybeUninit arguments=(Axis)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Axis>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Axis>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Axis>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Axis>)
 
 newtype Grid<T, P> = intrinsic;
 /// @generic.template symbol=Grid parameters=(in out T#1, in out P)

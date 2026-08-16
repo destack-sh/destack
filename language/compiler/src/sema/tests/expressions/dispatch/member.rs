@@ -217,6 +217,10 @@ const length: isize = values.length;
 let values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @type.node source=[] type=Array<int32>
 
 const length = values.length;
@@ -229,11 +233,7 @@ const length = values.length;
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 "#,
     );
 }
@@ -376,6 +376,10 @@ values.push<int32>(1);
 let values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @type.node source=[] type=Array<int32>
 
 values.push(1);

@@ -216,6 +216,10 @@ function positive(values: int32[]): int32[] {
 === dir ===
 function positive(values: int32[]): int32[] {
 /// @type.symbol symbol=positive type=(Array<int32>) => Array<int32>
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @type.symbol symbol=positive.values source="values: int32[]" type=Array<int32>
 
     return values.map((value) => value + 1);
@@ -227,10 +231,6 @@ function positive(values: int32[]): int32[] {
     /// @generic.instantiation id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
     /// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
     /// @generic.instance id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
-    /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-    /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
     /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32,), int32>
     /// @type.symbol symbol=positive.symbol3.value source=value type=int32
     /// @resolution.name source=value target=positive.symbol3.value

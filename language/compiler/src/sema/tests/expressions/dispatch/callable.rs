@@ -67,9 +67,13 @@ const result: "left" | "right" = transform("value");
 declare const transform:
 /// @type.symbol symbol=transform source=transform type=Function<(string,), "left"> | Function<(string,), "right">
 /// @resolution.pattern source=transform kind=binding target=transform
+/// @generic.instance id="Function<(string,), \"left\", \"repeatable\">" template=types.function.Function arguments=((string,), "left", "repeatable")
+/// @generic.instance id="Function<(string,), \"right\", \"repeatable\">" template=types.function.Function arguments=((string,), "right", "repeatable")
 
     Function<(string,), "left"> |
     /// @resolution.name source=Function target=types.function.Function
+    /// @generic.instance id="Function<(string,), \"left\", \"repeatable\">" template=types.function.Function arguments=((string,), "left", "repeatable")
+    /// @generic.instance id="Function<(string,), \"right\", \"repeatable\">" template=types.function.Function arguments=((string,), "right", "repeatable")
 
     Function<(string,), "right">;
     /// @resolution.name source=Function target=types.function.Function

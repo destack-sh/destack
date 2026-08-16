@@ -277,6 +277,10 @@ function run(): void {
     const array = [@mark("array") 3];
     /// @type.symbol symbol=run.array source=array type=Array<float64>
     /// @resolution.pattern source=array kind=binding target=run.array
+    /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+    /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
     /// @type.node source=[@mark("array") 3] type=Array<float64>
     /// @decorator.node source="@mark(\"array\")" owner="@mark(\"array\") 3" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("array") as string) newtype=mark backing=(string,) value="mark(\"array\")"
     /// @type.node source=mark type=mark

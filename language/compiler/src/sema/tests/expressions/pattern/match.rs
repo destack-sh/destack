@@ -1014,6 +1014,8 @@ match (packet) {
         /// @resolution.pattern source=[first, second] kind=sequence element=string arity=2 fields=(first, second)
         /// @generic.instantiation id="collections.fixed-array.index#1<string, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(string, 2, "exclusive")
         /// @generic.instance id="collections.fixed-array.index#1<string, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(string, 2, "exclusive")
+        /// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a FixedArray<string, 2>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a FixedArray<string, 2>, "exclusive")
+        /// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a string, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a string, "exclusive")
         /// @type.symbol symbol=first source=first type=string
         /// @resolution.pattern source=first kind=binding target=first
         /// @type.symbol symbol=second source=second type=string
@@ -1185,6 +1187,10 @@ match (values) {
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 
 match (values) {
 /// @type.node source=values type=Array<int32>
@@ -1197,15 +1203,13 @@ match (values) {
     /// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
     /// @generic.instantiation id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
     /// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+    /// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<int32>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<int32>, "exclusive")
+    /// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a int32, "exclusive")
     /// @generic.instance id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
     /// @type.symbol symbol=head source=head type=int32
     /// @resolution.pattern source=head kind=binding target=head
     /// @type.symbol symbol=tail source=tail type=Owned<Array<int32>>
     /// @resolution.pattern source=tail kind=binding target=tail
-    /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-    /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 
         head satisfies int32;
         /// @type.node source="head satisfies int32" type=int32

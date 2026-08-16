@@ -161,8 +161,10 @@ extension of Point implements Display {
     display(&readonly this): MaybeOwned<string> {
     /// @generic.template symbol=display parent=template#0 parameters=('a)
     /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly Point) => memory.cow.cow.MaybeOwned<string>
+    /// @generic.instance id=memory.cow.cow.MaybeOwned<string> template=memory.cow.cow.MaybeOwned arguments=(string)
     /// @type.symbol symbol=display.this source="&readonly this" type=&display.'a readonly this
     /// @resolution.name source=MaybeOwned target=memory.cow.cow.MaybeOwned
+    /// @generic.instance id="memory.cow.cow.CowBorrowed<&memory.cow.cow.Cow.'a readonly string>" template=memory.cow.cow.CowBorrowed arguments=(&memory.cow.cow.Cow.'a readonly string)
     /// @generic.instance id=memory.cow.cow.Cow<string> template=memory.cow.cow.Cow arguments=(string)
     /// @generic.instance id=memory.cow.cow.CowOwned<Owned<string>> template=memory.cow.cow.CowOwned arguments=(Owned<string>)
 

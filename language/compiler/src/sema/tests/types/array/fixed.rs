@@ -32,6 +32,8 @@ const byte = bytes[1];
 /// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(1) as isize), return=memory.type.WithAccess<&'static uint8, \"readonly\">)"
 /// @generic.instantiation id="collections.fixed-array.index#1<uint8, 4, \"readonly\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "readonly")
 /// @generic.instance id="collections.fixed-array.index#1<uint8, 4, \"readonly\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a FixedArray<uint8, 4>, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a FixedArray<uint8, 4>, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&collections.fixed-array.index#1.'a uint8, \"readonly\">" template=memory.type.WithAccess arguments=(&collections.fixed-array.index#1.'a uint8, "readonly")
 "#,
     );
 }

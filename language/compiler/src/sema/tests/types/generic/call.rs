@@ -32,17 +32,17 @@ import { Result } from "destack:error";
 
 declare function first(): Result<int32, string>;
 /// @type.symbol symbol=first source="declare function first(): Result<int32, string>" type=() => error.result.Result<int32, string>
-/// @resolution.name source=Result target=error.result.Result
 /// @generic.instance id="error.result.Result<int32, string>" template=error.result.Result arguments=(int32, string)
 /// @generic.instance id=error.result.Err<string> template=error.result.Err arguments=(string)
 /// @generic.instance id=error.result.Ok<int32> template=error.result.Ok arguments=(int32)
+/// @resolution.name source=Result target=error.result.Result
 
 declare function second(value: int32): Result<boolean, string>;
 /// @type.symbol symbol=second source="declare function second(value: int32): Result<boolean, string>" type=(int32) => error.result.Result<boolean, string>
-/// @type.symbol symbol=second.value source="value: int32" type=int32
-/// @resolution.name source=Result target=error.result.Result
 /// @generic.instance id="error.result.Result<boolean, string>" template=error.result.Result arguments=(boolean, string)
 /// @generic.instance id=error.result.Ok<boolean> template=error.result.Ok arguments=(boolean)
+/// @type.symbol symbol=second.value source="value: int32" type=int32
+/// @resolution.name source=Result target=error.result.Result
 
 const result: Result<boolean, string> = first().andThen((value) => second(value));
 /// @type.symbol symbol=result source=result type=error.result.Result<boolean, string>
@@ -893,6 +893,10 @@ function identity<T>(value: T): T {
 const values = identity([1, 2]);
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source="identity([1, 2])" type=Array<float64>
 /// @type.node source=identity type=(Array<float64>) => Array<float64>
 /// @resolution.name source=identity target=identity
@@ -962,6 +966,8 @@ const value = first([1, 2]);
 /// @generic.instantiation id=first<float64> template=first arguments=(float64)
 /// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<float64>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<float64>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a float64, "exclusive")
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
 /// @generic.instance id=first<float64> template=first arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
@@ -3110,6 +3116,10 @@ function positive(values: int32[]): int32[] {
 === dir ===
 function positive(values: int32[]): int32[] {
 /// @type.symbol symbol=positive type=(Array<int32>) => Array<int32>
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @type.symbol symbol=positive.values source="values: int32[]" type=Array<int32>
 
     return values.map((value) => value + 1).filter((value) => value > 0);
@@ -3131,12 +3141,8 @@ function positive(values: int32[]): int32[] {
     /// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
     /// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
     /// @generic.instance id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
-    /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
     /// @generic.instance id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
     /// @generic.instance id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
-    /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
     /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32,), int32>
     /// @type.node source="(value) => value + 1" type=Function<(int32,), int32>
     /// @type.symbol symbol=positive.symbol3.value source=value type=int32
@@ -3187,6 +3193,10 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 === dir ===
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 /// @type.symbol symbol=defined type=(Array<int32 | undefined>) => Array<int32 | undefined>
+/// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
+/// @generic.instance id="memory.init.MaybeUninit<int32 | undefined>" template=memory.init.MaybeUninit arguments=(int32 | undefined)
+/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<int32 | undefined>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32 | undefined>>)
+/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32 | undefined>)
 /// @type.symbol symbol=defined.values source="values: (int32 | undefined)[]" type=Array<int32 | undefined>
 
     return values.map((value) => value).filter((value) => value !== undefined);
@@ -3207,13 +3217,9 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
     /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
     /// @generic.instantiation id="collections.array.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined)
-    /// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
     /// @generic.instance id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
     /// @generic.instance id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
     /// @generic.instance id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
-    /// @generic.instance id="memory.init.MaybeUninit<int32 | undefined>" template=memory.init.MaybeUninit arguments=(int32 | undefined)
-    /// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<int32 | undefined>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32 | undefined>>)
-    /// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32 | undefined>)
     /// @type.symbol symbol=defined.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
     /// @type.node source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
     /// @type.symbol symbol=defined.symbol3.value source=value type=int32 | undefined

@@ -403,6 +403,10 @@ newtype interface Grouper {
     /// @generic.template symbol=Grouper.group parent=template#0 parameters=(Children#1: (...unknown[],))
     /// @type.symbol symbol=Grouper.group source="static group<Children: (...unknown[],)>(children: Children): this" type=<Children#1: (...unknown[],)>(Children#1) => this
     /// @type.symbol symbol=Grouper.group.Children source="Children: (...unknown[],)" type=Children#1
+    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
+    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<unknown>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<unknown>>)
+    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<unknown>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<unknown>)
     /// @type.symbol symbol=Grouper.group.children source="children: Children" type=Children#1
     /// @resolution.name source=Children target=Grouper.group.Children
 
@@ -536,6 +540,10 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
+    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<unknown>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<unknown>>)
+    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<unknown>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -688,6 +696,10 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
+    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<unknown>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<unknown>>)
+    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<unknown>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag

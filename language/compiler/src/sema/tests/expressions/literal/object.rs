@@ -174,6 +174,10 @@ const state: { reactions: int32[] } = { reactions: [] };
 const state: { reactions: int32[] } = { reactions: [] };
 /// @type.symbol symbol=state source=state type={ reactions: Array<int32> }
 /// @resolution.pattern source=state kind=binding target=state
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @type.node source={ reactions: [] } type={ reactions: Array<int32> }
 /// @type.node source=[] type=Array<int32>
 "#,

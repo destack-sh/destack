@@ -423,6 +423,10 @@ type Shape = Circle | Rectangle;
 const shapes: Array<Shape> = [
 /// @type.symbol symbol=shapes source=shapes type=Array<Shape>
 /// @resolution.pattern source=shapes kind=binding target=shapes
+/// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
+/// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Shape>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Shape>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Shape>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Shape>)
 /// @resolution.name source=Array target=collections.array.Array
 /// @resolution.name source=Shape target=Shape
 
@@ -444,10 +448,8 @@ const first = shapes[0];
 /// @resolution.subscript source=shapes[0] type=Shape kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
 /// @generic.instance id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
-/// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
-/// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Shape>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Shape>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Shape>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Shape>)
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Array<Shape>, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Array<Shape>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&collections.array.index#1.'a Shape, \"exclusive\">" template=memory.type.WithAccess arguments=(&collections.array.index#1.'a Shape, "exclusive")
 
 first satisfies Shape;
 /// @resolution.name source=first target=first

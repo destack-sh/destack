@@ -106,6 +106,10 @@ const ok: (string, ...boolean[]) = ("Ada", true, false) as (string, ...boolean[]
 === dir ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=(string, ...boolean[])
+/// @generic.instance id=Array<boolean> template=collections.array.Array arguments=(boolean)
+/// @generic.instance id=memory.init.MaybeUninit<boolean> template=memory.init.MaybeUninit arguments=(boolean)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<boolean>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<boolean>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<boolean>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<boolean>)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=(string, ...boolean[])
 /// @resolution.name source=Parameters target=types.function.Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
