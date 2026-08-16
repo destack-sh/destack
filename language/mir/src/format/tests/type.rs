@@ -95,8 +95,8 @@ entry(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutabl
 fn test_format_parameter_borrow_lifetime() {
     assert_format(
         r#"
-function borrowParam<'L0>(v0: ref<int32, borrowed, 'L0, mutable>): ref<int32, borrowed, 'L0, mutable> {
-entry(v0: ref<int32, borrowed, 'L0, mutable>):
+function borrowParam<'a>(v0: ref<int32, borrowed, 'a, mutable>): ref<int32, borrowed, 'a, mutable> {
+entry(v0: ref<int32, borrowed, 'a, mutable>):
     return v0
 }
 "#,
@@ -152,8 +152,8 @@ entry(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable>):
 fn test_format_type_instances() {
     assert_format(
         r#"
-type Box<int32, 'L0> {
-    value: ref<int32, borrowed, 'L0, readonly>;
+type Box<int32, 'a> {
+    value: ref<int32, borrowed, 'a, readonly>;
 }
 
 function borrow(v0: Box<int32, 'static>): Box<int32, 'static> {
@@ -182,8 +182,8 @@ entry(v0: ref<int32, borrowed, 'LA, mutable>):
 fn test_format_borrowed_shaped_views() {
     assert_format(
         r#"
-function views<'L0>(v0: slice<int32, borrowed, 'L0, readonly>, v1: tensorView<int32, borrowed, 'L0, mutable, (4, 4)>): void {
-entry(v0: slice<int32, borrowed, 'L0, readonly>, v1: tensorView<int32, borrowed, 'L0, mutable, (4, 4)>):
+function views<'a>(v0: slice<int32, borrowed, 'a, readonly>, v1: tensorView<int32, borrowed, 'a, mutable, (4, 4)>): void {
+entry(v0: slice<int32, borrowed, 'a, readonly>, v1: tensorView<int32, borrowed, 'a, mutable, (4, 4)>):
     return
 }
 "#,
@@ -195,8 +195,8 @@ entry(v0: slice<int32, borrowed, 'L0, readonly>, v1: tensorView<int32, borrowed,
 fn test_format_tensor_shapes_and_formats() {
     assert_format(
         r#"
-function tensors<'L0>(v0: tensor<float32, managed, mutable, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>): void {
-entry(v0: tensor<float32, managed, mutable, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>):
+function tensors<'a>(v0: tensor<float32, managed, mutable, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'a, readonly, (batch, dynamic, 64), format(strided)>): void {
+entry(v0: tensor<float32, managed, mutable, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'a, readonly, (batch, dynamic, 64), format(strided)>):
     return
 }
 "#,

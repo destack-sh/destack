@@ -7,7 +7,7 @@ use super::{
     AliasTable, CallTable, ConstantTable, ControlTable, CostTable, CostWeights, DefinitionTable,
     DominatorTable, EscapeTable, EvolutionTable, ExpressionTable, FrequencyTable,
     InitializationTable, LinkTable, LivenessTable, LoopTable, MemoryTable, MoveTable, Mutation,
-    PlaceTable, PostdominatorTable, RangeTable, ResolutionTable, UseTable,
+    PlaceTable, PostdominatorTable, ProvenanceTable, RangeTable, ResolutionTable, UseTable,
 };
 
 /// Largest loop scale for profile frequency analysis.
@@ -80,6 +80,8 @@ pub struct FunctionCache {
     place: Option<Arc<PlaceTable>>,
     /// The cached postdominators.
     postdominator: Option<Arc<PostdominatorTable>>,
+    /// The cached borrow provenance.
+    provenance: Option<Arc<ProvenanceTable>>,
     /// The cached value ranges.
     range: Option<Arc<RangeTable>>,
     /// The cached scalar evolution.
@@ -330,6 +332,7 @@ impl FunctionCache {
             moves: None,
             place: None,
             postdominator: None,
+            provenance: None,
             range: None,
             evolution: None,
             uses: None,
@@ -405,6 +408,13 @@ impl FunctionCache {
     function_analysis!(moves, moves, MoveTable, "Return move paths.");
     function_analysis!(place, place, PlaceTable, "Return canonical places.");
     function_analysis!(
+        provenance,
+        provenance,
+        ProvenanceTable,
+        "Return borrow provenance.",
+        resolution: &mir::ResolutionTable
+    );
+    function_analysis!(
         postdominator,
         postdominator,
         PostdominatorTable,
@@ -468,6 +478,9 @@ impl FunctionCache {
         }
         if PostdominatorTable::INVALIDATED_BY.intersects(mutation) {
             self.postdominator = None;
+        }
+        if ProvenanceTable::INVALIDATED_BY.intersects(mutation) {
+            self.provenance = None;
         }
         if RangeTable::INVALIDATED_BY.intersects(mutation) {
             self.range = None;
@@ -586,6 +599,12 @@ impl AnalysisCache {
     );
     function_analysis_through_module!(moves, MoveTable, "Return function move paths.");
     function_analysis_through_module!(place, PlaceTable, "Return function canonical places.");
+    function_analysis_through_module!(
+        provenance,
+        ProvenanceTable,
+        "Return function borrow provenance.",
+        resolution: &mir::ResolutionTable
+    );
     function_analysis_through_module!(
         postdominator,
         PostdominatorTable,

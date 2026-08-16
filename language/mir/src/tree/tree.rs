@@ -265,28 +265,8 @@ impl Tree {
             return None;
         }
 
-        match self.get(ty) {
+        let lifetime = match self.get(ty) {
             Type::Dynamic {
-                kind: ReferenceKind::Borrowed,
-                lifetime,
-                ..
-            }
-            | Type::Reference {
-                kind: ReferenceKind::Borrowed,
-                lifetime,
-                ..
-            }
-            | Type::Slice {
-                kind: ReferenceKind::Borrowed,
-                lifetime,
-                ..
-            }
-            | Type::Tensor {
-                kind: ReferenceKind::Borrowed,
-                lifetime,
-                ..
-            }
-            | Type::TensorView {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 ..
@@ -296,6 +276,50 @@ impl Tree {
                 lifetime,
                 ..
             } if !lifetime.is_empty() => Some(self.substitute_lifetime(lifetime, lifetime_args)),
+            Type::Reference {
+                kind,
+                lifetime,
+                pointee,
+                ..
+            } => {
+                let own = (*kind == ReferenceKind::Borrowed)
+                    .then(|| self.substitute_lifetime(lifetime, lifetime_args));
+                let nested = self.type_lifetime_inner(*pointee, lifetime_args, visited);
+                let terms = own
+                    .into_iter()
+                    .chain(nested)
+                    .flat_map(|lifetime| lifetime.terms);
+
+                Some(Lifetime::new(terms)).filter(|lifetime| !lifetime.is_empty())
+            }
+            Type::Slice {
+                kind,
+                lifetime,
+                element,
+                ..
+            }
+            | Type::Tensor {
+                kind,
+                lifetime,
+                element,
+                ..
+            }
+            | Type::TensorView {
+                kind,
+                lifetime,
+                element,
+                ..
+            } => {
+                let own = (*kind == ReferenceKind::Borrowed)
+                    .then(|| self.substitute_lifetime(lifetime, lifetime_args));
+                let nested = self.type_lifetime_inner(*element, lifetime_args, visited);
+                let terms = own
+                    .into_iter()
+                    .chain(nested)
+                    .flat_map(|lifetime| lifetime.terms);
+
+                Some(Lifetime::new(terms)).filter(|lifetime| !lifetime.is_empty())
+            }
             Type::Struct { fields, .. } => {
                 let nested_lifetimes = fields.iter().filter_map(|field| {
                     let field = self.get(*field);
@@ -338,10 +362,7 @@ impl Tree {
                 .filter(|lifetime| !lifetime.is_empty())
             }
             Type::FixedArray { element, .. }
-            | Type::Slice { element, .. }
             | Type::Vector { element, .. }
-            | Type::Tensor { element, .. }
-            | Type::TensorView { element, .. }
             | Type::Atomic { value: element } => {
                 self.type_lifetime_inner(*element, lifetime_args, visited)
             }
@@ -349,45 +370,76 @@ impl Tree {
                 self.type_lifetime_inner(*base, lifetimes, visited)
             }
             _ => None,
-        }
+        };
+        visited.remove(&ty);
+
+        lifetime
     }
 
     /// Return whether a type may contain borrowed references.
     pub fn type_contains_borrowed_refs(&self, ty: TypeId) -> bool {
+        let mut visited = HashSet::new();
+
+        self.type_contains_borrowed_refs_inner(ty, &mut visited)
+    }
+
+    /// Return whether a type path contains borrowed references.
+    fn type_contains_borrowed_refs_inner(
+        &self,
+        ty: TypeId,
+        visited: &mut HashSet<LocalNodeId<Type>>,
+    ) -> bool {
+        if !visited.insert(ty) {
+            return false;
+        }
+
+        let type_id = ty;
         let ty = self.get(ty);
         if ty.is_borrowed_reference() {
+            visited.remove(&type_id);
+
             return true;
         }
 
-        match ty {
+        let contains = match ty {
             Type::Struct { fields, .. } => fields.iter().any(|field| {
                 let field = self.get(*field);
-                self.type_contains_borrowed_refs(field.ty)
+                self.type_contains_borrowed_refs_inner(field.ty, visited)
             }),
-            Type::Newtype { inner, .. } => self.type_contains_borrowed_refs(*inner),
-            Type::Uninit { value } => self.type_contains_borrowed_refs(*value),
+            Type::Newtype { inner, .. } => self.type_contains_borrowed_refs_inner(*inner, visited),
+            Type::Uninit { value } => self.type_contains_borrowed_refs_inner(*value, visited),
             Type::Variant {
                 discriminant,
                 cases,
                 ..
             } => {
-                self.type_contains_borrowed_refs(*discriminant)
+                self.type_contains_borrowed_refs_inner(*discriminant, visited)
                     || cases
                         .iter()
-                        .any(|case| self.type_contains_borrowed_refs(case.ty))
+                        .any(|case| self.type_contains_borrowed_refs_inner(case.ty, visited))
             }
             Type::Tuple { elements, .. } => elements
                 .iter()
-                .any(|element| self.type_contains_borrowed_refs(*element)),
-            Type::FixedArray { element, .. }
+                .any(|element| self.type_contains_borrowed_refs_inner(*element, visited)),
+            Type::Reference {
+                pointee: element, ..
+            }
+            | Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
             | Type::Vector { element, .. }
             | Type::Tensor { element, .. }
             | Type::TensorView { element, .. }
-            | Type::Atomic { value: element } => self.type_contains_borrowed_refs(*element),
-            Type::Application { base, .. } => self.type_contains_borrowed_refs(*base),
+            | Type::Atomic { value: element } => {
+                self.type_contains_borrowed_refs_inner(*element, visited)
+            }
+            Type::Application { base, .. } => {
+                self.type_contains_borrowed_refs_inner(*base, visited)
+            }
             _ => false,
-        }
+        };
+        visited.remove(&type_id);
+
+        contains
     }
 
     /// Return borrowed reference-like paths carried by one type.
@@ -395,8 +447,8 @@ impl Tree {
         self.type_borrowed_paths_with_lifetimes(ty, &[], false)
     }
 
-    /// Return borrowed paths used for source tracking.
-    pub fn type_borrowed_source_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
+    /// Return borrowed paths used for provenance tracking.
+    pub fn type_provenance_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
         self.type_borrowed_paths_with_lifetimes(ty, &[], true)
     }
 
@@ -434,36 +486,46 @@ impl Tree {
             Type::Dynamic {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
+                access,
                 ..
             }
             | Type::Reference {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
+                access,
                 ..
             }
             | Type::Slice {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
+                access,
                 ..
             }
             | Type::Tensor {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
+                access,
                 ..
             }
             | Type::TensorView {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
+                access,
                 ..
             }
             | Type::Function {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
+                access,
                 ..
             } => {
                 let lifetime = self.substitute_lifetime(lifetime, lifetimes);
                 if is_empty_included || !lifetime.is_empty() {
-                    borrowed_paths.push(BorrowedPath { path, lifetime });
+                    borrowed_paths.push(BorrowedPath {
+                        path,
+                        lifetime,
+                        access: *access,
+                    });
                 }
             }
             // descend into named fields
@@ -543,12 +605,21 @@ impl Tree {
                 );
 
                 if !element_paths.is_empty() {
+                    let access = element_paths
+                        .iter()
+                        .map(|borrowed| borrowed.access)
+                        .max()
+                        .unwrap_or(Access::Readonly);
                     let lifetime = Lifetime::new(
                         element_paths
                             .into_iter()
                             .flat_map(|borrowed| borrowed.lifetime.terms),
                     );
-                    borrowed_paths.push(BorrowedPath { path, lifetime });
+                    borrowed_paths.push(BorrowedPath {
+                        path,
+                        lifetime,
+                        access,
+                    });
                 }
             }
             // substitute outer lifetime arguments

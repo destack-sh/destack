@@ -936,6 +936,13 @@ impl Type {
         self.reference_kind() == Some(ReferenceKind::Unique)
     }
 
+    /// Whether this reference-like value may alias another carrier.
+    pub fn is_aliasable_reference(&self) -> bool {
+        self.is_reference_carrier()
+            && !self.is_unique_reference()
+            && !self.reference_access().is_some_and(Access::is_exclusive)
+    }
+
     /// Whether this type owns unique storage.
     pub fn is_unique_storage(&self) -> bool {
         self.reference_kind() == Some(ReferenceKind::Unique)

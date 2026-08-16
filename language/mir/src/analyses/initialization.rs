@@ -1,31 +1,43 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_core::BitSet;
+use smallvec::SmallVec;
 
-use crate as mir;
+use crate::{
+    Block, BlockTarget, ControlTable, Edge, Function, Instruction, LocalNodeId, LocalNodeIdAny,
+    MovePathId, MoveTable, Place, PlaceTable, Projection, Terminator, Tree, Type, Value,
+};
 
 use super::{Analysis, Dataflow, ForwardTransfer, FunctionCache, Lattice, Mutation};
 
 /// Move-path initialization across one MIR function.
 #[derive(Debug)]
 pub struct InitializationTable {
-    /// Canonical move paths.
-    paths: Arc<mir::MoveTable>,
-    /// Canonical places.
-    places: Arc<mir::PlaceTable>,
+    /// Move paths.
+    paths: Arc<MoveTable>,
+    /// Places derived by address values.
+    places: Arc<PlaceTable>,
     /// Initialization at reachable block entries and exits.
     flow: Dataflow<InitializationState>,
+}
+
+/// One unavailable move path used by an operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Unavailability {
+    /// The path initialization at the use.
+    pub initialization: Initialization,
+    /// The operation that moved the path.
+    pub moved_at: Option<LocalNodeIdAny>,
 }
 
 impl InitializationTable {
     /// Build initialization for one function.
     pub fn build(
-        function: &mir::Function,
-        tree: &mir::Tree,
-        control: &mir::ControlTable,
-        paths: Arc<mir::MoveTable>,
-        places: Arc<mir::PlaceTable>,
+        function: &Function,
+        tree: &Tree,
+        control: &ControlTable,
+        paths: Arc<MoveTable>,
+        places: Arc<PlaceTable>,
     ) -> Self {
         let table = Self {
             paths,
@@ -62,51 +74,218 @@ impl InitializationTable {
     }
 
     /// Return initialization at one reachable block entry.
-    pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&InitializationState> {
+    pub fn entry(&self, block: LocalNodeId<Block>) -> Option<&InitializationState> {
         self.flow.entry(block)
     }
 
     /// Return initialization at one reachable block exit.
-    pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&InitializationState> {
+    pub fn exit(&self, block: LocalNodeId<Block>) -> Option<&InitializationState> {
         self.flow.exit(block)
+    }
+
+    /// Return unavailable paths read by one instruction.
+    pub fn instruction_unavailability(
+        &self,
+        instruction: &Instruction,
+        state: &InitializationState,
+        tree: &Tree,
+    ) -> SmallVec<[Unavailability; 4]> {
+        let mut unavailable = SmallVec::new();
+
+        // handle projected and replacement reads separately
+        match instruction {
+            Instruction::LocalGet { local, .. } => {
+                self.collect_place(&Place::local(*local), state, &mut unavailable);
+            }
+            Instruction::FieldGet {
+                aggregate, field, ..
+            }
+            | Instruction::FieldAddr {
+                aggregate, field, ..
+            } => {
+                let projection = Projection::Field { index: *field };
+                self.collect_projection(*aggregate, projection, state, &mut unavailable);
+            }
+            Instruction::ElementGet {
+                aggregate, index, ..
+            } => {
+                let projection = Projection::Element { index: *index };
+                self.collect_projection(*aggregate, projection, state, &mut unavailable);
+            }
+            Instruction::ElementAddr { base, index, .. } => {
+                let projection = Projection::Index { index: *index };
+                self.collect_projection(*base, projection, state, &mut unavailable);
+                self.collect_value(*index, state, &mut unavailable);
+            }
+            Instruction::FieldSet {
+                aggregate,
+                field,
+                value,
+                ..
+            } => {
+                let projection = Projection::Field { index: *field };
+                self.collect_replacement(*aggregate, projection, state, &mut unavailable);
+                self.collect_value(*value, state, &mut unavailable);
+            }
+            Instruction::ElementSet {
+                aggregate,
+                index,
+                value,
+                ..
+            } => {
+                let projection = Projection::Element { index: *index };
+                self.collect_replacement(*aggregate, projection, state, &mut unavailable);
+                self.collect_value(*value, state, &mut unavailable);
+            }
+            Instruction::VariantPayloadAddr { variant, case, .. } => {
+                let projection = Projection::Variant { case: *case };
+                self.collect_projection(*variant, projection, state, &mut unavailable);
+            }
+            Instruction::SliceView {
+                source,
+                start,
+                length,
+                ..
+            } => {
+                let projection = Projection::Slice {
+                    start: *start,
+                    length: *length,
+                };
+                self.collect_projection(*source, projection, state, &mut unavailable);
+                self.collect_value(*start, state, &mut unavailable);
+                self.collect_value(*length, state, &mut unavailable);
+            }
+            _ => {
+                for value in instruction.reads(tree) {
+                    self.collect_value(value, state, &mut unavailable);
+                }
+            }
+        }
+
+        unavailable
+    }
+
+    /// Return unavailable paths read by one terminator.
+    pub fn terminator_unavailability(
+        &self,
+        terminator: &Terminator,
+        state: &InitializationState,
+        tree: &Tree,
+    ) -> SmallVec<[Unavailability; 4]> {
+        let mut unavailable = SmallVec::new();
+
+        // require every value read by the terminator
+        for value in terminator.reads(tree) {
+            self.collect_value(value, state, &mut unavailable);
+        }
+
+        unavailable
+    }
+
+    /// Collect one unavailable projected place.
+    fn collect_projection(
+        &self,
+        base: Value,
+        projection: Projection,
+        state: &InitializationState,
+        unavailable: &mut SmallVec<[Unavailability; 4]>,
+    ) {
+        let place = self.places.project(base, projection);
+        self.collect_place(&place, state, unavailable);
+    }
+
+    /// Collect one unavailable place.
+    fn collect_place(
+        &self,
+        place: &Place,
+        state: &InitializationState,
+        unavailable: &mut SmallVec<[Unavailability; 4]>,
+    ) {
+        let Some(path) = self.paths.containing(place) else {
+            return;
+        };
+        let Some(path) = state.unavailable(path, &self.paths) else {
+            return;
+        };
+
+        unavailable.push(state.unavailability(path));
+    }
+
+    /// Collect an unavailable aggregate outside one replacement.
+    fn collect_replacement(
+        &self,
+        aggregate: Value,
+        projection: Projection,
+        state: &InitializationState,
+        unavailable: &mut SmallVec<[Unavailability; 4]>,
+    ) {
+        let Some(parent) = self.paths.value(aggregate) else {
+            return;
+        };
+        let place = self.places.project(aggregate, projection);
+        let Some(replacement) = self.paths.place(&place) else {
+            unreachable!("aggregate replacement has no move path");
+        };
+        let Some(path) = state.unavailable_replacement(parent, replacement, &self.paths) else {
+            return;
+        };
+
+        unavailable.push(state.unavailability(path));
+    }
+
+    /// Collect one unavailable value.
+    fn collect_value(
+        &self,
+        value: Value,
+        state: &InitializationState,
+        unavailable: &mut SmallVec<[Unavailability; 4]>,
+    ) {
+        let Some(path) = self.paths.value(value) else {
+            return;
+        };
+        let Some(path) = state.unavailable(path, &self.paths) else {
+            return;
+        };
+
+        unavailable.push(state.unavailability(path));
     }
 
     /// Transfer one instruction.
     pub fn transfer_instruction(
         &self,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction_id: LocalNodeId<Instruction>,
         state: &mut InitializationState,
-        tree: &mir::Tree,
+        tree: &Tree,
     ) {
         let instruction = tree.get(instruction_id);
         let anchor = instruction_id.into_any();
 
         // move storage read into a move-only destination
         match instruction {
-            mir::Instruction::LocalGet { destination, local }
+            Instruction::LocalGet { destination, local }
                 if self.paths.value(*destination).is_some() =>
             {
                 if let Some(path) = self.paths.local(*local) {
                     state.move_path(path, anchor, &self.paths);
                 }
             }
-            mir::Instruction::FieldGet {
+            Instruction::FieldGet {
                 destination,
                 aggregate,
                 field,
             } if self.paths.value(*destination).is_some() => {
-                let projection = mir::Projection::Field { index: *field };
+                let projection = Projection::Field { index: *field };
                 self.uninitialize_projection(*aggregate, projection, anchor, state, tree);
             }
-            mir::Instruction::ElementGet {
+            Instruction::ElementGet {
                 destination,
                 aggregate,
                 index,
             } if self.paths.value(*destination).is_some() => {
-                let projection = mir::Projection::Element { index: *index };
+                let projection = Projection::Element { index: *index };
                 self.uninitialize_projection(*aggregate, projection, anchor, state, tree);
             }
-            mir::Instruction::VariantPayload {
+            Instruction::VariantPayload {
                 destination,
                 variant,
                 ..
@@ -122,7 +301,7 @@ impl InitializationTable {
         }
 
         // initialize storage defined by the instruction
-        if let mir::Instruction::LocalSet { local, .. } = instruction
+        if let Instruction::LocalSet { local, .. } = instruction
             && let Some(path) = self.paths.local(*local)
         {
             state.initialize(path, &self.paths);
@@ -137,9 +316,9 @@ impl InitializationTable {
     /// Transfer one terminator.
     pub fn transfer_terminator(
         &self,
-        terminator_id: mir::LocalNodeId<mir::Terminator>,
+        terminator_id: LocalNodeId<Terminator>,
         state: &mut InitializationState,
-        tree: &mir::Tree,
+        tree: &Tree,
     ) {
         let terminator = tree.get(terminator_id);
         let anchor = terminator_id.into_any();
@@ -151,13 +330,7 @@ impl InitializationTable {
     }
 
     /// Transfer initialization through one control-flow edge.
-    fn bind(
-        &self,
-        edge: mir::Edge,
-        target: &mir::BlockTarget,
-        state: &mut InitializationState,
-        tree: &mir::Tree,
-    ) {
+    fn bind(&self, edge: Edge, target: &BlockTarget, state: &mut InitializationState, tree: &Tree) {
         let block = tree.get(edge.source);
         let terminator = tree.get(block.terminator);
         let arguments = target.arguments(tree);
@@ -180,7 +353,7 @@ impl InitializationTable {
     }
 
     /// Return initialization at function entry.
-    fn parameter_state(&self, function: &mir::Function) -> InitializationState {
+    fn parameter_state(&self, function: &Function) -> InitializationState {
         let mut state = InitializationState::new(self.paths.len());
 
         // initialize move-only parameters
@@ -196,8 +369,8 @@ impl InitializationTable {
     /// Mark one value unavailable.
     fn uninitialize_value(
         &self,
-        value: mir::Value,
-        anchor: mir::LocalNodeIdAny,
+        value: Value,
+        anchor: LocalNodeIdAny,
         state: &mut InitializationState,
     ) {
         if let Some(path) = self.paths.value(value) {
@@ -208,16 +381,17 @@ impl InitializationTable {
     /// Mark one projected place unavailable.
     fn uninitialize_projection(
         &self,
-        aggregate: mir::Value,
-        projection: mir::Projection,
-        anchor: mir::LocalNodeIdAny,
+        aggregate: Value,
+        projection: Projection,
+        anchor: LocalNodeIdAny,
         state: &mut InitializationState,
-        tree: &mir::Tree,
+        tree: &Tree,
     ) {
         let place = self.places.project(aggregate, projection);
-        let is_variant = self.paths.value(aggregate).is_some_and(|path| {
-            matches!(tree.get(self.paths.get(path).ty), mir::Type::Variant { .. })
-        });
+        let is_variant = self
+            .paths
+            .value(aggregate)
+            .is_some_and(|path| matches!(tree.get(self.paths.get(path).ty), Type::Variant { .. }));
         let path = if is_variant {
             self.paths.value(aggregate)
         } else {
@@ -237,11 +411,7 @@ impl Analysis for InitializationTable {
 
 impl InitializationTable {
     /// Compute initialization for one function.
-    pub(crate) fn compute(
-        function: &mir::Function,
-        tree: &mir::Tree,
-        analyses: &mut FunctionCache,
-    ) -> Self {
+    pub(crate) fn compute(function: &Function, tree: &Tree, analyses: &mut FunctionCache) -> Self {
         let control = analyses.control(function, tree);
         let paths = analyses.moves(function, tree);
         let places = analyses.place(function, tree);
@@ -258,7 +428,7 @@ pub struct InitializationState {
     /// Paths initialized on at least one incoming edge.
     maybe_initialized: BitSet,
     /// Operations that made paths unavailable.
-    moved_at: HashMap<mir::MovePathId, mir::LocalNodeIdAny>,
+    moved_at: Vec<Option<LocalNodeIdAny>>,
 }
 
 impl InitializationState {
@@ -267,12 +437,12 @@ impl InitializationState {
         Self {
             initialized: BitSet::new(path_count),
             maybe_initialized: BitSet::new(path_count),
-            moved_at: HashMap::new(),
+            moved_at: vec![None; path_count],
         }
     }
 
     /// Return one path's initialization.
-    pub fn get(&self, path: mir::MovePathId) -> Initialization {
+    pub fn get(&self, path: MovePathId) -> Initialization {
         if self.initialized.contains(path.index()) {
             Initialization::Initialized
         } else if self.maybe_initialized.contains(path.index()) {
@@ -283,16 +453,20 @@ impl InitializationState {
     }
 
     /// Return the operation that made one path unavailable.
-    pub fn moved_at(&self, path: mir::MovePathId) -> Option<mir::LocalNodeIdAny> {
-        self.moved_at.get(&path).copied()
+    pub fn moved_at(&self, path: MovePathId) -> Option<LocalNodeIdAny> {
+        self.moved_at[path.index()]
+    }
+
+    /// Return one unavailable path description.
+    fn unavailability(&self, path: MovePathId) -> Unavailability {
+        Unavailability {
+            initialization: self.get(path),
+            moved_at: self.moved_at(path),
+        }
     }
 
     /// Return an unavailable path required by one complete use.
-    pub fn unavailable(
-        &self,
-        path: mir::MovePathId,
-        paths: &mir::MoveTable,
-    ) -> Option<mir::MovePathId> {
+    pub fn unavailable(&self, path: MovePathId, paths: &MoveTable) -> Option<MovePathId> {
         let mut current = Some(path);
 
         // require the path and every containing path
@@ -314,10 +488,10 @@ impl InitializationState {
     /// Return an unavailable path outside one replaced child.
     pub fn unavailable_replacement(
         &self,
-        parent: mir::MovePathId,
-        replacement: mir::MovePathId,
-        paths: &mir::MoveTable,
-    ) -> Option<mir::MovePathId> {
+        parent: MovePathId,
+        replacement: MovePathId,
+        paths: &MoveTable,
+    ) -> Option<MovePathId> {
         let mut current = paths.get(parent).parent;
 
         // require storage containing the reconstructed aggregate
@@ -338,10 +512,10 @@ impl InitializationState {
     }
 
     /// Mark one path and every child initialized.
-    fn initialize(&mut self, path: mir::MovePathId, paths: &mir::MoveTable) {
+    fn initialize(&mut self, path: MovePathId, paths: &MoveTable) {
         for path in paths.descendants(path) {
             self.set(path, Initialization::Initialized);
-            self.moved_at.remove(&path);
+            self.moved_at[path.index()] = None;
         }
 
         // rebuild each complete containing aggregate
@@ -356,39 +530,34 @@ impl InitializationState {
             }
 
             self.set(current, Initialization::Initialized);
-            self.moved_at.remove(&current);
+            self.moved_at[current.index()] = None;
             parent = paths.get(current).parent;
         }
     }
 
     /// Mark one path and every child uninitialized.
-    pub fn uninitialize(&mut self, path: mir::MovePathId, paths: &mir::MoveTable) {
+    pub fn uninitialize(&mut self, path: MovePathId, paths: &MoveTable) {
         for path in paths.descendants(path) {
             self.set(path, Initialization::Uninitialized);
-            self.moved_at.remove(&path);
+            self.moved_at[path.index()] = None;
         }
     }
 
     /// Mark one path and every child moved.
-    fn move_path(
-        &mut self,
-        path: mir::MovePathId,
-        at: mir::LocalNodeIdAny,
-        paths: &mir::MoveTable,
-    ) {
+    fn move_path(&mut self, path: MovePathId, moved_at: LocalNodeIdAny, paths: &MoveTable) {
         for path in paths.descendants(path) {
             self.set(path, Initialization::Uninitialized);
-            self.moved_at.insert(path, at);
+            self.moved_at[path.index()] = Some(moved_at);
         }
     }
 
     /// Transfer one move path tree into another.
     fn bind(
         &mut self,
-        argument: mir::MovePathId,
-        parameter: mir::MovePathId,
-        at: mir::LocalNodeIdAny,
-        paths: &mir::MoveTable,
+        argument: MovePathId,
+        parameter: MovePathId,
+        moved_at: LocalNodeIdAny,
+        paths: &MoveTable,
     ) {
         if argument == parameter {
             return;
@@ -406,18 +575,14 @@ impl InitializationState {
         // transfer each structural path into its matching parameter path
         for (parameter, state, moved_at) in states {
             self.set(parameter, state);
-            if let Some(moved_at) = moved_at {
-                self.moved_at.insert(parameter, moved_at);
-            } else {
-                self.moved_at.remove(&parameter);
-            }
+            self.moved_at[parameter.index()] = moved_at;
         }
 
-        self.move_path(argument, at, paths);
+        self.move_path(argument, moved_at, paths);
     }
 
     /// Return whether one complete path tree is initialized.
-    pub fn is_initialized(&self, path: mir::MovePathId, paths: &mir::MoveTable) -> bool {
+    pub fn is_initialized(&self, path: MovePathId, paths: &MoveTable) -> bool {
         self.get(path) == Initialization::Initialized
             && paths
                 .children(path)
@@ -426,7 +591,7 @@ impl InitializationState {
     }
 
     /// Set one path's initialization.
-    fn set(&mut self, path: mir::MovePathId, initialization: Initialization) {
+    fn set(&mut self, path: MovePathId, initialization: Initialization) {
         let index = path.index();
 
         match initialization {
@@ -457,10 +622,12 @@ impl Lattice for InitializationState {
         maybe_initialized.union_with(&other.maybe_initialized);
 
         // retain one diagnostic origin for each unavailable path
-        let mut moved_at = self.moved_at.clone();
-        for (&path, &anchor) in &other.moved_at {
-            moved_at.entry(path).or_insert(anchor);
-        }
+        let moved_at = self
+            .moved_at
+            .iter()
+            .zip(&other.moved_at)
+            .map(|(left, right)| left.or(*right))
+            .collect();
 
         Self {
             initialized,

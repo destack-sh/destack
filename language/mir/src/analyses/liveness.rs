@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use std::cmp::Reverse;
+
 use destack_core::BitSet;
 
 use super::{Analysis, FunctionCache, Mutation};
@@ -18,6 +20,55 @@ pub struct LivenessTable {
     local_live_out: NodeTable<Block, BitSet>,
     /// Function locals in compact liveness order.
     locals: Vec<LocalNodeId<Local>>,
+}
+
+/// Live values and locals while traversing one block.
+#[derive(Debug)]
+pub struct LiveSet<'a> {
+    /// Values live at the current operation.
+    values: BitSet,
+    /// Locals live at the current operation.
+    locals: BitSet,
+    /// Function locals in compact liveness order.
+    local_ids: &'a [LocalNodeId<Local>],
+    /// Final uses sorted by SSA value.
+    last_uses: Vec<LastUse>,
+    /// Local liveness changes in instruction order.
+    local_changes: Vec<LocalChange>,
+    /// The next instruction offset.
+    offset: u32,
+    /// The number of instructions in the block.
+    length: u32,
+    /// The next local liveness change.
+    local_change: usize,
+}
+
+/// Final use of one SSA value in a block.
+#[derive(Debug, Clone, Copy)]
+struct LastUse {
+    /// The used SSA value.
+    value: Value,
+    /// The final block offset using the value.
+    offset: u32,
+}
+
+/// One instruction's local liveness change.
+#[derive(Debug, Clone, Copy)]
+enum LocalChange {
+    /// One defined local becomes live.
+    Add {
+        /// The defining instruction offset.
+        offset: u32,
+        /// The local liveness index.
+        local: u32,
+    },
+    /// One local reaches its final read.
+    Remove {
+        /// The final read instruction offset.
+        offset: u32,
+        /// The local liveness index.
+        local: u32,
+    },
 }
 
 /// Per-block local use and definition sets for liveness.
@@ -312,6 +363,92 @@ impl LivenessTable {
             .map(|index| self.locals[index])
     }
 
+    /// Build linear liveness traversal for one block.
+    pub fn block<'a>(&'a self, tree: &Tree, block_id: LocalNodeId<Block>) -> LiveSet<'a> {
+        let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
+        let mut values = self.value_live_out.get(block_id).clone();
+        let mut locals = self.local_live_out.get(block_id).clone();
+        let mut last_uses = Vec::new();
+        let mut local_changes = Vec::new();
+        let terminator_offset = block.instructions.len() as u32;
+
+        // retain values consumed by the terminator
+        for value in terminator.uses(tree) {
+            values.insert(value.id() as usize);
+            last_uses.push(LastUse {
+                value,
+                offset: terminator_offset,
+            });
+        }
+
+        // retain values passed to successor blocks
+        for value in self.value_live_out(block_id) {
+            last_uses.push(LastUse {
+                value,
+                offset: terminator_offset + 1,
+            });
+        }
+
+        // derive entry liveness and local transitions in one reverse scan
+        for (offset, &instruction_id) in block.instructions.iter().enumerate().rev() {
+            let instruction = tree.get(instruction_id);
+            let offset = offset as u32;
+
+            // remove the SSA definition from entry liveness
+            if let Some(destination) = instruction.destination() {
+                values.remove(destination.id() as usize);
+            }
+
+            // add operands used before this instruction
+            for value in instruction.reads(tree) {
+                values.insert(value.id() as usize);
+                last_uses.push(LastUse { value, offset });
+            }
+
+            // transfer the one local read or definition
+            match instruction {
+                Instruction::LocalSet { local, .. } => {
+                    let index = self.local_index(*local);
+                    if locals.contains(index) {
+                        local_changes.push(LocalChange::Add {
+                            offset,
+                            local: index as u32,
+                        });
+                    }
+                    locals.remove(index);
+                }
+                Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
+                    let index = self.local_index(*local);
+                    if !locals.contains(index) {
+                        locals.insert(index);
+                        local_changes.push(LocalChange::Remove {
+                            offset,
+                            local: index as u32,
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // retain only each value's final use
+        last_uses.sort_unstable_by_key(|last| (last.value, Reverse(last.offset)));
+        last_uses.dedup_by_key(|last| last.value);
+        local_changes.reverse();
+
+        LiveSet {
+            values,
+            locals,
+            local_ids: &self.locals,
+            last_uses,
+            local_changes,
+            offset: 0,
+            length: terminator_offset,
+            local_change: 0,
+        }
+    }
+
     /// Return whether one value is live at block entry.
     pub fn is_value_live_in(&self, block: LocalNodeId<Block>, value: Value) -> bool {
         self.value_live_in.get(block).contains(value.0 as usize)
@@ -485,6 +622,83 @@ impl LivenessTable {
 
         values
     }
+
+    /// Return one local's compact liveness index.
+    fn local_index(&self, local: LocalNodeId<Local>) -> usize {
+        self.locals
+            .binary_search_by_key(&local.get(), |candidate| candidate.get())
+            .unwrap_or_else(|_| unreachable!("missing liveness local {local:?}"))
+    }
+}
+
+impl LiveSet<'_> {
+    /// Return values live at the current operation.
+    pub fn values(&self) -> impl Iterator<Item = Value> + '_ {
+        self.values.iter().map(|index| Value::new(index as u32))
+    }
+
+    /// Return whether one value is live at the current operation.
+    pub fn contains_value(&self, value: Value) -> bool {
+        self.values.contains(value.id() as usize)
+    }
+
+    /// Return whether one local is live at the current operation.
+    pub fn contains_local(&self, local: LocalNodeId<Local>) -> bool {
+        self.local_ids
+            .binary_search_by_key(&local.get(), |candidate| candidate.get())
+            .is_ok_and(|index| self.locals.contains(index))
+    }
+
+    /// Advance past one instruction.
+    pub fn advance(&mut self, instruction: &Instruction, tree: &Tree) {
+        if self.offset >= self.length {
+            unreachable!("liveness advanced past block terminator");
+        }
+
+        // transfer SSA liveness
+        if let Some(destination) = instruction.destination()
+            && self.last_use(destination).is_some()
+        {
+            self.values.insert(destination.id() as usize);
+        }
+        for value in instruction.reads(tree) {
+            if self.last_use(value) == Some(self.offset) {
+                self.values.remove(value.id() as usize);
+            }
+        }
+
+        // transfer local liveness
+        if let Some(change) = self.local_changes.get(self.local_change)
+            && change.offset() == self.offset
+        {
+            match change {
+                LocalChange::Add { local, .. } => self.locals.insert(*local as usize),
+                LocalChange::Remove { local, .. } => self.locals.remove(*local as usize),
+            };
+            self.local_change += 1;
+        }
+
+        self.offset += 1;
+    }
+
+    /// Return one value's final use offset.
+    fn last_use(&self, value: Value) -> Option<u32> {
+        let index = self
+            .last_uses
+            .binary_search_by_key(&value, |last| last.value)
+            .ok()?;
+
+        Some(self.last_uses[index].offset)
+    }
+}
+
+impl LocalChange {
+    /// Return the instruction offset applying this change.
+    fn offset(self) -> u32 {
+        match self {
+            Self::Add { offset, .. } | Self::Remove { offset, .. } => offset,
+        }
+    }
 }
 
 impl Analysis for LivenessTable {
@@ -632,29 +846,39 @@ entry(v0: int32):
         let liveness = LivenessTable::build(function, &tree);
         let entry = function.entry().expect("missing entry");
         let local = function.local(0);
+        let instructions = tree.get(entry).instructions.clone();
 
-        // block parameters are live before the first instruction
-        let values = liveness.value_live_before_instruction(&tree, entry, 0);
-        assert_eq!(values, HashSet::from([Value::new(0)]));
-        let locals = liveness.local_live_before_instruction(&tree, entry, 0);
-        assert!(locals.is_empty());
+        let mut live = liveness.block(&tree, entry);
 
-        // local storage becomes live after its defining store
-        let values = liveness.value_live_before_instruction(&tree, entry, 1);
-        assert_eq!(values, HashSet::from([Value::new(0)]));
-        let locals = liveness.local_live_before_instruction(&tree, entry, 1);
-        assert_eq!(locals, HashSet::from([local]));
+        // retain the entry parameter before the defining local store
+        assert_eq!(
+            live.values().collect::<HashSet<_>>(),
+            HashSet::from([Value::new(0)])
+        );
+        assert!(!live.contains_local(local));
+        live.advance(tree.get(instructions[0]), &tree);
 
-        // SSA operands remain live until their final use
-        let values = liveness.value_live_before_instruction(&tree, entry, 2);
-        assert_eq!(values, HashSet::from([Value::new(0), Value::new(1)]));
-        let locals = liveness.local_live_before_instruction(&tree, entry, 2);
-        assert!(locals.is_empty());
+        // retain the local until its final load
+        assert_eq!(
+            live.values().collect::<HashSet<_>>(),
+            HashSet::from([Value::new(0)])
+        );
+        assert!(live.contains_local(local));
+        live.advance(tree.get(instructions[1]), &tree);
 
-        // terminator liveness retains only its return operand
-        let values = liveness.value_live_before_terminator(&tree, entry);
-        assert_eq!(values, HashSet::from([Value::new(2)]));
-        let locals = liveness.local_live_before_terminator(entry);
-        assert!(locals.is_empty());
+        // retain SSA operands until the arithmetic operation
+        assert_eq!(
+            live.values().collect::<HashSet<_>>(),
+            HashSet::from([Value::new(0), Value::new(1)])
+        );
+        assert!(!live.contains_local(local));
+        live.advance(tree.get(instructions[2]), &tree);
+
+        // retain only the return value before the terminator
+        assert_eq!(
+            live.values().collect::<HashSet<_>>(),
+            HashSet::from([Value::new(2)])
+        );
+        assert!(!live.contains_local(local));
     }
 }

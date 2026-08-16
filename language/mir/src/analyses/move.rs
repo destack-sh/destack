@@ -1,5 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
 use crate::{
     Analysis, Function, FunctionCache, Instruction, Local, LocalId, Mutation, NodeTable, Place,
     PlaceTable, Projection, Tree, Type, TypeId, Value,
@@ -313,7 +316,9 @@ pub struct MovePath {
 }
 
 /// Dense identifier for one move path.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
 pub struct MovePathId(u32);
 
 impl MovePathId {

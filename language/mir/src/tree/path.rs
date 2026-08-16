@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Lifetime, Value};
+use crate::{Access, Lifetime, Value};
 
 /// One projection in a MIR type path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -109,6 +109,16 @@ impl Path {
                 .all(|(left, right)| left == right)
     }
 
+    /// Remove one structural prefix from this path.
+    pub fn strip_prefix(&self, prefix: &Self) -> Option<Self> {
+        if !prefix.contains(self) {
+            return None;
+        }
+        let projections = self.projections[prefix.projections.len()..].to_vec();
+
+        Some(Self { projections })
+    }
+
     /// Replace value references inside this path.
     pub fn replace_value(&mut self, from: Value, to: Value) {
         for projection in &mut self.projections {
@@ -124,4 +134,6 @@ pub struct BorrowedPath {
     pub path: Path,
     /// The lifetime carried by the borrowed component.
     pub lifetime: Lifetime,
+    /// Access granted by the borrowed component.
+    pub access: Access,
 }

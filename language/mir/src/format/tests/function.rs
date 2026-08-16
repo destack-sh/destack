@@ -116,8 +116,8 @@ entry(v0: int32):
     return v0
 }
 
-function borrow<int32, 'L0>(v0: ref<int32, borrowed, 'L0, readonly>): ref<int32, borrowed, 'L0, readonly> {
-entry(v0: ref<int32, borrowed, 'L0, readonly>):
+function borrow<int32, 'a>(v0: ref<int32, borrowed, 'a, readonly>): ref<int32, borrowed, 'a, readonly> {
+entry(v0: ref<int32, borrowed, 'a, readonly>):
     return v0
 }
 

@@ -129,4 +129,64 @@ impl Lifetime {
             LifetimeTerm::Static | LifetimeTerm::Frame => None,
         })
     }
+
+    /// Return whether every source region outlives this lifetime.
+    pub fn accepts(&self, source: &Self, parameters: &[LifetimeParameter]) -> bool {
+        !source.is_empty()
+            && source.terms.iter().all(|source| {
+                self.terms
+                    .iter()
+                    .any(|required| Self::term_outlives(*source, *required, parameters))
+            })
+    }
+
+    /// Return whether one term lives at least as long as another term.
+    fn term_outlives(
+        longer: LifetimeTerm,
+        shorter: LifetimeTerm,
+        parameters: &[LifetimeParameter],
+    ) -> bool {
+        let mut visited = vec![false; parameters.len()];
+
+        Self::term_outlives_inner(longer, shorter, parameters, &mut visited)
+    }
+
+    /// Traverse declared lifetime bounds.
+    fn term_outlives_inner(
+        longer: LifetimeTerm,
+        shorter: LifetimeTerm,
+        parameters: &[LifetimeParameter],
+        visited: &mut [bool],
+    ) -> bool {
+        match (longer, shorter) {
+            (LifetimeTerm::Static, _) => true,
+            (LifetimeTerm::Frame, LifetimeTerm::Frame) => true,
+            (LifetimeTerm::Slot(_), LifetimeTerm::Frame) => true,
+            (LifetimeTerm::Slot(left), LifetimeTerm::Slot(right)) if left == right => true,
+            (LifetimeTerm::Slot(left), LifetimeTerm::Slot(right)) => {
+                let index = left.0 as usize;
+                let is_visited = visited.get(index).copied().unwrap_or(false);
+                if is_visited {
+                    return false;
+                }
+                let Some(parameter) = parameters.get(index) else {
+                    return false;
+                };
+                visited[index] = true;
+
+                let is_outlived = parameter.outlives.iter().copied().any(|shorter| {
+                    Self::term_outlives_inner(
+                        LifetimeTerm::Slot(shorter),
+                        LifetimeTerm::Slot(right),
+                        parameters,
+                        visited,
+                    )
+                });
+                visited[index] = false;
+
+                is_outlived
+            }
+            _ => false,
+        }
+    }
 }
