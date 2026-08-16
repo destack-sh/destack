@@ -59,6 +59,8 @@ pub enum NodeSpanBoundary {
 pub enum NodeSpanRegion {
     /// The defining keyword span of a node.
     Keyword,
+    /// The declaration keyword span of a binding.
+    BindingKeyword,
     /// The opening element span of a compound node.
     Opening,
     /// The generic parameter container span of a function-like or declaration node.
