@@ -1190,6 +1190,29 @@ pub enum CheckError {
         target: String,
     },
 
+    /// Member access reads an instance method as a value.
+    ///
+    /// ```ds
+    /// class Logger {
+    ///     log(message: string): void {}
+    /// }
+    ///
+    /// declare const logger: Logger;
+    /// const log = logger.log;
+    /// ```
+    #[diagnostic(
+        id = "cannot-extract-bound-method",
+        message = "method '{member}' cannot be read as a value"
+    )]
+    CannotExtractBoundMethod {
+        /// Report the member access.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The selected member key.
+        member: String,
+    },
+
     /// Member access reads a property that only has a setter.
     ///
     /// ```ds

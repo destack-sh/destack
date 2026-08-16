@@ -1343,6 +1343,20 @@ impl BodyState<'_, '_> {
             return self.reject_member(node, origin, receiver.ty, key);
         };
 
+        // reject instance methods read as values outside call positions
+        let extracts_method = resolution
+            .arms()
+            .iter()
+            .any(|access| selects_bound_method(&access.target));
+        if extracts_method && !self.is_callee_position(node) {
+            let key = self.strings().get(name).to_string();
+            self.report_bound_method_extraction(origin, key)?;
+            self.commit_decision(node, dir::Decision::Rejected)?;
+            self.commit_error_node(node)?;
+
+            return Ok(());
+        }
+
         // commit the exact runtime target tree and joined value type
         let ty = resolution.ty();
         let stored_key = resolution.stored_key();
@@ -1357,6 +1371,32 @@ impl BodyState<'_, '_> {
         self.commit_node_type(node, ty)?;
 
         Ok(())
+    }
+
+    /// Return whether one expression is read as a call callee.
+    fn is_callee_position(&self, node: dir::GlobalNodeIdAny) -> bool {
+        let module = node.module_id;
+        let view = self.module(module).view();
+        let tree = view.tree();
+
+        // climb explicit applications to the enclosing call
+        let mut current = node.local_id.id;
+        while let Some(parent) = tree.get_parent(current) {
+            if parent.ty != dir::NodeType::Expression {
+                return false;
+            }
+
+            let parent_id = dir::LocalNodeId::<dir::Expression>::new(parent.id);
+            match view.get(parent_id) {
+                dir::Expression::Instantiation { left, .. } if left.id == current => {
+                    current = parent.id;
+                }
+                dir::Expression::Call { left, .. } => return left.id == current,
+                _ => return false,
+            }
+        }
+
+        false
     }
 
     /// Defer one member access until its receiver value settles, committing an open hole.
@@ -2182,5 +2222,21 @@ impl BodyState<'_, '_> {
         );
 
         Ok(is_readonly)
+    }
+}
+
+/// Return whether one member target selects an instance method.
+fn selects_bound_method(target: &dir::MemberTarget) -> bool {
+    match target {
+        dir::MemberTarget::Symbol(candidate) => {
+            candidate.space == dir::MemberSpace::Instance && candidate.callable_type.is_some()
+        }
+        dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
+            targets.iter().any(selects_bound_method)
+        }
+        dir::MemberTarget::Call(_)
+        | dir::MemberTarget::Field(_)
+        | dir::MemberTarget::Projection { .. }
+        | dir::MemberTarget::Index(_) => false,
     }
 }

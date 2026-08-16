@@ -13,7 +13,7 @@ const x = point.x;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -25,7 +25,7 @@ struct Point {
 const point: Point = Point { x: 1 };
 const x: int32 = point.x;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -74,7 +74,7 @@ const length = point.length();
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -90,7 +90,7 @@ struct Point {
 const point: Point = Point { x: 1 };
 const length: int32 = point.length();
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -161,7 +161,7 @@ const x = point.x;
         )
         .build();
 
-    compiler.assert_dir_checked(
+    compiler.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -171,7 +171,7 @@ import { Point } from "./geometry.ds";
 const point: Point = Point { x: 1 };
 const x: int32 = point.x;
 
-=== checked ===
+=== dir ===
 import { Point } from "./geometry.ds";
 
 const point = Point { x: 1 };
@@ -204,7 +204,7 @@ const length = values.length;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -212,7 +212,7 @@ const length = values.length;
 let values: int32[] = [];
 const length: isize = values.length;
 
-=== checked ===
+=== dir ===
 let values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
@@ -227,9 +227,8 @@ const length = values.length;
 /// @resolution.member source=values.length receiver=Array<int32> type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source=values.length id=Array<int32>.<extension#3>.length#2
-
-/// @generic.instance id=Array<int32>.<extension#3>.length#2 template=collections.array.length#2 arguments=(int32)
+/// @generic.instantiation id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
 "#,
     );
 }
@@ -253,7 +252,7 @@ const length = values.length;
         )
         .build();
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -262,7 +261,7 @@ import { values } from "./values.ds";
 
 const length: isize = values.length;
 
-=== checked ===
+=== dir ===
 import { values } from "./values.ds";
 
 const length = values.length;
@@ -274,9 +273,8 @@ const length = values.length;
 /// @resolution.member source=values.length receiver=Array<int32> type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values.values
-/// @generic.instance source=values.length id=Array<int32>.<extension#3>.length#2
-
-/// @generic.instance id=Array<int32>.<extension#3>.length#2 template=collections.array.length#2 arguments=(int32)
+/// @generic.instantiation id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
 "#,
     );
 }
@@ -297,7 +295,7 @@ const state = State { value: 1 };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -312,7 +310,7 @@ function read(): int32 {
 
 const state: State = State { value: 1 };
 
-=== checked ===
+=== dir ===
 struct State {
 /// @type.symbol symbol=State type=State
 /// @definition.struct symbol=State
@@ -357,7 +355,7 @@ values.push(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -365,7 +363,7 @@ values.push(1);
 let values: int32[] = [];
 values.push<int32>(1);
 
-=== checked ===
+=== dir ===
 let values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
@@ -380,10 +378,10 @@ values.push(1);
 /// @resolution.call source=values.push(1) parameters=(Array<int32>) arguments=(rest(1) as int32) return=isize kind=symbol target=collections.array.push receiver=Array<int32> adjustments=(borrow(&'static exclusive Array<int32>)) instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source=values.push(1) id=Array<int32>.<extension#5>.push
+/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+/// @generic.instance id=collections.array.push<int32> template=collections.array.push arguments=(int32)
 /// @type.node source=1 type=1
-
-/// @generic.instance id=Array<int32>.<extension#5>.push template=collections.array.push arguments=(int32)
 "#,
     );
 }
@@ -401,7 +399,7 @@ function pending(): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -413,7 +411,7 @@ function pending(): int32 {
     return value.field;
 }
 
-=== checked ===
+=== dir ===
 import { todo } from "destack:error";
 
 function pending(): int32 {
@@ -454,7 +452,7 @@ const second = handler.run(2);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -467,7 +465,7 @@ const handler: Handler = Handler { run: (value: int32): int32 => value };
 const first: int32 = handler.run(1);
 const second: int32 = handler.run(2);
 
-=== checked ===
+=== dir ===
 struct Handler {
 /// @type.symbol symbol=Handler type=Handler
 /// @definition.struct symbol=Handler
@@ -536,7 +534,7 @@ const x = point.x;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -548,7 +546,7 @@ struct Point {
 const point: Point = Point { x: 1 };
 const x: int32 = point.x;
 
-=== checked ===
+=== dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
@@ -576,6 +574,138 @@ const x = point.x;
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
 /// @resolution.access source=point.x root=point keys=[x]
+"#,
+    );
+}
+
+#[test]
+fn test_reject_instance_method_read_outside_call_position() {
+    let session = TestSession::single(
+        r#"
+class Logger {
+    log(message: string): void {}
+}
+
+declare const logger: Logger;
+
+const log = logger.log;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Logger {
+    log(message: string): void {}
+}
+
+declare const logger: Logger;
+
+const log = logger.log;
+
+=== dir ===
+class Logger {
+/// @type.symbol symbol=Logger type=Logger
+/// @definition.class symbol=Logger
+/// @definition.method symbol=Logger.log source="log(message: string): void {}" slot=log type=(this: this, string) => void
+
+    log(message: string): void {}
+    /// @type.symbol symbol=Logger.log source="log(message: string): void {}" type=(this: this, string) => void
+    /// @type.symbol symbol=Logger.log.message source="message: string" type=string
+
+}
+
+declare const logger: Logger;
+/// @type.symbol symbol=logger source=logger type=Logger
+/// @resolution.pattern source=logger kind=binding target=logger
+/// @resolution.name source=Logger target=Logger
+
+const log = logger.log;
+/// @type.symbol symbol=log source=log type=<error>
+/// @resolution.pattern source=log kind=binding target=log
+/// @resolution.name source=logger target=logger
+/// @resolution.place source=logger placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=logger root=logger
+/// @resolution.rejected source=logger.log
+"#,
+        r#"
+/// @diagnostic.error id=cannot-extract-bound-method message="method 'log' cannot be read as a value"
+/// @diagnostic.label line=8 column=20 span="log" line_source="const log = logger.log;"
+/// @diagnostic.help message="wrap the read in a closure to make its receiver capture explicit"
+"#,
+    );
+}
+
+#[test]
+fn test_instance_method_call_through_explicit_application_selects_method() {
+    let session = TestSession::single(
+        r#"
+class Store {
+    pick<T>(value: T): T {
+        return value;
+    }
+}
+
+declare const store: Store;
+
+const chosen = store.pick<int32>(3);
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Store {
+    pick<T>(value: T): T {
+        return value;
+    }
+}
+
+declare const store: Store;
+
+const chosen: int32 = store.pick<int32>(3);
+
+=== dir ===
+class Store {
+/// @type.symbol symbol=Store type=Store
+/// @definition.class symbol=Store
+/// @definition.method symbol=Store.pick slot=pick type=<T>(this: this, T) => T
+
+    pick<T>(value: T): T {
+    /// @generic.template symbol=Store.pick parameters=(T)
+    /// @type.symbol symbol=Store.pick type=<T>(this: this, T) => T
+    /// @type.symbol symbol=Store.pick.T source=T type=T
+    /// @type.symbol symbol=Store.pick.value source="value: T" type=T
+    /// @resolution.name source=T target=Store.pick.T
+    /// @resolution.name source=T target=Store.pick.T
+
+        return value;
+        /// @resolution.name source=value target=Store.pick.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Store.pick.value
+
+    }
+}
+
+declare const store: Store;
+/// @type.symbol symbol=store source=store type=Store
+/// @resolution.pattern source=store kind=binding target=store
+/// @resolution.name source=Store target=Store
+
+const chosen = store.pick<int32>(3);
+/// @type.symbol symbol=chosen source=chosen type=int32
+/// @resolution.pattern source=chosen kind=binding target=chosen
+/// @resolution.name source=store target=store
+/// @resolution.member source=store.pick receiver=Store type=<T>(this: Store, T) => T kind=symbol target_receiver=Store target=Store.pick
+/// @resolution.call source=store.pick<int32>(3) parameters=(int32) arguments=(provided(3) as int32) return=int32 kind=symbol target=Store.pick receiver=Store instance=Store.pick<int32>
+/// @resolution.place source=store placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=store root=store
+/// @generic.instantiation id=Store.pick<int32> template=Store.pick arguments=(int32)
+/// @generic.instance id=Store.pick<int32> template=Store.pick arguments=(int32)
 "#,
     );
 }

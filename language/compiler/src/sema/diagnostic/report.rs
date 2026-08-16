@@ -922,6 +922,25 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one instance method read as a value.
+    pub(in crate::sema) fn report_bound_method_extraction(
+        &mut self,
+        origin: Origin,
+        member: String,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::CannotExtractBoundMethod {
+            anchor,
+            module,
+            member,
+        };
+        let diagnostic = DiagnosticBuilder::new(error)
+            .help("wrap the read in a closure to make its receiver capture explicit");
+        self.report(module, diagnostic);
+
+        Ok(())
+    }
+
     /// Report one write through a readonly member.
     pub(in crate::sema) fn report_readonly_member(
         &mut self,
