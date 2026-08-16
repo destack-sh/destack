@@ -292,6 +292,35 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
+    /// Walk one module or global block member like a module root.
+    fn walk_block_member(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        match self.tree.get(expression) {
+            dir::Expression::Declaration(declaration) => {
+                let declaration = *declaration;
+                self.enter_node(expression)?;
+                let void = self.intern_type(dir::Type::Void)?;
+                self.commit_node_type(expression, void)?;
+
+                self.walk_declaration(declaration, &self.tree.get(declaration).clone())
+            }
+            dir::Expression::Let { .. } => {
+                self.enter_node(expression)?;
+
+                // drop the whole member on a static gate
+                if !self.decide_static_presence(expression.into_any())? {
+                    return Ok(());
+                }
+
+                self.walk_let_bindings(expression)
+            }
+            // every other member belongs to the checking pass
+            _ => Ok(()),
+        }
+    }
+
     /// Walk one declaration.
     pub(in crate::sema) fn walk_declaration(
         &mut self,
@@ -324,14 +353,14 @@ impl WalkState<'_, '_> {
         match declaration {
             // global { ... }
             dir::Declaration::Global(declaration) => {
-                for expression in &declaration.expressions {
-                    self.walk_expression(*expression, self.tree.get(*expression))?;
+                for expression in declaration.expressions.clone() {
+                    self.walk_block_member(expression)?;
                 }
             }
             // module { ... }
             dir::Declaration::Module(declaration) => {
-                for expression in &declaration.expressions {
-                    self.walk_expression(*expression, self.tree.get(*expression))?;
+                for expression in declaration.expressions.clone() {
+                    self.walk_block_member(expression)?;
                 }
             }
             // type X = T
