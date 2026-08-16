@@ -360,6 +360,17 @@ pub struct Instance {
     pub selection: Selection,
     /// One source node that closes this instance.
     pub source: GlobalNodeIdAny,
+    /// The source that introduced this instance.
+    pub origin: InstanceOrigin,
+}
+
+/// One source introducing a generic instance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum InstanceOrigin {
+    /// An instantiation a checked body performs, generating code.
+    Instantiation,
+    /// A type application a materialized type mentions, carrying rows.
+    Application,
 }
 
 /// One instantiation a checked body performs, open while it mentions parameters.

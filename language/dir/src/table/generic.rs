@@ -8,7 +8,7 @@ use destack_core::FxIndexMap as IndexMap;
 
 use crate::{
     Arena, Cardinality, GenericParameterBinding, GenericParameterKey, GenericTemplate,
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, Instantiation,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceOrigin, Instantiation,
     LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId, SegmentView,
     TypeFold, VarianceModifier,
 };
@@ -481,6 +481,16 @@ impl GenericSegment {
         self.instances.allocate(instance);
 
         instance_id
+    }
+
+    /// Set the source kind that introduced one instance.
+    pub fn set_instance_origin(&mut self, instance_id: LocalInstanceId, origin: InstanceOrigin) {
+        if self.contains_instance_id(instance_id) {
+            let instance = self
+                .instances
+                .get_mut(instance_id.0 - self.first_instance_id);
+            instance.origin = origin;
+        }
     }
 
     /// Get the number of instances in the segment.

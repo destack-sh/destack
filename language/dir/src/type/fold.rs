@@ -6,11 +6,11 @@ use destack_source::ModuleId;
 use crate::{
     Access, AutoInterface, BinaryOperator, CaptureMode, CastOrigin, EnumBackingType,
     EnumVariantValue, FunctionRole, FunctionSignature, GlobalGenericParameterId, GlobalNodeId,
-    GlobalNodeIdAny, GlobalScopeId, GlobalStaticId, GlobalSymbolId, GlobalTypeId, IntegerType,
-    LanguageItem, LocalCaptureFrameId, LocalGenericParameterId, LocalGenericTemplateId,
-    LocalNodeId, LocalScopeId, MemberKind, MemberOrigin, MemberRole, MemberSlot, MemberSpace,
-    MethodAbstraction, Node, PrimitiveType, RangeEnd, ScalarFamilySet, ScalarLiteral, Space,
-    StaticKey, UnaryOperator,
+    GlobalNodeIdAny, GlobalScopeId, GlobalStaticId, GlobalSymbolId, GlobalTypeId, InstanceOrigin,
+    IntegerType, LanguageItem, LocalCaptureFrameId, LocalGenericParameterId,
+    LocalGenericTemplateId, LocalNodeId, LocalScopeId, MemberKind, MemberOrigin, MemberRole,
+    MemberSlot, MemberSpace, MethodAbstraction, Node, PrimitiveType, RangeEnd, ScalarFamilySet,
+    ScalarLiteral, Space, StaticKey, UnaryOperator,
 };
 
 /// Rewrite every type id one checked value embeds.
@@ -155,6 +155,7 @@ type_fold_leaves!(
     GlobalScopeId,
     GlobalStaticId,
     GlobalSymbolId,
+    InstanceOrigin,
     LocalCaptureFrameId,
     LocalGenericParameterId,
     LocalGenericTemplateId,
