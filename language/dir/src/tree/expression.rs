@@ -798,6 +798,14 @@ impl Expression {
         }
     }
 
+    /// Return the label named by this control transfer.
+    pub fn transfer_label(&self) -> Option<StringId> {
+        match self {
+            Self::Break { label, .. } | Self::Continue { label } => *label,
+            _ => None,
+        }
+    }
+
     /// Return this expression's operator precedence.
     pub fn precedence(&self) -> OperatorPrecedence {
         match self {

@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_core::FxIndexSet;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, SegmentView, StringId};
+use crate::{AccessPath, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, SegmentView, StringId};
 
-/// One symbol's recorded uses inside a DIR module.
+/// One binding's recorded uses inside a DIR module.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct BindingUse(u8);
 
@@ -30,6 +30,16 @@ impl BindingUse {
     /// Return whether no use is recorded.
     pub fn is_empty(self) -> bool {
         self.0 == 0
+    }
+
+    /// Return these uses with the bits in `other` cleared.
+    pub fn without(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
+
+    /// Return whether the recorded use may mutate binding storage or its value.
+    pub fn may_mutate(self) -> bool {
+        self.contains(Self::WRITTEN) || self.contains(Self::MUTABLE)
     }
 }
 
@@ -89,12 +99,16 @@ impl<'a> FlowTable<'a> {
         FlowTable::from_view(self.segments.with_tail(tail))
     }
 
-    /// Iterate the recorded symbol uses by occurrence node.
-    pub fn occurrences(&self) -> impl Iterator<Item = BindingOccurrence> {
+    /// Iterate the recorded binding uses by occurrence node.
+    pub fn binding_occurrences(&self) -> impl Iterator<Item = BindingOccurrence> {
         let mut occurrences = BTreeMap::new();
 
         // merge the independent uses recorded across phases
-        for occurrence in self.segments.iter().flat_map(|segment| &segment.uses) {
+        for occurrence in self
+            .segments
+            .iter()
+            .flat_map(|segment| &segment.binding_occurrences)
+        {
             *occurrences
                 .entry((occurrence.node, occurrence.symbol))
                 .or_insert(BindingUse::default()) |= occurrence.uses;
@@ -103,6 +117,26 @@ impl<'a> FlowTable<'a> {
         occurrences
             .into_iter()
             .map(|((node, symbol), uses)| BindingOccurrence { node, symbol, uses })
+    }
+
+    /// Iterate the recorded stable access uses by occurrence node.
+    pub fn access_occurrences(&self) -> impl Iterator<Item = AccessOccurrence> {
+        let mut occurrences = FxIndexMap::default();
+
+        // merge the independent uses recorded across phases
+        for occurrence in self
+            .segments
+            .iter()
+            .flat_map(|segment| &segment.access_occurrences)
+        {
+            *occurrences
+                .entry((occurrence.node, occurrence.path.clone()))
+                .or_insert(BindingUse::default()) |= occurrence.uses;
+        }
+
+        occurrences
+            .into_iter()
+            .map(|((node, path), uses)| AccessOccurrence { node, path, uses })
     }
 
     /// Iterate the recorded taint domains by occurrence node.
@@ -127,11 +161,15 @@ impl<'a> FlowTable<'a> {
     }
 
     /// Iterate the recorded module symbol uses.
-    pub fn uses(&self) -> impl Iterator<Item = (LocalSymbolId, BindingUse)> {
+    pub fn binding_uses(&self) -> impl Iterator<Item = (LocalSymbolId, BindingUse)> {
         let mut recorded = BTreeMap::new();
 
         // merge occurrences by local symbol
-        for occurrence in self.segments.iter().flat_map(|segment| &segment.uses) {
+        for occurrence in self
+            .segments
+            .iter()
+            .flat_map(|segment| &segment.binding_occurrences)
+        {
             if occurrence.symbol.module_id == self.module_id {
                 *recorded
                     .entry(occurrence.symbol.local_id)
@@ -147,7 +185,11 @@ impl<'a> FlowTable<'a> {
         let mut recorded = BTreeMap::new();
 
         // merge occurrences by foreign symbol
-        for occurrence in self.segments.iter().flat_map(|segment| &segment.uses) {
+        for occurrence in self
+            .segments
+            .iter()
+            .flat_map(|segment| &segment.binding_occurrences)
+        {
             if occurrence.symbol.module_id != self.module_id {
                 *recorded
                     .entry(occurrence.symbol)
@@ -194,19 +236,32 @@ pub struct FlowSegment {
     unreachable: FxIndexSet<LocalNodeIdAny>,
     /// Nodes flow proves never return.
     diverging: FxIndexSet<LocalNodeIdAny>,
-    /// Proved symbol uses.
-    uses: FxIndexSet<BindingOccurrence>,
+    /// Proved binding uses.
+    binding_occurrences: FxIndexSet<BindingOccurrence>,
+    /// Proved stable access uses.
+    access_occurrences: FxIndexSet<AccessOccurrence>,
     /// Proved taint domains.
     taints: FxIndexSet<TaintOccurrence>,
 }
 
-/// One symbol use at its occurrence node.
+/// One binding use at its occurrence node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct BindingOccurrence {
     /// The occurrence node.
     pub node: LocalNodeIdAny,
     /// The used symbol.
     pub symbol: GlobalSymbolId,
+    /// The recorded uses.
+    pub uses: BindingUse,
+}
+
+/// One stable storage access at its occurrence node.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct AccessOccurrence {
+    /// The occurrence node.
+    pub node: LocalNodeIdAny,
+    /// The selected storage path.
+    pub path: AccessPath,
     /// The recorded uses.
     pub uses: BindingUse,
 }
@@ -224,7 +279,7 @@ pub struct TaintOccurrence {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FlowMark {
     /// The per-collection lengths at the mark.
-    lengths: [usize; 4],
+    lengths: [usize; 5],
 }
 
 impl FlowSegment {
@@ -234,7 +289,8 @@ impl FlowSegment {
             module_id,
             unreachable: FxIndexSet::default(),
             diverging: FxIndexSet::default(),
-            uses: FxIndexSet::default(),
+            binding_occurrences: FxIndexSet::default(),
+            access_occurrences: FxIndexSet::default(),
             taints: FxIndexSet::default(),
         }
     }
@@ -254,9 +310,21 @@ impl FlowSegment {
         self.diverging.insert(node);
     }
 
-    /// Record one proved symbol use.
-    pub fn record_use(&mut self, node: LocalNodeIdAny, symbol: GlobalSymbolId, uses: BindingUse) {
-        self.uses.insert(BindingOccurrence { node, symbol, uses });
+    /// Record one proved binding use.
+    pub fn record_binding_use(
+        &mut self,
+        node: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        uses: BindingUse,
+    ) {
+        self.binding_occurrences
+            .insert(BindingOccurrence { node, symbol, uses });
+    }
+
+    /// Record one proved stable access use.
+    pub fn record_access_use(&mut self, node: LocalNodeIdAny, path: AccessPath, uses: BindingUse) {
+        self.access_occurrences
+            .insert(AccessOccurrence { node, path, uses });
     }
 
     /// Record one proved taint domain.
@@ -270,7 +338,8 @@ impl FlowSegment {
             lengths: [
                 self.unreachable.len(),
                 self.diverging.len(),
-                self.uses.len(),
+                self.binding_occurrences.len(),
+                self.access_occurrences.len(),
                 self.taints.len(),
             ],
         }
@@ -278,10 +347,17 @@ impl FlowSegment {
 
     /// Truncate this segment to a previous rollback position.
     pub fn truncate_to(&mut self, mark: FlowMark) {
-        let [unreachable, diverging, uses, taints] = mark.lengths;
+        let [
+            unreachable,
+            diverging,
+            binding_occurrences,
+            access_occurrences,
+            taints,
+        ] = mark.lengths;
         self.unreachable.truncate(unreachable);
         self.diverging.truncate(diverging);
-        self.uses.truncate(uses);
+        self.binding_occurrences.truncate(binding_occurrences);
+        self.access_occurrences.truncate(access_occurrences);
         self.taints.truncate(taints);
     }
 }

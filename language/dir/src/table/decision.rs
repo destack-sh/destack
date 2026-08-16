@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, BindingUse, Call,
-    CallDecision, ConstructDecision, FunctionDecision, GlobalNodeIdAny, GlobalSymbolId,
-    GlobalTypeId, GuardDecision, MemberAccess, MemberDecision, OperationResolution,
+    CallDecision, ConstructDecision, Expression, FunctionDecision, GlobalNodeId, GlobalNodeIdAny,
+    GlobalSymbolId, GlobalTypeId, GuardDecision, MemberAccess, MemberDecision, OperationResolution,
     OperatorDecision, PatternDecision, PlaceResolution, ReceiverDecision, SegmentView,
     SubscriptDecision, SubscriptTarget, TreeDecision, TypeFold, WalkSelections,
 };
@@ -25,7 +25,7 @@ pub enum Decision {
     /// Resolved function value.
     Function(FunctionDecision),
     /// Resolved control transfer target.
-    Label(GlobalSymbolId),
+    Transfer(GlobalNodeId<Expression>),
     /// Resolved operator application.
     Operator(OperatorDecision),
     /// Resolved call.
@@ -88,7 +88,7 @@ impl Decision {
             // no binding use at this node
             Self::Receiver(_)
             | Self::Function(_)
-            | Self::Label(_)
+            | Self::Transfer(_)
             | Self::Operator(_)
             | Self::Call(_)
             | Self::Subscript(_)
@@ -176,21 +176,23 @@ impl<'a> DecisionTable<'a> {
             .find_map(|segment| segment.decision(node_id))
     }
 
-    /// Get the label target decided for a node.
-    pub fn label_decision(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
+    /// Get the control transfer target decided for a node.
+    pub fn transfer_decision(&self, node_id: GlobalNodeIdAny) -> Option<GlobalNodeId<Expression>> {
         match self.decision(node_id) {
-            Some(Decision::Label(target)) => Some(*target),
+            Some(Decision::Transfer(target)) => Some(*target),
             _ => None,
         }
     }
 
-    /// Iterate all label target decisions.
-    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalSymbolId)> + '_ {
+    /// Iterate all control transfer target decisions.
+    pub fn transfer_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalNodeId<Expression>)> + '_ {
         self.segments.iter().flat_map(|segment| {
             segment
                 .decision_entries()
                 .filter_map(|(node_id, decision)| match decision {
-                    Decision::Label(target) => Some((node_id, *target)),
+                    Decision::Transfer(target) => Some((node_id, *target)),
                     _ => None,
                 })
         })
