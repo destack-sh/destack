@@ -168,6 +168,13 @@ impl<'a> ModuleLowerer<'a> {
 
             return Ok(());
         }
+
+        // lifetime components never shape a specialization
+        if self.type_is_lifetime(ty)? {
+            0u8.hash(hasher);
+
+            return Ok(());
+        }
         visiting.push(ty);
 
         // hash the head and its non-type payload
@@ -196,6 +203,45 @@ impl<'a> ModuleLowerer<'a> {
         visiting.pop();
 
         Ok(())
+    }
+
+    /// Return whether one type denotes a lifetime.
+    fn type_is_lifetime(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        self.type_is_lifetime_guarded(ty, &mut Vec::new())
+    }
+
+    /// Judge one lifetime type with the visited unions tracked.
+    fn type_is_lifetime_guarded(
+        &self,
+        ty: dir::GlobalTypeId,
+        visiting: &mut Vec<dir::GlobalTypeId>,
+    ) -> CompilerResult<bool> {
+        Ok(match self.ty(ty)? {
+            dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)) => true,
+            dir::Type::Parameter(parameter) => {
+                let binding = self
+                    .state(parameter.module_id)?
+                    .generics
+                    .get_parameter(parameter.local_id);
+
+                binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+            }
+            dir::Type::Union(union) => {
+                if visiting.contains(&ty) {
+                    return Ok(false);
+                }
+                visiting.push(ty);
+                let elements = self.types(ty.module_id)?.type_ids(union.elements).to_vec();
+                for element in elements {
+                    if !self.type_is_lifetime_guarded(element, visiting)? {
+                        return Ok(false);
+                    }
+                }
+
+                !union.elements.is_empty()
+            }
+            _ => false,
+        })
     }
 
     /// Resolve one template type through its instance's materialized types.

@@ -133,7 +133,10 @@ impl TypeLowerer<'_, '_> {
         definition: &dir::TypeAliasDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
-        let value = definition.value;
+        // resolve the written value through the alias instance's materialized types
+        let value = self
+            .lowerer
+            .instance_type(self.instance, definition.value)?;
 
         // define declared object types in place at the alias identity
         if let dir::Type::Object(shape) = self.lowerer.ty(value)?
