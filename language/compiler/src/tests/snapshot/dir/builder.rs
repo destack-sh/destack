@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use destack_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirResolved,
+    DirMaterialized, DirResolved,
 };
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
@@ -333,6 +333,52 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.flow {
             self.add_table(checked.flows.as_ref());
+        }
+    }
+
+    /// Add selected rows for a materialized DIR artifact.
+    pub(crate) fn add_materialized(
+        &mut self,
+        selection: DirRows,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+        checked: &DirChecked,
+        materialized: &DirMaterialized,
+    ) {
+        self.summaries = selection.summaries;
+        self.type_nodes = selection.type_nodes;
+        self.type_references = selection.type_references;
+
+        // label rows through the whole stack, up to and including the materialized tail
+        if selection.uses_type_labels() {
+            self.generics = Some(materialized.generic_table(declared, elaborated, checked));
+            self.definitions = Some(materialized.definition_table(elaborated, checked));
+
+            let types = materialized.type_table(bound, expanded, declared, elaborated, checked);
+            let statics = checked.static_table(bound, expanded, declared, elaborated);
+            self.types = Some(types.clone());
+            self.statics = Some(statics.clone());
+            self.add_static_labels(&statics);
+            self.add_type_labels(&types);
+        }
+
+        // render the tail segments only, so the rows are what materialization added
+        if selection.types {
+            self.add_table(materialized.types.as_ref());
+        }
+
+        if selection.resolution {
+            self.names = Some(checked.resolution_table(declared, elaborated));
+        }
+
+        if selection.generics {
+            self.add_table(materialized.generics.as_ref());
+        }
+
+        if selection.definitions {
+            self.add_table(materialized.definitions.as_ref());
         }
     }
 
@@ -809,12 +855,12 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render one member candidate label.
     pub(crate) fn member_candidate_label(&self, candidate: &dir::MemberCandidate) -> String {
-        self.symbol_path_label(candidate.symbol)
+        self.symbol_path_label(candidate.selection.symbol)
     }
 
     /// Render one function target label.
     pub(crate) fn function_target_label(&self, function: &dir::FunctionTarget) -> String {
-        self.symbol_path_label(function.symbol)
+        self.symbol_path_label(function.selection.symbol)
     }
 
     /// Render one static term label.

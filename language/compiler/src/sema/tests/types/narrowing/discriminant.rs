@@ -110,7 +110,7 @@ function read<T>(state: State<T>): T {
     /// @type.node source=state type=State<T#4>
     /// @type.node source=state.kind type="pending" | "ready"
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.kind receiver=State<T#4> type="pending" | "ready" kind=projection target="discriminant(Pending<T#4> | Ready<T#4>, kind, cases=[Pending<T#4>: pending, Ready<T#4>: ready], \"pending\" | \"ready\")"
+    /// @resolution.member source=state.kind receiver=State<T#4> type="pending" | "ready" kind=projection target="discriminant(Pending<T#4> | Ready<T#4>, kind, cases=[Pending<T#4>: pending, Ready<T#4>: ready], \"pending\" | \"ready\")" adjustments=(newtype.payload(State, Pending<T#4> | Ready<T#4>))
     /// @resolution.operator source="state.kind === \"ready\"" type=boolean operator="===" kind=builtin operands=[state.kind as "pending" | "ready" families=(string), "ready" as "pending" | "ready" families=(string)]
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
@@ -216,7 +216,7 @@ function read<T>(state: State<T>): T {
     /// @type.node source=state type=state.State<T>
     /// @type.node source=state.kind type="pending" | "ready"
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.kind receiver=state.State<T> type="pending" | "ready" kind=projection target="discriminant(state.Pending<T> | state.Ready<T>, kind, cases=[state.Pending<T>: pending, state.Ready<T>: ready], \"pending\" | \"ready\")"
+    /// @resolution.member source=state.kind receiver=state.State<T> type="pending" | "ready" kind=projection target="discriminant(state.Pending<T> | state.Ready<T>, kind, cases=[state.Pending<T>: pending, state.Ready<T>: ready], \"pending\" | \"ready\")" adjustments=(newtype.payload(state.State, state.Pending<T> | state.Ready<T>))
     /// @resolution.operator source="state.kind === \"ready\"" type=boolean operator="===" kind=builtin operands=[state.kind as "pending" | "ready" families=(string), "ready" as "pending" | "ready" families=(string)]
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
@@ -1745,7 +1745,7 @@ function read(state: &readonly State): int32 {
     /// @type.node source=state type=&read.'a readonly State
     /// @type.node source=state.kind type=Readonly<"pending"> | Readonly<"ready">
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.kind receiver=&read.'a readonly State type=Readonly<"pending"> | Readonly<"ready"> kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], Readonly<\"pending\"> | Readonly<\"ready\">)"
+    /// @resolution.member source=state.kind receiver=&read.'a readonly State type=Readonly<"pending"> | Readonly<"ready"> kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], Readonly<\"pending\"> | Readonly<\"ready\">)" adjustments=(newtype.payload(State, &read.'a readonly Pending | Ready))
     /// @resolution.operator source="state.kind === \"ready\"" type=boolean operator="===" kind=builtin operands=[state.kind as Readonly<"pending"> | Readonly<"ready"> | "ready", "ready" as Readonly<"pending"> | Readonly<"ready"> | "ready"]
     /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=state root=read.state
@@ -2133,7 +2133,7 @@ function read(state: State): int32 {
     /// @type.node source=state type=State
     /// @type.node source=state.kind type="pending" | "ready"
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.kind receiver=State type="pending" | "ready" kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], \"pending\" | \"ready\")"
+    /// @resolution.member source=state.kind receiver=State type="pending" | "ready" kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], \"pending\" | \"ready\")" adjustments=(newtype.payload(State, Pending | Ready))
     /// @resolution.operator source="state.kind != \"ready\"" type=boolean operator="!=" kind=builtin operands=[state.kind as "pending" | "ready" families=(string), "ready" as "ready" families=(string)]
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
@@ -2266,7 +2266,7 @@ function read(state: State): int32 {
     /// @resolution.operator source="state[\"kind\"] === \"ready\"" type=boolean operator="===" kind=builtin operands=[state["kind"] as "pending" | "ready" families=(string), "ready" as "pending" | "ready" families=(string)]
     /// @resolution.place source="state[\"kind\"]" placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source="state[\"kind\"]" root=read.state keys=[kind]
-    /// @resolution.subscript source="state[\"kind\"]" type="pending" | "ready" kind=member target="receiver=State, target=discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], \"pending\" | \"ready\"), type=\"pending\" | \"ready\""
+    /// @resolution.subscript source="state[\"kind\"]" type="pending" | "ready" kind=member target="receiver=State, target=discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], \"pending\" | \"ready\") adjustments=(newtype.payload(State, Pending | Ready)), type=\"pending\" | \"ready\""
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
     /// @type.node source="\"kind\"" type="kind"

@@ -22,7 +22,7 @@ pub(super) struct GenericInstanceSnapshot {
 impl SnapshotTable for dir::GenericSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         // render generic templates with their parameter signatures,
-        // omitting parameterless hypothesis carriers
+        //  keeping only the ones that declare parameters
         for (_, template) in self.iter_templates() {
             if template.parameters.is_empty() {
                 continue;
@@ -67,6 +67,37 @@ impl SnapshotTable for dir::GenericSegment {
             builder.push(row);
         }
 
+        // render the instances this segment closed
+        for (_, instance) in self.iter_instances() {
+            let arguments = instance_arguments(instance);
+            let row = SnapshotRow::new(builder.anchor_node(instance.source), "instance", "closed")
+                .field("id", instance_label(builder, instance))
+                .field(
+                    "template",
+                    builder.symbol_path_label(instance.selection.symbol),
+                )
+                .verbatim_field(
+                    "arguments",
+                    builder.generic_instance_arguments_label(&arguments),
+                );
+
+            builder.push(row);
+        }
+
+        // render the types materialized under those instances
+        for (instance_id, source, resolved) in self.iter_instance_types() {
+            let instance = self.get_local_instance(instance_id).unwrap_or_else(|| {
+                panic!("generic snapshot is missing the instance {instance_id:?}")
+            });
+            let row = SnapshotRow::new(builder.anchor_node(instance.source), "instance", "type")
+                .field("instance", instance_label(builder, instance))
+                .type_field("source", builder.global_type_label(source))
+                .type_field("type", builder.global_type_label(resolved));
+
+            builder.push(row);
+        }
+
+        // summarize the segment, skipping segments that declare nothing
         let template_count = self.template_count();
         let parameter_count = self.parameter_count();
         if template_count == 0 && parameter_count == 0 {
@@ -78,6 +109,21 @@ impl SnapshotTable for dir::GenericSegment {
             .count_field("parameters", parameter_count);
         builder.push(row);
     }
+}
+
+/// Return one closed generic instance label.
+fn instance_label(builder: &DirSnapshotBuilder<'_>, instance: &dir::Instance) -> String {
+    builder.generic_instance_label(instance.selection.symbol, &instance_arguments(instance))
+}
+
+/// Return the selected argument types of one closed generic instance.
+fn instance_arguments(instance: &dir::Instance) -> Vec<dir::GlobalTypeId> {
+    instance
+        .selection
+        .arguments
+        .iter()
+        .map(|argument| argument.argument)
+        .collect()
 }
 
 /// Return one generic template parameter label.
@@ -267,7 +313,7 @@ impl DirSnapshotBuilder<'_> {
         };
 
         // collect the instance arguments and child type ids before recursing,
-        // since the recursion needs a mutable borrow of self
+        //  since the recursion needs a mutable borrow of self
         let instance = match ty {
             dir::Type::Application(instance) => {
                 let arguments: SmallVec<[dir::GlobalTypeId; 8]> =

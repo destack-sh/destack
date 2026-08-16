@@ -5,8 +5,8 @@ use std::{env, thread};
 
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, DirBound, DirChecked,
-    DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
-    EnvironmentBound, MirLowered, ModuleGraph, NullArtifactStore,
+    DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed,
+    DirResolved, EnvironmentBound, MirLowered, ModuleGraph, NullArtifactStore,
 };
 use destack_dir as dir;
 use destack_mir::{FormatOptions, Formatter};
@@ -237,6 +237,13 @@ impl TestSession {
         ArtifactKey::dir_checked(entry.module.id, entry.profile)
     }
 
+    /// Return the materialized DIR key for one module.
+    pub(crate) fn dir_materialized_key(&self, path: &str) -> ArtifactKey {
+        let entry = self.module_entry(path);
+
+        ArtifactKey::dir_materialized(entry.module.id, entry.profile)
+    }
+
     /// Return the lowered MIR key for one module on the native target.
     pub(crate) fn mir_lowered_key(&self, path: &str) -> ArtifactKey {
         let entry = self.module_entry(path);
@@ -374,6 +381,23 @@ impl TestSession {
     #[track_caller]
     pub(crate) fn assert_dir_checked(&self, path: &str, rows: DirRows, expected: &str) {
         self.assert_dir(path, rows, expected, Self::dir_checked_key, true);
+    }
+
+    /// Assert materialized DIR rows for one module.
+    #[track_caller]
+    pub(crate) fn assert_dir_materialized(&self, path: &str, rows: DirRows, expected: &str) {
+        let rows = rows.with_environment();
+        let entry = self.module_entry(path);
+        let dir = self.render_materialized_module_snapshot(entry, rows);
+
+        // require the artifact without diagnostics
+        assert_snapshot(
+            self.diagnostic_snapshot(self.dir_materialized_key(path)),
+            "",
+        );
+        self.print_trace_if_requested(path);
+
+        assert_snapshot(dir, expected);
     }
 
     /// Assert lowered MIR for one module.
@@ -1107,6 +1131,60 @@ impl TestSession {
         format!("=== annotated ===\n{annotated}\n\n=== checked ===\n{rows}")
     }
 
+    /// Render one materialized module snapshot.
+    fn render_materialized_module_snapshot(
+        &self,
+        entry: &TestModule,
+        selection: DirRows,
+    ) -> String {
+        let parsed = self.dir_parsed(entry);
+        let bound = self.dir_bound(entry);
+        let expanded = self.dir_expanded(entry);
+        let declared = self.dir_declared_module(entry.module.id, entry.profile);
+        let elaborated = self.dir_elaborated(entry);
+        let checked = self.dir_checked(entry);
+        let materialized = self.dir_materialized(entry);
+        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
+        let foreign_artifacts = self.foreign_artifacts_for(entry, true);
+        let foreign_bindings = foreign_artifacts
+            .iter()
+            .map(|(bound, expanded)| expanded.binding_table(bound))
+            .collect::<Vec<_>>();
+        let foreign_tables = if selection.uses_type_labels() {
+            self.foreign_checked_tables_for(entry)
+        } else {
+            Vec::new()
+        };
+        let mut builder = DirSnapshotBuilder::new(
+            &entry.source,
+            &parsed.tree,
+            self.repository.string_pool().as_ref(),
+        )
+        .with_bindings(&bindings)
+        .with_module_paths(&self.module_path_by_id)
+        .with_foreign_bindings(foreign_bindings)
+        .with_foreign_tables(foreign_tables);
+
+        // load resolved imports when semantic labels need import names
+        if selection.uses_type_labels() {
+            let resolved = self.dir_resolved(entry);
+            builder.add_global_names(&resolved.imports);
+            builder.add_language_items(&resolved.imports);
+        }
+
+        builder.add_materialized(
+            selection,
+            &bound,
+            &expanded,
+            &declared,
+            &elaborated,
+            &checked,
+            &materialized,
+        );
+
+        builder.render()
+    }
+
     /// Return the annotated source render for one checked module.
     fn annotated_snapshot(&self, path: &str, entry: &TestModule) -> String {
         let key = self.dir_checked_key(path);
@@ -1202,6 +1280,26 @@ impl TestSession {
         self.artifacts()
             .artifact::<DirChecked>(&version)
             .expect("test checked module should exist")
+    }
+
+    /// Return elaborated DIR for one module entry.
+    fn dir_elaborated(&self, entry: &TestModule) -> Arc<DirElaborated> {
+        let key = ArtifactKey::dir_elaborated(entry.module.id, entry.profile);
+        let version = self.require_artifact(key);
+
+        self.artifacts()
+            .artifact::<DirElaborated>(&version)
+            .expect("test elaborated artifact should exist")
+    }
+
+    /// Return materialized DIR for one module entry.
+    fn dir_materialized(&self, entry: &TestModule) -> Arc<DirMaterialized> {
+        let key = ArtifactKey::dir_materialized(entry.module.id, entry.profile);
+        let version = self.require_artifact(key);
+
+        self.artifacts()
+            .artifact::<DirMaterialized>(&version)
+            .expect("test materialized artifact should exist")
     }
 
     /// Return declared DIR for one module id.
@@ -1373,10 +1471,7 @@ impl TestSession {
         let (aggregate, merged) = &mut *aggregate;
 
         // merge each run trace once, then flush the running table
-        if merged
-            .as_ref()
-            .is_some_and(|last| Arc::ptr_eq(last, &trace))
-        {
+        if merged.as_ref().is_some_and(|last| Arc::ptr_eq(last, trace)) {
             return;
         }
         aggregate.merge(trace);

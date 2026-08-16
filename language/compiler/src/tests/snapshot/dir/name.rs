@@ -123,30 +123,88 @@ impl<'a> BindingSnapshotName<'a> {
             self.symbol_path_base(*symbol_id, &mut bases);
         }
 
-        let mut counts = BTreeMap::<String, usize>::new();
-        for path in bases.values() {
-            *counts.entry(path.clone()).or_insert(0) += 1;
-        }
-
-        let mut indexes = BTreeMap::<String, usize>::new();
-        let mut labels = BTreeMap::new();
-
-        // suffix duplicate paths in stable binding order
-        for symbol_id in symbol_ids {
-            let path = bases.get(&symbol_id).cloned().unwrap_or_else(|| {
+        // group symbols by path and record how deeply each one is owned
+        let mut depths = BTreeMap::<dir::LocalSymbolId, usize>::new();
+        let mut shared = BTreeMap::<String, Vec<dir::LocalSymbolId>>::new();
+        for symbol_id in &symbol_ids {
+            let path = bases.get(symbol_id).cloned().unwrap_or_else(|| {
                 panic!("dir snapshot missing symbol path base for {symbol_id:?}")
             });
-            let count = counts.get(&path).copied().unwrap_or(0);
-            if count == 1 {
-                labels.insert(symbol_id, path);
-            } else {
-                let index = indexes.entry(path.clone()).or_insert(0);
-                *index += 1;
-                labels.insert(symbol_id, format!("{path}#{index}"));
+            depths.insert(*symbol_id, self.owner_depth(*symbol_id));
+            shared.entry(path).or_default().push(*symbol_id);
+        }
+
+        let mut labels = BTreeMap::new();
+
+        // label each path group, suffixing the symbols one path cannot tell apart
+        for (path, group) in shared {
+            let outermost = self.outermost_symbol(&group, &depths);
+            let mut index = 0;
+
+            for symbol_id in group {
+                if Some(symbol_id) == outermost {
+                    labels.insert(symbol_id, path.clone());
+                } else {
+                    index += 1;
+                    labels.insert(symbol_id, format!("{path}#{index}"));
+                }
             }
         }
 
         labels
+    }
+
+    /// Return the one named symbol of a path group owned less deeply than every other.
+    fn outermost_symbol(
+        &self,
+        group: &[dir::LocalSymbolId],
+        depths: &BTreeMap<dir::LocalSymbolId, usize>,
+    ) -> Option<dir::LocalSymbolId> {
+        if group.len() == 1 {
+            return Some(group[0]);
+        }
+
+        // take the single shallowest symbol, when the shallowest depth is unique
+        let depth = |symbol_id: &dir::LocalSymbolId| {
+            depths
+                .get(symbol_id)
+                .copied()
+                .unwrap_or_else(|| panic!("dir snapshot missing owner depth for {symbol_id:?}"))
+        };
+        let shallowest = group.iter().map(depth).min()?;
+        let mut outermost = group
+            .iter()
+            .filter(|symbol_id| depth(symbol_id) == shallowest);
+        let first = *outermost.next()?;
+        if outermost.next().is_some() {
+            return None;
+        }
+
+        // anonymous symbols read as positions, so every one of them keeps an index
+        self.bindings
+            .get_symbol(first)
+            .name()
+            .is_some()
+            .then_some(first)
+    }
+
+    /// Return how many owners, named or anonymous, one symbol is declared under.
+    fn owner_depth(&self, symbol_id: dir::LocalSymbolId) -> usize {
+        let mut depth = 0;
+        let mut seen = vec![symbol_id];
+        let mut current = self.bindings.symbol_owner(symbol_id);
+
+        // climb every lexical owner, including the ones the path elides,
+        //  stopping at the module root, which owns itself
+        while let Some(owner) = current
+            && !seen.contains(&owner)
+        {
+            seen.push(owner);
+            depth += 1;
+            current = self.bindings.symbol_owner(owner);
+        }
+
+        depth
     }
 
     /// Return one duplicate-aware source name label.
