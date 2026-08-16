@@ -5347,7 +5347,7 @@ export function fromJsonUnionType(value: Json): UnionType {
 
 /** One selected enum variant type. */
 export type VariantType = {
-    /** The instantiated variant family. */
+    /** The instantiated enum. */
     readonly owner: GlobalTypeId;
     /** The selected variant declaration. */
     readonly variant: GlobalSymbolId;

@@ -3081,7 +3081,7 @@ export function fromJsonType(value: Json): Type {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
-/** A named type declaration in MIR text format. */
+/** A named MIR type declaration. */
 export type TypeDeclaration = {
     /** The declaration name. */
     readonly name: StringId;
@@ -3091,6 +3091,8 @@ export type TypeDeclaration = {
     readonly lifetimes: ReadonlyArray<LifetimeParameter>;
     /** The identified type. */
     readonly ty: LocalNodeId;
+    /** The directly inherited and implemented types. */
+    readonly heritage: TypeHeritage;
 };
 
 export const TypeDeclaration = {
@@ -3127,6 +3129,7 @@ export function encodeTypeDeclaration(writer: BinaryWriter, value: TypeDeclarati
         encodeLifetimeParameter(writer, item2);
     }
     encodeLocalNodeId(writer, value.ty);
+    encodeTypeHeritage(writer, value.heritage);
 }
 
 /** Decode one TypeDeclaration. */
@@ -3135,12 +3138,14 @@ export function decodeTypeDeclaration(reader: BinaryReader): TypeDeclaration {
     const arguments_ = (() => { const length1 = reader.readNumber(); const items1: Array<StaticId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeStaticId(reader)); } return items1; })();
     const lifetimes = (() => { const length2 = reader.readNumber(); const items2: Array<LifetimeParameter> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLifetimeParameter(reader)); } return items2; })();
     const ty = decodeLocalNodeId(reader);
+    const heritage = decodeTypeHeritage(reader);
 
     return {
         name,
         arguments: arguments_,
         lifetimes,
         ty,
+        heritage,
     };
 }
 
@@ -3151,6 +3156,7 @@ export function toJsonTypeDeclaration(value: TypeDeclaration): Json {
         arguments: value.arguments.map((item0) => toJsonStaticId(item0)),
         lifetimes: value.lifetimes.map((item0) => toJsonLifetimeParameter(item0)),
         ty: toJsonLocalNodeId(value.ty),
+        heritage: toJsonTypeHeritage(value.heritage),
     };
 }
 
@@ -3163,6 +3169,7 @@ export function fromJsonTypeDeclaration(value: Json): TypeDeclaration {
         arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonStaticId(item0)),
         lifetimes: jsonArray(jsonField(object, "lifetimes")).map((item0) => fromJsonLifetimeParameter(item0)),
         ty: fromJsonLocalNodeId(jsonField(object, "ty")),
+        heritage: fromJsonTypeHeritage(jsonField(object, "heritage")),
     };
 }
 
@@ -3209,6 +3216,77 @@ export function toJsonTypeFingerprint(value: TypeFingerprint): Json {
 /** Return one TypeFingerprint from one JSON value. */
 export function fromJsonTypeFingerprint(value: Json): TypeFingerprint {
     return jsonBigint(value);
+}
+
+/** Direct heritage for one nominal type. */
+export type TypeHeritage = {
+    /** Directly inherited types. */
+    readonly extends: ReadonlyArray<LocalNodeId>;
+    /** Directly implemented interfaces. */
+    readonly implements: ReadonlyArray<LocalNodeId>;
+};
+
+export const TypeHeritage = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TypeHeritage): void {
+        encodeTypeHeritage(writer, value);
+    },
+
+    /** Decode one TypeHeritage. */
+    decode(reader: BinaryReader): TypeHeritage {
+        return decodeTypeHeritage(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TypeHeritage): Json {
+        return toJsonTypeHeritage(value);
+    },
+
+    /** Return one TypeHeritage from one JSON value. */
+    fromJson(value: Json): TypeHeritage {
+        return fromJsonTypeHeritage(value);
+    },
+};
+
+/** Encode one TypeHeritage. */
+export function encodeTypeHeritage(writer: BinaryWriter, value: TypeHeritage): void {
+    writer.writeUnsigned(value.extends.length);
+    for (const item0 of value.extends) {
+        encodeLocalNodeId(writer, item0);
+    }
+    writer.writeUnsigned(value.implements.length);
+    for (const item1 of value.implements) {
+        encodeLocalNodeId(writer, item1);
+    }
+}
+
+/** Decode one TypeHeritage. */
+export function decodeTypeHeritage(reader: BinaryReader): TypeHeritage {
+    const extends_ = (() => { const length0 = reader.readNumber(); const items0: Array<LocalNodeId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeLocalNodeId(reader)); } return items0; })();
+    const implements_ = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
+
+    return {
+        extends: extends_,
+        implements: implements_,
+    };
+}
+
+/** Return one JSON value for one TypeHeritage. */
+export function toJsonTypeHeritage(value: TypeHeritage): Json {
+    return {
+        extends: value.extends.map((item0) => toJsonLocalNodeId(item0)),
+        implements: value.implements.map((item0) => toJsonLocalNodeId(item0)),
+    };
+}
+
+/** Return one TypeHeritage from one JSON value. */
+export function fromJsonTypeHeritage(value: Json): TypeHeritage {
+    const object = jsonObject(value);
+
+    return {
+        extends: jsonArray(jsonField(object, "extends")).map((item0) => fromJsonLocalNodeId(item0)),
+        implements: jsonArray(jsonField(object, "implements")).map((item0) => fromJsonLocalNodeId(item0)),
+    };
 }
 
 /** One sum case. */

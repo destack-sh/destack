@@ -68,7 +68,7 @@ export function fromJsonAtomicAccess(value: Json): AtomicAccess {
 }
 
 /** Read-modify-write operator for atomic memory operations. */
-export type AtomicRmwOperator = "exchange" | "add" | "sub" | "and" | "or" | "xor" | "min" | "max" | "umin" | "umax" | "fadd" | "fmin" | "fmax";
+export type AtomicRmwOperator = "exchange" | "add" | "subtract" | "and" | "or" | "xor" | "min" | "max";
 
 export const AtomicRmwOperator = {
     /** Encode this value. */
@@ -101,7 +101,7 @@ export function encodeAtomicRmwOperator(writer: BinaryWriter, value: AtomicRmwOp
         case "add":
             writer.writeUnsigned(1);
             return;
-        case "sub":
+        case "subtract":
             writer.writeUnsigned(2);
             return;
         case "and":
@@ -119,21 +119,6 @@ export function encodeAtomicRmwOperator(writer: BinaryWriter, value: AtomicRmwOp
         case "max":
             writer.writeUnsigned(7);
             return;
-        case "umin":
-            writer.writeUnsigned(8);
-            return;
-        case "umax":
-            writer.writeUnsigned(9);
-            return;
-        case "fadd":
-            writer.writeUnsigned(10);
-            return;
-        case "fmin":
-            writer.writeUnsigned(11);
-            return;
-        case "fmax":
-            writer.writeUnsigned(12);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -149,7 +134,7 @@ export function decodeAtomicRmwOperator(reader: BinaryReader): AtomicRmwOperator
         case 1:
             return "add";
         case 2:
-            return "sub";
+            return "subtract";
         case 3:
             return "and";
         case 4:
@@ -160,16 +145,6 @@ export function decodeAtomicRmwOperator(reader: BinaryReader): AtomicRmwOperator
             return "min";
         case 7:
             return "max";
-        case 8:
-            return "umin";
-        case 9:
-            return "umax";
-        case 10:
-            return "fadd";
-        case 11:
-            return "fmin";
-        case 12:
-            return "fmax";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -189,8 +164,8 @@ export function fromJsonAtomicRmwOperator(value: Json): AtomicRmwOperator {
             return "exchange";
         case "add":
             return "add";
-        case "sub":
-            return "sub";
+        case "subtract":
+            return "subtract";
         case "and":
             return "and";
         case "or":
@@ -201,16 +176,6 @@ export function fromJsonAtomicRmwOperator(value: Json): AtomicRmwOperator {
             return "min";
         case "max":
             return "max";
-        case "umin":
-            return "umin";
-        case "umax":
-            return "umax";
-        case "fadd":
-            return "fadd";
-        case "fmin":
-            return "fmin";
-        case "fmax":
-            return "fmax";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);

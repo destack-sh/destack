@@ -803,7 +803,7 @@ export function fromJsonMemberSpace(value: Json): MemberSpace {
 
 /** The exact input to member lookup. */
 export type MemberSubject = {
-    /** The non-nullish receiver type. */
+    /** The use-site receiver type before implicit projections. */
     readonly receiver: GlobalTypeId;
     /** The type searched by member lookup. */
     readonly target: GlobalTypeId;

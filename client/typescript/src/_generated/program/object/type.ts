@@ -2,16 +2,16 @@
 
 import { BinaryReader, BinaryWriter, Json, jsonField, jsonObject, jsonOptional } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
-import type { TypeLineage } from "../../mir/table/type.js";
 import type { LocalNodeId } from "../../mir/tree/node.js";
 import type { Symbol } from "../../mir/tree/symbol.js";
 import type { TypeFingerprint } from "../../mir/tree/type.js";
+import type { TypeHeritage } from "../../mir/tree/type.js";
 import * as mirTreeType from "../../mir/tree/type.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
-import { decodeTypeLineage, encodeTypeLineage, fromJsonTypeLineage, toJsonTypeLineage } from "../../mir/table/type.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "../../mir/tree/node.js";
 import { decodeSymbol, encodeSymbol, fromJsonSymbol, toJsonSymbol } from "../../mir/tree/symbol.js";
 import { decodeTypeFingerprint, encodeTypeFingerprint, fromJsonTypeFingerprint, toJsonTypeFingerprint } from "../../mir/tree/type.js";
+import { decodeTypeHeritage, encodeTypeHeritage, fromJsonTypeHeritage, toJsonTypeHeritage } from "../../mir/tree/type.js";
 
 /** One object-local type declaration. */
 export type Type = {
@@ -25,8 +25,8 @@ export type Type = {
     readonly symbol?: Symbol;
     /** The source-facing declaration name when present. */
     readonly name?: StringId;
-    /** The nominal lineage when present. */
-    readonly lineage?: TypeLineage;
+    /** The direct nominal heritage when present. */
+    readonly heritage?: TypeHeritage;
 };
 
 export const Type = {
@@ -62,8 +62,8 @@ export function encodeType(writer: BinaryWriter, value: Type): void {
     writer.writeOption(value.name, (value4) => {
         encodeStringId(writer, value4);
     });
-    writer.writeOption(value.lineage, (value5) => {
-        encodeTypeLineage(writer, value5);
+    writer.writeOption(value.heritage, (value5) => {
+        encodeTypeHeritage(writer, value5);
     });
 }
 
@@ -74,7 +74,7 @@ export function decodeType(reader: BinaryReader): Type {
     const definition = mirTreeType.decodeType(reader);
     const symbol_ = reader.readOption(() => decodeSymbol(reader));
     const name = reader.readOption(() => decodeStringId(reader));
-    const lineage = reader.readOption(() => decodeTypeLineage(reader));
+    const heritage = reader.readOption(() => decodeTypeHeritage(reader));
 
     return {
         id,
@@ -82,7 +82,7 @@ export function decodeType(reader: BinaryReader): Type {
         definition,
         ...(symbol_ === undefined ? {} : { symbol: symbol_ }),
         ...(name === undefined ? {} : { name }),
-        ...(lineage === undefined ? {} : { lineage }),
+        ...(heritage === undefined ? {} : { heritage }),
     };
 }
 
@@ -94,7 +94,7 @@ export function toJsonType(value: Type): Json {
         definition: mirTreeType.toJsonType(value.definition),
         ...(value.symbol === undefined ? {} : { symbol: toJsonSymbol(value.symbol) }),
         ...(value.name === undefined ? {} : { name: toJsonStringId(value.name) }),
-        ...(value.lineage === undefined ? {} : { lineage: toJsonTypeLineage(value.lineage) }),
+        ...(value.heritage === undefined ? {} : { heritage: toJsonTypeHeritage(value.heritage) }),
     };
 }
 
@@ -108,6 +108,6 @@ export function fromJsonType(value: Json): Type {
         definition: mirTreeType.fromJsonType(jsonField(object, "definition")),
         symbol: jsonOptional(object, "symbol", (value) => fromJsonSymbol(value)),
         name: jsonOptional(object, "name", (value) => fromJsonStringId(value)),
-        lineage: jsonOptional(object, "lineage", (value) => fromJsonTypeLineage(value)),
+        heritage: jsonOptional(object, "heritage", (value) => fromJsonTypeHeritage(value)),
     };
 }

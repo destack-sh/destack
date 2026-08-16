@@ -3,7 +3,7 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonString } from "../../../protocol/serde.js";
 
 /** Binary arithmetic/logic operator. */
-export type BinaryOperator = "add" | "subtract" | "multiply" | "signedDivide" | "unsignedDivide" | "signedRemainder" | "unsignedRemainder" | "floatAdd" | "floatSubtract" | "floatMultiply" | "floatDivide" | "and" | "or" | "xor" | "shiftLeft" | "arithmeticShiftRight" | "logicalShiftRight" | "equal" | "notEqual" | "signedLessThan" | "signedLessEqual" | "signedGreaterThan" | "signedGreaterEqual" | "unsignedLessThan" | "unsignedLessEqual" | "unsignedGreaterThan" | "unsignedGreaterEqual" | "floatEqual" | "floatNotEqual" | "floatLessThan" | "floatLessEqual" | "floatGreaterThan" | "floatGreaterEqual";
+export type BinaryOperator = "add" | "subtract" | "multiply" | "divide" | "remainder" | "and" | "or" | "xor" | "shiftLeft" | "shiftRight" | "unsignedShiftRight" | "equal" | "notEqual" | "lessThan" | "lessEqual" | "greaterThan" | "greaterEqual";
 
 export const BinaryOperator = {
     /** Encode this value. */
@@ -39,95 +39,47 @@ export function encodeBinaryOperator(writer: BinaryWriter, value: BinaryOperator
         case "multiply":
             writer.writeUnsigned(2);
             return;
-        case "signedDivide":
+        case "divide":
             writer.writeUnsigned(3);
             return;
-        case "unsignedDivide":
+        case "remainder":
             writer.writeUnsigned(4);
             return;
-        case "signedRemainder":
+        case "and":
             writer.writeUnsigned(5);
             return;
-        case "unsignedRemainder":
+        case "or":
             writer.writeUnsigned(6);
             return;
-        case "floatAdd":
+        case "xor":
             writer.writeUnsigned(7);
             return;
-        case "floatSubtract":
+        case "shiftLeft":
             writer.writeUnsigned(8);
             return;
-        case "floatMultiply":
+        case "shiftRight":
             writer.writeUnsigned(9);
             return;
-        case "floatDivide":
+        case "unsignedShiftRight":
             writer.writeUnsigned(10);
             return;
-        case "and":
+        case "equal":
             writer.writeUnsigned(11);
             return;
-        case "or":
+        case "notEqual":
             writer.writeUnsigned(12);
             return;
-        case "xor":
+        case "lessThan":
             writer.writeUnsigned(13);
             return;
-        case "shiftLeft":
+        case "lessEqual":
             writer.writeUnsigned(14);
             return;
-        case "arithmeticShiftRight":
+        case "greaterThan":
             writer.writeUnsigned(15);
             return;
-        case "logicalShiftRight":
+        case "greaterEqual":
             writer.writeUnsigned(16);
-            return;
-        case "equal":
-            writer.writeUnsigned(17);
-            return;
-        case "notEqual":
-            writer.writeUnsigned(18);
-            return;
-        case "signedLessThan":
-            writer.writeUnsigned(19);
-            return;
-        case "signedLessEqual":
-            writer.writeUnsigned(20);
-            return;
-        case "signedGreaterThan":
-            writer.writeUnsigned(21);
-            return;
-        case "signedGreaterEqual":
-            writer.writeUnsigned(22);
-            return;
-        case "unsignedLessThan":
-            writer.writeUnsigned(23);
-            return;
-        case "unsignedLessEqual":
-            writer.writeUnsigned(24);
-            return;
-        case "unsignedGreaterThan":
-            writer.writeUnsigned(25);
-            return;
-        case "unsignedGreaterEqual":
-            writer.writeUnsigned(26);
-            return;
-        case "floatEqual":
-            writer.writeUnsigned(27);
-            return;
-        case "floatNotEqual":
-            writer.writeUnsigned(28);
-            return;
-        case "floatLessThan":
-            writer.writeUnsigned(29);
-            return;
-        case "floatLessEqual":
-            writer.writeUnsigned(30);
-            return;
-        case "floatGreaterThan":
-            writer.writeUnsigned(31);
-            return;
-        case "floatGreaterEqual":
-            writer.writeUnsigned(32);
             return;
     }
 
@@ -146,65 +98,33 @@ export function decodeBinaryOperator(reader: BinaryReader): BinaryOperator {
         case 2:
             return "multiply";
         case 3:
-            return "signedDivide";
+            return "divide";
         case 4:
-            return "unsignedDivide";
+            return "remainder";
         case 5:
-            return "signedRemainder";
-        case 6:
-            return "unsignedRemainder";
-        case 7:
-            return "floatAdd";
-        case 8:
-            return "floatSubtract";
-        case 9:
-            return "floatMultiply";
-        case 10:
-            return "floatDivide";
-        case 11:
             return "and";
-        case 12:
+        case 6:
             return "or";
-        case 13:
+        case 7:
             return "xor";
-        case 14:
+        case 8:
             return "shiftLeft";
-        case 15:
-            return "arithmeticShiftRight";
-        case 16:
-            return "logicalShiftRight";
-        case 17:
+        case 9:
+            return "shiftRight";
+        case 10:
+            return "unsignedShiftRight";
+        case 11:
             return "equal";
-        case 18:
+        case 12:
             return "notEqual";
-        case 19:
-            return "signedLessThan";
-        case 20:
-            return "signedLessEqual";
-        case 21:
-            return "signedGreaterThan";
-        case 22:
-            return "signedGreaterEqual";
-        case 23:
-            return "unsignedLessThan";
-        case 24:
-            return "unsignedLessEqual";
-        case 25:
-            return "unsignedGreaterThan";
-        case 26:
-            return "unsignedGreaterEqual";
-        case 27:
-            return "floatEqual";
-        case 28:
-            return "floatNotEqual";
-        case 29:
-            return "floatLessThan";
-        case 30:
-            return "floatLessEqual";
-        case 31:
-            return "floatGreaterThan";
-        case 32:
-            return "floatGreaterEqual";
+        case 13:
+            return "lessThan";
+        case 14:
+            return "lessEqual";
+        case 15:
+            return "greaterThan";
+        case 16:
+            return "greaterEqual";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -226,22 +146,10 @@ export function fromJsonBinaryOperator(value: Json): BinaryOperator {
             return "subtract";
         case "multiply":
             return "multiply";
-        case "signedDivide":
-            return "signedDivide";
-        case "unsignedDivide":
-            return "unsignedDivide";
-        case "signedRemainder":
-            return "signedRemainder";
-        case "unsignedRemainder":
-            return "unsignedRemainder";
-        case "floatAdd":
-            return "floatAdd";
-        case "floatSubtract":
-            return "floatSubtract";
-        case "floatMultiply":
-            return "floatMultiply";
-        case "floatDivide":
-            return "floatDivide";
+        case "divide":
+            return "divide";
+        case "remainder":
+            return "remainder";
         case "and":
             return "and";
         case "or":
@@ -250,49 +158,29 @@ export function fromJsonBinaryOperator(value: Json): BinaryOperator {
             return "xor";
         case "shiftLeft":
             return "shiftLeft";
-        case "arithmeticShiftRight":
-            return "arithmeticShiftRight";
-        case "logicalShiftRight":
-            return "logicalShiftRight";
+        case "shiftRight":
+            return "shiftRight";
+        case "unsignedShiftRight":
+            return "unsignedShiftRight";
         case "equal":
             return "equal";
         case "notEqual":
             return "notEqual";
-        case "signedLessThan":
-            return "signedLessThan";
-        case "signedLessEqual":
-            return "signedLessEqual";
-        case "signedGreaterThan":
-            return "signedGreaterThan";
-        case "signedGreaterEqual":
-            return "signedGreaterEqual";
-        case "unsignedLessThan":
-            return "unsignedLessThan";
-        case "unsignedLessEqual":
-            return "unsignedLessEqual";
-        case "unsignedGreaterThan":
-            return "unsignedGreaterThan";
-        case "unsignedGreaterEqual":
-            return "unsignedGreaterEqual";
-        case "floatEqual":
-            return "floatEqual";
-        case "floatNotEqual":
-            return "floatNotEqual";
-        case "floatLessThan":
-            return "floatLessThan";
-        case "floatLessEqual":
-            return "floatLessEqual";
-        case "floatGreaterThan":
-            return "floatGreaterThan";
-        case "floatGreaterEqual":
-            return "floatGreaterEqual";
+        case "lessThan":
+            return "lessThan";
+        case "lessEqual":
+            return "lessEqual";
+        case "greaterThan":
+            return "greaterThan";
+        case "greaterEqual":
+            return "greaterEqual";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
 /** Unary operator. */
-export type UnaryOperator = "negate" | "floatNegate" | "not";
+export type UnaryOperator = "negate" | "not";
 
 export const UnaryOperator = {
     /** Encode this value. */
@@ -322,11 +210,8 @@ export function encodeUnaryOperator(writer: BinaryWriter, value: UnaryOperator):
         case "negate":
             writer.writeUnsigned(0);
             return;
-        case "floatNegate":
-            writer.writeUnsigned(1);
-            return;
         case "not":
-            writer.writeUnsigned(2);
+            writer.writeUnsigned(1);
             return;
     }
 
@@ -341,8 +226,6 @@ export function decodeUnaryOperator(reader: BinaryReader): UnaryOperator {
         case 0:
             return "negate";
         case 1:
-            return "floatNegate";
-        case 2:
             return "not";
     }
 
@@ -361,8 +244,6 @@ export function fromJsonUnaryOperator(value: Json): UnaryOperator {
     switch (variant) {
         case "negate":
             return "negate";
-        case "floatNegate":
-            return "floatNegate";
         case "not":
             return "not";
     }

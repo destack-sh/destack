@@ -6116,7 +6116,7 @@ export function fromJsonTreeTarget(value: Json): TreeTarget {
 
 /** One enum case selected during checking. */
 export type VariantCase = {
-    /** The selected variant family symbol. */
+    /** The selected enum symbol. */
     readonly owner: GlobalSymbolId;
     /** The source-level case key. */
     readonly key: StaticKey;

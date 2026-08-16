@@ -8,233 +8,75 @@ import { decodeAtomicAccess, encodeAtomicAccess, fromJsonAtomicAccess, toJsonAto
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "../tree/node.js";
 import { decodeValue, encodeValue, fromJsonValue, toJsonValue } from "../tree/value.js";
 
-/** Access mode for a bodyless call pointer argument. */
-export type ArgumentAccess = "none" | "read" | "write" | "readWrite";
+/** Table of explicit memory accesses. */
+export type AccessTable = {
+    /** Memory accesses keyed by instruction id. */
+    readonly accesses: ReadonlyMap<LocalNodeId, ReadonlyArray<MemoryAccess>>;
+};
 
-export const ArgumentAccess = {
+export const AccessTable = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ArgumentAccess): void {
-        encodeArgumentAccess(writer, value);
+    encode(writer: BinaryWriter, value: AccessTable): void {
+        encodeAccessTable(writer, value);
     },
 
-    /** Decode one ArgumentAccess. */
-    decode(reader: BinaryReader): ArgumentAccess {
-        return decodeArgumentAccess(reader);
+    /** Decode one AccessTable. */
+    decode(reader: BinaryReader): AccessTable {
+        return decodeAccessTable(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ArgumentAccess): Json {
-        return toJsonArgumentAccess(value);
+    toJson(value: AccessTable): Json {
+        return toJsonAccessTable(value);
     },
 
-    /** Return one ArgumentAccess from one JSON value. */
-    fromJson(value: Json): ArgumentAccess {
-        return fromJsonArgumentAccess(value);
-    },
-};
-
-/** Encode one ArgumentAccess. */
-export function encodeArgumentAccess(writer: BinaryWriter, value: ArgumentAccess): void {
-    switch (value) {
-        case "none":
-            writer.writeUnsigned(0);
-            return;
-        case "read":
-            writer.writeUnsigned(1);
-            return;
-        case "write":
-            writer.writeUnsigned(2);
-            return;
-        case "readWrite":
-            writer.writeUnsigned(3);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one ArgumentAccess. */
-export function decodeArgumentAccess(reader: BinaryReader): ArgumentAccess {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "none";
-        case 1:
-            return "read";
-        case 2:
-            return "write";
-        case 3:
-            return "readWrite";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one ArgumentAccess. */
-export function toJsonArgumentAccess(value: ArgumentAccess): Json {
-    return value;
-}
-
-/** Return one ArgumentAccess from one JSON value. */
-export function fromJsonArgumentAccess(value: Json): ArgumentAccess {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "none":
-            return "none";
-        case "read":
-            return "read";
-        case "write":
-            return "write";
-        case "readWrite":
-            return "readWrite";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Escape behavior for a bodyless call argument. */
-export type ArgumentEscape = "none" | "return" | "escape";
-
-export const ArgumentEscape = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: ArgumentEscape): void {
-        encodeArgumentEscape(writer, value);
-    },
-
-    /** Decode one ArgumentEscape. */
-    decode(reader: BinaryReader): ArgumentEscape {
-        return decodeArgumentEscape(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: ArgumentEscape): Json {
-        return toJsonArgumentEscape(value);
-    },
-
-    /** Return one ArgumentEscape from one JSON value. */
-    fromJson(value: Json): ArgumentEscape {
-        return fromJsonArgumentEscape(value);
+    /** Return one AccessTable from one JSON value. */
+    fromJson(value: Json): AccessTable {
+        return fromJsonAccessTable(value);
     },
 };
 
-/** Encode one ArgumentEscape. */
-export function encodeArgumentEscape(writer: BinaryWriter, value: ArgumentEscape): void {
-    switch (value) {
-        case "none":
-            writer.writeUnsigned(0);
-            return;
-        case "return":
-            writer.writeUnsigned(1);
-            return;
-        case "escape":
-            writer.writeUnsigned(2);
-            return;
+/** Encode one AccessTable. */
+export function encodeAccessTable(writer: BinaryWriter, value: AccessTable): void {
+    const entries0 = Array.from(value.accesses.entries()).map(([key0, item0]) => {
+        const keyBytes = nestedBytes((writer) => {
+            encodeLocalNodeId(writer, key0);
+        });
+        return { key0, item0, keyBytes };
+    });
+    entries0.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries0.length);
+    for (const entry0 of entries0) {
+        encodeLocalNodeId(writer, entry0.key0);
+        writer.writeUnsigned(entry0.item0.length);
+        for (const item1 of entry0.item0) {
+            encodeMemoryAccess(writer, item1);
+        }
     }
-
-    throw new SerdeError("unknown enum variant");
 }
 
-/** Decode one ArgumentEscape. */
-export function decodeArgumentEscape(reader: BinaryReader): ArgumentEscape {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "none";
-        case 1:
-            return "return";
-        case 2:
-            return "escape";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one ArgumentEscape. */
-export function toJsonArgumentEscape(value: ArgumentEscape): Json {
-    return value;
-}
-
-/** Return one ArgumentEscape from one JSON value. */
-export function fromJsonArgumentEscape(value: Json): ArgumentEscape {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "none":
-            return "none";
-        case "return":
-            return "return";
-        case "escape":
-            return "escape";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Summary behavior for one argument passed to a bodyless call. */
-export type CallArgumentEffect = {
-    /** Access mode for this argument. */
-    readonly access: ArgumentAccess;
-    /** Escape behavior for this argument. */
-    readonly escape: ArgumentEscape;
-};
-
-export const CallArgumentEffect = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CallArgumentEffect): void {
-        encodeCallArgumentEffect(writer, value);
-    },
-
-    /** Decode one CallArgumentEffect. */
-    decode(reader: BinaryReader): CallArgumentEffect {
-        return decodeCallArgumentEffect(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CallArgumentEffect): Json {
-        return toJsonCallArgumentEffect(value);
-    },
-
-    /** Return one CallArgumentEffect from one JSON value. */
-    fromJson(value: Json): CallArgumentEffect {
-        return fromJsonCallArgumentEffect(value);
-    },
-};
-
-/** Encode one CallArgumentEffect. */
-export function encodeCallArgumentEffect(writer: BinaryWriter, value: CallArgumentEffect): void {
-    encodeArgumentAccess(writer, value.access);
-    encodeArgumentEscape(writer, value.escape);
-}
-
-/** Decode one CallArgumentEffect. */
-export function decodeCallArgumentEffect(reader: BinaryReader): CallArgumentEffect {
-    const access = decodeArgumentAccess(reader);
-    const escape = decodeArgumentEscape(reader);
+/** Decode one AccessTable. */
+export function decodeAccessTable(reader: BinaryReader): AccessTable {
+    const accesses = (() => { const length0 = reader.readNumber(); const items0 = new Map<LocalNodeId, ReadonlyArray<MemoryAccess>>(); for (let index = 0; index < length0; index += 1) { items0.set(decodeLocalNodeId(reader), (() => { const length2 = reader.readNumber(); const items2: Array<MemoryAccess> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeMemoryAccess(reader)); } return items2; })()); } return items0; })();
 
     return {
-        access,
-        escape,
+        accesses,
     };
 }
 
-/** Return one JSON value for one CallArgumentEffect. */
-export function toJsonCallArgumentEffect(value: CallArgumentEffect): Json {
+/** Return one JSON value for one AccessTable. */
+export function toJsonAccessTable(value: AccessTable): Json {
     return {
-        access: toJsonArgumentAccess(value.access),
-        escape: toJsonArgumentEscape(value.escape),
+        accesses: Array.from(value.accesses.entries()).map(([key0, item0]) => [toJsonLocalNodeId(key0), item0.map((item1) => toJsonMemoryAccess(item1))] as const),
     };
 }
 
-/** Return one CallArgumentEffect from one JSON value. */
-export function fromJsonCallArgumentEffect(value: Json): CallArgumentEffect {
+/** Return one AccessTable from one JSON value. */
+export function fromJsonAccessTable(value: Json): AccessTable {
     const object = jsonObject(value);
 
     return {
-        access: fromJsonArgumentAccess(jsonField(object, "access")),
-        escape: fromJsonArgumentEscape(jsonField(object, "escape")),
+        accesses: new Map(jsonArray(jsonField(object, "accesses")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonLocalNodeId(key0), jsonArray(item0).map((item1) => fromJsonMemoryAccess(item1))] as const; })),
     };
 }
 
@@ -543,78 +385,6 @@ export function fromJsonMemoryOperation(value: Json): MemoryOperation {
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Table of explicit memory accesses. */
-export type MemoryTable = {
-    /** Memory accesses keyed by instruction id. */
-    readonly memoryAccessesByInstructionId: ReadonlyMap<LocalNodeId, ReadonlyArray<MemoryAccess>>;
-};
-
-export const MemoryTable = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: MemoryTable): void {
-        encodeMemoryTable(writer, value);
-    },
-
-    /** Decode one MemoryTable. */
-    decode(reader: BinaryReader): MemoryTable {
-        return decodeMemoryTable(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: MemoryTable): Json {
-        return toJsonMemoryTable(value);
-    },
-
-    /** Return one MemoryTable from one JSON value. */
-    fromJson(value: Json): MemoryTable {
-        return fromJsonMemoryTable(value);
-    },
-};
-
-/** Encode one MemoryTable. */
-export function encodeMemoryTable(writer: BinaryWriter, value: MemoryTable): void {
-    const entries0 = Array.from(value.memoryAccessesByInstructionId.entries()).map(([key0, item0]) => {
-        const keyBytes = nestedBytes((writer) => {
-            encodeLocalNodeId(writer, key0);
-        });
-        return { key0, item0, keyBytes };
-    });
-    entries0.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries0.length);
-    for (const entry0 of entries0) {
-        encodeLocalNodeId(writer, entry0.key0);
-        writer.writeUnsigned(entry0.item0.length);
-        for (const item1 of entry0.item0) {
-            encodeMemoryAccess(writer, item1);
-        }
-    }
-}
-
-/** Decode one MemoryTable. */
-export function decodeMemoryTable(reader: BinaryReader): MemoryTable {
-    const memoryAccessesByInstructionId = (() => { const length0 = reader.readNumber(); const items0 = new Map<LocalNodeId, ReadonlyArray<MemoryAccess>>(); for (let index = 0; index < length0; index += 1) { items0.set(decodeLocalNodeId(reader), (() => { const length2 = reader.readNumber(); const items2: Array<MemoryAccess> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeMemoryAccess(reader)); } return items2; })()); } return items0; })();
-
-    return {
-        memoryAccessesByInstructionId,
-    };
-}
-
-/** Return one JSON value for one MemoryTable. */
-export function toJsonMemoryTable(value: MemoryTable): Json {
-    return {
-        memoryAccessesByInstructionId: Array.from(value.memoryAccessesByInstructionId.entries()).map(([key0, item0]) => [toJsonLocalNodeId(key0), item0.map((item1) => toJsonMemoryAccess(item1))] as const),
-    };
-}
-
-/** Return one MemoryTable from one JSON value. */
-export function fromJsonMemoryTable(value: Json): MemoryTable {
-    const object = jsonObject(value);
-
-    return {
-        memoryAccessesByInstructionId: new Map(jsonArray(jsonField(object, "memoryAccessesByInstructionId")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonLocalNodeId(key0), jsonArray(item0).map((item1) => fromJsonMemoryAccess(item1))] as const; })),
-    };
 }
 
 /** Target of one memory access. */

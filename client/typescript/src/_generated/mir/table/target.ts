@@ -139,7 +139,7 @@ export function fromJsonPointerLayout(value: Json): PointerLayout {
     };
 }
 
-/** ABI layout facts for one target. */
+/** ABI layout for one target. */
 export type TargetLayout = {
     /** Target byte order. */
     readonly endian: Endian;

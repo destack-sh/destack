@@ -346,8 +346,8 @@ export function fromJsonFunctionBody(value: Json): FunctionBody {
 
 /** Function-local instruction location index. */
 export type InstructionIndex = {
-    /** Instruction locations keyed by instruction id. */
-    readonly locations: ReadonlyArray<InstructionLocation | undefined>;
+    /** Instruction locations sorted by instruction id. */
+    readonly locations: ReadonlyArray<readonly [LocalNodeId, InstructionLocation]>;
 };
 
 export const InstructionIndex = {
@@ -376,15 +376,14 @@ export const InstructionIndex = {
 export function encodeInstructionIndex(writer: BinaryWriter, value: InstructionIndex): void {
     writer.writeUnsigned(value.locations.length);
     for (const item0 of value.locations) {
-        writer.writeOption(item0, (value1) => {
-            encodeInstructionLocation(writer, value1);
-        });
+        encodeLocalNodeId(writer, item0[0]);
+        encodeInstructionLocation(writer, item0[1]);
     }
 }
 
 /** Decode one InstructionIndex. */
 export function decodeInstructionIndex(reader: BinaryReader): InstructionIndex {
-    const locations = (() => { const length0 = reader.readNumber(); const items0: Array<InstructionLocation | undefined> = []; for (let index = 0; index < length0; index += 1) { items0.push(reader.readOption(() => decodeInstructionLocation(reader))); } return items0; })();
+    const locations = (() => { const length0 = reader.readNumber(); const items0: Array<readonly [LocalNodeId, InstructionLocation]> = []; for (let index = 0; index < length0; index += 1) { items0.push([decodeLocalNodeId(reader), decodeInstructionLocation(reader)] as const); } return items0; })();
 
     return {
         locations,
@@ -394,7 +393,7 @@ export function decodeInstructionIndex(reader: BinaryReader): InstructionIndex {
 /** Return one JSON value for one InstructionIndex. */
 export function toJsonInstructionIndex(value: InstructionIndex): Json {
     return {
-        locations: value.locations.map((item0) => item0 === undefined ? null : toJsonInstructionLocation(item0)),
+        locations: value.locations.map((item0) => [toJsonLocalNodeId(item0[0]), toJsonInstructionLocation(item0[1])]),
     };
 }
 
@@ -403,7 +402,7 @@ export function fromJsonInstructionIndex(value: Json): InstructionIndex {
     const object = jsonObject(value);
 
     return {
-        locations: jsonArray(jsonField(object, "locations")).map((item0) => item0 === null ? undefined : fromJsonInstructionLocation(item0)),
+        locations: jsonArray(jsonField(object, "locations")).map((item0) => (() => { const items = jsonArray(item0); if (items.length !== 2) { throw new SerdeError(`expected JSON tuple length 2: ${items.length}`); } return [fromJsonLocalNodeId(items[0]), fromJsonInstructionLocation(items[1])] as const; })()),
     };
 }
 

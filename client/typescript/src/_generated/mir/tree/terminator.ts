@@ -620,7 +620,7 @@ export function fromJsonSwitchCaseSlice(value: Json): SwitchCaseSlice {
 
 /** Block terminator node. */
 export type Terminator =
-    /** Recovered invalid terminator syntax. */
+    /** Recovered invalid terminator. */
     | {
           readonly kind: "error";
       }
@@ -759,7 +759,7 @@ export type Terminator =
 ;
 
 export const Terminator = {
-    /** Recovered invalid terminator syntax. */
+    /** Recovered invalid terminator. */
     error(): Terminator {
         return { kind: "error" };
     },
