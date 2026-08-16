@@ -240,6 +240,24 @@ impl BodyState<'_, '_> {
             return self.constrain_type(origin, cause, relation, source_chain.base(), target);
         }
 
+        // expectation sites read directly owned Copy payloads out of borrows
+        let source_borrowed = source_chain
+            .ownership_form()
+            .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)));
+        let target_borrowed = target_chain
+            .ownership_form()
+            .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)));
+        if source_borrowed && !target_borrowed {
+            let payload = source_chain.base();
+            if !self.type_is_aliased(origin, payload)?
+                && self
+                    .satisfies_auto_interface(origin, payload, dir::AutoInterface::Copy)?
+                    .holds()
+            {
+                return self.constrain_type(origin, cause, relation, payload, target);
+            }
+        }
+
         // consuming positions transfer owned values into managed storage
         let is_owned = source_chain
             .ownership_form()

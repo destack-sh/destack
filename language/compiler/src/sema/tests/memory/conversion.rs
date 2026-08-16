@@ -1843,8 +1843,8 @@ struct Point {
 
 let point: ^Point = ^Point { x: 1 };
 let borrow: &'static ^Point = &point;
-let copied: Point = borrow;
-let owned: ^Point = borrow;
+let copied: Point = borrow as Point;
+let owned: ^Point = borrow as Point;
 
 === dir ===
 struct Point {
@@ -1883,6 +1883,7 @@ let copied: Point = borrow;
 /// @resolution.name source=borrow target=borrow
 /// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=borrow root=borrow
+/// @coercion.node source=borrow from=&'static Owned<Point> adjustments=[{ kind: read, target: Point }] origin=implicit
 
 let owned: ^Point = borrow;
 /// @type.symbol symbol=owned source=owned type=Owned<Point>
@@ -1892,14 +1893,10 @@ let owned: ^Point = borrow;
 /// @resolution.name source=borrow target=borrow
 /// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=borrow root=borrow
+/// @coercion.node source=borrow from=&'static Owned<Point> adjustments=[{ kind: read, target: Point }] origin=implicit
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&'static ^Point' is not assignable to type 'Point'"
-/// @diagnostic.label line=8 column=21 span="borrow" line_source="let copied: Point = borrow;"
-/// @diagnostic.related line=8 column=13 span="Point" line_source="let copied: Point = borrow;" message="expected due to this annotation"
-/// @diagnostic.error id=not-assignable message="type '&'static ^Point' is not assignable to type '^Point'"
-/// @diagnostic.label line=9 column=21 span="borrow" line_source="let owned: ^Point = borrow;"
-/// @diagnostic.related line=9 column=12 span="^" line_source="let owned: ^Point = borrow;" message="expected due to this annotation"
+
 "#,
     );
 }
@@ -2116,6 +2113,202 @@ duplicate(session);
 /// @diagnostic.error id=constraint-not-satisfied message="type '^Session' does not satisfy 'Copy'"
 /// @diagnostic.label line=10 column=1 span="duplicate(session)" line_source="duplicate(session);"
 /// @diagnostic.related line=6 column=28 span="T" line_source="declare function duplicate<T: Copy>(value: T): ^T;" message="required by this bound on 'T'"
+"#,
+    );
+}
+
+#[test]
+fn test_read_borrowed_copy_element_in_filter_predicate() {
+    let session = TestSession::single(
+        r#"
+declare const values: (int32 | undefined)[];
+const mapped = values.map((value) => value);
+const filtered = mapped.filter((value) => value != undefined);
+
+filtered;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const values: (int32 | undefined)[];
+const mapped: ^Array<int32 | undefined> = values.map<int32 | undefined, int32 | undefined>(
+    (value: int32 | undefined): int32 | undefined => value,
+);
+const filtered: ^Array<int32 | undefined> = mapped.filter<int32 | undefined>(
+    (value: &'a readonly (int32 | undefined)): boolean => (value as int32 | undefined) != undefined,
+);
+
+filtered;
+
+=== dir ===
+declare const values: (int32 | undefined)[];
+/// @type.symbol symbol=values source=values type=Array<int32 | undefined>
+/// @resolution.pattern source=values kind=binding target=values
+
+const mapped = values.map((value) => value);
+/// @type.symbol symbol=mapped source=mapped type=Owned<Array<int32 | undefined>>
+/// @resolution.pattern source=mapped kind=binding target=mapped
+/// @resolution.name source=values target=values
+/// @resolution.member source=values.map receiver=Array<int32 | undefined> type=<collections.array.map.U#2>(this: Array<int32 | undefined>, Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=symbol target_receiver=Array<int32 | undefined> target=collections.array.map#2
+/// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.map#2 receiver=Array<int32 | undefined> instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
+/// @generic.instantiation id="collections.array.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined)
+/// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
+/// @type.symbol symbol=symbol2.value source=value type=int32 | undefined
+/// @resolution.name source=value target=symbol2.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol2.value
+
+const filtered = mapped.filter((value) => value != undefined);
+/// @type.symbol symbol=filtered source=filtered type=Owned<Array<int32 | undefined>>
+/// @resolution.pattern source=filtered kind=binding target=filtered
+/// @resolution.name source=mapped target=mapped
+/// @resolution.member source=mapped.filter receiver=Owned<Array<int32 | undefined>> type=(this: Owned<Array<int32 | undefined>>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>> & (this: Owned<Array<int32 | undefined>>, Function<(int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
+/// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32 | undefined>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @resolution.place source=mapped placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=mapped root=mapped
+/// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
+/// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
+/// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
+/// @type.symbol symbol=symbol5 source="(value) => value != undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>
+/// @type.symbol symbol=symbol5.value source=value type=&type_expression.'a readonly int32 | undefined
+/// @resolution.name source=value target=symbol5.value
+/// @resolution.operator source="value != undefined" type=boolean operator="!=" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as undefined families=(undefined)]
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol5.value
+
+filtered;
+/// @resolution.name source=filtered target=filtered
+/// @resolution.place source=filtered placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=filtered root=filtered
+"#,
+        r#"
+
+"#,
+    );
+}
+
+#[test]
+fn test_read_borrowed_copy_value_at_argument() {
+    let session = TestSession::single(
+        r#"
+declare function consume(value: int32): void;
+
+declare const shared: &'static int32;
+declare const exclusive: &'static exclusive int32;
+
+consume(shared);
+consume(exclusive);
+
+const kept = shared;
+kept;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+declare function consume(value: int32): void;
+
+declare const shared: &'static int32;
+declare const exclusive: &'static exclusive int32;
+
+consume(shared as int32);
+consume(exclusive as int32);
+
+const kept: &'static int32 = shared;
+kept;
+
+=== dir ===
+declare function consume(value: int32): void;
+/// @type.symbol symbol=consume source="declare function consume(value: int32): void" type=(int32) => void
+/// @type.symbol symbol=consume.value source="value: int32" type=int32
+
+declare const shared: &'static int32;
+/// @type.symbol symbol=shared source=shared type=&'static int32
+/// @resolution.pattern source=shared kind=binding target=shared
+
+declare const exclusive: &'static exclusive int32;
+/// @type.symbol symbol=exclusive source=exclusive type=&'static exclusive int32
+/// @resolution.pattern source=exclusive kind=binding target=exclusive
+
+consume(shared);
+/// @resolution.name source=consume target=consume
+/// @resolution.call source=consume(shared) parameters=(int32) arguments=(provided(shared) as int32) return=void kind=symbol target=consume
+/// @resolution.name source=shared target=shared
+/// @resolution.place source=shared placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=shared root=shared
+/// @coercion.node source=shared from=&'static int32 adjustments=[{ kind: read, target: int32 }] origin=implicit
+
+consume(exclusive);
+/// @resolution.name source=consume target=consume
+/// @resolution.call source=consume(exclusive) parameters=(int32) arguments=(provided(exclusive) as int32) return=void kind=symbol target=consume
+/// @resolution.name source=exclusive target=exclusive
+/// @resolution.place source=exclusive placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=exclusive root=exclusive
+/// @coercion.node source=exclusive from=&'static exclusive int32 adjustments=[{ kind: read, target: int32 }] origin=implicit
+
+const kept = shared;
+/// @type.symbol symbol=kept source=kept type=&'static int32
+/// @resolution.pattern source=kept kind=binding target=kept
+/// @resolution.name source=shared target=shared
+/// @resolution.access source=shared root=shared
+
+kept;
+/// @resolution.name source=kept target=kept
+/// @resolution.place source=kept placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=kept root=kept
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_keep_readonly_view_on_borrowed_managed_handle() {
+    let session = TestSession::single(
+        r#"
+declare const borrow: &'static readonly Array<int32>;
+
+const handle: Array<int32> = borrow;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+declare const borrow: &'static readonly Array<int32>;
+
+const handle: int32[] = borrow;
+
+=== dir ===
+declare const borrow: &'static readonly Array<int32>;
+/// @type.symbol symbol=borrow source=borrow type=&'static readonly Array<int32>
+/// @resolution.pattern source=borrow kind=binding target=borrow
+/// @resolution.name source=Array target=collections.array.Array
+
+const handle: Array<int32> = borrow;
+/// @type.symbol symbol=handle source=handle type=Array<int32>
+/// @resolution.pattern source=handle kind=binding target=handle
+/// @resolution.name source=Array target=collections.array.Array
+/// @resolution.name source=borrow target=borrow
+/// @resolution.place source=borrow placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=borrow root=borrow
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '&'static readonly Array<int32>' is not assignable to type 'Array<int32>'"
+/// @diagnostic.label line=4 column=30 span="borrow" line_source="const handle: Array<int32> = borrow;"
+/// @diagnostic.related line=4 column=15 span="Array" line_source="const handle: Array<int32> = borrow;" message="expected due to this annotation"
 "#,
     );
 }
