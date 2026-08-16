@@ -10,12 +10,8 @@ use crate::{CompilerError, CompilerResult, LowerError};
 /// Everything reachable from the bodies that lowering must declare.
 #[derive(Default)]
 pub(in crate::lower) struct Reachable {
-    /// Generic instantiations to declare, with their collecting substitution, in reference order.
-    pub(in crate::lower) instances: Vec<(
-        dir::GlobalSymbolId,
-        Vec<dir::GenericArgumentBinding>,
-        TypeSubstitution,
-    )>,
+    /// Generic instances to declare, in reference order.
+    pub(in crate::lower) instances: Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
     /// Foreign callables to declare as imports.
     pub(in crate::lower) imports: FxIndexSet<dir::GlobalSymbolId>,
     /// Sealed bindings to declare as dotted host externs.
@@ -131,37 +127,33 @@ impl ModuleLowerer<'_> {
                 }
             }
 
-            // declare constructor instances and import foreign declared constructors
+            // import plain foreign declared constructors; generic ones declare from instance rows
             if let Some(resolution) = state.decisions.construct_decision(node)
-                && let dir::ConstructTarget::Class(candidate) = &resolution.target
-                && let dir::ClassConstructor::Declared { symbol } = &candidate.constructor
+                && let dir::ConstructTarget::Class {
+                    selection,
+                    constructor,
+                } = &resolution.target
+                && let dir::ClassConstructor::Declared { symbol } = constructor
+                && selection.arguments.is_empty()
+                && symbol.module_id != self.module
             {
-                // instantiate generic-owner constructors at their class arguments
-                if !candidate.generic_arguments.is_empty() {
-                    let bindings =
-                        self.instance_bindings(&candidate.generic_arguments, substitution)?;
-                    self.push_instance(*symbol, bindings, substitution, reachable)?;
-                }
-                // import plain foreign constructors directly
-                else if symbol.module_id != self.module {
-                    reachable.imports.insert(*symbol);
-                }
+                reachable.imports.insert(*symbol);
             }
 
             // collect the calls selected inside a tree resolution
             if let Some(resolution) = state.decisions.tree_decision(node) {
                 match &resolution.target {
                     dir::TreeTarget::Element { call, .. } | dir::TreeTarget::Fragment { call } => {
-                        self.collect_call_decision(call, substitution, reachable)?;
+                        self.collect_call_decision(call, reachable)?;
                     }
                     dir::TreeTarget::Component { invocation, .. } => match invocation {
                         dir::TreeInvocation::Call(call) => {
-                            self.collect_call_decision(call, substitution, reachable)?;
+                            self.collect_call_decision(call, reachable)?;
                         }
                         dir::TreeInvocation::Construct(construct) => {
-                            if let dir::ConstructTarget::Class(candidate) = &construct.target
-                                && let dir::ClassConstructor::Declared { symbol } =
-                                    &candidate.constructor
+                            if let dir::ConstructTarget::Class { constructor, .. } =
+                                &construct.target
+                                && let dir::ClassConstructor::Declared { symbol } = constructor
                                 && symbol.module_id != self.module
                             {
                                 reachable.imports.insert(*symbol);
@@ -178,35 +170,40 @@ impl ModuleLowerer<'_> {
             }
 
             // collect instances behind value-position callable references
-            match self.collect_function_reference(module, node, substitution, reachable) {
+            match self.collect_function_reference(module, node, reachable) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(_)) => {}
                 Err(error) => return Err(error),
             }
 
-            // collect the accessor and protocol calls selected behind places
+            // collect the accessor calls selected behind member reads
             if let Some(resolution) = state.decisions.member_decision(node) {
-                self.collect_member_decision(resolution, substitution, reachable)?;
+                self.collect_member_decision(resolution, reachable)?;
             }
+
+            // collect the protocol calls selected behind subscript reads
             if let Some(resolution) = state.decisions.subscript_decision(node) {
-                self.collect_subscript_decision(resolution, substitution, reachable)?;
+                self.collect_subscript_decision(resolution, reachable)?;
             }
+
+            // collect the same calls behind each assignment's read and write places
             if let Some(resolution) = state.decisions.assignment_decision(node) {
                 match &resolution.read {
                     Some(dir::ReadResolution::Member(member)) => {
-                        self.collect_member_decision(member, substitution, reachable)?;
+                        self.collect_member_decision(member, reachable)?;
                     }
                     Some(dir::ReadResolution::Subscript(subscript)) => {
-                        self.collect_subscript_decision(subscript, substitution, reachable)?;
+                        self.collect_subscript_decision(subscript, reachable)?;
                     }
                     _ => {}
                 }
+
                 match &resolution.write {
                     dir::WriteResolution::Member(member) => {
-                        self.collect_member_decision(member, substitution, reachable)?;
+                        self.collect_member_decision(member, reachable)?;
                     }
                     dir::WriteResolution::Subscript(subscript) => {
-                        self.collect_subscript_decision(subscript, substitution, reachable)?;
+                        self.collect_subscript_decision(subscript, reachable)?;
                     }
                     _ => {}
                 }
@@ -216,7 +213,7 @@ impl ModuleLowerer<'_> {
             let Some(resolution) = state.decisions.call_decision(node) else {
                 continue;
             };
-            self.collect_call_decision(resolution, substitution, reachable)?;
+            self.collect_call_decision(resolution, reachable)?;
         }
 
         Ok(())
@@ -226,16 +223,13 @@ impl ModuleLowerer<'_> {
     fn collect_member_decision(
         &self,
         resolution: &dir::MemberDecision,
-        substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         match resolution {
-            dir::OperationResolution::One(access) => {
-                self.collect_member_access(access, substitution, reachable)
-            }
+            dir::OperationResolution::One(access) => self.collect_member_access(access, reachable),
             dir::OperationResolution::Union { arms, .. } => {
                 for access in arms {
-                    self.collect_member_access(access, substitution, reachable)?;
+                    self.collect_member_access(access, reachable)?;
                 }
 
                 Ok(())
@@ -247,11 +241,10 @@ impl ModuleLowerer<'_> {
     fn collect_member_access(
         &self,
         access: &dir::MemberAccess,
-        substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         if let dir::MemberTarget::Call(call) = &access.target {
-            self.collect_call(call, substitution, reachable)?;
+            self.collect_call(call, reachable)?;
         }
 
         Ok(())
@@ -261,7 +254,6 @@ impl ModuleLowerer<'_> {
     fn collect_subscript_decision(
         &self,
         resolution: &dir::SubscriptDecision,
-        substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         // flatten singular and union selections into one arm list
@@ -274,15 +266,15 @@ impl ModuleLowerer<'_> {
         for subscript in arms {
             match &subscript.target {
                 dir::SubscriptTarget::Member(access) => {
-                    self.collect_member_access(access, substitution, reachable)?;
+                    self.collect_member_access(access, reachable)?;
                 }
                 dir::SubscriptTarget::Call(call) => {
-                    self.collect_call(call, substitution, reachable)?;
+                    self.collect_call(call, reachable)?;
                 }
                 dir::SubscriptTarget::Index(read) => {
-                    self.collect_call(&read.call, substitution, reachable)?;
+                    self.collect_call(&read.call, reachable)?;
                     if let dir::DereferenceTarget::Call(call) = &read.dereference.target {
-                        self.collect_call(call, substitution, reachable)?;
+                        self.collect_call(call, reachable)?;
                     }
                 }
             }
@@ -296,7 +288,6 @@ impl ModuleLowerer<'_> {
         &self,
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
-        substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         // resolve the referenced symbol and require a callable declaration
@@ -317,7 +308,7 @@ impl ModuleLowerer<'_> {
             return Ok(());
         }
 
-        // value bindings call through their bound values, never as declarations
+        // value bindings call through their bound values
         let kind = self
             .state(symbol.module_id)?
             .bindings
@@ -326,6 +317,8 @@ impl ModuleLowerer<'_> {
         if kind.is_binding() {
             return Ok(());
         }
+
+        // require a declared callable type behind the reference
         let Some(ty) = self.types(symbol.module_id)?.get_symbol_type_id(symbol) else {
             return Ok(());
         };
@@ -349,24 +342,19 @@ impl ModuleLowerer<'_> {
             None => {}
         }
 
-        // select the instance the recorded instantiation binds
-        if let Some(instantiation) = state.decisions.instantiation_decision(node) {
-            let bindings =
-                self.instance_bindings(&instantiation.generic_arguments, substitution)?;
-            if !bindings.is_empty() {
-                return self.push_instance(symbol, bindings, substitution, reachable);
-            }
+        // instantiated references declare from instance rows
+        if state.decisions.instantiation_decision(node).is_some() {
+            return Ok(());
         }
 
-        // select the instance the reference's instantiating conversion binds
-        if let Some(coercion) = state.coercions.coercion(node) {
-            for adjustment in &coercion.adjustments {
-                if let dir::CoercionAdjustment::Instantiate { arguments, .. } = adjustment {
-                    let bindings = self.instance_bindings(arguments, substitution)?;
-
-                    return self.push_instance(symbol, bindings, substitution, reachable);
-                }
-            }
+        // so do the references an instantiating conversion closes
+        if let Some(coercion) = state.coercions.coercion(node)
+            && coercion
+                .adjustments
+                .iter()
+                .any(|adjustment| matches!(adjustment, dir::CoercionAdjustment::Instantiate { .. }))
+        {
+            return Ok(());
         }
 
         // leave unconverted generic references to their call resolutions
@@ -407,48 +395,6 @@ impl ModuleLowerer<'_> {
         }
 
         Ok(parameters)
-    }
-
-    /// Queue one concrete instance for declaration.
-    fn push_instance(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        bindings: Vec<dir::GenericArgumentBinding>,
-        substitution: &TypeSubstitution,
-        reachable: &mut Reachable,
-    ) -> CompilerResult<()> {
-        // require every generic argument to close under the collecting substitution
-        for binding in &bindings {
-            let mut queue = vec![binding.argument];
-            let mut visited = FxIndexSet::default();
-            while let Some(id) = queue.pop() {
-                if !visited.insert(id) {
-                    continue;
-                }
-                let ty = self.ty(id)?;
-                if let dir::Type::Parameter(parameter) = ty {
-                    let Some(bound) = substitution.binding(parameter) else {
-                        return Err(LowerError::Unsupported {
-                            anchor: self.module.into(),
-                            construct: "a generically scoped callable instance".to_string(),
-                        }
-                        .into());
-                    };
-                    queue.push(bound);
-
-                    continue;
-                }
-                self.types(id.module_id)?
-                    .for_each_child(&ty, |child| queue.push(child));
-            }
-        }
-
-        // queue the instance, letting the declared representation key collapse duplicates
-        reachable
-            .instances
-            .push((symbol, bindings, substitution.clone()));
-
-        Ok(())
     }
 
     /// Collect the implementing methods one erasing coercion requires.
@@ -538,9 +484,7 @@ impl ModuleLowerer<'_> {
                 continue;
             };
             let implementing = self.implementing_method(class.symbol, name)?;
-            reachable
-                .instances
-                .push((implementing, Vec::new(), TypeSubstitution::default()));
+            reachable.instances.push((implementing, Vec::new()));
         }
 
         Ok(())
@@ -550,14 +494,13 @@ impl ModuleLowerer<'_> {
     fn collect_call_decision(
         &self,
         resolution: &dir::CallDecision,
-        substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         match resolution {
-            dir::OperationResolution::One(call) => self.collect_call(call, substitution, reachable),
+            dir::OperationResolution::One(call) => self.collect_call(call, reachable),
             dir::OperationResolution::Union { arms, .. } => {
                 for call in arms {
-                    self.collect_call(call, substitution, reachable)?;
+                    self.collect_call(call, reachable)?;
                 }
 
                 Ok(())
@@ -566,12 +509,8 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect one singular call target.
-    fn collect_call(
-        &self,
-        call: &dir::Call,
-        substitution: &TypeSubstitution,
-        reachable: &mut Reachable,
-    ) -> CompilerResult<()> {
+    fn collect_call(&self, call: &dir::Call, reachable: &mut Reachable) -> CompilerResult<()> {
+        // only symbol targets name a declaration to collect
         let function = match &call.target {
             dir::CallableTarget::Expression { .. } | dir::CallableTarget::Dynamic { .. } => {
                 return Ok(());
@@ -580,10 +519,10 @@ impl ModuleLowerer<'_> {
         };
 
         // route intrinsic and binding callables without an instance
-        match self.callable_implementation(function.symbol)? {
+        match self.callable_implementation(function.selection.symbol)? {
             // declare dotted host externs for bindings
             Some(CallableImplementation::Binding { .. }) => {
-                reachable.bindings.insert(function.symbol);
+                reachable.bindings.insert(function.selection.symbol);
 
                 return Ok(());
             }
@@ -592,18 +531,34 @@ impl ModuleLowerer<'_> {
             None => {}
         }
 
-        // select an instance only when the call binds type parameters
-        let bindings = self.instance_bindings(&function.generic_arguments, substitution)?;
-        if bindings.is_empty() {
-            // import plain calls into other modules
-            if function.symbol.module_id != self.module {
-                reachable.imports.insert(function.symbol);
-            }
-
-            return Ok(());
+        // parameter-binding calls declare from instance rows; plain foreign calls import
+        if function.selection.symbol.module_id != self.module
+            && !self.selects_parameters(&function.selection.arguments)?
+        {
+            reachable.imports.insert(function.selection.symbol);
         }
 
-        self.push_instance(function.symbol, bindings, substitution, reachable)
+        Ok(())
+    }
+
+    /// Return whether one selection binds parameters beyond lifetimes.
+    fn selects_parameters(
+        &self,
+        generic_arguments: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<bool> {
+        for binding in generic_arguments {
+            let parameter = binding.parameter;
+            let generics = &self.state(parameter.module_id)?.generics;
+            let parameter = generics.get_parameter(parameter.local_id);
+            if !matches!(
+                parameter.kind,
+                dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime)
+            ) {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return the substituted type bindings one candidate selects beyond lifetimes.

@@ -4,8 +4,8 @@ use destack_mir as mir;
 
 use crate::lower::r#type::LoweredSignature;
 use crate::lower::{
-    FunctionDefinition, LifetimeParameters, ModuleLowerer, Reachable, ReceiverBinding,
-    TypeSubstitution,
+    CallableImplementation, FunctionDefinition, LifetimeParameters, ModuleLowerer, Reachable,
+    ReceiverBinding, TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -47,8 +47,43 @@ impl ModuleLowerer<'_> {
         bodies: &[FunctionDefinition],
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
     ) -> CompilerResult<(Vec<FunctionDefinition>, Reachable)> {
-        // collect calls from the concrete bodies queued for lowering
+        // seed from the instances sema closed, routing intrinsic and binding callables
         let mut reachable = Reachable::default();
+        let closed: Vec<_> = self
+            .state(self.module)?
+            .generics
+            .iter_instances()
+            .map(|(_, instance)| {
+                (
+                    instance.selection.symbol,
+                    instance.selection.arguments.clone(),
+                )
+            })
+            .collect();
+        for (template, arguments) in closed {
+            // keep the callable instances; nominal ones declare through their representations
+            let Some(ty) = self.types(template.module_id)?.get_symbol_type_id(template) else {
+                continue;
+            };
+            if !matches!(
+                self.ty(ty)?,
+                dir::Type::Function(_)
+                    | dir::Type::FunctionSignature(_)
+                    | dir::Type::FunctionPointer(_)
+            ) {
+                continue;
+            }
+
+            match self.callable_implementation(template)? {
+                Some(CallableImplementation::Binding { .. }) => {
+                    reachable.bindings.insert(template);
+                }
+                Some(CallableImplementation::Intrinsic { .. }) => {}
+                None => reachable.instances.push((template, arguments)),
+            }
+        }
+
+        // collect calls from the concrete bodies queued for lowering
         for body in bodies {
             match self.collect_body(
                 body.source,
@@ -81,9 +116,9 @@ impl ModuleLowerer<'_> {
         let mut instances = Vec::new();
         let mut index = 0;
         while index < reachable.instances.len() {
-            let (symbol, bindings, enclosing) = reachable.instances[index].clone();
+            let (symbol, bindings) = reachable.instances[index].clone();
             index += 1;
-            let body = match self.declare_instance(builder, symbol, &bindings, &enclosing) {
+            let body = match self.declare_instance(builder, symbol, &bindings) {
                 Ok(Some(body)) => body,
                 Ok(None) => continue,
                 Err(CompilerError::Diagnostic(diagnostic)) => {
@@ -115,10 +150,14 @@ impl ModuleLowerer<'_> {
         builder: &mut mir::ModuleBuilder,
         symbol: dir::GlobalSymbolId,
         bindings: &[dir::GenericArgumentBinding],
-        enclosing: &TypeSubstitution,
     ) -> CompilerResult<Option<FunctionDefinition>> {
-        // key the instance by its runtime representation, closing collected
-        //  arguments through the enclosing scope's substitution
+        // build the substitution the instance arguments select
+        let mut type_substitution = TypeSubstitution::default();
+        for binding in bindings {
+            type_substitution.insert(binding.parameter, binding.argument);
+        }
+
+        // key the instance by its runtime representation
         let pointer_bytes = builder.pointer_bytes();
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let lifetime_parameters = LifetimeParameters::default();
@@ -126,7 +165,7 @@ impl ModuleLowerer<'_> {
             .type_lowerer(
                 builder.tree_mut(),
                 pointer_bytes,
-                enclosing,
+                &type_substitution,
                 &lifetime_parameters,
             )
             .generic_instance_key(symbol, &arguments)?;
@@ -134,13 +173,8 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         }
 
-        // declare under the instance's concrete types and polymorphic
-        //  lifetimes, keeping the enclosing bindings for nested resolution
+        // declare under the instance's concrete types and polymorphic lifetimes
         let lifetime_parameters = self.lifetime_parameters(self.symbol_type(symbol)?)?;
-        let mut type_substitution = enclosing.clone();
-        for binding in bindings {
-            type_substitution.insert(binding.parameter, binding.argument);
-        }
         let declared =
             self.declare_instance_header(builder, &key, &type_substitution, &lifetime_parameters);
 
