@@ -152,6 +152,7 @@ switch (selected) {
 
     default: break;
     /// @type.node source=break type=never
+    /// @resolution.transfer source=break target=switch
 
     case (observed = 1): break;
     /// @resolution.operator source="case (observed = 1): break;" type=boolean operator="===" kind=builtin operands=[selected as int32 families=(integer), observed = 1 as int32 families=(integer)]
@@ -163,6 +164,7 @@ switch (selected) {
     /// @resolution.assignment source=observed write=binding(observed) type=int32
     /// @type.node source=1 type=1
     /// @type.node source=break type=never
+    /// @resolution.transfer source=break target=switch
 
 }
 
@@ -404,6 +406,7 @@ switch (mode) {
 
         break;
         /// @type.node source=break type=never
+        /// @resolution.transfer source=break target=switch
 
     case Mode.Write:
     /// @resolution.operator type=boolean operator="===" kind=builtin operands=[mode as Mode families=(Mode), Mode.Write as Mode.Write families=(Mode)]
@@ -420,6 +423,7 @@ switch (mode) {
 
         break;
         /// @type.node source=break type=never
+        /// @resolution.transfer source=break target=switch
 
     default:
         mode;
@@ -505,6 +509,7 @@ switch (state) {
 
         break;
         /// @type.node source=break type=never
+        /// @resolution.transfer source=break target=switch
 
     default:
         state;

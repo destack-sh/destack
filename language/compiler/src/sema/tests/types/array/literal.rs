@@ -434,10 +434,20 @@ const items: Iterable<int32> = [1, 2];
 /// @type.symbol symbol=items source=items type=Dynamic<Iterable<int32, void>>
 /// @resolution.pattern source=items kind=binding target=items
 /// @generic.instance id="Iterable<int32, void>" template=iter.iterator.Iterable arguments=(int32, void)
+/// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int32, void>>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int32, void>)
+/// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32, void>>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int32, void>)
+/// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int32, void>, int32>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int32, void>, int32)
+/// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int32, void>, int32>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int32, void>, int32)
 /// @generic.instance id="iter.iterator.Iterator<int32, void>" template=iter.iterator.Iterator arguments=(int32, void)
 /// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
+/// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int32, void>, int32, void>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int32, void>, int32, void)
+/// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int32, void>>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int32, void>)
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
 /// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @resolution.name source=Iterable target=iter.iterator.Iterable
 "#,
     );

@@ -72,6 +72,13 @@ pub enum Type {
     Operation(TypeOperationId),
 
     /// Homogeneous array type, like `int32[]`.
+    ///
+    /// FUGU #Architecture: remove this head and commit `T[]` as
+    /// `Application(Array, [T])`, matching tsc where `T[]` and `Array<T>` are one
+    /// type; Slice and FixedArray stay primitive. Deletes the admission arm, the
+    /// representation mapping, the apparent-member arm, and the relate decompose
+    /// arms, and forces the array variance ruling (tsc-covariant vs derived
+    /// invariance) into the open.
     Array(ArrayType),
     /// Fixed-length array type, like `[uint8; 4]`.
     FixedArray(FixedArrayType),

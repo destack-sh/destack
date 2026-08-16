@@ -448,8 +448,23 @@ impl BodyState<'_, '_> {
             protocol.symbol,
         )?;
 
-        // confirm each candidate in one evaluation, committing the first accepted match
+        // concrete targets confirm before blankets, so declarations shadow them
+        let mut ordered = Vec::with_capacity(extensions.len());
         for extension_symbol in extensions {
+            let target = match self.definition(extension_symbol)? {
+                Some(dir::Definition::Extension(extension)) => Some(extension.target.r#type()),
+                _ => None,
+            };
+            let is_blanket = match target {
+                Some(target) => matches!(self.ty(target)?, dir::Type::Parameter(_)),
+                None => false,
+            };
+            ordered.push((extension_symbol, is_blanket));
+        }
+        ordered.sort_by_key(|(_, is_blanket)| *is_blanket);
+
+        // confirm each candidate in one evaluation, committing the first accepted match
+        for (extension_symbol, _) in ordered {
             if self.is_absent_symbol(extension_symbol) {
                 continue;
             }

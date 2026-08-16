@@ -668,3 +668,97 @@ function visit(values: int32[]): void {
 "#,
     );
 }
+
+#[test]
+fn test_for_of_accepts_an_iterator_through_the_blanket_iterable() {
+    let session = TestSession::single(
+        r#"
+function total(values: int32[]): int32 {
+    let sum: int32 = 0;
+    for (const (index, value) of values.iterator().enumerate()) {
+        sum = sum + value;
+    }
+    return sum;
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function total(values: int32[]): int32 {
+    let sum: int32 = 0;
+    for (const (index, value) of values.iterator<int32>().enumerate<int32, void>()) {
+        sum = sum + value;
+    }
+    return sum;
+}
+
+=== dir ===
+function total(values: int32[]): int32 {
+/// @type.symbol symbol=total type=(Array<int32>) => int32
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
+/// @type.symbol symbol=total.values source="values: int32[]" type=Array<int32>
+
+    let sum: int32 = 0;
+    /// @type.symbol symbol=total.sum source=sum type=int32
+    /// @resolution.pattern source=sum kind=binding target=total.sum
+
+    for (const (index, value) of values.iterator().enumerate()) {
+    /// @resolution.pattern source=(index, value) kind=tuple fields=(total.index, total.value)
+    /// @type.symbol symbol=total.index source=index type=isize
+    /// @resolution.pattern source=index kind=binding target=total.index
+    /// @type.symbol symbol=total.value source=value type=int32
+    /// @resolution.pattern source=value kind=binding target=total.value
+    /// @resolution.name source=values target=total.values
+    /// @resolution.member source=values.iterator receiver=Array<int32> type=(this: Array<int32>) => iter.iterator.Iterator<int32, void> kind=symbol target_receiver=Array<int32> target=collections.array.iterator#2
+    /// @resolution.member source=values.iterator().enumerate receiver=iter.iterator.Iterator<int32, void> type=(this: iter.iterator.Iterator<int32, void>) => iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32, void>> kind=symbol target_receiver=iter.iterator.Iterator<int32, void> target=iter.iterator.Iterator.enumerate
+    /// @resolution.call source=values.iterator() parameters=() return=iter.iterator.Iterator<int32, void> kind=symbol target=collections.array.iterator#2 receiver=Array<int32> instance=Array<int32>.<extension#3>.iterator#2
+    /// @resolution.call source=values.iterator().enumerate() parameters=() return=iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32, void>> kind=symbol target=iter.iterator.Iterator.enumerate receiver=iter.iterator.Iterator<int32, void> instance="iter.iterator.Iterator<int32, void>.enumerate"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=total.values
+    /// @generic.instantiation id="iter.iterator.Iterator.enumerate<int32, void>" template=iter.iterator.Iterator.enumerate arguments=(int32, void)
+    /// @generic.instantiation id="iter.iterator.Iterator.enumerate<int32, void>" template=iter.iterator.Iterator.enumerate arguments=(int32, void)
+    /// @generic.instantiation id=collections.array.iterator#2<int32> template=collections.array.iterator#2 arguments=(int32)
+    /// @generic.instantiation id=collections.array.iterator#2<int32> template=collections.array.iterator#2 arguments=(int32)
+    /// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int32, void>>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int32, void>)
+    /// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32, void>>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int32, void>)
+    /// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int32, void>, int32>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int32, void>, int32)
+    /// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int32, void>, int32>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int32, void>, int32)
+    /// @generic.instance id="iter.iterator.Iterator.enumerate<int32, void>" template=iter.iterator.Iterator.enumerate arguments=(int32, void)
+    /// @generic.instance id="iter.iterator.Iterator<int32, void>" template=iter.iterator.Iterator arguments=(int32, void)
+    /// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
+    /// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int32, void>, int32, void>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int32, void>, int32, void)
+    /// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int32, void>>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int32, void>)
+    /// @generic.instance id=collections.array.iterator#2<int32> template=collections.array.iterator#2 arguments=(int32)
+    /// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
+    /// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
+
+        sum = sum + value;
+        /// @resolution.name source=sum target=total.sum
+        /// @resolution.pattern.assign source=sum kind=place
+        /// @resolution.access source=sum root=total.sum
+        /// @resolution.assignment source=sum write=binding(total.sum) type=int32
+        /// @resolution.name source=sum target=total.sum
+        /// @resolution.operator source="sum + value" type=int32 operator="+" kind=builtin operands=[sum as int32 families=(integer), value as int32 families=(integer)]
+        /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=sum root=total.sum
+        /// @resolution.name source=value target=total.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+        /// @resolution.access source=value root=total.value
+
+    }
+    return sum;
+    /// @resolution.name source=sum target=total.sum
+    /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=sum root=total.sum
+
+}
+"#,
+    );
+}

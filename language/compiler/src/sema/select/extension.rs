@@ -8,7 +8,8 @@ use smallvec::SmallVec;
 use crate::sema::{
     BodyState, CandidateOutcome, Cause, CauseKind, CheckOutcome, DeclaredMember,
     GenericParameterId, GenericTemplateId, LookupReceiver, MemberCandidate, MemberLookup,
-    MemberSubject, MemberTable, Origin, ReceiverSteps, Relation, Settle, TypeSubstitution, Verdict,
+    MemberSubject, MemberTable, Origin, ReceiverSteps, Relation, Settle, TypeArgumentInference,
+    TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -417,8 +418,9 @@ impl BodyState<'_, '_> {
         let extensions =
             self.visible_implementation_extensions(origin, module, receiver, interface.symbol)?;
 
-        // try each visible implementation declaration
-        let mut speculative = Vec::new();
+        // load each declaration once, ordering concrete targets before blankets
+        let mut entries = Vec::new();
+        let mut blanket_from = 0usize;
         for extension_symbol in extensions {
             if Some(extension_symbol) == excluded {
                 continue;
@@ -450,8 +452,21 @@ impl BodyState<'_, '_> {
                 continue;
             }
 
-            // match in one confirming attempt
             let template = self.symbol_template(extension_symbol)?;
+            let entry = (extension_symbol, template, target_type, interfaces);
+            match self.ty(target_type)? {
+                dir::Type::Parameter(_) => entries.push(entry),
+                _ => {
+                    entries.insert(blanket_from, entry);
+                    blanket_from += 1;
+                }
+            }
+        }
+
+        // try each declaration, concrete targets shadowing the blankets behind them
+        let mut speculative = Vec::new();
+        for (index, entry) in entries.iter().enumerate() {
+            let (extension_symbol, template, target_type, interfaces) = entry;
             let trail_from = self.check.infer.trail.len();
             let variables = self.check.infer.variable_count();
             let mut solves_outer = false;
@@ -464,9 +479,9 @@ impl BodyState<'_, '_> {
                     receiver,
                     receiver,
                     interface,
-                    template,
-                    target_type,
-                    &interfaces,
+                    *template,
+                    *target_type,
+                    interfaces,
                 )?;
                 solves_outer = state
                     .check
@@ -479,13 +494,27 @@ impl BodyState<'_, '_> {
             })?;
 
             if matched.is_some() {
-                return Ok((Verdict::Holds, Some(extension_symbol)));
+                // two applicable blankets stay ambiguous instead of first-winning
+                if index >= blanket_from
+                    && self.another_blanket_matches(
+                        origin,
+                        relation,
+                        interface_module,
+                        receiver,
+                        interface,
+                        &entries[index + 1..],
+                    )?
+                {
+                    return Ok((Verdict::Ambiguous, None));
+                }
+
+                return Ok((Verdict::Holds, Some(*extension_symbol)));
             }
 
             // hold a match that solves outer variables for uniqueness:
             //  only a sole applicable candidate may commit their solutions
             if solves_outer {
-                speculative.push((extension_symbol, template, target_type, interfaces));
+                speculative.push(entry);
             }
         }
 
@@ -519,6 +548,48 @@ impl BodyState<'_, '_> {
             false => (Verdict::Ambiguous, None),
             true => (Verdict::Fails, None),
         })
+    }
+
+    /// Return whether any remaining blanket also matches the goal.
+    fn another_blanket_matches(
+        &mut self,
+        origin: Origin,
+        relation: Relation,
+        interface_module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        interface: &dir::GenericApplication,
+        remaining: &[(
+            dir::GlobalSymbolId,
+            Option<GenericTemplateId>,
+            dir::GlobalTypeId,
+            SmallVec<[dir::GlobalTypeId; 2]>,
+        )],
+    ) -> CompilerResult<bool> {
+        for (_, template, target_type, interfaces) in remaining {
+            let mut matches = false;
+            self.check.counters.extension_probes += 1;
+            self.confirm_candidate(|state| {
+                let matched = state.match_extension_implementation(
+                    origin,
+                    relation,
+                    interface_module,
+                    receiver,
+                    receiver,
+                    interface,
+                    *template,
+                    *target_type,
+                    interfaces,
+                )?;
+                matches = matched.is_some();
+
+                Ok(CandidateOutcome::<(), ()>::Rejected(()))
+            })?;
+            if matches {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return whether one declaration's conformances reach a requested interface.
@@ -573,6 +644,18 @@ impl BodyState<'_, '_> {
             return Ok(None);
         }
 
+        // open inference variables for the parameters the target leaves unbound
+        let Some(mut substitution) = self.instantiate_parameters(
+            origin,
+            &parameters,
+            &[],
+            substitution,
+            TypeArgumentInference::Exact,
+        )?
+        else {
+            return Ok(None);
+        };
+
         // require the lookup receiver to satisfy the applied target
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         let target = self.substitute_type(target_type, &substitution)?;
@@ -610,12 +693,12 @@ impl BodyState<'_, '_> {
                     let id = self.check.register_relation(constraint);
                     self.check.solve_relation(id, Settle::Final)?;
 
-                    // an unprovable closed bound rejects the candidate
-                    let failed = matches!(
+                    // an unproven closed bound rejects the candidate
+                    let holds = matches!(
                         self.check.fulfill.checks.result(id)?,
-                        Some(outcome) if matches!(outcome, CheckOutcome::Fails(_))
+                        Some(CheckOutcome::Holds)
                     );
-                    if failed {
+                    if !holds {
                         return Ok(None);
                     }
                 }

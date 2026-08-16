@@ -253,6 +253,13 @@ impl CheckState<'_> {
         };
 
         // reuse decided relations, treating in-flight pairs as recursive cycles
+        //
+        // FUGU #Architecture: extract conformance decisions properly: the
+        // in-flight lookup answers a repeated pair coinductively, which
+        // recursive structural types need, but a conformance bound reaching its
+        // own goal through another blanket inherits that Holds, so mutually
+        // recursive blanket bounds prove each other; conformance needs its own
+        // inductive query kind so deciding_extensions decides such cycles.
         let key = (relation, source, target, scope);
         if let Some(holds) = self.relates.get(&key) {
             self.counters.judge_hits += 1;

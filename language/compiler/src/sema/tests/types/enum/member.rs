@@ -185,6 +185,7 @@ switch (mode) {
 
         break;
         /// @type.node source=break type=never
+        /// @resolution.transfer source=break target=switch
 
     default:
         const remaining = mode;
