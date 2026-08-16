@@ -1,13 +1,18 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
+use destack_repository::ProviderError;
+use destack_source::{DiagnosticSuggestion, FilePatch};
 
-declare_lint_stub! {
-    /// Disallow Array.entries iteration when its index is unused.
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
+    /// Disallow indexed iteration when its index is unused.
     pub UNUSED_ENUMERATE_INDEX {
         id: "unused-enumerate-index",
-        summary: "Disallow Array.entries iteration when its index is unused",
+        summary: "Disallow indexed iteration when its index is unused",
         explanation: r#"
-Iterating over Array.entries constructs an index-value pair for every element even when the index is unused.
-Instead, you SHOULD iterate over the array values directly.
+Indexed iteration constructs an index-value pair for every element even when the index is unused.
+Instead, you SHOULD iterate over the values directly.
 "#,
         example: {
             reported: r#"
@@ -28,8 +33,116 @@ function copy(values: int32[], output: int32[]): void {
         category: Style,
         level: Warning,
         fixable: Automatic,
-        check: DirModule,
+        check: DirModule(check),
     }
+}
+
+/// Report indexed iteration whose index binding is unused.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let occurrences = module.flows.binding_occurrences().collect::<Vec<_>>();
+    let mut output = LintOutput::default();
+
+    // inspect for-of loops over canonical entries or enumerate calls
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
+        let Some(iteration) = module.for_of(expression) else {
+            continue;
+        };
+        if iteration.asynchrony != dir::Asynchrony::Sync {
+            continue;
+        }
+        let Some(enumeration) = module.member_call(iteration.iterator) else {
+            continue;
+        };
+        let member = module.language_member(iteration.iterator)?;
+        if enumeration.is_optional
+            || enumeration.is_member_optional
+            || !enumeration.arguments.is_empty()
+            || member != Some(dir::LanguageItem::Array.member("entries"))
+                && member != Some(dir::LanguageItem::Iterator.member("enumerate"))
+        {
+            continue;
+        }
+        let dir::ForEachBinding::Pattern { pattern, .. } = iteration.binding else {
+            continue;
+        };
+        let dir::Pattern::Tuple { fields } = view.get(*pattern) else {
+            continue;
+        };
+        let [index_field, value_field] = fields.as_slice() else {
+            continue;
+        };
+        let dir::PatternField::Positional { pattern: index } = view.get(*index_field) else {
+            continue;
+        };
+        let dir::PatternField::Positional { pattern: value } = view.get(*value_field) else {
+            continue;
+        };
+
+        // require a discarded or entirely unused index binding
+        let is_unused = match view.get(*index) {
+            dir::Pattern::Wildcard => true,
+            dir::Pattern::Binding { pattern: None, .. } => {
+                let symbol = module.declaration_symbol(*index)?;
+                occurrences
+                    .iter()
+                    .filter(|occurrence| occurrence.symbol == symbol)
+                    .all(|occurrence| occurrence.uses.is_empty())
+            }
+            _ => false,
+        };
+        if !is_unused {
+            continue;
+        }
+
+        // replace the tuple binding and indexed call
+        let span = module.span(index.into_any())?;
+        let mut diagnostic = lint.diagnostic("indexed iteration index is unused", span);
+        if let Some(suggestion) = suggestion(
+            module,
+            lint,
+            *pattern,
+            *value,
+            iteration.iterator,
+            enumeration.receiver,
+        )? {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
+        output.report(diagnostic);
+    }
+
+    Ok(output)
+}
+
+/// Remove one unused index from a for-of loop.
+fn suggestion(
+    module: &DirModule<'_>,
+    lint: &Lint,
+    tuple: dir::LocalNodeId<dir::Pattern>,
+    value: dir::LocalNodeId<dir::Pattern>,
+    call: dir::LocalNodeId<dir::Expression>,
+    receiver: dir::LocalNodeId<dir::Expression>,
+) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
+    let tuple_extent = module.source_extent(tuple.into_any())?;
+    let value_extent = module.source_extent(value.into_any())?;
+    let call_extent = module.source_extent(call.into_any())?;
+    let receiver_extent = module.source_extent(receiver.into_any())?;
+    if module.has_unretained_comment(tuple_extent, &[value_extent])?
+        || module.has_unretained_comment(call_extent, &[receiver_extent])?
+    {
+        return Ok(None);
+    }
+
+    // preserve the authored value pattern and iteration receiver
+    let value = module.source(value_extent)?;
+    let receiver = module.expression_source(receiver, dir::OperatorPrecedence::Lowest)?;
+    let mut patch = FilePatch::new(tuple_extent.file);
+    patch.replace(tuple_extent, value);
+    patch.replace(call_extent, receiver);
+    patch.sort();
+    let suggestion = lint.fix("iterate over values directly", patch)?;
+
+    Ok(Some(suggestion))
 }
 
 #[cfg(test)]
@@ -38,14 +151,12 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
-    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&UNUSED_ENUMERATE_INDEX);
     }
 
     /// Remove entries when a wildcard discards the index.
-    #[ignore]
     #[test]
     fn test_removes_wildcard_index() {
         let session = TestSession::dir(
@@ -61,7 +172,7 @@ function copy(values: int32[], output: int32[]): void {
 
         session.assert_diagnostics(
             r#"
-warning[unused-enumerate-index]: Array.entries index is unused
+warning[unused-enumerate-index]: indexed iteration index is unused
  ──▶ main.ds:2:17
   │
 1 │ function copy(values: int32[], output: int32[]): void {
@@ -71,7 +182,7 @@ warning[unused-enumerate-index]: Array.entries index is unused
 4 │     }
   │
 
- = fix: iterate over array values directly
+ = fix: iterate over values directly
 --- a/main.ds
 +++ b/main.ds
 
@@ -84,7 +195,6 @@ warning[unused-enumerate-index]: Array.entries index is unused
     }
 
     /// Remove entries when a named index has no references.
-    #[ignore]
     #[test]
     fn test_removes_unused_named_index() {
         let session = TestSession::dir(
@@ -109,14 +219,42 @@ function copy(values: int32[], output: int32[]): void {
         );
     }
 
+    /// Remove enumerate when its iterator index is discarded.
+    #[test]
+    fn test_removes_unused_iterator_index() {
+        let session = TestSession::dir(
+            &UNUSED_ENUMERATE_INDEX,
+            r#"
+import { Iterator } from "destack:iter";
+
+function copy(values: Iterator<int32>, output: int32[]): void {
+    for (const (_, value) of values.enumerate()) {
+        output.push(value);
+    }
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+import { Iterator } from "destack:iter";
+
+function copy(values: Iterator<int32>, output: int32[]): void {
+    for (const value of values) {
+        output.push(value);
+    }
+}
+"#,
+        );
+    }
+
     /// Accept entries when the index is referenced.
-    #[ignore]
     #[test]
     fn test_accepts_used_index() {
         let session = TestSession::dir(
             &UNUSED_ENUMERATE_INDEX,
             r#"
-function copy(values: int32[], indexes: usize[], output: int32[]): void {
+function copy(values: int32[], indexes: isize[], output: int32[]): void {
     for (const (index, value) of values.entries()) {
         indexes.push(index);
         output.push(value);
@@ -128,8 +266,24 @@ function copy(values: int32[], indexes: usize[], output: int32[]): void {
         session.assert_no_diagnostics();
     }
 
+    /// Accept async iteration because removing entries would await each array value.
+    #[test]
+    fn test_accepts_async_iteration() {
+        let session = TestSession::dir(
+            &UNUSED_ENUMERATE_INDEX,
+            r#"
+async function copy(values: int32[], output: int32[]): Promise<void> {
+    for await (const (_, value) of values.entries()) {
+        output.push(value);
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Accept a user-defined entries method.
-    #[ignore]
     #[test]
     fn test_accepts_user_entries() {
         let session = TestSession::dir(

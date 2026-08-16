@@ -1,6 +1,11 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
+use destack_repository::ProviderError;
+use destack_source::Span;
 
-declare_lint_stub! {
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
     /// Disallow mutating range bounds during iteration over that range.
     pub NO_MUTATED_RANGE_BOUND {
         id: "no-mutated-range-bound",
@@ -31,8 +36,101 @@ function visit(limit: int32): void {
         category: Suspicious,
         level: Warning,
         fixable: None,
-        check: DirModule,
+        check: DirModule(check),
     }
+}
+
+/// Report writes to storage captured by an actively iterated range.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let occurrences = module.flows.access_occurrences().collect::<Vec<_>>();
+    let mut output = LintOutput::default();
+
+    // inspect authored range iteration
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
+        let Some(iteration) = module.for_of(expression) else {
+            continue;
+        };
+        let callable = module.enclosing_callable_body(expression.into_any());
+        let dir::Expression::RangeExpression { start, end, .. } = view.get(iteration.iterator)
+        else {
+            continue;
+        };
+
+        // collect the most specific storage read by either range bound
+        let bound_accesses = collect_bound_accesses(module, &occurrences, *start, *end);
+
+        // report mutations of captured bounds inside the loop body
+        for occurrence in &occurrences {
+            if !occurrence.uses.may_mutate()
+                || !view.is_inside(occurrence.node, iteration.body.into_any())
+                || module.enclosing_callable_body(occurrence.node) != callable
+            {
+                continue;
+            }
+            if !bound_accesses
+                .iter()
+                .any(|bound| bound.starts_with(&occurrence.path))
+            {
+                continue;
+            }
+
+            let span = mutation_span(module, occurrence)?;
+            let diagnostic =
+                lint.diagnostic("range bound is mutated after the range captures it", span);
+            output.report(diagnostic);
+        }
+    }
+
+    Ok(output)
+}
+
+/// Collect the most specific stable accesses read by two range bounds.
+fn collect_bound_accesses(
+    module: &DirModule<'_>,
+    occurrences: &[dir::AccessOccurrence],
+    start: Option<dir::LocalNodeId<dir::Expression>>,
+    end: Option<dir::LocalNodeId<dir::Expression>>,
+) -> Vec<dir::AccessPath> {
+    let view = module.view();
+    let mut accesses = Vec::<dir::AccessPath>::new();
+
+    // retain leaf accesses rather than their receiver prefixes
+    for occurrence in occurrences {
+        let is_bound = start.is_some_and(|bound| view.is_inside(occurrence.node, bound.into_any()))
+            || end.is_some_and(|bound| view.is_inside(occurrence.node, bound.into_any()));
+        if !is_bound
+            || !occurrence.uses.contains(dir::BindingUse::READ)
+            || accesses
+                .iter()
+                .any(|selected| selected.starts_with(&occurrence.path))
+        {
+            continue;
+        }
+
+        accesses.retain(|selected| !occurrence.path.starts_with(selected));
+        accesses.push(occurrence.path.clone());
+    }
+
+    accesses
+}
+
+/// Return the authored operation span responsible for one mutation.
+fn mutation_span(
+    module: &DirModule<'_>,
+    occurrence: &dir::AccessOccurrence,
+) -> Result<Span, ProviderError> {
+    let view = module.view();
+
+    // anchor mutable access at its explicit borrow operation
+    if occurrence.uses.contains(dir::BindingUse::MUTABLE)
+        && let Some(expression) = view.ancestor::<dir::Expression>(occurrence.node)
+        && matches!(view.get(expression), dir::Expression::BorrowOf { .. })
+    {
+        return module.source_extent(expression.into_any());
+    }
+
+    module.main_span(occurrence.node)
 }
 
 #[cfg(test)]
@@ -41,14 +139,12 @@ mod tests {
     use crate::tests::TestSession;
 
     /// Validate the canonical lint example.
-    #[ignore]
     #[test]
     fn test_lint_example() {
         TestSession::assert_example(&NO_MUTATED_RANGE_BOUND);
     }
 
     /// Report mutation of a captured range end.
-    #[ignore]
     #[test]
     fn test_reports_mutated_end() {
         let session = TestSession::dir(
@@ -72,8 +168,38 @@ warning[no-mutated-range-bound]: range bound is mutated after the range captures
         );
     }
 
+    /// Report mutation of the exact field captured as a range bound.
+    #[test]
+    fn test_reports_mutated_bound_field() {
+        let session = TestSession::dir(
+            &NO_MUTATED_RANGE_BOUND,
+            r#"
+function visit(state: { end: int32; count: int32 }): void {
+    for (const value of 0..state.end) {
+        state.end -= 1;
+        value;
+    }
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-mutated-range-bound]: range bound is mutated after the range captures it
+ ──▶ main.ds:3:15
+  │
+1 │ function visit(state: { end: int32; count: int32 }): void {
+2 │     for (const value of 0..state.end) {
+3 │         state.end -= 1;
+  │               ^^^
+4 │         value;
+5 │     }
+  │
+"#,
+        );
+    }
+
     /// Report mutation through an exclusive borrow of a range bound.
-    #[ignore]
     #[test]
     fn test_reports_borrowed_bound() {
         let session = TestSession::dir(
@@ -108,7 +234,6 @@ warning[no-mutated-range-bound]: range bound is mutated after the range captures
     }
 
     /// Accept mutation of storage not used by the iterated range.
-    #[ignore]
     #[test]
     fn test_accepts_unrelated_mutation() {
         let session = TestSession::dir(
@@ -127,8 +252,47 @@ function visit(limit: int32): void {
         session.assert_no_diagnostics();
     }
 
+    /// Accept mutation of a field distinct from the captured bound.
+    #[test]
+    fn test_accepts_distinct_field_mutation() {
+        let session = TestSession::dir(
+            &NO_MUTATED_RANGE_BOUND,
+            r#"
+function visit(state: { end: int32; count: int32 }): void {
+    for (const value of 0..state.end) {
+        state.count += 1;
+        value;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a mutation authored in a nested callable that the loop does not execute.
+    #[test]
+    fn test_accepts_nested_callable_mutation() {
+        let session = TestSession::dir(
+            &NO_MUTATED_RANGE_BOUND,
+            r#"
+function visit(limit: int32): void {
+    let end = limit;
+    for (const value of 0..end) {
+        const change = (): void => {
+            end -= 1;
+        };
+        change;
+        value;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Accept a range whose bounds are constants.
-    #[ignore]
     #[test]
     fn test_accepts_constant_bounds() {
         let session = TestSession::dir(
