@@ -219,6 +219,68 @@ const readonlyExclusive = &exclusive readonlyUser;
 }
 
 #[test]
+fn test_restrict_explicit_borrows_of_immutable_direct_storage() {
+    let session = TestSession::single(
+        r#"
+declare const value: int32;
+
+const readonlyValue = &readonly value;
+const mutableValue = &value;
+const exclusiveValue = &exclusive value;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const value: int32;
+
+const readonlyValue: &'static readonly int32 = &readonly value;
+const mutableValue: &'static int32 = &value;
+const exclusiveValue: &'static exclusive int32 = &exclusive value;
+
+=== dir ===
+declare const value: int32;
+/// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
+
+const readonlyValue = &readonly value;
+/// @type.symbol symbol=readonlyValue source=readonlyValue type=&'static readonly int32
+/// @resolution.pattern source=readonlyValue kind=binding target=readonlyValue
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+
+const mutableValue = &value;
+/// @type.symbol symbol=mutableValue source=mutableValue type=&'static int32
+/// @resolution.pattern source=mutableValue kind=binding target=mutableValue
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+
+const exclusiveValue = &exclusive value;
+/// @type.symbol symbol=exclusiveValue source=exclusiveValue type=&'static exclusive int32
+/// @resolution.pattern source=exclusiveValue kind=binding target=exclusiveValue
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+"#,
+        r#"
+/// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type 'int32'"
+/// @diagnostic.label line=5 column=22 span="&" line_source="const mutableValue = &value;"
+/// @diagnostic.note message="the source grants at most 'readonly' access"
+/// @diagnostic.help message="request the granted access or use a source that grants more"
+/// @diagnostic.error id=borrow-access-not-granted message="'exclusive' access is not granted by a value of type 'int32'"
+/// @diagnostic.label line=6 column=24 span="&" line_source="const exclusiveValue = &exclusive value;"
+/// @diagnostic.note message="the source grants at most 'readonly' access"
+/// @diagnostic.help message="request the granted access or use a source that grants more"
+"#,
+    );
+}
+
+#[test]
 fn test_assign_stronger_borrow_access_to_weaker_access() {
     let session = TestSession::single(
         r#"

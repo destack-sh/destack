@@ -625,6 +625,7 @@ impl BodyState<'_, '_> {
                     origin,
                     Value {
                         ty: owner,
+                        node: None,
                         place: None,
                     },
                     key,
@@ -679,6 +680,7 @@ impl BodyState<'_, '_> {
                     origin,
                     Value {
                         ty: owner,
+                        node: None,
                         place: None,
                     },
                     candidate,

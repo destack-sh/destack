@@ -125,7 +125,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        self.capture_symbol_reference(symbol);
+        self.capture_symbol_reference(source, symbol);
 
         Ok(self.assigned_symbol_place(symbol))
     }
@@ -140,7 +140,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        self.capture_symbol_reference(symbol);
+        self.capture_symbol_reference(global, symbol);
         self.check
             .commit_name(global, dir::NameResolution::new(symbol))?;
 

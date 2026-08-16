@@ -714,6 +714,7 @@ impl BodyState<'_, '_> {
             PlaceUse::Read,
             Value {
                 ty: receiver,
+                node: None,
                 place: None,
             },
             receiver_type,
@@ -1323,6 +1324,7 @@ impl BodyState<'_, '_> {
             origin,
             Value {
                 ty: receiver,
+                node: None,
                 place: None,
             },
             receiver,

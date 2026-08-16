@@ -37,6 +37,15 @@ impl BodyState<'_, '_> {
                 .report_borrow_access_not_granted(origin, requested, granted, value.ty)?;
         }
 
+        // record mutable access to directly stored binding values
+        if is_granted
+            && requested != dir::Access::Readonly
+            && let Some(source) = value.node
+            && !self.type_is_aliased(origin, value.ty)?
+        {
+            self.record_access_use(source, dir::BindingUse::MUTABLE);
+        }
+
         // wrap the borrowed value in its borrow form
         let form = self.intern_borrow(lifetime, access)?;
         let borrowed = self.intern_type(dir::Type::Form(dir::FormType {

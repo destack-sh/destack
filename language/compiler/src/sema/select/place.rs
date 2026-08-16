@@ -38,7 +38,11 @@ impl BodyState<'_, '_> {
             .place_resolution(site.node)
             .copied();
 
-        Ok(Value { ty, place })
+        Ok(Value {
+            ty,
+            node: Some(site.node),
+            place,
+        })
     }
 
     /// Record the addressable storage designated by one checked expression.
@@ -137,15 +141,27 @@ impl BodyState<'_, '_> {
         let bindings = self.binding_table(symbol.module_id);
         let binding = bindings.get_symbol(symbol.local_id);
         let is_static = binding.scope.id == bindings.module_scope().id;
+        let is_immutable = binding.binding_mutability == Some(dir::Mutability::Immutable);
         let lifetime = if is_static {
             dir::Lifetime::Static
         } else {
             dir::Lifetime::Frame
         };
         let space = binding.binding_space.unwrap_or(dir::Space::Local);
+        let place = self.root_place(site.origin(), site.node.module_id, ty, space, lifetime)?;
 
-        self.root_place(site.origin(), site.node.module_id, ty, space, lifetime)
-            .map(Some)
+        // select access to the value designated by the binding
+        let is_direct = !self.type_is_aliased(site.origin(), ty)?;
+        let access = if is_immutable && is_direct {
+            self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+                dir::Access::Readonly,
+            )))?
+        } else {
+            place.access
+        };
+        let place = dir::PlaceResolution { access, ..place };
+
+        Ok(Some(place))
     }
 
     /// Return one root storage place.
@@ -819,7 +835,7 @@ impl BodyState<'_, '_> {
                     .name_resolution(source)
                     .is_none()
                 {
-                    self.check.capture_symbol_reference(*symbol);
+                    self.check.capture_symbol_reference(source, *symbol);
                     self.check
                         .commit_name(source, dir::NameResolution::new(*symbol))?;
                 }

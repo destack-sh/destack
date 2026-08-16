@@ -73,6 +73,21 @@ impl CheckState<'_> {
         self.form_is_reference(origin, &chain)
     }
 
+    /// Return whether one type's value lives behind an aliasing handle.
+    pub(in crate::sema) fn type_is_aliased(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let chain = self.form_chain(origin, ty)?;
+        let ownership = self.form_ownership(origin, &chain)?;
+
+        Ok(matches!(
+            ownership,
+            Some(dir::Ownership::Managed | dir::Ownership::Borrowed)
+        ))
+    }
+
     /// Return whether one memory form is represented by a safe reference.
     pub(in crate::sema) fn form_is_reference(
         &mut self,

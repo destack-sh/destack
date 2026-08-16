@@ -34,6 +34,28 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Record one use of the binding at the root of a selected access.
+    pub(in crate::sema) fn record_access_use(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        uses: dir::BindingUse,
+    ) {
+        let Some(access) = self
+            .module(node.module_id)
+            .decisions
+            .access_resolution(node)
+        else {
+            return;
+        };
+        let dir::AccessRoot::Symbol(symbol) = access.path().root() else {
+            return;
+        };
+
+        self.module_mut(node.module_id)
+            .flows
+            .record_use(node.local_id, symbol, uses);
+    }
+
     /// Commit one selected projection from a stable receiver access.
     pub(in crate::sema) fn commit_projected_access(
         &mut self,

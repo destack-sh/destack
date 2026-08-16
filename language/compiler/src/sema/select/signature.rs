@@ -511,7 +511,11 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
     ) -> CompilerResult<SignatureMatch> {
-        let receiver = receiver.map(|ty| Value { ty, place: None });
+        let receiver = receiver.map(|ty| Value {
+            ty,
+            node: None,
+            place: None,
+        });
 
         self.constrain_signature(
             origin,
@@ -670,6 +674,7 @@ impl BodyState<'_, '_> {
                     expectation.relation,
                     Value {
                         ty: return_type,
+                        node: None,
                         place: None,
                     },
                     expectation.target,

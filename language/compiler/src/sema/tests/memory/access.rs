@@ -652,7 +652,7 @@ enum Status { Idle, Busy }
 
 struct State { status: Status; }
 
-declare const state: ^State;
+declare let state: ^State;
 
 state.status = Status.Busy;
 "#,
@@ -672,7 +672,7 @@ struct State {
     status: Status;
 }
 
-declare const state: ^State;
+declare let state: ^State;
 
 state.status = Status.Busy;
 
@@ -692,7 +692,7 @@ struct State { status: Status; }
 /// @type.symbol symbol=State.status source="status: Status" type=Status
 /// @resolution.name source=Status target=Status
 
-declare const state: ^State;
+declare let state: ^State;
 /// @type.symbol symbol=state source=state type=Owned<State>
 /// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
@@ -708,6 +708,58 @@ state.status = Status.Busy;
 /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 "#,
         r#"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_field_write_through_immutable_direct_storage() {
+    let session = TestSession::single(
+        r#"
+struct State { count: int32; }
+
+declare const state: State;
+
+state.count = 1;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct State {
+    count: int32;
+}
+
+declare const state: State;
+
+state.count = 1;
+
+=== dir ===
+struct State { count: int32; }
+/// @type.symbol symbol=State source="struct State { count: int32; }" type=State
+/// @definition.struct symbol=State source="struct State { count: int32; }"
+/// @definition.field symbol=State.count source="count: int32" key=count type=int32
+/// @type.symbol symbol=State.count source="count: int32" type=int32
+
+declare const state: State;
+/// @type.symbol symbol=state source=state type=State
+/// @resolution.pattern source=state kind=binding target=state
+/// @resolution.name source=State target=State
+
+state.count = 1;
+/// @resolution.name source=state target=state
+/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=state root=state
+/// @resolution.pattern.assign source=state.count kind=place
+/// @resolution.access source=state.count root=state keys=[count]
+/// @resolution.assignment source=state.count write="receiver=Readonly<State>, target=field(receiver=Readonly<State>, target=State.count, type=int32), type=int32" type=int32
+"#,
+        r#"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'count'"
+/// @diagnostic.label line=6 column=7 span="count" line_source="state.count = 1;"
 "#,
     );
 }
@@ -834,6 +886,85 @@ function update<T: { status: Status }>(state: &T): void {
 /// @diagnostic.label line=5 column=11 span="status" line_source="state.status = Status.Busy;"
 /// @diagnostic.note message="overwriting may invalidate live borrows of the old value"
 /// @diagnostic.help message="write through an exclusive or owned path or store an overwrite-stable type"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_exclusive_receiver_on_const_owned_array() {
+    let session = TestSession::single(
+        r#"
+declare const items: ^Array<int32>;
+
+items.push(1);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const items: ^Array<int32>;
+
+items.push<int32>(1);
+
+=== dir ===
+declare const items: ^Array<int32>;
+/// @type.symbol symbol=items source=items type=Owned<Array<int32>>
+/// @resolution.pattern source=items kind=binding target=items
+/// @resolution.name source=Array target=collections.array.Array
+
+items.push(1);
+/// @resolution.name source=items target=items
+/// @resolution.member source=items.push receiver=Owned<Array<int32>> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Owned<Array<int32>>, ...int32[]) => isize kind=symbol target_receiver=Owned<Array<int32>> target=collections.array.push
+/// @resolution.call source=items.push(1) parameters=(Array<int32>) arguments=(rest(1) as int32) return=isize kind=symbol target=collections.array.push receiver=Owned<Array<int32>> instance=Array<int32>.<extension#5>.push
+/// @resolution.place source=items placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=items root=items
+/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+"#,
+        r#"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '^Array<int32>' is not assignable to the method's 'this' type '&exclusive ^Array<int32>'"
+/// @diagnostic.label line=4 column=1 span="items.push(1)" line_source="items.push(1);"
+"#,
+    );
+}
+
+#[test]
+fn test_accept_exclusive_receiver_on_const_managed_array() {
+    let session = TestSession::single(
+        r#"
+declare const items: Array<int32>;
+
+items.push(1);
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const items: int32[];
+
+items.push<int32>(1);
+
+=== dir ===
+declare const items: Array<int32>;
+/// @type.symbol symbol=items source=items type=Array<int32>
+/// @resolution.pattern source=items kind=binding target=items
+/// @resolution.name source=Array target=collections.array.Array
+
+items.push(1);
+/// @resolution.name source=items target=items
+/// @resolution.member source=items.push receiver=Array<int32> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => isize kind=symbol target_receiver=Array<int32> target=collections.array.push
+/// @resolution.call source=items.push(1) parameters=(Array<int32>) arguments=(rest(1) as int32) return=isize kind=symbol target=collections.array.push receiver=Array<int32> adjustments=(borrow(&'static exclusive Array<int32>)) instance=Array<int32>.<extension#5>.push
+/// @resolution.place source=items placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=items root=items
+/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+/// @generic.instance id=collections.array.push<int32> template=collections.array.push arguments=(int32)
 "#,
     );
 }

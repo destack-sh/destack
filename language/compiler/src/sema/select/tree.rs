@@ -914,6 +914,7 @@ impl BodyState<'_, '_> {
         let key = dir::StaticKey::Name(self.check.strings().intern(key));
         let receiver = Value {
             ty: builder,
+            node: None,
             place: None,
         };
         let selected = self.select_language_protocol_call(

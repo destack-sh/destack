@@ -290,6 +290,7 @@ impl BodyState<'_, '_> {
             origin,
             Value {
                 ty: receiver,
+                node: None,
                 place: None,
             },
             receiver,
@@ -322,6 +323,7 @@ impl BodyState<'_, '_> {
             origin,
             Value {
                 ty: receiver,
+                node: None,
                 place: None,
             },
             receiver,

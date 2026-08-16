@@ -367,7 +367,7 @@ declare function inspect(value: local &readonly User): void;
 declare function modify(value: local &User): void;
 declare function replace(value: local &exclusive User): void;
 
-declare const user: local ^User;
+declare let user: local ^User;
 
 inspect(user);
 modify(user);
@@ -386,7 +386,7 @@ declare function inspect<'a>(value: local &'a readonly User): void;
 declare function modify<'a>(value: local &'a User): void;
 declare function replace<'a>(value: local &'a exclusive User): void;
 
-declare const user: local ^User;
+declare let user: local ^User;
 
 inspect(user as local &'static readonly User);
 modify(user as local &'static User);
@@ -415,7 +415,7 @@ declare function replace(value: local &exclusive User): void;
 /// @type.symbol symbol=replace.value source="value: local &exclusive User" type=Placed<&replace.'a exclusive User, "local">
 /// @resolution.name source=User target=User
 
-declare const user: local ^User;
+declare let user: local ^User;
 /// @type.symbol symbol=user source=user type=Placed<Owned<User>, "local">
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
@@ -996,7 +996,7 @@ const selected: &readonly User = condition ? first : second;
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
 /// @resolution.name source=condition target=condition
-/// @resolution.place source=condition placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=condition placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=condition root=condition
 /// @resolution.name source=first target=first
 /// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
@@ -1067,7 +1067,7 @@ const selected: &readonly User = match (choice) {
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
 /// @resolution.name source=choice target=choice
-/// @resolution.place source=choice placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=choice placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=choice root=choice
 
     "first" => first
@@ -1315,7 +1315,7 @@ fn test_coerce_shared_owned_value_to_readonly_mutable_and_exclusive_borrows() {
         r#"
 class User {}
 
-declare const user: shared ^User;
+declare let user: shared ^User;
 declare function inspect(value: shared &readonly User): void;
 declare function modify(value: shared &User): void;
 declare function replace(value: shared &exclusive User): void;
@@ -1333,7 +1333,7 @@ replace(user);
 === annotated ===
 class User {}
 
-declare const user: shared ^User;
+declare let user: shared ^User;
 declare function inspect<'a>(value: shared &'a readonly User): void;
 declare function modify<'a>(value: shared &'a User): void;
 declare function replace<'a>(value: shared &'a exclusive User): void;
@@ -1347,7 +1347,7 @@ class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
 
-declare const user: shared ^User;
+declare let user: shared ^User;
 /// @type.symbol symbol=user source=user type=Placed<Owned<User>, "shared">
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
@@ -1467,7 +1467,7 @@ inspectPoint(point);
 /// @resolution.name source=inspectPoint target=inspectPoint
 /// @resolution.call source=inspectPoint(point) parameters=(&'static readonly Point) arguments=(provided(point) as &'static readonly Point) return=void kind=symbol target=inspectPoint
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @coercion.node source=point from=Point adjustments=[{ kind: borrow, target: &'static readonly Point }] origin=implicit
 
@@ -1478,6 +1478,90 @@ inspectValues(values);
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @coercion.node source=values from=Array<int32> adjustments=[{ kind: borrow, target: &'static readonly Array<int32> }] origin=implicit
+"#,
+    );
+}
+
+#[test]
+fn test_restrict_implicit_borrows_of_immutable_direct_storage() {
+    let session = TestSession::single(
+        r#"
+declare function inspect(value: &readonly int32): void;
+declare function modify(value: &int32): void;
+declare function replace(value: &exclusive int32): void;
+
+declare const value: int32;
+
+inspect(value);
+modify(value);
+replace(value);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+declare function inspect<'a>(value: &'a readonly int32): void;
+declare function modify<'a>(value: &'a int32): void;
+declare function replace<'a>(value: &'a exclusive int32): void;
+
+declare const value: int32;
+
+inspect(value as &'static readonly int32);
+modify(value);
+replace(value);
+
+=== dir ===
+declare function inspect(value: &readonly int32): void;
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly int32): void" type=<inspect.'a>(&inspect.'a readonly int32) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly int32" type=&inspect.'a readonly int32
+
+declare function modify(value: &int32): void;
+/// @generic.template symbol=modify parameters=('a)
+/// @type.symbol symbol=modify source="declare function modify(value: &int32): void" type=<modify.'a>(&modify.'a int32) => void
+/// @type.symbol symbol=modify.value source="value: &int32" type=&modify.'a int32
+
+declare function replace(value: &exclusive int32): void;
+/// @generic.template symbol=replace parameters=('a)
+/// @type.symbol symbol=replace source="declare function replace(value: &exclusive int32): void" type=<replace.'a>(&replace.'a exclusive int32) => void
+/// @type.symbol symbol=replace.value source="value: &exclusive int32" type=&replace.'a exclusive int32
+
+declare const value: int32;
+/// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
+
+inspect(value);
+/// @resolution.name source=inspect target=inspect
+/// @resolution.call source=inspect(value) parameters=(&'static readonly int32) arguments=(provided(value) as &'static readonly int32) return=void kind=symbol target=inspect
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+/// @coercion.node source=value from=int32 adjustments=[{ kind: borrow, target: &'static readonly int32 }] origin=implicit
+
+modify(value);
+/// @resolution.name source=modify target=modify
+/// @resolution.call source=modify(value) parameters=(&'static int32) arguments=(provided(value) as &'static int32) return=void kind=symbol target=modify
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+
+replace(value);
+/// @resolution.name source=replace target=replace
+/// @resolution.call source=replace(value) parameters=(&'static exclusive int32) arguments=(provided(value) as &'static exclusive int32) return=void kind=symbol target=replace
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'int32' is not assignable to parameter of type '&'static int32'"
+/// @diagnostic.label line=9 column=8 span="value" line_source="modify(value);"
+/// @diagnostic.related line=9 column=1 span="modify(value)" line_source="modify(value);" message="in this call"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'int32' is not assignable to parameter of type '&'static exclusive int32'"
+/// @diagnostic.label line=10 column=9 span="value" line_source="replace(value);"
+/// @diagnostic.related line=10 column=1 span="replace(value)" line_source="replace(value);" message="in this call"
 "#,
     );
 }
@@ -1670,7 +1754,7 @@ fn test_reject_noncopyable_borrow_as_owned() {
 class Buffer {}
 struct Label { buffer: ^Buffer; }
 
-declare const label: ^Label;
+declare let label: ^Label;
 let borrow = &label;
 let owned: ^Label = borrow;
 "#,
@@ -1686,7 +1770,7 @@ struct Label {
     buffer: ^Buffer;
 }
 
-declare const label: ^Label;
+declare let label: ^Label;
 let borrow: &'static ^Label = &label;
 let owned: ^Label = borrow;
 
@@ -1702,7 +1786,7 @@ struct Label { buffer: ^Buffer; }
 /// @type.symbol symbol=Label.buffer source="buffer: ^Buffer" type=Owned<Buffer>
 /// @resolution.name source=Buffer target=Buffer
 
-declare const label: ^Label;
+declare let label: ^Label;
 /// @type.symbol symbol=label source=label type=Owned<Label>
 /// @resolution.pattern source=label kind=binding target=label
 /// @resolution.name source=Label target=Label
@@ -1910,7 +1994,9 @@ let owned: ^Point = point;
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
 "#,
-        r#""#,
+        r#"
+
+"#,
     );
 }
 
@@ -2023,7 +2109,7 @@ duplicate(session);
 /// @resolution.call source=duplicate(session) parameters=(<error>) arguments=(provided(session) as <error>) return=Owned<<error>> kind=symbol target=duplicate instance=duplicate<<error>>
 /// @generic.instantiation id=duplicate<<error>> template=duplicate arguments=(<error>)
 /// @resolution.name source=session target=session
-/// @resolution.place source=session placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=session placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=session root=session
 "#,
         r#"

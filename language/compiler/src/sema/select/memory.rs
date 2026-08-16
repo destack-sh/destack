@@ -177,6 +177,7 @@ impl BodyState<'_, '_> {
             origin,
             Value {
                 ty: input,
+                node: None,
                 place: None,
             },
             dir::Access::Readonly,
