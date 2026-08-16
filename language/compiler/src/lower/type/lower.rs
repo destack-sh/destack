@@ -326,7 +326,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             dir::Type::Never => Ok(self.tree.intern_type(mir::Type::Never)),
             other => {
                 // lower reference primitives through their representation classes
-                if let Some((item, arguments)) = ModuleLowerer::representation_item(&other) {
+                if let Some((item, arguments)) = ModuleLowerer::representation_application(&other) {
                     let symbol = self.lowerer.language_item_symbol(item)?;
 
                     return Ok(self.lower_nominal(symbol, &arguments)?.value);

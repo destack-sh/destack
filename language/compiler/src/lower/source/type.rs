@@ -97,8 +97,8 @@ impl ModuleLowerer<'_> {
         Ok((signature, owner))
     }
 
-    /// Return the library class item representing one compiler-primitive type.
-    pub(in crate::lower) fn representation_item(
+    /// Return the library class application representing one compiler-primitive type.
+    pub(in crate::lower) fn representation_application(
         ty: &dir::Type,
     ) -> Option<(dir::LanguageItem, Vec<dir::GlobalTypeId>)> {
         match ty {

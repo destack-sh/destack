@@ -181,7 +181,7 @@ impl TypeLowerer<'_, '_> {
         let ty = self.lowerer.ty(id)?;
 
         // store reference primitives as their representation classes
-        if let Some((item, arguments)) = ModuleLowerer::representation_item(&ty) {
+        if let Some((item, arguments)) = ModuleLowerer::representation_application(&ty) {
             let symbol = self.lowerer.language_item_symbol(item)?;
 
             return Ok(self.lower_nominal(symbol, &arguments)?.storage);
