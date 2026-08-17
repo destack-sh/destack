@@ -369,7 +369,6 @@ function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
     /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=compare.left
     /// @generic.instantiation id=PartialEqual.equal<T#3> template=PartialEqual.equal arguments=(T#3) owner=compare
-    /// @generic.instantiation id=PartialEqual.equal<T#3> template=PartialEqual.equal arguments=(T#3) owner=compare
     /// @resolution.name source=right target=compare.right
     /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=right root=compare.right
@@ -1793,10 +1792,14 @@ export class Bag<K, V> {
     keys: K[] = [];
     /// @type.symbol symbol=Bag.keys source="keys: K[] = []" type=Array<K#2>
     /// @resolution.name source=K target=Bag.K
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as K#2) return=Array<K#2> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<K#2>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<K#2> template=collections.array.arrayFromSlice arguments=(K#2) owner=Bag
 
     values: V[] = [];
     /// @type.symbol symbol=Bag.values source="values: V[] = []" type=Array<V#2>
     /// @resolution.name source=V target=Bag.V
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as V#2) return=Array<V#2> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<V#2>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<V#2> template=collections.array.arrayFromSlice arguments=(V#2) owner=Bag
 
 }
 

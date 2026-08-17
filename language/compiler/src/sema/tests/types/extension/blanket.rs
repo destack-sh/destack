@@ -145,7 +145,6 @@ const sound = horn.whisper();
 /// @resolution.place source=horn placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=horn root=horn
 /// @generic.instantiation id=whisper<Horn> template=whisper arguments=(Horn)
-/// @generic.instantiation id=whisper<Horn> template=whisper arguments=(Horn)
 /// @generic.instance id=whisper<Horn> template=whisper arguments=(Horn)
 
 sound satisfies string;

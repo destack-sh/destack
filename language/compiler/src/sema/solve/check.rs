@@ -552,18 +552,50 @@ impl CheckState<'_> {
         template: GenericTemplateId,
         substitution: &TypeSubstitution,
     ) -> CompilerResult<bool> {
+        let Some(ambiguous) =
+            self.evaluate_substitution_constraints(origin, template, substitution)?
+        else {
+            return Ok(false);
+        };
+
+        // queue the undecided checks behind their blocking variables
+        for check in ambiguous {
+            self.push_relation(check)?;
+        }
+
+        Ok(true)
+    }
+
+    /// Return whether one application's substituted constraints may still hold.
+    pub(in crate::sema) fn substitution_constraints_may_hold(
+        &mut self,
+        origin: Origin,
+        template: GenericTemplateId,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<bool> {
+        let ambiguous = self.evaluate_substitution_constraints(origin, template, substitution)?;
+
+        Ok(ambiguous.is_some())
+    }
+
+    /// Evaluate one application's constraints, returning its undecided checks.
+    fn evaluate_substitution_constraints(
+        &mut self,
+        origin: Origin,
+        template: GenericTemplateId,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<Option<SmallVec<[RelationCheck; 4]>>> {
         // substitute the bounds and predicates this application declares
         let checks = self.substitute_constraint_checks(origin, template, substitution)?;
 
         // require every substituted declaration check
+        let mut ambiguous = SmallVec::new();
         for check in checks {
             let verdict =
                 self.evaluate_relation(check.origin, check.relation, check.source, check.target)?;
             let mut satisfied = verdict != Verdict::Fails;
-
-            // queue an ambiguous check so its binding completes once blockers solve
             if verdict == Verdict::Ambiguous {
-                self.push_relation(check)?;
+                ambiguous.push(check);
             }
 
             // try rigid arguments through their declared bounds for transitive relations
@@ -581,11 +613,11 @@ impl CheckState<'_> {
             }
 
             if !satisfied {
-                return Ok(false);
+                return Ok(None);
             }
         }
 
-        Ok(true)
+        Ok(Some(ambiguous))
     }
 
     /// Substitute the checks enforced by one complete generic application.

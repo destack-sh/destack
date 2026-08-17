@@ -644,7 +644,7 @@ impl BodyState<'_, '_> {
             return Ok(None);
         }
 
-        // open inference variables for the parameters the target leaves unbound
+        // open the parameters the target leaves unbound
         let Some(mut substitution) = self.instantiate_parameters(
             origin,
             &parameters,
@@ -1286,18 +1286,6 @@ impl BodyState<'_, '_> {
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
     ) -> CompilerResult<Option<TypeSubstitution>> {
-        self.match_extension_subject_uncached(origin, receiver, subject, template, target_type)
-    }
-
-    /// Match one lookup subject against an extension target without the memo.
-    fn match_extension_subject_uncached(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-        subject: dir::GlobalTypeId,
-        template: Option<GenericTemplateId>,
-        target_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<TypeSubstitution>> {
         // written class names match as their canonical declaration instance
         let subject = match self.ty(subject)? {
             dir::Type::Reference(reference) => {
@@ -1321,6 +1309,19 @@ impl BodyState<'_, '_> {
             )? {
                 return Ok(None);
             }
+
+            // open the parameters the target leaves unbound
+            let opened = self.instantiate_parameters(
+                origin,
+                &parameters,
+                &[],
+                substitution,
+                TypeArgumentInference::Exact,
+            )?;
+            let Some(opened) = opened else {
+                return Ok(None);
+            };
+            substitution = opened;
         }
 
         let substitution = substitution.with_receiver(receiver);
@@ -1332,9 +1333,9 @@ impl BodyState<'_, '_> {
             return Ok(None);
         }
 
-        // require the extension declaration's substituted constraints
+        // filter on the declared constraints without committing their obligations
         if let Some(template) = template
-            && !self.relate_substitution_constraints(origin, template, &substitution)?
+            && !self.substitution_constraints_may_hold(origin, template, &substitution)?
         {
             return Ok(None);
         }

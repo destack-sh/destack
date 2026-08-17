@@ -96,7 +96,7 @@ export extension<const A: Access = "readonly"> of Grid {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&peek.'a Grid, A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=view<A> template=view arguments=(A) owner=<module>#2
+        /// @generic.instantiation id=view<A> template=view arguments=(A) owner=peek
 
     }
 }
@@ -199,10 +199,10 @@ function read(grid: &readonly Grid): int32 {
 
     grid.view()
     /// @type.node source=grid type=&read.'a readonly Grid
-    /// @type.node source=grid.view type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32
+    /// @type.node source=grid.view type=<view.'a>(this: WithAccess<&view.'a Grid, "readonly">) => int32
     /// @type.node source=grid.view() type=int32
     /// @resolution.name source=grid target=read.grid
-    /// @resolution.member source=grid.view receiver=&read.'a readonly Grid type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 kind=symbol target_receiver=&read.'a readonly Grid target=view
+    /// @resolution.member source=grid.view receiver=&read.'a readonly Grid type=<view.'a>(this: WithAccess<&view.'a Grid, "readonly">) => int32 kind=symbol target_receiver=&read.'a readonly Grid target=view
     /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&read.'a readonly Grid instance=Grid.<extension#1>.view
     /// @resolution.place source=grid placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=grid root=read.grid
@@ -220,10 +220,10 @@ function write(grid: &exclusive Grid): int32 {
 
     grid.view()
     /// @type.node source=grid type=&write.'a exclusive Grid
-    /// @type.node source=grid.view type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32
+    /// @type.node source=grid.view type=<view.'a>(this: WithAccess<&view.'a Grid, "exclusive">) => int32
     /// @type.node source=grid.view() type=int32
     /// @resolution.name source=grid target=write.grid
-    /// @resolution.member source=grid.view receiver=&write.'a exclusive Grid type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 kind=symbol target_receiver=&write.'a exclusive Grid target=view
+    /// @resolution.member source=grid.view receiver=&write.'a exclusive Grid type=<view.'a>(this: WithAccess<&view.'a Grid, "exclusive">) => int32 kind=symbol target_receiver=&write.'a exclusive Grid target=view
     /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&write.'a exclusive Grid instance=Grid.<extension#1>.view
     /// @resolution.place source=grid placement="local" lifetime=write.'a access="exclusive"
     /// @resolution.access source=grid root=write.grid
@@ -312,9 +312,8 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
         /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id="FixedArrayAccess.view<T, N, A>" template=FixedArrayAccess.view arguments=(T, N, A) owner=FixedArrayAccess
-        /// @generic.instantiation id="FixedArrayAccess.view<T, N>" template=FixedArrayAccess.view arguments=(T, N) owner=FixedArrayAccess
-        /// @generic.instantiation id="collections.fixed-array.view<T, N>" template=collections.fixed-array.view arguments=(T, N) owner=FixedArrayAccess
+        /// @generic.instantiation id="FixedArrayAccess.view<T, N, A>" template=FixedArrayAccess.view arguments=(T, N, A) owner=FixedArrayAccess.peek
+        /// @generic.instantiation id="collections.fixed-array.view<T, N>" template=collections.fixed-array.view arguments=(T, N) owner=FixedArrayAccess.peek
 
     }
 }
@@ -397,9 +396,8 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
         /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.peek.'a Array<T>, A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id="ArrayAccess.view<T, A>" template=ArrayAccess.view arguments=(T, A) owner=ArrayAccess
-        /// @generic.instantiation id=ArrayAccess.view<T> template=ArrayAccess.view arguments=(T) owner=ArrayAccess
-        /// @generic.instantiation id=collections.array.view<T> template=collections.array.view arguments=(T) owner=ArrayAccess
+        /// @generic.instantiation id="ArrayAccess.view<T, A>" template=ArrayAccess.view arguments=(T, A) owner=ArrayAccess.peek
+        /// @generic.instantiation id=collections.array.view<T> template=collections.array.view arguments=(T) owner=ArrayAccess.peek
 
     }
 }
@@ -487,4 +485,212 @@ extension<Value, const A: Access = "readonly"> of Box<Value> {
 /// @diagnostic.suggestion message="rename to 'value'" applicability=dangerous patched="return this.value;"
 "#,
     );
+}
+
+#[test]
+fn test_apply_conditional_extensions_through_bound_only_parameters() {
+    let session = TestSession::single(
+        r#"
+newtype interface It<T, R = void> {
+    next(this): R {
+        todo("next")
+    }
+
+    find(this): T | undefined {
+        todo("find")
+    }
+
+    map<U>(this, transform: (value: T) => U): Wrap<this, T, U> {
+        todo("map")
+    }
+}
+
+struct Wrap<I, T, U> {
+    source: I;
+    transform: (value: T) => U;
+}
+
+extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {
+    next(): void {
+        todo("next")
+    }
+}
+
+function firstDefined(values: It<int32>): int32 | undefined {
+    return values.map((value) => value).find();
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+=== annotated ===
+newtype interface It<in out T, out R = void> {
+    next(this): R {
+        todo("next")
+    }
+
+    find(this): T | undefined {
+        todo("find")
+    }
+
+    map<U>(this, transform: (arg0: T) => U): Wrap<this, T, U> {
+        todo("map")
+    }
+}
+
+struct Wrap<out I, in T, out U> {
+    source: I;
+    transform: (arg0: T) => U;
+}
+
+extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {
+    next(): void {
+        todo("next" as string | undefined);
+    }
+}
+
+function firstDefined(values: Dynamic<It<int32, void>>): int32 | undefined {
+    return values.map<int32, void, int32>((value: int32): int32 => value).find<
+        It<int32, void>,
+        int32,
+        int32,
+        void,
+        int32,
+        void
+    >();
+}
+
+=== dir ===
+newtype interface It<T, R = void> {
+/// @generic.template symbol=It parameters=(in out T#1, out R#1 = void)
+/// @type.symbol symbol=It type=It
+/// @definition.interface symbol=It template=(in out T#1, out R#1 = void) nominal=true
+/// @definition.where symbol=It relation=satisfies left=this right=It<T#1, R#1>
+/// @definition.method symbol=It.find slot=find type=(this: this) => T#1 | undefined
+/// @definition.method symbol=It.map slot=map type=<U#1>(this: this, Function<(T#1,), U#1>) => Wrap<this, T#1, U#1>
+/// @definition.method symbol=It.next slot=next type=(this: this) => R#1
+/// @type.symbol symbol=It.T source=T type=T#1
+/// @type.symbol symbol=It.R source="R = void" type=R#1
+
+    next(this): R {
+    /// @type.symbol symbol=It.next type=(this: this) => R#1
+    /// @type.symbol symbol=It.next.this source=this type=this
+    /// @resolution.name source=R target=It.R
+
+        todo("next")
+    }
+
+    find(this): T | undefined {
+    /// @type.symbol symbol=It.find type=(this: this) => T#1 | undefined
+    /// @type.symbol symbol=It.find.this source=this type=this
+    /// @resolution.name source=T target=It.T
+
+        todo("find")
+    }
+
+    map<U>(this, transform: (value: T) => U): Wrap<this, T, U> {
+    /// @generic.template symbol=It.map parent=template#0 parameters=(U#1)
+    /// @type.symbol symbol=It.map type=<U#1>(this: this, Function<(T#1,), U#1>) => Wrap<this, T#1, U#1>
+    /// @type.symbol symbol=It.map.U source=U type=U#1
+    /// @type.symbol symbol=It.map.this source=this type=this
+    /// @type.symbol symbol=It.map.transform source="transform: (value: T) => U" type=Function<(T#1,), U#1>
+    /// @type.symbol symbol=It.map.value source="value: T" type=T#1
+    /// @resolution.name source=T target=It.T
+    /// @resolution.name source=U target=It.map.U
+    /// @resolution.name source=Wrap target=Wrap
+    /// @resolution.name source=T target=It.T
+    /// @resolution.name source=U target=It.map.U
+
+        todo("map")
+    }
+}
+
+struct Wrap<I, T, U> {
+/// @generic.template symbol=Wrap parameters=(out I#1, in T#2, out U#2)
+/// @type.symbol symbol=Wrap type=Wrap
+/// @definition.struct symbol=Wrap template=(out I#1, in T#2, out U#2)
+/// @definition.field symbol=Wrap.source source="source: I" key=source type=I#1
+/// @definition.field symbol=Wrap.transform source="transform: (value: T) => U" key=transform type=Function<(T#2,), U#2>
+/// @type.symbol symbol=Wrap.I source=I type=I#1
+/// @type.symbol symbol=Wrap.T source=T type=T#2
+/// @type.symbol symbol=Wrap.U source=U type=U#2
+
+    source: I;
+    /// @type.symbol symbol=Wrap.source source="source: I" type=I#1
+    /// @resolution.name source=I target=Wrap.I
+
+    transform: (value: T) => U;
+    /// @type.symbol symbol=Wrap.transform source="transform: (value: T) => U" type=Function<(T#2,), U#2>
+    /// @type.symbol symbol=Wrap.value source="value: T" type=T#2
+    /// @resolution.name source=T target=Wrap.T
+    /// @resolution.name source=U target=Wrap.U
+
+}
+
+extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {
+/// @generic.template symbol=<module>#2 parameters=(T#3, U#3, R#2, I#2: It<T#3, R#2>)
+/// @definition.extension symbol=<module>#2 form=local target=Wrap<I#2, T#3, U#3>
+/// @definition.implements symbol=<module>#2 source=It<U> target="It<U#3, void>"
+/// @definition.method symbol=next slot=next type=<next.'a>(this: &next.'a readonly this) => void
+/// @definition.conformance symbol=<module>#2 member=It.find requirement=It.find
+/// @definition.conformance symbol=<module>#2 member=It.map requirement=It.map
+/// @definition.conformance symbol=<module>#2 member=next requirement=It.next
+/// @type.symbol symbol=T source=T type=T#3
+/// @type.symbol symbol=U source=U type=U#3
+/// @type.symbol symbol=R source=R type=R#2
+/// @type.symbol symbol=I source="I: It<T, R>" type=I#2
+/// @resolution.name source=It target=It
+/// @resolution.name source=T target=T
+/// @resolution.name source=R target=R
+/// @resolution.name source=Wrap target=Wrap
+/// @resolution.name source=I target=I
+/// @resolution.name source=T target=T
+/// @resolution.name source=U target=U
+/// @resolution.name source=It target=It
+/// @resolution.name source=U target=U
+
+    next(): void {
+    /// @generic.template symbol=next parent=template#2 parameters=('a)
+    /// @type.symbol symbol=next type=<next.'a>(this: &next.'a readonly this) => void
+
+        todo("next")
+        /// @type.node source="todo(\"next\")" type=never
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @type.node source="\"next\"" type="next"
+
+    }
+}
+
+function firstDefined(values: It<int32>): int32 | undefined {
+/// @type.symbol symbol=firstDefined type=(Dynamic<It<int32, void>>) => int32 | undefined
+/// @generic.instance id="It<int32, void>" template=It arguments=(int32, void)
+/// @type.symbol symbol=firstDefined.values source="values: It<int32>" type=Dynamic<It<int32, void>>
+/// @resolution.name source=It target=It
+
+    return values.map((value) => value).find();
+    /// @type.node source="values.map((value) => value)" type=Wrap<It<int32, void>, int32, int32>
+    /// @type.node source="values.map((value) => value).find" type=(this: Wrap<It<int32, void>, int32, int32>) => int32 | undefined
+    /// @type.node source="values.map((value) => value).find()" type=int32 | undefined
+    /// @type.node source=values.map type=<U#1>(this: It<int32, void>, Function<(int32,), U#1>) => Wrap<It<int32, void>, int32, U#1>
+    /// @resolution.name source=values target=firstDefined.values
+    /// @resolution.member source="values.map((value) => value).find" receiver=Wrap<It<int32, void>, int32, int32> type=(this: Wrap<It<int32, void>, int32, int32>) => int32 | undefined kind=symbol target_receiver=Wrap<It<int32, void>, int32, int32> target=It.find
+    /// @resolution.member source=values.map receiver=Dynamic<It<int32, void>> type=<U#1>(this: It<int32, void>, Function<(int32,), U#1>) => Wrap<It<int32, void>, int32, U#1> kind=symbol target_receiver=Dynamic<It<int32, void>> dispatch=dynamic constraint=It<int32, void> target=It.map
+    /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Wrap<It<int32, void>, int32, int32> kind=dynamic target=It.map receiver=Dynamic<It<int32, void>> constraint=It<int32, void> generic_arguments=(int32, void, int32)
+    /// @resolution.call source="values.map((value) => value).find()" parameters=() return=int32 | undefined kind=symbol target=It.find receiver=Wrap<It<int32, void>, int32, int32> instance="Wrap<It<int32, void>, int32, int32>.<extension#1>.find"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=firstDefined.values
+    /// @generic.instantiation id="It.find<It<int32, void>, int32, int32, void, int32, void>" template=It.find arguments=(It<int32, void>, int32, int32, void, int32, void)
+    /// @generic.instantiation id="It.map<int32, void>" template=It.map arguments=(int32, void)
+    /// @generic.instance id="It.find<It<int32, void>, int32, int32, void, int32, void>" template=It.find arguments=(It<int32, void>, int32, int32, void, int32, void)
+    /// @generic.instance id="Wrap<It<int32, void>, int32, int32>" template=Wrap arguments=(It<int32, void>, int32, int32)
+    /// @type.symbol symbol=firstDefined.symbol34 source="(value) => value" type=Function<(int32,), int32>
+    /// @type.node source="(value) => value" type=Function<(int32,), int32>
+    /// @type.symbol symbol=firstDefined.symbol34.value source=value type=int32
+    /// @resolution.name source=value target=firstDefined.symbol34.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=firstDefined.symbol34.value
+
+}
+"#);
 }

@@ -142,7 +142,6 @@ const text = boxed.read();
 /// @resolution.place source=boxed placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=boxed root=boxed
 /// @generic.instantiation id=read<Document> template=read arguments=(Document)
-/// @generic.instantiation id=read<Document> template=read arguments=(Document)
 /// @generic.instance id=read<Document> template=read arguments=(Document)
 "#,
     );
@@ -525,8 +524,7 @@ export extension<T> of Pack<T> where T: Copy {
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&twice.'a readonly Pack<T#3>
         /// @resolution.place source=this placement="local" lifetime=twice.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=duplicate<T#3> template=duplicate arguments=(T#3) owner=<module>#3
-        /// @generic.instantiation id=duplicate<T#3> template=duplicate arguments=(T#3) owner=<module>#3
+        /// @generic.instantiation id=duplicate<T#3> template=duplicate arguments=(T#3) owner=twice
 
     }
 }

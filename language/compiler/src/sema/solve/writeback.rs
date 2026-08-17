@@ -113,6 +113,7 @@ impl CheckState<'_> {
     /// Record every instantiation the committed decisions and conversions perform.
     fn record_instantiations(&mut self) {
         // collect selections that bind generic arguments, with their governing template
+        let mut seen = FxIndexSet::default();
         let mut instantiations = Vec::new();
         for (node, decision) in self.module.decisions.decision_entries() {
             decision.for_each_selection(&mut |selection| {
@@ -120,8 +121,15 @@ impl CheckState<'_> {
                     return;
                 }
 
+                // dedup governed selections mentioned from several nodes
+                let owner = self.governing_template_symbol(node);
+                let key = (owner, selection.symbol, selection.arguments.clone());
+                if !seen.insert(key) {
+                    return;
+                }
+
                 instantiations.push(dir::Instantiation {
-                    owner: self.governing_template_symbol(node),
+                    owner,
                     selection: selection.clone(),
                     source: node,
                 });
@@ -162,15 +170,29 @@ impl CheckState<'_> {
         // climb structural parents until a parameterized declaration owns the node
         let tree = &self.module.parsed.tree;
         let mut current = node.local_id.id;
+        let mut method = None;
         while let Some(parent) = tree.get_parent(current) {
-            if let Some(symbol) = self.module.declaration_symbol(parent)
-                && let Some(template) = self.loaded_symbol_template(symbol)
-                && let Some(template) = self.generic_template(template)
-                && template.parameters.iter().any(|parameter| {
-                    !self.is_lifetime_parameter(parameter.into_global(symbol.module_id))
-                })
-            {
-                return Some(symbol);
+            if let Some(symbol) = self.module.declaration_symbol(parent) {
+                // ground parameterized owners through their selecting method
+                let is_parameterized = self
+                    .loaded_symbol_template(symbol)
+                    .and_then(|template| self.generic_template(template))
+                    .is_some_and(|template| {
+                        template.parameters.iter().any(|parameter| {
+                            !self.is_lifetime_parameter(parameter.into_global(symbol.module_id))
+                        })
+                    });
+                if is_parameterized {
+                    return Some(method.unwrap_or(symbol));
+                }
+
+                // remember the innermost method awaiting a parameterized owner
+                let is_method = parent
+                    .try_into_typed::<dir::Member>()
+                    .is_ok_and(|member| matches!(tree.get(member), dir::Member::Method { .. }));
+                if method.is_none() && is_method {
+                    method = Some(symbol);
+                }
             }
 
             current = parent.id;
@@ -337,7 +359,7 @@ impl CheckState<'_> {
         self.normalize_closed(id)
     }
 
-    /// Return whether one type alias declares a computation as its value.
+    /// Return whether one type alias value requires normalization.
     pub(in crate::sema) fn alias_computes(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -347,7 +369,7 @@ impl CheckState<'_> {
         self.name_computes(symbol, &mut named)
     }
 
-    /// Return whether the family one declared name stands for reaches a computation.
+    /// Return whether one declared name's family requires normalization.
     fn name_computes(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -363,11 +385,11 @@ impl CheckState<'_> {
             _ => return Ok(false),
         };
 
-        self.value_computes(value, named)
+        self.value_requires_normalization(value, named)
     }
 
-    /// Return whether one declared alias value reaches a computation.
-    fn value_computes(
+    /// Return whether one declared alias value requires normalization.
+    fn value_requires_normalization(
         &mut self,
         value: dir::GlobalTypeId,
         named: &mut FxIndexSet<dir::GlobalSymbolId>,
@@ -377,29 +399,19 @@ impl CheckState<'_> {
             dir::Type::Application(instance) => self.name_computes(instance.symbol, named),
             dir::Type::Reference(reference) => self.name_computes(reference.symbol, named),
 
-            // a composition reaches a computation through any of its members
+            // search every union member for a computation
             dir::Type::Union(union) => {
                 let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
                 for element in elements {
-                    if self.value_computes(element, named)? {
+                    if self.value_requires_normalization(element, named)? {
                         return Ok(true);
                     }
                 }
 
                 Ok(false)
             }
-            dir::Type::Intersection(intersection) => {
-                let elements = self
-                    .type_ids(value.module_id, intersection.elements)?
-                    .to_vec();
-                for element in elements {
-                    if self.value_computes(element, named)? {
-                        return Ok(true);
-                    }
-                }
-
-                Ok(false)
-            }
+            // intersections reduce to their merged shape
+            dir::Type::Intersection(_) => Ok(true),
 
             _ => Ok(false),
         }

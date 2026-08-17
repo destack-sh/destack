@@ -304,7 +304,7 @@ extension<T> of Slice<T> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&first.'a readonly Slice<T#2>
         /// @resolution.place source=this placement="local" lifetime=first.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=size<T#2> template=size arguments=(T#2) owner=<module>#2
+        /// @generic.instantiation id=size<T#2> template=size arguments=(T#2) owner=first
 
     }
 }
@@ -462,7 +462,6 @@ const value = 1.double();
 /// @type.node source=1.double() type=1
 /// @resolution.member source=1.double receiver=1 type=(this: 1) => 1 kind=symbol target_receiver=1 target=Doubling.double
 /// @resolution.call source=1.double() parameters=() return=1 kind=symbol target=Doubling.double receiver=1 instance=Doubling<1>.double
-/// @generic.instantiation id=Doubling.double<1> template=Doubling.double arguments=(1)
 /// @generic.instantiation id=Doubling.double<1> template=Doubling.double arguments=(1)
 "#,
         "",
