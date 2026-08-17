@@ -47,7 +47,7 @@ impl CheckState<'_> {
         if let dir::Type::Form(form) = kind {
             return match form.form {
                 dir::Form::Managed | dir::Form::Raw | dir::Form::Readonly => Ok(Verdict::Holds),
-                dir::Form::Owned => Ok(Verdict::Fails),
+                dir::Form::Owned => self.satisfies_owned_copy(origin, form.value, active),
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
@@ -105,7 +105,7 @@ impl CheckState<'_> {
             dir::Type::Application(instance) => {
                 self.satisfies_copy_instance(origin, ty.module_id, instance, active)
             }
-            dir::Type::Array(_) | dir::Type::Slice(_) | dir::Type::Object(_) => {
+            dir::Type::Slice(_) | dir::Type::Object(_) => {
                 unreachable!("managed defaults return before structural copy")
             }
             dir::Type::FixedArray(array) => self.satisfies_copy(origin, array.element, active),
@@ -130,6 +130,42 @@ impl CheckState<'_> {
 
                 self.all_copy(origin, ids, active)
             }
+        }
+    }
+
+    /// Decide copyability for one payload stored inline as an owned value.
+    fn satisfies_owned_copy(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
+    ) -> CompilerResult<Verdict> {
+        // name bare declarations as their canonical applications
+        let ty = self.shallow_resolve(ty)?;
+        let ty = match self.ty(ty)? {
+            dir::Type::Reference(reference) => {
+                let instance = self.declaration_instance(reference.symbol)?;
+
+                self.intern_type(dir::Type::Application(instance))?
+            }
+            _ => ty,
+        };
+
+        // close recursive owned values coinductively
+        if active.contains(&ty) {
+            return Ok(Verdict::Holds);
+        }
+
+        // judge the stored representation past the managed handle default
+        match self.ty(ty)? {
+            dir::Type::Application(instance) => {
+                active.push(ty);
+                let result = self.satisfies_copy_instance(origin, ty.module_id, instance, active);
+                active.pop();
+
+                result
+            }
+            _ => self.satisfies_copy(origin, ty, active),
         }
     }
 
@@ -179,9 +215,23 @@ impl CheckState<'_> {
                 [definition.backing],
                 active,
             ),
-            dir::Definition::Class(_) | dir::Definition::Interface(_) => {
-                unreachable!("managed instances return before structural copy")
+            dir::Definition::Class(definition) => {
+                let mut fields = SmallVec::<[_; 8]>::new();
+                // owned base values store their fields inline
+                if let Some(extends) = &definition.extends {
+                    fields.push(extends.ty);
+                }
+                for member in &definition.members {
+                    if let dir::DefinitionMember::Field(_) = member
+                        && let Some(ty) = self.definition_member_type(member)?
+                    {
+                        fields.push(ty);
+                    }
+                }
+
+                self.all_applied_copy(origin, instance_module, &instance, fields, active)
             }
+            dir::Definition::Interface(_) => Ok(Verdict::Fails),
             dir::Definition::Extension(_) => Ok(Verdict::Fails),
         }
     }

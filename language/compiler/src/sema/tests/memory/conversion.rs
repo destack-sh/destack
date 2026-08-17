@@ -871,7 +871,7 @@ class State {
 /// @definition.class symbol=State
 /// @definition.field symbol=State.boxed source="boxed!: Box<User>" key=boxed type=Box<User>
 /// @definition.field symbol=State.user source="user!: User" key=user type=User
-/// @definition.field symbol=State.users source="users!: User[]" key=users type=Array<User>
+/// @definition.field symbol=State.users source="users!: User[]" key=users type=User[]
 
     user!: User;
     /// @type.symbol symbol=State.user source="user!: User" type=User
@@ -884,7 +884,7 @@ class State {
     /// @resolution.name source=User target=User
 
     users!: User[];
-    /// @type.symbol symbol=State.users source="users!: User[]" type=Array<User>
+    /// @type.symbol symbol=State.users source="users!: User[]" type=User[]
     /// @generic.instance id=Array<User> template=collections.array.Array arguments=(User)
     /// @generic.instance id=memory.init.MaybeUninit<User> template=memory.init.MaybeUninit arguments=(User)
     /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<User>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<User>)
@@ -936,7 +936,7 @@ inspect(state.users[0]);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(state.users[0]) parameters=(&'static readonly User) arguments=(provided(state.users[0]) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=state target=state
-/// @resolution.member source=state.users receiver=State type=Array<User> kind=field target_receiver=State key=users target=State.users target_type=Array<User>
+/// @resolution.member source=state.users receiver=State type=User[] kind=field target_receiver=State key=users target=State.users target_type=User[]
 /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=state root=state
 /// @resolution.place source=state.users placement="local" lifetime="static" access="exclusive"
@@ -946,8 +946,8 @@ inspect(state.users[0]);
 /// @resolution.subscript source=state.users[0] type=User kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static User, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<User, \"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
 /// @generic.instance id="collections.array.index#1<User, \"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<User>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<User>, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame User, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame User, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame User[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame User[], "exclusive")
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 "#,
     );
@@ -1461,8 +1461,8 @@ declare function inspectPoint(value: &readonly Point): void;
 
 declare function inspectValues(value: &readonly int32[]): void;
 /// @generic.template symbol=inspectValues parameters=('a)
-/// @type.symbol symbol=inspectValues source="declare function inspectValues(value: &readonly int32[]): void" type=<inspectValues.'a>(&inspectValues.'a readonly Array<int32>) => void
-/// @type.symbol symbol=inspectValues.value source="value: &readonly int32[]" type=&inspectValues.'a readonly Array<int32>
+/// @type.symbol symbol=inspectValues source="declare function inspectValues(value: &readonly int32[]): void" type=<inspectValues.'a>(&inspectValues.'a readonly int32[]) => void
+/// @type.symbol symbol=inspectValues.value source="value: &readonly int32[]" type=&inspectValues.'a readonly int32[]
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=Point
@@ -1470,7 +1470,7 @@ declare const point: Point;
 /// @resolution.name source=Point target=Point
 
 declare const values: int32[];
-/// @type.symbol symbol=values source=values type=Array<int32>
+/// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
@@ -1490,11 +1490,11 @@ inspectPoint(point);
 
 inspectValues(values);
 /// @resolution.name source=inspectValues target=inspectValues
-/// @resolution.call source=inspectValues(values) parameters=(&'static readonly Array<int32>) arguments=(provided(values) as &'static readonly Array<int32>) return=void kind=symbol target=inspectValues
+/// @resolution.call source=inspectValues(values) parameters=(&'static readonly int32[]) arguments=(provided(values) as &'static readonly int32[]) return=void kind=symbol target=inspectValues
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @coercion.node source=values from=Array<int32> adjustments=[{ kind: borrow, target: &'static readonly Array<int32> }] origin=implicit
+/// @coercion.node source=values from=int32[] adjustments=[{ kind: borrow, target: &'static readonly int32[] }] origin=implicit
 "#,
     );
 }
@@ -1618,13 +1618,13 @@ messages.push<Message>(message);
 
 === dir ===
 declare const values: shared int32[];
-/// @type.symbol symbol=values source=values type=Placed<Array<int32>, "shared">
+/// @type.symbol symbol=values source=values type=Placed<int32[], "shared">
 /// @resolution.pattern source=values kind=binding target=values
 
 values.push(1);
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<int32>, "shared">, ...int32[]) => isize kind=symbol target_receiver=Placed<Array<int32>, "shared"> target=collections.array.push
-/// @resolution.call source=values.push(1) parameters=(Placed<Array<int32>, "shared">) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<int32>, "shared"> instance=Array<int32>.<extension#5>.push
+/// @resolution.member source=values.push receiver=Placed<int32[], "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive int32[], "shared">, ...int32[]) => isize kind=symbol target_receiver=Placed<int32[], "shared"> target=collections.array.push
+/// @resolution.call source=values.push(1) parameters=(Placed<int32[], "shared">) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=Placed<int32[], "shared"> instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
@@ -1635,7 +1635,7 @@ class Message {}
 /// @definition.class symbol=Message source="class Message {}"
 
 declare const messages: shared Message[];
-/// @type.symbol symbol=messages source=messages type=Placed<Array<Message>, "shared">
+/// @type.symbol symbol=messages source=messages type=Placed<Message[], "shared">
 /// @resolution.pattern source=messages kind=binding target=messages
 /// @resolution.name source=Message target=Message
 
@@ -1646,8 +1646,8 @@ declare const message: shared Message;
 
 messages.push(message);
 /// @resolution.name source=messages target=messages
-/// @resolution.member source=messages.push receiver=Placed<Array<Message>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<Message>, "shared">, ...Message[]) => isize kind=symbol target_receiver=Placed<Array<Message>, "shared"> target=collections.array.push
-/// @resolution.call source=messages.push(message) parameters=(Placed<Array<Message>, "shared">) arguments=(rest(message) pack=collections.array.arrayFromSlice as Placed<Message, "shared">) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<Message>, "shared"> instance=Array<Message>.<extension#5>.push
+/// @resolution.member source=messages.push receiver=Placed<Message[], "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Message[], "shared">, ...Message[]) => isize kind=symbol target_receiver=Placed<Message[], "shared"> target=collections.array.push
+/// @resolution.call source=messages.push(message) parameters=(Placed<Message[], "shared">) arguments=(rest(message) pack=collections.array.arrayFromSlice as Placed<Message, "shared">) return=isize kind=symbol target=collections.array.push receiver=Placed<Message[], "shared"> instance=Array<Message>.<extension#5>.push
 /// @resolution.place source=messages placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=messages root=messages
 /// @generic.instantiation id="collections.array.arrayFromSlice<Placed<Message, \"shared\">>" template=collections.array.arrayFromSlice arguments=(Placed<Message, "shared">)
@@ -1655,9 +1655,9 @@ messages.push(message);
 /// @resolution.name source=message target=message
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Array<int32>' is not assignable to the method's 'this' type 'shared &exclusive Array<int32>'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared int32[]' is not assignable to the method's 'this' type 'shared &exclusive int32[]'"
 /// @diagnostic.label line=4 column=1 span="values.push(1)" line_source="values.push(1);"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Array<Message>' is not assignable to the method's 'this' type 'shared &exclusive Array<Message>'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Message[]' is not assignable to the method's 'this' type 'shared &exclusive Message[]'"
 /// @diagnostic.label line=11 column=1 span="messages.push(message)" line_source="messages.push(message);"
 "#,
     );
@@ -1768,8 +1768,7 @@ let owned: ^User = user;
 fn test_reject_noncopyable_borrow_as_owned() {
     let session = TestSession::single(
         r#"
-class Buffer {}
-struct Label { buffer: ^Buffer; }
+struct Label { values: ^Array<uint8>; }
 
 declare let label: ^Label;
 let borrow = &label;
@@ -1782,9 +1781,8 @@ let owned: ^Label = borrow;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-class Buffer {}
 struct Label {
-    buffer: ^Buffer;
+    values: ^uint8[];
 }
 
 declare let label: ^Label;
@@ -1792,16 +1790,12 @@ let borrow: &'static ^Label = &label;
 let owned: ^Label = borrow;
 
 === dir ===
-class Buffer {}
-/// @type.symbol symbol=Buffer source="class Buffer {}" type=Buffer
-/// @definition.class symbol=Buffer source="class Buffer {}"
-
-struct Label { buffer: ^Buffer; }
-/// @type.symbol symbol=Label source="struct Label { buffer: ^Buffer; }" type=Label
-/// @definition.struct symbol=Label source="struct Label { buffer: ^Buffer; }"
-/// @definition.field symbol=Label.buffer source="buffer: ^Buffer" key=buffer type=Owned<Buffer>
-/// @type.symbol symbol=Label.buffer source="buffer: ^Buffer" type=Owned<Buffer>
-/// @resolution.name source=Buffer target=Buffer
+struct Label { values: ^Array<uint8>; }
+/// @type.symbol symbol=Label source="struct Label { values: ^Array<uint8>; }" type=Label
+/// @definition.struct symbol=Label source="struct Label { values: ^Array<uint8>; }"
+/// @definition.field symbol=Label.values source="values: ^Array<uint8>" key=values type=Owned<Array<uint8>>
+/// @type.symbol symbol=Label.values source="values: ^Array<uint8>" type=Owned<Array<uint8>>
+/// @resolution.name source=Array target=collections.array.Array
 
 declare let label: ^Label;
 /// @type.symbol symbol=label source=label type=Owned<Label>
@@ -1828,8 +1822,8 @@ let owned: ^Label = borrow;
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '&'static ^Label' is not assignable to type '^Label'"
-/// @diagnostic.label line=7 column=21 span="borrow" line_source="let owned: ^Label = borrow;"
-/// @diagnostic.related line=7 column=12 span="^" line_source="let owned: ^Label = borrow;" message="expected due to this annotation"
+/// @diagnostic.label line=6 column=21 span="borrow" line_source="let owned: ^Label = borrow;"
+/// @diagnostic.related line=6 column=12 span="^" line_source="let owned: ^Label = borrow;" message="expected due to this annotation"
 "#,
     );
 }
@@ -2067,13 +2061,11 @@ fn test_reject_inferred_argument_violating_copy_bound() {
         r#"
 import { Copy } from "destack:memory";
 
-class Session {}
-
 declare function duplicate<T: Copy>(value: T): ^T;
-declare const session: ^Session;
+declare const values: ^Array<int32>;
 
 duplicate(32);
-duplicate(session);
+duplicate(values);
 "#,
     );
 
@@ -2084,20 +2076,14 @@ duplicate(session);
 === annotated ===
 import { Copy } from "destack:memory";
 
-class Session {}
-
 declare function duplicate<T: Copy>(value: T): ^T;
-declare const session: ^Session;
+declare const values: ^int32[];
 
 duplicate<32>(32);
-duplicate(session);
+duplicate(values);
 
 === dir ===
 import { Copy } from "destack:memory";
-
-class Session {}
-/// @type.symbol symbol=Session source="class Session {}" type=Session
-/// @definition.class symbol=Session source="class Session {}"
 
 declare function duplicate<T: Copy>(value: T): ^T;
 /// @generic.template symbol=duplicate parameters=(T: memory.capability.Copy)
@@ -2108,28 +2094,28 @@ declare function duplicate<T: Copy>(value: T): ^T;
 /// @resolution.name source=T target=duplicate.T
 /// @resolution.name source=T target=duplicate.T
 
-declare const session: ^Session;
-/// @type.symbol symbol=session source=session type=Owned<Session>
-/// @resolution.pattern source=session kind=binding target=session
-/// @resolution.name source=Session target=Session
+declare const values: ^Array<int32>;
+/// @type.symbol symbol=values source=values type=Owned<Array<int32>>
+/// @resolution.pattern source=values kind=binding target=values
+/// @resolution.name source=Array target=collections.array.Array
 
 duplicate(32);
 /// @resolution.name source=duplicate target=duplicate
 /// @resolution.call source=duplicate(32) parameters=(32) arguments=(provided(32) as 32) return=Owned<32> kind=symbol target=duplicate instance=duplicate<32>
 /// @generic.instantiation id=duplicate<32> template=duplicate arguments=(32)
 
-duplicate(session);
+duplicate(values);
 /// @resolution.name source=duplicate target=duplicate
-/// @resolution.call source=duplicate(session) parameters=(<error>) arguments=(provided(session) as <error>) return=Owned<<error>> kind=symbol target=duplicate instance=duplicate<<error>>
+/// @resolution.call source=duplicate(values) parameters=(<error>) arguments=(provided(values) as <error>) return=Owned<<error>> kind=symbol target=duplicate instance=duplicate<<error>>
 /// @generic.instantiation id=duplicate<<error>> template=duplicate arguments=(<error>)
-/// @resolution.name source=session target=session
-/// @resolution.place source=session placement="local" lifetime="static" access="readonly"
-/// @resolution.access source=session root=session
+/// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=values root=values
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type '^Session' does not satisfy 'Copy'"
-/// @diagnostic.label line=10 column=1 span="duplicate(session)" line_source="duplicate(session);"
-/// @diagnostic.related line=6 column=28 span="T" line_source="declare function duplicate<T: Copy>(value: T): ^T;" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^int32[]' does not satisfy 'Copy'"
+/// @diagnostic.label line=8 column=1 span="duplicate(values)" line_source="duplicate(values);"
+/// @diagnostic.related line=4 column=28 span="T" line_source="declare function duplicate<T: Copy>(value: T): ^T;" message="required by this bound on 'T'"
 "#,
     );
 }
@@ -2152,10 +2138,10 @@ filtered;
         r#"
 === annotated ===
 declare const values: (int32 | undefined)[];
-const mapped: ^Array<int32 | undefined> = values.map<int32 | undefined, int32 | undefined>(
+const mapped: ^(int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined>(
     (value: int32 | undefined): int32 | undefined => value,
 );
-const filtered: ^Array<int32 | undefined> = mapped.filter<int32 | undefined>(
+const filtered: ^(int32 | undefined)[] = mapped.filter<int32 | undefined>(
     (value: &'a readonly (int32 | undefined)): boolean => (value as int32 | undefined) != undefined,
 );
 
@@ -2163,15 +2149,15 @@ filtered;
 
 === dir ===
 declare const values: (int32 | undefined)[];
-/// @type.symbol symbol=values source=values type=Array<int32 | undefined>
+/// @type.symbol symbol=values source=values type=int32 | undefined[]
 /// @resolution.pattern source=values kind=binding target=values
 
 const mapped = values.map((value) => value);
-/// @type.symbol symbol=mapped source=mapped type=Owned<Array<int32 | undefined>>
+/// @type.symbol symbol=mapped source=mapped type=Owned<int32 | undefined[]>
 /// @resolution.pattern source=mapped kind=binding target=mapped
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.map receiver=Array<int32 | undefined> type=<collections.array.map.U#2>(this: Array<int32 | undefined>, Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=symbol target_receiver=Array<int32 | undefined> target=collections.array.map#2
-/// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.map#2 receiver=Array<int32 | undefined> instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
+/// @resolution.member source=values.map receiver=int32 | undefined[] type=<collections.array.map.U#2>(this: int32 | undefined[], Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]> kind=symbol target_receiver=int32 | undefined[] target=collections.array.map#2
+/// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<int32 | undefined[]> kind=symbol target=collections.array.map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
@@ -2183,11 +2169,11 @@ const mapped = values.map((value) => value);
 /// @resolution.access source=value root=symbol2.value
 
 const filtered = mapped.filter((value) => value != undefined);
-/// @type.symbol symbol=filtered source=filtered type=Owned<Array<int32 | undefined>>
+/// @type.symbol symbol=filtered source=filtered type=Owned<int32 | undefined[]>
 /// @resolution.pattern source=filtered kind=binding target=filtered
 /// @resolution.name source=mapped target=mapped
-/// @resolution.member source=mapped.filter receiver=Owned<Array<int32 | undefined>> type=(this: Owned<Array<int32 | undefined>>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>> & (this: Owned<Array<int32 | undefined>>, Function<(int32 | undefined, isize), boolean>) => Owned<Array<int32 | undefined>> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
-/// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32 | undefined>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
+/// @resolution.member source=mapped.filter receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> & (this: Owned<int32 | undefined[]>, Function<(int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
+/// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=collections.array.filter#1 receiver=Owned<int32 | undefined[]> instance=Owned<collections.array.T#2[]>.<extension#2>.filter#1
 /// @resolution.place source=mapped placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=mapped root=mapped
 /// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
@@ -2303,7 +2289,7 @@ const handle: Array<int32> = borrow;
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare const borrow: &'static readonly Array<int32>;
+declare const borrow: &'static readonly int32[];
 
 const handle: int32[] = borrow;
 
@@ -2322,7 +2308,7 @@ const handle: Array<int32> = borrow;
 /// @resolution.access source=borrow root=borrow
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&'static readonly Array<int32>' is not assignable to type 'Array<int32>'"
+/// @diagnostic.error id=not-assignable message="type '&'static readonly int32[]' is not assignable to type 'int32[]'"
 /// @diagnostic.label line=4 column=30 span="borrow" line_source="const handle: Array<int32> = borrow;"
 /// @diagnostic.related line=4 column=15 span="Array" line_source="const handle: Array<int32> = borrow;" message="expected due to this annotation"
 "#,

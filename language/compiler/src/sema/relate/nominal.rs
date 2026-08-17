@@ -78,6 +78,19 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
+        // capability targets judge formed sources directly
+        if matches!(self.ty(source)?, dir::Type::Form(_))
+            && let Some(interface) = self
+                .type_symbol(target)?
+                .map(|symbol| self.language_item(symbol))
+                .transpose()?
+                .flatten()
+                .and_then(dir::AutoInterface::from_language_item)
+                .filter(|interface| interface.is_intrinsic())
+        {
+            return self.satisfies_auto_interface(origin, source, interface);
+        }
+
         // memory forms decide like closed form assignability
         if (matches!(self.ty(source)?, dir::Type::Form(_))
             || matches!(self.ty(target)?, dir::Type::Form(_)))

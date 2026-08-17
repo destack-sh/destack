@@ -156,10 +156,10 @@ let buffer: ^Buffer = makeBuffer();
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.field symbol=Buffer.values source="values: int32[]" key=values type=Array<int32>
+/// @definition.field symbol=Buffer.values source="values: int32[]" key=values type=int32[]
 
     values: int32[];
-    /// @type.symbol symbol=Buffer.values source="values: int32[]" type=Array<int32>
+    /// @type.symbol symbol=Buffer.values source="values: int32[]" type=int32[]
     /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
     /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
     /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
@@ -410,6 +410,198 @@ user.profile.name = "Grace";
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=14 column=14 span="name" line_source="user.profile.name = \"Grace\";"
+"#,
+    );
+}
+
+#[test]
+fn test_copy_owned_values_through_their_stored_fields() {
+    let session = TestSession::single(
+        r#"
+import { Copy } from "destack:memory";
+
+struct Point {
+    x: int32 = 0;
+    y: int32 = 0;
+}
+
+class Pair {
+    left: int32 = 0;
+    right: int32 = 0;
+}
+
+class Named {
+    label: string = "";
+}
+
+function witness<T: Copy>(value: T): T {
+    return value;
+}
+
+declare const point: ^Point;
+witness(point);
+
+declare const pair: ^Pair;
+witness(pair);
+
+declare const values: ^Array<int32>;
+witness(values);
+
+declare const named: ^Named;
+witness(named);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Copy } from "destack:memory";
+
+struct Point {
+    x: int32 = 0;
+    y: int32 = 0;
+}
+
+class Pair {
+    left: int32 = 0;
+    right: int32 = 0;
+}
+
+class Named {
+    label: string = "";
+}
+
+function witness<T: Copy>(value: T): T {
+    return value;
+}
+
+declare const point: ^Point;
+witness<Point>(point);
+
+declare const pair: ^Pair;
+witness<^Pair>(pair);
+
+declare const values: ^int32[];
+witness(values);
+
+declare const named: ^Named;
+witness<^Named>(named);
+
+=== dir ===
+import { Copy } from "destack:memory";
+
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32 = 0" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32 = 0" key=y type=int32
+
+    x: int32 = 0;
+    /// @type.symbol symbol=Point.x source="x: int32 = 0" type=int32
+
+    y: int32 = 0;
+    /// @type.symbol symbol=Point.y source="y: int32 = 0" type=int32
+
+}
+
+class Pair {
+/// @type.symbol symbol=Pair type=Pair
+/// @definition.class symbol=Pair
+/// @definition.field symbol=Pair.left source="left: int32 = 0" key=left type=int32
+/// @definition.field symbol=Pair.right source="right: int32 = 0" key=right type=int32
+
+    left: int32 = 0;
+    /// @type.symbol symbol=Pair.left source="left: int32 = 0" type=int32
+
+    right: int32 = 0;
+    /// @type.symbol symbol=Pair.right source="right: int32 = 0" type=int32
+
+}
+
+class Named {
+/// @type.symbol symbol=Named type=Named
+/// @definition.class symbol=Named
+/// @definition.field symbol=Named.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Named.label source="label: string = \"\"" type=string
+
+}
+
+function witness<T: Copy>(value: T): T {
+/// @generic.template symbol=witness parameters=(T: memory.capability.Copy)
+/// @type.symbol symbol=witness type=<T: memory.capability.Copy>(T) => T
+/// @type.symbol symbol=witness.T source="T: Copy" type=T
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @type.symbol symbol=witness.value source="value: T" type=T
+/// @resolution.name source=T target=witness.T
+/// @resolution.name source=T target=witness.T
+
+    return value;
+    /// @resolution.name source=value target=witness.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=witness.value
+
+}
+
+declare const point: ^Point;
+/// @type.symbol symbol=point source=point type=Owned<Point>
+/// @resolution.pattern source=point kind=binding target=point
+/// @resolution.name source=Point target=Point
+
+witness(point);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(point) parameters=(Point) arguments=(provided(point) as Point) return=Point kind=symbol target=witness instance=witness<Point>
+/// @generic.instantiation id=witness<Point> template=witness arguments=(Point)
+/// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=point root=point
+
+declare const pair: ^Pair;
+/// @type.symbol symbol=pair source=pair type=Owned<Pair>
+/// @resolution.pattern source=pair kind=binding target=pair
+/// @resolution.name source=Pair target=Pair
+
+witness(pair);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(pair) parameters=(Owned<Pair>) arguments=(provided(pair) as Owned<Pair>) return=Owned<Pair> kind=symbol target=witness instance=witness<Owned<Pair>>
+/// @generic.instantiation id=witness<Owned<Pair>> template=witness arguments=(Owned<Pair>)
+/// @resolution.name source=pair target=pair
+/// @resolution.place source=pair placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=pair root=pair
+
+declare const values: ^Array<int32>;
+/// @type.symbol symbol=values source=values type=Owned<Array<int32>>
+/// @resolution.pattern source=values kind=binding target=values
+/// @resolution.name source=Array target=collections.array.Array
+
+witness(values);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(values) parameters=(<error>) arguments=(provided(values) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @generic.instantiation id=witness<<error>> template=witness arguments=(<error>)
+/// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=values root=values
+
+declare const named: ^Named;
+/// @type.symbol symbol=named source=named type=Owned<Named>
+/// @resolution.pattern source=named kind=binding target=named
+/// @resolution.name source=Named target=Named
+
+witness(named);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(named) parameters=(Owned<Named>) arguments=(provided(named) as Owned<Named>) return=Owned<Named> kind=symbol target=witness instance=witness<Owned<Named>>
+/// @generic.instantiation id=witness<Owned<Named>> template=witness arguments=(Owned<Named>)
+/// @resolution.name source=named target=named
+/// @resolution.place source=named placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=named root=named
+"#,
+        r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^int32[]' does not satisfy 'Copy'"
+/// @diagnostic.label line=29 column=1 span="witness(values)" line_source="witness(values);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
 "#,
     );
 }
