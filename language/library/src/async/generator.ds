@@ -55,7 +55,7 @@ export local class Generator<Y, R = void, N = void> {
             let producer = GeneratorProducer { state };
             let request = state.begin();
             let result = match (request) {
-                GeneratorNext => body(producer)
+                GeneratorNext { } => body(producer)
                 GeneratorReturn { value } => value
             };
             state.complete(result);
@@ -124,18 +124,18 @@ local class GeneratorState<Y, R, N> {
     /// Submit one consumer request and run the producer synchronously.
     advance(&readonly this, request: GeneratorRequest<R, N>): GeneratorResult<Y, R> {
         match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
-            GeneratorStart | GeneratorSuspended => {
+            GeneratorStart { } | GeneratorSuspended { } => {
                 this.phase.set(GeneratorRequested {
                     kind: "requested",
                     request,
                 });
             }
-            GeneratorExhausted => {
+            GeneratorExhausted { } => {
                 this.phase.set(GeneratorExhausted { kind: "exhausted" });
 
                 return match (request) {
-                    GeneratorNext => IteratorReturn { value: undefined }
-                    GeneratorReturn { value } => IteratorReturn { value }
+                    GeneratorNext { } => IteratorResult(IteratorReturn { value: undefined })
+                    GeneratorReturn { value } => IteratorResult(IteratorReturn { value })
                 };
             }
             phase => {
@@ -161,7 +161,7 @@ local class GeneratorState<Y, R, N> {
     /// Publish one yielded value and suspend the producer.
     yield(&readonly this, value: Y): GeneratorRequest<R, N> {
         match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
-            GeneratorRunning => {
+            GeneratorRunning { } => {
                 this.phase.set(GeneratorYielded { kind: "yielded", value });
             }
             phase => {
@@ -177,7 +177,7 @@ local class GeneratorState<Y, R, N> {
     /// Publish the producer's return value.
     complete(&readonly this, value: R): void {
         match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
-            GeneratorRunning => {
+            GeneratorRunning { } => {
                 this.phase.set(GeneratorReturned { kind: "returned", value });
             }
             phase => {
@@ -209,12 +209,12 @@ local class GeneratorState<Y, R, N> {
             GeneratorYielded { value } => {
                 this.phase.set(GeneratorSuspended { kind: "suspended" });
 
-                IteratorYield { value }
+                IteratorResult(IteratorYield { value })
             }
             GeneratorReturned { value } => {
                 this.phase.set(GeneratorExhausted { kind: "exhausted" });
 
-                IteratorReturn { value }
+                IteratorResult(IteratorReturn { value })
             }
             phase => {
                 this.phase.set(phase);
@@ -247,7 +247,7 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
             let producer = AsyncGeneratorProducer { state };
             let request = state.begin();
             let result = match (request) {
-                GeneratorNext => body(producer)
+                GeneratorNext { } => body(producer)
                 GeneratorReturn { value } => value
             };
             state.complete(result);
@@ -301,21 +301,21 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     private producer: Cell<Fiber | undefined>;
 
     /// First queued request.
-    private head: AsyncGeneratorRequest<Y, R, N> | undefined;
+    private head: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
 
     /// Last queued request.
-    private tail: AsyncGeneratorRequest<Y, R, N> | undefined;
+    private tail: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
 
     /// Request currently owned by the producer.
-    private active: AsyncGeneratorRequest<Y, R, N> | undefined;
+    private active: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
 
     /// Create one suspended-start state.
     constructor() {
         this.phase = Cell.new(AsyncGeneratorPhase.Start);
         this.producer = Cell.new(undefined);
-        this.head = undefined;
-        this.tail = undefined;
-        this.active = undefined;
+        this.head = Cell.new(undefined);
+        this.tail = Cell.new(undefined);
+        this.active = Cell.new(undefined);
     }
 
     /// Attach the suspended producer fiber.
@@ -338,12 +338,11 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
 
         // append the request in consumer order
         let request = new AsyncGeneratorRequest(operation, settlement);
-        if (this.tail == undefined) {
-            this.head = request;
-            this.tail = request;
+        let tail = this.tail.replace(request);
+        if (tail == undefined) {
+            this.head.set(request);
         } else {
-            this.tail.next = request;
-            this.tail = request;
+            tail!.next.set(request);
         }
 
         // schedule suspended producer execution once
@@ -366,9 +365,9 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     /// Publish one yielded value and park until another request arrives.
     yield(&readonly this, value: Y): GeneratorRequest<R, N> {
         let request = this.takeActive();
-        request.settlement.resolve(IteratorYield { value });
+        request.settlement.resolve(IteratorResult(IteratorYield { value }));
         this.phase.set(AsyncGeneratorPhase.Suspended);
-        if (this.head != undefined) {
+        if (this.head.get() != undefined) {
             this.phase.set(AsyncGeneratorPhase.Scheduled);
             let producer = Fiber.current();
             queueMicrotask(() => {
@@ -383,11 +382,11 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     /// Publish the producer's return value and drain queued requests.
     complete(&readonly this, value: R): void {
         let request = this.takeActive();
-        request.settlement.resolve(IteratorReturn { value });
+        request.settlement.resolve(IteratorResult(IteratorReturn { value }));
         this.phase.set(AsyncGeneratorPhase.Completed);
 
         // settle requests queued before completion became visible
-        while (this.head != undefined) {
+        while (this.head.get() != undefined) {
             let request = this.pop();
             request.settlement.resolve(this.completedResult(request.take()));
         }
@@ -407,7 +406,7 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     private takeRequest(&readonly this): GeneratorRequest<R, N> {
         let request = this.pop();
         let operation = request.take();
-        this.active = request;
+        this.active.set(request);
         this.phase.set(AsyncGeneratorPhase.Running);
 
         operation
@@ -415,25 +414,24 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
 
     /// Take the request currently owned by the producer.
     private takeActive(&readonly this): AsyncGeneratorRequest<Y, R, N> {
-        let request = this.active;
+        let request = this.active.replace(undefined);
         if (request == undefined) {
             trap("async generator has no active request");
         }
-        this.active = undefined;
 
         request!
     }
 
     /// Pop the first queued request.
     private pop(&readonly this): AsyncGeneratorRequest<Y, R, N> {
-        let request = this.head;
+        let request = this.head.replace(undefined);
         if (request == undefined) {
             trap("async generator resumed without a request");
         }
-        this.head = request!.next;
-        request!.next = undefined;
-        if (this.head == undefined) {
-            this.tail = undefined;
+        let next = request!.next.replace(undefined);
+        this.head.set(next);
+        if (next == undefined) {
+            this.tail.set(undefined);
         }
 
         request!
@@ -442,8 +440,8 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     /// Return the result of one request after producer completion.
     private completedResult(operation: GeneratorRequest<R, N>): GeneratorResult<Y, R> {
         return match (operation) {
-            GeneratorNext => IteratorReturn { value: undefined }
-            GeneratorReturn { value } => IteratorReturn { value }
+            GeneratorNext { } => IteratorResult(IteratorReturn { value: undefined })
+            GeneratorReturn { value } => IteratorResult(IteratorReturn { value })
         };
     }
 }
@@ -457,7 +455,7 @@ local class AsyncGeneratorRequest<Y: Copy, R: Copy, N> {
     settlement: PromiseResolvers<GeneratorResult<Y, R>>;
 
     /// Next request in consumer order.
-    next: AsyncGeneratorRequest<Y, R, N> | undefined;
+    next: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
 
     /// Create one queued request.
     constructor(
@@ -466,15 +464,17 @@ local class AsyncGeneratorRequest<Y: Copy, R: Copy, N> {
     ) {
         this.operation = Cell.new(operation);
         this.settlement = settlement;
-        this.next = undefined;
+        this.next = Cell.new(undefined);
     }
 
     /// Move out the requested producer operation.
     take(&readonly this): GeneratorRequest<R, N> {
-        return match (this.operation.replace(undefined)) {
-            undefined => trap("async generator request was already consumed")
-            operation => operation
-        };
+        let operation = this.operation.replace(undefined);
+        if (operation == undefined) {
+            trap("async generator request was already consumed");
+        }
+
+        operation!
     }
 }
 
