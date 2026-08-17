@@ -572,8 +572,8 @@ impl BodyState<'_, '_> {
 
             // apply the optional arm guard
             if let Some(guard) = guard {
-                self.check_match_guard(module, guard)?;
-                self.check.narrow_expression(guard, ConditionBranch::True)?;
+                self.check_condition_operands(module, guard)?;
+                self.check.narrow_condition(guard, ConditionBranch::True)?;
             }
 
             // check the arm body under the narrowed flow
@@ -733,31 +733,6 @@ impl BodyState<'_, '_> {
         }
 
         Ok(present)
-    }
-
-    /// Check one match guard against boolean.
-    fn check_match_guard(
-        &mut self,
-        module: ModuleId,
-        guard: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
-        let site = self.check.visit_site(guard.into_global_any(module))?;
-        let boolean = self
-            .check
-            .intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
-        let expectation = Expectation {
-            target: boolean,
-            relation: Relation::Assignable,
-            cause: self.check.intern_cause(Cause::root(
-                Origin::Node(guard.into_global_any(module), site.scope),
-                CauseKind::Expression,
-            )),
-            use_: ValueUse::Condition,
-            mode: InferMode::Exact,
-        };
-        self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
-
-        Ok(())
     }
 
     /// Infer one for-in or for-of expression.

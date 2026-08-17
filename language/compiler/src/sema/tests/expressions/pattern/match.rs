@@ -887,6 +887,111 @@ result satisfies int32;
     );
 }
 
+/// Bind match-guard names through later operands and the arm body only.
+#[test]
+fn test_match_binding_guard_scopes_names() {
+    let session = TestSession::single(
+        r#"
+declare const input: (string, boolean) | null;
+declare function parse(text: string): (int32, string) | null;
+
+const output = match (input) {
+    (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label
+    _ => "none"
+};
+
+value;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const input: (string, boolean) | null;
+declare function parse(text: string): (int32, string) | null;
+
+const output: string = match (input) {
+    (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label
+    _ => "none"
+};
+
+value;
+
+=== dir ===
+declare const input: (string, boolean) | null;
+/// @type.symbol symbol=input source=input type=(string, boolean) | null
+/// @resolution.pattern source=input kind=binding target=input
+
+declare function parse(text: string): (int32, string) | null;
+/// @type.symbol symbol=parse source="declare function parse(text: string): (int32, string) | null" type=(string) => (int32, string) | null
+/// @type.symbol symbol=parse.text source="text: string" type=string
+
+const output = match (input) {
+/// @type.symbol symbol=output source=output type=string
+/// @resolution.pattern source=output kind=binding target=output
+/// @type.node type=string
+/// @type.node source=input type=(string, boolean) | null
+/// @resolution.name source=input target=input
+/// @resolution.place source=input placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=input root=input
+
+    (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label
+    /// @resolution.pattern source=(text, ready) kind=tuple fields=(text, ready)
+    /// @type.symbol symbol=text source=text type=string
+    /// @resolution.pattern source=text kind=binding target=text
+    /// @type.symbol symbol=ready source=ready type=boolean
+    /// @resolution.pattern source=ready kind=binding target=ready
+    /// @type.node source=ready type=boolean
+    /// @resolution.name source=ready target=ready
+    /// @resolution.place source=ready placement="local" lifetime="frame" access="readonly"
+    /// @resolution.access source=ready root=ready
+    /// @resolution.pattern source=(value, label) kind=tuple fields=(value, label)
+    /// @type.symbol symbol=value source=value type=int32
+    /// @resolution.pattern source=value kind=binding target=value
+    /// @type.symbol symbol=label source=label type=string
+    /// @resolution.pattern source=label kind=binding target=label
+    /// @type.node source=parse type=(string) => (int32, string) | null
+    /// @type.node source=parse(text) type=(int32, string) | null
+    /// @resolution.name source=parse target=parse
+    /// @resolution.call source=parse(text) parameters=(string) arguments=(provided(text) as string) return=(int32, string) | null kind=symbol target=parse
+    /// @type.node source=text type=string
+    /// @resolution.name source=text target=text
+    /// @resolution.place source=text placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=text root=text
+    /// @type.node source="value > 0" type=boolean
+    /// @type.node source=value type=int32
+    /// @resolution.name source=value target=value
+    /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value
+    /// @type.node source=0 type=0
+    /// @type.node source=true type=true
+    /// @type.node source=label type=string
+    /// @resolution.name source=label target=label
+    /// @resolution.place source=label placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=label root=label
+
+    _ => "none"
+    /// @resolution.pattern source=_ kind=wildcard
+    /// @type.node source="\"none\"" type="none"
+
+};
+
+value;
+/// @type.node source=value type=<error>
+/// @resolution.unresolved source=value path=value
+"#,
+        r#"
+/// @diagnostic.warning id=constant-condition message="condition is always true"
+/// @diagnostic.label line=6 column=81 span="true" line_source="(text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'value'"
+/// @diagnostic.label line=10 column=1 span="value" line_source="value;"
+"#,
+    );
+}
+
 #[test]
 fn test_match_object_pattern_binds_fields() {
     let session = TestSession::single(

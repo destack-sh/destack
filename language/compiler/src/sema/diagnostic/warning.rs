@@ -74,7 +74,9 @@ impl CheckState<'_> {
                 dir::Expression::Match { arms, .. } => {
                     for arm in arms {
                         if let Some(guard) = view.get(*arm).guard() {
-                            conditions.insert(guard);
+                            for condition in guard.expressions() {
+                                conditions.insert(condition);
+                            }
                         }
                     }
                 }

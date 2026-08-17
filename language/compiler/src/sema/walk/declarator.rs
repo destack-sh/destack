@@ -32,35 +32,27 @@ impl WalkState<'_, '_> {
             self.walk_expression(value, self.tree.get(value))?;
         }
 
-        // record pattern checking from the initializer or annotation
-        if let Some(value) = declarator.value {
-            // non-matching positions must always succeed
-            if self.is_irrefutable_declarator_pattern_required(id) {
-                self.check.push_obligation(
-                    Obligation::PatternCoverage(PatternCoverageObligation {
-                        source: declarator.pattern.into_global_any(self.module),
-                        value: ExpectedType::Node(value.into_global_any(self.module)),
-                        coverage: PatternCoverage::Binding {
-                            pattern: declarator.pattern.into_global(self.module),
-                        },
-                    }),
-                    self.flow().template_scope(),
-                );
-            }
-        } else if let Some(matched) = matched {
-            // non-matching positions must always succeed
-            if self.is_irrefutable_declarator_pattern_required(id) {
-                self.check.push_obligation(
-                    Obligation::PatternCoverage(PatternCoverageObligation {
-                        source: declarator.pattern.into_global_any(self.module),
-                        value: ExpectedType::Type(matched),
-                        coverage: PatternCoverage::Binding {
-                            pattern: declarator.pattern.into_global(self.module),
-                        },
-                    }),
-                    self.flow().template_scope(),
-                );
-            }
+        // select pattern coverage from the initializer or annotation
+        let expected = match (declarator.value, matched) {
+            (Some(value), _) => Some(ExpectedType::Node(value.into_global_any(self.module))),
+            (None, Some(matched)) => Some(ExpectedType::Type(matched)),
+            (None, None) => None,
+        };
+
+        // require non-matching positions to always succeed
+        if let Some(value) = expected
+            && !self.check.allows_refutable_pattern(self.module, id)
+        {
+            self.check.push_obligation(
+                Obligation::PatternCoverage(PatternCoverageObligation {
+                    source: declarator.pattern.into_global_any(self.module),
+                    value,
+                    coverage: PatternCoverage::Binding {
+                        pattern: declarator.pattern.into_global(self.module),
+                    },
+                }),
+                self.flow().template_scope(),
+            );
         }
 
         Ok(())
@@ -181,38 +173,47 @@ impl WalkState<'_, '_> {
 
         Ok(matched)
     }
-
-    /// Return whether one declarator is outside a matching context.
-    fn is_irrefutable_declarator_pattern_required(
-        &self,
-        id: dir::LocalNodeId<dir::Declarator>,
-    ) -> bool {
-        // require a parent expression for destructuring context
-        let Some(parent) = self.tree.get_parent(id.id) else {
-            return true;
-        };
-        if parent.ty != dir::NodeType::Expression {
-            return true;
-        }
-
-        // allow matching binding forms
-        let expression = self
-            .tree
-            .get(dir::LocalNodeId::<dir::Expression>::new(parent.id));
-        !matches!(
-            expression,
-            dir::Expression::LetElse { declarator, .. }
-                if declarator == &id
-        ) && !matches!(
-            expression,
-            dir::Expression::If { condition, .. }
-                | dir::Expression::While { condition, .. }
-                if condition.binds(id)
-        )
-    }
 }
 
 impl CheckState<'_> {
+    /// Return whether one declarator position permits a refutable pattern.
+    pub(in crate::sema) fn allows_refutable_pattern(
+        &self,
+        module: ModuleId,
+        declarator: dir::LocalNodeId<dir::Declarator>,
+    ) -> bool {
+        let view = self.module(module).view();
+        let Some(parent) = view.get_parent_for(declarator) else {
+            return false;
+        };
+
+        match parent.ty {
+            // recognize expression conditions and let-else bindings
+            dir::NodeType::Expression => {
+                let expression = view.get(dir::LocalNodeId::<dir::Expression>::new(parent.id));
+
+                matches!(
+                    expression,
+                    dir::Expression::LetElse { declarator: binding, .. }
+                        if *binding == declarator
+                ) || matches!(
+                    expression,
+                    dir::Expression::If { condition, .. }
+                        | dir::Expression::While { condition, .. }
+                        if condition.binds(declarator)
+                )
+            }
+            // recognize match guard bindings
+            dir::NodeType::MatchArm => {
+                let arm = view.get(dir::LocalNodeId::<dir::MatchArm>::new(parent.id));
+
+                arm.guard()
+                    .is_some_and(|condition| condition.binds(declarator))
+            }
+            _ => false,
+        }
+    }
+
     /// Narrow flow from one matched declarator pattern.
     ///
     /// Example:

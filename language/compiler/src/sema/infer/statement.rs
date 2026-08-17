@@ -706,26 +706,7 @@ impl BodyState<'_, '_> {
             self.check_pattern(pattern.into_global(module), site.flow, site.scope, target)?;
 
             // non-matching positions must always match irrefutably
-            let requires_irrefutable = {
-                let view = self.module(module).view();
-                match view.get_parent(id.into_any().id) {
-                    Some(parent) if parent.ty == dir::NodeType::Expression => {
-                        let expression =
-                            view.get(dir::LocalNodeId::<dir::Expression>::new(parent.id));
-                        !matches!(
-                            expression,
-                            dir::Expression::LetElse { declarator, .. }
-                                if declarator == &id
-                        ) && !matches!(
-                            expression,
-                            dir::Expression::If { condition, .. }
-                                | dir::Expression::While { condition, .. }
-                                if condition.binds(id)
-                        )
-                    }
-                    _ => true,
-                }
-            };
+            let requires_irrefutable = !self.check.allows_refutable_pattern(module, id);
             if requires_irrefutable {
                 let value = match declarator.value {
                     Some(value) => ExpectedType::Node(value.into_global_any(module)),
