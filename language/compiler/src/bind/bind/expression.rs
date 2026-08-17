@@ -238,7 +238,7 @@ impl Compiler {
     }
 
     /// Bind one condition chain.
-    fn bind_condition_operands(
+    pub(in crate::bind) fn bind_condition_operands(
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,

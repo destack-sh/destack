@@ -30,8 +30,7 @@ impl Compiler {
 
         // bind the optional guard
         if let Some(guard) = arm.guard() {
-            let expression = tree.get(guard);
-            state.visit_expression(tree, guard, expression);
+            self.bind_condition_operands(state, tree, &guard.operands);
         }
 
         // bind the arm body
