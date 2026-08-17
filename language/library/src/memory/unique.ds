@@ -1,5 +1,6 @@
 import { Borrowed } from "./borrow.ds";
 import { Owned } from "./owned.ds";
+import { dangling } from "./raw.ds";
 
 /// Unique traced heap handle containing exactly `T`.
 ///
@@ -27,5 +28,12 @@ export extension<T> of Unique<[T]> {
 export declare function leakUnique<T>(unique: Unique<Owned<T>>): Borrowed<T, 'static>;
 
 /// Create one empty slice handle without allocating.
-@intrinsic("memory.unique.empty")
-export declare function emptyUniqueSlice<T>(): Unique<[T]>;
+export function emptyUniqueSlice<T>(): Unique<[T]> {
+    return uniqueSliceFromRaw<T>(dangling<T>(), 0);
+}
+
+/// Assemble one unique slice handle over raw parts.
+///
+/// Reuses the slice descriptor intrinsic at the unique carrier.
+@intrinsic("collections.slice.fromRaw")
+declare function uniqueSliceFromRaw<T>(data: *T, length: usize): Unique<[T]>;

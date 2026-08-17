@@ -1,3 +1,4 @@
+import { panic } from "destack:error";
 import { Copy } from "destack:memory";
 
 import { bindContext, currentContext, getContextValue } from "./context.ds";
@@ -8,18 +9,19 @@ export local class ContextVar<T: Copy> {
     /// Diagnostic name.
     readonly name: string;
 
-    /// Value outside an overriding scope.
-    readonly defaultValue: T;
+    /// Value outside an overriding scope, absent when reads require a binding.
+    readonly defaultValue: T | undefined;
 
     /// Create one context variable.
-    constructor(name: string, defaultValue: T) {
+    constructor(name: string, defaultValue?: T) {
         this.name = name;
         this.defaultValue = defaultValue;
     }
 
     /// Return the current value.
     get(): T {
-        return getContextValue(currentContext(), this, this.defaultValue);
+        return getContextValue(currentContext(), this, this.defaultValue)
+            ?? panic("a context variable read outside any binding");
     }
 
     /// Run `body` with `value` bound to this variable.

@@ -134,6 +134,11 @@ export newtype interface Iterator<T, R = void> {
         todo("Iterator.reduce")
     }
 
+    /// Consume this iterator and return the number of yielded values.
+    count(this): isize {
+        todo("Iterator.count")
+    }
+
     /// Collect yielded values into an array.
     toArray(this): ^T[] {
         this.collect<^T[]>()
