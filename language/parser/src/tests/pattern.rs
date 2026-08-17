@@ -285,8 +285,9 @@ fn test_parse_pattern_dereference_object() {
     test.assert_no_errors(&parser);
 }
 
+/// Parse a dereferenced nominal tuple pattern.
 #[test]
-fn test_parse_pattern_dereference_tagged_tuple() {
+fn test_parse_pattern_dereference_nominal_tuple() {
     let test = TestParser::new("*Result.Ok(value)");
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern(Default::default()).unwrap();
@@ -307,8 +308,9 @@ fn test_parse_pattern_dereference_tagged_tuple() {
     test.assert_no_errors(&parser);
 }
 
+/// Parse a dereferenced nominal object pattern.
 #[test]
-fn test_parse_pattern_dereference_tagged_object() {
+fn test_parse_pattern_dereference_nominal_object() {
     let test = TestParser::new("*Point { x, y }");
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern(Default::default()).unwrap();
@@ -945,13 +947,12 @@ fn test_parse_pattern_struct_with_path() {
     });
 }
 
+/// Parse one nominal object pattern nested inside another.
 #[test]
-fn test_parse_pattern_struct_with_nested_tagged_object_field() {
+fn test_parse_nominal_object_pattern_with_nested_nominal_object_field() {
     let test = TestParser::new("Shape.Line { start: Point { x, y }, end }");
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern(Default::default()).unwrap();
-
-    assert!(parser.errors.is_empty());
 
     assert_node!(parser.tree, pattern_id, Pattern::NominalObject { ty, fields } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
@@ -980,6 +981,7 @@ fn test_parse_pattern_struct_with_nested_tagged_object_field() {
             assert_name!(parser, *name, "end");
         });
     });
+    test.assert_no_errors(&parser);
 }
 
 #[test]
