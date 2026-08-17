@@ -1,7 +1,8 @@
 use destack_dir::{
-    Argument, Asynchrony, BinaryOperator, BindingKeyword, Block, Declarator, Expression,
-    ForEachBinding, ForEachOperator, GenericArgument, Keyword, Name, Pattern, PatternField,
-    ScalarLiteral, TokenType, TypeExpression, TypeLiteral, TypeMember, UnaryOperator, WhileForm,
+    Argument, Asynchrony, BinaryOperator, BindingKeyword, Block, ConditionOperand, Declarator,
+    Expression, ForEachBinding, ForEachOperator, GenericArgument, Keyword, LetKind, Name, Pattern,
+    PatternField, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, TypeMember, UnaryOperator,
+    WhileForm,
 };
 
 use crate::{
@@ -626,10 +627,52 @@ while (x) {}
 
     let while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, while_id, Expression::While { condition, .. } => {
-        assert_expression_path!(parser, parser.tree.get(*condition), "x");
+        let condition = condition.as_expression().unwrap();
+        assert_expression_path!(parser, parser.tree.get(condition), "x");
     });
     let main_span = parser.tree.get_main_span(while_id).unwrap();
     assert_eq!(parser.span_str(main_span), "while");
+}
+
+/// Parse one while binding condition.
+#[test]
+fn test_parse_while_binding_condition() {
+    let test = TestParser::new("while (let value! = queue.tryPop()) { value }");
+    let mut parser = test.prepare();
+
+    let while_id = parser.parse_while(Default::default()).unwrap();
+    assert_node!(parser.tree, while_id, Expression::While { condition, .. } => {
+        let (kind, _, declarator) = condition.as_binding().unwrap();
+        assert_eq!(kind, LetKind::Let);
+        assert_node!(parser.tree, declarator, Declarator { pattern, value, .. } => {
+            assert_node!(parser.tree, *pattern, Pattern::Must(pattern) => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                    assert_string!(parser, *name, "value");
+                });
+            });
+
+            let value = value.unwrap();
+            assert_node!(parser.tree, value, Expression::Call { .. });
+        });
+    });
+    test.assert_no_errors(&parser);
+}
+
+/// Parse expression and binding operands in one while condition.
+#[test]
+fn test_parse_while_binding_condition_chain() {
+    let test =
+        TestParser::new("while (ready && let value! = queue.tryPop() && value > 0) { value }");
+    let mut parser = test.prepare();
+
+    let while_id = parser.parse_while(Default::default()).unwrap();
+    assert_node!(parser.tree, while_id, Expression::While { condition, .. } => {
+        assert_eq!(condition.operands.len(), 3);
+        assert!(matches!(condition.operands[0], ConditionOperand::Expression { .. }));
+        assert!(matches!(condition.operands[1], ConditionOperand::Binding { .. }));
+        assert!(matches!(condition.operands[2], ConditionOperand::Expression { .. }));
+    });
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -650,8 +693,10 @@ while (x > y) {
 
     // while (x > y)
     assert_node!(parser.tree, while_id, Expression::While { condition, body, .. } => {
+        let condition = condition.as_expression().unwrap();
+
         // x > y
-        assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
+        assert_node!(parser.tree, condition, Expression::Binary { left, operator, right } => {
             // x
             assert_expression_path!(parser, parser.tree.get(*left), "x");
             // >
@@ -666,8 +711,10 @@ while (x > y) {
 
             // while a < b
             assert_node!(parser.tree, expressions[0], Expression::While { condition: nested_condition, .. } => {
+                let nested_condition = nested_condition.as_expression().unwrap();
+
                 // a < b
-                assert_node!(parser.tree, *nested_condition, Expression::Binary { left, operator, right } => {
+                assert_node!(parser.tree, nested_condition, Expression::Binary { left, operator, right } => {
                     // a
                     assert_expression_path!(parser, parser.tree.get(*left), "a");
                     // <
@@ -687,9 +734,10 @@ fn test_parse_while_parenthesized_condition_keeps_inner_span() {
 
     let while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, while_id, Expression::While { condition, .. } => {
-        assert_node!(parser.tree, *condition, Expression::Binary { .. });
+        let condition = condition.as_expression().unwrap();
+        assert_node!(parser.tree, condition, Expression::Binary { .. });
 
-        let condition_span = parser.tree.get_span(*condition);
+        let condition_span = parser.tree.get_span(condition);
         let condition_text = &parser.file.text()
             [condition_span.start as usize..condition_span.end as usize];
         assert_eq!(condition_text, "x > y");
@@ -710,7 +758,8 @@ do { x } while (true)
     let do_while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, do_while_id, Expression::While { form, condition, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
-        assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+        let condition = condition.as_expression().unwrap();
+        assert_node!(parser.tree, condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
     });
     let main_span = parser.tree.get_main_span(do_while_id).unwrap();
     assert_eq!(parser.span_str(main_span), "do");
@@ -726,7 +775,8 @@ fn test_parse_do_while_block_with_semicolons() {
     assert_eq!(roots.len(), 1);
     assert_node!(parser.tree, roots[0], Expression::While { form, condition, body, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
-        assert_node!(parser.tree, *condition, Expression::Binary { .. });
+        let condition = condition.as_expression().unwrap();
+        assert_node!(parser.tree, condition, Expression::Binary { .. });
         assert_node!(parser.tree, *body, Block { .. });
     });
 
@@ -741,9 +791,10 @@ fn test_parse_do_while_parenthesized_condition_keeps_inner_span() {
     let while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, while_id, Expression::While { form, condition, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
-        assert_expression_path!(parser, parser.tree.get(*condition), "value");
+        let condition = condition.as_expression().unwrap();
+        assert_expression_path!(parser, parser.tree.get(condition), "value");
 
-        let condition_span = parser.tree.get_span(*condition);
+        let condition_span = parser.tree.get_span(condition);
         let condition_text = &parser.file.text()
             [condition_span.start as usize..condition_span.end as usize];
         assert_eq!(condition_text, "value");
@@ -760,7 +811,8 @@ fn test_parse_do_while_single_statement() {
     let do_while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, do_while_id, Expression::While { form, condition, body, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
-        assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+        let condition = condition.as_expression().unwrap();
+        assert_node!(parser.tree, condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         // body should be a block with single expression
         assert_node!(parser.tree, *body, Block { .. } => {
             let expressions = block_expression_ids(parser.tree.get(*body));
@@ -778,7 +830,8 @@ fn test_parse_do_while_continue_statement() {
     let do_while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, do_while_id, Expression::While { form, condition, body, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
-        assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+        let condition = condition.as_expression().unwrap();
+        assert_node!(parser.tree, condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         // body should be a block with continue statement
         assert_node!(parser.tree, *body, Block { .. } => {
             let expressions = block_expression_ids(parser.tree.get(*body));

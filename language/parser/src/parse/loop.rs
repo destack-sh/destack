@@ -1,6 +1,6 @@
 use destack_dir::{
-    Asynchrony, BindingKeyword, BlockContext, Expression, ForEachBinding, ForEachOperator, Keyword,
-    LocalNodeId, NodeType, Pattern, TokenType, WhileForm,
+    Asynchrony, BindingKeyword, BlockContext, Condition, Expression, ForEachBinding,
+    ForEachOperator, Keyword, LocalNodeId, NodeType, Pattern, TokenType, WhileForm,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -320,17 +320,18 @@ impl Parser {
             self.eat_keyword(Keyword::While)?;
 
             // condition
-            let condition_id = self.parse_parenthesized_expression(ExpressionContext {
+            let condition = self.parse_parenthesized_expression(ExpressionContext {
                 function,
                 ..ExpressionContext::default()
             })?;
+            let condition = Condition::expression(condition);
 
             // retain the complete do-while loop
             let while_id = self.insert_node(
                 Expression::While {
                     label: None,
                     form: WhileForm::DoWhile,
-                    condition: condition_id,
+                    condition,
                     body: body_id,
                 },
                 self.range_since(&start),
@@ -345,7 +346,7 @@ impl Parser {
             let keyword_range = self.eat_keyword(Keyword::While)?.range();
 
             // condition
-            let condition_id = self.parse_parenthesized_expression(ExpressionContext {
+            let condition = self.parse_parenthesized_condition(ExpressionContext {
                 function,
                 stops: ExpressionStops::BODY_BRACE,
                 ..ExpressionContext::default()
@@ -359,7 +360,7 @@ impl Parser {
                 Expression::While {
                     label: None,
                     form: WhileForm::While,
-                    condition: condition_id,
+                    condition,
                     body: body_id,
                 },
                 self.range_since(&start),

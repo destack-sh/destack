@@ -3,6 +3,7 @@ mod array;
 mod binding;
 mod block;
 mod call;
+mod condition;
 mod context;
 mod cursor;
 mod declaration;
