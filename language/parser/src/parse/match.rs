@@ -3,14 +3,15 @@ use crate::parse::error::ParserResultExt;
 use crate::{Parser, ParserResult};
 
 use destack_dir::{
-    BlockContext, Expression, Keyword, LocalNodeId, MatchArm, NodeType, Pattern, TokenType,
+    BlockContext, Condition, Expression, Keyword, LocalNodeId, MatchArm, NodeType, Pattern,
+    TokenType,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 /// One match guard and its source range.
 struct MatchGuard {
-    /// The guard expression.
-    expression: LocalNodeId<Expression>,
+    /// The guard condition.
+    condition: Condition,
     /// The complete guard clause range.
     range: ByteRange,
 }
@@ -105,12 +106,15 @@ impl Parser {
         self.eat_token(TokenType::ArrowWide)?;
 
         // retain the authored body form
-        let guard_expression = guard.as_ref().map(|guard| guard.expression);
+        let (guard, guard_range) = match guard {
+            Some(guard) => (Some(guard.condition), Some(guard.range)),
+            None => (None, None),
+        };
         let arm = if self.peek_block() {
             let body = self.parse_block(BlockContext::Expression, function)?;
             MatchArm::Block {
                 pattern,
-                guard: guard_expression,
+                guard,
                 body,
             }
         } else {
@@ -121,18 +125,18 @@ impl Parser {
             })?;
             MatchArm::Expression {
                 pattern,
-                guard: guard_expression,
+                guard,
                 body,
             }
         };
         let arm = self.insert_node(arm, self.range_since(&start));
 
         // retain the optional guard clause, documentation and decorators
-        if let Some(guard) = guard {
+        if let Some(guard_range) = guard_range {
             self.tree.set_side_range(
                 arm,
                 NodeSpanType::Region(NodeSpanRegion::Guard),
-                guard.range,
+                guard_range,
             );
         }
 
@@ -150,12 +154,12 @@ impl Parser {
 
         let start = self.mark_parse_start();
         self.eat_keyword(Keyword::If)?;
-        let expression = self.parse_parenthesized_expression(ExpressionContext {
+        let condition = self.parse_parenthesized_condition(ExpressionContext {
             function,
             ..ExpressionContext::default()
         })?;
         let range = self.range_since(&start);
 
-        Ok(Some(MatchGuard { expression, range }))
+        Ok(Some(MatchGuard { condition, range }))
     }
 }

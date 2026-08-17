@@ -1,6 +1,7 @@
 use destack_dir::{
-    BinaryOperator, Block, CommentKind, Declarator, Expression, LetKind, MatchArm, Mutability,
-    NodeType, Pattern, PatternField, ScalarLiteral, SwitchCase, SwitchSelector, TokenType,
+    BinaryOperator, Block, CommentKind, ConditionOperand, Declarator, Expression, LetKind,
+    MatchArm, Mutability, NodeType, Pattern, PatternField, ScalarLiteral, SwitchCase,
+    SwitchSelector, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -192,7 +193,11 @@ match (x) {
             assert_eq!(parser.span_str(guard_clause_span), "if (true)");
 
             // guard: true
-            let guard_id = guard.expect("expected guard");
+            let guard_id = guard
+                .as_ref()
+                .expect("expected guard")
+                .as_expression()
+                .expect("expected expression guard");
             assert_node!(parser.tree, guard_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
 
             // pattern: 2
@@ -236,7 +241,11 @@ match (pair) {
                 });
             });
 
-            let guard_id = guard.expect("expected guard");
+            let guard_id = guard
+                .as_ref()
+                .expect("expected guard")
+                .as_expression()
+                .expect("expected expression guard");
             assert_node!(parser.tree, guard_id, Expression::Binary { left, operator: BinaryOperator::GreaterThan, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "count");
                 assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
@@ -250,6 +259,66 @@ match (pair) {
             assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
         });
     });
+}
+
+/// Parse binding and expression operands in one match guard.
+#[test]
+fn test_parse_match_binding_guard() {
+    let test = TestParser::new(
+        r#"
+match (input) {
+    text if (let value! = parse(text) && value > 0) => value
+}
+"#,
+    );
+    let mut parser = test.prepare();
+
+    let match_id = parser.parse_match(Default::default()).unwrap();
+    assert_node!(parser.tree, match_id, Expression::Match { arms, .. } => {
+        assert_eq!(arms.len(), 1);
+        assert_node!(parser.tree, arms[0], MatchArm::Expression { guard: Some(guard), body, .. } => {
+            let guard_span = parser
+                .tree
+                .get_side_span(arms[0], NodeSpanType::Region(NodeSpanRegion::Guard))
+                .expect("expected guard clause span");
+            assert_eq!(
+                parser.span_str(guard_span),
+                "if (let value! = parse(text) && value > 0)"
+            );
+
+            assert_eq!(guard.operands.len(), 2);
+            let ConditionOperand::Binding { kind, declarator, .. } = &guard.operands[0] else {
+                panic!("expected binding operand");
+            };
+            assert_eq!(*kind, LetKind::Let);
+            assert_node!(parser.tree, *declarator, Declarator { pattern, value: Some(value), .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Must(pattern) => {
+                    assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                        assert_string!(parser, *name, "value");
+                    });
+                });
+                assert_node!(parser.tree, *value, Expression::Call { left, arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "parse");
+                    assert_eq!(arguments.len(), 1);
+                    let argument = parser
+                        .tree
+                        .get(arguments[0])
+                        .value()
+                        .expect("expected argument value");
+                    assert_expression_path!(parser, parser.tree.get(argument), "text");
+                });
+            });
+            let ConditionOperand::Expression { condition } = &guard.operands[1] else {
+                panic!("expected expression operand");
+            };
+            assert_node!(parser.tree, *condition, Expression::Binary { left, operator: BinaryOperator::GreaterThan, right } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "value");
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            });
+            assert_expression_path!(parser, parser.tree.get(*body), "value");
+        });
+    });
+    test.assert_no_errors(&parser);
 }
 
 #[test]
