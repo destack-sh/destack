@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{ConditionSet, Host, MirLowered, MirOptimized, Platform, Runtime};
-use destack_compiler::{BytecodeEmitter, LayoutBuilder, ObjectEmitter, ProgramLinker};
+use destack_compiler::{BytecodeEmitter, ObjectEmitter, ProgramLinker};
 use destack_core::StringPool;
 use destack_heap::{
     AllocationCache, AllocationPlan, DEFAULT_HEAP_PAGE_SIZE_BYTES, DEFAULT_MEMORY_MAP_SIZE_BYTES,
@@ -306,16 +306,6 @@ impl program::Runtime for VmRuntime {
     fn park(&mut self, fiber_id: program::FiberId) -> Result<program::Park> {
         Err(program::Error::UndefinedFiber { fiber_id }.into())
     }
-
-    /// Reject detach boundaries outside the runtime scheduler.
-    fn detach(&mut self) -> Result<program::FiberId> {
-        unreachable!("footprint execution does not detach")
-    }
-
-    /// Reject boundary retirement outside the runtime scheduler.
-    fn retire(&mut self, fiber_id: program::FiberId) -> Result<()> {
-        Err(program::Error::UndefinedFiber { fiber_id }.into())
-    }
 }
 
 impl VmSetup {
@@ -323,10 +313,10 @@ impl VmSetup {
     fn program(self) -> Arc<program::Program> {
         let package = PackageId::new(0);
         let module = ModuleId::new(package, 0);
-        let (optimized, strings) = self.optimize(module);
+        let (lowered, optimized, strings) = self.build_mir();
 
         // emit one relocatable object through the production compiler path
-        let emitter = ObjectEmitter::new(module, &optimized, [])
+        let emitter = ObjectEmitter::new(module, &lowered, &optimized, [])
             .expect("footprint MIR should emit object metadata");
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
             .emit()
@@ -342,8 +332,8 @@ impl VmSetup {
         Arc::new(program)
     }
 
-    /// Parse and complete the footprint MIR.
-    fn optimize(self, module: ModuleId) -> (MirOptimized, StringPool) {
+    /// Build the footprint MIR snapshots.
+    fn build_mir(self) -> (MirLowered, MirOptimized, StringPool) {
         let file = File::from_text(
             FileId::from_source_bytes(PROGRAM.as_bytes()),
             "<footprint.dsm>".to_string(),
@@ -361,41 +351,38 @@ impl VmSetup {
         {
             panic!("failed to parse footprint MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, types, layouts, dispatch, drops, memory, effects, profile, strings, _) =
+        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
             parsed.into_parts();
         let lowered = MirLowered {
             tree,
             target,
-            types,
             layouts,
             dispatch,
             drops,
-            memory,
+            accesses,
             effects,
             profile,
             initializer: None,
         };
 
         // complete physical layouts required by object emission
-        let tree = lowered.tree;
-        let mut layouts = lowered.layouts;
-        let mut builder = LayoutBuilder::new(module, &tree, &mut layouts, lowered.target);
+        let tree = lowered.tree.clone();
+        let mut layouts = lowered.layouts.clone();
+        let mut builder = mir::LayoutBuilder::new(&tree, &mut layouts, lowered.target);
         builder
             .layout_reachable_types()
             .expect("footprint MIR layouts should build");
         let optimized = MirOptimized {
             tree,
-            target: lowered.target,
-            types: lowered.types,
             layouts,
-            dispatch: lowered.dispatch,
-            drops: lowered.drops,
-            memory: lowered.memory,
-            effects: lowered.effects,
-            profile: lowered.profile,
+            dispatch: lowered.dispatch.clone(),
+            drops: lowered.drops.clone(),
+            accesses: lowered.accesses.clone(),
+            effects: lowered.effects.clone(),
+            profile: lowered.profile.clone(),
         };
 
-        (optimized, strings)
+        (lowered, optimized, strings)
     }
 
     /// Create one worker heap.

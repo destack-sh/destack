@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{MirLowered, MirOptimized};
-use destack_compiler::{
-    BytecodeEmitter, LayoutBuilder, NativeEmitter, ObjectEmitter, ProgramLinker,
-};
+use destack_compiler::{BytecodeEmitter, NativeEmitter, ObjectEmitter, ProgramLinker};
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_program as program;
@@ -40,18 +38,17 @@ impl TestProgram {
         {
             panic!("failed to parse runtime test MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, types, layouts, dispatch, drops, memory, effects, profile, strings, _) =
+        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
             parsed.into_parts();
 
         Self {
             lowered: MirLowered {
                 tree,
                 target,
-                types,
                 layouts,
                 dispatch,
                 drops,
-                memory,
+                accesses,
                 effects,
                 profile,
                 initializer: None,
@@ -92,10 +89,10 @@ impl TestProgram {
     pub(crate) fn build(self) -> program::Program {
         let package = PackageId::new(0);
         let module = ModuleId::new(package, 0);
-        let optimized = self.optimize(module);
+        let optimized = self.optimized();
 
         // emit one relocatable object from the parsed MIR
-        let emitter = ObjectEmitter::new(module, &optimized, [])
+        let emitter = ObjectEmitter::new(module, &self.lowered, &optimized, [])
             .expect("runtime test MIR should emit object metadata");
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
             .emit()
@@ -104,6 +101,7 @@ impl TestProgram {
             Some(
                 NativeEmitter::new(
                     module,
+                    self.lowered.target,
                     &optimized,
                     &emitter,
                     &destack_repository::Target::native(),
@@ -129,22 +127,20 @@ impl TestProgram {
     }
 
     /// Complete physical layouts and project optimized MIR for emission.
-    fn optimize(&self, module: ModuleId) -> MirOptimized {
+    fn optimized(&self) -> MirOptimized {
         let tree = self.lowered.tree.clone();
         let mut layouts = self.lowered.layouts.clone();
-        let mut builder = LayoutBuilder::new(module, &tree, &mut layouts, self.lowered.target);
+        let mut builder = mir::LayoutBuilder::new(&tree, &mut layouts, self.lowered.target);
         builder
             .layout_reachable_types()
             .expect("runtime test MIR layouts should build");
 
         MirOptimized {
             tree,
-            target: self.lowered.target,
-            types: self.lowered.types.clone(),
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),
-            memory: self.lowered.memory.clone(),
+            accesses: self.lowered.accesses.clone(),
             effects: self.lowered.effects.clone(),
             profile: self.lowered.profile.clone(),
         }
