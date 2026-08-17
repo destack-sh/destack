@@ -155,7 +155,7 @@ warning[drain-collect]: complete drain is collected into the same collection typ
   │
 1 │ function removeAll(values: &exclusive int32[]): int32[] {
 2 │     return values.drain().collect<^int32[]>();
-  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │ }
   │
 

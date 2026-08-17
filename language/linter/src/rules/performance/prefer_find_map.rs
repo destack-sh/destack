@@ -25,7 +25,9 @@ function firstDefined(values: (int32 | undefined)[]): int32 | undefined {
 "#,
             accepted: r#"
 function firstDefined(values: (int32 | undefined)[]): int32 | undefined {
-    return values.iterator().findMap((value) => value);
+    return values
+        .iterator()
+        .findMap((value) => value);
 }
 "#,
         },
@@ -200,7 +202,9 @@ function firstDefined(values: int32[]): int32 | undefined {
         session.assert_fixes(
             r#"
 function firstDefined(values: int32[]): int32 | undefined {
-    return values.iterator().findMap((value, index) => index > 0 ? value : undefined);
+    return values
+        .iterator()
+        .findMap((value, index) => index > 0 ? value : undefined);
 }
 "#,
         );
