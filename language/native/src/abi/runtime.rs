@@ -36,6 +36,9 @@ macro_rules! runtime_operations {
             /// Continue the active unwind.
             UnwindResume = 0x0017 => unwind_resume: ResumeUnwind -> Never,
 
+            /// Return whether one concrete type satisfies another.
+            IsSubtype = 0x0020 => is_subtype: IsSubtype -> Uint32,
+
             /// Increment one explicit profile counter.
             ProfileIncrement = 0x0030 => profile_increment: IncrementProfile -> Void,
             /// Record one explicit profile sample.
@@ -48,9 +51,6 @@ macro_rules! runtime_operations {
             VolatileRead = 0x0050 => volatile_read: VolatileRead -> Void,
             /// Write one volatile byte range.
             VolatileWrite = 0x0051 => volatile_write: VolatileWrite -> Void,
-
-            /// Execute one tensor command.
-            TensorExecute = 0x0060 => tensor_execute: ExecuteTensor -> Void,
         }
     };
 }
@@ -144,14 +144,6 @@ pub type VolatileWrite = unsafe extern "C-unwind" fn(
     byte_len: usize,
 );
 
-/// Execute one linked tensor instruction over one canonical word frame.
-pub type ExecuteTensor = unsafe extern "C-unwind" fn(
-    activation: *mut Activation,
-    instruction: *const u8,
-    registers: *mut u64,
-    register_count: usize,
-);
-
 /// Poll runtime work at one reconstructable native frame.
 pub type Poll = unsafe extern "C-unwind" fn(
     activation: *mut Activation,
@@ -187,6 +179,10 @@ pub type ClassifyUnwind = unsafe extern "C-unwind" fn(activation: *mut Activatio
 /// Continue the active platform unwind.
 pub type ResumeUnwind =
     unsafe extern "C-unwind" fn(activation: *mut Activation, unwind: *mut Unwind) -> !;
+
+/// Return whether one concrete Program type satisfies an expected type.
+pub type IsSubtype =
+    unsafe extern "C-unwind" fn(activation: *mut Activation, concrete: u32, expected: u32) -> u32;
 
 /// Action selected for one active native unwind.
 #[repr(u32)]

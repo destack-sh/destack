@@ -1,4 +1,4 @@
-use super::{Exit, Runtime, StaticSpace};
+use super::{DynamicTable, Exit, Runtime, StaticSpace, VirtualTable};
 
 /// Native activation passed to generated code and runtime operations.
 #[repr(C)]
@@ -8,12 +8,12 @@ pub struct Activation {
     pub call: *mut Call,
     /// Runtime operations callable by generated code.
     pub runtime: *const Runtime,
-    /// Typed native body addresses keyed by Program function id.
+    /// Typed native body addresses keyed by encoded callable word.
     pub functions: *const usize,
     /// Virtual method rows keyed by Program virtual table id.
-    pub virtuals: *const *const u32,
+    pub virtuals: *const *const VirtualTable,
     /// Dynamic entry rows keyed by Program dynamic table id.
-    pub dynamics: *const *const u32,
+    pub dynamics: *const *const DynamicTable,
     /// The first byte in world memory.
     pub memory_base: *mut u8,
     /// Program constant bytes.
@@ -53,8 +53,8 @@ impl Activation {
         call: *mut Call,
         runtime: *const Runtime,
         functions: *const usize,
-        virtuals: *const *const u32,
-        dynamics: *const *const u32,
+        virtuals: *const *const VirtualTable,
+        dynamics: *const *const DynamicTable,
         memory_base: *mut u8,
         constants: StaticSpace,
         immortals: StaticSpace,

@@ -1,4 +1,5 @@
 mod activation;
+mod dispatch;
 mod exit;
 mod operation;
 mod runtime;
@@ -8,6 +9,7 @@ mod unwind;
 mod version;
 
 pub use activation::*;
+pub use dispatch::*;
 pub use exit::*;
 pub use operation::*;
 pub use runtime::*;
