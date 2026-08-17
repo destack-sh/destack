@@ -799,9 +799,12 @@ impl BodyState<'_, '_> {
             dir::PatternField::Computed { key, pattern } => self
                 .evaluate_static_key(module, key)?
                 .map(|key| (key, Some(pattern))),
-            dir::PatternField::Positional { .. }
-            | dir::PatternField::Rest { .. }
-            | dir::PatternField::Elision => None,
+            dir::PatternField::Rest { .. } => None,
+            invalid @ (dir::PatternField::Positional { .. } | dir::PatternField::Elision) => {
+                return Err(CompilerError::Internal {
+                    message: format!("invalid object pattern field: {invalid:?}"),
+                });
+            }
         };
 
         Ok(key)

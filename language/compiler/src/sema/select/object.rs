@@ -197,7 +197,11 @@ impl BodyState<'_, '_> {
 
                     continue;
                 }
-                _ => continue,
+                invalid @ (dir::PatternField::Positional { .. } | dir::PatternField::Elision) => {
+                    return Err(CompilerError::Internal {
+                        message: format!("invalid object pattern field: {invalid:?}"),
+                    });
+                }
             };
 
             let selected = self.object_field(field_origin, module, owner, key)?;
