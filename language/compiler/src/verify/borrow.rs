@@ -4,10 +4,9 @@ use destack_core::BitSet;
 use destack_mir::{
     Access, AliasTable, Block, CallSite, Function, FunctionBehavior, FunctionCache, Instruction,
     Lifetime, LiveSet, LivenessTable, Loan, LoanId, LocalId, LocalNodeId, LocalNodeIdAny,
-    MemoryAccessEffect, MemoryLocation, MemoryRegion, MemoryTable, MoveTable, Path, Place,
-    PlaceOrigin, PlaceTable, Projection, Provenance, ProvenanceState, ProvenanceTable,
-    ReferenceKind, Retention, RetentionCarrier, RetentionTable, Storage, Terminator, Tree, Type,
-    TypeId, Value,
+    MemoryAccessEffect, MemoryLocation, MemoryRegion, MemoryTable, MovePathId, MoveTable, Path,
+    Place, PlaceOrigin, PlaceTable, Projection, Provenance, ProvenanceState, ProvenanceTable,
+    ReferenceKind, RetentionTable, Storage, Terminator, Tree, Type, TypeId, Value,
 };
 
 use crate::verify::{VerifyError, VerifyState};
@@ -133,7 +132,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     }
 
     /// Return live carriers and the move-only owners they retain.
-    fn retention_entries(&self, live: &LiveSet<'_>) -> Vec<Retention> {
+    fn retention_entries(&self, live: &LiveSet<'_>) -> Vec<MovePathId> {
         let mut retention = Vec::new();
 
         // collect owners retained directly by SSA values
@@ -142,76 +141,61 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                 continue;
             }
 
-            let carrier = RetentionCarrier::Place(PlaceOrigin::Value(binding.value));
+            let carrier = PlaceOrigin::Value(binding.value);
             for loan in binding.provenance.loans() {
-                self.collect_retention(carrier, *loan, &mut retention);
+                let Some(owner) = self.retained_owner(*loan, carrier) else {
+                    continue;
+                };
+                if !retention.contains(&owner) {
+                    retention.push(owner);
+                }
             }
         }
 
         // collect owners retained by addressable places
         for binding in self.state.places() {
-            let Some(carrier) = Self::live_carrier(&self.places, binding.place.origin, live) else {
+            let Some(carrier) = live.find_carrier(binding.place.origin, &self.places) else {
                 continue;
             };
 
             for loan in binding.provenance.loans() {
-                self.collect_retention(RetentionCarrier::Place(carrier), *loan, &mut retention);
+                let Some(owner) = self.retained_owner(*loan, carrier) else {
+                    continue;
+                };
+                if !retention.contains(&owner) {
+                    retention.push(owner);
+                }
             }
         }
 
         // retain owners escaped through aliasable storage scoped to the frame
         for &loan in self.state.escaped_loans() {
-            self.collect_retention(RetentionCarrier::Frame, loan, &mut retention);
+            let Some(owner) = self.owner(loan) else {
+                continue;
+            };
+            if !retention.contains(&owner) {
+                retention.push(owner);
+            }
         }
 
         retention
     }
 
-    /// Collect the owner retained by one borrow carrier.
-    fn collect_retention(
-        &self,
-        carrier: RetentionCarrier,
-        loan_id: LoanId,
-        retention: &mut Vec<Retention>,
-    ) {
-        // resolve the move-only root borrowed by this loan
+    /// Return the move-only owner retained by one loan.
+    fn owner(&self, loan_id: LoanId) -> Option<MovePathId> {
         let loan = self.provenance.loans().get(loan_id);
-        let Some(place) = loan.place() else {
-            return;
-        };
-        let Some(path) = self.moves.containing(place) else {
-            return;
-        };
-        let root = self.moves.root(path);
-        let owner = root;
+        let place = loan.place()?;
+        let path = self.moves.containing(place)?;
 
-        // skip owners carried directly by themselves
-        if carrier == RetentionCarrier::Place(self.moves.get(owner).place.origin) {
-            return;
-        }
-
-        // retain each carrier and owner pair once
-        let entry = Retention::new(carrier, owner);
-        if !retention.contains(&entry) {
-            retention.push(entry);
-        }
+        Some(self.moves.root(path))
     }
 
-    /// Return the live value carrying one canonical storage origin.
-    fn live_carrier(
-        places: &PlaceTable,
-        origin: PlaceOrigin,
-        live: &LiveSet<'_>,
-    ) -> Option<PlaceOrigin> {
-        match origin {
-            PlaceOrigin::Local(local) => live.contains_local(local).then_some(origin),
-            PlaceOrigin::Global(_) => Some(origin),
-            PlaceOrigin::Value(_) => live
-                .values()
-                .filter(|value| places.get(*value).origin == origin)
-                .min_by_key(|value| value.id())
-                .map(PlaceOrigin::Value),
-        }
+    /// Return an owner retained beyond its direct carrier.
+    fn retained_owner(&self, loan_id: LoanId, carrier: PlaceOrigin) -> Option<MovePathId> {
+        let owner = self.owner(loan_id)?;
+        let origin = self.moves.get(owner).place.origin;
+
+        (carrier != origin).then_some(owner)
     }
 
     /// Check one instruction against the current provenance.
@@ -1132,7 +1116,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     fn activate_loans(&mut self, live: &LiveSet<'_>) {
         self.active_loans = self.state.active_loans(
             |value| live.contains_value(value),
-            |place| Self::live_carrier(&self.places, place.origin, live).is_some(),
+            |place| live.find_carrier(place.origin, &self.places).is_some(),
         );
         self.active_loans
             .retain(|loan| !self.rejected_loans.contains(loan.index()));
