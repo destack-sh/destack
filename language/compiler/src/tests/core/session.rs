@@ -502,7 +502,7 @@ impl TestSession {
         let mut rows = String::new();
 
         // render one row per dynamic shape
-        for shape in &dispatch.dynamic_shapes {
+        for shape in dispatch.iter_dynamic_shapes() {
             rows.push_str(&format!(
                 "/// @dispatch.shape constraint={}",
                 mir_type_name(shape.constraint)
@@ -522,7 +522,7 @@ impl TestSession {
         }
 
         // render one row per dynamic table
-        for table in &dispatch.dynamic_tables {
+        for table in dispatch.iter_dynamic_tables() {
             rows.push_str(&format!(
                 "/// @dispatch.table concrete={} constraint={}",
                 mir_type_name(table.concrete),
@@ -569,10 +569,9 @@ impl TestSession {
 
         // follow named layouts with anonymous types in node order
         let mut anonymous: Vec<_> = layouts
-            .types
-            .keys()
+            .types()
+            .map(|(ty, _)| ty)
             .filter(|ty| !named_types.contains(ty))
-            .copied()
             .collect();
         anonymous.sort_by_key(|ty| ty.id);
         owners.extend(
@@ -584,10 +583,9 @@ impl TestSession {
         // render one owner and its independently asserted components
         let mut rows = String::new();
         for (ty, name) in owners {
-            let Some(id) = layouts.types.get(&ty) else {
+            let Some(layout) = layouts.type_layout(ty) else {
                 continue;
             };
-            let layout = &layouts.entries[id.index()];
             let (size, alignment) = (layout.size, layout.alignment);
 
             match (&layout.shape, tree.get(ty)) {
