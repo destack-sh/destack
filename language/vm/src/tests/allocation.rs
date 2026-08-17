@@ -61,7 +61,7 @@ function f0 {
     barrier r2, r0, r1: ref<managed, local>
     unpin r2: ref<managed, local>
     new.zeroed r3, a1
-    free r3: ref<unique, local>
+    free r3
     constant.boolean r4, true
     return r4
 }

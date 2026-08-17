@@ -136,10 +136,6 @@ impl TestProgram {
                 count = count.max(parameter.index() + 1);
             }
         }
-        for environment in self.environments.values() {
-            count = count.max(environment.index() + 1);
-        }
-
         count
     }
 
@@ -266,10 +262,7 @@ impl TestProgram {
         for (index, _) in object.functions().iter().enumerate() {
             let name = strings.intern(&format!("f{index}"));
             let signature = SignatureId(index as u32);
-            let mut entry = FunctionBuilder::new(name, signature);
-            if let Some(environment) = self.environments.get(&(index as u32)).copied() {
-                entry = entry.environment(environment);
-            }
+            let entry = FunctionBuilder::new(name, signature);
             if let Some(binding) = self.bindings.get(&(index as u32)) {
                 let binding_name = strings.intern(binding);
                 names.push(binding_name);
@@ -331,16 +324,11 @@ impl TestProgram {
         // append each function's frame maps in logical operation order
         for (function_index, function) in functions.iter_mut().enumerate() {
             let entry_types = self
-                .environments
-                .get(&(function_index as u32))
+                .signatures
+                .get(function_index)
+                .and_then(Option::as_ref)
                 .into_iter()
-                .chain(
-                    self.signatures
-                        .get(function_index)
-                        .and_then(Option::as_ref)
-                        .into_iter()
-                        .flat_map(|signature| &signature.parameters),
-                )
+                .flat_map(|signature| &signature.parameters)
                 .copied()
                 .collect::<Vec<_>>();
             let entry_register_count = entry_types

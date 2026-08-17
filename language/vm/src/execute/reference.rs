@@ -1,9 +1,7 @@
-use destack_bytecode::{
-    CodeOffset, Instruction, Opcode, ReferenceKind, ReferenceType, RegisterId, Space, Storage,
-};
-use destack_heap::{HeapEdge, HeapReference, SharedHeapReference};
+use destack_bytecode::{CodeOffset, Instruction, Opcode, ReferenceType, RegisterId, Space};
+use destack_heap::{DropCardinality, HeapEdge, HeapReference, SharedHeapReference};
 use destack_mir as mir;
-use destack_program::{DynamicTableId, FunctionId, Runtime, Word};
+use destack_program::{FunctionId, Runtime, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::Activation;
@@ -34,6 +32,18 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         self.read_edge(register, space)
     }
 
+    /// Execute one unique allocation release.
+    pub(crate) fn execute_free(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let owner = operands.register()?;
+        let bits = self.read(owner.0).bits() as usize;
+        let Some(edge) = self.activation.memory.edge(bits).map_err(Error::heap)? else {
+            return Ok(());
+        };
+
+        self.activation.memory.free(edge).map_err(Error::heap)
+    }
+
     /// Execute one heap reference lifetime or collector operation.
     pub(crate) fn execute_reference(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);
@@ -43,7 +53,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         // execute one operation through engine-neutral program storage
         match instruction.opcode() {
-            Opcode::FREE => self.activation.memory.free(edge).map_err(Error::heap)?,
             Opcode::PIN => {
                 let edge = self.activation.memory.pin(edge).map_err(Error::heap)?;
 
@@ -75,61 +84,49 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         instruction: Instruction<'_>,
     ) -> ExecutionResult<(), R::Error> {
         let mut operands = self.operands(instruction);
-        let value = operands.span()?;
         let (function, reference) = match instruction.opcode() {
+            // call one statically linked frame destructor
             Opcode::DROP => {
+                let value = operands.span()?;
                 let function = FunctionId(operands.u32()?);
                 let value = self.register_byte_range(value)?;
                 let reference = self.fiber.stack.memory_offset(value.start);
 
                 (function, Word::from_bits(reference as u64))
             }
-            Opcode::DROP_DYNAMIC | Opcode::DROP_FUNCTION => {
-                let representation = operands.reference()?;
-                if value.word_count != 2 || representation.kind() != ReferenceKind::UNIQUE {
-                    return Err(self.invalid_instruction().into());
-                }
-                let reference = match instruction.opcode() {
-                    Opcode::DROP_DYNAMIC => self.read(value.start.0),
-                    Opcode::DROP_FUNCTION => self.read(value.start.0 + 1),
-                    _ => unreachable!("erased drop selects one carrier"),
-                };
-                if reference.bits() <= 1 {
-                    return Ok(());
-                }
-                let ty = match instruction.opcode() {
-                    Opcode::DROP_DYNAMIC => {
-                        let table = DynamicTableId::from(self.read(value.start.0 + 1));
-                        self.machine
-                            .program
-                            .dynamic_table(table)
-                            .ok_or_else(|| self.invalid_instruction())?
-                            .concrete
-                    }
-                    Opcode::DROP_FUNCTION => {
-                        let function = FunctionId::from_word(self.read(value.start.0))
-                            .ok_or_else(|| self.invalid_instruction())?;
-                        self.machine
-                            .program
-                            .function(function)
-                            .and_then(|function| function.environment())
-                            .ok_or_else(|| self.invalid_instruction())?
-                    }
-                    _ => unreachable!("erased drop selects one carrier"),
-                };
-                let storage = match representation.storage() {
-                    Storage::LOCAL => mir::Storage::Heap(mir::Space::Local),
-                    Storage::SHARED => mir::Storage::Heap(mir::Space::Shared),
-                    _ => return Err(self.invalid_instruction().into()),
-                };
-                let Some(function) = self
-                    .machine
-                    .program
-                    .destructor(ty, storage)
-                    .map_err(Error::program)?
+            // select one erased allocation destructor from its heap metadata
+            Opcode::DROP_INDIRECT => {
+                let owner = operands.register()?;
+                let reference = self.read(owner.0);
+                let Some(edge) = self
+                    .activation
+                    .memory
+                    .edge(reference.bits() as usize)
+                    .map_err(Error::heap)?
                 else {
                     return Ok(());
                 };
+                let Some(plan) = self
+                    .activation
+                    .memory
+                    .drop_plan(edge)
+                    .map_err(Error::heap)?
+                else {
+                    return Ok(());
+                };
+                if plan.cardinality != DropCardinality::One {
+                    return Err(self.invalid_instruction().into());
+                }
+                let entry = self
+                    .machine
+                    .program
+                    .drop_entry(plan.drop)
+                    .ok_or_else(|| self.invalid_instruction())?;
+                let function = match edge {
+                    HeapEdge::Local(_) => entry.local.get(),
+                    HeapEdge::Shared(_) => entry.shared.get(),
+                }
+                .ok_or_else(|| self.invalid_instruction())?;
 
                 (function, reference)
             }
