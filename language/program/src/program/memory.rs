@@ -1,8 +1,9 @@
 use std::fmt;
 
 use destack_heap::{
-    AllocationCache, AllocationPlan, AllocationShape, Heap, HeapEdge, HeapResult, Payload,
-    SharedHeap, SharedMarkWorker, TraceView,
+    AllocationCache, AllocationPlan, AllocationShape, DropPlan, Heap, HeapEdge, HeapError,
+    HeapReference, HeapResult, Payload, SharedHeap, SharedHeapReference, SharedMarkWorker,
+    TraceView,
 };
 use destack_mir::Space;
 
@@ -94,6 +95,35 @@ impl Memory<'_> {
     /// Resolve one stable heap edge into an ephemeral native address.
     pub fn address(&self, edge: HeapEdge) -> usize {
         self.base_address() + edge.bits()
+    }
+
+    /// Resolve one world-relative allocation owner.
+    pub fn edge(&self, owner: usize) -> HeapResult<Option<HeapEdge>> {
+        let local = HeapReference::from_bits(owner);
+        if local.is_nullish() {
+            return Ok(None);
+        }
+
+        let shared = SharedHeapReference::from_bits(owner);
+
+        // select the owning heap
+        if self.local_heap.is_heap_live(local) {
+            Ok(Some(HeapEdge::Local(local)))
+        } else if self.shared_cache.contains_heap_reference(shared)
+            || self.shared_heap.is_heap_live(shared)
+        {
+            Ok(Some(HeapEdge::Shared(shared)))
+        } else {
+            Err(HeapError::invalid_heap_reference(local))
+        }
+    }
+
+    /// Return the drop plan for one allocation owner.
+    pub fn drop_plan(&mut self, edge: HeapEdge) -> HeapResult<Option<DropPlan>> {
+        match edge {
+            HeapEdge::Local(reference) => self.local_heap.drop_plan(reference),
+            HeapEdge::Shared(reference) => self.shared_heap.drop_plan(self.shared_cache, reference),
+        }
     }
 
     /// Return one heap address as an offset inside world memory.
