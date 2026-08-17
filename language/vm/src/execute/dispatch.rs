@@ -238,8 +238,30 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     }
 
                     // dynamic values and calls
-                    Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_TYPE => {
-                        self.execute_dynamic(instruction)?
+                    Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_READ | Opcode::DYNAMIC_TYPE => {
+                        let memory = self.execute_dynamic(instruction)?;
+                        if let Some((access, address)) = memory {
+                            if is_observing_memory {
+                                self.observe_memory(
+                                    self.frame(),
+                                    operation_pc,
+                                    0,
+                                    access,
+                                    Some(address),
+                                )?;
+                            }
+                            if WATCH
+                                && let Some(outcome) = self.watch_after(
+                                    self.frame(),
+                                    operation_pc,
+                                    0,
+                                    access,
+                                    Some(address),
+                                )?
+                            {
+                                return Ok(outcome);
+                            }
+                        }
                     }
                     Opcode::CALL
                     | Opcode::CALL_INDIRECT

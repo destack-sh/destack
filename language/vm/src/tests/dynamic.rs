@@ -1,4 +1,6 @@
-use destack_program::{DynamicEntry, FunctionId, TypeId, Word};
+use destack_bytecode::{RegisterId, RegisterSpan};
+use destack_mir::{GlobalStorage, Storage};
+use destack_program::{DynamicEntry, FunctionId, MemoryAccess, StopReason, TypeId, WatchSet, Word};
 
 use super::{TestMachine, TestProgram};
 
@@ -33,4 +35,55 @@ function f1 {
     let value = machine.complete(1, &[payload]);
 
     assert_eq!(value, vec![payload, concrete, Word::int32(41)]);
+}
+
+/// Read one concrete field through an erased dynamic value.
+#[test]
+fn test_execute_dynamic_read() {
+    let write = TestProgram::memory_site(
+        0,
+        1,
+        MemoryAccess::Write,
+        Some(Storage::Global(GlobalStorage::Local)),
+    );
+    let read = TestProgram::memory_site(
+        0,
+        3,
+        MemoryAccess::Read,
+        Some(Storage::Global(GlobalStorage::Local)),
+    );
+    let watch = TestProgram::watchpoint(0, 3, 19, MemoryAccess::Read);
+    let watchpoint_id = watch.watchpoint_id;
+    let watches = WatchSet::new(vec![watch]);
+    let program = TestProgram::words()
+        .local_global()
+        .dynamic_table(3, 2, [DynamicEntry::field_offset(0)])
+        .memory([write, read])
+        .frame(0, 4, [(RegisterSpan::new(RegisterId(4), 1), 0)]);
+    let mut machine = TestMachine::parse(
+        r#"
+function f0 {
+    global.address r1, g0
+    store.int32 r1, r0
+    dynamic.bind r2:r3, r1, d0
+    dynamic.read r4, r2:r3[0], 4
+    return r4
+}
+"#,
+        program,
+    );
+
+    // stop after reading the selected dynamic field
+    let reason = machine.run_to_stop(0, &[Word::int32(41)], None, Some(&watches));
+    assert_eq!(
+        reason,
+        StopReason::Watchpoint {
+            watchpoint_id,
+            point: TestProgram::point(0, 3),
+        }
+    );
+
+    // return the retained field value after resuming
+    let value = machine.continue_to_completion(None, Some(&watches), None);
+    assert_eq!(value, vec![Word::int32(41)]);
 }
