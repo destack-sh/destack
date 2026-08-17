@@ -44,10 +44,10 @@ impl Matcher<'_, '_> {
                 )? {
                     return Ok(false);
                 }
-                if !self.match_optional_expression(
+                if !self.match_optional_condition(
                     nodes,
-                    *pattern_guard,
-                    *candidate_guard,
+                    pattern_guard.as_ref(),
+                    candidate_guard.as_ref(),
                     bindings,
                 )? {
                     return Ok(false);
@@ -75,10 +75,10 @@ impl Matcher<'_, '_> {
                 )? {
                     return Ok(false);
                 }
-                if !self.match_optional_expression(
+                if !self.match_optional_condition(
                     nodes,
-                    *pattern_guard,
-                    *candidate_guard,
+                    pattern_guard.as_ref(),
+                    candidate_guard.as_ref(),
                     bindings,
                 )? {
                     return Ok(false);

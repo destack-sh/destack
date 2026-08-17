@@ -3,6 +3,23 @@ use destack_dir as dir;
 use crate::{Bindings, MatchError, Matcher, PatternNodes};
 
 impl Matcher<'_, '_> {
+    /// Match two optional conditions.
+    pub(crate) fn match_optional_condition(
+        &self,
+        nodes: &PatternNodes<'_>,
+        pattern: Option<&dir::Condition>,
+        candidate: Option<&dir::Condition>,
+        bindings: &mut Bindings,
+    ) -> Result<bool, MatchError> {
+        match (pattern, candidate) {
+            (Some(pattern), Some(candidate)) => {
+                self.match_condition(nodes, pattern, candidate, bindings)
+            }
+            (None, None) => Ok(true),
+            _ => Ok(false),
+        }
+    }
+
     /// Match one compound condition.
     pub(crate) fn match_condition(
         &self,

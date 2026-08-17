@@ -23,3 +23,27 @@ while (ready) {}
 "#,
     );
 }
+
+/// Match the complete operand sequence of one match binding guard.
+#[test]
+fn test_match_binding_guard() {
+    TestMatcher::new(
+        "match (value) { text if (let parsed! = $SOURCE && parsed > 0) => parsed }",
+        r#"
+match (value) { text if (let parsed! = parse(text) && parsed > 0) => parsed }
+match (value) { text if (let parsed = parse(text) && parsed > 0) => parsed }
+match (value) { text if (let parsed! = convert(text) && parsed > 0) => parsed }
+match (value) { text if (ready) => text }
+"#,
+    )
+    .assert(
+        r#"
+match (value) { text if (let parsed! = parse(text) && parsed > 0) => parsed }
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ match SOURCE.node="parse(text)"
+match (value) { text if (let parsed = parse(text) && parsed > 0) => parsed }
+match (value) { text if (let parsed! = convert(text) && parsed > 0) => parsed }
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ match SOURCE.node="convert(text)"
+match (value) { text if (ready) => text }
+"#,
+    );
+}
