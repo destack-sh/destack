@@ -605,3 +605,315 @@ witness(named);
 "#,
     );
 }
+
+#[test]
+fn test_satisfy_owned_subject_conformance_with_owned_class_value() {
+    let session = TestSession::single(
+        r#"
+newtype interface Collect<T> {
+    add(value: T): void;
+}
+
+class Bag<T> {
+    last: T | undefined;
+
+    constructor() {
+        this.last = undefined;
+    }
+}
+
+extension<T> of ^Bag<T> implements Collect<T> {
+    add(value: T): void {}
+}
+
+declare function gather<C>(): C where C: Collect<int32>;
+
+const bag = gather<^Bag<int32>>();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+newtype interface Collect<in T> {
+    add(value: T): void;
+}
+
+class Bag<in out T> {
+    last: T | undefined;
+
+    constructor(): this {
+        this.last = undefined as T | undefined;
+    }
+}
+
+extension<T> of ^Bag<T> implements Collect<T> {
+    add(value: T): void {}
+}
+
+declare function gather<C>(): C where C: Collect<int32>;
+
+const bag: ^Bag<int32> = gather<^Bag<int32>>();
+
+=== dir ===
+newtype interface Collect<T> {
+/// @generic.template symbol=Collect parameters=(in T#1)
+/// @type.symbol symbol=Collect type=Collect
+/// @definition.interface symbol=Collect template=(in T#1) nominal=true
+/// @definition.where symbol=Collect relation=satisfies left=this right=Collect<T#1>
+/// @definition.method symbol=Collect.add source="add(value: T): void" slot=add type=(this: this, T#1) => void
+/// @type.symbol symbol=Collect.T source=T type=T#1
+
+    add(value: T): void;
+    /// @type.symbol symbol=Collect.add source="add(value: T): void" type=(this: this, T#1) => void
+    /// @type.symbol symbol=Collect.add.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Collect.T
+
+}
+
+class Bag<T> {
+/// @generic.template symbol=Bag parameters=(in out T#2)
+/// @type.symbol symbol=Bag type=Bag
+/// @definition.class symbol=Bag template=(in out T#2)
+/// @definition.field symbol=Bag.last source="last: T | undefined" key=last type=T#2 | undefined
+/// @definition.method symbol=Bag.constructor slot=constructor role=constructor type=() => this
+/// @type.symbol symbol=Bag.T source=T type=T#2
+
+    last: T | undefined;
+    /// @type.symbol symbol=Bag.last source="last: T | undefined" type=T#2 | undefined
+    /// @resolution.name source=T target=Bag.T
+
+    constructor() {
+    /// @type.symbol symbol=Bag.constructor type=() => this
+
+        this.last = undefined;
+        /// @type.node source="this.last = undefined" type=undefined
+        /// @type.node source=this type=Bag<T#2>
+        /// @type.node source=this.last type=T#2 | undefined
+        /// @resolution.receiver source=this kind=this declaration=Bag type=Bag<T#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.last kind=place
+        /// @resolution.access source=this.last root=this keys=[last]
+        /// @resolution.assignment source=this.last write="receiver=Bag<T#2>, target=field(receiver=Bag<T#2>, target=Bag.last, type=T#2 | undefined), type=T#2 | undefined" type=T#2 | undefined
+        /// @type.node source=undefined type=undefined
+
+    }
+}
+
+extension<T> of ^Bag<T> implements Collect<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#3)
+/// @definition.extension symbol=<module>#2 form=local target=Owned<Bag<T#3>>
+/// @definition.implements symbol=<module>#2 source=Collect<T> target=Collect<T#3>
+/// @definition.method symbol=add source="add(value: T): void {}" slot=add type=(this: this, T#3) => void
+/// @definition.conformance symbol=<module>#2 member=add requirement=Collect.add
+/// @type.symbol symbol=T source=T type=T#3
+/// @resolution.name source=Bag target=Bag
+/// @resolution.name source=T target=T
+/// @resolution.name source=Collect target=Collect
+/// @resolution.name source=T target=T
+
+    add(value: T): void {}
+    /// @type.symbol symbol=add source="add(value: T): void {}" type=(this: this, T#3) => void
+    /// @type.symbol symbol=add.value source="value: T" type=T#3
+    /// @resolution.name source=T target=T
+
+}
+
+declare function gather<C>(): C where C: Collect<int32>;
+/// @generic.template symbol=gather parameters=(C)
+/// @type.symbol symbol=gather source="declare function gather<C>(): C where C: Collect<int32>" type=<C>() => C
+/// @type.symbol symbol=gather.C source=C type=C
+/// @resolution.name source=C target=gather.C
+/// @resolution.name source=C target=gather.C
+/// @resolution.name source=Collect target=Collect
+/// @generic.instance id=Collect<int32> template=Collect arguments=(int32)
+
+const bag = gather<^Bag<int32>>();
+/// @type.symbol symbol=bag source=bag type=Owned<Bag<int32>>
+/// @resolution.pattern source=bag kind=binding target=bag
+/// @generic.instance id=Bag<int32> template=Bag arguments=(int32)
+/// @type.node source=gather type=() => Owned<Bag<int32>>
+/// @type.node source=gather<^Bag<int32>>() type=Owned<Bag<int32>>
+/// @resolution.name source=gather target=gather
+/// @resolution.call source=gather<^Bag<int32>>() parameters=() return=Owned<Bag<int32>> kind=symbol target=gather instance=gather<Owned<Bag<int32>>>
+/// @generic.instantiation id=gather<Owned<Bag<int32>>> template=gather arguments=(Owned<Bag<int32>>)
+/// @generic.instance id=gather<Owned<Bag<int32>>> template=gather arguments=(Owned<Bag<int32>>)
+/// @resolution.name source=Bag target=Bag
+"#,
+    );
+}
+
+#[test]
+fn test_satisfy_bare_subject_conformance_with_owned_struct_value() {
+    let session = TestSession::single(
+        r#"
+newtype interface Collect<T> {
+    add(value: T): void;
+}
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+extension of Point implements Collect<int32> {
+    add(value: int32): void {}
+}
+
+declare function gather<C>(): C where C: Collect<int32>;
+
+const point = gather<^Point>();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+newtype interface Collect<in T> {
+    add(value: T): void;
+}
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+extension of Point implements Collect<int32> {
+    add(value: int32): void {}
+}
+
+declare function gather<C>(): C where C: Collect<int32>;
+
+const point: ^Point = gather<^Point>();
+
+=== dir ===
+newtype interface Collect<T> {
+/// @generic.template symbol=Collect parameters=(in T)
+/// @type.symbol symbol=Collect type=Collect
+/// @definition.interface symbol=Collect template=(in T) nominal=true
+/// @definition.where symbol=Collect relation=satisfies left=this right=Collect<T>
+/// @definition.method symbol=Collect.add source="add(value: T): void" slot=add type=(this: this, T) => void
+/// @type.symbol symbol=Collect.T source=T type=T
+
+    add(value: T): void;
+    /// @type.symbol symbol=Collect.add source="add(value: T): void" type=(this: this, T) => void
+    /// @type.symbol symbol=Collect.add.value source="value: T" type=T
+    /// @resolution.name source=T target=Collect.T
+
+}
+
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+    y: int32;
+    /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
+}
+
+extension of Point implements Collect<int32> {
+/// @generic.instance id=Collect<int32> template=Collect arguments=(int32)
+/// @definition.extension symbol=<module>#2 form=local target=Point
+/// @definition.implements symbol=<module>#2 source=Collect<int32> target=Collect<int32>
+/// @definition.method symbol=add source="add(value: int32): void {}" slot=add type=<add.'a>(this: &add.'a readonly Point, int32) => void
+/// @definition.conformance symbol=<module>#2 member=add requirement=Collect.add
+/// @resolution.name source=Point target=Point
+/// @resolution.name source=Collect target=Collect
+
+    add(value: int32): void {}
+    /// @generic.template symbol=add parent=template#1 parameters=('a)
+    /// @type.symbol symbol=add source="add(value: int32): void {}" type=<add.'a>(this: &add.'a readonly Point, int32) => void
+    /// @type.symbol symbol=add.value source="value: int32" type=int32
+
+}
+
+declare function gather<C>(): C where C: Collect<int32>;
+/// @generic.template symbol=gather parameters=(C)
+/// @type.symbol symbol=gather source="declare function gather<C>(): C where C: Collect<int32>" type=<C>() => C
+/// @type.symbol symbol=gather.C source=C type=C
+/// @resolution.name source=C target=gather.C
+/// @resolution.name source=C target=gather.C
+/// @resolution.name source=Collect target=Collect
+
+const point = gather<^Point>();
+/// @type.symbol symbol=point source=point type=Owned<Point>
+/// @resolution.pattern source=point kind=binding target=point
+/// @type.node source=gather type=() => Owned<Point>
+/// @type.node source=gather<^Point>() type=Owned<Point>
+/// @resolution.name source=gather target=gather
+/// @resolution.call source=gather<^Point>() parameters=() return=Owned<Point> kind=symbol target=gather instance=gather<Owned<Point>>
+/// @generic.instantiation id=gather<Owned<Point>> template=gather arguments=(Owned<Point>)
+/// @generic.instance id=gather<Owned<Point>> template=gather arguments=(Owned<Point>)
+/// @resolution.name source=Point target=Point
+"#,
+    );
+}
+#[test]
+fn test_select_creation_statics_ahead_of_conformance_twins() {
+    let session = TestSession::single(
+        r#"
+import { Deque } from "destack:collections";
+
+const values = Deque.from([1, 2, 3]);
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Deque } from "destack:collections";
+
+const values: ^Deque<float64> = Deque.from<float64>([1, 2, 3]);
+
+=== dir ===
+import { Deque } from "destack:collections";
+
+const values = Deque.from([1, 2, 3]);
+/// @type.symbol symbol=values source=values type=Owned<collections.deque.Deque<float64>>
+/// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id=collections.deque.Deque<float64> template=collections.deque.Deque arguments=(float64)
+/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
+/// @resolution.name source=Deque target=collections.deque.Deque
+/// @resolution.member source=Deque.from receiver=collections.deque.Deque type=(Dynamic<iter.iterator.Iterable<collections.deque.T#4>>) => Owned<collections.deque.Deque<collections.deque.T#4>> & (Dynamic<iter.iterator.Iterable<collections.deque.T#5>>) => collections.deque.Deque<collections.deque.T#5> & (Dynamic<iter.iterator.Iterable<collections.deque.T#6>>) => Owned<collections.deque.Deque<collections.deque.T#6>> kind=existential targets=[collections.deque.from#1, collections.deque.from#2, collections.deque.from#3]
+/// @resolution.call source="Deque.from([1, 2, 3])" parameters=(Dynamic<iter.iterator.Iterable<float64>>) arguments=(provided([1, 2, 3]) as Dynamic<iter.iterator.Iterable<float64>>) return=Owned<collections.deque.Deque<float64>> kind=symbol target=collections.deque.from#1 instance=collections.deque.Deque<float64>.<extension#4>.from#1
+/// @generic.instantiation id=collections.deque.from#1<float64> template=collections.deque.from#1 arguments=(float64)
+/// @generic.instance id=collections.deque.from#1<float64> template=collections.deque.from#1 arguments=(float64)
+/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<float64>, float64)
+/// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<float64>, float64)
+/// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<float64>, float64)
+/// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<float64>, float64)
+/// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<float64>, float64)
+/// @generic.instance id="iter.iterator.IteratorResult<float64, iter.iterator.Iterator<float64>.Return>" template=iter.iterator.IteratorResult arguments=(float64, iter.iterator.Iterator<float64>.Return)
+/// @generic.instance id="iter.iterator.IteratorResult<float64, void>" template=iter.iterator.IteratorResult arguments=(float64, void)
+/// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<float64>, float64)
+/// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<float64>, float64)
+/// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<float64>, float64)
+/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @generic.instance id=iter.iterator.Iterable<float64> template=iter.iterator.Iterable arguments=(float64)
+/// @generic.instance id=iter.iterator.Iterator<float64> template=iter.iterator.Iterator arguments=(float64)
+/// @generic.instance id=iter.iterator.IteratorReturn<iter.iterator.Iterator<float64>.Return> template=iter.iterator.IteratorReturn arguments=(iter.iterator.Iterator<float64>.Return)
+/// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
+/// @generic.instance id=iter.iterator.IteratorYield<float64> template=iter.iterator.IteratorYield arguments=(float64)
+"#,
+    );
+}
