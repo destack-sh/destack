@@ -110,8 +110,13 @@ impl AliasTable {
             return left.alias_same_address(right);
         }
 
-        let left_region = self.region(left.address);
-        let right_region = self.region(right.address);
+        // retain distinct projections from the same runtime address
+        if left.address.value() == right.address.value() {
+            return AliasResult::MayAlias;
+        }
+
+        let left_region = self.region(left.address.value());
+        let right_region = self.region(right.address.value());
 
         match (left_region, right_region) {
             (MemoryRegion::Place(left_place), MemoryRegion::Place(right_place)) => {
@@ -161,7 +166,8 @@ impl AliasTable {
 
     /// Return whether an addressed location may touch one storage root.
     pub fn may_touch_root(&self, location: &MemoryLocation, storage: &StorageRoot) -> bool {
-        self.region(location.address).may_touch_root(storage)
+        self.region(location.address.value())
+            .may_touch_root(storage)
     }
 
     /// Resolve one address value into a memory region.
@@ -180,7 +186,7 @@ impl AliasTable {
     /// Resolve address provenance in one memory region.
     pub fn resolve(&self, region: &MemoryRegion) -> MemoryRegion {
         match region.location() {
-            Some(location) => self.region(location.address).clone(),
+            Some(location) => self.region(location.address.value()).clone(),
             None => region.clone(),
         }
     }

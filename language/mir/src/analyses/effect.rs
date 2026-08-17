@@ -208,6 +208,9 @@ impl<'a> FunctionEffectBuilder<'a> {
             mir::Instruction::Load { .. } | mir::Instruction::AtomicLoad { .. } => {
                 mir::FunctionEffect::memory(mir::MemoryEffect::read_only(mir::StorageSet::ANY))
             }
+            mir::Instruction::DynamicRead { dynamic, .. } => mir::FunctionEffect::memory(
+                mir::MemoryEffect::read_only(self.value_storage(*dynamic)),
+            ),
             mir::Instruction::Store { .. } | mir::Instruction::AtomicStore { .. } => {
                 mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::StorageSet::ANY))
             }

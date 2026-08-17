@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 
 use crate::{
     AliasTable, Analysis, ConstantTable, ControlTable, DominatorTable, FunctionCache,
-    MemoryLocation, MemoryRegion, NodeTable, StorageRoot, TargetLayout, collect_reachable_blocks,
-    compute_dominance_frontiers,
+    MemoryAddress, MemoryLocation, MemoryRegion, NodeTable, StorageRoot, TargetLayout,
+    collect_reachable_blocks, compute_dominance_frontiers,
 };
 
 use super::Mutation;
@@ -1094,7 +1094,6 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::DynamicBind { .. }
             | mir::Instruction::DynamicPayload { .. }
             | mir::Instruction::DynamicType { .. }
-            | mir::Instruction::DynamicRead { .. }
             | mir::Instruction::DynamicFind { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }
@@ -1171,6 +1170,29 @@ impl<'a> MemoryAccessCollector<'a> {
                 let effect = self.address_effect(*pointer, mir::MemoryOperation::Read, false);
 
                 Self::single_effect(effect)
+            }
+            mir::Instruction::DynamicRead {
+                dynamic,
+                slot,
+                result_type,
+                ..
+            } => {
+                let reference_kind = self.reference_kind(*dynamic);
+                let reference_storage = self.reference_storage(*dynamic);
+                let mut region = MemoryRegion::from_address(
+                    MemoryAddress::Dynamic {
+                        value: *dynamic,
+                        slot: *slot,
+                    },
+                    Some(*result_type),
+                    reference_kind,
+                    reference_storage,
+                    self.target_layout.pointer_bits(),
+                    self.tree,
+                );
+                region.set_spaces(self.address_storage_set(*dynamic));
+
+                Self::single_effect(MemoryAccessEffect::read(region, false))
             }
             mir::Instruction::Store { pointer, .. } => {
                 let effect = self.address_effect(*pointer, mir::MemoryOperation::Write, false);
@@ -1976,7 +1998,7 @@ mod tests {
     fn address_from_region(location: &MemoryRegion) -> Option<mir::Value> {
         // unwrap address-backed regions
         match location {
-            MemoryRegion::Address { location, .. } => Some(location.address),
+            MemoryRegion::Address { location, .. } => Some(location.address.value()),
             _ => None,
         }
     }
@@ -2757,6 +2779,76 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
         let write_size = size_from_region(&write_effect.region).expect("missing write size");
         assert_eq!(read_size, 4);
         assert_eq!(write_size, 4);
+    }
+
+    /// Dynamic field reads retain their dispatch projections and exact widths.
+    #[test]
+    fn test_memory_tracks_dynamic_fields() {
+        let test = TestProgram::new(
+            r#"
+type Writer {
+    first: int32;
+    second: int32;
+}
+
+function test(v0: dynamic<Writer, managed, readonly>): int32 {
+entry(v0: dynamic<Writer, managed, readonly>):
+    v1: int32 = dynamic.read v0, 0
+    v2: int32 = dynamic.read v0, 1
+    v3: int32 = add v1, v2
+    return v3
+}
+"#,
+        );
+
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
+        let block = test.tree.get(function.block(0));
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+
+        // resolve both field reads
+        let first = memory
+            .instruction_access(block.instructions[0])
+            .map(|access| access_effect(&memory, access))
+            .expect("missing first dynamic read");
+        let second = memory
+            .instruction_access(block.instructions[1])
+            .map(|access| access_effect(&memory, access))
+            .expect("missing second dynamic read");
+
+        // retain the payload root while distinguishing the dispatch slots
+        let MemoryRegion::Address {
+            location: first_location,
+            ..
+        } = first.region
+        else {
+            panic!("dynamic read should address its payload");
+        };
+        let MemoryRegion::Address {
+            location: second_location,
+            ..
+        } = second.region
+        else {
+            panic!("dynamic read should address its payload");
+        };
+        assert_eq!(
+            first_location.address,
+            MemoryAddress::Dynamic {
+                value: function.parameters[0].value,
+                slot: mir::DispatchSlot(0),
+            }
+        );
+        assert_eq!(
+            second_location.address,
+            MemoryAddress::Dynamic {
+                value: function.parameters[0].value,
+                slot: mir::DispatchSlot(1),
+            }
+        );
+        assert_eq!(first_location.size, Some(4));
+        assert_eq!(second_location.size, Some(4));
+        assert!(!first_location.is_compatible_with(&second_location));
     }
 
     /// Loop headers get memory phis when defs flow around the backedge.

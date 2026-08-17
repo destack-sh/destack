@@ -6,11 +6,41 @@ use crate::{AliasResult, TargetLayout};
 
 use super::DefinitionTable;
 
+/// One MIR address used by memory analysis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MemoryAddress {
+    /// An address carried directly by one SSA value.
+    Value(mir::Value),
+    /// A field selected from one dynamic value.
+    Dynamic {
+        /// The dynamic value carrying the payload and dispatch table.
+        value: mir::Value,
+        /// The dispatch slot selecting the field offset.
+        slot: mir::DispatchSlot,
+    },
+}
+
+impl MemoryAddress {
+    /// Return the SSA value carrying this address.
+    pub const fn value(self) -> mir::Value {
+        match self {
+            Self::Value(value) | Self::Dynamic { value, .. } => value,
+        }
+    }
+}
+
+impl From<mir::Value> for MemoryAddress {
+    /// Convert an address-bearing SSA value into a memory address.
+    fn from(value: mir::Value) -> Self {
+        Self::Value(value)
+    }
+}
+
 /// One memory location reached through an address.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MemoryLocation {
-    /// The address-bearing value being dereferenced.
-    pub address: mir::Value,
+    /// The address being dereferenced.
+    pub address: MemoryAddress,
     /// Size of the access in bytes, if known.
     pub size: Option<u64>,
     /// The value type being accessed, when known.
@@ -23,9 +53,9 @@ pub struct MemoryLocation {
 
 impl MemoryLocation {
     /// Create a location from an address with unknown size.
-    pub fn from_address(address: mir::Value) -> Self {
+    pub fn from_address(address: impl Into<MemoryAddress>) -> Self {
         Self {
-            address,
+            address: address.into(),
             size: None,
             value_type: None,
             reference_kind: None,
@@ -34,9 +64,9 @@ impl MemoryLocation {
     }
 
     /// Create a location with known size.
-    pub fn with_size(address: mir::Value, size: u64) -> Self {
+    pub fn with_size(address: impl Into<MemoryAddress>, size: u64) -> Self {
         Self {
-            address,
+            address: address.into(),
             size: Some(size),
             value_type: None,
             reference_kind: None,
@@ -46,14 +76,14 @@ impl MemoryLocation {
 
     /// Create a fully specified location.
     pub fn new(
-        address: mir::Value,
+        address: impl Into<MemoryAddress>,
         size: Option<u64>,
         value_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
         reference_storage: Option<mir::Storage>,
     ) -> Self {
         Self {
-            address,
+            address: address.into(),
             size,
             value_type,
             reference_kind,
@@ -69,7 +99,7 @@ impl MemoryLocation {
             .unwrap_or(mir::StorageSet::ANY)
     }
 
-    /// Return aliasing for another location with the same address value.
+    /// Return aliasing for another location with the same address.
     pub fn alias_same_address(&self, other: &MemoryLocation) -> AliasResult {
         match (self.size, other.size) {
             (Some(left), Some(right)) if left == right => AliasResult::MustAlias,
@@ -80,6 +110,11 @@ impl MemoryLocation {
 
     /// Return whether both locations are compatible for value forwarding.
     pub fn is_compatible_with(&self, other: &MemoryLocation) -> bool {
+        // require the same address identity
+        if self.address != other.address {
+            return false;
+        }
+
         // compare byte sizes when both sides know them
         if let (Some(left_size), Some(right_size)) = (self.size, other.size)
             && left_size != right_size
@@ -147,7 +182,7 @@ impl MemoryRegion {
 
     /// Create an address access with an optional value type and inferred size.
     pub fn from_address(
-        address: mir::Value,
+        address: impl Into<MemoryAddress>,
         value_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
         reference_storage: Option<mir::Storage>,
@@ -167,7 +202,7 @@ impl MemoryRegion {
 
     /// Create an address access with an explicit size override.
     pub fn from_address_with_size(
-        address: mir::Value,
+        address: impl Into<MemoryAddress>,
         value_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
         reference_storage: Option<mir::Storage>,
