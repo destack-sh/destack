@@ -178,11 +178,14 @@ pub enum Expression {
     /// while (x > 1) {
     ///     y = 2
     /// }
+    /// while (let value! = next()) {
+    ///     consume(value)
+    /// }
     /// ```
     While {
         label: Option<StringId>,
         form: WhileForm,
-        condition: LocalNodeId<Expression>,
+        condition: Condition,
         body: LocalNodeId<Block>,
     },
 
@@ -1176,11 +1179,29 @@ impl Condition {
         }
     }
 
+    /// Iterate over the expression operands.
+    pub fn expressions(&self) -> impl Iterator<Item = LocalNodeId<Expression>> + '_ {
+        self.operands.iter().filter_map(|operand| match operand {
+            ConditionOperand::Expression { condition } => Some(*condition),
+            ConditionOperand::Binding { .. } => None,
+        })
+    }
+
     /// Return true when this condition contains a binding operand.
     pub fn has_binding(&self) -> bool {
         self.operands
             .iter()
             .any(|operand| matches!(operand, ConditionOperand::Binding { .. }))
+    }
+
+    /// Return whether this condition binds one declarator.
+    pub fn binds(&self, target: LocalNodeId<Declarator>) -> bool {
+        self.operands.iter().any(|operand| {
+            matches!(
+                operand,
+                ConditionOperand::Binding { declarator, .. } if *declarator == target
+            )
+        })
     }
 }
 

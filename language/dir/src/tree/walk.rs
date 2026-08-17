@@ -1,6 +1,6 @@
 use crate::{
-    Argument, AssignPattern, AssignPatternField, Block, Catch, ConditionOperand, Declaration,
-    Declarator, Decorator, DependencyItem, EnumField, Expression, ForEachBinding,
+    Argument, AssignPattern, AssignPatternField, Block, Catch, Condition, ConditionOperand,
+    Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression, ForEachBinding,
     FunctionSignature, GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny, MatchArm,
     Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, SwitchCase,
     SwitchSelector, TemplateLiteral, Tree, TreeAttribute, TreeChild, TupleElement, TypeExpression,
@@ -728,6 +728,26 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
     }
 }
 
+/// Walk one condition.
+pub fn walk_condition<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    condition: &Condition,
+) {
+    for operand in &condition.operands {
+        match operand {
+            ConditionOperand::Expression { condition } => {
+                let expression = tree.get(*condition);
+                visitor.visit_expression(tree, *condition, expression);
+            }
+            ConditionOperand::Binding { declarator, .. } => {
+                let declarator_node = tree.get(*declarator);
+                visitor.visit_declarator(tree, *declarator, declarator_node);
+            }
+        }
+    }
+}
+
 /// Walk the Expression.
 pub fn walk_expression<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -815,18 +835,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             then_expression,
             else_expression,
         } => {
-            for operand in &condition.operands {
-                match operand {
-                    ConditionOperand::Expression { condition } => {
-                        let condition_node = tree.get(*condition);
-                        visitor.visit_expression(tree, *condition, condition_node);
-                    }
-                    ConditionOperand::Binding { declarator, .. } => {
-                        let declarator_node = tree.get(*declarator);
-                        visitor.visit_declarator(tree, *declarator, declarator_node);
-                    }
-                }
-            }
+            walk_condition(visitor, tree, condition);
 
             let then_expression_node = tree.get(*then_expression);
             visitor.visit_expression(tree, *then_expression, then_expression_node);
@@ -842,8 +851,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             condition,
             body,
         } => {
-            let cond_expr = tree.get(*condition);
-            visitor.visit_expression(tree, *condition, cond_expr);
+            walk_condition(visitor, tree, condition);
+
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
