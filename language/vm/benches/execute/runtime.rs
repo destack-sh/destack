@@ -91,16 +91,6 @@ impl program::Runtime for BenchmarkRuntime {
     fn park(&mut self, _fiber: program::FiberId) -> Result<program::Park> {
         unreachable!("direct execution benchmarks do not park")
     }
-
-    /// Reject detach boundaries outside asynchronous benchmarks.
-    fn detach(&mut self) -> Result<program::FiberId> {
-        unreachable!("direct execution benchmarks do not detach")
-    }
-
-    /// Reject boundary retirement outside asynchronous benchmarks.
-    fn retire(&mut self, _fiber: program::FiberId) -> Result<()> {
-        unreachable!("direct execution benchmarks do not detach")
-    }
 }
 
 impl Runtime {

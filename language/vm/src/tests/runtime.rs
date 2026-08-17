@@ -44,8 +44,8 @@ pub(crate) struct TestRuntime {
     calls: Vec<RuntimeCall>,
     /// Program event categories selected for execution.
     selected_events: program::EventSet,
-    /// Program execution events with their logical fiber identities.
-    observations: Vec<(Option<program::FiberId>, program::Event)>,
+    /// Program execution events in order.
+    events: Vec<program::Event>,
 }
 
 impl TestRuntime {
@@ -69,15 +69,7 @@ impl TestRuntime {
 
     /// Return and clear recorded Program execution events.
     pub(crate) fn take_events(&mut self) -> Vec<program::Event> {
-        mem::take(&mut self.observations)
-            .into_iter()
-            .map(|(_, event)| event)
-            .collect()
-    }
-
-    /// Return and clear Program events with their logical fiber identities.
-    pub(crate) fn take_observations(&mut self) -> Vec<(Option<program::FiberId>, program::Event)> {
-        mem::take(&mut self.observations)
+        mem::take(&mut self.events)
     }
 
     /// Request one runtime poll action.
@@ -108,8 +100,12 @@ impl program::Runtime for TestRuntime {
     }
 
     /// Record one selected Program execution event.
-    fn observe(&mut self, fiber_id: Option<program::FiberId>, event: program::Event) -> Result<()> {
-        self.observations.push((fiber_id, event));
+    fn observe(
+        &mut self,
+        _fiber_id: Option<program::FiberId>,
+        event: program::Event,
+    ) -> Result<()> {
+        self.events.push(event);
 
         Ok(())
     }

@@ -1,5 +1,4 @@
 use destack_bytecode::{CodeOffset, CodeRange, RegisterSpan};
-use destack_program as program;
 use destack_program::{Completion, FrameStateId, FunctionId, Word};
 use serde::{Deserialize, Serialize};
 

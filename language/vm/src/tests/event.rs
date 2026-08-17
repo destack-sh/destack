@@ -1,10 +1,9 @@
 use destack_mir::{GlobalStorage, Space, Storage};
 use destack_program::{
-    BindingEvent, BindingId, EdgeSite, Event, EventKind, FiberId, FrameEvent, FunctionId, GlobalId,
+    BindingEvent, BindingId, EdgeSite, Event, EventKind, FrameEvent, FunctionId, GlobalId,
     GlobalLocation, Memory, MemoryAccess, MemoryRange, TypeId, Word,
 };
 
-use super::machine::TEST_FIBER_ID;
 use super::{TestMachine, TestProgram};
 use crate::Result;
 

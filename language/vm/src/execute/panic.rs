@@ -1,7 +1,7 @@
 use destack_bytecode::{Instruction, Opcode};
 use destack_program::{Event, FrameEvent, Runtime, TypeId};
 
-use crate::diagnostic::{Error, ExecutionError, ExecutionResult, Panic, Trap};
+use crate::diagnostic::{Error, ExecutionResult, Panic, Trap};
 use crate::machine::{Activation, Return};
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {

@@ -174,11 +174,6 @@ impl TestMachine {
         self.runtime.take_events()
     }
 
-    /// Return and clear Program events with their logical fiber identities.
-    pub(crate) fn take_observations(&mut self) -> Vec<(Option<program::FiberId>, program::Event)> {
-        self.runtime.take_observations()
-    }
-
     /// Request one runtime poll action.
     pub(crate) fn request_poll(&mut self, action: program::Poll) {
         self.runtime.request_poll(action);

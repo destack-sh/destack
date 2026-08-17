@@ -201,33 +201,6 @@ impl Stack {
         Ok(())
     }
 
-    /// Copy one live byte range from another stack in the same memory map.
-    pub(crate) fn copy_from(
-        &mut self,
-        byte_offset: usize,
-        source: &Stack,
-        source_offset: usize,
-        byte_len: usize,
-    ) -> Result<()> {
-        debug_assert!(
-            Arc::ptr_eq(&self.memory, &source.memory),
-            "stack copies stay inside one memory map"
-        );
-        self.live_range(byte_offset, byte_len)?;
-        source.live_range(source_offset, byte_len)?;
-
-        // SAFETY: both ranges are live and distinct reservations never overlap
-        unsafe {
-            ptr::copy_nonoverlapping(
-                source.address(source_offset) as *const u8,
-                self.address(byte_offset) as *mut u8,
-                byte_len,
-            );
-        }
-
-        Ok(())
-    }
-
     /// Borrow one live stack byte range mutably.
     pub(crate) fn bytes_mut(&mut self, byte_offset: usize, byte_len: usize) -> Result<&mut [u8]> {
         self.live_range(byte_offset, byte_len)?;
