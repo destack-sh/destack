@@ -9,14 +9,16 @@ macro_rules! runtime_operations {
             Allocate = 0x0000 => allocate: Allocate -> Pointer,
             /// Allocate one repeated heap backing.
             AllocateRepeated = 0x0001 => allocate_repeated: AllocateRepeated -> Pointer,
+            /// Destroy one erased unique value.
+            Drop = 0x0002 => drop: Drop -> Void,
             /// Release one unique heap value.
-            Free = 0x0002 => free: Free -> Void,
+            Free = 0x0003 => free: Free -> Void,
             /// Pin one heap value.
-            Pin = 0x0003 => pin: Pin -> Pointer,
+            Pin = 0x0004 => pin: Pin -> Pointer,
             /// Release one pinned heap value.
-            Unpin = 0x0004 => unpin: Unpin -> Void,
+            Unpin = 0x0005 => unpin: Unpin -> Void,
             /// Record one managed reference write.
-            WriteBarrier = 0x0005 => write_barrier: WriteBarrier -> Void,
+            WriteBarrier = 0x0006 => write_barrier: WriteBarrier -> Void,
 
             /// Poll pending runtime work.
             Poll = 0x0010 => poll: Poll -> Never,
@@ -98,9 +100,16 @@ pub type AllocateRepeated = unsafe extern "C-unwind" fn(
     initialization: AllocationInitialization,
 ) -> usize;
 
+/// Destroy one erased unique value through the runtime.
+pub type Drop = unsafe extern "C-unwind" fn(
+    activation: *mut Activation,
+    owner: usize,
+    frame_map: u32,
+    marker: *const u8,
+);
+
 /// Release one unique heap value through the runtime.
-pub type Free =
-    unsafe extern "C-unwind" fn(activation: *mut Activation, space: Space, value: usize);
+pub type Free = unsafe extern "C-unwind" fn(activation: *mut Activation, owner: usize);
 
 /// Pin one heap value against movement through the runtime.
 pub type Pin =
