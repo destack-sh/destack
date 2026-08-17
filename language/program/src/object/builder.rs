@@ -27,6 +27,8 @@ pub struct ObjectBuilder {
     dispatch: mir::DispatchTable,
     /// Object-local function declarations in ascending MIR id order.
     functions: Vec<Function>,
+    /// The object-local module initializer when one exists.
+    initializer: Option<mir::FunctionId>,
     /// Object-local global declarations and definitions in ascending MIR id order.
     globals: Vec<Global>,
 
@@ -65,6 +67,7 @@ impl ObjectBuilder {
             drops: mir::DropTable::new(),
             dispatch: mir::DispatchTable::new(),
             functions: Vec::new(),
+            initializer: None,
             globals: Vec::new(),
             frames: Vec::new(),
             allocations: Vec::new(),
@@ -119,6 +122,13 @@ impl ObjectBuilder {
     /// Set object-local function declarations in ascending MIR id order.
     pub fn functions(mut self, functions: impl IntoIterator<Item = Function>) -> Self {
         self.functions = functions.into_iter().collect();
+
+        self
+    }
+
+    /// Set the object-local module initializer.
+    pub fn initializer(mut self, initializer: Option<mir::FunctionId>) -> Self {
+        self.initializer = initializer;
 
         self
     }
@@ -210,6 +220,7 @@ impl ObjectBuilder {
             drops: self.drops,
             dispatch: self.dispatch,
             functions: self.functions,
+            initializer: self.initializer,
             globals: self.globals,
             frames: self.frames,
             allocations: self.allocations,

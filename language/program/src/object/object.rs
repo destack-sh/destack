@@ -29,6 +29,8 @@ pub struct Object {
     pub(super) dispatch: mir::DispatchTable,
     /// Object-local function declarations in ascending MIR id order.
     pub(super) functions: Vec<Function>,
+    /// The object-local module initializer when one exists.
+    pub(super) initializer: Option<mir::FunctionId>,
     /// Object-local global declarations and definitions in ascending MIR id order.
     pub(super) globals: Vec<Global>,
 
@@ -112,6 +114,11 @@ impl Object {
     /// Return object-local function declarations.
     pub fn functions(&self) -> &[Function] {
         &self.functions
+    }
+
+    /// Return the object-local module initializer when one exists.
+    pub const fn initializer(&self) -> Option<mir::FunctionId> {
+        self.initializer
     }
 
     /// Return one object-local function declaration.
