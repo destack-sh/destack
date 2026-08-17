@@ -887,8 +887,11 @@ class State {
     /// @type.symbol symbol=State.users source="users!: User[]" type=Array<User>
     /// @generic.instance id=Array<User> template=collections.array.Array arguments=(User)
     /// @generic.instance id=memory.init.MaybeUninit<User> template=memory.init.MaybeUninit arguments=(User)
+    /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<User>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<User>)
     /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<User>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<User>>)
     /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<User>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<User>)
+    /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<User>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<User>)
+    /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<User>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<User>)
     /// @resolution.name source=User target=User
 
 }
@@ -1471,8 +1474,11 @@ declare const values: int32[];
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 
 inspectPoint(point);
 /// @resolution.name source=inspectPoint target=inspectPoint
@@ -1618,10 +1624,10 @@ declare const values: shared int32[];
 values.push(1);
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<int32>, "shared">, ...int32[]) => isize kind=symbol target_receiver=Placed<Array<int32>, "shared"> target=collections.array.push
-/// @resolution.call source=values.push(1) parameters=(Placed<Array<int32>, "shared">) arguments=(rest(1) as int32) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<int32>, "shared"> instance=Array<int32>.<extension#5>.push
+/// @resolution.call source=values.push(1) parameters=(Placed<Array<int32>, "shared">) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<int32>, "shared"> instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 /// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
 
 class Message {}
@@ -1641,10 +1647,10 @@ declare const message: shared Message;
 messages.push(message);
 /// @resolution.name source=messages target=messages
 /// @resolution.member source=messages.push receiver=Placed<Array<Message>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<Message>, "shared">, ...Message[]) => isize kind=symbol target_receiver=Placed<Array<Message>, "shared"> target=collections.array.push
-/// @resolution.call source=messages.push(message) parameters=(Placed<Array<Message>, "shared">) arguments=(rest(message) as Placed<Message, "shared">) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<Message>, "shared"> instance=Array<Message>.<extension#5>.push
+/// @resolution.call source=messages.push(message) parameters=(Placed<Array<Message>, "shared">) arguments=(rest(message) pack=collections.array.arrayFromSlice as Placed<Message, "shared">) return=isize kind=symbol target=collections.array.push receiver=Placed<Array<Message>, "shared"> instance=Array<Message>.<extension#5>.push
 /// @resolution.place source=messages placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=messages root=messages
-/// @generic.instantiation id=collections.array.push<Message> template=collections.array.push arguments=(Message)
+/// @generic.instantiation id="collections.array.arrayFromSlice<Placed<Message, \"shared\">>" template=collections.array.arrayFromSlice arguments=(Placed<Message, "shared">)
 /// @generic.instantiation id=collections.array.push<Message> template=collections.array.push arguments=(Message)
 /// @resolution.name source=message target=message
 "#,
@@ -2184,7 +2190,6 @@ const filtered = mapped.filter((value) => value != undefined);
 /// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32 | undefined>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
 /// @resolution.place source=mapped placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=mapped root=mapped
-/// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
 /// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
 /// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
 /// @type.symbol symbol=symbol5 source="(value) => value != undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>

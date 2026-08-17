@@ -23,7 +23,7 @@ type Named = { name: string };
 type Aged = { age: int32 };
 type Person = Named & Aged;
 
-declare const person: Named & Aged;
+declare const person: { name: string; age: int32 };
 const name: string = person.name;
 const age: int32 = person.age;
 
@@ -37,13 +37,13 @@ type Aged = { age: int32 };
 /// @definition.type symbol=Aged source="type Aged = { age: int32 }" value={ age: int32 }
 
 type Person = Named & Aged;
-/// @type.symbol symbol=Person source="type Person = Named & Aged" type=Named & Aged
-/// @definition.type symbol=Person source="type Person = Named & Aged" value=Named & Aged
+/// @type.symbol symbol=Person source="type Person = Named & Aged" type={ name: string; age: int32 }
+/// @definition.type symbol=Person source="type Person = Named & Aged" value={ name: string; age: int32 }
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Aged target=Aged
 
 declare const person: Person;
-/// @type.symbol symbol=person source=person type=Named & Aged
+/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Person target=Person
 
@@ -51,8 +51,8 @@ const name = person.name;
 /// @type.symbol symbol=name source=name type=string
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=Named & Aged type=string kind=field target_receiver=Named & Aged key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=person.name receiver={ name: string; age: int32 } type=string kind=field target_receiver={ name: string; age: int32 } key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.access source=person.name root=person keys=[name]
 
@@ -60,8 +60,8 @@ const age = person.age;
 /// @type.symbol symbol=age source=age type=int32
 /// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver=Named & Aged type=int32 kind=field target_receiver=Named & Aged key=age target_type=int32
-/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=person.age receiver={ name: string; age: int32 } type=int32 kind=field target_receiver={ name: string; age: int32 } key=age target_type=int32
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.access source=person.age root=person keys=[age]
 "#,
@@ -161,7 +161,7 @@ type Named = { name: string };
 type Aged = { age: int32 };
 type Person = Named & Aged;
 
-const person: Named & Aged = { name: "Ada" };
+const person: { name: string; age: int32 } = { name: "Ada" };
 
 === dir ===
 type Named = { name: string };
@@ -173,18 +173,18 @@ type Aged = { age: int32 };
 /// @definition.type symbol=Aged source="type Aged = { age: int32 }" value={ age: int32 }
 
 type Person = Named & Aged;
-/// @type.symbol symbol=Person source="type Person = Named & Aged" type=Named & Aged
-/// @definition.type symbol=Person source="type Person = Named & Aged" value=Named & Aged
+/// @type.symbol symbol=Person source="type Person = Named & Aged" type={ name: string; age: int32 }
+/// @definition.type symbol=Person source="type Person = Named & Aged" value={ name: string; age: int32 }
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Aged target=Aged
 
 const person: Person = { name: "Ada" };
-/// @type.symbol symbol=person source=person type=Named & Aged
+/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Person target=Person
 "#,
         r#"
-/// @diagnostic.error id=missing-required-property message="missing required property 'age' for type 'Named & Aged'"
+/// @diagnostic.error id=missing-required-property message="missing required property 'age' for type '{ name: string; age: int32 }'"
 /// @diagnostic.label line=6 column=24 span="{ name: \"Ada\" }" line_source="const person: Person = { name: \"Ada\" };"
 /// @diagnostic.related line=6 column=15 span="Person" line_source="const person: Person = { name: \"Ada\" };" message="expected due to this annotation"
 "#,
@@ -212,7 +212,7 @@ type NumberValue = { value: int32 };
 type TextValue = { value: string };
 type Value = NumberValue & TextValue;
 
-const value: NumberValue & TextValue = { value: "ok" };
+const value: { value: never } = { value: "ok" };
 
 === dir ===
 type NumberValue = { value: int32 };
@@ -224,18 +224,18 @@ type TextValue = { value: string };
 /// @definition.type symbol=TextValue source="type TextValue = { value: string }" value={ value: string }
 
 type Value = NumberValue & TextValue;
-/// @type.symbol symbol=Value source="type Value = NumberValue & TextValue" type=NumberValue & TextValue
-/// @definition.type symbol=Value source="type Value = NumberValue & TextValue" value=NumberValue & TextValue
+/// @type.symbol symbol=Value source="type Value = NumberValue & TextValue" type={ value: never }
+/// @definition.type symbol=Value source="type Value = NumberValue & TextValue" value={ value: never }
 /// @resolution.name source=NumberValue target=NumberValue
 /// @resolution.name source=TextValue target=TextValue
 
 const value: Value = { value: "ok" };
-/// @type.symbol symbol=value source=value type=NumberValue & TextValue
+/// @type.symbol symbol=value source=value type={ value: never }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"ok\"' is not assignable to type 'int32 & string'"
+/// @diagnostic.error id=not-assignable message="type '\"ok\"' is not assignable to type 'never'"
 /// @diagnostic.label line=6 column=31 span="\"ok\"" line_source="const value: Value = { value: \"ok\" };"
 /// @diagnostic.related line=6 column=14 span="Value" line_source="const value: Value = { value: \"ok\" };" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in field 'value'"
@@ -266,7 +266,7 @@ type Wide = { value: string | int32 };
 type Narrow = { value: string; extra: string };
 type Value = Wide & Narrow;
 
-const value: Wide & Narrow = { value: "ok", extra: "yes" };
+const value: { value: string & string; extra: string } = { value: "ok", extra: "yes" };
 value.value satisfies string;
 value.extra satisfies string;
 
@@ -280,30 +280,30 @@ type Narrow = { value: string; extra: string };
 /// @definition.type symbol=Narrow source="type Narrow = { value: string; extra: string }" value={ value: string; extra: string }
 
 type Value = Wide & Narrow;
-/// @type.symbol symbol=Value source="type Value = Wide & Narrow" type=Wide & Narrow
-/// @definition.type symbol=Value source="type Value = Wide & Narrow" value=Wide & Narrow
+/// @type.symbol symbol=Value source="type Value = Wide & Narrow" type={ value: string & string; extra: string }
+/// @definition.type symbol=Value source="type Value = Wide & Narrow" value={ value: string; extra: string }
 /// @resolution.name source=Wide target=Wide
 /// @resolution.name source=Narrow target=Narrow
 
 const value: Value = { value: "ok", extra: "yes" };
-/// @type.symbol symbol=value source=value type=Wide & Narrow
+/// @type.symbol symbol=value source=value type={ value: string; extra: string }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
 value.value satisfies string;
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.value receiver=Wide & Narrow type=string | int32 & string kind=intersection targets=[field(receiver=Wide & Narrow, target=value, type=string | int32), field(receiver=Wide & Narrow, target=value, type=string)]
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=value.value receiver={ value: string; extra: string } type=string kind=field target_receiver={ value: string; extra: string } key=value target_type=string
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-/// @resolution.place source=value.value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value.value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value.value root=value keys=[value]
 
 value.extra satisfies string;
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.extra receiver=Wide & Narrow type=string kind=field target_receiver=Wide & Narrow key=extra target_type=string
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=value.extra receiver={ value: string; extra: string } type=string kind=field target_receiver={ value: string; extra: string } key=extra target_type=string
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-/// @resolution.place source=value.extra placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value.extra placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value.extra root=value keys=[extra]
 "#,
     );
@@ -326,20 +326,20 @@ let value: Both = "ok";
 === annotated ===
 type Both = string & int32;
 
-let value: string & int32 = "ok";
+let value: never = "ok";
 
 === dir ===
 type Both = string & int32;
-/// @type.symbol symbol=Both source="type Both = string & int32" type=string & int32
-/// @definition.type symbol=Both source="type Both = string & int32" value=string & int32
+/// @type.symbol symbol=Both source="type Both = string & int32" type=never
+/// @definition.type symbol=Both source="type Both = string & int32" value=never
 
 let value: Both = "ok";
-/// @type.symbol symbol=value source=value type=string & int32
+/// @type.symbol symbol=value source=value type=never
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Both target=Both
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"ok\"' is not assignable to type 'string & int32'"
+/// @diagnostic.error id=not-assignable message="type '\"ok\"' is not assignable to type 'never'"
 /// @diagnostic.label line=4 column=19 span="\"ok\"" line_source="let value: Both = \"ok\";"
 /// @diagnostic.related line=4 column=12 span="Both" line_source="let value: Both = \"ok\";" message="expected due to this annotation"
 "#,

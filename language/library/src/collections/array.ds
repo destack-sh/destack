@@ -417,6 +417,11 @@ export extension<T> of Array<T>
         todo("Array.of")
     }
 
+    /// Create an array copied from `values`.
+    static fromSlice(values: &readonly [T]): ^Array<T> {
+        arrayFromSlice<T>(values)
+    }
+
     /// Create the default array.
     static default(): ^Array<T> {
         []
@@ -751,4 +756,10 @@ export extension<T> of ^Array<T> implements From<Iterable<T>>, FromIterator<T> {
     static fromIterator<R>(values: Iterator<T, R>): ^Array<T> {
         Array.fromIterator(values)
     }
+}
+
+/// Create an array copied from a borrowed slice of `values`.
+@languageItem("collections.array.fromSlice")
+export function arrayFromSlice<T>(values: &readonly [T]): ^Array<T> {
+    todo("arrayFromSlice")
 }

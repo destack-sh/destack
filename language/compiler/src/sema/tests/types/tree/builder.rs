@@ -405,8 +405,11 @@ newtype interface Grouper {
     /// @type.symbol symbol=Grouper.group.Children source="Children: (...unknown[],)" type=Children#1
     /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
     /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<unknown>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<unknown>)
     /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<unknown>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<unknown>>)
     /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<unknown>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<unknown>)
+    /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<unknown>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<unknown>)
+    /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<unknown>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<unknown>)
     /// @type.symbol symbol=Grouper.group.children source="children: Children" type=Children#1
     /// @resolution.name source=Children target=Grouper.group.Children
 
@@ -542,8 +545,11 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
     /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
     /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<unknown>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<unknown>)
     /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<unknown>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<unknown>>)
     /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<unknown>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<unknown>)
+    /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<unknown>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<unknown>)
+    /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<unknown>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -698,8 +704,11 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
     /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
     /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<unknown>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<unknown>)
     /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<unknown>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<unknown>>)
     /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<unknown>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<unknown>)
+    /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<unknown>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<unknown>)
+    /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<unknown>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag

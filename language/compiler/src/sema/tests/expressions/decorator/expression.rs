@@ -279,9 +279,15 @@ function run(): void {
     /// @resolution.pattern source=array kind=binding target=run.array
     /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
     /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+    /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
     /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
     /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
+    /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
+    /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
     /// @type.node source=[@mark("array") 3] type=Array<float64>
+    /// @resolution.call source=[@mark("array") 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(3) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+    /// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
     /// @decorator.node source="@mark(\"array\")" owner="@mark(\"array\") 3" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("array") as string) newtype=mark backing=(string,) value="mark(\"array\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark

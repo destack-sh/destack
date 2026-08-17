@@ -752,8 +752,6 @@ const sharedBox: shared Box<User> = new Box(sharedUser);
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new Box(sharedUser)" parameters=(Placed<User, "shared">) arguments=(provided(sharedUser) as Placed<User, "shared">) return=Placed<Box<User>, "shared"> kind=class target=Box constructor=Box.constructor instance=Box<User>
-/// @generic.instantiation id=Box.constructor<User> template=Box.constructor arguments=(User)
-/// @generic.instantiation id=Box<User> template=Box arguments=(User)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=sharedUser target=sharedUser
 /// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
@@ -874,8 +872,7 @@ extension<T> of Box<T> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'a readonly Box<T#2>
         /// @resolution.place source=this placement="local" lifetime=forward.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=borrow<T#2> template=borrow arguments=(T#2) owner=<module>#2
-        /// @generic.instantiation id=borrow<T#2> template=borrow arguments=(T#2) owner=<module>#2
+        /// @generic.instantiation id=borrow<T#2> template=borrow arguments=(T#2) owner=forward
 
     }
 }
@@ -905,7 +902,6 @@ localBox.borrow() satisfies local &readonly User;
 /// @resolution.place source=localBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localBox root=localBox
 /// @generic.instantiation id=borrow<User> template=borrow arguments=(User)
-/// @generic.instantiation id=borrow<User> template=borrow arguments=(User)
 /// @generic.instance id=borrow<User> template=borrow arguments=(User)
 /// @resolution.name source=User target=User
 
@@ -915,7 +911,6 @@ mixedBox.borrow() satisfies shared &readonly User;
 /// @resolution.call source=mixedBox.borrow() parameters=() return=Placed<&'static readonly User, "shared"> kind=symbol target=borrow receiver=Placed<Dynamic<Box<Placed<User, "shared">>>, "local"> adjustments=(Placed<Dynamic<Box<Placed<User, "shared">>>, "local"> => direct -> Dynamic<Box<Placed<User, "shared">>>, borrow(&'static readonly Dynamic<Box<Placed<User, "shared">>>)) instance="Box<Placed<User, \"shared\">>.<extension#1>.borrow"
 /// @resolution.place source=mixedBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=mixedBox root=mixedBox
-/// @generic.instantiation id="borrow<Placed<User, \"shared\">>" template=borrow arguments=(Placed<User, "shared">)
 /// @generic.instantiation id="borrow<Placed<User, \"shared\">>" template=borrow arguments=(Placed<User, "shared">)
 /// @generic.instance id="borrow<Placed<User, \"shared\">>" template=borrow arguments=(Placed<User, "shared">)
 /// @resolution.name source=User target=User

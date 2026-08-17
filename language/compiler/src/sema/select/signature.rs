@@ -2,13 +2,13 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::sema::infer::InferMode;
 use crate::sema::{
     BodyState, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
-    Expectation, Origin, ReceiverSteps, Relation, RelationCheck, TypeArgumentInference,
+    Expectation, Origin, PlaceUse, ReceiverSteps, Relation, RelationCheck, TypeArgumentInference,
     TypeSubstitution, Value, ValueUse, Verdict,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Callable signature accepted for an invocation.
 #[derive(Debug, Clone)]
@@ -143,6 +143,8 @@ pub(in crate::sema) struct CallableArgument {
     pub(in crate::sema) relation: Relation,
     /// The value role of this invocation argument.
     pub(in crate::sema) use_: ValueUse,
+    /// Whether the authored argument spreads a sequence.
+    pub(in crate::sema) is_spread: bool,
 }
 
 /// Reason one callable signature rejected an invocation.
@@ -361,18 +363,20 @@ impl BodyState<'_, '_> {
         let mut bindings = Vec::with_capacity(signature.parameters.len());
         for (index, selected) in signature.parameters.iter().enumerate() {
             let parameter = selected.parameter;
-            let source = match sources.get(index) {
-                Some(source) => source.clone(),
-                None if parameter.is_rest => dir::ArgumentSource::Rest(Vec::new()),
-                None => dir::ArgumentSource::Omitted,
-            };
-
             // project rest elements through the deep normal form for settled selections
             let argument_type = match parameter.is_rest {
                 true => self
                     .rest_element_type(origin, parameter.ty)?
                     .unwrap_or(parameter.ty),
                 false => parameter.ty,
+            };
+            let source = match sources.get(index) {
+                Some(source) => source.clone(),
+                None if parameter.is_rest => dir::ArgumentSource::Rest {
+                    elements: Vec::new(),
+                    pack: self.rest_pack_selection(origin, parameter.ty, argument_type)?,
+                },
+                None => dir::ArgumentSource::Omitted,
             };
 
             bindings.push(dir::ArgumentBinding {
@@ -383,6 +387,46 @@ impl BodyState<'_, '_> {
         }
 
         Ok(bindings)
+    }
+
+    /// Select the pack constructor one rest parameter's collection requires.
+    pub(in crate::sema) fn rest_pack_selection(
+        &mut self,
+        origin: Origin,
+        rest: dir::GlobalTypeId,
+        element: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Selection>> {
+        // slice parameters pack in place without a constructor
+        let reduced = self.check.deeply_resolve(origin, rest)?;
+        if matches!(self.ty(reduced)?, dir::Type::Slice(_)) {
+            return Ok(None);
+        }
+
+        Ok(Some(self.array_pack_selection(element)?))
+    }
+
+    /// Select the array constructor over one element type.
+    pub(in crate::sema) fn array_pack_selection(
+        &mut self,
+        element: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::Selection> {
+        let symbol = self
+            .check
+            .language_symbol(dir::LanguageItem::ArrayFromSlice)?;
+        let Some(template) = self.check.symbol_template(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "the array pack constructor declares no template".to_string(),
+            });
+        };
+        let parameters = self.check.generic_template_parameters(template)?;
+        let Some(parameter) = parameters.first().copied() else {
+            return Err(CompilerError::Internal {
+                message: "the array pack constructor declares no element parameter".to_string(),
+            });
+        };
+        let binding = dir::GenericArgumentBinding::new(parameter, element);
+
+        Ok(dir::Selection::new(symbol, vec![binding]))
     }
 
     /// Return the element type one rest parameter accepts per tail argument.
@@ -717,6 +761,13 @@ impl BodyState<'_, '_> {
                     ));
                 };
 
+                // a spread supplies elements only through a rest window
+                if argument.is_spread && !parameter.is_rest {
+                    return Ok(SignatureMatch::Inapplicable(
+                        SignatureRejection::Inapplicable,
+                    ));
+                }
+
                 let parameter = self.select_parameter(
                     origin,
                     *parameter,
@@ -808,7 +859,7 @@ impl BodyState<'_, '_> {
                 if round == 1 && !entries.is_empty() {
                     let roots = self.check.open_type_variables(fixed.iter().copied())?;
                     if !roots.is_empty() {
-                        self.check.resolve_variables(&roots)?;
+                        self.check.fix_scope_variables(&roots)?;
                     }
                 }
 
@@ -951,6 +1002,38 @@ impl BodyState<'_, '_> {
                 index: index as u32,
             },
         ));
+        // a spread argument supplies its element sequence to the rest slot
+        if argument.is_spread {
+            let site = self.visit_site(source)?;
+            let ty = self.infer_node_type(site, PlaceUse::Read)?;
+            let element = self.spread_element_type(ty)?;
+            if !self
+                .check
+                .evaluate_relation(origin, relation, element, parameter_type)?
+                .holds()
+            {
+                let rejection = SignatureRejection::Mismatch {
+                    verdict: self.check.verdict(
+                        false,
+                        origin,
+                        relation,
+                        element,
+                        parameter_type,
+                    )?,
+                    cause,
+                    relation,
+                    use_: Some(argument.use_),
+                    source: element,
+                    target: parameter_type,
+                    failure: CheckFailure::Relation,
+                };
+
+                return Ok(Err(rejection));
+            }
+
+            return Ok(Ok(None));
+        }
+
         let mode = self.contextual_literal_mode(origin, parameter_type, InferMode::Widen)?;
 
         // apply target-directed syntax before converting the resulting value

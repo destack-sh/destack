@@ -836,7 +836,6 @@ publish<LocalEnvelope>(localEnvelope);
 publish(cleanEnvelope);
 /// @resolution.name source=publish target=publish
 /// @resolution.call source=publish(cleanEnvelope) parameters=(CleanEnvelope) arguments=(provided(cleanEnvelope) as CleanEnvelope) return=void kind=symbol target=publish instance=publish<CleanEnvelope>
-/// @generic.instantiation id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
 /// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope

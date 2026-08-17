@@ -140,8 +140,8 @@ impl CheckState<'_> {
                         message: "decorator call contains an implicit write argument".to_string(),
                     });
                 }
-                dir::ArgumentSource::Rest(arguments) => {
-                    for argument in arguments {
+                dir::ArgumentSource::Rest { elements, .. } => {
+                    for argument in elements {
                         let value =
                             match self.evaluate_static_argument(module, anchor, *argument)? {
                                 Ok(value) => value,

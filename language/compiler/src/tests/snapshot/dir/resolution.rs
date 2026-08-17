@@ -2479,8 +2479,8 @@ fn argument_binding_label(
         }
         dir::ArgumentSource::Write => "write".to_string(),
         dir::ArgumentSource::Omitted => "omitted".to_string(),
-        dir::ArgumentSource::Rest(nodes) => {
-            let sources = nodes
+        dir::ArgumentSource::Rest { elements, pack } => {
+            let sources = elements
                 .iter()
                 .map(|node| {
                     builder
@@ -2490,7 +2490,10 @@ fn argument_binding_label(
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            format!("rest({sources})")
+            match pack {
+                Some(pack) => format!("rest({sources}) pack={}", builder.symbol_label(pack.symbol)),
+                None => format!("rest({sources})"),
+            }
         }
     };
 

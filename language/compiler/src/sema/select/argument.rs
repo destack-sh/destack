@@ -23,7 +23,7 @@ impl BodyState<'_, '_> {
         for parameter_type in parameters.iter() {
             let mut accepted = parameter_type.ty;
             let source = if parameter_type.is_rest {
-                let rest = arguments[argument_index..]
+                let elements = arguments[argument_index..]
                     .iter()
                     .map(|argument| argument.into_global_any(module))
                     .collect();
@@ -33,7 +33,10 @@ impl BodyState<'_, '_> {
                 let element = self.rest_element_type(origin, parameter_type.ty)?;
                 accepted = element.unwrap_or(accepted);
 
-                dir::ArgumentSource::Rest(rest)
+                dir::ArgumentSource::Rest {
+                    elements,
+                    pack: self.rest_pack_selection(origin, parameter_type.ty, accepted)?,
+                }
             } else if let Some(argument) = arguments.get(argument_index).copied() {
                 argument_index += 1;
 
@@ -98,12 +101,14 @@ impl BodyState<'_, '_> {
         // preserve source expressions for candidate checking
         for argument in arguments {
             let source = argument.into_global_any(module);
+            let is_spread = self.node_is_spread_argument(source);
             match self.argument_expression(module, *argument) {
                 Some(value) => values.push(CallableArgument {
                     source: value,
                     ty: None,
                     relation: Relation::Assignable,
                     use_,
+                    is_spread,
                 }),
                 None => {
                     let ty = self.intern_type(dir::Type::Error)?;
@@ -112,6 +117,7 @@ impl BodyState<'_, '_> {
                         ty: Some(ty),
                         relation: Relation::Assignable,
                         use_,
+                        is_spread,
                     });
                 }
             }
@@ -140,15 +146,17 @@ impl BodyState<'_, '_> {
                         ty: None,
                         relation: Relation::Assignable,
                         use_: ValueUse::Argument,
+                        is_spread: self.node_is_spread_argument(*source),
                     });
                 }
-                dir::ArgumentSource::Rest(sources) => {
-                    for source in sources {
+                dir::ArgumentSource::Rest { elements, .. } => {
+                    for source in elements {
                         values.push(CallableArgument {
                             source: *source,
                             ty: None,
                             relation: Relation::Assignable,
                             use_: ValueUse::Argument,
+                            is_spread: self.node_is_spread_argument(*source),
                         });
                     }
                 }
@@ -158,6 +166,7 @@ impl BodyState<'_, '_> {
                         ty: Some(*ty),
                         relation: Relation::Assignable,
                         use_: ValueUse::Argument,
+                        is_spread: false,
                     });
                 }
                 dir::ArgumentSource::Write | dir::ArgumentSource::Omitted => {
@@ -169,6 +178,18 @@ impl BodyState<'_, '_> {
         }
 
         Ok(values)
+    }
+
+    /// Return whether one recorded source node spreads a sequence.
+    pub(in crate::sema) fn node_is_spread_argument(&self, node: dir::GlobalNodeIdAny) -> bool {
+        let Ok(argument) = node.local_id.try_into_typed::<dir::Argument>() else {
+            return false;
+        };
+
+        matches!(
+            self.module(node.module_id).view().get(argument),
+            dir::Argument::Spread { .. }
+        )
     }
 
     /// Return the expression of one argument node.

@@ -246,10 +246,16 @@ const values = [1, 2, 3] as Slice<_>;
 /// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 /// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
+/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
@@ -279,10 +285,16 @@ const values = [1, 2, 3] as [_];
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] as [_] type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
+/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
@@ -442,13 +454,19 @@ const items: Iterable<int32> = [1, 2];
 /// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
 /// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int32, void>, int32, void>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int32, void>, int32, void)
 /// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int32, void>>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int32, void>)
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
 /// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
+/// @resolution.name source=Iterable target=iter.iterator.Iterable
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=Array<int32> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
-/// @resolution.name source=Iterable target=iter.iterator.Iterable
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 "#,
     );
 }

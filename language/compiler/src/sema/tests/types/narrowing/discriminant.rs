@@ -371,7 +371,6 @@ function read(values: ("pending" | "ready")[]): "ready" {
         /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values[0] root=read.values keys=[0]
         /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
-        /// @generic.instantiation id="collections.array.index#1<\"pending\" | \"ready\", \"exclusive\">" template=collections.array.index#1 arguments=("pending" | "ready", "exclusive")
 
     }
 
@@ -1088,8 +1087,7 @@ class Cell<T> {
             /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
             /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=this root=this
-            /// @generic.instantiation id=Cell.consume<T#5> template=Cell.consume arguments=(T#5) owner=Cell
-            /// @generic.instantiation id=Cell.consume<T#5> template=Cell.consume arguments=(T#5) owner=Cell
+            /// @generic.instantiation id=Cell.consume<T#5> template=Cell.consume arguments=(T#5) owner=Cell.poke
             /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
             /// @resolution.member source=this.state.value receiver=Fulfilled<T#5> type=T#5 kind=field target_receiver=Fulfilled<T#5> key=value target=Fulfilled.value target_type=T#5
             /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>

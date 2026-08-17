@@ -77,7 +77,6 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
     /// @resolution.place source=value placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=value root=read.value
     /// @generic.instantiation id=sync.atomic.load<T> template=sync.atomic.load arguments=(T) owner=read
-    /// @generic.instantiation id=sync.atomic.load<T> template=sync.atomic.load arguments=(T) owner=read
 
 }
 "#,

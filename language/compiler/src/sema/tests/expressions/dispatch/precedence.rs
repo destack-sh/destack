@@ -232,7 +232,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
         /// @resolution.name source=Pack target=Pack
         /// @resolution.member source=Pack.from receiver=Pack type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> kind=existential targets=[from#1, from#2]
         /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3>>) arguments=(provided(values) as Dynamic<Iterable<T#3>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
-        /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=<module>#3
+        /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @type.node source=values type=Dynamic<Iterable<T#3>>
         /// @resolution.name source=values target=from.values#2
         /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
@@ -439,7 +439,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
         /// @resolution.construct source="Outcome(Ok { value })" parameters=(Ok<T#3>) arguments=(provided(Ok { value }) as Ok<T#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Ok<T#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=<module>#2
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=ok
         /// @type.node source="Ok { value }" type=Ok<T#3>
         /// @resolution.name source=Ok target=Ok
         /// @type.node source=value type=T#3
@@ -462,7 +462,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
         /// @resolution.construct source="Outcome(Err { error })" parameters=(Err<E#3>) arguments=(provided(Err { error }) as Err<E#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Err<E#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=<module>#2
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=err
         /// @type.node source="Err { error }" type=Err<E#3>
         /// @resolution.name source=Err target=Err
         /// @type.node source=error type=E#3
@@ -953,7 +953,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
         /// @resolution.construct source="Outcome(Ok { value })" parameters=(Ok<T#3>) arguments=(provided(Ok { value }) as Ok<T#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Ok<T#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=<module>#2
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=ok
         /// @type.node source="Ok { value }" type=Ok<T#3>
         /// @resolution.name source=Ok target=Ok
         /// @type.node source=value type=T#3
@@ -976,7 +976,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
         /// @resolution.construct source="Outcome(Err { error })" parameters=(Err<E#3>) arguments=(provided(Err { error }) as Err<E#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Err<E#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=<module>#2
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=err
         /// @type.node source="Err { error }" type=Err<E#3>
         /// @resolution.name source=Err target=Err
         /// @type.node source=error type=E#3

@@ -84,10 +84,8 @@ extension<T> of Sealed<T> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Sealed<T#3>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=Sealed<T#3> template=Sealed arguments=(T#3) owner=<module>#2
-        /// @generic.instantiation id=Sealed<T#3> template=Sealed arguments=(T#3) owner=<module>#2
-        /// @generic.instantiation id=Wrapper.open<T#3> template=Wrapper.open arguments=(T#3) owner=<module>#2
-        /// @generic.instantiation id=Wrapper.open<T#3> template=Wrapper.open arguments=(T#3) owner=<module>#2
+        /// @generic.instantiation id=Sealed<T#3> template=Sealed arguments=(T#3) owner=reveal
+        /// @generic.instantiation id=Wrapper.open<T#3> template=Wrapper.open arguments=(T#3) owner=reveal
 
     }
 }
@@ -146,8 +144,6 @@ const number = value().open();
 /// @resolution.call source=value() parameters=() return=value.Sealed<int32> kind=symbol target=value.value
 /// @resolution.call source=value().open() parameters=() return=int32 kind=symbol target=value.Wrapper.open receiver=value.Sealed<int32> adjustments=(newtype.payload(value.Sealed, value.Wrapper<int32>)) instance=value.Wrapper<int32>.open
 /// @generic.instantiation id=value.Sealed<int32> template=value.Sealed arguments=(int32)
-/// @generic.instantiation id=value.Sealed<int32> template=value.Sealed arguments=(int32)
-/// @generic.instantiation id=value.Wrapper.open<int32> template=value.Wrapper.open arguments=(int32)
 /// @generic.instantiation id=value.Wrapper.open<int32> template=value.Wrapper.open arguments=(int32)
 /// @generic.instance id=value.Sealed<int32> template=value.Sealed arguments=(int32)
 /// @generic.instance id=value.Wrapper.open<int32> template=value.Wrapper.open arguments=(int32)

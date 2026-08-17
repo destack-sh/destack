@@ -25,8 +25,11 @@ declare const bytes: uint8[];
 /// @resolution.pattern source=bytes kind=binding target=bytes
 /// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
 /// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<uint8>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<uint8>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<uint8>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<uint8>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<uint8>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<uint8>)
 
 declare const index: isize;
 /// @type.symbol symbol=index source=index type=isize
@@ -75,8 +78,11 @@ declare const bytes: uint8[];
 /// @resolution.pattern source=bytes kind=binding target=bytes
 /// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
 /// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<uint8>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<uint8>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<uint8>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<uint8>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<uint8>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<uint8>)
 
 declare const index: isize;
 /// @type.symbol symbol=index source=index type=isize
@@ -122,8 +128,11 @@ declare const bytes: uint8[];
 /// @resolution.pattern source=bytes kind=binding target=bytes
 /// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
 /// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<uint8>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<uint8>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<uint8>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<uint8>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<uint8>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<uint8>)
 
 declare const index: isize;
 /// @type.symbol symbol=index source=index type=isize

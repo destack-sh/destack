@@ -474,8 +474,11 @@ type Element<T: string[]> = T[usize];
 /// @type.symbol symbol=Element.T source="T: string[]" type=T
 /// @generic.instance id=Array<string> template=collections.array.Array arguments=(string)
 /// @generic.instance id=memory.init.MaybeUninit<string> template=memory.init.MaybeUninit arguments=(string)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<string>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<string>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<string>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<string>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<string>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<string>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<string>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<string>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<string>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<string>)
 /// @resolution.name source=T target=Element.T
 
 type Value = Element<string[]>;

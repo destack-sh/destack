@@ -46,8 +46,14 @@ const ok = choose(["red", "blue"], "red");
 /// @generic.instance id="NoInfer<\"red\" | \"blue\">" template=types.object.NoInfer arguments=("red" | "blue")
 /// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 /// @generic.instance id="memory.init.MaybeUninit<\"red\" | \"blue\">" template=memory.init.MaybeUninit arguments=("red" | "blue")
+/// @generic.instance id="memory.raw.dangling<memory.init.MaybeUninit<\"red\" | \"blue\">>" template=memory.raw.dangling arguments=(memory.init.MaybeUninit<"red" | "blue">)
 /// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<\"red\" | \"blue\">>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<"red" | "blue">>)
 /// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<\"red\" | \"blue\">>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<"red" | "blue">)
+/// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<\"red\" | \"blue\">>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<"red" | "blue">)
+/// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<\"red\" | \"blue\">>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<"red" | "blue">)
+/// @resolution.call source=["red", "blue"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return=Array<"red" | "blue"> kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\" | \"blue\">"
+/// @generic.instantiation id="collections.array.arrayFromSlice<\"red\" | \"blue\">" template=collections.array.arrayFromSlice arguments=("red" | "blue")
+/// @generic.instance id="collections.array.arrayFromSlice<\"red\" | \"blue\">" template=collections.array.arrayFromSlice arguments=("red" | "blue")
 
 ok satisfies "red" | "blue";
 /// @resolution.name source=ok target=ok
@@ -191,6 +197,8 @@ const kept = keep(values, ["green"]);
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
+/// @resolution.call source=["green"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("green") as "red") return=Array<"red"> kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\">"
+/// @generic.instantiation id="collections.array.arrayFromSlice<\"red\">" template=collections.array.arrayFromSlice arguments=("red")
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type=Array<"red">
@@ -365,6 +373,8 @@ choose(["red", "blue"], "green");
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose([\"red\", \"blue\"], \"green\")" parameters=(Array<"red" | "blue">, "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("green") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
+/// @resolution.call source=["red", "blue"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return=Array<"red" | "blue"> kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\" | \"blue\">"
+/// @generic.instantiation id="collections.array.arrayFromSlice<\"red\" | \"blue\">" template=collections.array.arrayFromSlice arguments=("red" | "blue")
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"green\"' is not assignable to parameter of type '\"red\" | \"blue\" | undefined'"

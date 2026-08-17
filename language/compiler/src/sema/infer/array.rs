@@ -1,11 +1,11 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::sema::{
     BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Expectation, FlowSite, InferMode,
     Origin, PlaceUse, Relation, RelationCheck, ValueCheck, ValueUse, VariableRole, Widening,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
     /// Infer one array literal from its elements.
@@ -112,6 +112,7 @@ impl BodyState<'_, '_> {
         let array = self.intern_type(dir::Type::Array(dir::ArrayType { element }))?;
 
         // constrain each spread item to the array element type
+        let has_spreads = !spreads.is_empty();
         for (value, spread) in spreads {
             let item = self.spread_element_type(spread)?;
             let cause = self.intern_cause(Cause::root(
@@ -138,6 +139,13 @@ impl BodyState<'_, '_> {
         let dir::Type::Array(array) = self.ty(ty)? else {
             return Ok(ty);
         };
+
+        // commit the pack constructor call over the literal elements
+        let sources: Vec<_> = values.iter().filter_map(|(source, _)| *source).collect();
+        if self.check.is_checking() && !has_spreads && sources.len() == values.len() {
+            let origin = Origin::Node(node.into_any(), site.scope);
+            self.commit_array_construction(origin, node.into_any(), array.element, ty, sources)?;
+        }
         for (source, source_type) in values {
             let Some(source) = source else {
                 continue;
@@ -392,13 +400,14 @@ impl BodyState<'_, '_> {
         }
 
         // preserve the authored elements for a check-only expression
-        let carrier = if expectation.relation == Relation::Satisfies {
+        let (carrier, constructed) = if expectation.relation == Relation::Satisfies {
             let source_element =
                 self.normalized_union_type(source_elements.iter().map(|(_, storage)| *storage))?;
-
-            self.intern_type(dir::Type::Array(dir::ArrayType {
+            let array = self.intern_type(dir::Type::Array(dir::ArrayType {
                 element: source_element,
-            }))?
+            }))?;
+
+            (array, Some((source_element, array)))
         }
         // commit the authored length against a fixed array target
         else if count.is_some() {
@@ -410,19 +419,41 @@ impl BodyState<'_, '_> {
                 count: actual_count,
             }))?;
 
-            self.replace_form_value(site.origin(), carrier, value)?
+            (
+                self.replace_form_value(site.origin(), carrier, value)?,
+                None,
+            )
         }
         // commit an array behind a slice target
         else if matches!(self.ty(target_value)?, dir::Type::Slice(_)) {
             let value = self.intern_type(dir::Type::Array(dir::ArrayType { element }))?;
 
-            self.replace_form_value(site.origin(), carrier, value)?
+            (
+                self.replace_form_value(site.origin(), carrier, value)?,
+                Some((element, value)),
+            )
         }
         // otherwise keep the checked carrier
         else {
-            carrier
+            let value = self.intern_type(dir::Type::Array(dir::ArrayType { element }))?;
+
+            (carrier, Some((element, value)))
         };
         self.commit_node_type(node.into_any(), carrier)?;
+
+        // commit the pack constructor call over the literal elements
+        if let Some((element, array)) = constructed
+            && self.check.is_checking()
+        {
+            let sources = source_elements.iter().map(|(child, _)| *child).collect();
+            self.commit_array_construction(
+                site.origin(),
+                node.into_any(),
+                element,
+                array,
+                sources,
+            )?;
+        }
 
         Ok(CheckAttempt::Checked(ValueCheck {
             source: carrier,
@@ -575,5 +606,68 @@ impl BodyState<'_, '_> {
             outcome: check,
             target,
         }))
+    }
+
+    /// Commit one array literal as its selected pack constructor call.
+    fn commit_array_construction(
+        &mut self,
+        origin: Origin,
+        node: dir::GlobalNodeIdAny,
+        element: dir::GlobalTypeId,
+        array: dir::GlobalTypeId,
+        elements: Vec<dir::GlobalNodeIdAny>,
+    ) -> CompilerResult<()> {
+        // select the constructor over the element type
+        let selection = self.array_pack_selection(element)?;
+        let symbol = selection.symbol;
+
+        // bind the elements against the constructor's slice parameter
+        let Some(callable) = self.check.canonical_symbol_type_maybe(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "the array pack constructor declares no type".to_string(),
+            });
+        };
+        let Some((signature_type, signature)) = self.callable_signature_type(origin, callable)?
+        else {
+            return Err(CompilerError::Internal {
+                message: "the array pack constructor misses its signature".to_string(),
+            });
+        };
+        let parameters = self
+            .check
+            .signature_parameters(signature_type.module_id, signature.parameters)?
+            .to_vec();
+        let Some(parameter_type) = parameters.first().map(|parameter| parameter.ty) else {
+            return Err(CompilerError::Internal {
+                message: "the array pack constructor declares no slice parameter".to_string(),
+            });
+        };
+        let arguments = vec![dir::ArgumentBinding {
+            parameter_type,
+            argument_type: element,
+            source: dir::ArgumentSource::Rest {
+                elements,
+                pack: None,
+            },
+        }];
+
+        let call = dir::Call {
+            target: dir::CallableTarget::Symbol {
+                function: dir::FunctionTarget {
+                    receiver: None,
+                    generic_scope: None,
+                    selection,
+                },
+                dispatch: dir::FunctionDispatch::Direct,
+            },
+            callable_type: callable,
+            arguments,
+            return_type: array,
+        };
+
+        self.commit_decision(
+            node,
+            dir::Decision::Call(dir::OperationResolution::One(call)),
+        )
     }
 }
