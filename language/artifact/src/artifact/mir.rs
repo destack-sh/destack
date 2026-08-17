@@ -49,11 +49,11 @@ impl Default for MirLowered {
     }
 }
 
-/// Verified MIR borrow dependencies.
+/// Verified MIR ownership retention.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirVerified {
-    /// Borrow dependencies required by drop elaboration.
-    pub borrows: mir::BorrowTable,
+    /// Ownership retention required by drop elaboration.
+    pub retention: mir::RetentionTable,
 }
 
 /// MIR after required elaboration.
