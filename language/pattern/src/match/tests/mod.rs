@@ -2,6 +2,7 @@ mod arm;
 mod assignment;
 mod call;
 mod clause;
+mod control;
 mod declaration;
 mod dependency;
 mod generic;

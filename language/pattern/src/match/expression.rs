@@ -219,10 +219,10 @@ impl Matcher<'_, '_> {
                 },
             ) => {
                 if pattern_form != candidate_form
-                    || !self.match_expression(
+                    || !self.match_condition(
                         nodes,
-                        *pattern_condition,
-                        *candidate_condition,
+                        pattern_condition,
+                        candidate_condition,
                         bindings,
                     )?
                 {
