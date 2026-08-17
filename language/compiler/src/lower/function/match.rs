@@ -37,12 +37,12 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut targets = Vec::new();
         let mut default = None;
         for arm in arms {
-            let (pattern, guard, body) = match *self.source().tree().get(*arm) {
+            let (pattern, is_guarded, body) = match self.source().tree().get(*arm) {
                 dir::MatchArm::Expression {
                     pattern,
                     guard,
                     body,
-                } => (pattern, guard, body),
+                } => (*pattern, guard.is_some(), *body),
                 dir::MatchArm::Block { .. } => {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
@@ -53,7 +53,7 @@ impl FunctionLowerer<'_, '_, '_> {
             };
 
             // reject guarded arms
-            if guard.is_some() {
+            if is_guarded {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: "a guarded match arm".to_string(),
