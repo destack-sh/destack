@@ -10,8 +10,6 @@ use super::{Binding, BindingTable, ReplayPayload};
 pub const FIBER_CURRENT: &str = "destack.fiber.current";
 /// Stable name of the fiber wake binding.
 pub const FIBER_WAKE: &str = "destack.fiber.wake";
-/// Stable name of the fiber spawn binding.
-pub const FIBER_SPAWN: &str = "destack.fiber.spawn";
 /// Stable name of the microtask queue binding.
 pub const MICROTASK_QUEUE: &str = "destack.async.microtask.queue";
 
@@ -27,11 +25,6 @@ impl BindingTable {
             program::BindingId::from_static_name(FIBER_WAKE),
             ReplayPayload::ArgumentsAndResults,
             wake,
-        ));
-        self.upsert(Binding::new(
-            program::BindingId::from_static_name(FIBER_SPAWN),
-            ReplayPayload::ArgumentsAndResults,
-            spawn,
         ));
         self.upsert(Binding::new(
             program::BindingId::from_static_name(MICROTASK_QUEUE),
@@ -80,29 +73,27 @@ fn wake(
     arguments: &[Word],
     _result: &mut [Word],
 ) -> RuntimeResult<()> {
-    let Some((fiber, words)) = arguments.split_first() else {
+    let [fiber] = arguments else {
         return Err(RuntimeError::Internal {
-            message: "fiber.wake requires a fiber handle".to_string(),
+            message: "fiber.wake requires one fiber handle".to_string(),
         }
         .boxed());
     };
     let fiber_id = program::FiberId::from_bits(fiber.bits());
 
-    // the second parameter carries the typed wake payload
+    // deliver the void value returned by the matching fiber park
     let ty = activation
         .program()
-        .function_parameters(declaration.function)
-        .and_then(|parameters| parameters.get(1))
-        .copied()
+        .function_result(declaration.function)
         .ok_or_else(|| {
             RuntimeError::Internal {
-                message: "fiber.wake has no payload parameter".to_string(),
+                message: "fiber.wake has no result type".to_string(),
             }
             .boxed()
         })?;
     let value = activation
         .program()
-        .value(ty, words.iter().copied())
+        .value(ty, [])
         .map_err(Box::<RuntimeError>::from)?;
 
     activation.wake_fiber(fiber_id, value)
@@ -120,22 +111,6 @@ fn queue_microtask(
 ) -> RuntimeResult<()> {
     let (function, environment) = decode_thunk(activation, arguments)?;
     activation.queue_microtask(function, environment, Vec::new(), context);
-
-    Ok(())
-}
-
-/// Queue one thunk to run on a fresh fiber.
-fn spawn(
-    activation: &mut Activation<'_>,
-    _memory: Memory<'_>,
-    context: program::Context,
-    _fiber_id: Option<program::FiberId>,
-    _declaration: &program::Binding,
-    arguments: &[Word],
-    _result: &mut [Word],
-) -> RuntimeResult<()> {
-    let (function, environment) = decode_thunk(activation, arguments)?;
-    activation.spawn_fiber(function, environment, Vec::new(), context);
 
     Ok(())
 }

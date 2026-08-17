@@ -337,19 +337,6 @@ impl TestWorker {
         self.worker.request(request);
     }
 
-    /// Run one queued microtask.
-    pub(crate) fn run_microtask(&mut self) -> RuntimeResult<WorkerRunOutcome> {
-        self.worker.run_microtask(
-            &mut self.world.state,
-            &self.collection,
-            &mut self.shared_static,
-            &self.immortal_space,
-            &self.constant_space,
-            self.world.host.as_ref(),
-            &self.world.host_queue,
-        )
-    }
-
     /// Drain queued work and fail loudly on runtime errors.
     pub(crate) fn drain(&mut self) {
         while self.run() {}
