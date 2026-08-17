@@ -238,16 +238,15 @@ impl TestSession {
         }
 
         // build the MIR module consumed by the lint
-        let (tree, target, types, layouts, dispatch, drops, memory, effects, profile, strings, _) =
+        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
             parsed.into_parts();
         let lowered = MirLowered {
             tree,
             target,
-            types,
             layouts,
             dispatch,
             drops,
-            memory,
+            accesses,
             effects,
             profile,
             initializer: None,

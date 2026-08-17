@@ -212,14 +212,12 @@ fn find_atomic_definition(
             if block == entry {
                 return Ok(None);
             }
-            let values = definitions
-                .block_parameter_values()
-                .get(&value)
-                .ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "MIR block parameter {value:?} has no incoming values"
-                    ))
-                })?;
+            let values = definitions.block_parameter_values(value);
+            if values.is_empty() {
+                return Err(ProviderError::internal(format!(
+                    "MIR block parameter {value:?} has no incoming values"
+                )));
+            }
 
             for value in values.iter().copied() {
                 let poll =
