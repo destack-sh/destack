@@ -292,9 +292,9 @@ struct User {
     id: int32;
 }
 
-function identity<const L0: Lifetime, const L1: Lifetime>(
-    value: Borrowed<User, L0 | L1, "readonly">,
-): Borrowed<User, L0 | L1, "readonly"> {
+function identity<'a, 'b>(
+    value: Borrowed<User, 'a | 'b, "readonly">,
+): Borrowed<User, 'a | 'b, "readonly"> {
     return value;
 }
 "#,
@@ -308,8 +308,8 @@ type User {
     id: int32;
 }
 
-function test.main.identity<'L0, 'L1>(v0: ref<User, borrowed, 'L0 | 'L1, readonly>): ref<User, borrowed, 'L0 | 'L1, readonly> {
-entry(v0: ref<User, borrowed, 'L0 | 'L1, readonly>):
+function test.main.identity<'a, 'b>(v0: ref<User, borrowed, 'a | 'b, readonly>): ref<User, borrowed, 'a | 'b, readonly> {
+entry(v0: ref<User, borrowed, 'a | 'b, readonly>):
     return v0
 }
 

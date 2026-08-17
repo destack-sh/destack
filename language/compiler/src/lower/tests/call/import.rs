@@ -85,7 +85,7 @@ entry(v0: int32):
     v3: int32 = field.get v2, 0
     v4: test.point.Point = local.get l0
     v5: int32 = field.get v4, 1
-    v6: int32 = int.add v3, v5
+    v6: int32 = add v3, v5
     return v6
 }
 

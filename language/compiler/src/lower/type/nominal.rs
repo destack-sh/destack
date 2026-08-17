@@ -292,8 +292,13 @@ impl TypeLowerer<'_, '_> {
             .lifetime_parameters
             .declarations(self.lowerer.strings);
         self.tree.set_type_lifetimes(ty, lifetimes.clone());
-        self.tree
-            .insert_type_declaration(name, arguments.key.arguments.clone(), lifetimes, ty);
+        self.tree.insert_type_declaration(
+            name,
+            arguments.key.arguments.clone(),
+            lifetimes,
+            ty,
+            mir::TypeHeritage::default(),
+        );
 
         Ok(self.apply_nominal_arguments(arguments.key, ty, value, &arguments.lifetimes))
     }

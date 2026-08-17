@@ -1,6 +1,9 @@
 use destack_artifact::DiagnosticAnchor;
 use destack_artifact_macros::Diagnostic;
-use destack_source::{PackageId, TargetId};
+use destack_mir as mir;
+use destack_source::{ModuleId, PackageId, TargetId};
+
+use crate::CompilerError;
 
 /// Errors during the lower phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
@@ -33,4 +36,25 @@ pub enum LowerError {
         /// The unsupported construct.
         construct: String,
     },
+}
+
+impl From<(ModuleId, mir::LayoutError)> for CompilerError {
+    /// Convert one MIR layout error into a compiler error.
+    fn from((module, error): (ModuleId, mir::LayoutError)) -> Self {
+        match error {
+            mir::LayoutError::Unsupported { construct } => LowerError::Unsupported {
+                anchor: module.into(),
+                construct,
+            }
+            .into(),
+            mir::LayoutError::InvalidDiscriminant { constant } => Self::Internal {
+                message: format!("variant case sealed a non-scalar tag {constant}"),
+            },
+            mir::LayoutError::InvalidNiche { offset } => Self::Internal {
+                message: format!(
+                    "variant niche at byte offset {offset} is absent from its representation"
+                ),
+            },
+        }
+    }
 }

@@ -533,9 +533,9 @@ function test.main.measure(): usize {
 entry:
     v0: uint64 = 16
     v1: uint64 = 8
-    v2: uint64 = int.add v0, v1
+    v2: uint64 = add v0, v1
     v3: uint64 = 16
-    v4: uint64 = int.add v2, v3
+    v4: uint64 = add v2, v3
     return v4
 }
 
@@ -596,12 +596,12 @@ entry(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>):
     v2: int64 = 2
     v3: int64 = 4
     v4: int64 = intrinsic.memory.raw.transmute(v0)
-    v5: int64 = int.mul v2, v3
-    v6: int64 = int.add v4, v5
+    v5: int64 = mul v2, v3
+    v6: int64 = add v4, v5
     v7: ptr<int32, mutable> = intrinsic.memory.raw.transmute(v6)
     v8: int64 = 4
     v9: int64 = intrinsic.memory.ptr.byteOffsetFrom(v7, v1)
-    v10: int64 = int.div.s v9, v8
+    v10: int64 = div v9, v8
     return v10
 }
 "#,

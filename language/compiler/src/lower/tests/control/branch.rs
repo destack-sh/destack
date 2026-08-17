@@ -18,7 +18,7 @@ function max(a: int32, b: int32): int32 {
         r#"
 function test.main.max(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.gt.s v0, v1
+    v2: boolean = gt v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -82,7 +82,7 @@ function test.main.clamp(v0: float32, v1: float32): float32 {
     local l0: float32
 
 entry(v0: float32, v1: float32):
-    v2: boolean = float.gt v0, v1
+    v2: boolean = gt v0, v1
     branch v2 => b1 | b2
 
 b1:

@@ -72,7 +72,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match operator {
             dir::BinaryOperator::EqualStrict => Ok(equal),
-            dir::BinaryOperator::NotEqualStrict => Ok(self.builder.bnot(equal)),
+            dir::BinaryOperator::NotEqualStrict => {
+                Ok(self.builder.unary(mir::UnaryOperator::Not, equal))
+            }
             _ => Err(CompilerError::Internal {
                 message: "strict equality lowering received a different operator".to_string(),
             }),
@@ -120,7 +122,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let result = match operator {
             dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict => equal,
             dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict => {
-                self.builder.bnot(equal)
+                self.builder.unary(mir::UnaryOperator::Not, equal)
             }
             _ => {
                 return Err(CompilerError::Internal {
@@ -220,7 +222,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let expected = self.builder.iconst(index as i128, width, is_signed);
         let equal = self
             .builder
-            .binary_op(mir::BinaryOperator::Equal, tag, expected);
+            .binary(mir::BinaryOperator::Equal, tag, expected);
 
         Ok(equal)
     }
@@ -425,9 +427,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 ),
             });
         }
-        let operator = self.binary_value_operator(operator, left_value)?;
+        let operator = self.binary_operator(operator)?;
 
-        Ok(self.builder.binary_op(operator, left_value, right_value))
+        Ok(self.builder.binary(operator, left_value, right_value))
     }
 
     /// Lower equality over one common carrier.
@@ -477,7 +479,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let right_tag = self.builder.variant_tag(right);
         let same_case = self
             .builder
-            .binary_op(mir::BinaryOperator::Equal, left_tag, right_tag);
+            .binary(mir::BinaryOperator::Equal, left_tag, right_tag);
         let mut is_payload_free = true;
         for (left, right) in left_members.iter().zip(&right_members) {
             is_payload_free &= self.type_is_singleton(*left)?;
@@ -575,9 +577,9 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         }
-        let operator = self.binary_value_operator(dir::BinaryOperator::EqualStrict, left_value)?;
+        let operator = self.binary_operator(dir::BinaryOperator::EqualStrict)?;
 
-        Ok(self.builder.binary_op(operator, left_value, right_value))
+        Ok(self.builder.binary(operator, left_value, right_value))
     }
 
     /// Lower equality involving addresses or unmaterialized nullish values.
@@ -636,7 +638,7 @@ impl FunctionLowerer<'_, '_, '_> {
             false => mir::BinaryOperator::NotEqual,
         };
 
-        Ok(self.builder.binary_op(operator, left, right))
+        Ok(self.builder.binary(operator, left, right))
     }
 
     /// Materialize one nullish operand at an address value's carrier.

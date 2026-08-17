@@ -5,27 +5,6 @@ use super::equality::LoweredOperand;
 use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// The operator class of one operand type.
-enum OperandClass {
-    /// An integer with its signedness.
-    Int { is_signed: bool },
-    /// A floating point number.
-    Float,
-    /// A boolean.
-    Boolean,
-}
-
-impl OperandClass {
-    /// Name this operand class for diagnostics.
-    fn name(&self) -> &'static str {
-        match self {
-            Self::Int { .. } => "integer",
-            Self::Float => "float",
-            Self::Boolean => "boolean",
-        }
-    }
-}
-
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one protocol operator through its selected method candidate.
     pub(in crate::lower) fn lower_operator_method(
@@ -52,7 +31,7 @@ impl FunctionLowerer<'_, '_, '_> {
         operand: &dir::BuiltinOperand,
     ) -> CompilerResult<mir::Value> {
         let operand = self.lower_operand(right, operand)?;
-        let LoweredOperand::Scalar { value, domain } = operand else {
+        let LoweredOperand::Scalar { value, .. } = operand else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("the '{}' operator on this carrier", operator.text()),
@@ -64,17 +43,10 @@ impl FunctionLowerer<'_, '_, '_> {
             // +value
             dir::UnaryOperator::Plus => Ok(value),
             // -value
-            dir::UnaryOperator::Negate => {
-                let operator = match domain {
-                    dir::ScalarDomain::Float => mir::UnaryOperator::FloatNegate,
-                    _ => mir::UnaryOperator::Negate,
-                };
-
-                Ok(self.builder.unary_op(operator, value))
-            }
+            dir::UnaryOperator::Negate => Ok(self.builder.unary(mir::UnaryOperator::Negate, value)),
             // !value
             dir::UnaryOperator::Not | dir::UnaryOperator::ElementwiseNot => {
-                Ok(self.builder.bnot(value))
+                Ok(self.builder.unary(mir::UnaryOperator::Not, value))
             }
             other => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -132,18 +104,14 @@ impl FunctionLowerer<'_, '_, '_> {
             let undefined = self.builder.constant(mir::Constant::Undefined, carrier);
             is_nullish = Some(
                 self.builder
-                    .binary_op(mir::BinaryOperator::Equal, value, undefined),
+                    .binary(mir::BinaryOperator::Equal, value, undefined),
             );
         }
         if nullability.admits(mir::Nullish::Null) {
             let null = self.builder.constant(mir::Constant::Null, carrier);
-            let test = self
-                .builder
-                .binary_op(mir::BinaryOperator::Equal, value, null);
+            let test = self.builder.binary(mir::BinaryOperator::Equal, value, null);
             is_nullish = Some(match is_nullish {
-                Some(nullish) => self
-                    .builder
-                    .binary_op(mir::BinaryOperator::Or, nullish, test),
+                Some(nullish) => self.builder.binary(mir::BinaryOperator::Or, nullish, test),
                 None => test,
             });
         }
@@ -276,169 +244,55 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             _ => dir::BinaryOperator::Subtract,
         };
-        let operator = self.binary_value_operator(operator, current)?;
-        let value = self.builder.binary_op(operator, current, one);
+        let operator = self.binary_operator(operator)?;
+        let value = self.builder.binary(operator, current, one);
         self.write_place(&place, value)?;
 
         Ok(())
     }
 
-    /// Map one binary operator over one lowered scalar value.
-    pub(super) fn binary_value_operator(
+    /// Lower one resolved DIR binary operator into its type-neutral MIR operation.
+    pub(super) fn binary_operator(
         &self,
         operator: dir::BinaryOperator,
-        operand: mir::Value,
     ) -> CompilerResult<mir::BinaryOperator> {
-        let ty = self.value_carrier(operand)?;
-        let class = self.mir_operand_class(self.builder.tree().get(ty))?;
-
-        self.binary_operator_class(operator, class)
-    }
-
-    /// Map one binary operator over one operand class.
-    fn binary_operator_class(
-        &self,
-        operator: dir::BinaryOperator,
-        class: OperandClass,
-    ) -> CompilerResult<mir::BinaryOperator> {
-        Ok(match (operator, class) {
+        Ok(match operator {
             // arithmetic
-            (dir::BinaryOperator::Add, OperandClass::Int { .. }) => mir::BinaryOperator::Add,
-            (dir::BinaryOperator::Add, OperandClass::Float) => mir::BinaryOperator::FloatAdd,
-            (dir::BinaryOperator::Subtract, OperandClass::Int { .. }) => {
-                mir::BinaryOperator::Subtract
-            }
-            (dir::BinaryOperator::Subtract, OperandClass::Float) => {
-                mir::BinaryOperator::FloatSubtract
-            }
-            (dir::BinaryOperator::Multiply, OperandClass::Int { .. }) => {
-                mir::BinaryOperator::Multiply
-            }
-            (dir::BinaryOperator::Multiply, OperandClass::Float) => {
-                mir::BinaryOperator::FloatMultiply
-            }
-            (dir::BinaryOperator::Divide, OperandClass::Int { is_signed: true }) => {
-                mir::BinaryOperator::SignedDivide
-            }
-            (dir::BinaryOperator::Divide, OperandClass::Int { is_signed: false }) => {
-                mir::BinaryOperator::UnsignedDivide
-            }
-            (dir::BinaryOperator::Divide, OperandClass::Float) => mir::BinaryOperator::FloatDivide,
-            (dir::BinaryOperator::Remainder, OperandClass::Int { is_signed: true }) => {
-                mir::BinaryOperator::SignedRemainder
-            }
-            (dir::BinaryOperator::Remainder, OperandClass::Int { is_signed: false }) => {
-                mir::BinaryOperator::UnsignedRemainder
-            }
+            dir::BinaryOperator::Add => mir::BinaryOperator::Add,
+            dir::BinaryOperator::Subtract => mir::BinaryOperator::Subtract,
+            dir::BinaryOperator::Multiply => mir::BinaryOperator::Multiply,
+            dir::BinaryOperator::Divide => mir::BinaryOperator::Divide,
+            dir::BinaryOperator::Remainder => mir::BinaryOperator::Remainder,
 
             // bitwise
-            (dir::BinaryOperator::ElementwiseAnd, OperandClass::Int { .. }) => {
-                mir::BinaryOperator::And
-            }
-            (dir::BinaryOperator::ElementwiseOr, OperandClass::Int { .. }) => {
-                mir::BinaryOperator::Or
-            }
-            (dir::BinaryOperator::ElementwiseXor, OperandClass::Int { .. }) => {
-                mir::BinaryOperator::Xor
-            }
-            (dir::BinaryOperator::ShiftLeft, OperandClass::Int { .. }) => {
-                mir::BinaryOperator::ShiftLeft
-            }
-            (dir::BinaryOperator::ShiftRight, OperandClass::Int { is_signed: true }) => {
-                mir::BinaryOperator::ArithmeticShiftRight
-            }
-            (dir::BinaryOperator::ShiftRight, OperandClass::Int { is_signed: false }) => {
-                mir::BinaryOperator::LogicalShiftRight
-            }
-            (dir::BinaryOperator::UnsignedShiftRight, OperandClass::Int { .. }) => {
-                mir::BinaryOperator::LogicalShiftRight
-            }
+            dir::BinaryOperator::ElementwiseAnd => mir::BinaryOperator::And,
+            dir::BinaryOperator::ElementwiseOr => mir::BinaryOperator::Or,
+            dir::BinaryOperator::ElementwiseXor => mir::BinaryOperator::Xor,
+            dir::BinaryOperator::ShiftLeft => mir::BinaryOperator::ShiftLeft,
+            dir::BinaryOperator::ShiftRight => mir::BinaryOperator::ShiftRight,
+            dir::BinaryOperator::UnsignedShiftRight => mir::BinaryOperator::UnsignedShiftRight,
 
             // equality
-            (
-                dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict,
-                OperandClass::Int { .. } | OperandClass::Boolean,
-            ) => mir::BinaryOperator::Equal,
-            (
-                dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict,
-                OperandClass::Float,
-            ) => mir::BinaryOperator::FloatEqual,
-            (
-                dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict,
-                OperandClass::Int { .. } | OperandClass::Boolean,
-            ) => mir::BinaryOperator::NotEqual,
-            (
-                dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict,
-                OperandClass::Float,
-            ) => mir::BinaryOperator::FloatNotEqual,
+            dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict => {
+                mir::BinaryOperator::Equal
+            }
+            dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict => {
+                mir::BinaryOperator::NotEqual
+            }
 
             // ordering
-            (dir::BinaryOperator::LessThan, OperandClass::Int { is_signed: true }) => {
-                mir::BinaryOperator::SignedLessThan
-            }
-            (dir::BinaryOperator::LessThan, OperandClass::Int { is_signed: false }) => {
-                mir::BinaryOperator::UnsignedLessThan
-            }
-            (dir::BinaryOperator::LessThan, OperandClass::Float) => {
-                mir::BinaryOperator::FloatLessThan
-            }
-            (dir::BinaryOperator::LessThanOrEqual, OperandClass::Int { is_signed: true }) => {
-                mir::BinaryOperator::SignedLessEqual
-            }
-            (dir::BinaryOperator::LessThanOrEqual, OperandClass::Int { is_signed: false }) => {
-                mir::BinaryOperator::UnsignedLessEqual
-            }
-            (dir::BinaryOperator::LessThanOrEqual, OperandClass::Float) => {
-                mir::BinaryOperator::FloatLessEqual
-            }
-            (dir::BinaryOperator::GreaterThan, OperandClass::Int { is_signed: true }) => {
-                mir::BinaryOperator::SignedGreaterThan
-            }
-            (dir::BinaryOperator::GreaterThan, OperandClass::Int { is_signed: false }) => {
-                mir::BinaryOperator::UnsignedGreaterThan
-            }
-            (dir::BinaryOperator::GreaterThan, OperandClass::Float) => {
-                mir::BinaryOperator::FloatGreaterThan
-            }
-            (dir::BinaryOperator::GreaterThanOrEqual, OperandClass::Int { is_signed: true }) => {
-                mir::BinaryOperator::SignedGreaterEqual
-            }
-            (dir::BinaryOperator::GreaterThanOrEqual, OperandClass::Int { is_signed: false }) => {
-                mir::BinaryOperator::UnsignedGreaterEqual
-            }
-            (dir::BinaryOperator::GreaterThanOrEqual, OperandClass::Float) => {
-                mir::BinaryOperator::FloatGreaterEqual
-            }
+            dir::BinaryOperator::LessThan => mir::BinaryOperator::LessThan,
+            dir::BinaryOperator::LessThanOrEqual => mir::BinaryOperator::LessEqual,
+            dir::BinaryOperator::GreaterThan => mir::BinaryOperator::GreaterThan,
+            dir::BinaryOperator::GreaterThanOrEqual => mir::BinaryOperator::GreaterEqual,
 
-            (other, class) => {
+            other => {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
-                    construct: format!(
-                        "the '{}' operator on {} operands",
-                        other.text(),
-                        class.name()
-                    ),
+                    construct: format!("the '{}' operator", other.text()),
                 }
                 .into());
             }
         })
-    }
-
-    /// Classify one lowered scalar type for operator selection.
-    fn mir_operand_class(&self, operand: &mir::Type) -> CompilerResult<OperandClass> {
-        match operand {
-            mir::Type::Int { is_signed, .. } => Ok(OperandClass::Int {
-                is_signed: *is_signed,
-            }),
-            mir::Type::Isize => Ok(OperandClass::Int { is_signed: true }),
-            mir::Type::Usize => Ok(OperandClass::Int { is_signed: false }),
-            mir::Type::Float(_) => Ok(OperandClass::Float),
-            mir::Type::Boolean => Ok(OperandClass::Boolean),
-            _ => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: format!("operands with the carrier {operand:?}"),
-            }
-            .into()),
-        }
     }
 }

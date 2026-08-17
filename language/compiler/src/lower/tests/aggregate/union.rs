@@ -520,7 +520,7 @@ entry(v0: Shape):
     v1: variant<uint1> { 0uint1 = Circle; 1uint1 = Square; } = field.get v0, 0
     v2: uint1 = variant.tag v1
     v3: uint1 = 0
-    v4: boolean = int.eq v2, v3
+    v4: boolean = eq v2, v3
     call test.main.circle(): () => void
     v5: void = undefined
     return v4
@@ -534,8 +534,8 @@ entry(v0: Shape):
     v3: variant<uint1> { 0uint1 = Circle; 1uint1 = Square; } = field.get v0, 0
     v4: uint1 = variant.tag v3
     v5: uint1 = 0
-    v6: boolean = int.eq v4, v5
-    v7: boolean = int.not v6
+    v6: boolean = eq v4, v5
+    v7: boolean = not v6
     return v7
 }
 
@@ -615,9 +615,9 @@ entry(v0: ref<Shape, borrowed, 'a, readonly>):
     v1: ref<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }, borrowed, 'a, readonly> = field.address v0, 0
     v2: uint1 = variant.tag.load v1
     v3: uint1 = 0
-    v4: boolean = int.eq v2, v3
+    v4: boolean = eq v2, v3
     v5: variant<uint2> { 0uint2 = void; 1uint2 = void; 2uint2 = void; } = variant.new 2
-    v6: boolean = int.not v4
+    v6: boolean = not v4
     branch v6 => b1 | b2
 
 b1:

@@ -88,7 +88,7 @@ type Sink { }
 function test.main.write(v0: dynamic<Sink, managed, mutable, undefined>): int32 {
 entry(v0: dynamic<Sink, managed, mutable, undefined>):
     v1: dynamic<Sink, managed, mutable, undefined> = undefined
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -164,7 +164,7 @@ function test.main.read(v0: dynamic<Counted, managed, mutable>): int32 {
 entry(v0: dynamic<Counted, managed, mutable>):
     v1: int32 = call.dynamic v0, Counted, 0(): () => int32
     v2: int32 = call.dynamic v0, Counted, 1(): () => int32
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 

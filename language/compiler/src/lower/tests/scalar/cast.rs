@@ -17,7 +17,7 @@ function test.main.widen(v0: int32, v1: uint32): int64 {
 entry(v0: int32, v1: uint32):
     v2: int64 = cast.extend.s v0 -> int64
     v3: int64 = cast.extend.u v1 -> int64
-    v4: int64 = int.add v2, v3
+    v4: int64 = add v2, v3
     return v4
 }
 "#,
@@ -63,7 +63,7 @@ function test.main.ratio(v0: uint32, v1: int32): float64 {
 entry(v0: uint32, v1: int32):
     v2: float64 = cast.intToFloat.u v0 -> float64
     v3: float64 = cast.intToFloat.s v1 -> float64
-    v4: float64 = float.div v2, v3
+    v4: float64 = div v2, v3
     return v4
 }
 "#,

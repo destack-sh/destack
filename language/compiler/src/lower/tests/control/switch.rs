@@ -47,14 +47,14 @@ b2:
 b3:
     v3: int32 = local.get l0
     v4: int32 = 2
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     local.set l0, v5
     jump b4
 
 b4:
     v6: int32 = local.get l0
     v7: int32 = 3
-    v8: int32 = int.add v6, v7
+    v8: int32 = add v6, v7
     local.set l0, v8
     jump b1
 
@@ -89,7 +89,7 @@ function select(value: int32, first: int32, second: int32): int32 {
         r#"
 function test.main.select(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: boolean = int.eq v0, v1
+    v3: boolean = eq v0, v1
     branch v3 => b2 | b5
 
 b1:
@@ -108,7 +108,7 @@ b4:
     return v7
 
 b5:
-    v4: boolean = int.eq v0, v2
+    v4: boolean = eq v0, v2
     branch v4 => b4 | b6
 
 b6:
@@ -147,7 +147,7 @@ entry(v0: Meters):
     v2: int32 = 2
     v3: Meters = aggregate (v2)
     v4: int32 = field.get v3, 0
-    v5: boolean = int.eq v1, v4
+    v5: boolean = eq v1, v4
     branch v5 => b2 | b4
 
 b1:
@@ -191,7 +191,7 @@ entry(v0: variant<uint1> { 0uint1 = void; 1uint1 = void; }):
     v1: variant<uint1> { 0uint1 = void; 1uint1 = void; } = variant.new 1
     v2: uint1 = variant.tag v0
     v3: uint1 = variant.tag v1
-    v4: boolean = int.eq v2, v3
+    v4: boolean = eq v2, v3
     branch v4 => b2 | b4
 
 b1:
@@ -251,7 +251,7 @@ entry(v0: variant<uint1> { 0uint1 = Ready; 1uint1 = Pending; }):
     v3: variant<uint1> { 0uint1 = Ready; 1uint1 = Pending; } = variant.new 0, v2
     v4: uint1 = variant.tag v0
     v5: uint1 = variant.tag v3
-    v6: boolean = int.eq v4, v5
+    v6: boolean = eq v4, v5
     branch v6 => b2 | b4
 
 b1:

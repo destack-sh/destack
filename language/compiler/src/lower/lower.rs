@@ -8,8 +8,8 @@ use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::lower::{
-    FunctionDeclaration, FunctionLowerer, GenericInstanceKey, Implementer, LayoutBuilder,
-    LowerModuleState, NominalInstance, NominalState,
+    FunctionDeclaration, FunctionLowerer, GenericInstanceKey, Implementer, LowerModuleState,
+    NominalInstance, NominalState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -107,22 +107,22 @@ impl<'a> ModuleLowerer<'a> {
     /// Index the instances sema closed by their structural selection.
     fn index_specializations(&mut self) -> CompilerResult<()> {
         // every loaded module contributes its own closed instances
-        let mut rows = Vec::new();
+        let mut entries = Vec::new();
         for (module, state) in &self.modules {
-            for (instance, row) in state.generics.iter_instances() {
-                let arguments: Vec<_> = row
+            for (instance, entry) in state.generics.iter_instances() {
+                let arguments: Vec<_> = entry
                     .selection
                     .arguments
                     .iter()
                     .map(|binding| binding.argument)
                     .collect();
-                rows.push((row.selection.symbol, arguments, *module, instance));
+                entries.push((entry.selection.symbol, arguments, *module, instance));
             }
         }
 
         // key each instance by the structure of its arguments
         let mut specializations = FxIndexMap::default();
-        for (symbol, arguments, module, instance) in rows {
+        for (symbol, arguments, module, instance) in entries {
             let mut keys = Vec::with_capacity(arguments.len());
             for argument in arguments {
                 keys.push(self.structural_type_key(argument)?);
@@ -324,14 +324,16 @@ impl<'a> ModuleLowerer<'a> {
         // compute layouts for every represented type in the module
         let target = builder.target_layout();
         let (tree, layouts) = builder.tree_and_layouts_mut();
-        let mut layouts = LayoutBuilder::new(self.module, tree, layouts, target);
-        layouts.layout_reachable_types()?;
+        let mut layouts = mir::LayoutBuilder::new(tree, layouts, target);
+        layouts
+            .layout_reachable_types()
+            .map_err(|error| CompilerError::from((self.module, error)))?;
 
         // publish dynamic dispatch over the laid-out types
         self.build_dispatch_tables(&mut builder, &mut errors)?;
 
         // publish the lowered names into the shared pool
-        let (tree, target, types, layouts, dispatch, drops, memory, effects, profile, strings) =
+        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings) =
             builder.finish();
         self.strings.ensure_all_from(&strings);
 
@@ -339,11 +341,10 @@ impl<'a> ModuleLowerer<'a> {
         let lowered = MirLowered {
             tree,
             target,
-            types,
             layouts,
             dispatch,
             drops,
-            memory,
+            accesses,
             effects,
             profile,
             initializer,

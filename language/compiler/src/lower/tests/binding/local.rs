@@ -16,7 +16,7 @@ function twice(x: float64): float64 {
         r#"
 function test.main.twice(v0: float64): float64 {
 entry(v0: float64):
-    v1: float64 = float.add v0, v0
+    v1: float64 = add v0, v0
     return v1
 }
 "#,
@@ -44,7 +44,7 @@ entry(v0: int32):
     local.set l0, v0
     v1: int32 = local.get l0
     v2: int32 = 1
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     local.set l0, v3
     v4: int32 = local.get l0
     return v4
@@ -128,7 +128,7 @@ function test.main.span(v0: Point): int32 {
 entry(v0: Point):
     v1: int32 = field.get v0, 0
     v2: int32 = field.get v0, 1
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 
@@ -162,7 +162,7 @@ function test.main.parse(v0: int32): variant<uint1> { 0uint1 = int32; 1uint1 = v
 
 entry(v0: int32):
     v1: int32 = 0
-    v2: boolean = int.gt.s v0, v1
+    v2: boolean = gt v0, v1
     branch v2 => b1 | b2
 
 b1:

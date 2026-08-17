@@ -22,7 +22,7 @@ entry:
 function test.main.make.closure#0(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 2
-    v2: int32 = int.mul v0, v1
+    v2: int32 = mul v0, v1
     return v2
 }
 "#);
@@ -58,7 +58,7 @@ entry:
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 1
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     return v4
 }
 
@@ -108,7 +108,7 @@ entry:
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 1
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     v5: ref<int32, borrowed, mutable> = field.address v0, 0
     store v5, v4
     v6: ref<int32, borrowed, mutable> = field.address v0, 0

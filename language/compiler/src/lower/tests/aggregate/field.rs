@@ -28,7 +28,7 @@ function test.main.sum(v0: Point): int32 {
 entry(v0: Point):
     v1: int32 = field.get v0, 0
     v2: int32 = field.get v0, 1
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     return v3
 }
 
@@ -80,7 +80,7 @@ entry(v0: Frame):
     v2: int32 = field.get v1, 0
     v3: Size = field.get v0, 1
     v4: int32 = field.get v3, 1
-    v5: int32 = int.mul v2, v4
+    v5: int32 = mul v2, v4
     return v5
 }
 

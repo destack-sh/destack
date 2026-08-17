@@ -15,7 +15,7 @@ function less(a: int32, b: int32): boolean {
         r#"
 function test.main.less(v0: int32, v1: int32): boolean {
 entry(v0: int32, v1: int32):
-    v2: boolean = int.lt.s v0, v1
+    v2: boolean = lt v0, v1
     return v2
 }
 "#,
@@ -37,7 +37,7 @@ function above(a: uint32, b: uint32): boolean {
         r#"
 function test.main.above(v0: uint32, v1: uint32): boolean {
 entry(v0: uint32, v1: uint32):
-    v2: boolean = int.gt.u v0, v1
+    v2: boolean = gt v0, v1
     return v2
 }
 "#,
@@ -59,7 +59,7 @@ function same(a: int64, b: int64): boolean {
         r#"
 function test.main.same(v0: int64, v1: int64): boolean {
 entry(v0: int64, v1: int64):
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     return v2
 }
 "#,
@@ -83,7 +83,7 @@ function test.main.yes(): boolean {
 entry:
     v0: float64 = 1
     v1: float64 = 2
-    v2: boolean = float.lt v0, v1
+    v2: boolean = lt v0, v1
     return v2
 }
 "#,

@@ -35,7 +35,7 @@ entry(v0: ref<Point, borrowed, 'a, readonly>):
     v2: int32 = load v1
     v3: ref<int32, borrowed, readonly> = field.address v0, 0
     v4: int32 = load v3
-    v5: int32 = int.add v2, v4
+    v5: int32 = add v2, v4
     return v5
 }
 

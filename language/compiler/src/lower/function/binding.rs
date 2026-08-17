@@ -121,9 +121,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 .into());
             };
             let current = self.read_place(&place)?;
-            let operator = self.binary_value_operator(operator, current)?;
+            let operator = self.binary_operator(operator)?;
             let value = self.lower_expression(right)?;
-            let value = self.builder.binary_op(operator, current, value);
+            let value = self.builder.binary(operator, current, value);
             self.write_place(&place, value)?;
 
             Ok(())

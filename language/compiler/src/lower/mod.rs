@@ -17,4 +17,4 @@ pub use warning::*;
 
 use declare::*;
 use function::*;
-pub use r#type::*;
+use r#type::*;

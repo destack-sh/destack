@@ -32,17 +32,17 @@ entry(v0: int32):
 
 b1:
     v3: int32 = local.get l1
-    v4: boolean = int.lt.s v3, v0
+    v4: boolean = lt v3, v0
     branch v4 => b2 | b3
 
 b2:
     v5: int32 = local.get l0
     v6: int32 = local.get l1
-    v7: int32 = int.add v5, v6
+    v7: int32 = add v5, v6
     local.set l0, v7
     v8: int32 = local.get l1
     v9: int32 = 1
-    v10: int32 = int.add v8, v9
+    v10: int32 = add v8, v9
     local.set l1, v10
     jump b1
 
@@ -89,8 +89,8 @@ b1:
 b2:
     v3: int32 = local.get l0
     v4: int32 = local.get l0
-    v5: int32 = int.mul v3, v4
-    v6: boolean = int.gt.s v5, v0
+    v5: int32 = mul v3, v4
+    v6: boolean = gt v5, v0
     branch v6 => b4 | b5
 
 b3:
@@ -103,7 +103,7 @@ b4:
 b5:
     v7: int32 = local.get l0
     v8: int32 = 1
-    v9: int32 = int.add v7, v8
+    v9: int32 = add v7, v8
     local.set l0, v9
     jump b1
 }
@@ -141,20 +141,20 @@ entry(v0: int32):
 
 b1:
     v3: int32 = local.get l1
-    v4: boolean = int.lt.s v3, v0
+    v4: boolean = lt v3, v0
     branch v4 => b2 | b4
 
 b2:
     v5: int32 = local.get l0
     v6: int32 = local.get l1
-    v7: int32 = int.add v5, v6
+    v7: int32 = add v5, v6
     local.set l0, v7
     jump b3
 
 b3:
     v8: int32 = local.get l1
     v9: int32 = 1
-    v10: int32 = int.add v8, v9
+    v10: int32 = add v8, v9
     local.set l1, v10
     jump b1
 
@@ -193,13 +193,13 @@ entry(v0: int64):
 b1:
     v1: int64 = local.get l0
     v2: int64 = 0
-    v3: boolean = int.gt.s v1, v2
+    v3: boolean = gt v1, v2
     branch v3 => b2 | b3
 
 b2:
     v4: int64 = local.get l0
     v5: int64 = 1
-    v6: int64 = int.sub v4, v5
+    v6: int64 = sub v4, v5
     local.set l0, v6
     jump b1
 
@@ -241,11 +241,11 @@ entry(v0: int32):
 b1:
     v1: int32 = local.get l0
     v2: int32 = 7
-    v3: int32 = int.add v1, v2
+    v3: int32 = add v1, v2
     local.set l0, v3
     v4: int32 = local.get l0
     v5: int32 = 100
-    v6: boolean = int.gt.s v4, v5
+    v6: boolean = gt v4, v5
     branch v6 => b3 | b4
 
 b2:
@@ -298,7 +298,7 @@ entry(v0: int32):
 
 b1:
     v3: int32 = local.get l1
-    v4: boolean = int.lt.s v3, v0
+    v4: boolean = lt v3, v0
     branch v4 => b2 | b4
 
 b2:
@@ -309,7 +309,7 @@ b2:
 b3:
     v18: int32 = local.get l1
     v19: int32 = 1
-    v20: int32 = int.add v18, v19
+    v20: int32 = add v18, v19
     local.set l1, v20
     jump b1
 
@@ -319,20 +319,20 @@ b4:
 
 b5:
     v6: int32 = local.get l2
-    v7: boolean = int.lt.s v6, v0
+    v7: boolean = lt v6, v0
     branch v7 => b6 | b8
 
 b6:
     v8: int32 = local.get l1
     v9: int32 = local.get l2
-    v10: int32 = int.mul v8, v9
-    v11: boolean = int.gt.s v10, v0
+    v10: int32 = mul v8, v9
+    v11: boolean = gt v10, v0
     branch v11 => b9 | b10
 
 b7:
     v15: int32 = local.get l2
     v16: int32 = 1
-    v17: int32 = int.add v15, v16
+    v17: int32 = add v15, v16
     local.set l2, v17
     jump b5
 
@@ -345,7 +345,7 @@ b9:
 b10:
     v12: int32 = local.get l0
     v13: int32 = 1
-    v14: int32 = int.add v12, v13
+    v14: int32 = add v12, v13
     local.set l0, v14
     jump b7
 }

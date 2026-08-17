@@ -35,7 +35,7 @@ entry(v0: ref<Point, borrowed, 'a, readonly>):
     v2: int32 = load v1
     v3: ref<int32, borrowed, readonly> = field.address v0, 1
     v4: int32 = load v3
-    v5: int32 = int.add v2, v4
+    v5: int32 = add v2, v4
     return v5
 }
 
@@ -91,7 +91,7 @@ function test.main.Counter.bump<'a>(v0: ref<Counter, borrowed, 'a, exclusive>, v
 entry(v0: ref<Counter, borrowed, 'a, exclusive>, v1: int32):
     v2: ref<int32, borrowed, exclusive> = field.address v0, 0
     v3: int32 = load v2
-    v4: int32 = int.add v3, v1
+    v4: int32 = add v3, v1
     v5: ref<int32, borrowed, exclusive> = field.address v0, 0
     store v5, v4
     return
@@ -199,7 +199,7 @@ entry(v0: ref<Status, borrowed, 'a, readonly>):
     v2: int64 = variant.tag v1
     v3: Status = variant.new 0
     v4: int64 = variant.tag v3
-    v5: boolean = int.eq v2, v4
+    v5: boolean = eq v2, v4
     return v5
 }
 
@@ -371,7 +371,7 @@ entry(v0: ref<Circle, borrowed, 'a, readonly>):
     v2: int32 = load v1
     v3: ref<int32, borrowed, readonly> = field.address v0, 0
     v4: int32 = load v3
-    v5: int32 = int.add v2, v4
+    v5: int32 = add v2, v4
     return v5
 }
 

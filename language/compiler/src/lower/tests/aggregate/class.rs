@@ -88,7 +88,7 @@ entry(v0: ref<Counter, managed, mutable>):
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 1
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     v5: ref<int32, borrowed, mutable> = field.address v0, 0
     store v5, v4
     v6: ref<int32, borrowed, mutable> = field.address v0, 0
@@ -109,7 +109,7 @@ entry(v0: int32):
     v5: ref<Counter, managed, mutable> = local.get l0
     v6: ref<int32, borrowed, mutable> = field.address v5, 0
     v7: int32 = load v6
-    v8: int32 = int.add v4, v7
+    v8: int32 = add v4, v7
     return v8
 }
 
@@ -219,7 +219,7 @@ entry(v0: ref<Counter, borrowed, exclusive>, v1: int32):
 function test.main.read(v0: ref<Counter, managed, mutable, nullable>): int32 {
 entry(v0: ref<Counter, managed, mutable, nullable>):
     v1: ref<Counter, managed, mutable, nullable> = null
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -237,7 +237,7 @@ entry(v0: ref<Counter, managed, mutable>):
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 10
-    v4: boolean = int.gt.s v2, v3
+    v4: boolean = gt v2, v3
     branch v4 => b1 | b2
 
 b1:
@@ -302,7 +302,7 @@ entry(v0: ref<Counter, borrowed, exclusive>, v1: int32):
 function test.main.lookup(v0: ref<Counter, managed, mutable, undefined>): int32 {
 entry(v0: ref<Counter, managed, mutable, undefined>):
     v1: ref<Counter, managed, mutable, undefined> = undefined
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -318,7 +318,7 @@ b2:
 function test.main.classify(v0: ref<Counter, managed, mutable, nullish>): int32 {
 entry(v0: ref<Counter, managed, mutable, nullish>):
     v1: ref<Counter, managed, mutable, nullish> = null
-    v2: boolean = int.eq v0, v1
+    v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
 b1:
@@ -327,7 +327,7 @@ b1:
 
 b2:
     v4: ref<Counter, managed, mutable, nullish> = undefined
-    v5: boolean = int.eq v0, v4
+    v5: boolean = eq v0, v4
     branch v5 => b3 | b4
 
 b3:

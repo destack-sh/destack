@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_mir::{IntrinsicInstruction, IntrinsicTerminator};
 
-use crate::lower::{ContextIntrinsic, FunctionLowerer, LayoutBuilder};
+use crate::lower::{ContextIntrinsic, FunctionLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The target constant one intrinsic name folds to.
@@ -550,8 +550,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 let address =
                     self.builder
                         .intrinsic(mir::Intrinsic::Transmute, domain, vec![pointer]);
-                let bytes = self.builder.imul(count, step);
-                let moved = self.builder.iadd(address, bytes);
+                let bytes = self
+                    .builder
+                    .binary(mir::BinaryOperator::Multiply, count, step);
+                let moved = self
+                    .builder
+                    .binary(mir::BinaryOperator::Add, address, bytes);
                 let result = self.lower_type(resolution.return_type)?;
 
                 self.builder
@@ -570,7 +574,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 );
 
                 self.builder
-                    .binary_op(mir::BinaryOperator::SignedDivide, bytes, step)
+                    .binary(mir::BinaryOperator::Divide, bytes, step)
             }
         };
 
@@ -602,15 +606,12 @@ impl FunctionLowerer<'_, '_, '_> {
         let pointer_bytes = (self.builder.pointer_bits() / 8) as u8;
         let target = mir::TargetLayout::for_pointer_bytes(pointer_bytes);
         let mut layouts = mir::LayoutTable::default();
-        let mut builder = LayoutBuilder::new(
-            self.lowerer.module,
-            self.builder.tree_mut(),
-            &mut layouts,
-            target,
-        );
-        let id = builder.layout_type(subject)?;
+        let mut builder = mir::LayoutBuilder::new(self.builder.tree_mut(), &mut layouts, target);
+        let id = builder
+            .layout_type(subject)
+            .map_err(|error| CompilerError::from((self.lowerer.module, error)))?;
 
-        Ok(layouts.entries[id.index()].clone())
+        Ok(layouts.layout(id).clone())
     }
 
     /// Return the padded element step of one call's subject type argument.

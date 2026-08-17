@@ -208,7 +208,7 @@ function test.main.Counter.double<'a>(v0: ref<Counter, borrowed, 'a, readonly>):
 entry(v0: ref<Counter, borrowed, 'a, readonly>):
     v1: int32 = call test.main.Counter.read(v0): <'a>(ref<Counter, borrowed, 'a, readonly>) => int32
     v2: int32 = 2
-    v3: int32 = int.mul v1, v2
+    v3: int32 = mul v1, v2
     return v3
 }
 

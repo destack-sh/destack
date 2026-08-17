@@ -321,9 +321,9 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             other if other.is_reference_carrier() => {
                 let undefined = self.builder.constant(mir::Constant::Undefined, carrier);
-                let is_absent =
-                    self.builder
-                        .binary_op(mir::BinaryOperator::Equal, value, undefined);
+                let is_absent = self
+                    .builder
+                    .binary(mir::BinaryOperator::Equal, value, undefined);
                 self.builder.branch(is_absent, absent_block, present_block);
                 self.builder.switch_to_block(present_block);
                 let kept = self.builder.cast(mir::CastOperator::Bitcast, value, exact);

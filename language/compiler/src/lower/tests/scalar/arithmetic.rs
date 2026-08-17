@@ -15,7 +15,7 @@ function add(a: int32, b: int32): int32 {
         r#"
 function test.main.add(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 "#,
@@ -37,11 +37,11 @@ function calc(a: int32, b: int32): int32 {
         r#"
 function test.main.calc(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = int.mul v0, v1
-    v3: int32 = int.rem.s v0, v1
-    v4: int32 = int.add v2, v3
-    v5: int32 = int.div.s v1, v0
-    v6: int32 = int.sub v4, v5
+    v2: int32 = mul v0, v1
+    v3: int32 = rem v0, v1
+    v4: int32 = add v2, v3
+    v5: int32 = div v1, v0
+    v6: int32 = sub v4, v5
     return v6
 }
 "#,
@@ -63,9 +63,9 @@ function split(x: uint32, d: uint32): uint32 {
         r#"
 function test.main.split(v0: uint32, v1: uint32): uint32 {
 entry(v0: uint32, v1: uint32):
-    v2: uint32 = int.div.u v0, v1
-    v3: uint32 = int.rem.u v0, v1
-    v4: uint32 = int.add v2, v3
+    v2: uint32 = div v0, v1
+    v3: uint32 = rem v0, v1
+    v4: uint32 = add v2, v3
     return v4
 }
 "#,
@@ -87,7 +87,7 @@ function flip(x: int32): int32 {
         r#"
 function test.main.flip(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.negate v0
+    v1: int32 = negate v0
     return v1
 }
 "#,

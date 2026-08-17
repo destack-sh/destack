@@ -70,7 +70,7 @@ function test.main.@init(): void {
 entry:
     v0: int32 = call test.main.seed(): () => int32
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     v3: ref<int32, borrowed, mutable, global> = global.address test.main.start
     store v3, v2
     return

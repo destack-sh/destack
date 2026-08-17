@@ -41,11 +41,11 @@ entry(v0: ref<Vector, borrowed, 'a, readonly>, v1: Vector):
     v2: ref<int32, borrowed, readonly> = field.address v0, 0
     v3: int32 = load v2
     v4: int32 = field.get v1, 0
-    v5: int32 = int.add v3, v4
+    v5: int32 = add v3, v4
     v6: ref<int32, borrowed, readonly> = field.address v0, 1
     v7: int32 = load v6
     v8: int32 = field.get v1, 1
-    v9: int32 = int.add v7, v8
+    v9: int32 = add v7, v8
     v10: Vector = aggregate (v5, v9)
     return v10
 }
@@ -114,7 +114,7 @@ function test.main.Charge.negate<'a>(v0: ref<Charge, borrowed, 'a, readonly>): C
 entry(v0: ref<Charge, borrowed, 'a, readonly>):
     v1: ref<int32, borrowed, readonly> = field.address v0, 0
     v2: int32 = load v1
-    v3: int32 = int.negate v2
+    v3: int32 = negate v2
     v4: Charge = aggregate (v3)
     return v4
 }

@@ -164,7 +164,7 @@ impl ModuleLowerer<'_> {
         let function = builder.binding_function(header, binding);
 
         // mark bindings as observing external state
-        *builder.effects_mut().function_mut(function) = mir::FunctionEffect::unknown();
+        *builder.effects_mut().upsert_function(function) = mir::FunctionEffect::unknown();
         self.functions
             .insert(key, FunctionDeclaration::Declared(function));
 

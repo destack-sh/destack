@@ -33,7 +33,7 @@ entry(v0: Point, v1: int32):
     local.set l0, v0
     v2: Point = local.get l0
     v3: int32 = field.get v2, 0
-    v4: int32 = int.add v3, v1
+    v4: int32 = add v3, v1
     v5: Point = local.get l0
     v6: Point = field.set v5, 0, v4
     local.set l0, v6
@@ -93,7 +93,7 @@ entry(v0: Frame, v1: int32):
     v2: Frame = local.get l0
     v3: Size = field.get v2, 1
     v4: int32 = field.get v3, 0
-    v5: int32 = int.add v4, v1
+    v5: int32 = add v4, v1
     v6: Frame = local.get l0
     v7: Size = field.get v6, 1
     v8: Size = field.set v7, 0, v5
@@ -145,7 +145,7 @@ entry(v0: Counter):
     v1: Counter = local.get l0
     v2: int32 = field.get v1, 0
     v3: int32 = 1
-    v4: int32 = int.add v2, v3
+    v4: int32 = add v2, v3
     v5: Counter = local.get l0
     v6: Counter = field.set v5, 0, v4
     local.set l0, v6
