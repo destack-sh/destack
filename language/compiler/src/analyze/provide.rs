@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirAnalyzed, MirElaborated,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirAnalyzed, MirElaborated, MirLowered,
     ProgramAnalysis,
 };
 use destack_mir as mir;
@@ -21,6 +21,7 @@ impl Compiler {
         _context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require(ArtifactKey::mir_lowered(module, profile, target));
         dependencies.require(ArtifactKey::mir_elaborated(module, profile, target));
 
         Ok(dependencies)
@@ -35,13 +36,21 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
+        let lowered = artifacts
+            .read::<MirLowered>((module, profile, target))
+            .map_err(CompilerError::from)?;
         let elaborated = artifacts
             .read::<MirElaborated>((module, profile, target))
             .map_err(CompilerError::from)?;
 
         // analyze the elaborated tree's symbol links
         let mut analyses = mir::AnalysisCache::new();
-        let links = analyses.link(&elaborated.tree, &elaborated.effects);
+        let links = analyses.link(
+            &elaborated.tree,
+            &elaborated.effects,
+            &lowered.dispatch,
+            &elaborated.drops,
+        );
 
         Ok(ArtifactPayload::MirAnalyzed(Arc::new(MirAnalyzed::new(
             (*links).clone(),

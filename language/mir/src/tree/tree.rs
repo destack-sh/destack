@@ -236,6 +236,16 @@ impl Tree {
         }
     }
 
+    /// Return the heap storage carried by one managed allocation result.
+    pub fn managed_storage(&self, ty: TypeId) -> Option<Storage> {
+        let ty = self.storage_type(ty);
+        let ty = self.get(ty);
+        let storage = ty.reference_storage()?;
+
+        (ty.reference_kind() == Some(ReferenceKind::Managed) && storage.heap_space().is_some())
+            .then_some(storage)
+    }
+
     /// Return the explicit lifetime carried by a type.
     pub fn type_lifetime(&self, ty: TypeId) -> Option<Lifetime> {
         let mut visited = HashSet::new();

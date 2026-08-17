@@ -552,7 +552,8 @@ impl AnalysisCache {
         LinkTable,
         "Return the link graph.",
         effects: &mir::EffectTable,
-        dispatch: &mir::DispatchTable
+        dispatch: &mir::DispatchTable,
+        drops: &mir::DropTable
     );
 
     function_analysis_through_module!(alias, AliasTable, "Return function alias analysis.");

@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{Function, LocalNodeId, Storage, Type};
+use crate::{Function, LocalNodeId, ReferenceKind, Storage, Tree, Type};
 
 /// Drop table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
@@ -67,6 +67,30 @@ impl DropTable {
             .map(|(&(ty, storage), &function)| (ty, storage, function))
     }
 
+    /// Return whether one function is generated drop glue.
+    pub fn is_destructor(&self, function: LocalNodeId<Function>) -> bool {
+        self.destructors
+            .values()
+            .any(|destructor| *destructor == function)
+    }
+
+    /// Return whether one stored value requires a generated destructor.
+    pub fn requires_destructor(
+        &self,
+        ty: LocalNodeId<Type>,
+        storage: Storage,
+        tree: &Tree,
+    ) -> bool {
+        if tree.get(ty).copy(tree).is_yes() {
+            return false;
+        }
+        if self.destructor(ty, storage).is_some() || self.hook(ty, storage).is_some() {
+            return true;
+        }
+
+        self.children_require_destructor(ty, storage, tree, &mut HashSet::new())
+    }
+
     /// Record the generated destructor for a type in one storage.
     pub fn set_destructor(
         &mut self,
@@ -75,6 +99,13 @@ impl DropTable {
         destructor: LocalNodeId<Function>,
     ) -> Option<LocalNodeId<Function>> {
         self.destructors.insert((ty, storage), destructor)
+    }
+
+    /// Remove entries that reference one function.
+    pub fn remove_function(&mut self, function: LocalNodeId<Function>) {
+        self.destructors
+            .retain(|_, destructor| *destructor != function);
+        self.hooks.retain(|_, hook| *hook != function);
     }
 
     /// Return the user-authored drop hook for a type in one storage.
@@ -95,5 +126,68 @@ impl DropTable {
         function: LocalNodeId<Function>,
     ) -> Option<LocalNodeId<Function>> {
         self.hooks.insert((ty, storage), function)
+    }
+
+    /// Return whether one inline child requires destruction.
+    fn children_require_destructor(
+        &self,
+        ty: LocalNodeId<Type>,
+        storage: Storage,
+        tree: &Tree,
+        seen: &mut HashSet<LocalNodeId<Type>>,
+    ) -> bool {
+        match tree.get(ty) {
+            Type::Struct { fields, .. } => fields.iter().any(|field| {
+                let field = tree.get(*field);
+
+                self.child_requires_destructor(field.ty, storage, tree, seen)
+            }),
+            Type::Tuple { elements, .. } => elements
+                .iter()
+                .any(|element| self.child_requires_destructor(*element, storage, tree, seen)),
+            Type::Newtype { inner, .. } => {
+                self.child_requires_destructor(*inner, storage, tree, seen)
+            }
+            Type::FixedArray {
+                element, length, ..
+            } => *length > 0 && self.child_requires_destructor(*element, storage, tree, seen),
+            Type::Variant { cases, .. } => cases
+                .iter()
+                .any(|case| self.child_requires_destructor(case.ty, storage, tree, seen)),
+            Type::Slice {
+                kind: ReferenceKind::Unique,
+                element,
+                storage,
+                ..
+            } => self.child_requires_destructor(*element, *storage, tree, seen),
+            _ => false,
+        }
+    }
+
+    /// Return whether one owned child requires destruction.
+    fn child_requires_destructor(
+        &self,
+        ty: LocalNodeId<Type>,
+        storage: Storage,
+        tree: &Tree,
+        seen: &mut HashSet<LocalNodeId<Type>>,
+    ) -> bool {
+        if tree.get(ty).copy(tree).is_yes() {
+            return false;
+        }
+        if self.destructor(ty, storage).is_some()
+            || self.hook(ty, storage).is_some()
+            || tree.get(ty).is_unique_storage()
+        {
+            return true;
+        }
+        if !seen.insert(ty) {
+            return false;
+        }
+
+        let requires = self.children_require_destructor(ty, storage, tree, seen);
+        seen.remove(&ty);
+
+        requires
     }
 }

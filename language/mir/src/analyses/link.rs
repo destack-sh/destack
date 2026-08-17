@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{Analysis, AnalysisCache, Mutation};
 use crate::{
-    DispatchTable, EffectTable, Function, FunctionBehavior, Global, GlobalInitializer, Instruction,
-    Linkage, MemoryEffect, Symbol, Tree,
+    DispatchTable, DropTable, EffectTable, Function, FunctionBehavior, Global, GlobalInitializer,
+    Instruction, Linkage, MemoryEffect, Storage, Symbol, Terminator, Tree, TypeId,
 };
 
 /// Symbol references for one module.
@@ -190,7 +190,12 @@ impl LinkTable {
     }
 
     /// Return the symbol reference made by one instruction.
-    fn instruction_edge(instruction: &Instruction, tree: &Tree) -> Option<LinkEdge> {
+    fn instruction_edge(
+        instruction: &Instruction,
+        function: &Function,
+        tree: &Tree,
+        drops: &DropTable,
+    ) -> Option<LinkEdge> {
         match instruction {
             Instruction::FunctionAddr { function, .. }
             | Instruction::FunctionBind { function, .. } => Some(LinkEdge {
@@ -201,8 +206,96 @@ impl LinkTable {
                 target: tree.get(*global).symbol,
                 kind: LinkEdgeKind::Address,
             }),
+            Instruction::Drop { value } => {
+                let ty = function
+                    .value_type(*value)
+                    .unwrap_or_else(|| unreachable!("drop value has no type"));
+
+                Self::destructor_edge(ty, Storage::Frame, tree, drops)
+            }
+            Instruction::NewZeroed {
+                storage_type,
+                result_type,
+                ..
+            }
+            | Instruction::NewUninit {
+                storage_type,
+                result_type,
+                ..
+            } => Self::allocation_edge(*storage_type, *result_type, tree, drops),
+            Instruction::NewSliceZeroed {
+                element,
+                result_type,
+                ..
+            }
+            | Instruction::NewSliceUninit {
+                element,
+                result_type,
+                ..
+            } => Self::allocation_edge(*element, *result_type, tree, drops),
             _ => None,
         }
+    }
+
+    /// Return the destructor reference made by one fallible allocation.
+    fn terminator_edge(
+        terminator: &Terminator,
+        tree: &Tree,
+        drops: &DropTable,
+    ) -> Option<LinkEdge> {
+        let (ty, success) = match terminator {
+            Terminator::NewZeroedTry {
+                storage_type,
+                success,
+                ..
+            }
+            | Terminator::NewUninitTry {
+                storage_type,
+                success,
+                ..
+            } => (*storage_type, success),
+            Terminator::NewSliceZeroedTry {
+                element, success, ..
+            }
+            | Terminator::NewSliceUninitTry {
+                element, success, ..
+            } => (*element, success),
+            _ => return None,
+        };
+        let result = tree
+            .get(success.block)
+            .parameters
+            .first()
+            .unwrap_or_else(|| unreachable!("fallible allocation success has no result"));
+
+        Self::allocation_edge(ty, result.ty, tree, drops)
+    }
+
+    /// Return the destructor reference selected by one managed allocation.
+    fn allocation_edge(
+        ty: TypeId,
+        result: TypeId,
+        tree: &Tree,
+        drops: &DropTable,
+    ) -> Option<LinkEdge> {
+        let storage = tree.managed_storage(result)?;
+
+        Self::destructor_edge(ty, storage, tree, drops)
+    }
+
+    /// Return one direct reference to a generated destructor.
+    fn destructor_edge(
+        ty: TypeId,
+        storage: Storage,
+        tree: &Tree,
+        drops: &DropTable,
+    ) -> Option<LinkEdge> {
+        let destructor = drops.destructor(ty, storage)?;
+
+        Some(LinkEdge {
+            target: tree.get(destructor).symbol,
+            kind: LinkEdgeKind::Call,
+        })
     }
 }
 
@@ -492,6 +585,7 @@ impl LinkTable {
         analyses: &mut AnalysisCache,
         effects: &EffectTable,
         dispatch: &DispatchTable,
+        drops: &DropTable,
     ) -> Self {
         let call_table = analyses.call(tree, dispatch);
         let mut nodes = Vec::new();
@@ -535,10 +629,17 @@ impl LinkTable {
             for &block_id in function.blocks() {
                 let block = tree.get(block_id);
                 for &instruction_id in &block.instructions {
-                    if let Some(edge) = LinkTable::instruction_edge(tree.get(instruction_id), tree)
+                    if let Some(edge) =
+                        LinkTable::instruction_edge(tree.get(instruction_id), function, tree, drops)
                     {
                         edges.push((symbol, edge));
                     }
+                }
+
+                if let Some(edge) =
+                    LinkTable::terminator_edge(tree.get(block.terminator), tree, drops)
+                {
+                    edges.push((symbol, edge));
                 }
             }
         }
