@@ -47,19 +47,12 @@ pub trait Runtime {
 
     /// Park one logical fiber, or take an already delivered wake value.
     fn park(&mut self, fiber_id: FiberId) -> Result<Park, Self::Error>;
-
-    /// Allocate one detached fiber identity at a task boundary.
-    fn detach(&mut self) -> Result<FiberId, Self::Error>;
-
-    /// Retire one running detached fiber.
-    fn retire(&mut self, fiber_id: FiberId) -> Result<(), Self::Error>;
 }
 
 /// Decision returned by one fiber park request.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Park {
-    /// The innermost logical fiber is parked; the engine returns control to
-    /// its worker, or continues the caller past a detach boundary.
+    /// The logical fiber is parked and returns control to its worker.
     Parked,
     /// The wake already settled; execution continues immediately.
     Ready(Value),
