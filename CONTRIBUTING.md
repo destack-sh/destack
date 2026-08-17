@@ -71,8 +71,6 @@ just language/check-quick
 just language/check-full
 just library/check-quick
 just library/check-full
-just service/check-quick
-just service/check-full
 just app/check-quick
 just app/check-full
 just bridge/check-quick

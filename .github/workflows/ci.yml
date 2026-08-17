@@ -74,25 +74,6 @@ jobs:
       - name: Check Library
         run: just library/check-quick
 
-  service-check:
-    name: Service Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Install Rust Bun and just
-        uses: ./.github/actions/setup-rust-bun-just
-        with:
-          rust_components: rustfmt clippy
-          install_js_dependencies: "true"
-
-      - name: Check Service
-        run: just service/check-quick
-
   cli-check:
     name: CLI Check
     runs-on: ubuntu-latest

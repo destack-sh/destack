@@ -23,7 +23,6 @@ update:
 build:
     just language/build
     just platform/build
-    just service/build
     just app/build
     just client/build
     just bridge/build
@@ -40,7 +39,6 @@ format:
     just language/format
     just library/format
     just platform/format
-    just service/format
     just app/format
     just client/format
     just bridge/format
@@ -50,7 +48,6 @@ format-check:
     just language/format-check
     just library/format-check
     just platform/format-check
-    just service/format-check
     just app/format-check
     just client/format-check
     just bridge/format-check
@@ -68,7 +65,6 @@ lint:
     just language/lint
     just library/lint
     just platform/lint
-    just service/lint
     just app/lint
     just client/lint
     just bridge/lint
@@ -78,7 +74,6 @@ test:
     just language/test
     just library/test
     just platform/test
-    just service/test
     just app/test
     just client/test
     just bridge/test
@@ -93,7 +88,6 @@ check-quick:
     just language/check-quick
     just library/check-quick
     just platform/check-quick
-    just service/check-quick
     just app/check-quick
     just client/check-quick
     just bridge/check-quick
@@ -104,7 +98,6 @@ check-full:
     just language/check-full
     just library/check-full
     just platform/check-full
-    just service/check-full
     just app/check-full
     just client/check-full
     just bridge/check-full
@@ -154,7 +147,6 @@ clean:
     just language/clean
     just library/clean
     just platform/clean
-    just service/clean
     just app/clean
     just client/clean
     just bridge/clean
