@@ -99,26 +99,45 @@ impl CheckState<'_> {
         let reduced_target = self.structurally_normalize(origin, target)?;
         if reduced_source == source && reduced_target == target {
             // leave a relation over open heads undecided
-            let is_undecided = probe == CandidateVerdict::Indeterminate
-                || related == Verdict::Ambiguous
-                || self.open_head(source)?
-                || self.open_head(target)?;
+            if probe == CandidateVerdict::Indeterminate || related == Verdict::Ambiguous {
+                return Ok(Verdict::Ambiguous);
+            }
 
-            return Ok(match is_undecided {
-                true => Verdict::Ambiguous,
-                false => Verdict::Fails,
-            });
+            return self.undecided_over_open_heads(source, target);
         }
 
         self.evaluate_relation(origin, relation, reduced_source, reduced_target)
     }
 
-    /// Return whether one head stays open: a variable, or a projection over one.
-    fn open_head(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    /// Judge one failed stuck relation, undecided while either head stays open.
+    pub(in crate::sema) fn undecided_over_open_heads(
+        &mut self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Verdict> {
+        let is_undecided = self.open_head(source)? || self.open_head(target)?;
+
+        Ok(match is_undecided {
+            true => Verdict::Ambiguous,
+            false => Verdict::Fails,
+        })
+    }
+
+    /// Return whether one head stays open: a variable, or a non-template projection over one.
+    pub(in crate::sema) fn open_head(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         if self.root_variable(ty)?.is_some() {
             return Ok(true);
         }
-        if !matches!(self.ty(ty)?, dir::Type::Member(_) | dir::Type::Operation(_)) {
+        // template literal verdicts decide through matching
+        let projects = match self.ty(ty)? {
+            dir::Type::Member(_) => true,
+            dir::Type::Operation(operation) => !matches!(
+                self.type_operation(ty.module_id, operation)?,
+                dir::TypeOperation::TemplateLiteral(_)
+            ),
+            _ => false,
+        };
+        if !projects {
             return Ok(false);
         }
 
@@ -581,7 +600,7 @@ impl CheckState<'_> {
                 source.element,
                 target.element,
             )?,
-            (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type(
+            (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type
                 origin,
                 cause,
                 Relation::Subtype,

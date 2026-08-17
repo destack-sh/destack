@@ -223,7 +223,8 @@ impl CheckState<'_> {
         let reduced_source = self.structurally_normalize(origin, source)?;
         let reduced_target = self.structurally_normalize(origin, target)?;
         if reduced_source == source && reduced_target == target {
-            return Ok(Verdict::Fails);
+            // leave a relation over open heads undecided
+            return self.undecided_over_open_heads(source, target);
         }
 
         self.constrain_type(origin, cause, relation, reduced_source, reduced_target)
