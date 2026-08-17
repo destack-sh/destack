@@ -1,3 +1,14 @@
-mod destructor;
-mod drop;
+mod aggregate;
+mod control;
+mod decomposition;
+mod hook;
+mod identity;
+mod lifetime;
+mod r#move;
 mod program;
+mod reference;
+mod skip;
+mod slice;
+mod storage;
+mod value;
+mod variant;

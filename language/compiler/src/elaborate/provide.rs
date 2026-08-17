@@ -37,13 +37,12 @@ impl Compiler {
         let lowered = artifacts
             .read::<MirLowered>((module, profile, target))
             .map_err(CompilerError::from)?;
-        artifacts
+        let verified = artifacts
             .read::<MirVerified>((module, profile, target))
             .map_err(CompilerError::from)?;
-        let mut state = ElaborateState::new((*lowered).clone(), self.strings());
+        let mut state = ElaborateState::new(&lowered, self.strings());
 
-        state.generate_destructors();
-        state.insert_drops();
+        state.elaborate(&verified.retention)?;
 
         Ok(ArtifactPayload::MirElaborated(Arc::new(state.finish())))
     }

@@ -2,59 +2,91 @@ use destack_artifact::{MirElaborated, MirLowered};
 use destack_core::StringPool;
 use destack_mir as mir;
 
+use crate::{CompilerError, CompilerResult};
+
+use super::drop::{DestructorBuilder, DropInserter, DropPlan};
+
 /// State for one MIR elaboration.
 pub(crate) struct ElaborateState<'a> {
     /// The MIR tree being elaborated.
     pub(in crate::elaborate) tree: mir::Tree,
     /// Target ABI layout.
     pub(in crate::elaborate) target: mir::TargetLayout,
-    /// Canonical MIR type table.
-    pub(in crate::elaborate) types: mir::TypeTable,
     /// Canonical MIR layout table.
     pub(in crate::elaborate) layouts: mir::LayoutTable,
-    /// Canonical MIR dispatch table.
-    pub(in crate::elaborate) dispatch: mir::DispatchTable,
     /// Canonical MIR drop table.
     pub(in crate::elaborate) drops: mir::DropTable,
-    /// Explicit MIR memory access table.
-    pub(in crate::elaborate) memory: mir::MemoryTable,
     /// Function and call effect table.
     pub(in crate::elaborate) effects: mir::EffectTable,
-    /// Static profile counter table.
-    pub(in crate::elaborate) profile: mir::ProfileTable,
+
     /// Strings needed by generated MIR names.
     pub(in crate::elaborate) strings: &'a StringPool,
 }
 
 impl<'a> ElaborateState<'a> {
     /// Create one elaboration from lowered MIR.
-    pub(in crate::elaborate) fn new(lowered: MirLowered, strings: &'a StringPool) -> Self {
+    pub(in crate::elaborate) fn new(lowered: &MirLowered, strings: &'a StringPool) -> Self {
         Self {
-            tree: lowered.tree,
+            tree: lowered.tree.clone(),
             target: lowered.target,
-            types: lowered.types,
-            layouts: lowered.layouts,
-            dispatch: lowered.dispatch,
-            drops: lowered.drops,
-            memory: lowered.memory,
-            effects: lowered.effects,
-            profile: lowered.profile,
+            layouts: lowered.layouts.clone(),
+            drops: lowered.drops.clone(),
+            effects: lowered.effects.clone(),
             strings,
         }
+    }
+
+    /// Elaborate implicit destruction.
+    pub(in crate::elaborate) fn elaborate(
+        &mut self,
+        retention: &mir::RetentionTable,
+    ) -> CompilerResult<()> {
+        // plan destruction against the verified source functions
+        let functions = self
+            .tree
+            .iter_nodes::<mir::Function>()
+            .filter_map(|(id, function)| {
+                (function.entry().is_some() && !self.drops.is_destructor(id)).then_some(id)
+            })
+            .collect::<Vec<_>>();
+        let plans = functions
+            .into_iter()
+            .map(|id| DropPlan::build(id, self.tree.get(id), &self.tree, retention))
+            .collect::<Vec<_>>();
+        let frame_roots = plans.iter().flat_map(DropPlan::roots).collect::<Vec<_>>();
+
+        // build storage destructors required by managed allocations
+        let mut destructors = DestructorBuilder::new(
+            &mut self.tree,
+            self.target,
+            &mut self.drops,
+            &mut self.effects,
+            self.strings,
+        );
+        destructors.build_allocations();
+        destructors.build_frames(frame_roots);
+
+        // insert verified destruction into each source function
+        DropInserter::new(&mut self.tree, &self.drops).insert(plans);
+
+        // complete layouts for types introduced by elaboration
+        let mut layouts = mir::LayoutBuilder::new(&self.tree, &mut self.layouts, self.target);
+        layouts
+            .layout_reachable_types()
+            .map_err(|error| CompilerError::Internal {
+                message: format!("elaborated MIR contains an invalid physical layout: {error}"),
+            })?;
+
+        Ok(())
     }
 
     /// Finish elaborated MIR.
     pub(in crate::elaborate) fn finish(self) -> MirElaborated {
         MirElaborated {
             tree: self.tree,
-            target: self.target,
-            types: self.types,
             layouts: self.layouts,
-            dispatch: self.dispatch,
             drops: self.drops,
-            memory: self.memory,
             effects: self.effects,
-            profile: self.profile,
         }
     }
 }

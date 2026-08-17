@@ -1,4 +1,3 @@
-mod destructor;
 mod drop;
 mod error;
 mod provide;

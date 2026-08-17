@@ -1,502 +1,458 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use destack_mir as mir;
 
-use super::owned::OwnedValues;
-use super::state::DropState;
-
-/// One planned ownership drop point.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct DropPoint {
-    /// Instruction index where drop is inserted.
-    pub(super) index: usize,
-    /// Complete owned value to drop.
-    pub(super) value: mir::Value,
+/// Planned destruction for one function.
+pub(in crate::elaborate) struct DropPlan {
+    /// The function receiving explicit drops.
+    pub(super) function: mir::FunctionId,
+    /// Independently movable ownership paths.
+    pub(super) paths: Arc<mir::MoveTable>,
+    /// Planned drops inside each block.
+    pub(super) block_drops: HashMap<mir::BlockId, Vec<BlockDrop>>,
+    /// Planned edge-specific drops.
+    pub(super) edge_drops: Vec<EdgeDrop>,
 }
 
-/// Drop plan for one function.
-pub(super) struct DropPlan<'a> {
+/// Ownership analyses used to build one drop plan.
+struct DropAnalysis<'a> {
     /// The function being planned.
     function: &'a mir::Function,
     /// The MIR tree.
     tree: &'a mir::Tree,
-    /// Move-only values in this function.
-    owned: OwnedValues,
-    /// Receiver borrowed by a user-authored drop hook.
-    hook_receiver: Option<mir::Value>,
-    /// SSA value liveness.
-    liveness: mir::FunctionLiveness,
-    /// Available owned values at block entry.
-    available_at_entry: HashMap<mir::LocalNodeId<mir::Block>, DropState>,
-    /// Planned drops by block.
-    drops: HashMap<mir::LocalNodeId<mir::Block>, Vec<DropPoint>>,
+    /// SSA and local liveness.
+    liveness: Arc<mir::LivenessTable>,
+    /// Canonical places derived by address values.
+    places: Arc<mir::PlaceTable>,
+    /// Independently movable ownership paths.
+    paths: Arc<mir::MoveTable>,
+    /// Move-path initialization across the function.
+    initialization: Arc<mir::InitializationTable>,
+    /// Verified ownership retention.
+    retention: &'a mir::RetentionTable,
+
+    /// Planned drops inside each block.
+    block_drops: HashMap<mir::BlockId, Vec<BlockDrop>>,
+    /// Planned edge-specific drops.
+    edge_drops: Vec<EdgeDrop>,
 }
 
-impl<'a> DropPlan<'a> {
-    /// Build planned drops for one function.
-    pub(super) fn build(
+/// Destruction planned at one instruction boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct BlockDrop {
+    /// Instruction index where destruction is inserted.
+    pub(super) index: usize,
+    /// Maximal initialized path to destroy.
+    pub(super) path: mir::MovePathId,
+}
+
+/// Destruction inserted on one control-flow edge.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct EdgeDrop {
+    /// The control-flow edge.
+    pub(super) edge: mir::Edge,
+    /// Maximal initialized paths to destroy.
+    pub(super) paths: Vec<mir::MovePathId>,
+}
+
+impl DropPlan {
+    /// Build planned destruction for one function.
+    pub(in crate::elaborate) fn build(
+        function_id: mir::FunctionId,
+        function: &mir::Function,
+        tree: &mir::Tree,
+        retention: &mir::RetentionTable,
+    ) -> Self {
+        DropAnalysis::build(function_id, function, tree, retention)
+    }
+
+    /// Return the stored types reached by this plan.
+    pub(in crate::elaborate) fn roots(&self) -> impl Iterator<Item = mir::TypeId> + '_ {
+        let blocks = self
+            .block_drops
+            .values()
+            .flatten()
+            .map(|drop| self.paths.get(drop.path).ty);
+        let edges = self
+            .edge_drops
+            .iter()
+            .flat_map(|drop| &drop.paths)
+            .map(|path| self.paths.get(*path).ty);
+
+        blocks.chain(edges)
+    }
+}
+
+impl<'a> DropAnalysis<'a> {
+    /// Build planned destruction for one function.
+    fn build(
+        function_id: mir::FunctionId,
         function: &'a mir::Function,
         tree: &'a mir::Tree,
-        hook_receiver: Option<mir::Value>,
-    ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<DropPoint>> {
-        let liveness = mir::FunctionLiveness::build(function, tree);
-
-        let mut plan = Self {
+        retention: &'a mir::RetentionTable,
+    ) -> DropPlan {
+        // derive the ownership analyses shared by every planning step
+        let mut analyses = mir::FunctionCache::new();
+        let liveness = analyses.liveness(function, tree);
+        let places = analyses.place(function, tree);
+        let paths = analyses.moves(function, tree);
+        let initialization = analyses.initialization(function, tree);
+        let mut analysis = Self {
             function,
             tree,
-            owned: OwnedValues::new(function.value_types().len()),
-            hook_receiver,
             liveness,
-            available_at_entry: HashMap::new(),
-            drops: HashMap::new(),
-        };
-        plan.owned = plan.collect_owned_values();
-        plan.available_at_entry = plan.compute_available_entries();
-        plan.plan_blocks();
-
-        plan.drops
-    }
-
-    /// Collect move-only values that need explicit drop.
-    fn collect_owned_values(&self) -> OwnedValues {
-        let mut owned = OwnedValues::new(self.function.value_types().len());
-
-        // seed parameters owned at function entry
-        for parameter in &self.function.parameters {
-            let value = parameter.value;
-            if Some(value) == self.hook_receiver {
-                continue;
-            }
-
-            if self.is_owned_value(value) {
-                owned.insert(value);
-            }
-        }
-
-        // track instruction destinations by value type
-        for (index, ty) in self.function.value_types().iter().enumerate() {
-            let value = mir::Value::new(index as u32);
-            if Some(value) == self.hook_receiver {
-                continue;
-            }
-
-            let Some(ty) = ty else {
-                continue;
-            };
-            if self.tree.get(*ty).copy(self.tree).is_no() {
-                owned.insert(value);
-            }
-        }
-
-        owned
-    }
-
-    /// Compute available owned values at each block entry.
-    fn compute_available_entries(&self) -> HashMap<mir::LocalNodeId<mir::Block>, DropState> {
-        let Some(entry) = self.function.entry() else {
-            return HashMap::new();
+            places,
+            paths,
+            initialization,
+            retention,
+            block_drops: HashMap::new(),
+            edge_drops: Vec::new(),
         };
 
-        let graph = mir::ControlFlowGraph::build(self.function, self.tree);
-        let mut entries = HashMap::new();
+        // plan block-local and edge-specific destruction
+        let exits = analysis.plan_block_drops();
+        analysis.plan_edge_drops(&exits);
+        analysis.merge_common_edge_drops();
+
+        DropPlan {
+            function: function_id,
+            paths: analysis.paths,
+            block_drops: analysis.block_drops,
+            edge_drops: analysis.edge_drops,
+        }
+    }
+
+    /// Plan straight-line destruction in every reachable block.
+    fn plan_block_drops(
+        &mut self,
+    ) -> HashMap<mir::LocalNodeId<mir::Block>, mir::InitializationState> {
+        // hold immutable analyses across mutable plan updates
+        let liveness = self.liveness.clone();
+        let tree = self.tree;
         let mut exits = HashMap::new();
-        let mut worklist = VecDeque::new();
 
-        entries.insert(entry, DropState::parameters(self.function, &self.owned));
-        worklist.push_back(entry);
-
-        // propagate availability until predecessor merges stop changing
-        while let Some(block_id) = worklist.pop_front() {
-            let entry_values = self.available_values_at_entry(block_id, &graph, &entries, &exits);
-            let exit_values = self.transfer_available_values(block_id, entry_values.clone());
-            let old_entry = entries.insert(block_id, entry_values);
-            let old_exit = exits.insert(block_id, exit_values);
-
-            // skip successors when the block state is stable
-            if old_entry.as_ref() == entries.get(&block_id)
-                && old_exit.as_ref() == exits.get(&block_id)
-            {
-                continue;
-            }
-
-            // revisit successors after changed exits
-            let block = self.tree.get(block_id);
-            let terminator = self.tree.get(block.terminator);
-            for successor in terminator.successors(self.tree) {
-                if !worklist.contains(&successor) {
-                    worklist.push_back(successor);
-                }
-            }
-        }
-
-        entries
-    }
-
-    /// Return available owned values at one block entry.
-    fn available_values_at_entry(
-        &self,
-        block_id: mir::LocalNodeId<mir::Block>,
-        graph: &mir::ControlFlowGraph,
-        entries: &HashMap<mir::LocalNodeId<mir::Block>, DropState>,
-        exits: &HashMap<mir::LocalNodeId<mir::Block>, DropState>,
-    ) -> DropState {
-        if Some(block_id) == self.function.entry() {
-            return entries
-                .get(&block_id)
-                .cloned()
-                .expect("entry block must have initial drop state");
-        }
-
-        // merge only reached predecessors
-        let mut predecessors = graph
-            .predecessors(block_id)
-            .iter()
-            .copied()
-            .filter(|predecessor| exits.contains_key(predecessor));
-        let Some(first) = predecessors.next() else {
-            return DropState::default();
-        };
-
-        // seed the intersection from the first predecessor
-        let first_exit = exits
-            .get(&first)
-            .cloned()
-            .expect("reached predecessor must have exit drop state");
-        let mut merged = self.bind_edge_parameters(first_exit, first, block_id);
-
-        // keep values carried by every reached predecessor
-        for predecessor in predecessors {
-            let exit = exits
-                .get(&predecessor)
-                .cloned()
-                .expect("reached predecessor must have exit drop state");
-            let next = self.bind_edge_parameters(exit, predecessor, block_id);
-            merged.intersect_with(&next);
-        }
-
-        merged.retain_owned(&self.owned);
-
-        merged
-    }
-
-    /// Transfer available owned values through one block.
-    fn transfer_available_values(
-        &self,
-        block_id: mir::LocalNodeId<mir::Block>,
-        mut available: DropState,
-    ) -> DropState {
-        let block = self.tree.get(block_id);
-
-        // consume old values and define new owned values
-        for &instruction_id in &block.instructions {
-            let instruction = self.tree.get(instruction_id);
-            let consumed = self.consumed_by_instruction(instruction);
-
-            available.remove_consumed(&consumed);
-            if let Some(value) = self.decomposed_value(instruction) {
-                available.remove(value);
-            }
-            available.apply_instruction(instruction);
-            available.insert_destination(instruction, &self.owned);
-        }
-
-        // move terminator values into the caller or successor edges
-        let terminator = self.tree.get(block.terminator);
-        let consumed = self.consumed_by_terminator(terminator);
-        let carried = self.carried_by_terminator(terminator, &available);
-
-        available.remove_consumed(&consumed);
-        for value in self.drops_before_terminator(block_id, &available, &carried) {
-            available.remove(value);
-        }
-
-        available
-    }
-
-    /// Bind available values to successor block parameters.
-    fn bind_edge_parameters(
-        &self,
-        mut available: DropState,
-        predecessor: mir::LocalNodeId<mir::Block>,
-        successor: mir::LocalNodeId<mir::Block>,
-    ) -> DropState {
-        let predecessor = self.tree.get(predecessor);
-        let terminator = self.tree.get(predecessor.terminator);
-        let arguments = terminator.successor_arguments(self.tree, successor);
-        let parameters = terminator.successor_parameters(self.tree, successor);
-
-        // transfer ownership to matching successor parameters
-        for (parameter, argument) in parameters.iter().zip(arguments) {
-            available.bind(*argument, parameter.value, &self.owned);
-        }
-
-        available
-    }
-
-    /// Plan drops for every reachable block.
-    fn plan_blocks(&mut self) {
-        for &block_id in self.function.blocks() {
-            let Some(mut available) = self.available_at_entry.get(&block_id).cloned() else {
+        for &block in self.function.blocks() {
+            let Some(mut state) = self.initialization.entry(block).cloned() else {
                 continue;
             };
+            let mut live = liveness.block(tree, block);
 
-            self.plan_block(block_id, &mut available);
+            // destroy dead parameters or leave them to incoming edges
+            for root in self.paths.roots().collect::<Vec<_>>() {
+                if !self.is_owner_live(root, &live, self.retention.block(block)) {
+                    if Some(block) == self.function.entry() {
+                        self.plan_drop(block, 0, root, &mut state);
+                    } else {
+                        state.uninitialize(root, &self.paths);
+                    }
+                }
+            }
+
+            self.plan_block(block, &mut state, &mut live);
+            exits.insert(block, state);
         }
+
+        exits
     }
 
-    /// Plan drops inside one block.
-    fn plan_block(&mut self, block_id: mir::LocalNodeId<mir::Block>, available: &mut DropState) {
+    /// Plan destruction inside one block.
+    fn plan_block(
+        &mut self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        state: &mut mir::InitializationState,
+        live: &mut mir::LiveSet<'_>,
+    ) {
         let block = self.tree.get(block_id);
 
-        // drop last nonconsuming uses after the instruction
-        for (index, &instruction_id) in block.instructions.iter().enumerate() {
-            let instruction = self.tree.get(instruction_id);
-            let consumed = self.consumed_by_instruction(instruction);
+        // walk instructions in execution order
+        for (index, instruction_id) in block.instructions.iter().enumerate() {
+            let instruction = self.tree.get(*instruction_id);
+            self.plan_overwrite(block_id, index, instruction, state);
 
-            available.remove_consumed(&consumed);
-            if let Some(value) = self.decomposed_value(instruction) {
-                available.remove(value);
-            }
-            available.apply_instruction(instruction);
-            self.plan_after_instruction(block_id, index, instruction, available, &consumed);
-            available.insert_destination(instruction, &self.owned);
-            self.plan_dead_destination(block_id, index, instruction, available);
-        }
+            // collect roots read or defined by this instruction
+            let mut candidates = instruction
+                .reads(self.tree)
+                .into_iter()
+                .filter_map(|value| self.paths.value(value))
+                .map(|path| self.paths.root(path))
+                .collect::<Vec<_>>();
 
-        // drop remaining values before the terminator
-        let terminator = self.tree.get(block.terminator);
-        let consumed = self.consumed_by_terminator(terminator);
-        let carried = self.carried_by_terminator(terminator, available);
-        let end_index = block.instructions.len();
+            // advance ownership and liveness past the instruction
+            self.initialization
+                .transfer_instruction(*instruction_id, state, self.tree);
+            live.advance(instruction, self.tree);
 
-        available.remove_consumed(&consumed);
-        for value in self.drops_before_terminator(block_id, available, &carried) {
-            self.add_drop(block_id, end_index, value);
-            available.remove(value);
-        }
-    }
-
-    /// Plan drops after one instruction.
-    fn plan_after_instruction(
-        &mut self,
-        block_id: mir::LocalNodeId<mir::Block>,
-        index: usize,
-        instruction: &mir::Instruction,
-        available: &mut DropState,
-        consumed: &OwnedValues,
-    ) {
-        let used = self.owned_instruction_uses(instruction);
-
-        // skip values consumed by the instruction itself
-        for value in used.values().rev() {
-            if consumed.contains(value) || !available.contains(value) {
-                continue;
-            }
-            if self
-                .liveness
-                .is_value_live_after_instruction(block_id, index, value, self.tree)
+            // include newly defined ownership
+            if let Some(destination) = instruction.destination()
+                && let Some(path) = self.paths.value(destination)
             {
-                continue;
+                candidates.push(self.paths.root(path));
             }
-            if self.has_live_borrow_after_instruction(block_id, index, value, available) {
-                continue;
-            }
-
-            self.add_drop(block_id, index + 1, value);
-            available.remove(value);
-        }
-    }
-
-    /// Plan an unused owned destination immediately after its definition.
-    fn plan_dead_destination(
-        &mut self,
-        block_id: mir::LocalNodeId<mir::Block>,
-        index: usize,
-        instruction: &mir::Instruction,
-        available: &mut DropState,
-    ) {
-        let Some(destination) = instruction.destination() else {
-            return;
-        };
-        if !available.contains(destination) {
-            return;
-        }
-        if self
-            .liveness
-            .is_value_live_after_instruction(block_id, index, destination, self.tree)
-        {
-            return;
-        }
-
-        self.add_drop(block_id, index + 1, destination);
-        available.remove(destination);
-    }
-
-    /// Return whether a borrow derived from one value is still live.
-    fn has_live_borrow_after_instruction(
-        &self,
-        block_id: mir::LocalNodeId<mir::Block>,
-        index: usize,
-        value: mir::Value,
-        available: &DropState,
-    ) -> bool {
-        available.values_derived_from(value).any(|borrow| {
-            if !self.is_borrowed_reference(borrow) {
-                return false;
+            if let mir::Instruction::LocalSet { local, .. } = instruction
+                && let Some(path) = self.paths.local(*local)
+            {
+                candidates.push(self.paths.root(path));
             }
 
-            self.liveness
-                .is_value_live_after_instruction(block_id, index, borrow, self.tree)
-        })
-    }
+            // visit each changed owner once
+            candidates.sort_unstable();
+            candidates.dedup();
 
-    /// Return whether a borrow derived from one value is live after one terminator.
-    fn has_live_borrow_after_terminator(
-        &self,
-        block_id: mir::LocalNodeId<mir::Block>,
-        value: mir::Value,
-        available: &DropState,
-    ) -> bool {
-        available.values_derived_from(value).any(|borrow| {
-            self.is_borrowed_reference(borrow) && self.liveness.is_value_live_out(block_id, borrow)
-        })
-    }
+            // destroy owners after their final retained use
+            for root in candidates.into_iter().rev() {
+                let retained = self.retention.instruction(*instruction_id);
+                if self.is_owner_live(root, live, retained) {
+                    continue;
+                }
 
-    /// Return owned values used by one instruction.
-    fn owned_instruction_uses(&self, instruction: &mir::Instruction) -> OwnedValues {
-        let mut values = OwnedValues::new(self.function.value_types().len());
-
-        for value in instruction.reads(self.tree) {
-            values.insert_reference(value, &self.owned);
-        }
-
-        values
-    }
-
-    /// Return owned values consumed by one instruction.
-    fn consumed_by_instruction(&self, instruction: &mir::Instruction) -> OwnedValues {
-        let mut values = OwnedValues::new(self.function.value_types().len());
-
-        for value in instruction.consumes(self.tree) {
-            values.insert_reference(value, &self.owned);
-        }
-
-        values
-    }
-
-    /// Return aggregate ownership replaced by one projected destination.
-    fn decomposed_value(&self, instruction: &mir::Instruction) -> Option<mir::Value> {
-        match instruction {
-            mir::Instruction::FieldGet {
-                destination,
-                aggregate,
-                ..
+                self.plan_drop(block_id, index + 1, root, state);
             }
-            | mir::Instruction::ElementGet {
-                destination,
-                aggregate,
-                ..
-            } if self.is_owned_value(*destination) => Some(*aggregate),
-            _ => None,
-        }
-    }
-
-    /// Return owned values consumed by one terminator.
-    fn consumed_by_terminator(&self, terminator: &mir::Terminator) -> OwnedValues {
-        let mut values = OwnedValues::new(self.function.value_types().len());
-
-        for value in terminator.consumes(self.tree) {
-            values.insert_reference(value, &self.owned);
         }
 
-        values
-    }
+        // consume values transferred out of the function
+        let terminator = self.tree.get(block.terminator);
+        self.initialization
+            .transfer_terminator(block.terminator, state, self.tree);
 
-    /// Return owned values carried into successor block parameters.
-    fn carried_by_terminator(
-        &self,
-        terminator: &mir::Terminator,
-        available: &DropState,
-    ) -> OwnedValues {
-        let mut carried = OwnedValues::new(self.function.value_types().len());
-
-        // keep edge argument ownership alive in successor parameters
-        for successor in terminator.successors(self.tree) {
-            let arguments = terminator.successor_arguments(self.tree, successor);
-            let parameters = terminator.successor_parameters(self.tree, successor);
-
-            // keep each carried value alive in successor parameters
-            for (_, argument) in parameters.iter().zip(arguments) {
-                if available.contains(*argument) {
-                    carried.insert(*argument);
+        // final blocks destroy every remaining owned path
+        if terminator.successors(self.tree).is_empty() {
+            let used = terminator.reads(self.tree);
+            let roots = self.paths.roots().rev().collect::<Vec<_>>();
+            for root in roots {
+                let mir::PlaceOrigin::Value(value) = self.paths.get(root).place.origin else {
+                    self.plan_drop(block_id, block.instructions.len(), root, state);
+                    continue;
+                };
+                if !used.contains(&value) {
+                    self.plan_drop(block_id, block.instructions.len(), root, state);
                 }
             }
         }
-
-        carried
     }
 
-    /// Return values that should be dropped before one terminator.
-    fn drops_before_terminator(
-        &self,
-        block_id: mir::LocalNodeId<mir::Block>,
-        available: &DropState,
-        carried: &OwnedValues,
-    ) -> Vec<mir::Value> {
-        available
-            .owned
-            .values()
-            .rev()
-            .filter(|value| !carried.contains(*value))
-            .filter(|value| !self.is_value_used_by_terminator(block_id, *value))
-            .filter(|value| !self.liveness.is_value_live_out(block_id, *value))
-            .filter(|value| !self.has_live_borrow_after_terminator(block_id, *value, available))
-            .collect()
+    /// Plan destruction before replacing an initialized place.
+    fn plan_overwrite(
+        &mut self,
+        block: mir::LocalNodeId<mir::Block>,
+        index: usize,
+        instruction: &mir::Instruction,
+        state: &mut mir::InitializationState,
+    ) {
+        let path = match instruction {
+            // local.set l0, v1
+            mir::Instruction::LocalSet { local, .. } => self.paths.local(*local),
+            // v2: Pair = field.set v0, 1, v1
+            mir::Instruction::FieldSet {
+                aggregate, field, ..
+            } => {
+                let projection = mir::Projection::Field { index: *field };
+                let place = self.places.project(*aggregate, projection);
+
+                self.paths.place(&place)
+            }
+            // v2: [File; 4] = element.set v0, 1, v1
+            mir::Instruction::ElementSet {
+                aggregate, index, ..
+            } => {
+                let projection = mir::Projection::Element { index: *index };
+                let place = self.places.project(*aggregate, projection);
+
+                self.paths.place(&place)
+            }
+            _ => None,
+        };
+        let Some(path) = path else {
+            return;
+        };
+
+        self.plan_drop(block, index, path, state);
     }
 
-    /// Return whether one value is needed by the terminator itself.
-    fn is_value_used_by_terminator(
+    /// Plan destruction of every initialized subtree inside one path.
+    fn plan_drop(
+        &mut self,
+        block: mir::LocalNodeId<mir::Block>,
+        index: usize,
+        root: mir::MovePathId,
+        state: &mut mir::InitializationState,
+    ) {
+        let paths = self.initialized_drop_paths(root, state);
+
+        for path in paths {
+            self.block_drops
+                .entry(block)
+                .or_default()
+                .push(BlockDrop { index, path });
+            state.uninitialize(path, &self.paths);
+        }
+    }
+
+    /// Return maximal initialized subtrees in destruction order.
+    fn initialized_drop_paths(
         &self,
-        block_id: mir::LocalNodeId<mir::Block>,
-        value: mir::Value,
-    ) -> bool {
-        let block = self.tree.get(block_id);
-        let terminator = self.tree.get(block.terminator);
-        let consumed = self.consumed_by_terminator(terminator);
-        if consumed.contains(value) {
-            return false;
+        root: mir::MovePathId,
+        state: &mir::InitializationState,
+    ) -> Vec<mir::MovePathId> {
+        // drop a completely initialized subtree as one value
+        if state.is_initialized(root, &self.paths) {
+            return vec![root];
         }
 
-        terminator
-            .uses(self.tree)
-            .iter()
-            .copied()
-            .any(|used| used == value)
+        // decompose partially initialized aggregates into definite children
+        let children = self.paths.children(root);
+        let mut initialized = Vec::new();
+        for child in children.iter().rev() {
+            initialized.extend(self.initialized_drop_paths(*child, state));
+        }
+        if !children.is_empty() {
+            return initialized;
+        }
+
+        // require a definite state for every ownership leaf
+        if state.get(root) == mir::Initialization::MaybeInitialized {
+            unreachable!("verified MIR contains conditionally initialized ownership");
+        }
+
+        initialized
     }
 
-    /// Add one planned drop.
-    fn add_drop(&mut self, block: mir::LocalNodeId<mir::Block>, index: usize, value: mir::Value) {
-        self.drops
-            .entry(block)
-            .or_default()
-            .push(DropPoint { index, value });
+    /// Plan ownership discarded on individual successor edges.
+    fn plan_edge_drops(
+        &mut self,
+        exits: &HashMap<mir::LocalNodeId<mir::Block>, mir::InitializationState>,
+    ) {
+        for &predecessor in self.function.blocks() {
+            let Some(exit) = exits.get(&predecessor) else {
+                continue;
+            };
+            let block = self.tree.get(predecessor);
+            let terminator = self.tree.get(block.terminator);
+
+            for (edge, target) in terminator.targets(self.tree, predecessor) {
+                let Some(entry) = self.initialization.entry(target.block) else {
+                    continue;
+                };
+
+                // read the exact target entry state
+                let live = self.liveness.block(self.tree, target.block);
+                let retained = self.retention.block(target.block);
+                let mut dropped = Vec::new();
+
+                // destroy each initialized subtree not carried into this successor
+                for root in self.paths.roots().rev() {
+                    for path in self.initialized_drop_paths(root, exit) {
+                        let target_path =
+                            self.map_target_path(edge.successor, terminator, target, path);
+                        let target_root = self.paths.root(target_path);
+                        let is_initialized = entry.is_initialized(target_path, &self.paths);
+                        let is_live = self.is_owner_live(target_root, &live, retained);
+                        if !is_initialized || !is_live {
+                            dropped.push(path);
+                        }
+                    }
+                }
+                if !dropped.is_empty() {
+                    self.edge_drops.push(EdgeDrop {
+                        edge,
+                        paths: dropped,
+                    });
+                }
+            }
+        }
     }
 
-    /// Return whether one value has move-only ownership.
-    fn is_owned_value(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.function.value_type(value) else {
-            return false;
-        };
+    /// Merge destruction shared by every outgoing edge into its source block.
+    fn merge_common_edge_drops(&mut self) {
+        for &predecessor in self.function.blocks() {
+            let edge_count = self
+                .tree
+                .get(self.tree.get(predecessor).terminator)
+                .targets(self.tree, predecessor)
+                .len();
+            if edge_count == 0 {
+                continue;
+            }
 
-        self.tree.get(ty).copy(self.tree).is_no()
+            let mut common = self
+                .edge_drops
+                .iter()
+                .find(|drop| drop.edge.source == predecessor)
+                .map(|edge| edge.paths.clone())
+                .unwrap_or_default();
+            common.retain(|path| {
+                self.edge_drops
+                    .iter()
+                    .filter(|drop| drop.edge.source == predecessor)
+                    .filter(|edge| edge.paths.contains(path))
+                    .count()
+                    == edge_count
+            });
+            if common.is_empty() {
+                continue;
+            }
+
+            let index = self.tree.get(predecessor).instructions.len();
+            for path in &common {
+                self.block_drops
+                    .entry(predecessor)
+                    .or_default()
+                    .push(BlockDrop { index, path: *path });
+            }
+            for edge in self
+                .edge_drops
+                .iter_mut()
+                .filter(|drop| drop.edge.source == predecessor)
+            {
+                edge.paths.retain(|path| !common.contains(path));
+            }
+        }
+
+        self.edge_drops.retain(|edge| !edge.paths.is_empty());
     }
 
-    /// Return whether one value is a borrowed reference-like value.
-    fn is_borrowed_reference(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.function.value_type(value) else {
-            return false;
-        };
+    /// Map one source path onto its target block parameter.
+    fn map_target_path(
+        &self,
+        successor: mir::Successor,
+        terminator: &mir::Terminator,
+        target: &mir::BlockTarget,
+        path: mir::MovePathId,
+    ) -> mir::MovePathId {
+        let arguments = target.arguments(self.tree);
+        let parameters = terminator
+            .target_parameters(self.tree, successor, target)
+            .unwrap_or_else(|| unreachable!("verified block target has invalid argument count"));
 
-        self.tree.get(ty).is_borrowed_reference()
+        // map ownership transferred through one block parameter
+        for (parameter, argument) in parameters.iter().zip(arguments.iter().copied()) {
+            let Some(argument) = self.paths.value(argument) else {
+                continue;
+            };
+            let Some(parameter) = self.paths.value(parameter.value) else {
+                continue;
+            };
+            if path != argument && !self.paths.is_ancestor(argument, path) {
+                continue;
+            }
+
+            let parameter = self.paths.map(path, argument, parameter);
+            return parameter;
+        }
+
+        path
+    }
+
+    /// Return whether one owner is live or retained at the current operation.
+    fn is_owner_live(
+        &self,
+        owner: mir::MovePathId,
+        live: &mir::LiveSet<'_>,
+        retained: &[mir::MovePathId],
+    ) -> bool {
+        let origin = self.paths.get(owner).place.origin;
+        let is_live = live.find_carrier(origin, &self.places).is_some();
+
+        is_live || retained.contains(&owner)
     }
 }

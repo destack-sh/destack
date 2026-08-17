@@ -11,7 +11,7 @@ entry(v0: ref<int32, managed, mutable>):
 "#,
     );
 
-    program.assert_drop_mir(
+    program.assert_elaborated(
         r#"
 function test(v0: ref<int32, managed, mutable>): void {
 entry(v0: ref<int32, managed, mutable>):
@@ -33,7 +33,7 @@ entry:
 "#,
     );
 
-    program.assert_drop_mir(
+    program.assert_elaborated(
         r#"
 function test(): void {
 entry:
@@ -57,7 +57,7 @@ entry:
 "#,
     );
 
-    program.assert_drop_mir(
+    program.assert_elaborated(
         r#"
 function test(): void {
 entry:
@@ -87,7 +87,7 @@ entry(v0: ref<User, managed, mutable>):
 "#,
     );
 
-    program.assert_drop_mir(
+    program.assert_elaborated(
         r#"
 @copy
 type User {
@@ -118,7 +118,7 @@ entry(v0: slice<int32, managed, mutable>):
 "#,
     );
 
-    program.assert_drop_mir(
+    program.assert_elaborated(
         r#"
 function test(v0: slice<int32, managed, mutable>): int32 {
 entry(v0: slice<int32, managed, mutable>):
@@ -147,7 +147,7 @@ entry(v0: Point):
 "#,
     );
 
-    program.assert_elaborated_mir(
+    program.assert_elaborated(
         r#"
 type Point {
     x: int32;
@@ -177,7 +177,7 @@ entry(v0: [Box; 0]):
 "#,
     );
 
-    program.assert_elaborated_mir(
+    program.assert_elaborated(
         r#"
 type Box {
     value: ref<int32, unique, mutable>;
@@ -202,7 +202,7 @@ entry(v0: ref<int32, unique, mutable>):
 "#,
     );
 
-    program.assert_drop_mir(
+    program.assert_elaborated(
         r#"
 function test(v0: ref<int32, unique, mutable>): ref<int32, unique, mutable> {
 entry(v0: ref<int32, unique, mutable>):
@@ -229,7 +229,7 @@ entry(v0: ref<int32, unique, mutable>):
 "#,
     );
 
-    program.assert_drop_mir(
+    program.assert_elaborated(
         r#"
 function consume(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
