@@ -90,6 +90,7 @@ entry(v0: int32):
 }
 
 external function test.point.diagonal(int32, int32): test.point.Point
+
 /// @layout.struct name=test.point.Point size=8 align=4
 /// @layout.field owner=test.point.Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=test.point.Point index=1 name=y offset=4 size=4 align=4
@@ -147,6 +148,7 @@ entry(v0: int32):
 }
 
 external function test.point.Point.length<'a>(ref<test.point.Point, borrowed, 'a, readonly>): int32
+
 /// @layout.struct name=test.point.Point size=8 align=4
 /// @layout.field owner=test.point.Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=test.point.Point index=1 name=y offset=4 size=4 align=4
@@ -206,6 +208,7 @@ entry:
 external function test.box.Box.constructor(ref<test.box.Box, borrowed, exclusive>, int32): void
 
 external function test.box.Box.weigh(ref<test.box.Box, managed, mutable>): int32
+
 /// @layout.struct name=test.box.Box size=4 align=4
 /// @layout.field owner=test.box.Box index=0 name=weight offset=0 size=4 align=4
 "#,

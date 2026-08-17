@@ -91,7 +91,7 @@ impl ModuleLowerer<'_> {
         Ok(self.state(symbol.module_id)?.definitions.definition(symbol))
     }
 
-    /// Return whether one definition declares any generic parameters.
+    /// Return whether one definition declares parameters beyond lifetimes.
     pub(in crate::lower) fn definition_is_parameterized(
         &self,
         module: destack_source::ModuleId,
@@ -101,11 +101,17 @@ impl ModuleLowerer<'_> {
             return Ok(false);
         };
 
-        // skip a template without parameters, which declares nothing to instantiate
+        // skip lifetime parameters, grounded implicitly at every use
         let generics = &self.state(module)?.generics;
         let template = generics.get_template(template);
+        for parameter in &template.parameters {
+            let parameter = generics.get_parameter(*parameter);
+            if parameter.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
+                return Ok(true);
+            }
+        }
 
-        Ok(!template.parameters.is_empty())
+        Ok(false)
     }
 
     /// Synthesize the ordinal path segment of one anonymous symbol under its owner.

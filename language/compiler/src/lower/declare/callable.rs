@@ -34,7 +34,9 @@ impl ModuleLowerer<'_> {
         };
         let parameter_nodes = function.signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
+        let mut defaults = Vec::with_capacity(parameter_nodes.len());
         for parameter in parameter_nodes {
+            defaults.push(self.local().tree().get(parameter).default_value());
             let node = parameter.into_global_any(module);
             let Some(symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
@@ -45,8 +47,9 @@ impl ModuleLowerer<'_> {
         }
 
         // lower the signature through the shared callable path
-        let signature = self.lower_signature(builder, declared, None, &lifetime_parameters)?;
-        if signature.parameters.len() != symbols.len() {
+        let (parameters, result) =
+            self.lower_signature(builder, declared, None, &lifetime_parameters)?;
+        if parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
                 message: "function parameters disagree with the declared signature".to_string(),
             });
@@ -55,9 +58,7 @@ impl ModuleLowerer<'_> {
         // declare the header under the function's lexical path
         let name = self.symbol_path(symbol)?;
         let header = lifetime_parameters.declare(builder.function_header(&name));
-        let header = header
-            .parameters(signature.parameters)
-            .result(signature.result);
+        let header = header.parameters(parameters).result(result);
         let function = builder.declare_function(header);
         self.functions.insert(
             GenericInstanceKey::non_generic(symbol),
@@ -73,6 +74,8 @@ impl ModuleLowerer<'_> {
             lifetime_parameters,
             source: self.module,
             expression,
+            constructs: None,
+            defaults,
         })
     }
 
@@ -209,7 +212,9 @@ impl ModuleLowerer<'_> {
         };
         let parameter_nodes = signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
+        let mut defaults = Vec::with_capacity(parameter_nodes.len());
         for parameter in parameter_nodes {
+            defaults.push(self.local().tree().get(parameter).default_value());
             let node = parameter.into_global_any(self.module);
             let Some(symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
@@ -220,13 +225,13 @@ impl ModuleLowerer<'_> {
         }
 
         // lower the signature and prepend its receiver
-        let signature = self.lower_signature(builder, declared, None, &lifetime_parameters)?;
-        if signature.parameters.len() != symbols.len() {
+        let (mut parameters, result) =
+            self.lower_signature(builder, declared, None, &lifetime_parameters)?;
+        if parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
                 message: "method parameters disagree with the declared signature".to_string(),
             });
         }
-        let mut parameters = signature.parameters;
         if let Some(this) = this {
             parameters.insert(0, this);
         }
@@ -234,43 +239,11 @@ impl ModuleLowerer<'_> {
         // give constructors a void result
         let result = match role {
             Some(dir::FunctionRole::Constructor) => builder.tree_mut().intern_type(mir::Type::Void),
-            _ => signature.result,
+            _ => result,
         };
 
-        // qualify anonymous extensions by their target root
-        let extension_root = match self.definition(owner)? {
-            Some(dir::Definition::Extension(extension)) => extension.target.root(),
-            _ => None,
-        };
-        let mut owner_name = self.symbol_name(owner)?;
-        if owner_name.is_none()
-            && let Some(root) = extension_root
-        {
-            owner_name = self.symbol_name(root)?;
-        }
-        let Some(owner_name) = owner_name else {
-            return Err(CompilerError::Internal {
-                message: "a member owner without a name".to_string(),
-            });
-        };
-        let owner_name = self.strings.get(owner_name).to_string();
-        let member_name = match self.local().bindings.get_symbol(symbol.local_id).name() {
-            Some(name) => self.strings.get(name).to_string(),
-            None if role == Some(dir::FunctionRole::Constructor) => "constructor".to_string(),
-            None => {
-                return Err(CompilerError::Internal {
-                    message: "a method without a name".to_string(),
-                });
-            }
-        };
-
-        // split the accessor pair that shares one member name by role
-        let member_name = match role {
-            Some(dir::FunctionRole::Getter) => format!("{member_name}.get"),
-            Some(dir::FunctionRole::Setter) => format!("{member_name}.set"),
-            _ => member_name,
-        };
-        let name = format!("{}.{owner_name}.{member_name}", self.local().path);
+        let member_name = self.member_extern_name(symbol, owner, role)?;
+        let name = format!("{}.{member_name}", self.local().path);
         let header = lifetime_parameters.declare(builder.function_header(&name));
         let header = header.parameters(parameters).result(result);
         let function = builder.declare_function(header);
@@ -288,6 +261,8 @@ impl ModuleLowerer<'_> {
             lifetime_parameters,
             source: self.module,
             expression,
+            constructs: (role == Some(dir::FunctionRole::Constructor)).then_some(owner),
+            defaults,
         })
     }
 
@@ -302,5 +277,51 @@ impl ModuleLowerer<'_> {
         };
 
         Ok(definition.method_declared_at(member))
+    }
+}
+
+impl ModuleLowerer<'_> {
+    /// Return one member's owner-qualified extern name.
+    pub(in crate::lower) fn member_extern_name(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        owner: dir::GlobalSymbolId,
+        role: Option<dir::FunctionRole>,
+    ) -> CompilerResult<String> {
+        // qualify anonymous extensions by their target root
+        let extension_root = match self.definition(owner)? {
+            Some(dir::Definition::Extension(extension)) => extension.target.root(),
+            _ => None,
+        };
+        let mut owner_name = self.symbol_name(owner)?;
+        if owner_name.is_none()
+            && let Some(root) = extension_root
+        {
+            owner_name = self.symbol_name(root)?;
+        }
+        let Some(owner_name) = owner_name else {
+            return Err(CompilerError::Internal {
+                message: "a member owner without a name".to_string(),
+            });
+        };
+        let owner_name = self.strings.get(owner_name).to_string();
+        let member_name = match self.symbol_name(symbol)? {
+            Some(name) => self.strings.get(name).to_string(),
+            None if role == Some(dir::FunctionRole::Constructor) => "constructor".to_string(),
+            None => {
+                return Err(CompilerError::Internal {
+                    message: "a method without a name".to_string(),
+                });
+            }
+        };
+
+        // split the accessor pair that shares one member name by role
+        let member_name = match role {
+            Some(dir::FunctionRole::Getter) => format!("{member_name}.get"),
+            Some(dir::FunctionRole::Setter) => format!("{member_name}.set"),
+            _ => member_name,
+        };
+
+        Ok(format!("{owner_name}.{member_name}"))
     }
 }

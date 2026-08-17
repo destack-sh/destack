@@ -88,11 +88,12 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             };
 
             // reject bare defaulted uses without instantiation arguments
-            let is_generic = self
-                .lowerer
-                .definition(symbol)?
-                .and_then(|definition| definition.template())
-                .is_some();
+            let is_generic = match self.lowerer.definition(symbol)? {
+                Some(definition) => self
+                    .lowerer
+                    .definition_is_parameterized(symbol.module_id, definition)?,
+                None => false,
+            };
             if is_generic && arguments.is_empty() {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),

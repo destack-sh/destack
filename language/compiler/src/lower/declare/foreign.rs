@@ -71,8 +71,8 @@ impl ModuleLowerer<'_> {
         };
 
         // lower the signature, prepending the receiver of a method import
-        let signature = self.lower_signature(builder, declared, None, &lifetime_parameters)?;
-        let mut parameters = signature.parameters;
+        let (mut parameters, result) =
+            self.lower_signature(builder, declared, None, &lifetime_parameters)?;
         if let Some(receiver) = receiver {
             parameters.insert(0, receiver);
         }
@@ -83,7 +83,7 @@ impl ModuleLowerer<'_> {
             .is_some_and(|member| member.role == Some(dir::FunctionRole::Constructor));
         let result = match is_constructor {
             true => builder.tree_mut().intern_type(mir::Type::Void),
-            false => signature.result,
+            false => result,
         };
 
         // declare the header as an external function under the imported name
@@ -154,14 +154,13 @@ impl ModuleLowerer<'_> {
 
         // lower the signature outside any instance bindings
         let lifetime_parameters = self.lifetime_parameters(declared)?;
-        let signature = self.lower_signature(builder, declared, None, &lifetime_parameters)?;
+        let (parameters, result) =
+            self.lower_host_signature(builder, declared, &lifetime_parameters)?;
 
         // declare the header as a host binding under the dotted extern name
         let name = self.strings.get(binding.name);
         let header = lifetime_parameters.declare(builder.function_header(name));
-        let header = header
-            .parameters(signature.parameters)
-            .result(signature.result);
+        let header = header.parameters(parameters).result(result);
         let function = builder.binding_function(header, binding);
 
         // mark bindings as observing external state
@@ -183,19 +182,19 @@ impl ModuleLowerer<'_> {
         lifetime_parameters: &LifetimeParameters,
     ) -> CompilerResult<(String, Option<mir::LocalNodeId<mir::Type>>)> {
         let pointer_bytes = builder.pointer_bytes();
-        let value = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
-            .lower_nominal(member.owner, &[])?;
-        let pointee = value.storage;
         let receiver = match member.role {
             // pass an exclusive reference to constructors
             Some(dir::FunctionRole::Constructor) => {
+                let value = self
+                    .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+                    .lower_nominal(member.owner, &[])?;
+
                 Some(builder.tree_mut().intern_type(mir::Type::Reference {
                     kind: mir::ReferenceKind::Borrowed,
                     lifetime: mir::Lifetime::empty(),
                     storage: mir::Storage::Heap(mir::Space::Local),
                     access: mir::Access::Exclusive,
-                    pointee,
+                    pointee: value.storage,
                     nullability: mir::Nullability::None,
                 }))
             }
@@ -218,15 +217,9 @@ impl ModuleLowerer<'_> {
         };
 
         // name the extern after its owner and member
-        let Some(owner_name) = self.symbol_name(member.owner)? else {
-            return Err(CompilerError::Internal {
-                message: "an imported method from an unnamed nominal".to_string(),
-            });
-        };
-        let owner_name = self.strings.get(owner_name).to_string();
-        let member_name = self.imported_member_name(symbol, member.role)?;
+        let name = self.member_extern_name(symbol, member.owner, member.role)?;
 
-        Ok((format!("{owner_name}.{member_name}"), receiver))
+        Ok((name, receiver))
     }
 
     /// Resolve one imported symbol's member declaration, when it names one.
@@ -265,20 +258,5 @@ impl ModuleLowerer<'_> {
             role,
             is_static,
         }))
-    }
-
-    /// Return one imported member's declared name.
-    fn imported_member_name(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        role: Option<dir::FunctionRole>,
-    ) -> CompilerResult<String> {
-        match self.symbol_name(symbol)? {
-            Some(name) => Ok(self.strings.get(name).to_string()),
-            None if role == Some(dir::FunctionRole::Constructor) => Ok("constructor".to_string()),
-            None => Err(CompilerError::Internal {
-                message: "an imported method without a name".to_string(),
-            }),
-        }
     }
 }

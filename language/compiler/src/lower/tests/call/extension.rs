@@ -50,6 +50,7 @@ entry:
     v3: int32 = call test.main.Point.double(v2): <'a>(ref<Point, borrowed, 'a, readonly>) => int32
     return v3
 }
+
 /// @layout.struct name=Point size=4 align=4
 /// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
 "#,
@@ -95,6 +96,7 @@ entry(v0: int32):
     v1: Box<int32> = aggregate (v0)
     return v1
 }
+
 /// @layout.struct name=Box<int32> size=4 align=4
 /// @layout.field owner=Box<int32> index=0 name=value offset=0 size=4 align=4
 "#,
@@ -141,6 +143,7 @@ entry(v0: int32):
     v1: Box<int32> = aggregate (v0)
     return v1
 }
+
 /// @layout.struct name=Box<int32> size=4 align=4
 /// @layout.field owner=Box<int32> index=0 name=value offset=0 size=4 align=4
 "#,
