@@ -14,7 +14,8 @@ pin r4: ref<managed, local>
 unpin r4: ref<managed, local>
 barrier r4,r3,r3: ref<managed, local>
 drop r0,f0
-free r2: ref<unique, local>
+drop r2
+free r2
 return r4
 }
 "#,
@@ -28,7 +29,8 @@ function f1 {
     unpin r4: ref<managed, local>
     barrier r4, r3, r3: ref<managed, local>
     drop r0, f0
-    free r2: ref<unique, local>
+    drop r2
+    free r2
     return r4
 }
 "#,

@@ -337,13 +337,18 @@ opcodes! {
     // allocation and destruction
     FREE = 0x0081 {
         text: "free",
-        signature: "(value: ref<unique>) => void",
-        operands: [Register, Reference],
+        signature: "(owner: ref<unique>) => void",
+        operands: [Register],
     }
     DROP = 0x0082 {
         text: "drop",
         signature: "(value: value, destructor: FunctionId) => void",
         operands: [RegisterSpan, Function],
+    }
+    DROP_INDIRECT = 0x0083 {
+        text: "drop",
+        signature: "(owner: ref<unique>) => void",
+        operands: [Register],
     }
     PIN = 0x0088 {
         text: "pin",
@@ -423,11 +428,6 @@ opcodes! {
         text: "tail.call.dynamic",
         signature: "(receiver: dynamic, slot: uint16, arguments: value[]) => never",
         operands: [RegisterSpan, Unsigned16, RegisterSpan],
-    }
-    CALL_DETACH = 0x00ac {
-        text: "call.detach",
-        signature: "(thunk: function | functionPointer) => void",
-        operands: [RegisterSpan],
     }
 
     // control flow

@@ -171,7 +171,7 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_TYPE => self.format_dynamic(opcode),
 
             // allocation and destruction
-            Opcode::FREE | Opcode::DROP => self.format_reference(opcode),
+            Opcode::FREE | Opcode::DROP | Opcode::DROP_INDIRECT => self.format_reference(opcode),
 
             // address stability
             Opcode::PIN | Opcode::UNPIN => self.format_reference(opcode),
@@ -192,7 +192,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::TAIL_CALL_INDIRECT
             | Opcode::TAIL_CALL_VIRTUAL
             | Opcode::TAIL_CALL_DYNAMIC => self.format_call(opcode),
-            Opcode::CALL_DETACH => self.format_detach(opcode),
 
             // control flow
             Opcode::JUMP

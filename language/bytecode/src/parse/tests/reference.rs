@@ -18,7 +18,8 @@ function f1 {
     unpin r4: ref<managed, local>
     barrier r4, r3, r3: ref<managed, local>
     drop r0, f0
-    free r2: ref<unique, local>
+    drop r2
+    free r2
     return r4
 }
 "#,
@@ -34,6 +35,7 @@ function f1 {
             Opcode::UNPIN,
             Opcode::BARRIER,
             Opcode::DROP,
+            Opcode::DROP_INDIRECT,
             Opcode::FREE,
             Opcode::RETURN,
         ]
@@ -71,18 +73,19 @@ function f1 {
     );
     assert_eq!(operands.u32().expect("destructor"), 0);
 
-    // retain the unique local representation required to free the allocation
+    // retain the erased allocation owner selected for indirect destruction
     let instruction = object
         .operation(FunctionId(1), 6)
         .expect("valid instruction")
+        .expect("indirect drop instruction");
+    let mut operands = instruction.operands();
+    assert_eq!(operands.register().expect("owner register"), RegisterId(2));
+
+    // retain the allocation owner without duplicating its heap space
+    let instruction = object
+        .operation(FunctionId(1), 7)
+        .expect("valid instruction")
         .expect("free instruction");
     let mut operands = instruction.operands();
-    assert_eq!(
-        operands.register().expect("reference register"),
-        RegisterId(2)
-    );
-    assert_eq!(
-        operands.reference().expect("reference representation"),
-        ReferenceType::new(ReferenceKind::UNIQUE, Storage::LOCAL)
-    );
+    assert_eq!(operands.register().expect("owner register"), RegisterId(2));
 }

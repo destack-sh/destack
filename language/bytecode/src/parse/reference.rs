@@ -24,16 +24,28 @@ impl Parser<'_> {
         let results = self.parse_definitions(opcode)?;
 
         match name {
-            "free" | "pin" | "unpin" => {
-                self.parse_reference_lifetime(opcode, token, &results, function)
-            }
+            "free" => self.parse_free(&results, function),
+            "pin" | "unpin" => self.parse_reference_lifetime(opcode, token, &results, function),
             "drop" => self.parse_drop(&results, function),
             "barrier" => self.parse_barrier(token, &results, function),
             _ => Err(ParseError::new("invalid reference operation", token.span)),
         }
     }
 
-    /// Parse one managed pin transition or unique release.
+    /// Parse one unique allocation release.
+    fn parse_free(
+        &mut self,
+        results: &[RegisterSpan],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let owner = self.parse_register()?;
+        let mut instruction = InstructionBuilder::new(Opcode::FREE);
+        instruction.register(owner);
+
+        function.emit(instruction, results, self.empty_span())
+    }
+
+    /// Parse one managed pin transition.
     fn parse_reference_lifetime(
         &mut self,
         opcode: Opcode,
@@ -60,8 +72,21 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         let value = self.parse_register_span()?;
 
+        // encode allocation-selected destruction without a linked function
+        if !self.eat_token_if(TokenType::Comma) {
+            if value.word_count != 1 {
+                return Err(ParseError::new(
+                    "indirect drop requires one owner register",
+                    self.empty_span(),
+                ));
+            }
+            let mut instruction = InstructionBuilder::new(Opcode::DROP_INDIRECT);
+            instruction.register(value.start);
+
+            return function.emit(instruction, results, self.empty_span());
+        }
+
         // resolve the linked destructor
-        self.eat_token(TokenType::Comma)?;
         let destructor = self.parse_function_id()?;
 
         // encode the explicit destruction
