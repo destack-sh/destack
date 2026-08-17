@@ -1,6 +1,8 @@
 use crate::parse::{ExpressionContext, StatementPosition};
 use crate::tests::TestParser;
-use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
+use crate::{
+    ParserErrorKind, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+};
 use destack_dir::{
     BinaryOperator, Declaration, Expression, InferForm, NodeType, ScalarLiteral, TokenType,
     TupleElement, TupleForm, TypeDeclaration, TypeExpression, TypeLiteral,
@@ -23,43 +25,28 @@ fn test_parse_pattern_tuple_element_placeholder() {
     });
 }
 
-#[test]
-fn test_parse_array_tuple_type() {
-    let test = TestParser::new("[string, int32]");
+/// Assert that one bracketed tuple type reports over its whole bracket group.
+fn assert_rejects_bracket_tuple_type(input: &str) {
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let ty = parser.parse_type(Default::default()).unwrap();
+    parser.parse_type(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
-    assert_node!(parser.tree, ty, TypeExpression::Tuple { form, elements } => {
-        assert_eq!(*form, TupleForm::Array);
-        assert_eq!(elements.len(), 2);
-    });
+    let errors: Vec<_> = parser
+        .errors
+        .iter()
+        .map(|error| (error.kind(), parser.range_str(error.range())))
+        .collect();
+
+    assert_eq!(errors, vec![(ParserErrorKind::BracketTupleType, input)]);
 }
 
+/// Reject tuple types written with brackets so only the parenthesized form parses.
 #[test]
-fn test_parse_singleton_array_tuple_type() {
-    let test = TestParser::new("[string,]");
-    let mut parser = test.prepare();
-    let ty = parser.parse_type(Default::default()).unwrap();
-
-    test.assert_no_errors(&parser);
-    assert_node!(parser.tree, ty, TypeExpression::Tuple { form, elements } => {
-        assert_eq!(*form, TupleForm::Array);
-        assert_eq!(elements.len(), 1);
-    });
-}
-
-#[test]
-fn test_parse_empty_array_tuple_type() {
-    let test = TestParser::new("[]");
-    let mut parser = test.prepare();
-    let ty = parser.parse_type(Default::default()).unwrap();
-
-    test.assert_no_errors(&parser);
-    assert_node!(parser.tree, ty, TypeExpression::Tuple { form, elements } => {
-        assert_eq!(*form, TupleForm::Array);
-        assert!(elements.is_empty());
-    });
+fn test_reject_bracket_tuple_type() {
+    assert_rejects_bracket_tuple_type("[string, int32]");
+    assert_rejects_bracket_tuple_type("[string,]");
+    assert_rejects_bracket_tuple_type("[start: number, end: number]");
+    assert_rejects_bracket_tuple_type("[]");
 }
 
 #[test]

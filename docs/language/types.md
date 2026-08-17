@@ -464,14 +464,14 @@ TypeScript visibility modifiers are fully supported, but the `#field` private sy
 
 Destack supports richer sequence forms beyond TypeScript's dynamic arrays - `T[]` / `Array<T>` with explicit slices, fixed arrays, and tuples.
 Unfortunately, not much syntax was left here, so we had to adopt the slightly non-TS-y syntax forms of `[T]` and `[T; N]` for slices and fixed arrays, respectively.
-Tuples use the native TS++ form `(A, B)` or the TypeScript-compatible array form `[A, B]`.
+Tuples use the parenthesized form `(A, B)`, and brackets stay reserved for slices and fixed arrays.
 
 | Forms | Representation | Meaning |
 |------|----------------|---------|
 | `T[]`, `Array<T>` | Collection class | Growable, homogeneous, dense sequence with capacity |
 | `[T]`, `Slice<T>` | Slice header | Pointer plus length, no capacity |
 | `[T; N]`, `FixedArray<T, N>` | Inline array | Exactly `N` elements stored in the value |
-| `(A, B)`, `[A, B]` | Inline product | Heterogeneous sequence of owned values |
+| `(A, B)` | Inline product | Heterogeneous sequence of owned values |
 
 Dynamic arrays are just class, regular managed objects with identity, while slices, fixed arrays, and tuples are value types (`struct`s, basically).
 However, Destack does not permit holes in arrays or any other sequences, and indexing into `T[]` therefore always returns `T`.
@@ -518,24 +518,19 @@ match (bytes) {
 ```
 
 Tuples are fixed heterogeneous products, and of course also work as patterns.
-The formatter preserves whether a type used the parenthesized or array form.
-Because `[T]` is a slice, a singleton array-form tuple requires its trailing comma: `[T,]`.
 
 ```ds
 const point: (int32, int32) = (1, 2);
 const (x, _) = getPoint();
 ```
 
-One-element tuples use a trailing comma, and empty tuples are `()` or `[]` according to their form.
+One-element tuples use a trailing comma, and the empty tuple is `()`.
 Since tuples are also just value containers, empty tuples occupy no space.
 
 ```ds
 type One = (int32,);
 const one: One = (1,);
 const empty: () = ();
-
-type ArrayOne = [int32,];
-type ArrayEmpty = [];
 ```
 
 ## Readonly

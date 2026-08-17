@@ -40,6 +40,7 @@ const PARSER_DIAGNOSTICS: &[DiagnosticDefinition] = &[
     ParserDiagnostic::Expected(NodeType::AssignPatternField).definition(),
     ParserDiagnostic::Expected(NodeType::Decorator).definition(),
     ParserDiagnostic::Expected(NodeType::SwitchCase).definition(),
+    ParserDiagnostic::BracketTupleType.definition(),
     ParserDiagnostic::InvalidAssignmentTarget.definition(),
     ParserDiagnostic::InvalidDocumentationOwner.definition(),
     ParserDiagnostic::MissingDocumentationTarget.definition(),
@@ -57,6 +58,8 @@ enum ParserDiagnostic {
     ExpectedToken,
     /// One required grammar node.
     Expected(NodeType),
+    /// A tuple type written with brackets.
+    BracketTupleType,
     /// An expression that cannot be assigned to.
     InvalidAssignmentTarget,
     /// Documentation that cannot attach to its authored owner.
@@ -141,6 +144,7 @@ impl ParserDiagnostic {
             Self::Expected(NodeType::SwitchCase) => {
                 ("expected-switch-case", "Expected a switch case.")
             }
+            Self::BracketTupleType => ("bracket-tuple-type", "Tuple type written with brackets."),
             Self::InvalidAssignmentTarget => {
                 ("invalid-assignment-target", "Invalid assignment target.")
             }
@@ -188,6 +192,8 @@ pub enum ParserErrorKind {
     Unexpected,
     /// The source location requires one token.
     Expected(TokenType),
+    /// The source type is a tuple written with brackets.
+    BracketTupleType,
     /// The source expression is not an assignment target.
     InvalidAssignmentTarget,
     /// Documentation that cannot attach to its authored owner.
@@ -288,6 +294,16 @@ impl ParserError {
         }
     }
 
+    /// Create a bracketed tuple type error.
+    pub fn bracket_tuple_type(range: ByteRange) -> Self {
+        Self {
+            range,
+            actual: None,
+            kind: ParserErrorKind::BracketTupleType,
+            expected_node: None,
+        }
+    }
+
     /// Create an invalid assignment target error.
     pub fn invalid_assignment_target(range: ByteRange) -> Self {
         Self {
@@ -328,6 +344,7 @@ impl ParserError {
         match self.kind {
             ParserErrorKind::Expected(expected) => Some(expected),
             ParserErrorKind::Unexpected
+            | ParserErrorKind::BracketTupleType
             | ParserErrorKind::InvalidAssignmentTarget
             | ParserErrorKind::InvalidDocumentationOwner
             | ParserErrorKind::MissingDocumentationTarget
@@ -376,6 +393,7 @@ impl ParserError {
     /// Return the diagnostic for this parser error.
     fn diagnostic(&self) -> ParserDiagnostic {
         match (self.kind, self.expected_node, self.actual) {
+            (ParserErrorKind::BracketTupleType, _, _) => ParserDiagnostic::BracketTupleType,
             (ParserErrorKind::InvalidAssignmentTarget, _, _) => {
                 ParserDiagnostic::InvalidAssignmentTarget
             }
@@ -429,6 +447,11 @@ impl ParserError {
                 };
 
                 (message, label)
+            }
+            ParserErrorKind::BracketTupleType => {
+                let message = "tuple types are written (A, B)".to_string();
+
+                (message.clone(), message)
             }
             ParserErrorKind::InvalidAssignmentTarget => {
                 let message = "invalid assignment target".to_string();

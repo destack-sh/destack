@@ -234,20 +234,14 @@ fn test_format_type_const_generic_parameter() {
     );
 }
 
-/// Array tuples should remain distinct from slices and fixed arrays.
+/// Slices and fixed arrays should keep their bracket spelling.
 #[test]
-fn test_format_array_tuple_types() {
+fn test_format_slice_and_fixed_array_types() {
     assert_format_program!(
-        r#"type Pair = [string,int32]
-type Singleton = [string,]
-type Empty = []
-type Slice = [string]
+        r#"type Slice = [string]
 type Fixed = [string;5]
 "#,
-        r#"type Pair = [string, int32];
-type Singleton = [string,];
-type Empty = [];
-type Slice = [string];
+        r#"type Slice = [string];
 type Fixed = [string; 5];
 "#,
         FileType::Destack

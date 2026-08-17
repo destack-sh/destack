@@ -151,7 +151,6 @@ module.exports = grammar(JavaScript, {
       [$.rest_pattern, $._try_propagation_argument],
       [$._try_propagation_argument, $.primary_type],
       [$.pattern, $._try_propagation_argument, $.primary_type],
-      [$._try_propagation_argument, $.optional_tuple_parameter, $.primary_type],
       [$._try_propagation_argument, $.type_query],
       [$.rest_pattern, $._try_propagation_argument, $.primary_type],
       [$._destructuring_pattern, $._let_else_pattern],
@@ -167,11 +166,7 @@ module.exports = grammar(JavaScript, {
       [$.primary_expression, $._property_name, $.placement_type],
       [$.object_pattern, $.object_type],
 
-      [$.array, $.tuple_type],
-      [$.array, $.array_pattern, $.tuple_type],
-      [$.array_pattern, $.tuple_type],
       [$.tuple_expression, $.tuple_type],
-      [$.optional_tuple_parameter, $.primary_type],
       [$.template_literal_type, $.template_string],
       [$.primary_expression, $.struct_literal_expression],
       [$.struct_literal_expression, $._extends_clause_single],
@@ -1992,29 +1987,11 @@ module.exports = grammar(JavaScript, {
       $.readonly_type,
     ),
 
-    tuple_parameter: $ => seq(
-      field('name', choice($.identifier, $.rest_pattern)),
-      field('type', $.type_annotation),
-    ),
-
-    optional_tuple_parameter: $ => prec.dynamic(1, seq(
-      field('name', $.identifier),
-      token.immediate('?'),
-      field('type', $.type_annotation),
-    )),
-
     optional_type: $ => prec.right(seq($.primary_type, token.immediate('?'))),
     rest_type: $ => prec(1, seq('...', $.type)),
     negated_type: $ => prec.right('unary', seq('!', field('type', $.type))),
 
     _tuple_type_member: $ => choice(
-      alias($.tuple_parameter, $.required_parameter),
-      alias($.optional_tuple_parameter, $.optional_parameter),
-      $.type,
-      $.rest_type,
-    ),
-
-    _parenthesized_tuple_type_member: $ => choice(
       $.type,
       $.rest_type,
     ),
@@ -2533,15 +2510,10 @@ module.exports = grammar(JavaScript, {
     slice_type: $ => seq('[', $.type, ']'),
     fixed_array_type: $ => seq('[', $.type, ';', $._fixed_array_length, ']'),
     tuple_type: $ => choice(
-      seq('[', ']'),
-      seq('[', $._tuple_type_member, ',', optional(seq(
-        commaSep1($._tuple_type_member),
-        optional(','),
-      )), ']'),
       seq('(', ')'),
       seq('(', $.rest_type, ')'),
-      seq('(', $._parenthesized_tuple_type_member, ',', ')'),
-      seq('(', $._parenthesized_tuple_type_member, ',', commaSep1($._parenthesized_tuple_type_member), optional(','), ')'),
+      seq('(', $._tuple_type_member, ',', ')'),
+      seq('(', $._tuple_type_member, ',', commaSep1($._tuple_type_member), optional(','), ')'),
     ),
     readonly_type: $ => seq(
       'readonly',

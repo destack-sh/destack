@@ -1,5 +1,5 @@
 use crate::parse::context::{ExpressionContext, TypeContext, TypeMode, TypeStops};
-use crate::{ParseStart, Parser, ParserResult};
+use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_dir::{
     Expression, InferForm, Keyword, LocalNodeId, NodeType, TokenType, TupleElement, TupleForm,
     TypeExpression,
@@ -114,7 +114,7 @@ impl Parser {
         context.mode != TypeMode::ArrowReturn || self.peek_parenthesized_parameter_list()
     }
 
-    /// Parse one array tuple, slice, or fixed-array type.
+    /// Parse one slice, fixed-array, or repeated Pattern placeholder type.
     pub(super) fn parse_bracket_type(
         &mut self,
         start: &ParseStart,
@@ -122,16 +122,18 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenBracket)?;
 
-        // empty array tuple
-        if self.peek_is(TokenType::CloseBracket) {
-            return self.finish_tuple_type(start, Vec::new(), TupleForm::Array);
-        }
-
-        // labeled or spread array tuple
-        if self.peek_type_tuple() {
+        // repeated Pattern placeholder
+        if self.peek_repeated_pattern_marker() {
             let elements = self.parse_type_tuple_elements(context, TokenType::CloseBracket)?;
 
             return self.finish_tuple_type(start, elements, TupleForm::Array);
+        }
+
+        // empty, labeled, or spread bracket tuple
+        if self.peek_is(TokenType::CloseBracket) || self.peek_type_tuple() {
+            let elements = self.parse_type_tuple_elements(context, TokenType::CloseBracket)?;
+
+            return self.reject_bracket_tuple_type(start, elements);
         }
 
         // element type
@@ -143,20 +145,41 @@ impl Parser {
             return self.parse_fixed_array_type(start, element, context);
         }
 
-        // comma distinguishes an exact array tuple from a slice
+        // comma or optional marker opens a bracket tuple
         if self.peek_is(TokenType::Comma)
             || self.peek_optional_tuple_element(TokenType::CloseBracket)
         {
             let elements =
                 self.parse_type_tuple_tail(start, element, context, TokenType::CloseBracket)?;
 
-            return self.finish_tuple_type(start, elements, TupleForm::Array);
+            return self.reject_bracket_tuple_type(start, elements);
         }
 
         // slice close
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 
         Ok(self.insert_node(TypeExpression::Slice { element }, self.range_since(start)))
+    }
+
+    /// Close and reject one tuple type written with brackets.
+    fn reject_bracket_tuple_type(
+        &mut self,
+        start: &ParseStart,
+        elements: Vec<LocalNodeId<TupleElement>>,
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+        self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
+
+        // report the tuple over its whole bracket group
+        let range = self.range_since(start);
+        self.report_error(ParserError::bracket_tuple_type(range));
+
+        Ok(self.insert_node(
+            TypeExpression::Tuple {
+                form: TupleForm::Array,
+                elements,
+            },
+            range,
+        ))
     }
 
     /// Parse one fixed-array type after its element.

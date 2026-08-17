@@ -106,16 +106,13 @@ Tuple types
 :language(destack)
 ==================================
 
-type t = []
-type t = [A,]
-type t = [A|B, C]
-type t = readonly [A[], B.C]
+type t = ()
+type t = (A,)
+type t = (A|B, C)
+type t = readonly (A[], B.C)
 
 // special optional and rest type syntax
-type t = [string?, ...B]
-
-// labeled elements
-type t = [a: A, b?: B, ...c: C[]]
+type t = (string?, ...B)
 
 ---
 
@@ -150,25 +147,7 @@ type t = [a: A, b?: B, ...c: C[]]
       (optional_type
         (predefined_type))
       (rest_type
-        (type_identifier))))
-  (comment)
-  (type_alias_declaration
-    (type_identifier)
-    (tuple_type
-      (required_parameter
-        (identifier)
-        (type_annotation
-          (type_identifier)))
-      (optional_parameter
-        (identifier)
-        (type_annotation
-          (type_identifier)))
-      (required_parameter
-        (rest_pattern
-          (identifier))
-        (type_annotation
-          (array_type
-            (type_identifier)))))))
+        (type_identifier)))))
 
 =======================================
 Static conditional array lengths

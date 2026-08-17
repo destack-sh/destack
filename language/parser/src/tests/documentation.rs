@@ -455,12 +455,12 @@ fn test_attach_documentation_to_type_slots() {
     let test = TestParser::new(
         r#"
 /// Pair values.
-type Pair = [
+type Pair = (
     /// Left value.
     string,
     /// Right value.
     boolean,
-]
+)
 "#,
     );
     let (parser, roots) = test.parse();
