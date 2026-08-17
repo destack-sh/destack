@@ -563,10 +563,7 @@ impl Parser {
             );
         }
 
-        // non property patterns are retained for TS++ object patterns
-        let pattern_field = self.parse_positional_pattern_field(context)?;
-
-        Ok((pattern_field, None))
+        Err(ParserError::unexpected(self.peek_token_span()))
     }
 
     /// Parse a tuple or array pattern field.
@@ -764,8 +761,10 @@ impl Parser {
         context: PatternContext,
     ) -> ParserResult<Option<LocalNodeId<Pattern>>> {
         let identifier = match name {
-            Name::Identifier(name) | Name::String(name) => name,
-            Name::Index(_) => return Err(ParserError::unexpected(name_range)),
+            Name::Identifier(name) => name,
+            Name::String(_) | Name::Index(_) => {
+                return Err(ParserError::unexpected(name_range));
+            }
         };
 
         let binding_pattern = self.insert_node(

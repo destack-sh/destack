@@ -889,22 +889,6 @@ fn test_parse_pattern_struct_string_name_aliases() {
 }
 
 #[test]
-fn test_parse_pattern_struct_numeric_literal_field() {
-    let test = TestParser::new("{ 5 }");
-    let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
-
-    assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
-        assert_eq!(fields.len(), 1);
-        assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
-            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(5)));
-            });
-        });
-    });
-}
-
-#[test]
 fn test_parse_pattern_struct_computed_field() {
     let test = TestParser::new("{ [key]: value }");
     let mut parser = test.prepare();
