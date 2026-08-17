@@ -473,11 +473,11 @@ impl CheckState<'_> {
                 }
                 _ => Ok(None),
             },
+            dir::PatternDecision::Must(resolution) => Ok(Some(resolution.ty)),
             dir::PatternDecision::Bind(dir::PatternBindingResolution {
                 pattern: Some(inner),
                 ..
             })
-            | dir::PatternDecision::Must(dir::PatternMustResolution { pattern: inner })
             | dir::PatternDecision::Default(dir::PatternDefaultResolution {
                 pattern: inner, ..
             }) => self.pattern_node_predicate_target(origin, *inner),

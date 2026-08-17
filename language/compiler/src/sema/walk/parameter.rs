@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::sema::{CauseKind, GenericParameterId, GenericTemplateId, ValueUse, WalkState};
+use crate::sema::{CauseKind, GenericParameterId, GenericTemplateId, Origin, ValueUse, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -199,11 +199,17 @@ impl WalkState<'_, '_> {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     if let Some(parameter_type) = parameter_type {
+                        // check the default against the narrowed body binding
+                        let origin = Origin::Node(
+                            id.into_global_any(self.module),
+                            self.flow().template_scope(),
+                        );
+                        let target = self.defaulted_value_type(origin, parameter_type)?;
                         let annotation =
                             declared_type.map(|annotation| annotation.into_global_any(self.module));
                         self.check_assignable(
                             default,
-                            parameter_type,
+                            target,
                             CauseKind::Initializer { annotation },
                             ValueUse::Store,
                         )?;

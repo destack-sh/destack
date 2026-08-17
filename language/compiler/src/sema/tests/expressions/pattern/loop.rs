@@ -31,8 +31,11 @@ declare const items: { name: string; value: int32 }[];
 /// @resolution.pattern source=items kind=binding target=items
 /// @generic.instance id="Array<{ name: string; value: int32 }>" template=collections.array.Array arguments=({ name: string; value: int32 })
 /// @generic.instance id="memory.init.MaybeUninit<{ name: string; value: int32 }>" template=memory.init.MaybeUninit arguments=({ name: string; value: int32 })
+/// @generic.instance id="memory.raw.dangling<memory.init.MaybeUninit<{ name: string; value: int32 }>>" template=memory.raw.dangling arguments=(memory.init.MaybeUninit<{ name: string; value: int32 }>)
 /// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<{ name: string; value: int32 }>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<{ name: string; value: int32 }>>)
 /// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<{ name: string; value: int32 }>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<{ name: string; value: int32 }>)
+/// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<{ name: string; value: int32 }>>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<{ name: string; value: int32 }>)
+/// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<{ name: string; value: int32 }>>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<{ name: string; value: int32 }>)
 
 for (const { name, value } of items) {
 /// @resolution.pattern source={ name, value } kind=object fields={ name, value }

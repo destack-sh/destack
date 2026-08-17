@@ -483,6 +483,9 @@ impl TestSession {
         let mut formatted = formatted;
         for rows in [&layouts, &dispatch] {
             if !rows.is_empty() {
+                if !formatted.ends_with('\n') {
+                    formatted.push('\n');
+                }
                 formatted.push('\n');
                 formatted.push_str(rows);
             }

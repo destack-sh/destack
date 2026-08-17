@@ -614,4 +614,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         self.normalized_union_type([ty, undefined])
     }
+
+    /// Return a defaulted value type with `undefined` removed.
+    pub(in crate::sema) fn defaulted_value_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.check
+            .without_union_members(origin, ty, |member| matches!(member, dir::Type::Undefined))
+    }
 }

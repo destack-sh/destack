@@ -214,13 +214,18 @@ impl WalkState<'_, '_> {
                 )?;
             }
 
-            // check the written default against the declared type
+            // check the written default against the narrowed body binding
             if let Some(default) = node.default_value() {
+                let origin = Origin::Node(
+                    parameter.into_global_any(self.module),
+                    self.flow().template_scope(),
+                );
+                let target = self.defaulted_value_type(origin, declared.ty)?;
                 let before_default = self.fork_flow();
                 self.walk_expression(default, self.tree.get(default))?;
                 self.check_assignable(
                     default,
-                    declared.ty,
+                    target,
                     CauseKind::Initializer {
                         annotation: node
                             .declared_type()

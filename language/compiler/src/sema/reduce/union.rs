@@ -38,6 +38,32 @@ impl NullishPart {
 }
 
 impl CheckState<'_> {
+    /// Rebuild one union without the members a rejecting position strips.
+    pub(in crate::sema) fn without_union_members(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        rejects: impl Fn(&dir::Type) -> bool,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // resolve named heads before matching the rejected members
+        let resolved = self.structurally_normalize(origin, ty)?;
+        let mut kept = Vec::new();
+        match self.ty(resolved)? {
+            dir::Type::Union(union) => {
+                let elements = self.type_ids(resolved.module_id, union.elements)?.to_vec();
+                for element in elements {
+                    if !rejects(&self.ty(element)?) {
+                        kept.push(element);
+                    }
+                }
+            }
+            member if rejects(&member) => {}
+            _ => return Ok(ty),
+        }
+
+        self.normalized_union_type(kept)
+    }
+
     /// Return a normalized union type.
     pub(in crate::sema) fn normalized_union_type(
         &mut self,

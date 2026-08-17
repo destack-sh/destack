@@ -714,13 +714,26 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
         self.commit_node_type(id, ty)?;
 
+        // strip undefined from a defaulted parameter's body binding
+        let binding = match self.tree.get(id).default_value() {
+            Some(_) => {
+                let origin = Origin::Node(
+                    id.into_global_any(self.module),
+                    self.flow().template_scope(),
+                );
+
+                self.defaulted_value_type(origin, ty)?
+            }
+            None => ty,
+        };
+
         // bind named parameters through the same path as their node type
         if let Some(symbol) = self
             .check
             .module(self.module)
             .declaration_symbol(id.into_any())
         {
-            self.bind_symbol_type(symbol, ty)?;
+            self.bind_symbol_type(symbol, binding)?;
         }
 
         Ok(Some(ty))

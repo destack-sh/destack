@@ -234,10 +234,20 @@ impl BodyState<'_, '_> {
             dir::Pattern::Must(pattern) => {
                 let pattern = *pattern;
 
+                // flow the present input into the nested pattern
+                let present = self.required_pattern_type(origin, input)?;
+                self.check_pattern_projection(
+                    flow,
+                    scope,
+                    present,
+                    pattern.into_global_any(module),
+                )?;
+
                 self.commit_pattern(
                     node,
                     dir::PatternDecision::Must(dir::PatternMustResolution {
                         pattern: pattern.into_global_any(module),
+                        ty: present,
                     }),
                 )
             }
@@ -880,5 +890,16 @@ impl BodyState<'_, '_> {
         let ty = self.normalized_union_type(kept)?;
 
         Ok(ty)
+    }
+
+    /// Return the non-nullish type one required pattern accepts.
+    pub(in crate::sema) fn required_pattern_type(
+        &mut self,
+        origin: Origin,
+        input: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.check.without_union_members(origin, input, |member| {
+            matches!(member, dir::Type::Null | dir::Type::Undefined)
+        })
     }
 }
