@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::Range;
 
-use destack_heap::{HeapEdge, HeapReference, Payload, SharedHeapReference};
+use destack_heap::{DropCardinality, HeapEdge, HeapReference, Payload, SharedHeapReference};
 use destack_memory::MemoryMap;
 use destack_mir::Space;
 use destack_native as native;
@@ -84,6 +84,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     const RUNTIME: abi::Runtime = abi::Runtime {
         allocate: Self::allocate,
         allocate_repeated: Self::allocate_repeated,
+        drop: Self::drop,
         free: Self::free,
         pin: Self::pin,
         unpin: Self::unpin,
@@ -394,15 +395,74 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         }
     }
 
-    /// Release one unique heap object.
-    unsafe extern "C-unwind" fn free(
+    /// Destroy one erased unique value.
+    unsafe extern "C-unwind" fn drop(
         activation: *mut abi::Activation,
-        space: abi::Space,
-        value: usize,
+        owner: usize,
+        frame_map: u32,
+        marker: *const u8,
     ) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
-        let edge = Self::edge(space, value);
+
+        // resolve the allocation's single-value drop plan
+        let edge = match call.activation.memory.edge(owner) {
+            Ok(Some(edge)) => edge,
+            Ok(None) => return,
+            Err(error) => call.fail(error),
+        };
+        let plan = match call.activation.memory.drop_plan(edge) {
+            Ok(Some(plan)) => plan,
+            Ok(None) => return,
+            Err(error) => call.fail(error),
+        };
+        if plan.cardinality != DropCardinality::One {
+            call.fail(RuntimeError::Internal {
+                message: "explicit native Drop selected a repeated allocation".to_string(),
+            });
+        }
+
+        // select the placement-specific generated destructor
+        let Some(entry) = call.program.drop_entry(plan.drop) else {
+            call.fail(RuntimeError::Internal {
+                message: format!("drop {} is undefined", plan.drop.index()),
+            });
+        };
+        let function = match edge {
+            HeapEdge::Local(_) => entry.local.get(),
+            HeapEdge::Shared(_) => entry.shared.get(),
+        };
+        let Some(function) = function else {
+            call.fail(RuntimeError::Internal {
+                message: format!("drop {} has no heap destructor", plan.drop.index()),
+            });
+        };
+        let function = call
+            .functions
+            .get(function.index())
+            .and_then(Option::as_ref);
+
+        // continue this operation in bytecode when its destructor is not installed
+        let Some(function) = function else {
+            // SAFETY: generated code supplies this operation's exact reconstruction point
+            unsafe { Self::deopt(activation, frame_map, marker) }
+        };
+
+        let arguments = [program::Word::from_bits(owner as u64)];
+        let mut result = [];
+        // SAFETY: the selected canonical entry uses this activation and Word ABI
+        function.call(unsafe { &mut *activation }, &arguments, &mut result);
+    }
+
+    /// Release one unique heap object.
+    unsafe extern "C-unwind" fn free(activation: *mut abi::Activation, owner: usize) {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let edge = match call.activation.memory.edge(owner) {
+            Ok(Some(edge)) => edge,
+            Ok(None) => return,
+            Err(error) => call.fail(error),
+        };
 
         if let Err(error) = call.activation.memory.free(edge) {
             call.fail(error);
@@ -905,6 +965,11 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     /// Return the repeated allocation operation.
     pub const fn allocate_repeated_entry() -> abi::AllocateRepeated {
         Self::allocate_repeated
+    }
+
+    /// Return the erased destruction operation.
+    pub const fn drop_entry() -> abi::Drop {
+        Self::drop
     }
 
     /// Return the unique release operation.
