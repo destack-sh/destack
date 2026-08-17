@@ -51,9 +51,11 @@ impl ModulePass for EliminateInterproceduralDeadCode {
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let accesses = &mut optimized.accesses;
+        let drops = &mut optimized.drops;
 
         // run the cleanup pass
-        let changed = run_interprocedural_dce_cleanup(tree, accesses, ctx.program_analysis());
+        let changed =
+            run_interprocedural_dce_cleanup(tree, accesses, drops, ctx.program_analysis());
 
         // report what this pass changed
         if changed {
@@ -69,11 +71,12 @@ impl ModulePass for EliminateInterproceduralDeadCode {
 fn run_interprocedural_dce_cleanup(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    drops: &mut mir::DropTable,
     program: &ProgramAnalysis,
 ) -> bool {
     let mut changed = false;
 
-    if run_eliminate_dead_functions(tree, accesses, program) {
+    if run_eliminate_dead_functions(tree, accesses, drops, program) {
         changed = true;
     }
 

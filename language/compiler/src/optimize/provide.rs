@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirAnalyzed, MirElaborated, MirOptimized,
-    ProgramAnalysis,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirAnalyzed, MirElaborated, MirLowered,
+    MirOptimized, ProgramAnalysis,
 };
 use destack_mir as mir;
 use destack_mir::AnalysisOptions;
@@ -27,6 +27,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require(ArtifactKey::mir_lowered(module, profile, target));
         dependencies.require(ArtifactKey::mir_elaborated(module, profile, target));
 
         // resolve the optimization program scope
@@ -88,18 +89,20 @@ impl Compiler {
 
         // load provider inputs
         let artifacts = self.artifact_reader(context);
+        let lowered = artifacts
+            .read::<MirLowered>((module, profile, *target))
+            .map_err(CompilerError::from)?;
         let elaborated = artifacts
             .read::<MirElaborated>((module, profile, *target))
             .map_err(CompilerError::from)?;
         let mut optimized = MirOptimized {
             tree: elaborated.tree.clone(),
-            target: elaborated.target,
             layouts: elaborated.layouts.clone(),
-            dispatch: elaborated.dispatch.clone(),
+            dispatch: lowered.dispatch.clone(),
             drops: elaborated.drops.clone(),
-            accesses: elaborated.accesses.clone(),
+            accesses: lowered.accesses.clone(),
             effects: elaborated.effects.clone(),
-            profile: elaborated.profile.clone(),
+            profile: lowered.profile.clone(),
         };
 
         // load analysis for the optimization program scope
@@ -116,7 +119,7 @@ impl Compiler {
         let strings = self.repository.string_pool().clone();
 
         // resolve pipeline options
-        let options = Self::pipeline_options(elaborated.target, level);
+        let options = Self::pipeline_options(lowered.target, level);
 
         // run the pipeline
         let mut pipeline_context = PipelineContext::new(

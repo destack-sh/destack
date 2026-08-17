@@ -89,6 +89,8 @@ fn assert_parseable_mir_text(source: &str) {
 pub(crate) struct TestProgram {
     /// The optimized MIR artifact under test.
     pub(crate) optimized: MirOptimized,
+    /// Target ABI layout.
+    target: mir::TargetLayout,
     /// String pool for identifiers (immutable, from parser).
     strings: StringPool,
     /// Thread safe string pool for optimization context.
@@ -142,7 +144,6 @@ impl TestProgram {
         Self {
             optimized: MirOptimized {
                 tree,
-                target,
                 layouts,
                 dispatch,
                 drops,
@@ -150,6 +151,7 @@ impl TestProgram {
                 effects,
                 profile,
             },
+            target,
             strings,
             strings_pool,
             errors: Vec::new(),
@@ -649,6 +651,7 @@ impl TestProgram {
             &self.optimized.tree,
             &self.optimized.effects,
             &self.optimized.dispatch,
+            &self.optimized.drops,
         );
         let roots: Vec<_> = links
             .nodes()
@@ -732,7 +735,7 @@ impl TestProgram {
         let strings = self.strings_pool.clone();
         mir::Formatter::new(
             &self.optimized.tree,
-            self.optimized.target,
+            self.target,
             &strings,
             mir::FormatOptions::default(),
         )
