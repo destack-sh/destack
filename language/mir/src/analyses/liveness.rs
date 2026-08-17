@@ -5,7 +5,10 @@ use std::cmp::Reverse;
 use destack_core::BitSet;
 
 use super::{Analysis, FunctionCache, Mutation};
-use crate::{Block, Function, Instruction, Local, LocalNodeId, NodeTable, Tree, Value};
+use crate::{
+    Block, Function, Instruction, Local, LocalNodeId, NodeTable, PlaceOrigin, PlaceTable, Tree,
+    Value,
+};
 
 /// Liveness for one MIR function.
 #[derive(Debug, Clone, Default)]
@@ -647,6 +650,19 @@ impl LiveSet<'_> {
         self.local_ids
             .binary_search_by_key(&local.get(), |candidate| candidate.get())
             .is_ok_and(|index| self.locals.contains(index))
+    }
+
+    /// Return one live carrier for a canonical place origin.
+    pub fn find_carrier(&self, origin: PlaceOrigin, places: &PlaceTable) -> Option<PlaceOrigin> {
+        match origin {
+            PlaceOrigin::Local(local) => self.contains_local(local).then_some(origin),
+            PlaceOrigin::Global(_) => Some(origin),
+            PlaceOrigin::Value(_) => self
+                .values()
+                .filter(|value| places.get(*value).origin == origin)
+                .min_by_key(|value| value.id())
+                .map(PlaceOrigin::Value),
+        }
     }
 
     /// Advance past one instruction.

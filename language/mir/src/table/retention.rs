@@ -1,42 +1,42 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Block, Instruction, LocalNodeId, MovePathId, PlaceOrigin};
+use crate::{Block, Instruction, LocalNodeId, MovePathId};
 
 /// Ownership retention at verified MIR program points.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
 pub struct RetentionTable {
-    /// Flattened retention entries.
-    entries: Vec<Retention>,
-    /// Retention live at block entries.
+    /// Flattened retained move paths.
+    paths: Vec<MovePathId>,
+    /// Retained paths at block entries.
     blocks: Vec<RetentionPoint>,
-    /// Retention live after instructions.
+    /// Retained paths after instructions.
     instructions: Vec<RetentionPoint>,
 }
 
 impl RetentionTable {
-    /// Insert retention live at one block entry.
-    pub fn insert_block(&mut self, block: LocalNodeId<Block>, entries: Vec<Retention>) {
-        if let Some(point) = self.append(block.id, entries) {
+    /// Insert paths retained at one block entry.
+    pub fn insert_block(&mut self, block: LocalNodeId<Block>, paths: Vec<MovePathId>) {
+        if let Some(point) = self.append(block.id, paths) {
             self.blocks.push(point);
         }
     }
 
-    /// Insert retention live after one instruction.
+    /// Insert paths retained after one instruction.
     pub fn insert_instruction(
         &mut self,
         instruction: LocalNodeId<Instruction>,
-        entries: Vec<Retention>,
+        paths: Vec<MovePathId>,
     ) {
-        if let Some(point) = self.append(instruction.id, entries) {
+        if let Some(point) = self.append(instruction.id, paths) {
             self.instructions.push(point);
         }
     }
 
     /// Append another retention table.
     pub fn extend(&mut self, other: Self) {
-        let offset = self.entries.len() as u32;
-        self.entries.extend(other.entries);
+        let offset = self.paths.len() as u32;
+        self.paths.extend(other.paths);
 
         // append point ranges adjusted to the combined entry storage
         self.blocks.extend(
@@ -59,92 +59,61 @@ impl RetentionTable {
         self.instructions.sort_unstable_by_key(|point| point.node);
     }
 
-    /// Return retention live at one block entry.
-    pub fn block(&self, block: LocalNodeId<Block>) -> &[Retention] {
+    /// Return paths retained at one block entry.
+    pub fn block(&self, block: LocalNodeId<Block>) -> &[MovePathId] {
         self.get(block.id, &self.blocks)
     }
 
-    /// Return retention live after one instruction.
-    pub fn instruction(&self, instruction: LocalNodeId<Instruction>) -> &[Retention] {
+    /// Return paths retained after one instruction.
+    pub fn instruction(&self, instruction: LocalNodeId<Instruction>) -> &[MovePathId] {
         self.get(instruction.id, &self.instructions)
     }
 
     /// Append one point to flattened entry storage.
-    fn append(&mut self, node: u32, entries: Vec<Retention>) -> Option<RetentionPoint> {
-        if entries.is_empty() {
+    fn append(&mut self, node: u32, paths: Vec<MovePathId>) -> Option<RetentionPoint> {
+        if paths.is_empty() {
             return None;
         }
 
-        let start = self.entries.len() as u32;
-        let length = entries.len() as u32;
-        self.entries.extend(entries);
+        let start = self.paths.len() as u32;
+        let length = paths.len() as u32;
+        self.paths.extend(paths);
         Some(RetentionPoint {
             node,
-            range: RetentionRange { start, length },
+            start,
+            length,
         })
     }
 
-    /// Return retention for one sorted program point.
-    fn get(&self, node: u32, points: &[RetentionPoint]) -> &[Retention] {
+    /// Return retained paths for one sorted program point.
+    fn get(&self, node: u32, points: &[RetentionPoint]) -> &[MovePathId] {
         let Ok(index) = points.binary_search_by_key(&node, |point| point.node) else {
             return &[];
         };
-        let range = points[index].range;
-        let start = range.start as usize;
-        let end = start + range.length as usize;
+        let point = points[index];
+        let start = point.start as usize;
+        let end = start + point.length as usize;
 
-        &self.entries[start..end]
+        &self.paths[start..end]
     }
 }
 
-/// One carrier keeping borrowed storage alive.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct Retention {
-    /// The lifetime carrier for the borrow.
-    pub carrier: RetentionCarrier,
-    /// The move-only path kept initialized by the borrow.
-    pub owner: MovePathId,
-}
-
-impl Retention {
-    /// Create one retention entry.
-    pub fn new(carrier: RetentionCarrier, owner: MovePathId) -> Self {
-        Self { carrier, owner }
-    }
-}
-
-/// One carrier keeping a borrowed owner alive.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum RetentionCarrier {
-    /// A live value or storage place.
-    Place(PlaceOrigin),
-    /// The current function frame.
-    Frame,
-}
-
-/// Retention range for one MIR program point.
+/// Retained path range for one MIR program point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 struct RetentionPoint {
     /// The local MIR node identifier.
     node: u32,
-    /// The retention live at this point.
-    range: RetentionRange,
+    /// The first retained path.
+    start: u32,
+    /// The number of retained paths.
+    length: u32,
 }
 
 impl RetentionPoint {
     /// Shift this point into appended entry storage.
     fn with_offset(mut self, offset: u32) -> Self {
-        self.range.start += offset;
+        self.start += offset;
 
         self
     }
-}
-
-/// One range in flattened retention storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-struct RetentionRange {
-    /// The first entry index.
-    start: u32,
-    /// The number of entries.
-    length: u32,
 }
