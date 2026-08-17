@@ -1,5 +1,6 @@
 mod artifact;
 mod command;
+mod doc;
 mod edit;
 mod format;
 mod harness;

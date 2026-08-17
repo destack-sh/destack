@@ -305,7 +305,7 @@ impl Workspace {
             let common = request.command_options();
 
             self.run_command(&common, request.revision, progress, move |context| {
-                Box::pin(async move { context.run_doc_command(&DocOptions::default()) })
+                Box::pin(async move { context.run_doc_command(&DocOptions::default()).await })
             })
             .await
         })

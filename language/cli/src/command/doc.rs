@@ -1,11 +1,12 @@
 use clap::Args;
-use destack_workspace::{CommandRevision, DocInput};
+use destack_workspace::{CommandRevision, DocInput, DocPayload};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, ProgramArgs, ReportArgs, command_error,
-    ensure_no_watch_or_dev, finish_workspace_message_command, report_error,
-    run_workspace_command_or_report,
+    ensure_no_watch_or_dev, report_error, report_from_payload,
+    run_workspace_payload_command_or_report,
 };
+use crate::console;
 
 /// Arguments for the doc command.
 #[derive(Args, Debug, Clone)]
@@ -27,15 +28,14 @@ pub async fn run(args: &DocArgs) -> i32 {
 
     // build workspace command options
     let common = match CommandOptionsBuilder::new(&args.program) {
-        Ok(common) => common.build(),
+        Ok(common) => common.config_inputs(true).build(),
         Err(error) => return report_error("doc", &args.report, &error.to_string()),
     };
     let request = DocInput {
         ..(CommandRevision::Current, common).into()
     };
 
-    // execute the workspace command
-    let result = match run_workspace_command_or_report(
+    run_workspace_payload_command_or_report::<DocPayload, _, _, _>(
         "doc",
         &args.report,
         &args.program,
@@ -47,13 +47,24 @@ pub async fn run(args: &DocArgs) -> i32 {
 
             CommandResult::from_output(result)
         },
+        "documentation",
+        |exit_code, _, payload_value| {
+            report_from_payload("doc", exit_code, Some(payload_value), None, None)
+        },
+        |_, payload| {
+            let Some(reference) = payload.reference.as_ref() else {
+                return;
+            };
+            let export_count = reference
+                .modules
+                .iter()
+                .map(|module| module.exports.len())
+                .sum::<usize>();
+
+            console::info(&format!("package: {}", reference.package.name));
+            console::info(&format!("modules: {}", reference.modules.len()));
+            console::info(&format!("exports: {export_count}"));
+        },
     )
     .await
-    {
-        Ok(result) => result,
-        Err(code) => return code,
-    };
-
-    // emit command output based on the report format
-    finish_workspace_message_command("doc", &args.report, &result)
 }

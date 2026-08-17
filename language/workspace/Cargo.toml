@@ -17,6 +17,7 @@ destack_artifact = { workspace = true }
 destack_compiler = { workspace = true, default-features = false }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
+destack_doc = { workspace = true }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
 destack_json = { workspace = true }

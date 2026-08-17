@@ -27,6 +27,7 @@ members = [
 	"language/core",
 	"language/dir",
 	"language/dir/macros",
+	"language/doc",
 	"language/program",
 	"language/fir",
 	"language/formatter",
@@ -83,6 +84,7 @@ destack_compiler = { path = "language/compiler", default-features = false }
 destack_core = { path = "language/core" }
 destack_dir = { path = "language/dir" }
 destack_dir_macros = { path = "language/dir/macros" }
+destack_doc = { path = "language/doc" }
 destack_program = { path = "language/program" }
 destack_fir = { path = "language/fir" }
 destack_formatter = { path = "language/formatter" }
