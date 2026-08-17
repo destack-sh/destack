@@ -211,11 +211,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // compare the tag with a constant of its exact integer carrier
-        let Some(tag_type) = self.builder.value_type(tag) else {
-            return Err(CompilerError::Internal {
-                message: "a lowered discriminant tag has no type".to_string(),
-            });
-        };
+        let tag_type = self.value_carrier(tag)?;
         let mir::Type::Int { width, is_signed } = *self.builder.tree().get(tag_type) else {
             return Err(CompilerError::Internal {
                 message: "a lowered discriminant tag is not an integer".to_string(),
@@ -262,7 +258,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // leave standalone nullish values unmaterialized until they meet a reference
-        let mut carrier = operand.ty;
+        let mut carrier = self.lowerer.instance_type(self.instance, operand.ty)?;
         match self.node_type(expression)? {
             dir::Type::Null => return Ok(LoweredOperand::Null),
             dir::Type::Undefined => return Ok(LoweredOperand::Undefined),
@@ -310,11 +306,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // classify the operand by the carrier it lowered to
-        let Some(ty) = self.builder.value_type(value) else {
-            return Err(CompilerError::Internal {
-                message: "the lowered equality operand has no type".to_string(),
-            });
-        };
+        let ty = self.value_carrier(value)?;
         let ty = self.builder.tree().get(ty);
 
         // preserve aggregate carriers even when every case shares scalar behavior
@@ -653,11 +645,7 @@ impl FunctionLowerer<'_, '_, '_> {
         operand: LoweredOperand,
         address: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        let Some(carrier) = self.builder.value_type(address) else {
-            return Err(CompilerError::Internal {
-                message: "an untyped address in an equality comparison".to_string(),
-            });
-        };
+        let carrier = self.value_carrier(address)?;
         let constant = match operand {
             LoweredOperand::Null => mir::Constant::Null,
             LoweredOperand::Undefined => mir::Constant::Undefined,

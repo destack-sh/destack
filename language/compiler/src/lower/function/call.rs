@@ -90,33 +90,58 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
-        let values = self.lower_provided_arguments(resolution)?;
+        let parameters = self.function_parameters(function);
+        let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
         Ok(self.builder.call_function(function, values))
     }
 
-    /// Lower the provided arguments of one resolution in parameter order.
-    pub(in crate::lower) fn lower_provided_arguments(
-        &mut self,
-        resolution: &dir::Call,
-    ) -> CompilerResult<Vec<mir::Value>> {
-        self.lower_call_arguments(resolution, None)
+    /// Return the declared parameter carriers of one function.
+    pub(in crate::lower) fn function_parameters(
+        &self,
+        function: mir::FunctionId,
+    ) -> Vec<mir::TypeId> {
+        self.builder
+            .tree()
+            .get(function)
+            .parameters
+            .iter()
+            .map(|parameter| parameter.ty)
+            .collect()
     }
 
-    /// Lower one resolution's arguments, filling its write slot when one exists.
+    /// Return the parameter carriers of one callable signature.
+    pub(in crate::lower) fn signature_parameters(
+        &self,
+        signature: mir::TypeId,
+    ) -> CompilerResult<Vec<mir::TypeId>> {
+        match self.builder.tree().get(signature) {
+            mir::Type::FunctionSignature { parameters, .. } => {
+                Ok(parameters.iter().map(|parameter| parameter.ty).collect())
+            }
+            _ => Err(CompilerError::Internal {
+                message: "a call through a non-signature callable type".to_string(),
+            }),
+        }
+    }
+
+    /// Lower one argument list against its declared parameter carriers.
+    ///
+    /// An empty parameter list lowers the arguments without carrier adaptation.
     pub(in crate::lower) fn lower_call_arguments(
         &mut self,
-        resolution: &dir::Call,
+        arguments: &[dir::ArgumentBinding],
+        parameters: &[mir::TypeId],
         write: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<Vec<mir::Value>> {
-        let arguments = &resolution.arguments;
         let mut values = Vec::with_capacity(arguments.len());
-        for binding in arguments {
-            let source = match binding.source {
-                dir::ArgumentSource::Provided(source) => source,
-                // pass the undefined slot for omitted optional parameters
+        for (index, binding) in arguments.iter().enumerate() {
+            let parameter = parameters.get(index).copied();
+            let value = match binding.source {
+                dir::ArgumentSource::Provided(source) => self.lower_argument(source)?,
+                // store omission at the parameter carrier
                 dir::ArgumentSource::Omitted => {
-                    values.push(self.lower_omitted_argument(binding.parameter_type)?);
+                    values.push(self.lower_omitted_argument(binding.parameter_type, parameter)?);
 
                     continue;
                 }
@@ -128,22 +153,116 @@ impl FunctionLowerer<'_, '_, '_> {
                                 .to_string(),
                         });
                     };
-                    values.push(self.lower_expression(expression)?);
 
-                    continue;
+                    self.lower_expression(expression)?
                 }
-                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Rest(_) => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a static or rest argument".to_string(),
-                    }
-                    .into());
+                // materialize a static argument as its literal constant
+                dir::ArgumentSource::Static(argument) => {
+                    let dir::Type::Literal(literal) = self.lowerer.ty(argument)? else {
+                        return Err(LowerError::Unsupported {
+                            anchor: self.lowerer.module.into(),
+                            construct: "a non-literal static argument".to_string(),
+                        }
+                        .into());
+                    };
+                    let carrier = self.lower_type(argument)?;
+                    let carrier = self.builder.tree().get(carrier).clone();
+
+                    self.lower_constant(literal, carrier)?
+                }
+                // pack the trailing arguments into the rest collection
+                dir::ArgumentSource::Rest {
+                    ref elements,
+                    ref pack,
+                } => {
+                    let elements = elements.clone();
+                    let pack = pack.clone();
+
+                    self.lower_rest_pack(&elements, binding.argument_type, pack.as_ref())?
                 }
             };
-            values.push(self.lower_argument(source)?);
+
+            // adapt the value to its declared parameter carrier
+            match parameter {
+                Some(parameter) => values.push(self.adapt_to_carrier(value, parameter)?),
+                None => values.push(value),
+            }
         }
 
         Ok(values)
+    }
+
+    /// Pack the rest elements into their parameter's collection.
+    fn lower_rest_pack(
+        &mut self,
+        elements: &[dir::GlobalNodeIdAny],
+        element_type: dir::GlobalTypeId,
+        pack: Option<&dir::Selection>,
+    ) -> CompilerResult<mir::Value> {
+        // materialize the elements into fixed stack storage
+        let element = self.lower_type(element_type)?;
+        let mut values = Vec::with_capacity(elements.len());
+        for source in elements {
+            values.push(self.lower_argument(*source)?);
+        }
+        let storage = self.builder.tree_mut().intern_type(mir::Type::FixedArray {
+            element: mir::TypeId::from(element),
+            length: values.len() as u64,
+            copy: mir::Copy::No,
+        });
+        let aggregate = self.builder.aggregate(storage, values);
+        let slot = self.builder.local(storage, mir::Mutability::Immutable);
+        self.builder.local_set(slot, aggregate);
+
+        // view the storage as a borrowed slice of the elements
+        let address =
+            self.insert_reference(mir::ReferenceKind::Borrowed, mir::Access::Readonly, storage);
+        let address = self.builder.local_addr(slot, address);
+        let slice = self.builder.tree_mut().intern_type(mir::Type::Slice {
+            kind: mir::ReferenceKind::Borrowed,
+            lifetime: mir::Lifetime::empty(),
+            element: mir::TypeId::from(element),
+            storage: mir::Storage::Heap(mir::Space::Local),
+            access: mir::Access::Readonly,
+            nullability: mir::Nullability::None,
+        });
+        let start = self.builder.iconst(0, 64, false);
+        let length = self.builder.usize_const(elements.len() as u128);
+        let view = self.builder.slice_view(address, start, length, slice);
+
+        // slice parameters take the view; collections build through their pack
+        let Some(pack) = pack else {
+            return Ok(view);
+        };
+        let function = self.selection_function(pack)?;
+        let parameters = self.function_parameters(function);
+        let Some(parameter) = parameters.first() else {
+            return Err(CompilerError::Internal {
+                message: "a pack constructor without a declared slice slot".to_string(),
+            });
+        };
+        let view = self.adapt_to_carrier(view, *parameter)?;
+        let Some(packed) = self.builder.call_function(function, vec![view]) else {
+            return Err(CompilerError::Internal {
+                message: "a pack constructor call without a value".to_string(),
+            });
+        };
+
+        Ok(packed)
+    }
+
+    /// Lower one omitted argument at its parameter carrier.
+    fn lower_omitted_argument(
+        &mut self,
+        ty: dir::GlobalTypeId,
+        parameter: Option<mir::TypeId>,
+    ) -> CompilerResult<mir::Value> {
+        let carrier = match parameter {
+            Some(parameter) => parameter,
+            None => self.lower_type(ty)?,
+        };
+
+        Ok(self.absent_argument_value(carrier))
     }
 
     /// Lower one call to a declared or imported function.
@@ -154,7 +273,8 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         // resolve the declared function behind the symbol
         let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
-        let values = self.lower_provided_arguments(resolution)?;
+        let parameters = self.function_parameters(function);
+        let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
         Ok(self.builder.call_function(function, values))
     }
@@ -204,16 +324,17 @@ impl FunctionLowerer<'_, '_, '_> {
         let receiver = self.lower_adjusted_receiver(receiver, adjusted)?;
 
         // resolve the declared function behind the selected method instance
-        let bindings = self
-            .lowerer
-            .instance_bindings(&function.selection.arguments, self.instance)?;
-        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let key = self.generic_instance_key(function.selection.symbol, &arguments)?;
-        let function = self.function(&key)?;
+        let function = self.selection_function(&function.selection)?;
+        let parameters = self.function_parameters(function);
+        let Some((_, parameters)) = parameters.split_first() else {
+            return Err(CompilerError::Internal {
+                message: "a method call without a declared receiver slot".to_string(),
+            });
+        };
 
         // bind the arguments after the receiver
         let mut values = vec![receiver];
-        values.extend(self.lower_call_arguments(resolution, write)?);
+        values.extend(self.lower_call_arguments(&resolution.arguments, parameters, write)?);
 
         Ok(self.builder.call_function(function, values))
     }
@@ -225,15 +346,35 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         // select the declared instance from the substituted arguments
-        let bindings = self
-            .lowerer
-            .instance_bindings(&function.selection.arguments, self.instance)?;
-        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let key = self.generic_instance_key(function.selection.symbol, &arguments)?;
-        let function = self.function(&key)?;
-        let values = self.lower_provided_arguments(resolution)?;
+        let function = self.selection_function(&function.selection)?;
+        let parameters = self.function_parameters(function);
+        let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
         Ok(self.builder.call_function(function, values))
+    }
+
+    /// Return the instance key one symbol takes under a selection's arguments.
+    pub(in crate::lower) fn selection_key(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        selection: &dir::Selection,
+    ) -> CompilerResult<GenericInstanceKey> {
+        let bindings = self
+            .lowerer
+            .instance_bindings(&selection.arguments, self.instance)?;
+        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
+
+        self.generic_instance_key(symbol, &arguments)
+    }
+
+    /// Return the declared function behind one selection's instance.
+    pub(in crate::lower) fn selection_function(
+        &mut self,
+        selection: &dir::Selection,
+    ) -> CompilerResult<mir::FunctionId> {
+        let key = self.selection_key(selection.symbol, selection)?;
+
+        self.function(&key)
     }
 
     /// Return the function behind one callable symbol and its instance key.
@@ -286,11 +427,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let callee = self.lower_expression(left)?;
 
         // call through the value's declared signature
-        let Some(ty) = self.builder.value_type(callee) else {
-            return Err(CompilerError::Internal {
-                message: "the lowered callee value has no type".to_string(),
-            });
-        };
+        let ty = self.value_carrier(callee)?;
         let signature = match self.builder.tree().get(ty) {
             mir::Type::Function { signature, .. } | mir::Type::FunctionPointer { signature } => {
                 *signature
@@ -301,29 +438,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 });
             }
         };
-        let values = self.lower_provided_arguments(resolution)?;
+        let parameters = self.signature_parameters(mir::TypeId::from(signature))?;
+        let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
         Ok(self
             .builder
             .call(mir::Callee::Indirect { value: callee }, signature, values))
-    }
-
-    /// Lower one omitted optional argument to its undefined slot value.
-    fn lower_omitted_argument(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<mir::Value> {
-        let carrier = self.lower_type(ty)?;
-
-        // inject the undefined case into union carriers
-        if let dir::Type::Union(_) = self.lowerer.ty(ty)? {
-            let members = self.union_members(ty)?;
-            for (index, member) in members.into_iter().enumerate() {
-                if matches!(self.lowerer.ty(member)?, dir::Type::Undefined) {
-                    return Ok(self.builder.variant_new(carrier, index as u32, None));
-                }
-            }
-        }
-
-        // store undefined directly in reference-like carriers
-        Ok(self.builder.constant(mir::Constant::Undefined, carrier))
     }
 
     /// Lower one provided argument source to its value.

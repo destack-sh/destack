@@ -201,6 +201,7 @@ entry:
     atomic.fence release
     return
 }
+
 /// @layout.variant name=MemoryOrdering size=8 align=8
 /// @layout.discriminant owner=MemoryOrdering kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
 /// @layout.case owner=MemoryOrdering index=0 discriminant=0 payload_offset=8
@@ -329,6 +330,7 @@ entry:
     atomic.fence acquire
     return
 }
+
 /// @layout.variant name=MemoryOrdering size=8 align=8
 /// @layout.discriminant owner=MemoryOrdering kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
 /// @layout.case owner=MemoryOrdering index=0 discriminant=0 payload_offset=8
@@ -536,6 +538,7 @@ entry:
     v4: uint64 = int.add v2, v3
     return v4
 }
+
 /// @layout.struct name=Pair size=16 align=8
 /// @layout.field owner=Pair index=0 name=low offset=8 size=4 align=4
 /// @layout.field owner=Pair index=1 name=high offset=0 size=8 align=8
@@ -720,6 +723,7 @@ entry(v0: ref<Variable, managed, mutable>, v1: int32):
     v6: ref<Context, managed, mutable> = context.replace v4
     return v5
 }
+
 /// @layout.struct name=Context size=0 align=1
 /// @layout.struct name=Variable size=0 align=1
 /// @layout.struct name=type@14 size=24 align=8

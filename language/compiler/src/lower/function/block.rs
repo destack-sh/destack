@@ -182,7 +182,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::Call { .. }
                 if let Some(resolution) = self.construct_decision(statement) =>
             {
-                self.lower_construct(&resolution)?;
+                self.lower_construct(statement, &resolution)?;
 
                 Ok(false)
             }

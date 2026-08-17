@@ -29,6 +29,7 @@ entry:
     v0: ref<destack.string.string.String, managed, mutable> = global.address string.10557148580892020714
     return v0
 }
+
 /// @layout.struct name=destack.string.string.String size=16 align=8
 /// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
 "#,
@@ -69,6 +70,7 @@ entry:
     v1: ref<destack.string.string.String, managed, mutable> = global.address string.13143504461344146821
     return v1
 }
+
 /// @layout.struct name=destack.string.string.String size=16 align=8
 /// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
 "#,

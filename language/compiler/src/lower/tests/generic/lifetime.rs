@@ -26,6 +26,7 @@ function test.main.identity<'a>(v0: ref<User, borrowed, 'a, readonly>): ref<User
 entry(v0: ref<User, borrowed, 'a, readonly>):
     return v0
 }
+
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 "#,
@@ -60,6 +61,7 @@ function test.main.identity<'a>(v0: ref<User, borrowed, 'a, readonly>): ref<User
 entry(v0: ref<User, borrowed, 'a, readonly>):
     return v0
 }
+
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 "#,
@@ -94,6 +96,7 @@ function test.main.identity<'a, 'b>(v0: ref<User, borrowed, 'a | 'b, readonly>):
 entry(v0: ref<User, borrowed, 'a | 'b, readonly>):
     return v0
 }
+
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 "#,
@@ -154,6 +157,7 @@ function test.main.retainStatic(v0: View<'static>): View<'static> {
 entry(v0: View<'static>):
     return v0
 }
+
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 /// @layout.struct name=View size=8 align=8
@@ -206,6 +210,7 @@ function test.main.retain<'a>(v0: Holder<'a>): Holder<'a> {
 entry(v0: Holder<'a>):
     return v0
 }
+
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 /// @layout.struct name=View size=8 align=8
@@ -245,6 +250,14 @@ type User {
     id: int32;
 }
 
+function test.main.User.constructor(v0: ref<User, borrowed, exclusive>): void {
+entry(v0: ref<User, borrowed, exclusive>):
+    v1: int32 = 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
 function test.main.inspectBorrowed<'a>(v0: int32, v1: ref<User, borrowed, 'a, readonly>): int32 {
 entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
     v2: int32 = call test.main.inspect<int32>(v0, v1): <'a>(int32, ref<User, borrowed, 'a, readonly>) => int32
@@ -264,6 +277,7 @@ entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
     v3: int32 = load v2
     return v3
 }
+
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 "#,
@@ -298,6 +312,7 @@ function test.main.identity<'L0, 'L1>(v0: ref<User, borrowed, 'L0 | 'L1, readonl
 entry(v0: ref<User, borrowed, 'L0 | 'L1, readonly>):
     return v0
 }
+
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 "#,

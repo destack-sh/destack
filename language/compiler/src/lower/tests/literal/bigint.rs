@@ -31,6 +31,7 @@ entry:
     v0: ref<destack.math.bigint.BigInt, managed, mutable> = global.address bigint.42
     return v0
 }
+
 /// @layout.struct name=destack.math.bigint.BigInt size=32 align=8
 /// @layout.field owner=destack.math.bigint.BigInt index=0 name=sign offset=24 size=1 align=1
 /// @layout.field owner=destack.math.bigint.BigInt index=1 name=limbs offset=0 size=16 align=8

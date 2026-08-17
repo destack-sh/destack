@@ -72,6 +72,7 @@ entry:
     v10: int32 = field.get v9, 0
     return v10
 }
+
 /// @layout.struct name=Vector size=8 align=4
 /// @layout.field owner=Vector index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=Vector index=1 name=y offset=4 size=4 align=4
@@ -133,6 +134,7 @@ entry:
     v5: int32 = field.get v4, 0
     return v5
 }
+
 /// @layout.struct name=Charge size=4 align=4
 /// @layout.field owner=Charge index=0 name=amount offset=0 size=4 align=4
 "#,

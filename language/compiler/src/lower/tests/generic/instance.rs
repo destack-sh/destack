@@ -100,6 +100,7 @@ function test.main.identity<type (int32, boolean)>(v0: (int32, boolean)): (int32
 entry(v0: (int32, boolean)):
     return v0
 }
+
 /// @layout.tuple name=type@2 size=8 align=4
 /// @layout.element owner=type@2 index=0 offset=0 size=4 align=4
 /// @layout.element owner=type@2 index=1 offset=4 size=1 align=1
@@ -149,6 +150,7 @@ entry(v0: Box<float64>):
     v1: float64 = field.get v0, 0
     return v1
 }
+
 /// @layout.struct name=Box<int32> size=4 align=4
 /// @layout.field owner=Box<int32> index=0 name=value offset=0 size=4 align=4
 /// @layout.struct name=Box<float64> size=8 align=8
@@ -529,6 +531,7 @@ function test.lib.Channel.send<int32>(v0: ref<test.lib.Channel, managed, mutable
 entry(v0: ref<test.lib.Channel, managed, mutable>, v1: int32):
     return
 }
+
 /// @layout.struct name=test.lib.Channel size=4 align=4
 /// @layout.field owner=test.lib.Channel index=0 name=value offset=0 size=4 align=4
 "#);
@@ -583,6 +586,7 @@ entry(v0: ref<test.lib.Box<int32>, managed, mutable>):
     v2: int32 = load v1
     return v2
 }
+
 /// @layout.struct name=test.lib.Box<int32> size=4 align=4
 /// @layout.field owner=test.lib.Box<int32> index=0 name=value offset=0 size=4 align=4
 "#);
@@ -626,9 +630,11 @@ function drain(tap: &Tap<int32>): int32 {
         .build();
 
     session.assert_mir_lowered("main.ds", r#"
-type test.lib.Tap<int32> { }
-
 type test.lib.Source<int32> {
+    value: int32;
+}
+
+type test.lib.Tap<int32> {
     value: int32;
 }
 
@@ -645,9 +651,11 @@ entry(v0: ref<test.lib.Source<int32>, managed, mutable>):
     v2: int32 = load v1
     return v2
 }
-/// @layout.struct name=test.lib.Tap<int32> size=0 align=1
+
 /// @layout.struct name=test.lib.Source<int32> size=4 align=4
 /// @layout.field owner=test.lib.Source<int32> index=0 name=value offset=0 size=4 align=4
+/// @layout.struct name=test.lib.Tap<int32> size=4 align=4
+/// @layout.field owner=test.lib.Tap<int32> index=0 name=value offset=0 size=4 align=4
 "#);
 }
 
@@ -733,6 +741,7 @@ entry(v0: test.lib.BRef):
     v1: test.lib.Pair<test.lib.BRef> = aggregate (v0)
     return v1
 }
+
 /// @layout.struct name=test.lib.Pair<test.lib.ARef> size=4 align=4
 /// @layout.field owner=test.lib.Pair<test.lib.ARef> index=0 name=value offset=0 size=4 align=4
 /// @layout.struct name=test.lib.Pair<test.lib.BRef> size=4 align=4

@@ -33,6 +33,12 @@ pub(crate) struct ModuleLowerer<'a> {
 
     /// The declaration outcome for each callable instance key.
     pub(in crate::lower) functions: FxIndexMap<GenericInstanceKey, FunctionDeclaration>,
+    /// The synthesized default constructors queued for body lowering.
+    pub(in crate::lower) synthesized_constructors: Vec<(
+        dir::GlobalSymbolId,
+        Option<(ModuleId, dir::LocalInstanceId)>,
+        mir::FunctionId,
+    )>,
     /// The sema instance behind each closed selection, keyed by the arguments' structure.
     pub(in crate::lower) specializations:
         FxIndexMap<(dir::GlobalSymbolId, Vec<u64>), (ModuleId, dir::LocalInstanceId)>,
@@ -83,6 +89,7 @@ impl<'a> ModuleLowerer<'a> {
             modules,
             functions: FxIndexMap::default(),
             specializations: FxIndexMap::default(),
+            synthesized_constructors: Vec::new(),
             representations: FxIndexMap::default(),
             constraints: FxIndexMap::default(),
             stored_nominals: FxIndexMap::default(),
@@ -284,6 +291,22 @@ impl<'a> ModuleLowerer<'a> {
         // lower every declared body, keeping failures isolated per function
         for body in bodies {
             match FunctionLowerer::lower(self, &mut builder, body) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(error) => return Err(error),
+            }
+        }
+
+        // lower the synthesized default constructors to their initializer prologues
+        let synthesized = std::mem::take(&mut self.synthesized_constructors);
+        for (class, specialization, function) in synthesized {
+            match FunctionLowerer::lower_default_constructor(
+                self,
+                &mut builder,
+                class,
+                specialization,
+                function,
+            ) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),

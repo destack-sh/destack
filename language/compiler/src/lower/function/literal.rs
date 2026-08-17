@@ -59,9 +59,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(self.builder.usize_const(value as u128))
             }
             (dir::ScalarLiteral::Integer(value), mir::Type::Isize) => {
-                let width = self.builder.pointer_bits();
-
-                Ok(self.builder.iconst(value as i128, width, true))
+                Ok(self.builder.isize_const(value as i128))
             }
 
             // materialize floats at their selected format

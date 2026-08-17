@@ -65,6 +65,7 @@ entry(v0: (Badge)):
     v2: Panel = aggregate (v1)
     return v2
 }
+
 /// @layout.struct name=Panel size=4 align=4
 /// @layout.field owner=Panel index=0 name=width offset=0 size=4 align=4
 /// @layout.struct name=Badge size=4 align=4

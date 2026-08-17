@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionLowerer, GenericInstanceKey};
+use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -84,18 +84,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         };
-        let key = match function.selection.arguments.is_empty() {
-            true => GenericInstanceKey::non_generic(function.selection.symbol),
-            false => {
-                let bindings = self
-                    .lowerer
-                    .instance_bindings(&function.selection.arguments, self.instance)?;
-                let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-
-                self.generic_instance_key(function.selection.symbol, &arguments)?
-            }
-        };
-        let id = self.function(&key)?;
+        let id = self.selection_function(&function.selection)?;
         let value = self.builder.call_function(id, values);
 
         value.ok_or_else(|| CompilerError::Internal {
@@ -140,12 +129,11 @@ impl FunctionLowerer<'_, '_, '_> {
         attributes: dir::GlobalTypeId,
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
-        let dir::Type::Application(instance) = self.lowerer.ty(attributes)? else {
+        let dir::Type::Application(_) = self.lowerer.ty(attributes)? else {
             return Err(CompilerError::Internal {
                 message: "a tree aggregate outside a nominal type".to_string(),
             });
         };
-        let owner = instance.symbol.module_id;
         let representation = self.lower_nominal(attributes)?;
         let ty = self.lower_type(attributes)?;
         let nominal = self.lowerer.nominal(&representation.key)?;
@@ -170,7 +158,7 @@ impl FunctionLowerer<'_, '_, '_> {
         if !resolution.children.is_empty()
             && let Some((_, symbol)) = members.iter().find(|(key, _)| *key == children_key)
         {
-            let ty = self.lowerer.symbol_type(symbol.into_global(owner))?;
+            let ty = self.lowerer.symbol_type(*symbol)?;
             let value = self.lower_tree_children(ty, &resolution.children)?;
             values.push((children_key, value));
         }

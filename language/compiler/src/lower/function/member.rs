@@ -390,11 +390,7 @@ impl FunctionLowerer<'_, '_, '_> {
         receiver: mir::Value,
         union: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
-        let Some(receiver_type) = self.builder.value_type(receiver) else {
-            return Err(CompilerError::Internal {
-                message: "a discriminant receiver has no lowered type".to_string(),
-            });
-        };
+        let receiver_type = self.value_carrier(receiver)?;
 
         // stored unions expose their tag through their address
         if matches!(
@@ -458,7 +454,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 fields.iter().position(|stored| match field.target {
                     dir::FieldTarget::Structural { key, .. } => stored.key == key,
-                    dir::FieldTarget::Member { symbol, .. } => stored.symbol == symbol.local_id,
+                    dir::FieldTarget::Member { symbol, .. } => stored.symbol == symbol,
                 })
             }
             dir::Type::Object(shape) => {

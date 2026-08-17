@@ -29,8 +29,9 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_expression_value(expression);
         };
         let target = coercion.target();
-        let value = self.coercion_source(expression, coercion.source)?;
-        let value = self.lower_adjustments(value, coercion.source, &coercion.adjustments)?;
+        let source = self.lowerer.instance_type(self.instance, coercion.source)?;
+        let value = self.coercion_source(expression, source)?;
+        let value = self.lower_adjustments(value, source, &coercion.adjustments)?;
 
         self.materialize_coercion_value(value, target)
     }
@@ -157,11 +158,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             dir::CoercionAdjustment::Scalar { target } => {
                 let value = self.materialize_coercion_value(value, source)?;
-                let Some(source) = self.builder.value_type(value) else {
-                    return Err(CompilerError::Internal {
-                        message: "the lowered scalar coercion source has no type".to_string(),
-                    });
-                };
+                let source = self.value_carrier(value)?;
                 let target = self.lower_type(*target)?;
                 let value = if self.builder.tree().get(source) == self.builder.tree().get(target) {
                     value
@@ -300,11 +297,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .type_ids(source_union.elements)
                 .to_vec();
             let value = self.materialize_coercion_value(value, source)?;
-            let Some(value_type) = self.builder.value_type(value) else {
-                return Err(CompilerError::Internal {
-                    message: "the lowered union coercion source has no type".to_string(),
-                });
-            };
+            let value_type = self.value_carrier(value)?;
             if matches!(
                 self.builder.tree().get(value_type),
                 mir::Type::Variant { .. }
@@ -450,11 +443,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         }
         let value = self.materialize_coercion_value(value, source)?;
-        let Some(value_type) = self.builder.value_type(value) else {
-            return Err(CompilerError::Internal {
-                message: "the lowered union exit source has no type".to_string(),
-            });
-        };
+        let value_type = self.value_carrier(value)?;
 
         // dispatch indexed carriers and convert each payload independently
         if matches!(
@@ -592,6 +581,20 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+    /// Read the current value of one binding.
+    pub(in crate::lower) fn read_binding(&mut self, binding: Binding) -> mir::Value {
+        match binding {
+            Binding::Value(value) => value,
+            Binding::Local(local) => self.builder.local_get(local),
+            // load captured bindings through their frame field
+            Binding::Captured { frame, field, ty } => {
+                let address = self.emit_field_address(frame, field, ty, mir::Access::Mutable);
+
+                self.builder.load(address, ty)
+            }
+        }
+    }
+
     /// Lower one value expression that resolved to a symbol.
     pub(in crate::lower) fn lower_resolved_value(
         &mut self,
@@ -599,14 +602,7 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<mir::Value> {
         match self.values.get(&symbol.local_id).copied() {
-            Some(Binding::Value(value)) => Ok(value),
-            Some(Binding::Local(local)) => Ok(self.builder.local_get(local)),
-            // load captured bindings through their frame field
-            Some(Binding::Captured { frame, field, ty }) => {
-                let address = self.emit_field_address(frame, field, ty, mir::Access::Mutable);
-
-                Ok(self.builder.load(address, ty))
-            }
+            Some(binding) => Ok(self.read_binding(binding)),
             // load module constants through their globals
             None => {
                 if let Some(global) = self.module_constant_global(symbol)? {
@@ -689,6 +685,9 @@ impl FunctionLowerer<'_, '_, '_> {
                         }
                         dir::BinaryOperator::And | dir::BinaryOperator::Or => {
                             self.lower_logical(expression, left, operator, right)
+                        }
+                        dir::BinaryOperator::Coalesce => {
+                            self.lower_coalesce(expression, left, right)
                         }
                         operator => self.lower_binary(left, operator, right, &operands),
                     },
@@ -783,9 +782,15 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // this
-            dir::Expression::This => self.this.ok_or_else(|| CompilerError::Internal {
-                message: "this used outside a method body".to_string(),
-            }),
+            dir::Expression::This => {
+                let Some(binding) = self.this else {
+                    return Err(CompilerError::Internal {
+                        message: "this used outside a method body".to_string(),
+                    });
+                };
+
+                Ok(self.read_binding(binding))
+            }
 
             // &value, &readonly value
             dir::Expression::BorrowOf { right, .. } => {
@@ -811,7 +816,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::Call { .. }
                 if let Some(resolution) = self.construct_decision(expression) =>
             {
-                self.lower_construct(&resolution)
+                self.lower_construct(expression, &resolution)
             }
 
             // new Counter(start)
@@ -822,7 +827,16 @@ impl FunctionLowerer<'_, '_, '_> {
                     });
                 };
 
-                self.lower_construct(&resolution)
+                self.lower_construct(expression, &resolution)
+            }
+
+            // [1, 2, 3]
+            dir::Expression::ArrayExpression { .. } => {
+                let value = self.lower_call(expression)?;
+
+                value.ok_or_else(|| CompilerError::Internal {
+                    message: "an array construction without a value".to_string(),
+                })
             }
 
             // <div .../>

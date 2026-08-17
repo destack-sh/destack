@@ -83,7 +83,7 @@ impl FunctionLowerer<'_, '_, '_> {
         operation: mir::Intrinsic,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
-        let values = self.lower_provided_arguments(resolution)?;
+        let values = self.lower_call_arguments(&resolution.arguments, &[], None)?;
 
         if !operation.has_result() {
             self.builder.intrinsic_void(operation, values);
@@ -154,13 +154,13 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         match terminator {
             IntrinsicTerminator::Abort => {
-                let values = self.lower_provided_arguments(resolution)?;
+                let values = self.lower_call_arguments(&resolution.arguments, &[], None)?;
 
                 self.builder.abort(values.into_iter().next());
             }
             IntrinsicTerminator::Unreachable => self.builder.unreachable(),
             IntrinsicTerminator::Panic => {
-                let values = self.lower_provided_arguments(resolution)?;
+                let values = self.lower_call_arguments(&resolution.arguments, &[], None)?;
 
                 self.builder.panic(values.into_iter().next());
             }
@@ -308,11 +308,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let slice = self.argument_value(resolution, 0)?;
         let index = self.argument_value(resolution, 1)?;
         let value = self.argument_value(resolution, 2)?;
-        let Some(element) = self.builder.value_type(value) else {
-            return Err(CompilerError::Internal {
-                message: "an untyped slice element store".to_string(),
-            });
-        };
+        let element = self.value_carrier(value)?;
         let pointer = self.emit_element_address(slice, index, element)?;
         self.builder.store(pointer, value);
 
@@ -428,11 +424,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return the pointee type behind one lowered pointer value.
     fn pointee_type(&mut self, pointer: mir::Value) -> CompilerResult<mir::TypeId> {
-        let Some(pointer_type) = self.builder.value_type(pointer) else {
-            return Err(CompilerError::Internal {
-                message: "an untyped pointer operand".to_string(),
-            });
-        };
+        let pointer_type = self.value_carrier(pointer)?;
         let pointee = match self.builder.tree().get(pointer_type) {
             mir::Type::Pointer { pointee, .. } | mir::Type::Reference { pointee, .. } => pointee,
             _ => {
@@ -554,11 +546,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let pointer = self.argument_value(resolution, 0)?;
                 let count = self.argument_value(resolution, 1)?;
                 let step = self.builder.iconst(stride as i128, pointer_bits, true);
-                let Some(domain) = self.builder.value_type(step) else {
-                    return Err(CompilerError::Internal {
-                        message: "an untyped stride constant".to_string(),
-                    });
-                };
+                let domain = self.value_carrier(step)?;
                 let address =
                     self.builder
                         .intrinsic(mir::Intrinsic::Transmute, domain, vec![pointer]);
@@ -574,11 +562,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let pointer = self.argument_value(resolution, 0)?;
                 let origin = self.argument_value(resolution, 1)?;
                 let step = self.builder.iconst(stride as i128, pointer_bits, true);
-                let Some(domain) = self.builder.value_type(step) else {
-                    return Err(CompilerError::Internal {
-                        message: "an untyped stride constant".to_string(),
-                    });
-                };
+                let domain = self.value_carrier(step)?;
                 let bytes = self.builder.intrinsic(
                     mir::Intrinsic::PointerByteOffsetFrom,
                     domain,

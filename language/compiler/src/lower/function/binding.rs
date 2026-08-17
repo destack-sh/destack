@@ -15,20 +15,21 @@ impl FunctionLowerer<'_, '_, '_> {
         for declarator_id in declarators {
             let declarator = self.source().tree().get(*declarator_id);
             let (pattern, value) = (declarator.pattern, declarator.value);
-            let dir::Pattern::Binding { pattern: None, .. } = self.source().tree().get(pattern)
-            else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a destructuring let binding".to_string(),
-                }
-                .into());
-            };
             let Some(value) = value else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: "an uninitialized let binding".to_string(),
                 }
                 .into());
+            };
+
+            // destructuring patterns bind through the pattern walker
+            let dir::Pattern::Binding { pattern: None, .. } = self.source().tree().get(pattern)
+            else {
+                let value = self.lower_expression(value)?;
+                self.lower_pattern_bindings(pattern, value, mutability)?;
+
+                continue;
             };
 
             // resolve the binding symbol at the pattern node
@@ -161,6 +162,40 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         self.lower_function_target_call(left, call, function, Some(right))?;
+
+        Ok(())
+    }
+
+    /// Resolve the defaulted parameters at the head of one declared body.
+    pub(in crate::lower) fn lower_parameter_defaults(
+        &mut self,
+        parameters: &[dir::LocalSymbolId],
+        defaults: &[Option<dir::LocalNodeId<dir::Expression>>],
+    ) -> CompilerResult<()> {
+        for (index, default) in defaults.iter().enumerate() {
+            let Some(default) = *default else {
+                continue;
+            };
+            let symbol = parameters[index];
+            let Some(Binding::Value(incoming)) = self.values.get(&symbol).copied() else {
+                return Err(CompilerError::Internal {
+                    message: "a defaulted parameter without its bound value".to_string(),
+                });
+            };
+
+            // the body reads the parameter at its bound type
+            let ty = self.lowerer.symbol_type(symbol.into_global(self.source))?;
+            let exact = self.lower_type(ty)?;
+            if Some(exact) == self.builder.value_type(incoming) {
+                continue;
+            }
+
+            // unwrap the optional carrier or evaluate the default
+            let resolved = self.lower_absent_fallback(incoming, exact, |lowerer| {
+                lowerer.lower_expression(default).map(Some)
+            })?;
+            self.values.insert(symbol, Binding::Value(resolved));
+        }
 
         Ok(())
     }

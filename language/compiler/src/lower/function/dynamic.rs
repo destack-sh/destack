@@ -107,7 +107,8 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // call the selected slot at its declared signature
-        let values = self.lower_provided_arguments(resolution)?;
+        let parameters = self.signature_parameters(mir::TypeId::from(signature))?;
+        let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
         Ok(self.builder.call(
             mir::Callee::Dynamic {

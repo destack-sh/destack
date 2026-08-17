@@ -40,6 +40,22 @@ impl FunctionLowerer<'_, '_, '_> {
         source: &mir::Type,
         target: &mir::Type,
     ) -> CompilerResult<mir::CastOperator> {
+        // resolve pointer-sized carriers to their concrete widths
+        let pointer_bits = self.builder.pointer_bits();
+        let concrete = |ty: &mir::Type| match *ty {
+            mir::Type::Isize => mir::Type::Int {
+                width: pointer_bits,
+                is_signed: true,
+            },
+            mir::Type::Usize => mir::Type::Int {
+                width: pointer_bits,
+                is_signed: false,
+            },
+            ref other => other.clone(),
+        };
+        let source = &concrete(source);
+        let target = &concrete(target);
+
         Ok(match (source, target) {
             // truncate, extend by source sign, or reinterpret between integers
             (
