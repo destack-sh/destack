@@ -549,7 +549,7 @@ impl ModuleQueryContext<'_> {
         for (parameter, binding) in bindings.iter().enumerate() {
             match &binding.source {
                 // a rest parameter absorbs every argument from its own slot on
-                dir::ArgumentSource::Rest(_) => return Ok(Some(parameter)),
+                dir::ArgumentSource::Rest { .. } => return Ok(Some(parameter)),
                 // positional slots advance one written argument at a time
                 dir::ArgumentSource::Provided(_) | dir::ArgumentSource::Omitted => {
                     if slot == written {
