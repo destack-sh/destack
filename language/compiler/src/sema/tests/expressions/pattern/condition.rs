@@ -544,6 +544,81 @@ if (let { name } = user) {
     );
 }
 
+/// Bind while-condition names through later operands and the loop body only.
+#[test]
+fn test_while_condition_binds_chain_and_body() {
+    let session = TestSession::single(
+        r#"
+declare const user: { name: string } | null;
+
+while (let { name } = user && name.length > 0) {
+    name satisfies string;
+    break;
+}
+
+name;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const user: { name: string } | null;
+
+while (let { name } = user && name.length > 0) {
+    name satisfies string;
+    break;
+}
+
+name;
+
+=== dir ===
+declare const user: { name: string } | null;
+/// @type.symbol symbol=user source=user type={ name: string } | null
+/// @resolution.pattern source=user kind=binding target=user
+
+while (let { name } = user && name.length > 0) {
+/// @resolution.pattern source={ name } kind=object fields={ name }
+/// @type.symbol symbol=name#2 source=name type=string
+/// @type.node source=user type={ name: string } | null
+/// @resolution.name source=user target=user
+/// @resolution.access source=user root=user
+/// @type.node source="name.length > 0" type=boolean
+/// @type.node source=name type=string
+/// @type.node source=name.length type=isize
+/// @resolution.name source=name target=name#2
+/// @resolution.member source=name.length receiver=string type=isize kind=call target="string.string.length(parameters=(), arguments=(), return=isize)"
+/// @resolution.operator source="name.length > 0" type=boolean operator=">" kind=builtin operands=[name.length as isize families=(integer), 0 as isize families=(integer)]
+/// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=name root=name#2
+/// @type.node source=0 type=0
+
+    name satisfies string;
+    /// @type.node source="name satisfies string" type=string
+    /// @type.node source=name type=string
+    /// @resolution.name source=name target=name#2
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=name#2
+
+    break;
+    /// @type.node source=break type=never
+    /// @resolution.transfer source=break target=while
+
+}
+
+name;
+/// @type.node source=name type=<error>
+/// @resolution.unresolved source=name path=name
+"#,
+        r#"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'name'"
+/// @diagnostic.label line=9 column=1 span="name" line_source="name;"
+"#,
+    );
+}
+
 #[test]
 fn test_condition_chain_without_binding_stays_boolean_expression() {
     let session = TestSession::single(

@@ -77,7 +77,7 @@ impl BodyState<'_, '_> {
                 condition,
                 body,
                 ..
-            } => self.infer_while_expression(site, *label, *condition, *body),
+            } => self.infer_while_expression(site, *label, condition, *body),
             // loop { ... }
             dir::Expression::Loop { label, body } => {
                 self.infer_loop_expression(site, *label, *body)
@@ -295,12 +295,12 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         label: Option<dir::StringId>,
-        condition: dir::LocalNodeId<dir::Expression>,
+        condition: &dir::Condition,
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<()> {
         let node = site.node;
         let module = node.module_id;
-        self.check_condition(module, condition)?;
+        self.check_condition_operands(module, condition)?;
 
         // check the body under true condition flow inside the loop target
         let label = self.check.control_label(node.into_typed(), label)?;
@@ -308,14 +308,14 @@ impl BodyState<'_, '_> {
             .enter_control_target(node.into_typed(), label, ControlTargetForm::Iteration);
         let before_body = self.check.fork_flow();
         self.check
-            .narrow_expression(condition, ConditionBranch::True)?;
+            .narrow_condition(condition, ConditionBranch::True)?;
         let body_site = self.check.visit_site(body.into_global_any(module))?;
         self.attempt_node(body_site, PlaceUse::Read, None)?;
         self.check.restore_flow(before_body);
 
         // collect the normal exit through the false condition
         self.check
-            .narrow_expression(condition, ConditionBranch::False)?;
+            .narrow_condition(condition, ConditionBranch::False)?;
         let normal_flow = self.check.collect_flow_branch(before_body);
         let mut branches = self.check.leave_control_target();
         branches.push(normal_flow);
@@ -719,9 +719,8 @@ impl BodyState<'_, '_> {
                         ) && !matches!(
                             expression,
                             dir::Expression::If { condition, .. }
-                                if condition
-                                    .as_binding()
-                                    .is_some_and(|(_, _, declarator)| declarator == id)
+                                | dir::Expression::While { condition, .. }
+                                if condition.binds(id)
                         )
                     }
                     _ => true,
@@ -755,7 +754,7 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Check every expression operand of one condition.
+    /// Check every operand of one condition.
     pub(in crate::sema) fn check_condition_operands(
         &mut self,
         module: ModuleId,

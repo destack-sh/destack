@@ -206,7 +206,8 @@ impl WalkState<'_, '_> {
         ) && !matches!(
             expression,
             dir::Expression::If { condition, .. }
-                if condition.as_binding().is_some_and(|(_, _, declarator)| declarator == id)
+                | dir::Expression::While { condition, .. }
+                if condition.binds(id)
         )
     }
 }

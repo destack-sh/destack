@@ -515,7 +515,7 @@ impl WalkState<'_, '_> {
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<()> {
         // walk branches with isolated flow
-        self.walk_if_condition(condition)?;
+        self.walk_condition(condition)?;
         let before = self.fork_flow();
 
         // walk true branch
@@ -555,34 +555,34 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Walk one if condition.
+    /// Walk one condition.
     ///
     /// Example:
     /// ```ds
     /// if let Some(value) = option { value }
     /// ```
-    fn walk_if_condition(&mut self, condition: &dir::Condition) -> CompilerResult<()> {
+    fn walk_condition(&mut self, condition: &dir::Condition) -> CompilerResult<()> {
         let before = self.fork_flow();
-        let result = self.walk_if_condition_chain(&condition.operands);
+        let result = self.walk_condition_operands(&condition.operands);
         self.restore_flow(before);
 
         result
     }
 
-    /// Walk one if condition chain.
-    fn walk_if_condition_chain(
+    /// Walk one condition chain.
+    fn walk_condition_operands(
         &mut self,
         operands: &[dir::ConditionOperand],
     ) -> CompilerResult<()> {
         for operand in operands {
-            self.walk_if_condition_operand(operand)?;
+            self.walk_condition_operand(operand)?;
         }
 
         Ok(())
     }
 
-    /// Walk one operand in an if condition chain.
-    fn walk_if_condition_operand(&mut self, operand: &dir::ConditionOperand) -> CompilerResult<()> {
+    /// Walk one operand in a condition chain.
+    fn walk_condition_operand(&mut self, operand: &dir::ConditionOperand) -> CompilerResult<()> {
         match operand {
             // boolean condition
             dir::ConditionOperand::Expression { condition } => {
