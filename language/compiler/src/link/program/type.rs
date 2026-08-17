@@ -268,17 +268,17 @@ impl<'a> ObjectTypes<'a> {
 
     /// Append transitive parents and interfaces for one MIR type.
     fn append_supertypes(&self, root: mir::TypeId, ty: mir::TypeId, supertypes: &mut Vec<TypeId>) {
-        let Some(lineage) = self.object.ty(ty).and_then(|ty| ty.lineage.as_ref()) else {
+        let Some(heritage) = self.object.ty(ty).and_then(|ty| ty.heritage.as_ref()) else {
             return;
         };
 
-        // append the parent hierarchy before implemented interfaces
-        if let Some(parent) = lineage.parent {
-            self.append_supertype(root, parent, supertypes);
+        // append inherited hierarchies before implemented interfaces
+        for &base in &heritage.extends {
+            self.append_supertype(root, base, supertypes);
         }
 
         // append each interface and its own inherited interfaces
-        for &interface in &lineage.interfaces {
+        for &interface in &heritage.implements {
             self.append_supertype(root, interface, supertypes);
         }
     }
@@ -574,7 +574,7 @@ impl TypeLinker<'_> {
 
         // resolve every specialized destructor into canonical program identity
         for (module, object) in objects {
-            for (&(ty, storage), &function) in &object.drops().destructors {
+            for (ty, storage, function) in object.drops().destructors() {
                 if matches!(storage, mir::Storage::Global(_)) {
                     return Err(LinkError::invalid_input(
                         package,

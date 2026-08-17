@@ -132,7 +132,7 @@ impl<'a> ProgramLinker<'a> {
         let dispatch = DispatchLinker::new(&self).link()?;
 
         // link each explicitly emitted execution form
-        let bytecode = BytecodeLinker::new(&self, &frame_linker, &statics).link()?;
+        let bytecode = BytecodeLinker::new(&self, &frame_linker).link()?;
         let native = NativeLinker::new(&self, &frame_linker, &statics).link()?;
 
         // assemble the durable program image

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::MirOptimized;
+use destack_artifact::{MirLowered, MirOptimized};
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_program::{Object, Program};
@@ -8,7 +8,6 @@ use destack_source::{File, FileId, FileType, ModuleId, PackageId, Uri};
 
 #[cfg(feature = "native")]
 use crate::NativeEmitter;
-use crate::lower::LayoutBuilder;
 use crate::{BytecodeEmitter, ObjectEmitter};
 
 use super::super::ProgramLinker;
@@ -30,11 +29,11 @@ impl TestModule {
         source: &str,
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Self {
-        let (optimized, strings) = Self::optimized(module, source);
+        let (lowered, optimized, strings) = Self::parse(source);
 
         // emit common metadata and relocatable bytecode
-        let object =
-            ObjectEmitter::new(module, &optimized, dependencies).expect("object emission failed");
+        let object = ObjectEmitter::new(module, &lowered, &optimized, dependencies)
+            .expect("object emission failed");
         let bytecode = BytecodeEmitter::new(module, &optimized, &object)
             .emit()
             .expect("MIR should emit bytecode");
@@ -53,16 +52,17 @@ impl TestModule {
         source: &str,
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Self {
-        let (optimized, strings) = Self::optimized(module, source);
+        let (lowered, optimized, strings) = Self::parse(source);
 
         // emit common metadata with canonical bytecode beside native code
-        let object =
-            ObjectEmitter::new(module, &optimized, dependencies).expect("object emission failed");
+        let object = ObjectEmitter::new(module, &lowered, &optimized, dependencies)
+            .expect("object emission failed");
         let bytecode = BytecodeEmitter::new(module, &optimized, &object)
             .emit()
             .expect("MIR should emit bytecode");
         let native = NativeEmitter::new(
             module,
+            lowered.target,
             &optimized,
             &object,
             &destack_repository::Target::native(),
@@ -78,8 +78,8 @@ impl TestModule {
         }
     }
 
-    /// Parse and complete one optimized MIR test module.
-    fn optimized(module: ModuleId, source: &str) -> (MirOptimized, StringPool) {
+    /// Parse one MIR source into lowered and optimized states.
+    fn parse(source: &str) -> (MirLowered, MirOptimized, StringPool) {
         let file = File::from_text(
             FileId::new(0),
             "test.mir".to_string(),
@@ -92,38 +92,36 @@ impl TestModule {
         let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
             .expect("test MIR should be text");
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
-        let (
-            tree,
-            target,
-            types,
-            mut layouts,
-            dispatch,
-            drops,
-            memory,
-            effects,
-            profile,
-            strings,
-            _,
-        ) = parsed.into_parts();
+        let (tree, target, mut layouts, dispatch, drops, accesses, effects, profile, strings, _) =
+            parsed.into_parts();
 
-        // compute physical layouts required by object emission
-        let mut layout_builder = LayoutBuilder::new(module, &tree, &mut layouts, target);
+        // compute target layouts required by object emission
+        let mut layout_builder = mir::LayoutBuilder::new(&tree, &mut layouts, target);
         layout_builder
             .layout_reachable_types()
             .expect("test MIR layouts should lower");
+        let lowered = MirLowered {
+            tree: tree.clone(),
+            target,
+            initializer: None,
+            layouts: layouts.clone(),
+            dispatch: dispatch.clone(),
+            drops: drops.clone(),
+            accesses: accesses.clone(),
+            effects: effects.clone(),
+            profile: profile.clone(),
+        };
         let optimized = MirOptimized {
             tree,
-            target,
-            types,
             layouts,
             dispatch,
             drops,
-            memory,
+            accesses,
             effects,
             profile,
         };
 
-        (optimized, strings)
+        (lowered, optimized, strings)
     }
 
     /// Merge the strings referenced by a set of test modules.

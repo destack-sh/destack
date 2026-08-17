@@ -3,7 +3,7 @@ use destack_program::Object;
 
 use crate::LinkResult;
 
-use super::super::program::{FrameLinker, ProgramLinker, ProgramStatics};
+use super::super::program::{FrameLinker, ProgramLinker};
 
 /// Link relocatable bytecode objects into one executable code image.
 #[derive(Debug)]
@@ -12,22 +12,12 @@ pub(crate) struct BytecodeLinker<'a, 'b> {
     pub(super) program: &'a ProgramLinker<'b>,
     /// Canonical frame state projection.
     pub(super) frames: &'a FrameLinker<'b>,
-    /// Linked static storage offsets.
-    pub(super) statics: &'a ProgramStatics,
 }
 
 impl<'a, 'b> BytecodeLinker<'a, 'b> {
     /// Create one bytecode linker.
-    pub(crate) fn new(
-        program: &'a ProgramLinker<'b>,
-        frames: &'a FrameLinker<'b>,
-        statics: &'a ProgramStatics,
-    ) -> Self {
-        Self {
-            program,
-            frames,
-            statics,
-        }
+    pub(crate) fn new(program: &'a ProgramLinker<'b>, frames: &'a FrameLinker<'b>) -> Self {
+        Self { program, frames }
     }
 
     /// Link bytecode when every object carries that code form.

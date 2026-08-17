@@ -14,7 +14,7 @@ fn test_link_native_object() {
         r#"
 export function advance(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     poll
     return v1
 }
@@ -68,7 +68,7 @@ fn test_link_native_traps() {
         r#"
 export function divide(v0: int64, v1: int64): int64 {
 entry(v0: int64, v1: int64):
-    v2: int64 = int.div.s v0, v1
+    v2: int64 = div v0, v1
     return v2
 }
 "#,

@@ -928,6 +928,7 @@ dependencies = [
  "destack_formatter",
  "destack_heap",
  "destack_js",
+ "destack_memory",
  "destack_mir",
  "destack_native",
  "destack_parser",

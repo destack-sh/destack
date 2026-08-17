@@ -28,51 +28,30 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         // patch every object-local identity at its exact encoded operand
         for relocation in bytecode.relocations() {
             let start = relocation.byte_offset as usize;
-            let byte_len = if relocation.tag == bytecode::RelocationTag::GLOBAL {
-                size_of::<u64>()
-            } else {
-                size_of::<u32>()
-            };
+            let byte_len = size_of::<u32>();
             let end = start + byte_len;
             let bytes = code.get(start..end).ok_or_else(|| {
                 self.program
                     .invalid_input("bytecode relocation is out of range")
             })?;
-            let linked = if relocation.tag == bytecode::RelocationTag::GLOBAL {
-                let encoded = u64::from_le_bytes(bytes.try_into().map_err(|_| {
-                    self.program
-                        .invalid_input("bytecode global relocation has invalid width")
-                })?);
-                let encoded = u32::try_from(encoded).map_err(|_| {
-                    self.program
-                        .invalid_input("bytecode global index exceeds u32")
-                })?;
-
-                self.global_offset(module, object, encoded)?
-                    .to_le_bytes()
-                    .to_vec()
-            } else {
-                let encoded = u32::from_le_bytes(bytes.try_into().map_err(|_| {
-                    self.program
-                        .invalid_input("bytecode relocation has invalid width")
-                })?);
-                let linked = self.relocation(
-                    module,
-                    object,
-                    relocation.byte_offset,
-                    relocation.tag,
-                    encoded,
-                    &counters,
-                    &samplers,
-                )?;
-
-                linked.to_le_bytes().to_vec()
-            };
+            let encoded = u32::from_le_bytes(bytes.try_into().map_err(|_| {
+                self.program
+                    .invalid_input("bytecode relocation has invalid width")
+            })?);
+            let linked = self.relocation(
+                module,
+                object,
+                relocation.byte_offset,
+                relocation.tag,
+                encoded,
+                &counters,
+                &samplers,
+            )?;
             let bytes = code.get_mut(start..end).ok_or_else(|| {
                 self.program
                     .invalid_input("bytecode relocation is out of range")
             })?;
-            bytes.copy_from_slice(&linked);
+            bytes.copy_from_slice(&linked.to_le_bytes());
         }
 
         Ok(code)
@@ -102,6 +81,13 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             })?;
 
             Ok(self.program.function_id(module, function.id).0)
+        } else if tag == bytecode::RelocationTag::GLOBAL {
+            let global = object.globals().get(index as usize).ok_or_else(|| {
+                self.program
+                    .invalid_input("bytecode global operand is absent")
+            })?;
+
+            Ok(self.program.global_id(module, global.id).0)
         } else if tag == bytecode::RelocationTag::DYNAMIC {
             let table = object
                 .dispatch()
@@ -139,26 +125,6 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
                 .program
                 .invalid_input("unsupported bytecode relocation"))
         }
-    }
-
-    /// Resolve one object-local global into its static-image byte offset.
-    pub(super) fn global_offset(
-        &self,
-        module: ModuleId,
-        object: &Object,
-        index: u32,
-    ) -> LinkResult<u64> {
-        let global = object.globals().get(index as usize).ok_or_else(|| {
-            self.program
-                .invalid_input("bytecode global operand is absent")
-        })?;
-        let global = self.program.global_id(module, global.id);
-        let global = self
-            .statics
-            .global(global)
-            .ok_or_else(|| self.program.invalid_input("linked global is absent"))?;
-
-        Ok(global.offset)
     }
 
     /// Return the MIR function that owns one object code offset.

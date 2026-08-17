@@ -57,8 +57,8 @@ struct GlobalRender<'a, 'b> {
     storage: mir::GlobalStorage,
     /// Every placed program global in dense id order.
     placements: &'a [(Symbol, Global)],
-    /// Region-relative address word offsets rebased at materialization.
-    relocations: &'b mut Vec<usize>,
+    /// Static address words rebased at materialization.
+    relocations: &'b mut Vec<(usize, GlobalLocation)>,
 }
 
 impl GlobalRender<'_, '_> {
@@ -199,18 +199,16 @@ impl<'a> GlobalLinker<'a> {
         let byte_len = layout.byte_len();
 
         // reserve a zeroed range in the selected region
-        let (allocator, location, is_mutable) = match global.storage {
-            mir::GlobalStorage::Constant => (constants, GlobalLocation::Constant, false),
-            mir::GlobalStorage::Immortal => (immortals, GlobalLocation::Immortal, false),
-            mir::GlobalStorage::Shared => {
-                (shared, GlobalLocation::SharedStatic, global.is_mutable())
-            }
-            mir::GlobalStorage::Local => (local, GlobalLocation::LocalStatic, global.is_mutable()),
+        let (allocator, is_mutable) = match global.storage {
+            mir::GlobalStorage::Constant => (constants, false),
+            mir::GlobalStorage::Immortal => (immortals, false),
+            mir::GlobalStorage::Shared => (shared, global.is_mutable()),
+            mir::GlobalStorage::Local => (local, global.is_mutable()),
         };
         let offset = allocator.reserve(alignment, byte_len);
 
         Ok(Global::new(
-            location,
+            Self::location(global.storage),
             offset,
             byte_len,
             self.program.type_id(self.module, ty),
@@ -253,9 +251,9 @@ impl<'a> GlobalLinker<'a> {
         };
         allocator.write(placed.offset(), &bytes);
 
-        // record rebased address words, which only immortal storage carries
-        for word_offset in relocations {
-            immortals.relocate(word_offset);
+        // record address words in their source image
+        for (byte_offset, location) in relocations {
+            allocator.relocate(byte_offset, location);
         }
 
         Ok(())
@@ -409,7 +407,7 @@ impl<'a> GlobalLinker<'a> {
         Ok(bytes)
     }
 
-    /// Encode one immortal global address as a region-relative rebased word.
+    /// Encode one global address as a target-relative word.
     fn global_address_bytes(
         &self,
         target: mir::GlobalId,
@@ -417,30 +415,37 @@ impl<'a> GlobalLinker<'a> {
         render: GlobalRender<'_, '_>,
         byte_len: usize,
     ) -> LinkResult<Vec<u8>> {
-        // address words survive only inside immortal storage
-        if render.storage != mir::GlobalStorage::Immortal {
-            return Err(self.program.invalid_input(
-                "a global address initializer requires immortal storage".to_string(),
-            ));
-        }
-
-        // resolve the placed target, which must be immortal itself
+        // resolve the placed target
         let target_id = self.program.global_id(self.module, target);
         let Some((_, placed)) = render.placements.get(target_id.index()) else {
             return Err(self
                 .program
                 .invalid_input(format!("missing placed global {target_id:?}")));
         };
-        if placed.location != GlobalLocation::Immortal {
+
+        // runtime-owned images cannot refer to worker-owned storage
+        if render.storage != mir::GlobalStorage::Local
+            && placed.location == GlobalLocation::LocalStatic
+        {
             return Err(self.program.invalid_input(
-                "a global address initializer must target immortal storage".to_string(),
+                "a runtime static initializer cannot reference local static storage".to_string(),
             ));
         }
 
-        // record the word for rebasing and write the region-relative target offset
-        render.relocations.push(offset);
+        // record the target location and write its region-relative offset
+        render.relocations.push((offset, placed.location));
 
         Ok(self.unsigned_bytes(placed.offset() as u128, byte_len))
+    }
+
+    /// Return the Program location for one MIR global storage class.
+    const fn location(storage: mir::GlobalStorage) -> GlobalLocation {
+        match storage {
+            mir::GlobalStorage::Constant => GlobalLocation::Constant,
+            mir::GlobalStorage::Immortal => GlobalLocation::Immortal,
+            mir::GlobalStorage::Shared => GlobalLocation::SharedStatic,
+            mir::GlobalStorage::Local => GlobalLocation::LocalStatic,
+        }
     }
 
     /// Encode one function address initializer as bytes.
