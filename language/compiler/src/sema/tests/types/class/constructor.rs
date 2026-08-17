@@ -722,3 +722,275 @@ const broken: new (value: int32) => Counter = build;
 "#,
     );
 }
+
+#[test]
+fn test_new_without_arguments_admits_induced_only_template() {
+    let session = TestSession::single(
+        r#"
+class State {
+    value: unknown | undefined;
+
+    constructor() {
+        this.value = undefined;
+    }
+}
+
+class Holder {
+    state: State;
+
+    constructor() {
+        this.state = new State();
+    }
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class State {
+    value: Dynamic<unknown> | undefined;
+
+    constructor(): this {
+        this.value = undefined as Dynamic<unknown> | undefined;
+    }
+}
+
+class Holder {
+    state: State;
+
+    constructor(): this {
+        this.state = new State();
+    }
+}
+
+=== dir ===
+class State {
+/// @type.symbol symbol=State type=State
+/// @definition.class symbol=State
+/// @definition.field symbol=State.value source="value: unknown | undefined" key=value type=Dynamic<unknown> | undefined
+/// @definition.method symbol=State.constructor slot=constructor role=constructor type=() => State
+
+    value: unknown | undefined;
+    /// @type.symbol symbol=State.value source="value: unknown | undefined" type=Dynamic<unknown> | undefined
+
+    constructor() {
+    /// @type.symbol symbol=State.constructor type=() => State
+
+        this.value = undefined;
+        /// @type.node source="this.value = undefined" type=undefined
+        /// @type.node source=this type=State
+        /// @type.node source=this.value type=Dynamic<unknown> | undefined
+        /// @resolution.receiver source=this kind=this declaration=State type=State
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
+        /// @resolution.assignment source=this.value write="receiver=State, target=field(receiver=State, target=State.value, type=Dynamic<unknown> | undefined), type=Dynamic<unknown> | undefined" type=Dynamic<unknown> | undefined
+        /// @type.node source=undefined type=undefined
+
+    }
+}
+
+class Holder {
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.class symbol=Holder
+/// @definition.field symbol=Holder.state source="state: State" key=state type=State
+/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=() => Holder
+
+    state: State;
+    /// @type.symbol symbol=Holder.state source="state: State" type=State
+    /// @resolution.name source=State target=State
+
+    constructor() {
+    /// @type.symbol symbol=Holder.constructor type=() => Holder
+
+        this.state = new State();
+        /// @type.node source="this.state = new State()" type=State
+        /// @type.node source=this type=Holder
+        /// @type.node source=this.state type=State
+        /// @resolution.receiver source=this kind=this declaration=Holder type=Holder
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.state kind=place
+        /// @resolution.access source=this.state root=this keys=[state]
+        /// @resolution.assignment source=this.state write="receiver=Holder, target=field(receiver=Holder, target=Holder.state, type=State), type=State" type=State
+        /// @type.node source="new State()" type=State
+        /// @resolution.construct source="new State()" parameters=() return=State kind=class target=State constructor=State.constructor
+        /// @resolution.name source=State target=State
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_new_infers_class_arguments_from_constructor_arguments() {
+    let session = TestSession::single(
+        r#"
+class Box<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+
+const value: int32 = 1;
+const box = new Box(value);
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Box<in out T> {
+    value: T;
+
+    constructor(value: T): this {
+        this.value = value;
+    }
+}
+
+const value: int32 = 1;
+const box: Box<int32> = new Box<int32>(value);
+
+=== dir ===
+class Box<T> {
+/// @generic.template symbol=Box parameters=(in out T)
+/// @type.symbol symbol=Box type=Box
+/// @definition.class symbol=Box template=(in out T)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(T) => this
+/// @type.symbol symbol=Box.T source=T type=T
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T
+    /// @resolution.name source=T target=Box.T
+
+    constructor(value: T) {
+    /// @type.symbol symbol=Box.constructor type=(T) => this
+    /// @type.symbol symbol=Box.constructor.value source="value: T" type=T
+    /// @resolution.name source=T target=Box.T
+
+        this.value = value;
+        /// @type.node source="this.value = value" type=T
+        /// @type.node source=this type=Box<T>
+        /// @type.node source=this.value type=T
+        /// @resolution.receiver source=this kind=this declaration=Box type=Box<T>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
+        /// @resolution.assignment source=this.value write="receiver=Box<T>, target=field(receiver=Box<T>, target=Box.value, type=T), type=T" type=T
+        /// @type.node source=value type=T
+        /// @resolution.name source=value target=Box.constructor.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Box.constructor.value
+
+    }
+}
+
+const value: int32 = 1;
+/// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source=1 type=1
+
+const box = new Box(value);
+/// @type.symbol symbol=box source=box type=Box<int32>
+/// @resolution.pattern source=box kind=binding target=box
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
+/// @type.node source="new Box(value)" type=Box<int32>
+/// @resolution.construct source="new Box(value)" parameters=(int32) arguments=(provided(value) as int32) return=Box<int32> kind=class target=Box constructor=Box.constructor instance=Box<int32>
+/// @generic.instantiation id=Box.constructor<int32> template=Box.constructor arguments=(int32)
+/// @generic.instantiation id=Box<int32> template=Box arguments=(int32)
+/// @generic.instance id=Box.constructor<int32> template=Box.constructor arguments=(int32)
+/// @resolution.name source=Box target=Box
+/// @type.node source=value type=int32
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+"#,
+    );
+}
+
+#[test]
+fn test_new_without_arguments_fills_defaulted_class_arguments() {
+    let session = TestSession::single(
+        r#"
+class Box<T = string> {
+    value: T | undefined;
+
+    constructor() {
+        this.value = undefined;
+    }
+}
+
+const box = new Box();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Box<in out T = string> {
+    value: T | undefined;
+
+    constructor(): this {
+        this.value = undefined as T | undefined;
+    }
+}
+
+const box: Box<string> = new Box<string>();
+
+=== dir ===
+class Box<T = string> {
+/// @generic.template symbol=Box parameters=(in out T = string)
+/// @type.symbol symbol=Box type=Box
+/// @definition.class symbol=Box template=(in out T = string)
+/// @definition.field symbol=Box.value source="value: T | undefined" key=value type=T | undefined
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=() => this
+/// @type.symbol symbol=Box.T source="T = string" type=T
+
+    value: T | undefined;
+    /// @type.symbol symbol=Box.value source="value: T | undefined" type=T | undefined
+    /// @resolution.name source=T target=Box.T
+
+    constructor() {
+    /// @type.symbol symbol=Box.constructor type=() => this
+
+        this.value = undefined;
+        /// @type.node source="this.value = undefined" type=undefined
+        /// @type.node source=this type=Box<T>
+        /// @type.node source=this.value type=T | undefined
+        /// @resolution.receiver source=this kind=this declaration=Box type=Box<T>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
+        /// @resolution.assignment source=this.value write="receiver=Box<T>, target=field(receiver=Box<T>, target=Box.value, type=T | undefined), type=T | undefined" type=T | undefined
+        /// @type.node source=undefined type=undefined
+
+    }
+}
+
+const box = new Box();
+/// @type.symbol symbol=box source=box type=Box<string>
+/// @resolution.pattern source=box kind=binding target=box
+/// @generic.instance id=Box<string> template=Box arguments=(string)
+/// @type.node source="new Box()" type=Box<string>
+/// @resolution.construct source="new Box()" parameters=() return=Box<string> kind=class target=Box constructor=Box.constructor instance=Box<string>
+/// @generic.instantiation id=Box.constructor<string> template=Box.constructor arguments=(string)
+/// @generic.instantiation id=Box<string> template=Box arguments=(string)
+/// @generic.instance id=Box.constructor<string> template=Box.constructor arguments=(string)
+/// @resolution.name source=Box target=Box
+"#,
+    );
+}

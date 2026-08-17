@@ -605,9 +605,18 @@ impl BodyState<'_, '_> {
         };
         let return_type = function.return_type;
 
-        // infer omitted class arguments while testing this constructor
+        // infer omitted class arguments while testing this constructor,
+        //  while induced-only templates admit through their defaults below
         let template = self.symbol_template(instance.symbol)?;
-        if instance.arguments.is_empty() && template.is_some() {
+        let infers_arguments = match template {
+            Some(template) if instance.arguments.is_empty() => {
+                let parameters = self.generic_template_parameters(template)?;
+
+                self.writable_parameter_count(&parameters) != 0
+            }
+            _ => false,
+        };
+        if infers_arguments {
             return self.match_signature(
                 origin,
                 function_type.module_id,
