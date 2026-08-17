@@ -96,17 +96,8 @@ impl<'a> FunctionEmitter<'a> {
         index: native::Index,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let data = self
-            .symbols
-            .declare(
-                index,
-                size_of::<u32>(),
-                align_of::<u32>() as u64,
-                self.output,
-            )
-            .map_err(|error| Self::internal(self.module, error.to_string()))?;
-        let data = self.output.declare_data_in_func(data, builder.func);
-        let address = builder.ins().symbol_value(self.types.pointer(), data);
+        let address =
+            self.index_address(index, size_of::<u32>(), align_of::<u32>() as u64, builder)?;
         let flags = cir::MemFlagsData::trusted();
         let value = builder.ins().load(cir::types::I32, flags, address, 0);
 
@@ -121,16 +112,37 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<cir::Value, EmitError> {
         let pointer = self.types.pointer();
         let byte_len = pointer.bytes() as usize;
-        let data = self
-            .symbols
-            .declare(index, byte_len, byte_len as u64, self.output)
-            .map_err(|error| Self::internal(self.module, error.to_string()))?;
-        let data = self.output.declare_data_in_func(data, builder.func);
-        let address = builder.ins().symbol_value(pointer, data);
+        let address = self.index_address(index, byte_len, byte_len as u64, builder)?;
         let flags = cir::MemFlagsData::trusted();
         let value = builder.ins().load(pointer, flags, address, 0);
 
         Ok(value)
+    }
+
+    /// Return one function-local reference to a linked Program index.
+    fn index_address(
+        &mut self,
+        index: native::Index,
+        byte_len: usize,
+        alignment: u64,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<cir::Value, EmitError> {
+        let data = self
+            .symbols
+            .declare(index, byte_len, alignment, self.output)
+            .map_err(|error| Self::internal(self.module, error.to_string()))?;
+
+        // reuse one Cranelift global value for every occurrence
+        let reference = if let Some(reference) = self.indices.get(&index).copied() {
+            reference
+        } else {
+            let reference = self.output.declare_data_in_func(data, builder.func);
+            self.indices.insert(index, reference);
+
+            reference
+        };
+
+        Ok(builder.ins().symbol_value(self.types.pointer(), reference))
     }
 
     /// Emit one runtime operation call.

@@ -13,6 +13,7 @@ impl<'a> FunctionEmitter<'a> {
         instruction: &mir::Instruction,
     ) -> Result<(), EmitError> {
         match instruction {
+            mir::Instruction::Error => Err(self.internal("invalid instruction")),
             mir::Instruction::Const { destination, value } => {
                 self.emit_constant(*destination, value)
             }
@@ -67,63 +68,6 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::FunctionEnvironmentCurrent { destination } => {
                 self.emit_function_environment_current(*destination)
             }
-            mir::Instruction::Load {
-                destination,
-                pointer,
-                result_type,
-            } => self.emit_load(*destination, *pointer, *result_type),
-            mir::Instruction::Store { pointer, value } => self.emit_store(*pointer, *value),
-            mir::Instruction::Aggregate {
-                destination,
-                values,
-            } => self.emit_aggregate(*destination, *values),
-            mir::Instruction::FieldGet {
-                destination,
-                aggregate,
-                field,
-            } => self.emit_field_get(*destination, *aggregate, *field),
-            mir::Instruction::FieldSet {
-                destination,
-                aggregate,
-                field,
-                value,
-            } => self.emit_field_set(*destination, *aggregate, *field, *value),
-            mir::Instruction::ElementGet {
-                destination,
-                aggregate,
-                index,
-            } => self.emit_element_get(*destination, *aggregate, *index),
-            mir::Instruction::ElementSet {
-                destination,
-                aggregate,
-                index,
-                value,
-            } => self.emit_element_set(*destination, *aggregate, *index, *value),
-            mir::Instruction::VariantNew {
-                destination,
-                case,
-                payload,
-                result_type,
-            } => self.emit_variant_new(*destination, *case, *payload, *result_type),
-            mir::Instruction::VariantTag {
-                destination,
-                variant,
-            } => self.emit_variant_tag(*destination, *variant),
-            mir::Instruction::VariantTagLoad {
-                destination,
-                variant,
-            } => self.emit_variant_tag_load(*destination, *variant),
-            mir::Instruction::VariantPayload {
-                destination,
-                variant,
-                case,
-            } => self.emit_variant_payload(*destination, *variant, *case),
-            mir::Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                case,
-                ..
-            } => self.emit_variant_payload_address(*destination, *variant, *case),
             mir::Instruction::ContextCurrent { destination } => {
                 self.emit_context_current(*destination)
             }
@@ -154,79 +98,75 @@ impl<'a> FunctionEmitter<'a> {
                 node_type,
                 ..
             } => self.emit_context_get(*destination, *context, *variable, *default, *node_type),
-            mir::Instruction::Call { destination, call } => self.emit_call(*destination, call),
-            mir::Instruction::CallDetach { thunk } => self.emit_call_detach(*thunk),
-            mir::Instruction::Drop { value } => self.emit_drop(*value),
-            mir::Instruction::NewZeroed {
+            mir::Instruction::Load {
                 destination,
+                pointer,
                 result_type,
-                ..
-            } => self.emit_new(
-                instruction_id,
-                *destination,
-                *result_type,
-                bytecode::NewKind::Value,
-                bytecode::Initialization::Zeroed,
-                None,
-            ),
-            mir::Instruction::NewUninit {
+            } => self.emit_load(*destination, *pointer, *result_type),
+            mir::Instruction::Store { pointer, value } => self.emit_store(*pointer, *value),
+            mir::Instruction::Aggregate {
                 destination,
-                result_type,
-                ..
-            } => self.emit_new(
-                instruction_id,
-                *destination,
-                *result_type,
-                bytecode::NewKind::Value,
-                bytecode::Initialization::Uninit,
-                None,
-            ),
-            mir::Instruction::NewComplete {
-                destination, value, ..
-            } => self.emit_new_complete(*destination, *value),
-            mir::Instruction::NewSliceZeroed {
+                values,
+            } => self.emit_aggregate(*destination, *values),
+            mir::Instruction::FieldGet {
                 destination,
-                length,
-                result_type,
-                ..
-            } => self.emit_new(
-                instruction_id,
-                *destination,
-                *result_type,
-                bytecode::NewKind::Slice,
-                bytecode::Initialization::Zeroed,
-                Some(*length),
-            ),
-            mir::Instruction::NewSliceUninit {
+                aggregate,
+                field,
+            } => self.emit_field_get(*destination, *aggregate, *field),
+            mir::Instruction::FieldSet {
                 destination,
-                length,
-                result_type,
-                ..
-            } => self.emit_new(
-                instruction_id,
-                *destination,
-                *result_type,
-                bytecode::NewKind::Slice,
-                bytecode::Initialization::Uninit,
-                Some(*length),
-            ),
-            mir::Instruction::Poll => self.emit_empty(bytecode::Opcode::POLL),
-            mir::Instruction::Breakpoint => self.emit_empty(bytecode::Opcode::BREAKPOINT),
-
-            mir::Instruction::Error => Err(self.internal("invalid instruction")),
-
+                aggregate,
+                field,
+                value,
+            } => self.emit_field_set(*destination, *aggregate, *field, *value),
             mir::Instruction::FieldAddr {
                 destination,
                 aggregate,
                 field,
                 ..
             } => self.emit_field_address(*destination, *aggregate, *field),
+            mir::Instruction::ElementGet {
+                destination,
+                aggregate,
+                index,
+            } => self.emit_element_get(*destination, *aggregate, *index),
+            mir::Instruction::ElementSet {
+                destination,
+                aggregate,
+                index,
+                value,
+            } => self.emit_element_set(*destination, *aggregate, *index, *value),
             mir::Instruction::ElementAddr {
                 destination,
                 base,
                 index,
                 ..
             } => self.emit_element_address(*destination, *base, *index),
+            mir::Instruction::VariantNew {
+                destination,
+                case,
+                payload,
+                result_type,
+            } => self.emit_variant_new(*destination, *case, *payload, *result_type),
+            mir::Instruction::VariantTag {
+                destination,
+                variant,
+            } => self.emit_variant_tag(*destination, *variant),
+            mir::Instruction::VariantTagLoad {
+                destination,
+                variant,
+            } => self.emit_variant_tag_load(*destination, *variant),
+            mir::Instruction::VariantPayload {
+                destination,
+                variant,
+                case,
+            } => self.emit_variant_payload(*destination, *variant, *case),
+            mir::Instruction::VariantPayloadAddr {
+                destination,
+                variant,
+                case,
+                ..
+            } => self.emit_variant_payload_address(*destination, *variant, *case),
             mir::Instruction::SliceView {
                 destination,
                 source,
@@ -251,9 +191,12 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 dynamic,
             } => self.emit_dynamic_type(*destination, *dynamic),
-            mir::Instruction::DynamicRead { .. } => {
-                Err(self.internal("dynamic slot reads await their bytecode encoding"))
-            }
+            mir::Instruction::DynamicRead {
+                destination,
+                dynamic,
+                slot,
+                result_type,
+            } => self.emit_dynamic_read(*destination, *dynamic, *slot, *result_type),
             mir::Instruction::DynamicFind { .. } => {
                 Err(self
                     .internal("dynamic property lookup requires executable string representation"))
@@ -335,6 +278,47 @@ impl<'a> FunctionEmitter<'a> {
 
                 self.encode(command.instruction, &destinations)
             }
+            mir::Instruction::Call { destination, call } => self.emit_call(*destination, call),
+            mir::Instruction::Drop { value } => self.emit_drop(*value),
+            mir::Instruction::NewZeroed { destination, .. } => self.emit_new(
+                instruction_id,
+                *destination,
+                bytecode::NewKind::Value,
+                bytecode::Initialization::Zeroed,
+                None,
+            ),
+            mir::Instruction::NewUninit { destination, .. } => self.emit_new(
+                instruction_id,
+                *destination,
+                bytecode::NewKind::Value,
+                bytecode::Initialization::Uninit,
+                None,
+            ),
+            mir::Instruction::NewComplete {
+                destination, value, ..
+            } => self.emit_new_complete(*destination, *value),
+            mir::Instruction::NewSliceZeroed {
+                destination,
+                length,
+                ..
+            } => self.emit_new(
+                instruction_id,
+                *destination,
+                bytecode::NewKind::Slice,
+                bytecode::Initialization::Zeroed,
+                Some(*length),
+            ),
+            mir::Instruction::NewSliceUninit {
+                destination,
+                length,
+                ..
+            } => self.emit_new(
+                instruction_id,
+                *destination,
+                bytecode::NewKind::Slice,
+                bytecode::Initialization::Uninit,
+                Some(*length),
+            ),
             mir::Instruction::Free { value } => self.emit_free(*value),
             mir::Instruction::Pin {
                 destination, value, ..
@@ -384,6 +368,8 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::ProfileSample { sampler, value } => {
                 self.emit_profile_sample(*sampler, *value)
             }
+            mir::Instruction::Poll => self.emit_empty(bytecode::Opcode::POLL),
+            mir::Instruction::Breakpoint => self.emit_empty(bytecode::Opcode::BREAKPOINT),
             mir::Instruction::Intrinsic {
                 destination,
                 intrinsic,

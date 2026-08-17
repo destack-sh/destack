@@ -56,82 +56,144 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Emit one scalar binary operation.
     pub(super) fn emit_binary(
-        &self,
+        &mut self,
         operator: mir::BinaryOperator,
         left: cir::Value,
         right: cir::Value,
+        ty: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) -> cir::Value {
+    ) -> Result<cir::Value, EmitError> {
         use cir::condcodes::{FloatCC, IntCC};
 
-        match operator {
+        // emit floating point operations directly
+        if matches!(self.optimized.tree.get(ty), mir::Type::Float(_)) {
+            let value = match operator {
+                mir::BinaryOperator::Add => builder.ins().fadd(left, right),
+                mir::BinaryOperator::Subtract => builder.ins().fsub(left, right),
+                mir::BinaryOperator::Multiply => builder.ins().fmul(left, right),
+                mir::BinaryOperator::Divide => builder.ins().fdiv(left, right),
+                mir::BinaryOperator::Remainder => {
+                    self.emit_float_remainder(left, right, builder)?
+                }
+                mir::BinaryOperator::Equal => builder.ins().fcmp(FloatCC::Equal, left, right),
+                mir::BinaryOperator::NotEqual => builder.ins().fcmp(FloatCC::NotEqual, left, right),
+                mir::BinaryOperator::LessThan => builder.ins().fcmp(FloatCC::LessThan, left, right),
+                mir::BinaryOperator::LessEqual => {
+                    builder.ins().fcmp(FloatCC::LessThanOrEqual, left, right)
+                }
+                mir::BinaryOperator::GreaterThan => {
+                    builder.ins().fcmp(FloatCC::GreaterThan, left, right)
+                }
+                mir::BinaryOperator::GreaterEqual => {
+                    builder.ins().fcmp(FloatCC::GreaterThanOrEqual, left, right)
+                }
+                _ => return Err(self.invalid("native floating point operator is invalid")),
+            };
+
+            return Ok(value);
+        }
+
+        // select integer instructions from the MIR type
+        let value = match operator {
             mir::BinaryOperator::Add => builder.ins().iadd(left, right),
             mir::BinaryOperator::Subtract => builder.ins().isub(left, right),
             mir::BinaryOperator::Multiply => builder.ins().imul(left, right),
-            mir::BinaryOperator::SignedDivide => builder.ins().sdiv(left, right),
-            mir::BinaryOperator::UnsignedDivide => builder.ins().udiv(left, right),
-            mir::BinaryOperator::SignedRemainder => builder.ins().srem(left, right),
-            mir::BinaryOperator::UnsignedRemainder => builder.ins().urem(left, right),
-            mir::BinaryOperator::FloatAdd => builder.ins().fadd(left, right),
-            mir::BinaryOperator::FloatSubtract => builder.ins().fsub(left, right),
-            mir::BinaryOperator::FloatMultiply => builder.ins().fmul(left, right),
-            mir::BinaryOperator::FloatDivide => builder.ins().fdiv(left, right),
+            mir::BinaryOperator::Divide if self.types.is_signed_integer(ty)? => {
+                builder.ins().sdiv(left, right)
+            }
+            mir::BinaryOperator::Divide => builder.ins().udiv(left, right),
+            mir::BinaryOperator::Remainder if self.types.is_signed_integer(ty)? => {
+                builder.ins().srem(left, right)
+            }
+            mir::BinaryOperator::Remainder => builder.ins().urem(left, right),
             mir::BinaryOperator::And => builder.ins().band(left, right),
             mir::BinaryOperator::Or => builder.ins().bor(left, right),
             mir::BinaryOperator::Xor => builder.ins().bxor(left, right),
             mir::BinaryOperator::ShiftLeft => builder.ins().ishl(left, right),
-            mir::BinaryOperator::ArithmeticShiftRight => builder.ins().sshr(left, right),
-            mir::BinaryOperator::LogicalShiftRight => builder.ins().ushr(left, right),
+            mir::BinaryOperator::ShiftRight if self.types.is_signed_integer(ty)? => {
+                builder.ins().sshr(left, right)
+            }
+            mir::BinaryOperator::ShiftRight | mir::BinaryOperator::UnsignedShiftRight => {
+                builder.ins().ushr(left, right)
+            }
             mir::BinaryOperator::Equal => builder.ins().icmp(IntCC::Equal, left, right),
             mir::BinaryOperator::NotEqual => builder.ins().icmp(IntCC::NotEqual, left, right),
-            mir::BinaryOperator::SignedLessThan => {
+            mir::BinaryOperator::LessThan if self.types.is_signed_integer(ty)? => {
                 builder.ins().icmp(IntCC::SignedLessThan, left, right)
             }
-            mir::BinaryOperator::SignedLessEqual => {
-                builder
-                    .ins()
-                    .icmp(IntCC::SignedLessThanOrEqual, left, right)
-            }
-            mir::BinaryOperator::SignedGreaterThan => {
-                builder.ins().icmp(IntCC::SignedGreaterThan, left, right)
-            }
-            mir::BinaryOperator::SignedGreaterEqual => {
-                builder
-                    .ins()
-                    .icmp(IntCC::SignedGreaterThanOrEqual, left, right)
-            }
-            mir::BinaryOperator::UnsignedLessThan => {
+            mir::BinaryOperator::LessThan => {
                 builder.ins().icmp(IntCC::UnsignedLessThan, left, right)
             }
-            mir::BinaryOperator::UnsignedLessEqual => {
+            mir::BinaryOperator::LessEqual if self.types.is_signed_integer(ty)? => builder
+                .ins()
+                .icmp(IntCC::SignedLessThanOrEqual, left, right),
+            mir::BinaryOperator::LessEqual => {
                 builder
                     .ins()
                     .icmp(IntCC::UnsignedLessThanOrEqual, left, right)
             }
-            mir::BinaryOperator::UnsignedGreaterThan => {
+            mir::BinaryOperator::GreaterThan if self.types.is_signed_integer(ty)? => {
+                builder.ins().icmp(IntCC::SignedGreaterThan, left, right)
+            }
+            mir::BinaryOperator::GreaterThan => {
                 builder.ins().icmp(IntCC::UnsignedGreaterThan, left, right)
             }
-            mir::BinaryOperator::UnsignedGreaterEqual => {
+            mir::BinaryOperator::GreaterEqual if self.types.is_signed_integer(ty)? => builder
+                .ins()
+                .icmp(IntCC::SignedGreaterThanOrEqual, left, right),
+            mir::BinaryOperator::GreaterEqual => {
                 builder
                     .ins()
                     .icmp(IntCC::UnsignedGreaterThanOrEqual, left, right)
             }
-            mir::BinaryOperator::FloatEqual => builder.ins().fcmp(FloatCC::Equal, left, right),
-            mir::BinaryOperator::FloatNotEqual => {
-                builder.ins().fcmp(FloatCC::NotEqual, left, right)
+        };
+
+        Ok(value)
+    }
+
+    /// Emit floating-point remainder through the platform math implementation.
+    fn emit_float_remainder(
+        &mut self,
+        left: cir::Value,
+        right: cir::Value,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<cir::Value, EmitError> {
+        let ty = builder.func.dfg.value_type(left);
+        if ty.is_vector() {
+            let left_lane = builder.ins().extractlane(left, 0);
+            let right_lane = builder.ins().extractlane(right, 0);
+            let value = self.emit_float_remainder(left_lane, right_lane, builder)?;
+            let mut result = builder.ins().splat(ty, value);
+
+            // apply the scalar platform operation to each packed lane
+            for lane in 1..ty.lane_count() {
+                let left = builder.ins().extractlane(left, lane as u8);
+                let right = builder.ins().extractlane(right, lane as u8);
+                let value = self.emit_float_remainder(left, right, builder)?;
+                result = builder.ins().insertlane(result, value, lane as u8);
             }
-            mir::BinaryOperator::FloatLessThan => {
-                builder.ins().fcmp(FloatCC::LessThan, left, right)
-            }
-            mir::BinaryOperator::FloatLessEqual => {
-                builder.ins().fcmp(FloatCC::LessThanOrEqual, left, right)
-            }
-            mir::BinaryOperator::FloatGreaterThan => {
-                builder.ins().fcmp(FloatCC::GreaterThan, left, right)
-            }
-            mir::BinaryOperator::FloatGreaterEqual => {
-                builder.ins().fcmp(FloatCC::GreaterThanOrEqual, left, right)
-            }
+
+            return Ok(result);
+        }
+
+        // promote half precision values to the platform's single precision operation
+        let (left, right, import) = match ty {
+            cir::types::F16 => (
+                builder.ins().fpromote(cir::types::F32, left),
+                builder.ins().fpromote(cir::types::F32, right),
+                native::Import::RemainderF32,
+            ),
+            cir::types::F32 => (left, right, native::Import::RemainderF32),
+            cir::types::F64 => (left, right, native::Import::RemainderF64),
+            _ => return Err(self.invalid("native remainder requires a floating point value")),
+        };
+        let value = self.emit_float_import(import, &[left, right], builder)?;
+
+        // restore the MIR half precision representation
+        if ty == cir::types::F16 {
+            Ok(builder.ins().fdemote(cir::types::F16, value))
+        } else {
+            Ok(value)
         }
     }
 
@@ -200,7 +262,9 @@ impl<'a> FunctionEmitter<'a> {
         mode: mir::ConvertMode,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let pointer_bits = self.optimized.target.pointer_bits();
+        let pointer_bits = self.types.layout.pointer_bits();
+        let source = self.optimized.tree.storage_type(source);
+        let target = self.optimized.tree.storage_type(target);
         let source_definition = self.optimized.tree.get(source);
         let target_definition = self.optimized.tree.get(target);
         let source_integer = source_definition.int_info_with_pointer_width(pointer_bits);
@@ -261,7 +325,9 @@ impl<'a> FunctionEmitter<'a> {
         target: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let pointer_bits = self.optimized.target.pointer_bits();
+        let pointer_bits = self.types.layout.pointer_bits();
+        let source = self.optimized.tree.storage_type(source);
+        let target = self.optimized.tree.storage_type(target);
         let source = self
             .optimized
             .tree
@@ -338,8 +404,8 @@ impl<'a> FunctionEmitter<'a> {
         };
 
         // reject values above the target domain
-        let target_maximum = integer_maximum(target_width, target_signed);
-        let source_maximum = integer_maximum(source_width, source_signed);
+        let target_maximum = self.types.integer_maximum(target_width, target_signed);
+        let source_maximum = self.types.integer_maximum(source_width, source_signed);
         if target_maximum < source_maximum {
             let maximum = self.emit_integer_constant(source_type, target_maximum, builder)?;
             let condition = if source_signed {
@@ -640,8 +706,8 @@ impl<'a> FunctionEmitter<'a> {
         }
 
         // clamp the upper bound
-        let target_maximum = integer_maximum(target_width, target_signed);
-        let source_maximum = integer_maximum(source_width, source_signed);
+        let target_maximum = self.types.integer_maximum(target_width, target_signed);
+        let source_maximum = self.types.integer_maximum(source_width, source_signed);
         if target_maximum < source_maximum {
             let maximum = self.emit_integer_constant(source_type, target_maximum, builder)?;
             value = if source_signed {
@@ -663,16 +729,5 @@ impl<'a> FunctionEmitter<'a> {
         };
 
         Ok(value)
-    }
-}
-
-/// Return the largest mathematical value of one integer representation.
-fn integer_maximum(width: u16, is_signed: bool) -> u128 {
-    if is_signed {
-        (1u128 << (width - 1)) - 1
-    } else if width == 128 {
-        u128::MAX
-    } else {
-        (1u128 << width) - 1
     }
 }

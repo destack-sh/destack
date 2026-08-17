@@ -23,17 +23,6 @@ impl<'a> FunctionEmitter<'a> {
         self.emit_call_operation(call, opcode, &destinations, None)
     }
 
-    /// Emit one detach boundary call.
-    pub(super) fn emit_call_detach(&mut self, thunk: mir::Value) -> Result<(), EmitError> {
-        self.builder
-            .anchor_operation()
-            .map_err(|error| self.bytecode_error(error))?;
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::CALL_DETACH);
-        instruction.span(self.register(thunk)?);
-
-        self.encode(instruction, &[])
-    }
-
     /// Emit one invoked call with normal and unwind continuations.
     pub(super) fn emit_invoke(
         &mut self,
@@ -52,10 +41,10 @@ impl<'a> FunctionEmitter<'a> {
         let destinations = if matches!(self.optimized.tree.get(result), mir::Type::Void) {
             Vec::new()
         } else {
-            self.successor_destinations(terminator, target)?
+            self.successor_destinations(terminator, mir::Successor::InvokeNormal, target)?
         };
-        let target = self.edge_label(terminator, target)?;
-        let unwind = self.edge_label(terminator, unwind)?;
+        let target = self.edge_label(terminator, mir::Successor::InvokeNormal, target)?;
+        let unwind = self.edge_label(terminator, mir::Successor::InvokeUnwind, unwind)?;
 
         let opcode = Self::call_opcode(true, &call.callee);
 

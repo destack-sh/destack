@@ -42,15 +42,6 @@ impl SymbolTable {
         self.declare_symbol(native::Symbol::Index(index), byte_len, alignment, output)
     }
 
-    /// Return or declare one addressable image block.
-    pub(in crate::emit::native) fn declare_block(
-        &mut self,
-        block: native::BlockId,
-        output: &mut ObjectModule,
-    ) -> ModuleResult<DataId> {
-        self.declare_symbol(native::Symbol::Block { block, offset: 0 }, 1, 1, output)
-    }
-
     /// Return or declare one addressable object symbol.
     fn declare_symbol(
         &mut self,

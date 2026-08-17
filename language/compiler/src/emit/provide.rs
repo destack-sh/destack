@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirResolved, MirOptimized,
-    Output,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirResolved, MirLowered,
+    MirOptimized, Output,
 };
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
@@ -81,6 +81,7 @@ impl Compiler {
         }
 
         // declare optimized code and its module dependency source
+        dependencies.require(ArtifactKey::mir_lowered(module, profile, target));
         dependencies.require(ArtifactKey::mir_optimized(module, profile, target));
         dependencies.require(ArtifactKey::dir_resolved(module, profile));
 
@@ -188,7 +189,10 @@ impl Compiler {
 
         // preserve optimized MIR and its direct module dependencies
         let artifacts = self.artifact_reader(context);
-        let mir = artifacts
+        let lowered = artifacts
+            .read::<MirLowered>((module, profile, target))
+            .map_err(CompilerError::from)?;
+        let optimized = artifacts
             .read::<MirOptimized>((module, profile, target))
             .map_err(CompilerError::from)?;
         let resolved = artifacts
@@ -198,21 +202,27 @@ impl Compiler {
             .target_modules()
             .filter(|target| *target != module)
             .collect::<Vec<_>>();
-        let mut object = ObjectEmitter::new(module, &mir, modules)?;
+        let mut object = ObjectEmitter::new(module, &lowered, &optimized, modules)?;
 
         // emit every representation selected by this Program target
         for code in target_config.code.iter().copied() {
             object = match code {
                 Code::Bytecode => {
-                    let bytecode = BytecodeEmitter::new(module, &mir, &object).emit()?;
+                    let bytecode = BytecodeEmitter::new(module, &optimized, &object).emit()?;
 
                     object.bytecode(bytecode)
                 }
                 Code::Native => {
                     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
                     {
-                        let native =
-                            NativeEmitter::new(module, &mir, &object, &target_config)?.emit()?;
+                        let native = NativeEmitter::new(
+                            module,
+                            lowered.target,
+                            &optimized,
+                            &object,
+                            &target_config,
+                        )?
+                        .emit()?;
 
                         object.native(native)
                     }

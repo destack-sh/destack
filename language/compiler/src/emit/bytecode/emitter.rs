@@ -20,7 +20,6 @@ pub struct BytecodeEmitter<'a> {
     types: TypeEmitter<'a>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> BytecodeEmitter<'a> {
     /// Create one bytecode emitter.
     pub fn new(module: ModuleId, optimized: &'a MirOptimized, object: &'a ObjectEmitter) -> Self {

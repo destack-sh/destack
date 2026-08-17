@@ -33,7 +33,7 @@ pub(crate) struct RegisterAllocator<'a> {
     /// Common object operation order.
     object: &'a ObjectEmitter,
     /// CFG-correct MIR value liveness.
-    liveness: mir::FunctionLiveness,
+    liveness: mir::LivenessTable,
     /// Bytecode value types keyed by MIR value.
     value_types: Vec<Option<bytecode::ValueType>>,
     /// Assigned register ranges keyed by MIR value.
@@ -110,7 +110,7 @@ impl<'a> RegisterAllocator<'a> {
             function,
             types,
             object,
-            liveness: mir::FunctionLiveness::build(function, &optimized.tree),
+            liveness: mir::LivenessTable::build(function, &optimized.tree),
             value_types,
             ranges: vec![None; value_count],
             reserved_word_count,
@@ -167,7 +167,7 @@ impl<'a> RegisterAllocator<'a> {
             let block = self.tree.get(block_id);
 
             // block entry retains incoming values and receives block parameters
-            for &value in self.liveness.value_live_in(block_id) {
+            for value in self.liveness.value_live_in(block_id) {
                 self.touch(&mut intervals, value, point)?;
             }
             for parameter in &block.parameters {
@@ -197,7 +197,7 @@ impl<'a> RegisterAllocator<'a> {
             for value in terminator.uses(self.tree) {
                 self.touch(&mut intervals, value, point)?;
             }
-            for &value in self.liveness.value_live_out(block_id) {
+            for value in self.liveness.value_live_out(block_id) {
                 self.touch(&mut intervals, value, point)?;
             }
             point += 1;

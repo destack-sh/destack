@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
 use cranelift_module::Module;
@@ -278,7 +276,7 @@ impl FunctionEmitter<'_> {
     }
 
     /// Resolve one callable identity into its current typed native body.
-    fn native_function(
+    pub(super) fn native_function(
         &mut self,
         function: cir::Value,
         frame: &FrameMap,
@@ -348,12 +346,7 @@ impl FunctionEmitter<'_> {
             offset as i32,
         );
 
-        self.dispatch_function(
-            table,
-            slot.0,
-            std::mem::offset_of!(native::abi::Activation, virtuals),
-            builder,
-        )
+        self.virtual_entry(table, slot.0, builder)
     }
 
     /// Load one dynamic method identity from the erased value's linked table.
@@ -363,40 +356,40 @@ impl FunctionEmitter<'_> {
         slot: mir::DispatchSlot,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let [_, table] = self
-            .value(receiver)?
-            .scalar_pair()
-            .ok_or_else(|| self.invalid("native dynamic receiver is not a scalar pair"))?;
+        let (_, function) = self.dynamic_entry(receiver, slot, builder)?;
+        let function = builder.ins().uextend(self.types.pointer(), function);
 
-        self.dispatch_function(
-            table,
-            slot.0,
-            std::mem::offset_of!(native::abi::Activation, dynamics),
-            builder,
-        )
+        Ok(builder
+            .ins()
+            .iadd_imm_u(function, program::FunctionId::WORD_BIAS as i64))
     }
 
-    /// Load one function identity from a dense process-local dispatch row.
-    fn dispatch_function(
+    /// Load one function identity from a process-local virtual table.
+    fn virtual_entry(
         &self,
         table: cir::Value,
         slot: u32,
-        activation_offset: usize,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
         let pointer = self.types.pointer();
-        let rows = self.activation_pointer(activation_offset, builder)?;
+        let tables = self.activation_pointer(
+            std::mem::offset_of!(native::abi::Activation, virtuals),
+            builder,
+        )?;
         let table = builder.ins().uextend(pointer, table);
-        let table_offset = builder.ins().imul_imm_u(table, i64::from(pointer.bytes()));
-        let row = builder.ins().iadd(rows, table_offset);
-        let row = builder
+        let table_offset = builder
             .ins()
-            .load(pointer, cir::MemFlagsData::trusted(), row, 0);
+            .ishl_imm_u(table, i64::from(pointer.bytes().trailing_zeros()));
+        let table_address = builder.ins().iadd(tables, table_offset);
+        let table_address =
+            builder
+                .ins()
+                .load(pointer, cir::MemFlagsData::trusted(), table_address, 0);
         let function = builder.ins().load(
             cir::types::I32,
             cir::MemFlagsData::trusted(),
-            row,
-            (slot as i32) * size_of::<u32>() as i32,
+            table_address,
+            native::abi::VirtualTable::entry_offset(slot) as i32,
         );
         let function = builder.ins().uextend(pointer, function);
 

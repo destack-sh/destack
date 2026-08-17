@@ -17,6 +17,9 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<bool, EmitError> {
         match instruction {
+            mir::Instruction::Error => {
+                return Err(self.invalid("native emission received an invalid instruction"));
+            }
             mir::Instruction::Const { destination, value } => {
                 let value = self.emit_constant(value, builder)?;
                 self.set(*destination, Value::Direct(value))?;
@@ -27,9 +30,15 @@ impl<'a> FunctionEmitter<'a> {
                 left,
                 right,
             } => {
+                let ty = self.optimized.tree.storage_type(self.value_type(*left)?);
+                let ty = match self.optimized.tree.get(ty) {
+                    mir::Type::Vector { element, .. } => *element,
+                    _ => ty,
+                };
+                let ty = self.optimized.tree.storage_type(ty);
                 let left = self.scalar(*left)?;
                 let right = self.scalar(*right)?;
-                let value = self.emit_binary(*operator, left, right, builder);
+                let value = self.emit_binary(*operator, left, right, ty, builder)?;
                 self.set(*destination, Value::Direct(value))?;
             }
             mir::Instruction::Unary {
@@ -37,11 +46,19 @@ impl<'a> FunctionEmitter<'a> {
                 operator,
                 argument,
             } => {
+                let ty = self
+                    .optimized
+                    .tree
+                    .storage_type(self.value_type(*argument)?);
+                let is_float = self.optimized.tree.get(ty).is_float(&self.optimized.tree);
                 let argument = self.scalar(*argument)?;
-                let value = match operator {
-                    mir::UnaryOperator::Negate => builder.ins().ineg(argument),
-                    mir::UnaryOperator::FloatNegate => builder.ins().fneg(argument),
-                    mir::UnaryOperator::Not => builder.ins().bnot(argument),
+                let value = match (*operator, is_float) {
+                    (mir::UnaryOperator::Negate, false) => builder.ins().ineg(argument),
+                    (mir::UnaryOperator::Negate, true) => builder.ins().fneg(argument),
+                    (mir::UnaryOperator::Not, false) => builder.ins().bnot(argument),
+                    (mir::UnaryOperator::Not, true) => {
+                        return Err(self.invalid("native floating point NOT is invalid"));
+                    }
                 };
                 self.set(*destination, Value::Direct(value))?;
             }
@@ -235,6 +252,7 @@ impl<'a> FunctionEmitter<'a> {
                 start,
                 length,
                 result_type,
+                ..
             } => self.emit_slice_view(
                 *destination,
                 *source,
@@ -259,14 +277,20 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::DynamicType {
                 destination,
                 dynamic,
-            } => self.emit_dynamic_type(*destination, *dynamic)?,
+            } => self.emit_dynamic_type(*destination, *dynamic, builder)?,
+            mir::Instruction::DynamicRead {
+                destination,
+                dynamic,
+                slot,
+                result_type,
+            } => self.emit_dynamic_read(*destination, *dynamic, *slot, *result_type, builder)?,
             mir::Instruction::DynamicFind { .. } => {
                 return Err(Self::internal(
                     self.module,
                     "dynamic property lookup requires executable string representation",
                 ));
             }
-            mir::Instruction::Drop { value } => self.emit_drop(*value, builder)?,
+            mir::Instruction::Drop { value } => self.emit_drop(instruction_id, *value, builder)?,
             mir::Instruction::NewZeroed {
                 destination,
                 result_type,
@@ -324,11 +348,8 @@ impl<'a> FunctionEmitter<'a> {
                 builder,
             )?,
             mir::Instruction::Free { value } => {
-                let ty = self.value_type(*value)?;
-                let space = self.heap_space(ty)?;
-                let space = builder.ins().iconst(cir::types::I32, space as i64);
                 let reference = self.reference(*value, builder)?;
-                self.emit_runtime(native::abi::Operation::Free, &[space, reference], builder)?;
+                self.emit_runtime(native::abi::Operation::Free, &[reference], builder)?;
             }
             mir::Instruction::Pin {
                 destination,
@@ -341,7 +362,7 @@ impl<'a> FunctionEmitter<'a> {
                 let call =
                     self.emit_runtime(native::abi::Operation::Pin, &[space, reference], builder)?;
                 let reference = builder.inst_results(call)[0];
-                self.set(*destination, Value::Direct(reference))?;
+                self.replace_reference(*destination, *value, reference, builder)?;
             }
             mir::Instruction::Unpin { value } => {
                 let ty = self.value_type(*value)?;
@@ -453,7 +474,8 @@ impl<'a> FunctionEmitter<'a> {
                 mode,
                 vector,
             } => self.emit_vector_convert(*destination, *mode, *vector, builder)?,
-            instruction @ (mir::Instruction::TensorSplat { .. }
+            // TODO #Incomplete: lower tensor instructions through the target tensor backend
+            mir::Instruction::TensorSplat { .. }
             | mir::Instruction::TensorLoad { .. }
             | mir::Instruction::TensorExtract { .. }
             | mir::Instruction::TensorStore { .. }
@@ -475,8 +497,8 @@ impl<'a> FunctionEmitter<'a> {
             | mir::Instruction::TensorConvolution { .. }
             | mir::Instruction::TensorGather { .. }
             | mir::Instruction::TensorScatter { .. }
-            | mir::Instruction::TensorConvert { .. }) => {
-                self.emit_tensor(instruction_id, instruction, builder)?
+            | mir::Instruction::TensorConvert { .. } => {
+                return Err(self.invalid("native tensor legalization is unavailable"));
             }
             mir::Instruction::Call { destination, call } => {
                 let point = self.object.instruction_point(instruction_id);
@@ -509,11 +531,6 @@ impl<'a> FunctionEmitter<'a> {
                 intrinsic,
                 arguments,
             } => self.emit_intrinsic(*destination, *intrinsic, *arguments, builder)?,
-            _ => {
-                return Err(self.invalid(&format!(
-                    "native emission is missing instruction {instruction:?}"
-                )));
-            }
         }
 
         Ok(true)

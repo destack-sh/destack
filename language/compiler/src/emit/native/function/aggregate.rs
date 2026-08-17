@@ -302,8 +302,24 @@ impl<'a> FunctionEmitter<'a> {
         field: u32,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        self.require_frame_reference(destination)?;
-        let aggregate_type = self.value_type(aggregate)?;
+        let aggregate_type = self
+            .optimized
+            .tree
+            .storage_type(self.value_type(aggregate)?);
+        let (aggregate_type, base) = match self.optimized.tree.get(aggregate_type) {
+            // preserve stable reference and pointer bits while projecting their pointee
+            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => (
+                self.optimized.tree.storage_type(*pointee),
+                self.reference(aggregate, builder)?,
+            ),
+
+            // project inline aggregates through canonical frame storage
+            _ => {
+                self.require_frame_reference(destination)?;
+
+                (aggregate_type, self.address(aggregate)?)
+            }
+        };
         let offset = self
             .optimized
             .layouts
@@ -311,7 +327,6 @@ impl<'a> FunctionEmitter<'a> {
             .and_then(|layout| layout.source_field(field))
             .map(|field| field.offset)
             .ok_or_else(|| self.invalid("native field has no layout"))?;
-        let base = self.address(aggregate)?;
         let address = builder.ins().iadd_imm_u(base, i64::from(offset));
         self.set(destination, Value::Direct(address))?;
 
@@ -327,36 +342,26 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let base_type = self.optimized.tree.storage_type(self.value_type(base)?);
-        let (base, stride) = match self.optimized.tree.get(base_type) {
+        let address = match self.optimized.tree.get(base_type) {
             // fixed arrays are canonical frame values
             mir::Type::FixedArray { .. } => {
                 self.require_frame_reference(destination)?;
-                let stride = self
-                    .optimized
-                    .layouts
-                    .type_layout(base_type)
-                    .and_then(|layout| layout.element())
-                    .map(|element| element.stride)
-                    .ok_or_else(|| self.invalid("native fixed array has no element layout"))?;
 
-                (self.address(base)?, stride)
+                self.address(base)?
             }
-            // slices already carry one stable reference offset
-            mir::Type::Slice { element, .. } => {
-                let stride = self
-                    .optimized
-                    .layouts
-                    .type_layout(*element)
-                    .map(|layout| layout.stride() as u32)
-                    .ok_or_else(|| self.invalid("native slice element has no layout"))?;
 
-                (self.reference(base, builder)?, stride)
-            }
+            // indexed references and fat pointers carry stable reference offsets
+            mir::Type::Reference { .. }
+            | mir::Type::Pointer { .. }
+            | mir::Type::Slice { .. }
+            | mir::Type::Tensor { .. }
+            | mir::Type::TensorView { .. } => self.reference(base, builder)?,
             _ => return Err(self.invalid("native element address base is not indexed")),
         };
+        let stride = self.types.element_stride(base_type)?;
         let index = self.pointer_integer(self.scalar(index)?, builder)?;
         let offset = builder.ins().imul_imm_u(index, i64::from(stride));
-        let address = builder.ins().iadd(base, offset);
+        let address = builder.ins().iadd(address, offset);
         self.set(destination, Value::Direct(address))?;
 
         Ok(())
@@ -364,7 +369,10 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Require one frame-relative result reference.
     fn require_frame_reference(&self, destination: mir::Value) -> Result<(), EmitError> {
-        let ty = self.value_type(destination)?;
+        let ty = self
+            .optimized
+            .tree
+            .storage_type(self.value_type(destination)?);
         let storage = self.optimized.tree.get(ty).reference_storage();
         if storage != Some(mir::Storage::Frame) {
             return Err(self.invalid("native aggregate address is not frame relative"));

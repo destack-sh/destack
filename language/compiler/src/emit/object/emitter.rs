@@ -1,11 +1,14 @@
-use destack_artifact::MirOptimized;
+use destack_artifact::{MirLowered, MirOptimized};
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 use destack_native as native;
-use destack_program::object::{FramePoint, FrameState, Function, Global, Point, Type};
+use destack_program::object::{FrameState, Function, Global, Point, Type};
 use destack_program::{Object, ObjectBuilder};
 use destack_source::ModuleId;
 use destack_webassembly as wasm;
+
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+use destack_program::object::FramePoint;
 
 use crate::EmitError;
 
@@ -35,9 +38,10 @@ pub struct ObjectEmitter {
 }
 
 impl ObjectEmitter {
-    /// Collect relocatable object metadata from optimized MIR.
+    /// Collect engine-neutral object entries from lowered and optimized MIR.
     pub fn new(
         module: ModuleId,
+        lowered: &MirLowered,
         optimized: &MirOptimized,
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Result<Self, EmitError> {
@@ -56,7 +60,11 @@ impl ObjectEmitter {
                 definition: definition.clone(),
                 symbol: optimized.tree.type_symbol(id),
                 name,
-                lineage: optimized.types.lineage(id).cloned(),
+                heritage: optimized
+                    .tree
+                    .type_heritage(id)
+                    .filter(|heritage| !heritage.is_empty())
+                    .cloned(),
             });
         }
 
@@ -115,13 +123,14 @@ impl ObjectEmitter {
         let allocation_points = sites.allocations.iter().map(|site| site.point).collect();
 
         // build code-independent object state
-        let object = ObjectBuilder::new(optimized.target)
+        let object = ObjectBuilder::new(lowered.target)
             .dependencies(dependencies)
             .types(types)
             .layouts(optimized.layouts.clone())
             .drops(optimized.drops.clone())
             .dispatch(optimized.dispatch.clone())
             .functions(functions)
+            .initializer(lowered.initializer)
             .globals(globals)
             .allocations(sites.allocations)
             .memory(sites.memory)
@@ -145,11 +154,6 @@ impl ObjectEmitter {
     /// Return the object index assigned to one MIR type.
     pub(crate) fn type_index(&self, ty: mir::TypeId) -> Option<usize> {
         self.types.binary_search(&ty).ok()
-    }
-
-    /// Return the MIR type assigned to one object-local index.
-    pub(crate) fn type_id(&self, index: u32) -> Option<mir::TypeId> {
-        self.types.get(index as usize).copied()
     }
 
     /// Return the object index assigned to one MIR function.
@@ -205,6 +209,7 @@ impl ObjectEmitter {
     }
 
     /// Return the logical frame state at one operation point.
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub(crate) fn frame(&self, point: FramePoint) -> Option<&FrameState> {
         self.frames
             .binary_search_by_key(&point, |frame| frame.point)

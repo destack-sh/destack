@@ -27,7 +27,6 @@ pub(super) struct SiteEmitter {
     pub(super) samples: Vec<SampleSite>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl SiteEmitter {
     /// Emit every object-local site in stable operation order.
     pub(super) fn emit(
@@ -148,11 +147,28 @@ impl SiteEmitter {
         }
 
         // record every explicit memory access at this operation
-        if let Some(accesses) = optimized.memory.memory_accesses(instruction_id) {
+        if let Some(accesses) = optimized.accesses.get(instruction_id) {
             for access in accesses {
                 self.memory
                     .push(Self::memory(module, optimized, function, point, access)?);
             }
+        }
+
+        // record dynamic entry reads
+        if let mir::Instruction::DynamicRead {
+            dynamic,
+            result_type,
+            ..
+        } = instruction
+        {
+            self.memory.push(Self::dynamic_memory(
+                module,
+                optimized,
+                function,
+                point,
+                *dynamic,
+                *result_type,
+            )?);
         }
 
         // record calls and explicit profiling operations
@@ -336,7 +352,7 @@ impl SiteEmitter {
 
                 (
                     Some(mir::Storage::Frame),
-                    Self::storage_type(optimized, local.ty),
+                    optimized.tree.storage_type(local.ty),
                 )
             }
             mir::MemoryTarget::Global(global) => {
@@ -344,7 +360,7 @@ impl SiteEmitter {
 
                 (
                     Some(mir::Storage::Global(global.storage)),
-                    Self::storage_type(optimized, global.ty),
+                    optimized.tree.storage_type(global.ty),
                 )
             }
         };
@@ -354,6 +370,28 @@ impl SiteEmitter {
             access: access.operation,
             storage,
             value_type,
+        })
+    }
+
+    /// Build one dynamic entry memory site.
+    fn dynamic_memory(
+        module: ModuleId,
+        optimized: &MirOptimized,
+        function: &mir::Function,
+        point: Point,
+        dynamic: mir::Value,
+        result_type: mir::TypeId,
+    ) -> Result<MemorySite, EmitError> {
+        let dynamic_type = function
+            .value_type(dynamic)
+            .ok_or_else(|| ObjectEmitter::internal(module, "missing dynamic value type"))?;
+        let storage = Self::reference_storage(optimized, dynamic_type);
+
+        Ok(MemorySite {
+            point,
+            access: mir::MemoryOperation::Read,
+            storage,
+            value_type: result_type,
         })
     }
 
@@ -430,23 +468,9 @@ impl SiteEmitter {
             .ok_or_else(|| ObjectEmitter::internal(module, "missing successor result type"))
     }
 
-    /// Return the transparent storage type for one MIR type.
-    fn storage_type(optimized: &MirOptimized, mut ty: mir::TypeId) -> mir::TypeId {
-        loop {
-            match optimized.tree.get(ty) {
-                mir::Type::Atomic { value }
-                | mir::Type::Application { base: value, .. }
-                | mir::Type::Uninit { value }
-                | mir::Type::ManuallyDrop { value }
-                | mir::Type::Newtype { inner: value, .. } => ty = *value,
-                _ => return ty,
-            }
-        }
-    }
-
     /// Return the storage carried by one reference-like MIR type.
     fn reference_storage(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::Storage> {
-        match optimized.tree.get(Self::storage_type(optimized, ty)) {
+        match optimized.tree.get(optimized.tree.storage_type(ty)) {
             mir::Type::Reference { storage, .. }
             | mir::Type::Slice { storage, .. }
             | mir::Type::Tensor { storage, .. }
@@ -459,15 +483,13 @@ impl SiteEmitter {
 
     /// Return the stored value type addressed by one pointer or reference-like MIR type.
     fn pointee_type(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::TypeId> {
-        match optimized.tree.get(Self::storage_type(optimized, ty)) {
+        match optimized.tree.get(optimized.tree.storage_type(ty)) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
-                Some(Self::storage_type(optimized, *pointee))
+                Some(optimized.tree.storage_type(*pointee))
             }
             mir::Type::Slice { element, .. }
             | mir::Type::Tensor { element, .. }
-            | mir::Type::TensorView { element, .. } => {
-                Some(Self::storage_type(optimized, *element))
-            }
+            | mir::Type::TensorView { element, .. } => Some(optimized.tree.storage_type(*element)),
             _ => None,
         }
     }

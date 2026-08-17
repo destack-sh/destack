@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 
@@ -16,7 +14,7 @@ impl<'a> FunctionEmitter<'a> {
         start: mir::Value,
         length: mir::Value,
     ) -> Result<(), EmitError> {
-        let source_type = self.value_type(source)?;
+        let source_type = self.optimized.tree.storage_type(self.value_type(source)?);
         let mir::Type::Slice { element, .. } = self.optimized.tree.get(source_type) else {
             return Err(self.internal("slice view source is not a slice"));
         };
@@ -37,9 +35,11 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         slice: mir::Value,
     ) -> Result<(), EmitError> {
-        let length_byte_offset = size_of::<u64>() as u32;
-        let length_byte_len = size_of::<u64>() as u32;
+        let slice = self.register(slice)?;
+        let length = bytecode::RegisterSpan::new(bytecode::RegisterId(slice.start.0 + 1), 1);
+        let destination_type = self.register_type(destination)?;
+        let destination = self.register(destination)?;
 
-        self.emit_extract(destination, slice, length_byte_offset, length_byte_len)
+        self.emit_move(length, destination, destination_type)
     }
 }

@@ -36,7 +36,7 @@ impl<'a> FrameEmitter<'a> {
         }
     }
 
-    /// Emit every runtime-visible frame state in logical coordinate order.
+    /// Emit every runtime-visible frame state in logical operation order.
     pub(super) fn emit(&self) -> Result<Vec<FrameState>, EmitError> {
         let mut states = Vec::new();
         let points = self.frame_points();
@@ -46,9 +46,9 @@ impl<'a> FrameEmitter<'a> {
             let Some(body) = &function.body else {
                 continue;
             };
-            let liveness = mir::FunctionLiveness::build(function, &self.optimized.tree);
+            let liveness = mir::LivenessTable::build(function, &self.optimized.tree);
 
-            // materialize exact liveness only at selected frame coordinates
+            // materialize exact liveness only at selected frame points
             let mut blocks = body.blocks().to_vec();
             self.points.order_blocks(&mut blocks);
             for block_id in blocks {
@@ -88,7 +88,7 @@ impl<'a> FrameEmitter<'a> {
         Ok(states)
     }
 
-    /// Collect canonical frame coordinates in logical order.
+    /// Collect canonical frame points in logical order.
     fn frame_points(&self) -> Vec<FramePoint> {
         let mut points = Vec::new();
 
@@ -133,7 +133,7 @@ impl<'a> FrameEmitter<'a> {
         points
     }
 
-    /// Return the frame coordinate required by one MIR instruction.
+    /// Return the frame point required by one MIR instruction.
     fn instruction_point(instruction: &mir::Instruction, point: Point) -> Option<FramePoint> {
         let point = match instruction {
             // retain callers before generated destruction

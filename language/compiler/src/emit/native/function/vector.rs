@@ -197,9 +197,10 @@ impl FunctionEmitter<'_> {
     ) -> Result<(), EmitError> {
         let source_type = self.vector_type(left)?;
         let target_type = self.vector_type(destination)?;
+        let element = self.vector_element(left)?;
         let left = self.scalar(left)?;
         let right = self.scalar(right)?;
-        let comparison = self.emit_binary(operator, left, right, builder);
+        let comparison = self.emit_binary(operator, left, right, element, builder)?;
         let one = builder.ins().iconst(source_type.lane_type(), 1);
         let one = builder.ins().splat(source_type, one);
         let comparison = builder.ins().band(comparison, one);
@@ -319,7 +320,7 @@ impl FunctionEmitter<'_> {
 
     /// Return one MIR vector's element type.
     fn vector_element(&self, value: mir::Value) -> Result<mir::TypeId, EmitError> {
-        let ty = self.value_type(value)?;
+        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         match self.optimized.tree.get(ty) {
             mir::Type::Vector { element, .. } => Ok(*element),
             _ => Err(self.invalid("native value has no vector element type")),
@@ -343,11 +344,11 @@ impl FunctionEmitter<'_> {
             mir::VectorReduceOperator::Multiply => builder.ins().imul(left, right),
             mir::VectorReduceOperator::Min if ty.is_float() => builder.ins().fmin(left, right),
             mir::VectorReduceOperator::Max if ty.is_float() => builder.ins().fmax(left, right),
-            mir::VectorReduceOperator::Min if self.is_signed_integer(element)? => {
+            mir::VectorReduceOperator::Min if self.types.is_signed_integer(element)? => {
                 builder.ins().smin(left, right)
             }
             mir::VectorReduceOperator::Min => builder.ins().umin(left, right),
-            mir::VectorReduceOperator::Max if self.is_signed_integer(element)? => {
+            mir::VectorReduceOperator::Max if self.types.is_signed_integer(element)? => {
                 builder.ins().smax(left, right)
             }
             mir::VectorReduceOperator::Max => builder.ins().umax(left, right),

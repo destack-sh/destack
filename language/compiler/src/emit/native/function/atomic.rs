@@ -36,7 +36,7 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let pointer = self.materialize_pointer(pointer, builder)?;
-        let ty = self.value_type(value)?;
+        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let value = self.scalar(value)?;
         let value = self.encode_atomic(value, ty, builder)?;
         builder
@@ -59,7 +59,7 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let pointer = self.materialize_pointer(pointer, builder)?;
-        let ty = self.value_type(expected)?;
+        let ty = self.optimized.tree.storage_type(self.value_type(expected)?);
         let expected = self.scalar(expected)?;
         let new_value = self.scalar(new_value)?;
         let expected_bits = self.encode_atomic(expected, ty, builder)?;
@@ -91,23 +91,36 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let pointer = self.materialize_pointer(pointer, builder)?;
-        let ty = self.value_type(value)?;
+        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let value = self.scalar(value)?;
-        let old = match Self::integer_atomic_operator(operator) {
-            Some(operator) => {
-                let value = self.encode_atomic(value, ty, builder)?;
-                let atomic_type = builder.func.dfg.value_type(value);
-                let old = builder.ins().atomic_rmw(
-                    atomic_type,
-                    cir::MemFlagsData::trusted(),
-                    operator,
-                    pointer,
-                    value,
-                );
-
-                self.decode_atomic(old, ty, builder)?
+        let is_float = matches!(self.optimized.tree.get(ty), mir::Type::Float(_));
+        let old = match (is_float, operator) {
+            // exchange the exact floating point representation directly
+            (true, mir::AtomicRmwOperator::Exchange) => {
+                self.emit_atomic_rmw_bits(cir::AtomicRmwOp::Xchg, pointer, value, ty, builder)?
             }
-            None => self.emit_float_atomic_rmw(operator, pointer, value, ty, builder)?,
+
+            // apply floating point arithmetic through a compare exchange loop
+            (
+                true,
+                mir::AtomicRmwOperator::Add
+                | mir::AtomicRmwOperator::Subtract
+                | mir::AtomicRmwOperator::Min
+                | mir::AtomicRmwOperator::Max,
+            ) => self.emit_float_atomic_rmw(operator, pointer, value, ty, builder)?,
+
+            // reject bitwise operations over floating point values
+            (true, _) => {
+                return Err(self.invalid("native floating atomic operator requires arithmetic"));
+            }
+
+            // select the concrete integer operation from signedness
+            (false, _) => {
+                let is_signed = self.types.is_signed_integer(ty)?;
+                let operator = Self::integer_atomic_operator(operator, is_signed);
+
+                self.emit_atomic_rmw_bits(operator, pointer, value, ty, builder)?
+            }
         };
         self.set(destination, Value::Direct(old))?;
 
@@ -147,9 +160,10 @@ impl FunctionEmitter<'_> {
         let expected_bits = builder.block_params(retry)[0];
         let expected = self.decode_atomic(expected_bits, ty, builder)?;
         let next = match operator {
-            mir::AtomicRmwOperator::Fadd => builder.ins().fadd(expected, value),
-            mir::AtomicRmwOperator::Fmin => builder.ins().fmin(expected, value),
-            mir::AtomicRmwOperator::Fmax => builder.ins().fmax(expected, value),
+            mir::AtomicRmwOperator::Add => builder.ins().fadd(expected, value),
+            mir::AtomicRmwOperator::Subtract => builder.ins().fsub(expected, value),
+            mir::AtomicRmwOperator::Min => builder.ins().fmin(expected, value),
+            mir::AtomicRmwOperator::Max => builder.ins().fmax(expected, value),
             _ => return Err(self.invalid("native floating atomic operator is not floating")),
         };
         let next = self.encode_atomic(next, ty, builder)?;
@@ -178,23 +192,45 @@ impl FunctionEmitter<'_> {
         self.decode_atomic(old, ty, builder)
     }
 
+    /// Emit one native atomic operation over the exact stored bits.
+    fn emit_atomic_rmw_bits(
+        &self,
+        operator: cir::AtomicRmwOp,
+        pointer: cir::Value,
+        value: cir::Value,
+        ty: mir::TypeId,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<cir::Value, EmitError> {
+        let value = self.encode_atomic(value, ty, builder)?;
+        let atomic_type = builder.func.dfg.value_type(value);
+        let old = builder.ins().atomic_rmw(
+            atomic_type,
+            cir::MemFlagsData::trusted(),
+            operator,
+            pointer,
+            value,
+        );
+
+        self.decode_atomic(old, ty, builder)
+    }
+
     /// Return the integer operation supported directly by Cranelift.
-    fn integer_atomic_operator(operator: mir::AtomicRmwOperator) -> Option<cir::AtomicRmwOp> {
-        Some(match operator {
+    fn integer_atomic_operator(
+        operator: mir::AtomicRmwOperator,
+        is_signed: bool,
+    ) -> cir::AtomicRmwOp {
+        match operator {
             mir::AtomicRmwOperator::Exchange => cir::AtomicRmwOp::Xchg,
             mir::AtomicRmwOperator::Add => cir::AtomicRmwOp::Add,
-            mir::AtomicRmwOperator::Sub => cir::AtomicRmwOp::Sub,
+            mir::AtomicRmwOperator::Subtract => cir::AtomicRmwOp::Sub,
             mir::AtomicRmwOperator::And => cir::AtomicRmwOp::And,
             mir::AtomicRmwOperator::Or => cir::AtomicRmwOp::Or,
             mir::AtomicRmwOperator::Xor => cir::AtomicRmwOp::Xor,
-            mir::AtomicRmwOperator::Min => cir::AtomicRmwOp::Smin,
-            mir::AtomicRmwOperator::Max => cir::AtomicRmwOp::Smax,
-            mir::AtomicRmwOperator::Umin => cir::AtomicRmwOp::Umin,
-            mir::AtomicRmwOperator::Umax => cir::AtomicRmwOp::Umax,
-            mir::AtomicRmwOperator::Fadd
-            | mir::AtomicRmwOperator::Fmin
-            | mir::AtomicRmwOperator::Fmax => return None,
-        })
+            mir::AtomicRmwOperator::Min if is_signed => cir::AtomicRmwOp::Smin,
+            mir::AtomicRmwOperator::Min => cir::AtomicRmwOp::Umin,
+            mir::AtomicRmwOperator::Max if is_signed => cir::AtomicRmwOp::Smax,
+            mir::AtomicRmwOperator::Max => cir::AtomicRmwOp::Umax,
+        }
     }
 
     /// Return the integer memory type used for one atomic value.

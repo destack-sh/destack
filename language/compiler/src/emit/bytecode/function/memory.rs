@@ -13,11 +13,24 @@ impl<'a> FunctionEmitter<'a> {
         aggregate: mir::Value,
         field: u32,
     ) -> Result<(), EmitError> {
-        let aggregate_type = self.value_type(aggregate)?;
-        let pointee = self.types.pointee(aggregate_type)?;
-        let byte_offset = self.types.field(pointee, field)?.offset;
+        let mut aggregate_type = self
+            .optimized
+            .tree
+            .storage_type(self.value_type(aggregate)?);
+        if let mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } =
+            self.optimized.tree.get(aggregate_type)
+        {
+            aggregate_type = self.optimized.tree.storage_type(*pointee);
+        }
+        let byte_offset = self.types.field(aggregate_type, field)?.offset;
 
-        self.emit_address_add_immediate(destination, aggregate, byte_offset)
+        // materialize the aggregate's stable address before applying its field offset
+        self.emit_base_address(destination, aggregate)?;
+        if byte_offset == 0 {
+            return Ok(());
+        }
+
+        self.emit_address_add_immediate(destination, destination, byte_offset)
     }
 
     /// Project one runtime index from an addressable indexed value.
@@ -29,14 +42,12 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<(), EmitError> {
         let base_type = self.value_type(base)?;
         let stride = self.types.element_stride(base_type)?;
-        let opcode = match self.address(base)? {
-            bytecode::Address::Pointer => bytecode::Opcode::POINTER_ADD_SCALED,
-            bytecode::Address::Constant | bytecode::Address::Memory => {
-                bytecode::Opcode::REFERENCE_ADD_SCALED
-            }
-        };
-        let mut instruction = bytecode::InstructionBuilder::new(opcode);
-        instruction.register(self.word(base)?);
+
+        // materialize the indexed value's stable address before scaling its index
+        self.emit_base_address(destination, base)?;
+        let mut instruction =
+            bytecode::InstructionBuilder::new(bytecode::Opcode::ADDRESS_ADD_SCALED);
+        instruction.register(self.word(destination)?);
         instruction.register(self.word(index)?);
         instruction.u32(stride);
         let destination = self.register(destination)?;
@@ -44,9 +55,50 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[destination])
     }
 
+    /// Emit the stable address carried by or assigned to one MIR value.
+    fn emit_base_address(
+        &mut self,
+        destination: mir::Value,
+        value: mir::Value,
+    ) -> Result<(), EmitError> {
+        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
+        let source = match self.optimized.tree.get(ty) {
+            // direct references and pointers already contain address bits
+            mir::Type::Reference { .. } | mir::Type::Pointer { .. } => self.word(value)?,
+
+            // indexed fat pointers keep their backing reference in one carrier word
+            mir::Type::Slice { .. } | mir::Type::Tensor { .. } | mir::Type::TensorView { .. } => {
+                self.carrier_register(self.register(value)?, value)?
+            }
+
+            // inline aggregates occupy stable bytecode frame registers
+            mir::Type::FixedArray { .. }
+            | mir::Type::Tuple { .. }
+            | mir::Type::Struct { .. }
+            | mir::Type::Variant { .. } => {
+                let mut instruction =
+                    bytecode::InstructionBuilder::new(bytecode::Opcode::FRAME_ADDRESS);
+                instruction.span(self.register(value)?);
+                let destination = self.register(destination)?;
+
+                return self.encode(instruction, &[destination]);
+            }
+            _ => return Err(self.internal("address base is not addressable")),
+        };
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::MOVE);
+        instruction.register(source);
+        let destination = self.register(destination)?;
+
+        self.encode(instruction, &[destination])
+    }
+
     /// Release one unique carrier's backing allocation.
     pub(super) fn emit_free(&mut self, value: mir::Value) -> Result<(), EmitError> {
-        self.emit_ownership(bytecode::Opcode::FREE, value)
+        let owner = self.carrier_register(self.register(value)?, value)?;
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::FREE);
+        instruction.register(owner);
+
+        self.encode(instruction, &[])
     }
 
     /// Stabilize one managed carrier and preserve its value.
@@ -62,7 +114,7 @@ impl<'a> FunctionEmitter<'a> {
 
         let reference = self.carrier_reference(value)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::PIN);
-        instruction.register(destination.start);
+        instruction.register(self.carrier_register(destination, value)?);
         instruction.reference(reference.kind(), reference.storage());
 
         self.encode(instruction, &[])
@@ -82,7 +134,7 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<(), EmitError> {
         let reference = self.carrier_reference(object)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::BARRIER);
-        instruction.register(self.word(object)?);
+        instruction.register(self.carrier_register(self.register(object)?, object)?);
         instruction.reference(reference.kind(), reference.storage());
         instruction.register(self.word(offset)?);
         instruction.register(self.word(byte_len)?);
@@ -96,14 +148,7 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         global: mir::GlobalId,
     ) -> Result<(), EmitError> {
-        let storage = self.optimized.tree.get(global).storage;
-        let opcode = match storage {
-            mir::GlobalStorage::Constant => bytecode::Opcode::GLOBAL_ADDRESS_CONSTANT,
-            mir::GlobalStorage::Immortal => bytecode::Opcode::GLOBAL_ADDRESS_IMMORTAL,
-            mir::GlobalStorage::Local => bytecode::Opcode::GLOBAL_ADDRESS_LOCAL,
-            mir::GlobalStorage::Shared => bytecode::Opcode::GLOBAL_ADDRESS_SHARED,
-        };
-        let mut instruction = bytecode::InstructionBuilder::new(opcode);
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::GLOBAL_ADDRESS);
         let global = self.types.global_id(global)?;
         instruction.global(global.0);
         let destination = self.register(destination)?;
@@ -188,8 +233,7 @@ impl<'a> FunctionEmitter<'a> {
                 address,
                 scalar,
                 is_volatile,
-            )
-            .ok_or_else(|| self.internal("invalid load address"))?;
+            );
             let mut instruction = bytecode::InstructionBuilder::new(opcode);
             instruction.register(reference);
 
@@ -199,8 +243,7 @@ impl<'a> FunctionEmitter<'a> {
                 bytecode::MemoryOperation::Load,
                 address,
                 is_volatile,
-            )
-            .ok_or_else(|| self.internal("invalid packed load address"))?;
+            );
             let mut instruction = bytecode::InstructionBuilder::new(opcode);
             instruction.register(reference);
             instruction.u32(self.types.byte_len(result_type)?);
@@ -246,8 +289,7 @@ impl<'a> FunctionEmitter<'a> {
                 address,
                 scalar,
                 is_volatile,
-            )
-            .ok_or_else(|| self.internal("cannot store through this reference"))?;
+            );
             let mut instruction = bytecode::InstructionBuilder::new(opcode);
             instruction.register(reference);
             instruction.register(self.word(value)?);
@@ -262,8 +304,7 @@ impl<'a> FunctionEmitter<'a> {
                 bytecode::MemoryOperation::Store,
                 address,
                 is_volatile,
-            )
-            .ok_or_else(|| self.internal("cannot store through this reference"))?;
+            );
             let mut instruction = bytecode::InstructionBuilder::new(opcode);
             instruction.register(reference);
             instruction.span(self.register(value)?);
@@ -277,14 +318,13 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Return the addressing mode selected by one MIR reference.
     pub(super) fn address(&self, reference: mir::Value) -> Result<bytecode::Address, EmitError> {
-        let ty = self.value_type(reference)?;
+        let ty = self
+            .optimized
+            .tree
+            .storage_type(self.value_type(reference)?);
         let address = match self.optimized.tree.get(ty) {
             mir::Type::Pointer { .. } => bytecode::Address::Pointer,
-            mir::Type::Reference {
-                storage: mir::Storage::Global(mir::GlobalStorage::Constant),
-                ..
-            } => bytecode::Address::Constant,
-            mir::Type::Reference { .. } => bytecode::Address::Memory,
+            mir::Type::Reference { .. } => bytecode::Address::Reference,
             _ => return Err(self.internal("memory access requires a reference or pointer")),
         };
 
@@ -314,8 +354,7 @@ impl<'a> FunctionEmitter<'a> {
                     self.address(*target)?,
                     self.address(*source)?,
                     false,
-                )
-                .ok_or_else(|| self.internal("invalid memory transfer"))?;
+                );
                 let mut instruction = bytecode::InstructionBuilder::new(opcode);
                 instruction.register(self.word(*target)?);
                 instruction.register(self.word(*source)?);
@@ -327,8 +366,7 @@ impl<'a> FunctionEmitter<'a> {
                 let [target, byte, length] = arguments.as_slice() else {
                     return Err(self.internal("memory fill requires three arguments"));
                 };
-                let opcode = bytecode::Opcode::fill(self.address(*target)?, false)
-                    .ok_or_else(|| self.internal("invalid memory fill"))?;
+                let opcode = bytecode::Opcode::fill(self.address(*target)?, false);
                 let mut instruction = bytecode::InstructionBuilder::new(opcode);
                 instruction.register(self.word(*target)?);
                 instruction.register(self.word(*byte)?);
@@ -361,8 +399,7 @@ impl<'a> FunctionEmitter<'a> {
                 } else {
                     bytecode::Prefetch::Write
                 };
-                let opcode = bytecode::Opcode::prefetch(operation, self.address(*pointer)?)
-                    .ok_or_else(|| self.internal("invalid prefetch address"))?;
+                let opcode = bytecode::Opcode::prefetch(operation, self.address(*pointer)?);
                 let mut instruction = bytecode::InstructionBuilder::new(opcode);
                 instruction.register(self.word(*pointer)?);
 
@@ -396,12 +433,8 @@ impl<'a> FunctionEmitter<'a> {
                 if pointer_address != origin_address {
                     return Err(self.internal("pointer difference requires one address space"));
                 }
-                let opcode = if pointer_address == bytecode::Address::Pointer {
-                    bytecode::Opcode::POINTER_DIFF
-                } else {
-                    bytecode::Opcode::REFERENCE_DIFF
-                };
-                let mut instruction = bytecode::InstructionBuilder::new(opcode);
+                let mut instruction =
+                    bytecode::InstructionBuilder::new(bytecode::Opcode::ADDRESS_DIFF);
                 instruction.register(self.word(*pointer)?);
                 instruction.register(self.word(*origin)?);
                 let destination = self.register(destination)?;
@@ -421,13 +454,8 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<(), EmitError> {
         let byte_offset = i32::try_from(byte_offset)
             .map_err(|_| self.internal("reference field offset exceeds i32"))?;
-        let opcode = match self.address(base)? {
-            bytecode::Address::Pointer => bytecode::Opcode::POINTER_ADD_IMMEDIATE,
-            bytecode::Address::Constant | bytecode::Address::Memory => {
-                bytecode::Opcode::REFERENCE_ADD_IMMEDIATE
-            }
-        };
-        let mut instruction = bytecode::InstructionBuilder::new(opcode);
+        let mut instruction =
+            bytecode::InstructionBuilder::new(bytecode::Opcode::ADDRESS_ADD_IMMEDIATE);
         instruction.register(self.word(base)?);
         instruction.i32(byte_offset);
         let destination = self.register(destination)?;
@@ -443,14 +471,17 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<(), EmitError> {
         let reference = self.carrier_reference(value)?;
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
-        instruction.register(self.word(value)?);
+        instruction.register(self.carrier_register(self.register(value)?, value)?);
         instruction.reference(reference.kind(), reference.storage());
 
         self.encode(instruction, &[])
     }
 
     /// Return the reference carried by one reference-like MIR value.
-    fn carrier_reference(&self, value: mir::Value) -> Result<bytecode::ReferenceType, EmitError> {
+    pub(super) fn carrier_reference(
+        &self,
+        value: mir::Value,
+    ) -> Result<bytecode::ReferenceType, EmitError> {
         let ty = self.register_type(value)?;
         ty.reference_type()
             .or_else(|| ty.slice_reference())
@@ -458,5 +489,23 @@ impl<'a> FunctionEmitter<'a> {
             .or_else(|| ty.function_reference())
             .or_else(|| ty.tensor_reference())
             .ok_or_else(|| self.internal("ownership operation requires a reference carrier"))
+    }
+
+    /// Return the register carrying one reference-like value's backing reference.
+    pub(super) fn carrier_register(
+        &self,
+        value: bytecode::RegisterSpan,
+        source: mir::Value,
+    ) -> Result<bytecode::RegisterId, EmitError> {
+        let ty = self.optimized.tree.storage_type(self.value_type(source)?);
+        let offset = usize::from(matches!(
+            self.optimized.tree.get(ty),
+            mir::Type::Function { .. }
+        ));
+        if offset >= usize::from(value.word_count) {
+            return Err(self.internal("reference carrier has no backing reference word"));
+        }
+
+        Ok(bytecode::RegisterId(value.start.0 + offset as u16))
     }
 }

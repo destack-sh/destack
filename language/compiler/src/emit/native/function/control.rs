@@ -3,6 +3,7 @@ use cranelift_codegen::ir::InstBuilder;
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_frontend::Switch;
 use destack_mir as mir;
+use destack_native as native;
 
 use crate::EmitError;
 
@@ -11,7 +12,7 @@ use super::FunctionEmitter;
 impl<'a> FunctionEmitter<'a> {
     /// Emit one explicit runtime check branch.
     pub(super) fn emit_check(
-        &self,
+        &mut self,
         constraint: &mir::CheckConstraint,
         success: &mir::BlockTarget,
         failure: &mir::BlockTarget,
@@ -63,7 +64,7 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Return the boolean condition for one MIR runtime check.
     fn check_condition(
-        &self,
+        &mut self,
         constraint: &mir::CheckConstraint,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
@@ -135,10 +136,37 @@ impl<'a> FunctionEmitter<'a> {
                 right,
                 is_signed,
             } => self.overflow_condition(*operator, *left, *right, *is_signed, builder),
-            mir::CheckConstraint::IsType { .. } | mir::CheckConstraint::IsSubtype { .. } => {
-                Err(self.invalid("native dynamic type check emission is unavailable"))
+            mir::CheckConstraint::IsType { value, expected } => {
+                let concrete = self.scalar(*value)?;
+                let expected = self.type_id(*expected, builder)?;
+
+                Ok(builder.ins().icmp(IntCC::Equal, concrete, expected))
+            }
+            mir::CheckConstraint::IsSubtype { value, expected } => {
+                let concrete = self.scalar(*value)?;
+                let expected = self.type_id(*expected, builder)?;
+                let call = self.emit_runtime(
+                    native::abi::Operation::IsSubtype,
+                    &[concrete, expected],
+                    builder,
+                )?;
+                let is_subtype = builder.inst_results(call)[0];
+
+                Ok(builder.ins().icmp_imm_u(IntCC::NotEqual, is_subtype, 0))
             }
         }
+    }
+
+    /// Load one object-local type as its linked Program id.
+    fn type_id(
+        &mut self,
+        ty: mir::TypeId,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<cir::Value, EmitError> {
+        let ty = u32::try_from(ty.get())
+            .map_err(|_| self.invalid("native type identity exceeds u32"))?;
+
+        self.index_u32(native::Index::Type { ty }, builder)
     }
 
     /// Return whether one integer fits one narrower target representation.
@@ -149,7 +177,7 @@ impl<'a> FunctionEmitter<'a> {
         target_signed: bool,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let pointer_bits = self.optimized.target.pointer_bits();
+        let pointer_bits = self.types.layout.pointer_bits();
         let source = self.value_type(value)?;
         let (source_width, source_signed) = self
             .optimized
@@ -183,8 +211,8 @@ impl<'a> FunctionEmitter<'a> {
         }
 
         // enforce an upper bound when the target maximum is smaller
-        let target_maximum = Self::integer_maximum(target_width, target_signed);
-        let source_maximum = Self::integer_maximum(source_width, source_signed);
+        let target_maximum = self.types.integer_maximum(target_width, target_signed);
+        let source_maximum = self.types.integer_maximum(source_width, source_signed);
         if target_maximum < source_maximum {
             let maximum = self.emit_integer_constant(source_type, target_maximum, builder)?;
             let condition = if source_signed {
@@ -232,17 +260,6 @@ impl<'a> FunctionEmitter<'a> {
         };
 
         Ok(builder.ins().icmp_imm_u(IntCC::Equal, overflow, 0))
-    }
-
-    /// Return the maximum bits for one integer representation.
-    fn integer_maximum(width: u16, is_signed: bool) -> u128 {
-        if is_signed {
-            (1u128 << (width - 1)) - 1
-        } else if width == 128 {
-            u128::MAX
-        } else {
-            (1u128 << width) - 1
-        }
     }
 
     /// Return a switch destination, inserting an argument transfer when needed.

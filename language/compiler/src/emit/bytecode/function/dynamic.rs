@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 
@@ -15,7 +13,10 @@ impl<'a> FunctionEmitter<'a> {
         payload: mir::Value,
         concrete: mir::TypeId,
     ) -> Result<(), EmitError> {
-        let dynamic_type = self.value_type(destination)?;
+        let dynamic_type = self
+            .optimized
+            .tree
+            .storage_type(self.value_type(destination)?);
         let mir::Type::Dynamic { constraint, .. } = self.optimized.tree.get(dynamic_type) else {
             return Err(self.internal("dynamic binding result is not dynamic"));
         };
@@ -34,9 +35,31 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         dynamic: mir::Value,
     ) -> Result<(), EmitError> {
-        let payload_byte_len = size_of::<u64>() as u32;
+        let dynamic = self.register(dynamic)?;
+        let payload = bytecode::RegisterSpan::new(dynamic.start, 1);
+        let destination_type = self.register_type(destination)?;
+        let destination = self.register(destination)?;
 
-        self.emit_extract(destination, dynamic, 0, payload_byte_len)
+        self.emit_move(payload, destination, destination_type)
+    }
+
+    /// Emit one dynamic field read.
+    pub(super) fn emit_dynamic_read(
+        &mut self,
+        destination: mir::Value,
+        dynamic: mir::Value,
+        slot: mir::DispatchSlot,
+        result_type: mir::TypeId,
+    ) -> Result<(), EmitError> {
+        let slot = u16::try_from(slot.0)
+            .map_err(|_| self.internal("dynamic dispatch slot exceeds bytecode"))?;
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::DYNAMIC_READ);
+        instruction.span(self.register(dynamic)?);
+        instruction.u16(slot);
+        instruction.u32(self.types.byte_len(result_type)?);
+        let destination = self.register(destination)?;
+
+        self.encode(instruction, &[destination])
     }
 
     /// Emit one dynamic concrete-type projection.

@@ -7,6 +7,7 @@ use cranelift_module::{FuncId, Module};
 use cranelift_object::ObjectModule;
 use destack_artifact::MirOptimized;
 use destack_mir as mir;
+use destack_native as native;
 use destack_source::ModuleId;
 
 use crate::{EmitError, ObjectEmitter};
@@ -29,12 +30,14 @@ pub(crate) struct FunctionEmitter<'a> {
     pub(super) output: &'a mut ObjectModule,
     /// Object-local native symbols.
     pub(super) symbols: &'a mut SymbolTable,
-    /// Independently placed native image blocks.
-    pub(super) image_blocks: &'a mut Vec<Option<destack_native::BlockBuilder>>,
     /// Declared internal functions.
     pub(super) functions: &'a HashMap<mir::FunctionId, FuncId>,
     /// Declared platform imports.
-    pub(super) imports: &'a mut HashMap<FuncId, destack_native::Import>,
+    pub(super) imports: &'a mut HashMap<FuncId, native::Import>,
+    /// Function-local platform function references.
+    pub(super) platform_functions: HashMap<native::Import, cir::FuncRef>,
+    /// Function-local references to linked Program indices.
+    pub(super) indices: HashMap<native::Index, cir::GlobalValue>,
     /// MIR function declaration.
     pub(super) function: &'a mir::Function,
     /// Object-local function identity.
@@ -70,9 +73,8 @@ impl<'a> FunctionEmitter<'a> {
         types: &'a TypeEmitter<'a>,
         output: &'a mut ObjectModule,
         symbols: &'a mut SymbolTable,
-        image_blocks: &'a mut Vec<Option<destack_native::BlockBuilder>>,
         functions: &'a HashMap<mir::FunctionId, FuncId>,
-        imports: &'a mut HashMap<FuncId, destack_native::Import>,
+        imports: &'a mut HashMap<FuncId, native::Import>,
         function: &'a mir::Function,
         function_index: u32,
         frame_base: u32,
@@ -89,9 +91,10 @@ impl<'a> FunctionEmitter<'a> {
             types,
             output,
             symbols,
-            image_blocks,
             functions,
             imports,
+            platform_functions: HashMap::new(),
+            indices: HashMap::new(),
             function,
             function_index,
             values,

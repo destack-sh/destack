@@ -101,6 +101,16 @@ impl FunctionEmitter<'_> {
         right: mir::Value,
     ) -> Result<(), EmitError> {
         let vector = self.vector_type(left)?;
+        let vector = if operator == mir::BinaryOperator::UnsignedShiftRight {
+            let scalar = vector
+                .scalar
+                .unsigned()
+                .ok_or_else(|| self.internal("unsigned vector shift requires integer lanes"))?;
+
+            bytecode::VectorType::new(scalar, vector.lane_count)
+        } else {
+            vector
+        };
         let operator = Self::vector_operator(operator, vector.scalar)
             .ok_or_else(|| self.internal("invalid vector operation"))?;
         let inputs = [self.register(left)?, self.register(right)?];
@@ -229,20 +239,17 @@ impl FunctionEmitter<'_> {
     fn vector_operator(operator: mir::BinaryOperator, scalar: bytecode::Scalar) -> Option<u16> {
         let operation = if scalar.is_float() {
             match operator {
-                mir::BinaryOperator::FloatAdd => bytecode::FloatOperation::Add as u16,
-                mir::BinaryOperator::FloatSubtract => bytecode::FloatOperation::Subtract as u16,
-                mir::BinaryOperator::FloatMultiply => bytecode::FloatOperation::Multiply as u16,
-                mir::BinaryOperator::FloatDivide => bytecode::FloatOperation::Divide as u16,
-                mir::BinaryOperator::FloatEqual => bytecode::FloatOperation::Equal as u16,
-                mir::BinaryOperator::FloatNotEqual => bytecode::FloatOperation::NotEqual as u16,
-                mir::BinaryOperator::FloatLessThan => bytecode::FloatOperation::LessThan as u16,
-                mir::BinaryOperator::FloatLessEqual => bytecode::FloatOperation::LessEqual as u16,
-                mir::BinaryOperator::FloatGreaterThan => {
-                    bytecode::FloatOperation::GreaterThan as u16
-                }
-                mir::BinaryOperator::FloatGreaterEqual => {
-                    bytecode::FloatOperation::GreaterEqual as u16
-                }
+                mir::BinaryOperator::Add => bytecode::FloatOperation::Add as u16,
+                mir::BinaryOperator::Subtract => bytecode::FloatOperation::Subtract as u16,
+                mir::BinaryOperator::Multiply => bytecode::FloatOperation::Multiply as u16,
+                mir::BinaryOperator::Divide => bytecode::FloatOperation::Divide as u16,
+                mir::BinaryOperator::Remainder => bytecode::FloatOperation::Remainder as u16,
+                mir::BinaryOperator::Equal => bytecode::FloatOperation::Equal as u16,
+                mir::BinaryOperator::NotEqual => bytecode::FloatOperation::NotEqual as u16,
+                mir::BinaryOperator::LessThan => bytecode::FloatOperation::LessThan as u16,
+                mir::BinaryOperator::LessEqual => bytecode::FloatOperation::LessEqual as u16,
+                mir::BinaryOperator::GreaterThan => bytecode::FloatOperation::GreaterThan as u16,
+                mir::BinaryOperator::GreaterEqual => bytecode::FloatOperation::GreaterEqual as u16,
                 _ => return None,
             }
         } else {
@@ -250,37 +257,23 @@ impl FunctionEmitter<'_> {
                 mir::BinaryOperator::Add => bytecode::IntegerOperation::Add as u16,
                 mir::BinaryOperator::Subtract => bytecode::IntegerOperation::Subtract as u16,
                 mir::BinaryOperator::Multiply => bytecode::IntegerOperation::Multiply as u16,
-                mir::BinaryOperator::SignedDivide | mir::BinaryOperator::UnsignedDivide => {
-                    bytecode::IntegerOperation::Divide as u16
-                }
-                mir::BinaryOperator::SignedRemainder | mir::BinaryOperator::UnsignedRemainder => {
-                    bytecode::IntegerOperation::Remainder as u16
-                }
+                mir::BinaryOperator::Divide => bytecode::IntegerOperation::Divide as u16,
+                mir::BinaryOperator::Remainder => bytecode::IntegerOperation::Remainder as u16,
                 mir::BinaryOperator::And => bytecode::IntegerOperation::And as u16,
                 mir::BinaryOperator::Or => bytecode::IntegerOperation::Or as u16,
                 mir::BinaryOperator::Xor => bytecode::IntegerOperation::Xor as u16,
                 mir::BinaryOperator::ShiftLeft => bytecode::IntegerOperation::ShiftLeft as u16,
-                mir::BinaryOperator::ArithmeticShiftRight
-                | mir::BinaryOperator::LogicalShiftRight => {
+                mir::BinaryOperator::ShiftRight | mir::BinaryOperator::UnsignedShiftRight => {
                     bytecode::IntegerOperation::ShiftRight as u16
                 }
                 mir::BinaryOperator::Equal => bytecode::IntegerOperation::Equal as u16,
                 mir::BinaryOperator::NotEqual => bytecode::IntegerOperation::NotEqual as u16,
-                mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
-                    bytecode::IntegerOperation::LessThan as u16
-                }
-                mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
-                    bytecode::IntegerOperation::LessEqual as u16
-                }
-                mir::BinaryOperator::SignedGreaterThan
-                | mir::BinaryOperator::UnsignedGreaterThan => {
-                    bytecode::IntegerOperation::GreaterThan as u16
-                }
-                mir::BinaryOperator::SignedGreaterEqual
-                | mir::BinaryOperator::UnsignedGreaterEqual => {
+                mir::BinaryOperator::LessThan => bytecode::IntegerOperation::LessThan as u16,
+                mir::BinaryOperator::LessEqual => bytecode::IntegerOperation::LessEqual as u16,
+                mir::BinaryOperator::GreaterThan => bytecode::IntegerOperation::GreaterThan as u16,
+                mir::BinaryOperator::GreaterEqual => {
                     bytecode::IntegerOperation::GreaterEqual as u16
                 }
-                _ => return None,
             }
         };
 

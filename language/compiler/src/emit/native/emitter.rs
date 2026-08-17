@@ -28,6 +28,8 @@ pub struct NativeEmitter<'a> {
     module: ModuleId,
     /// Optimized MIR being emitted.
     optimized: &'a MirOptimized,
+    /// Target ABI layout.
+    layout: mir::TargetLayout,
     /// Object-local identities and logical frame states.
     object: &'a ObjectEmitter,
     /// Native target ISA.
@@ -77,13 +79,14 @@ impl<'a> NativeEmitter<'a> {
     /// Create one native emitter for a target.
     pub fn new(
         module: ModuleId,
+        layout: mir::TargetLayout,
         optimized: &'a MirOptimized,
         object: &'a ObjectEmitter,
         target: &Target,
     ) -> Result<Self, EmitError> {
         let triple = Self::triple(module, target)?;
         let isa = Self::isa(module, target, triple)?;
-        Self::require_host_abi(module, optimized, isa.as_ref())?;
+        Self::require_host_abi(module, layout, isa.as_ref())?;
         let features = Self::features(isa.as_ref());
         let builder = ObjectBuilder::new(
             isa.clone(),
@@ -97,6 +100,7 @@ impl<'a> NativeEmitter<'a> {
         Ok(Self {
             module,
             optimized,
+            layout,
             object,
             isa,
             output,
@@ -133,7 +137,7 @@ impl<'a> NativeEmitter<'a> {
         let target = self.isa.triple().to_string();
         let unwind = self.unwind.build()?;
 
-        Ok(native::ObjectBuilder::new(target, self.optimized.target)
+        Ok(native::ObjectBuilder::new(target, self.layout)
             .features(self.features)
             .symbols(self.symbols.into_values())
             .blocks(blocks)
@@ -150,7 +154,7 @@ impl<'a> NativeEmitter<'a> {
     /// Declare every typed body and canonical entry.
     fn declare_functions(&mut self) -> Result<(), EmitError> {
         let isa = self.isa.clone();
-        let types = TypeEmitter::new(self.module, self.optimized, isa.as_ref());
+        let types = TypeEmitter::new(self.module, self.layout, self.optimized, isa.as_ref());
 
         // reserve stable function, definition, and block identities
         for index in 0..self.object.functions().len() {
@@ -233,7 +237,7 @@ impl<'a> NativeEmitter<'a> {
     ) -> Result<(Context, Vec<StackMap>), EmitError> {
         let function_id = self.functions[&id];
         let isa = self.isa.clone();
-        let types = TypeEmitter::new(self.module, self.optimized, isa.as_ref());
+        let types = TypeEmitter::new(self.module, self.layout, self.optimized, isa.as_ref());
         let mut context = Context::new();
         context.func.signature = types.signature(function)?;
         context.func.name = cir::UserFuncName::user(0, function_id.as_u32());
@@ -244,7 +248,6 @@ impl<'a> NativeEmitter<'a> {
             &types,
             &mut self.output,
             &mut self.symbols,
-            &mut self.blocks,
             &self.functions,
             &mut self.imports,
             function,
@@ -265,7 +268,7 @@ impl<'a> NativeEmitter<'a> {
         function: &mir::Function,
     ) -> Result<Context, EmitError> {
         let isa = self.isa.clone();
-        let types = TypeEmitter::new(self.module, self.optimized, isa.as_ref());
+        let types = TypeEmitter::new(self.module, self.layout, self.optimized, isa.as_ref());
         let mut context = Context::new();
         context.func.signature = types.entry_signature();
         context.func.name = cir::UserFuncName::user(1, index as u32);
@@ -664,7 +667,7 @@ impl<'a> NativeEmitter<'a> {
     /// Require the process-local Rust ABI used by the native runtime table.
     fn require_host_abi(
         module: ModuleId,
-        optimized: &MirOptimized,
+        layout: mir::TargetLayout,
         isa: &dyn TargetIsa,
     ) -> Result<(), EmitError> {
         let host = Triple::host();
@@ -675,8 +678,8 @@ impl<'a> NativeEmitter<'a> {
             .map_err(|_| Self::internal(module, "native target byte order is unknown"))?;
         let is_little = endian == Endianness::Little;
         if target != &host
-            || optimized.target.pointer_bytes() != pointer_bytes
-            || optimized.target.endian.is_little() != is_little
+            || layout.pointer_bytes() != pointer_bytes
+            || layout.endian.is_little() != is_little
             || !is_little
         {
             return Err(Self::internal(

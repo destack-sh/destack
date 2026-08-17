@@ -20,7 +20,9 @@ impl<'a> FunctionEmitter<'a> {
 
                 self.encode(instruction, &[])
             }
-            mir::Terminator::Jump { target } => self.emit_jump(terminator, target),
+            mir::Terminator::Jump { target } => {
+                self.emit_jump(terminator, mir::Successor::Jump, target)
+            }
             mir::Terminator::Branch {
                 condition,
                 then_target,

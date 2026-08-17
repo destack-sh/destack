@@ -8,7 +8,7 @@ use super::TypeEmitter;
 impl TypeEmitter<'_> {
     /// Return the bytecode register representation for one MIR type.
     pub(crate) fn register_type(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
-        let representation = self.storage_type(ty);
+        let representation = self.optimized.tree.storage_type(ty);
         let definition = self.optimized.tree.get(representation);
         let layout = self.layout(representation)?;
         let value_type = match definition {
@@ -118,7 +118,7 @@ impl TypeEmitter<'_> {
 
     /// Return the scalar bytecode representation for one MIR type.
     pub(crate) fn scalar(&self, ty: mir::TypeId) -> Result<bytecode::Scalar, EmitError> {
-        let storage = self.storage_type(ty);
+        let storage = self.optimized.tree.storage_type(ty);
         let layout = self.layout(storage)?;
         let scalar = match layout.representation {
             mir::Representation::Scalar(scalar) => scalar,
@@ -138,22 +138,13 @@ impl TypeEmitter<'_> {
         }
     }
 
-    /// Return the transparent storage type for one MIR type.
-    pub(super) fn storage_type(&self, mut ty: mir::TypeId) -> mir::TypeId {
-        loop {
-            match self.optimized.tree.get(ty) {
-                mir::Type::Atomic { value }
-                | mir::Type::ManuallyDrop { value }
-                | mir::Type::Application { base: value, .. }
-                | mir::Type::Newtype { inner: value, .. } => ty = *value,
-                _ => return ty,
-            }
-        }
-    }
-
     /// Return one uninitialized bytecode representation.
     fn uninitialized(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
-        match self.optimized.tree.get(self.storage_type(ty)) {
+        match self
+            .optimized
+            .tree
+            .get(self.optimized.tree.storage_type(ty))
+        {
             mir::Type::Reference { kind, storage, .. } => {
                 Ok(bytecode::ValueType::uninit_reference(
                     self.reference_kind(*kind),

@@ -17,6 +17,7 @@ impl FunctionEmitter<'_> {
         result_type: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        let result_type = self.optimized.tree.storage_type(result_type);
         let layout = self
             .optimized
             .layouts
@@ -61,7 +62,7 @@ impl FunctionEmitter<'_> {
         variant: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let variant_type = self.value_type(variant)?;
+        let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
         let layout = self
             .optimized
             .layouts
@@ -122,7 +123,7 @@ impl FunctionEmitter<'_> {
         case: u32,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let variant_type = self.value_type(variant)?;
+        let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
         let layout = self
             .optimized
             .layouts
@@ -180,13 +181,13 @@ impl FunctionEmitter<'_> {
 
     /// Return the variant addressed by one reference or pointer value.
     fn variant_pointee(&self, value: mir::Value) -> Result<mir::TypeId, EmitError> {
-        let ty = self.value_type(value)?;
+        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let pointee = match self.optimized.tree.get(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
             _ => return Err(self.invalid("stored native variant requires an address")),
         };
 
-        Ok(pointee)
+        Ok(self.optimized.tree.storage_type(pointee))
     }
 
     /// Encode one logical case into its physical discriminant field.

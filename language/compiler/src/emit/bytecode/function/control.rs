@@ -14,12 +14,12 @@ impl<'a> FunctionEmitter<'a> {
         success: &mir::BlockTarget,
         failure: &mir::BlockTarget,
     ) -> Result<(), EmitError> {
-        let failure = self.edge_label(terminator, failure)?;
+        let failure = self.edge_label(terminator, mir::Successor::CheckFailure, failure)?;
         let mut instruction = self.check(constraint)?;
         instruction.branch(failure);
         self.encode(instruction, &[])?;
 
-        self.emit_jump(terminator, success)
+        self.emit_jump(terminator, mir::Successor::CheckSuccess, success)
     }
 
     /// Emit one compact integer switch.
@@ -35,12 +35,13 @@ impl<'a> FunctionEmitter<'a> {
 
         // resolve every logical case through its exact argument-transfer edge
         for case in self.optimized.tree.get_switch_cases(cases) {
-            let label = self.edge_label(terminator, &case.target)?;
+            let successor = mir::Successor::SwitchCase { value: case.value };
+            let label = self.edge_label(terminator, successor, &case.target)?;
             branches.push((case.value as u64, label));
         }
 
         // encode one compact table followed by its mandatory fallback
-        let default = self.edge_label(terminator, default)?;
+        let default = self.edge_label(terminator, mir::Successor::SwitchDefault, default)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::SWITCH);
         instruction.register(value);
         instruction
@@ -59,7 +60,7 @@ impl<'a> FunctionEmitter<'a> {
         default: Option<&mir::BlockTarget>,
         cases: mir::SwitchCaseSlice,
     ) -> Result<(), EmitError> {
-        let variant_type = self.value_type(value)?;
+        let variant_type = self.optimized.tree.storage_type(self.value_type(value)?);
         let discriminant = match self.optimized.tree.get(variant_type) {
             mir::Type::Variant { discriminant, .. } => *discriminant,
             _ => return Err(self.internal("variant switch requires a variant value")),
@@ -82,13 +83,14 @@ impl<'a> FunctionEmitter<'a> {
             let discriminant = self.types.variant_discriminant(variant_type, case_index)?;
             let discriminant = u64::try_from(discriminant)
                 .map_err(|_| self.internal("variant discriminant exceeds bytecode switch"))?;
-            let target = self.edge_label(terminator, &case.target)?;
+            let successor = mir::Successor::SwitchCase { value: case.value };
+            let target = self.edge_label(terminator, successor, &case.target)?;
             branches.push((discriminant, target));
         }
 
         // route invalid discriminants to the explicit default or an unreachable stub
         let fallback = if let Some(default) = default {
-            self.edge_label(terminator, default)?
+            self.edge_label(terminator, mir::Successor::SwitchDefault, default)?
         } else {
             let label = bytecode::Label(self.next_label);
             self.next_label += 1;
@@ -110,9 +112,10 @@ impl<'a> FunctionEmitter<'a> {
     pub(super) fn emit_jump(
         &mut self,
         terminator: &mir::Terminator,
+        successor: mir::Successor,
         target: &mir::BlockTarget,
     ) -> Result<(), EmitError> {
-        let target = self.edge_label(terminator, target)?;
+        let target = self.edge_label(terminator, successor, target)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::JUMP);
         instruction.branch(target);
 
@@ -127,8 +130,8 @@ impl<'a> FunctionEmitter<'a> {
         then_target: &mir::BlockTarget,
         else_target: &mir::BlockTarget,
     ) -> Result<(), EmitError> {
-        let then_target = self.edge_label(terminator, then_target)?;
-        let else_target = self.edge_label(terminator, else_target)?;
+        let then_target = self.edge_label(terminator, mir::Successor::BranchThen, then_target)?;
+        let else_target = self.edge_label(terminator, mir::Successor::BranchElse, else_target)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::BRANCH);
         instruction.register(self.word(condition)?);
         instruction.branch(then_target);
@@ -250,17 +253,17 @@ impl<'a> FunctionEmitter<'a> {
     pub(super) fn edge_label(
         &mut self,
         terminator: &mir::Terminator,
+        successor: mir::Successor,
         target: &mir::BlockTarget,
     ) -> Result<bytecode::Label, EmitError> {
+        let parameters = terminator
+            .target_parameters(&self.optimized.tree, successor, target)
+            .ok_or_else(|| self.internal("invalid block argument count"))?;
         if target.arguments(&self.optimized.tree).is_empty() {
             return self.block_label(target.block);
         }
 
-        let parameters = terminator
-            .successor_parameters(&self.optimized.tree, target.block)
-            .iter()
-            .map(|parameter| parameter.value)
-            .collect();
+        let parameters = parameters.iter().map(|parameter| parameter.value).collect();
         let label = bytecode::Label(self.next_label);
         self.next_label += 1;
         self.stubs.push(Stub::Transfer {
@@ -276,13 +279,14 @@ impl<'a> FunctionEmitter<'a> {
     pub(super) fn successor_destinations(
         &self,
         terminator: &mir::Terminator,
+        successor: mir::Successor,
         target: &mir::BlockTarget,
     ) -> Result<Vec<bytecode::RegisterSpan>, EmitError> {
         let block = self.optimized.tree.get(target.block);
-        let count = terminator.successor_result_count(target.block);
-        if block.parameters.len() < count {
-            return Err(self.internal("missing successor result parameter"));
-        }
+        terminator
+            .target_parameters(&self.optimized.tree, successor, target)
+            .ok_or_else(|| self.internal("invalid block argument count"))?;
+        let count = terminator.target_result_count(&self.optimized.tree, successor);
 
         block.parameters[..count]
             .iter()

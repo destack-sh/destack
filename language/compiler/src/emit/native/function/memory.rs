@@ -141,7 +141,14 @@ impl<'a> FunctionEmitter<'a> {
         let definition = self.optimized.tree.get(global);
         let offset = self.index_pointer(native::Index::Global { global: global.id }, builder)?;
         let reference = match definition.storage {
-            mir::GlobalStorage::Constant => offset,
+            mir::GlobalStorage::Constant => {
+                let base = self.static_offset(
+                    std::mem::offset_of!(native::abi::Activation, constants),
+                    builder,
+                )?;
+
+                builder.ins().iadd(base, offset)
+            }
             mir::GlobalStorage::Immortal => {
                 let base = self.static_offset(
                     std::mem::offset_of!(native::abi::Activation, immortals),
@@ -209,27 +216,34 @@ impl<'a> FunctionEmitter<'a> {
         reference: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let ty = self.value_type(reference)?;
+        let ty = self
+            .optimized
+            .tree
+            .storage_type(self.value_type(reference)?);
         let reference = self.reference(reference, builder)?;
-        let storage = match self.optimized.tree.get(ty) {
-            mir::Type::Pointer { .. } => return Ok(reference),
-            mir::Type::Reference { storage, .. } => storage,
-            _ => return Err(self.invalid("native memory access requires a reference or pointer")),
-        };
+        match self.optimized.tree.get(ty) {
+            mir::Type::Pointer { .. } => Ok(reference),
+            ty => {
+                let storage = ty.reference_storage().ok_or_else(|| {
+                    self.invalid("native memory access requires a reference or pointer")
+                })?;
+
+                self.materialize_reference(reference, storage, builder)
+            }
+        }
+    }
+
+    /// Materialize stable reference bits as one process-local native pointer.
+    pub(super) fn materialize_reference(
+        &self,
+        reference: cir::Value,
+        storage: mir::Storage,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<cir::Value, EmitError> {
         let base = match storage {
             mir::Storage::Frame => return Ok(reference),
-            mir::Storage::Heap(_)
-            | mir::Storage::Global(
-                mir::GlobalStorage::Local
-                | mir::GlobalStorage::Shared
-                | mir::GlobalStorage::Immortal,
-            ) => self.activation_pointer(
+            mir::Storage::Heap(_) | mir::Storage::Global(_) => self.activation_pointer(
                 std::mem::offset_of!(native::abi::Activation, memory_base),
-                builder,
-            )?,
-            mir::Storage::Global(mir::GlobalStorage::Constant) => self.activation_pointer(
-                std::mem::offset_of!(native::abi::Activation, constants)
-                    + std::mem::offset_of!(native::abi::ConstantSpace, bytes),
                 builder,
             )?,
         };

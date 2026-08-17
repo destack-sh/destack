@@ -305,9 +305,10 @@ impl<'a> FunctionEmitter<'a> {
             return Ok(value);
         }
 
+        let ty = self.optimized.tree.storage_type(ty);
         let definition = self.optimized.tree.get(ty);
         let is_signed = definition
-            .int_info_with_pointer_width(self.optimized.target.pointer_bits())
+            .int_info_with_pointer_width(self.types.layout.pointer_bits())
             .is_some_and(|(_, is_signed)| is_signed);
         let value = if is_signed {
             builder.ins().sextend(cir::types::I64, value)
@@ -397,15 +398,73 @@ impl<'a> FunctionEmitter<'a> {
         value: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        let offset = self.reference_offset(value)?;
+
         match self.value(value)? {
-            Value::Direct(reference) => Ok(reference),
-            Value::ScalarPair([reference, _]) => Ok(reference),
+            Value::Direct(reference) if offset == 0 => Ok(reference),
+            Value::Direct(_) => Err(self.invalid("direct carrier has a nonzero reference offset")),
+            Value::ScalarPair(fields) => {
+                let index = usize::from(offset != 0);
+
+                Ok(fields[index])
+            }
             Value::Address(address) => {
                 let flags = cir::MemFlagsData::trusted();
 
-                Ok(builder.ins().load(self.types.pointer(), flags, address, 0))
+                Ok(builder
+                    .ins()
+                    .load(self.types.pointer(), flags, address, offset as i32))
             }
         }
+    }
+
+    /// Replace the backing reference in one reference-like value.
+    pub(super) fn replace_reference(
+        &mut self,
+        destination: mir::Value,
+        source: mir::Value,
+        reference: cir::Value,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<(), EmitError> {
+        let offset = self.reference_offset(source)?;
+        let ty = self.value_type(source)?;
+        let value = match self.value(source)? {
+            Value::Direct(_) if offset == 0 => Value::Direct(reference),
+            Value::Direct(_) => {
+                return Err(self.invalid("direct carrier has a nonzero reference offset"));
+            }
+            Value::ScalarPair(mut fields) => {
+                let index = usize::from(offset != 0);
+                fields[index] = reference;
+
+                Value::ScalarPair(fields)
+            }
+            Value::Address(source) => {
+                let value_type = self.types.value(ty)?;
+                let address = self.allocate(value_type, builder);
+                self.copy(address, source, value_type, builder);
+                let flags = cir::MemFlagsData::trusted();
+                builder
+                    .ins()
+                    .store(flags, reference, address, offset as i32);
+
+                Value::Address(address)
+            }
+        };
+
+        self.set(destination, value)
+    }
+
+    /// Return the backing reference byte offset in one reference-like value.
+    fn reference_offset(&self, value: mir::Value) -> Result<u32, EmitError> {
+        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
+        let offset = match self.optimized.tree.get(ty) {
+            mir::Type::Function { .. } => self.types.pointer().bytes(),
+            ty if ty.is_reference_carrier() => 0,
+            _ => return Err(self.invalid("value is not a reference carrier")),
+        };
+
+        Ok(offset)
     }
 
     /// Allocate canonical stack storage.
@@ -483,6 +542,13 @@ impl<'a> FunctionEmitter<'a> {
         self.function
             .value_type(value)
             .ok_or_else(|| self.invalid("native value has no MIR type"))
+    }
+
+    /// Return whether one MIR value has a signed integer representation.
+    pub(super) fn is_signed_integer(&self, value: mir::Value) -> Result<bool, EmitError> {
+        let ty = self.value_type(value)?;
+
+        self.types.is_signed_integer(ty)
     }
 
     /// Return one emitted value.

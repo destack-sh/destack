@@ -81,19 +81,13 @@ impl FunctionEmitter<'_> {
         let scalar = self.scalar_type(value)?;
         let operation = match operator {
             mir::AtomicRmwOperator::Exchange => bytecode::AtomicOperation::Exchange,
-            mir::AtomicRmwOperator::Add | mir::AtomicRmwOperator::Fadd => {
-                bytecode::AtomicOperation::FetchAdd
-            }
-            mir::AtomicRmwOperator::Sub => bytecode::AtomicOperation::FetchSubtract,
+            mir::AtomicRmwOperator::Add => bytecode::AtomicOperation::FetchAdd,
+            mir::AtomicRmwOperator::Subtract => bytecode::AtomicOperation::FetchSubtract,
             mir::AtomicRmwOperator::And => bytecode::AtomicOperation::FetchAnd,
             mir::AtomicRmwOperator::Or => bytecode::AtomicOperation::FetchOr,
             mir::AtomicRmwOperator::Xor => bytecode::AtomicOperation::FetchXor,
-            mir::AtomicRmwOperator::Min
-            | mir::AtomicRmwOperator::Umin
-            | mir::AtomicRmwOperator::Fmin => bytecode::AtomicOperation::FetchMinimum,
-            mir::AtomicRmwOperator::Max
-            | mir::AtomicRmwOperator::Umax
-            | mir::AtomicRmwOperator::Fmax => bytecode::AtomicOperation::FetchMaximum,
+            mir::AtomicRmwOperator::Min => bytecode::AtomicOperation::FetchMinimum,
+            mir::AtomicRmwOperator::Max => bytecode::AtomicOperation::FetchMaximum,
         };
         let opcode = self.atomic_opcode(operation, pointer, scalar)?;
         let mut instruction = bytecode::InstructionBuilder::new(opcode);

@@ -7,7 +7,7 @@ use super::TypeEmitter;
 impl TypeEmitter<'_> {
     /// Return the value addressed by one reference-like MIR type.
     pub(crate) fn pointee(&self, ty: mir::TypeId) -> Result<mir::TypeId, EmitError> {
-        let ty = self.storage_type(ty);
+        let ty = self.optimized.tree.storage_type(ty);
         let pointee = match self.optimized.tree.get(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
             mir::Type::Slice { element, .. }
@@ -16,24 +16,29 @@ impl TypeEmitter<'_> {
             _ => return Err(self.missing("reference pointee")),
         };
 
-        Ok(pointee)
+        Ok(self.optimized.tree.storage_type(pointee))
     }
 
     /// Return the byte stride addressed by one indexed reference-like type.
     pub(crate) fn element_stride(&self, ty: mir::TypeId) -> Result<u32, EmitError> {
-        let ty = self.storage_type(ty);
-        let indexed = match self.optimized.tree.get(ty) {
+        let ty = self.optimized.tree.storage_type(ty);
+        let stride = match self.optimized.tree.get(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
-                self.storage_type(*pointee)
+                self.element_stride(*pointee)?
             }
-            _ => ty,
+            mir::Type::Slice { element, .. }
+            | mir::Type::Tensor { element, .. }
+            | mir::Type::TensorView { element, .. } => self.layout(*element)?.stride() as u32,
+            mir::Type::FixedArray { .. } => {
+                self.layout(ty)?
+                    .element()
+                    .ok_or_else(|| self.missing("element layout"))?
+                    .stride
+            }
+            _ => return Err(self.missing("indexed layout")),
         };
-        let element = self
-            .layout(indexed)?
-            .element()
-            .ok_or_else(|| self.missing("element layout"))?;
 
-        Ok(element.stride)
+        Ok(stride)
     }
 
     /// Return the concrete layout for one MIR type.

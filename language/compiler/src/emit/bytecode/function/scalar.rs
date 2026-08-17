@@ -287,38 +287,41 @@ impl<'a> FunctionEmitter<'a> {
         let scalar = ty
             .scalar_type()
             .ok_or_else(|| self.internal("unsupported binary value type"))?;
+
+        // select the concrete floating point opcode family
+        if scalar.is_float() {
+            return self.emit_float_binary(destination, operator, left, right, scalar);
+        }
+
+        // select the concrete integer operation
         let operation = match operator {
             mir::BinaryOperator::Add => bytecode::IntegerOperation::Add,
             mir::BinaryOperator::Subtract => bytecode::IntegerOperation::Subtract,
             mir::BinaryOperator::Multiply => bytecode::IntegerOperation::Multiply,
-            mir::BinaryOperator::SignedDivide | mir::BinaryOperator::UnsignedDivide => {
-                bytecode::IntegerOperation::Divide
-            }
-            mir::BinaryOperator::SignedRemainder | mir::BinaryOperator::UnsignedRemainder => {
-                bytecode::IntegerOperation::Remainder
-            }
+            mir::BinaryOperator::Divide => bytecode::IntegerOperation::Divide,
+            mir::BinaryOperator::Remainder => bytecode::IntegerOperation::Remainder,
             mir::BinaryOperator::And => bytecode::IntegerOperation::And,
             mir::BinaryOperator::Or => bytecode::IntegerOperation::Or,
             mir::BinaryOperator::Xor => bytecode::IntegerOperation::Xor,
             mir::BinaryOperator::ShiftLeft => bytecode::IntegerOperation::ShiftLeft,
-            mir::BinaryOperator::ArithmeticShiftRight | mir::BinaryOperator::LogicalShiftRight => {
+            mir::BinaryOperator::ShiftRight | mir::BinaryOperator::UnsignedShiftRight => {
                 bytecode::IntegerOperation::ShiftRight
             }
             mir::BinaryOperator::Equal => bytecode::IntegerOperation::Equal,
             mir::BinaryOperator::NotEqual => bytecode::IntegerOperation::NotEqual,
-            mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
-                bytecode::IntegerOperation::LessThan
-            }
-            mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
-                bytecode::IntegerOperation::LessEqual
-            }
-            mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
-                bytecode::IntegerOperation::GreaterThan
-            }
-            mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
-                bytecode::IntegerOperation::GreaterEqual
-            }
-            _ => return self.emit_float_binary(destination, operator, left, right, scalar),
+            mir::BinaryOperator::LessThan => bytecode::IntegerOperation::LessThan,
+            mir::BinaryOperator::LessEqual => bytecode::IntegerOperation::LessEqual,
+            mir::BinaryOperator::GreaterThan => bytecode::IntegerOperation::GreaterThan,
+            mir::BinaryOperator::GreaterEqual => bytecode::IntegerOperation::GreaterEqual,
+        };
+
+        // select unsigned semantics for the source level unsigned shift
+        let scalar = if operator == mir::BinaryOperator::UnsignedShiftRight {
+            scalar
+                .unsigned()
+                .ok_or_else(|| self.internal("unsigned shift requires an integer type"))?
+        } else {
+            scalar
         };
         let opcode = bytecode::Opcode::integer(operation, scalar)
             .ok_or_else(|| self.internal("unsupported integer operation"))?;
@@ -331,7 +334,7 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Emit one floating-point MIR binary operation.
-    pub(super) fn emit_float_binary(
+    fn emit_float_binary(
         &mut self,
         destination: mir::Value,
         operator: mir::BinaryOperator,
@@ -340,16 +343,17 @@ impl<'a> FunctionEmitter<'a> {
         scalar: bytecode::Scalar,
     ) -> Result<(), EmitError> {
         let operation = match operator {
-            mir::BinaryOperator::FloatAdd => bytecode::FloatOperation::Add,
-            mir::BinaryOperator::FloatSubtract => bytecode::FloatOperation::Subtract,
-            mir::BinaryOperator::FloatMultiply => bytecode::FloatOperation::Multiply,
-            mir::BinaryOperator::FloatDivide => bytecode::FloatOperation::Divide,
-            mir::BinaryOperator::FloatEqual => bytecode::FloatOperation::Equal,
-            mir::BinaryOperator::FloatNotEqual => bytecode::FloatOperation::NotEqual,
-            mir::BinaryOperator::FloatLessThan => bytecode::FloatOperation::LessThan,
-            mir::BinaryOperator::FloatLessEqual => bytecode::FloatOperation::LessEqual,
-            mir::BinaryOperator::FloatGreaterThan => bytecode::FloatOperation::GreaterThan,
-            mir::BinaryOperator::FloatGreaterEqual => bytecode::FloatOperation::GreaterEqual,
+            mir::BinaryOperator::Add => bytecode::FloatOperation::Add,
+            mir::BinaryOperator::Subtract => bytecode::FloatOperation::Subtract,
+            mir::BinaryOperator::Multiply => bytecode::FloatOperation::Multiply,
+            mir::BinaryOperator::Divide => bytecode::FloatOperation::Divide,
+            mir::BinaryOperator::Remainder => bytecode::FloatOperation::Remainder,
+            mir::BinaryOperator::Equal => bytecode::FloatOperation::Equal,
+            mir::BinaryOperator::NotEqual => bytecode::FloatOperation::NotEqual,
+            mir::BinaryOperator::LessThan => bytecode::FloatOperation::LessThan,
+            mir::BinaryOperator::LessEqual => bytecode::FloatOperation::LessEqual,
+            mir::BinaryOperator::GreaterThan => bytecode::FloatOperation::GreaterThan,
+            mir::BinaryOperator::GreaterEqual => bytecode::FloatOperation::GreaterEqual,
             _ => return Err(self.internal("unsupported binary operator")),
         };
         let opcode = bytecode::Opcode::float(operation, scalar)
@@ -373,16 +377,17 @@ impl<'a> FunctionEmitter<'a> {
             .register_type(argument)?
             .scalar_type()
             .ok_or_else(|| self.internal("unsupported unary value type"))?;
-        let opcode = match operator {
-            mir::UnaryOperator::Negate => {
+        let opcode = match (operator, scalar.is_float()) {
+            (mir::UnaryOperator::Negate, false) => {
                 bytecode::Opcode::integer(bytecode::IntegerOperation::Negate, scalar)
             }
-            mir::UnaryOperator::Not => {
+            (mir::UnaryOperator::Not, false) => {
                 bytecode::Opcode::integer(bytecode::IntegerOperation::Not, scalar)
             }
-            mir::UnaryOperator::FloatNegate => {
+            (mir::UnaryOperator::Negate, true) => {
                 bytecode::Opcode::float(bytecode::FloatOperation::Negate, scalar)
             }
+            (mir::UnaryOperator::Not, true) => None,
         }
         .ok_or_else(|| self.internal("unsupported unary operation"))?;
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
@@ -402,6 +407,29 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<(), EmitError> {
         let source = self.register_type(argument)?;
         let target = self.types.register_type(target)?;
+
+        // preserve representation identity with one register move
+        let is_identity = operator == mir::CastOperator::FloatConvert && source == target;
+        let is_bitcast =
+            operator == mir::CastOperator::Bitcast && source.word_count() == target.word_count();
+        if is_identity || is_bitcast {
+            let source = self.register(argument)?;
+            let destination = self.register(destination)?;
+
+            return self.emit_move(source, destination, target);
+        }
+
+        // construct wide integer extensions from their low and high words
+        if matches!(
+            operator,
+            mir::CastOperator::ZeroExtend | mir::CastOperator::SignExtend
+        ) && source.word_count() == 1
+            && target.word_count() == 2
+        {
+            return self.emit_wide_extension(destination, operator, argument, source);
+        }
+
+        // select the exact scalar conversion opcode
         let operation = match operator {
             mir::CastOperator::Bitcast => bytecode::CastOperation::Bit,
             mir::CastOperator::Truncate => bytecode::CastOperation::Truncate,
@@ -431,6 +459,50 @@ impl<'a> FunctionEmitter<'a> {
         let destination = self.register(destination)?;
 
         self.encode(instruction, &[destination])
+    }
+
+    /// Emit one scalar integer extension into a two-word integer.
+    fn emit_wide_extension(
+        &mut self,
+        destination: mir::Value,
+        operator: mir::CastOperator,
+        argument: mir::Value,
+        source_type: bytecode::ValueType,
+    ) -> Result<(), EmitError> {
+        let source = self.word(argument)?;
+        let destination = self.register(destination)?;
+        let low = bytecode::RegisterSpan::new(destination.start, 1);
+        let high = bytecode::RegisterSpan::new(bytecode::RegisterId(destination.start.0 + 1), 1);
+
+        // preserve the low source word
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::MOVE);
+        instruction.register(source);
+        self.encode(instruction, &[low])?;
+
+        // clear the high word for unsigned extension
+        if operator == mir::CastOperator::ZeroExtend {
+            let instruction =
+                self.scalar_constant(bytecode::ValueType::scalar(bytecode::Scalar::Uint64), 0)?;
+
+            return self.encode(instruction, &[high]);
+        }
+
+        // replicate the source sign bit through the high word
+        let scalar = source_type
+            .scalar_type()
+            .ok_or_else(|| self.internal("wide extension requires a scalar source"))?;
+        let count_type = bytecode::ValueType::scalar(bytecode::Scalar::Uint64);
+        let count = self.scratch(count_type)?;
+        let instruction = self.scalar_constant(count_type, u64::from(scalar.bit_width() - 1))?;
+        self.encode(instruction, &[count])?;
+
+        let opcode = bytecode::Opcode::integer(bytecode::IntegerOperation::ShiftRight, scalar)
+            .ok_or_else(|| self.internal("wide extension requires an integer source"))?;
+        let mut instruction = bytecode::InstructionBuilder::new(opcode);
+        instruction.register(source);
+        instruction.register(count.start);
+
+        self.encode(instruction, &[high])
     }
 
     /// Emit one scalar MIR constant.

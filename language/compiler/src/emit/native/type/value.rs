@@ -176,7 +176,7 @@ impl TypeEmitter<'_> {
                 .integer(width)
                 .ok_or_else(|| self.unsupported("native integer width is unavailable")),
             mir::Primitive::Float(format) => self.float(format),
-            mir::Primitive::Pointer { width } if width == self.optimized.target.pointer_bits() => {
+            mir::Primitive::Pointer { width } if width == self.layout.pointer_bits() => {
                 Ok(self.pointer())
             }
             mir::Primitive::Pointer { .. } => {

@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 
@@ -44,15 +42,13 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         function: mir::Value,
     ) -> Result<(), EmitError> {
-        let environment_byte_offset = size_of::<u64>() as u32;
-        let environment_byte_len = size_of::<u64>() as u32;
+        let function = self.register(function)?;
+        let environment =
+            bytecode::RegisterSpan::new(bytecode::RegisterId(function.start.0 + 1), 1);
+        let destination_type = self.register_type(destination)?;
+        let destination = self.register(destination)?;
 
-        self.emit_extract(
-            destination,
-            function,
-            environment_byte_offset,
-            environment_byte_len,
-        )
+        self.emit_move(environment, destination, destination_type)
     }
 
     /// Emit the current function's hidden environment.

@@ -1,7 +1,6 @@
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
 use cranelift_codegen::ir::condcodes::{FloatCC, IntCC};
-use cranelift_module::{Linkage, Module};
 use destack_mir as mir;
 use destack_native as native;
 
@@ -124,7 +123,7 @@ impl FunctionEmitter<'_> {
             | mir::Intrinsic::SubOverflow
             | mir::Intrinsic::MulOverflow => {
                 let right = self.right(right)?;
-                let is_signed = self.is_signed_integer_value(arguments[0])?;
+                let is_signed = self.is_signed_integer(arguments[0])?;
                 let (value, overflow) = match (intrinsic, is_signed) {
                     (mir::Intrinsic::AddOverflow, true) => builder.ins().sadd_overflow(left, right),
                     (mir::Intrinsic::AddOverflow, false) => {
@@ -147,14 +146,14 @@ impl FunctionEmitter<'_> {
             mir::Intrinsic::SubUnchecked => builder.ins().isub(left, self.right(right)?),
             mir::Intrinsic::MulUnchecked => builder.ins().imul(left, self.right(right)?),
             mir::Intrinsic::DivUnchecked => {
-                if self.is_signed_integer_value(arguments[0])? {
+                if self.is_signed_integer(arguments[0])? {
                     builder.ins().sdiv(left, self.right(right)?)
                 } else {
                     builder.ins().udiv(left, self.right(right)?)
                 }
             }
             mir::Intrinsic::RemUnchecked => {
-                if self.is_signed_integer_value(arguments[0])? {
+                if self.is_signed_integer(arguments[0])? {
                     builder.ins().srem(left, self.right(right)?)
                 } else {
                     builder.ins().urem(left, self.right(right)?)
@@ -162,18 +161,18 @@ impl FunctionEmitter<'_> {
             }
             mir::Intrinsic::ShlUnchecked => builder.ins().ishl(left, self.right(right)?),
             mir::Intrinsic::ShrUnchecked => {
-                if self.is_signed_integer_value(arguments[0])? {
+                if self.is_signed_integer(arguments[0])? {
                     builder.ins().sshr(left, self.right(right)?)
                 } else {
                     builder.ins().ushr(left, self.right(right)?)
                 }
             }
             mir::Intrinsic::SatAdd => {
-                let is_signed = self.is_signed_integer_value(arguments[0])?;
+                let is_signed = self.is_signed_integer(arguments[0])?;
                 self.emit_saturating(intrinsic, left, self.right(right)?, is_signed, builder)?
             }
             mir::Intrinsic::SatSub => {
-                let is_signed = self.is_signed_integer_value(arguments[0])?;
+                let is_signed = self.is_signed_integer(arguments[0])?;
                 self.emit_saturating(intrinsic, left, self.right(right)?, is_signed, builder)?
             }
             mir::Intrinsic::Sqrt => builder.ins().sqrt(left),
@@ -239,7 +238,7 @@ impl FunctionEmitter<'_> {
         right: cir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let condition = if self.is_signed_integer_value(source)? {
+        let condition = if self.is_signed_integer(source)? {
             IntCC::SignedGreaterThanOrEqual
         } else {
             IntCC::UnsignedGreaterThanOrEqual
@@ -351,7 +350,7 @@ impl FunctionEmitter<'_> {
         }
 
         // compute the floor midpoint without overflowing
-        let is_signed = self.is_signed_integer_value(source)?;
+        let is_signed = self.is_signed_integer(source)?;
         let differing_bits = builder.ins().bxor(left, right);
         let shared_bits = builder.ins().band(left, right);
         let half_difference = if is_signed {
@@ -433,7 +432,7 @@ impl FunctionEmitter<'_> {
             return Ok(builder.ins().select(below, minimum, clamped));
         }
 
-        let (greater_than, less_than) = if self.is_signed_integer_value(source)? {
+        let (greater_than, less_than) = if self.is_signed_integer(source)? {
             (IntCC::SignedGreaterThan, IntCC::SignedLessThan)
         } else {
             (IntCC::UnsignedGreaterThan, IntCC::UnsignedLessThan)
@@ -458,7 +457,7 @@ impl FunctionEmitter<'_> {
         let ty = builder.func.dfg.value_type(left);
         let zero = self.emit_integer_constant(ty, 0, builder)?;
         let one = self.emit_integer_constant(ty, 1, builder)?;
-        let is_signed = self.is_signed_integer_value(source)?;
+        let is_signed = self.is_signed_integer(source)?;
         let (quotient, remainder) = if is_signed {
             (
                 builder.ins().sdiv(left, right),
@@ -495,7 +494,7 @@ impl FunctionEmitter<'_> {
         right: cir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        if !self.is_signed_integer_value(source)? {
+        if !self.is_signed_integer(source)? {
             return Ok(builder.ins().urem(left, right));
         }
 
@@ -528,7 +527,7 @@ impl FunctionEmitter<'_> {
         let one = self.emit_integer_constant(ty, 1, builder)?;
         let divisor_is_zero = builder.ins().icmp(IntCC::Equal, right, zero);
         let dividend_is_zero = builder.ins().icmp(IntCC::Equal, left, zero);
-        let is_signed = self.is_signed_integer_value(source)?;
+        let is_signed = self.is_signed_integer(source)?;
         let invalid_division = if is_signed {
             let sign = 1u128 << (ty.bits() - 1);
             let minimum = self.emit_integer_constant(ty, sign, builder)?;
@@ -649,22 +648,6 @@ impl FunctionEmitter<'_> {
         Ok(())
     }
 
-    /// Return whether one MIR value is a signed integer.
-    pub(super) fn is_signed_integer_value(&self, value: mir::Value) -> Result<bool, EmitError> {
-        let ty = self.value_type(value)?;
-        self.is_signed_integer(ty)
-    }
-
-    /// Return whether one MIR type is a signed integer.
-    pub(super) fn is_signed_integer(&self, ty: mir::TypeId) -> Result<bool, EmitError> {
-        self.optimized
-            .tree
-            .get(ty)
-            .int_info_with_pointer_width(self.optimized.target.pointer_bits())
-            .map(|(_, is_signed)| is_signed)
-            .ok_or_else(|| self.invalid("native operation requires an integer type"))
-    }
-
     /// Return the required second scalar argument.
     fn right(&self, value: Option<cir::Value>) -> Result<cir::Value, EmitError> {
         value.ok_or_else(|| self.invalid("native intrinsic has no second argument"))
@@ -721,26 +704,11 @@ impl FunctionEmitter<'_> {
             (mir::Intrinsic::Pow, cir::types::F64) => native::Import::PowF64,
             _ => return Err(self.invalid("native math intrinsic has an invalid type")),
         };
-        let mut signature = cir::Signature::new(self.types.call_conv());
-        signature.params.push(cir::AbiParam::new(ty));
         let mut arguments = vec![left];
         if matches!(intrinsic, mir::Intrinsic::Atan2 | mir::Intrinsic::Pow) {
-            signature.params.push(cir::AbiParam::new(ty));
             arguments.push(self.right(right)?);
         }
-        signature.returns.push(cir::AbiParam::new(ty));
-        let name = format!("__destack_import_{:02x}", import as u32);
-        let function = self
-            .output
-            .declare_function(&name, Linkage::Import, &signature)
-            .map_err(|error| Self::internal(self.module, error.to_string()))?;
-        self.imports.insert(function, import);
-
-        // route the call through its linked image-local trampoline
-        let function = self.output.declare_func_in_func(function, builder.func);
-        builder.func.dfg.ext_funcs[function].colocated = true;
-        let call = builder.ins().call(function, &arguments);
-        let value = builder.func.dfg.first_result(call);
+        let value = self.emit_float_import(import, &arguments, builder)?;
 
         Ok(Value::Direct(value))
     }

@@ -958,12 +958,12 @@ impl<'a> TensorEmitter<'a> {
     ) -> Option<bytecode::ElementOperation> {
         if scalar.is_float() {
             let operation = match operator {
-                mir::BinaryOperator::FloatEqual => bytecode::FloatOperation::Equal,
-                mir::BinaryOperator::FloatNotEqual => bytecode::FloatOperation::NotEqual,
-                mir::BinaryOperator::FloatLessThan => bytecode::FloatOperation::LessThan,
-                mir::BinaryOperator::FloatLessEqual => bytecode::FloatOperation::LessEqual,
-                mir::BinaryOperator::FloatGreaterThan => bytecode::FloatOperation::GreaterThan,
-                mir::BinaryOperator::FloatGreaterEqual => bytecode::FloatOperation::GreaterEqual,
+                mir::BinaryOperator::Equal => bytecode::FloatOperation::Equal,
+                mir::BinaryOperator::NotEqual => bytecode::FloatOperation::NotEqual,
+                mir::BinaryOperator::LessThan => bytecode::FloatOperation::LessThan,
+                mir::BinaryOperator::LessEqual => bytecode::FloatOperation::LessEqual,
+                mir::BinaryOperator::GreaterThan => bytecode::FloatOperation::GreaterThan,
+                mir::BinaryOperator::GreaterEqual => bytecode::FloatOperation::GreaterEqual,
                 _ => return None,
             };
 
@@ -972,20 +972,10 @@ impl<'a> TensorEmitter<'a> {
             let operation = match operator {
                 mir::BinaryOperator::Equal => bytecode::IntegerOperation::Equal,
                 mir::BinaryOperator::NotEqual => bytecode::IntegerOperation::NotEqual,
-                mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
-                    bytecode::IntegerOperation::LessThan
-                }
-                mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
-                    bytecode::IntegerOperation::LessEqual
-                }
-                mir::BinaryOperator::SignedGreaterThan
-                | mir::BinaryOperator::UnsignedGreaterThan => {
-                    bytecode::IntegerOperation::GreaterThan
-                }
-                mir::BinaryOperator::SignedGreaterEqual
-                | mir::BinaryOperator::UnsignedGreaterEqual => {
-                    bytecode::IntegerOperation::GreaterEqual
-                }
+                mir::BinaryOperator::LessThan => bytecode::IntegerOperation::LessThan,
+                mir::BinaryOperator::LessEqual => bytecode::IntegerOperation::LessEqual,
+                mir::BinaryOperator::GreaterThan => bytecode::IntegerOperation::GreaterThan,
+                mir::BinaryOperator::GreaterEqual => bytecode::IntegerOperation::GreaterEqual,
                 _ => return None,
             };
 
