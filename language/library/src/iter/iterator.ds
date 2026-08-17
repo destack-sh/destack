@@ -43,8 +43,19 @@ export newtype interface Iterator<T, R = void> {
     }
 
     /// Retain yielded values accepted by `predicate`.
-    filter(this, predicate: (value: &readonly T, index: isize) => boolean): FilterIterator<this, T> {
+    filter(
+        this,
+        predicate: (value: &readonly T, index: isize) => boolean,
+    ): FilterIterator<this, T> {
         todo("Iterator.filter")
+    }
+
+    /// Map yielded values and retain the defined results.
+    filterMap<U>(
+        this,
+        map: (value: T, index: isize) => U | undefined,
+    ): FilterMapIterator<this, T, U> {
+        todo("Iterator.filterMap")
     }
 
     /// Yield at most `limit` values.
@@ -52,9 +63,25 @@ export newtype interface Iterator<T, R = void> {
         todo("Iterator.take")
     }
 
+    /// Yield values while `predicate` accepts them.
+    takeWhile(
+        this,
+        predicate: (value: &readonly T, index: isize) => boolean,
+    ): TakeWhileIterator<this, T> {
+        todo("Iterator.takeWhile")
+    }
+
     /// Skip the first `count` values.
     drop(this, count: isize): DropIterator<this, T> {
         todo("Iterator.drop")
+    }
+
+    /// Skip values while `predicate` accepts them.
+    dropWhile(
+        this,
+        predicate: (value: &readonly T, index: isize) => boolean,
+    ): DropWhileIterator<this, T> {
+        todo("Iterator.dropWhile")
     }
 
     /// Map each yielded value to an iterable and yield its values.
@@ -63,6 +90,38 @@ export newtype interface Iterator<T, R = void> {
         map: (value: T, index: isize) => V,
     ): FlatMapIterator<this, T, V, V.Iterator, U> {
         todo("Iterator.flatMap")
+    }
+
+    /// Yield the values from each nested iterable.
+    flat<U, Q>(this): FlattenIterator<this, T.Iterator, U> where T: Iterable<U, Q> {
+        todo("Iterator.flat")
+    }
+
+    /// Yield these values followed by the values from `other`.
+    chain<Q, V: Iterable<T, Q>>(this, other: V): ChainIterator<this, V.Iterator, T> {
+        todo("Iterator.chain")
+    }
+
+    /// Pair these values with values from `other` until either iterator completes.
+    zip<U, Q, V: Iterable<U, Q>>(this, other: V): ZipIterator<this, V.Iterator, T, U> {
+        todo("Iterator.zip")
+    }
+
+    /// Map values until `map` returns undefined.
+    mapWhile<U>(
+        this,
+        map: (value: T, index: isize) => U | undefined,
+    ): MapWhileIterator<this, T, U> {
+        todo("Iterator.mapWhile")
+    }
+
+    /// Map values with mutable state until `scan` returns undefined.
+    scan<S, U>(
+        this,
+        initial: S,
+        scan: (state: &exclusive S, value: T, index: isize) => U | undefined,
+    ): ScanIterator<this, T, S, U> {
+        todo("Iterator.scan")
     }
 
     /// Reduce yielded values using the first value as the initial accumulator.
@@ -77,7 +136,7 @@ export newtype interface Iterator<T, R = void> {
 
     /// Collect yielded values into an array.
     toArray(this): ^T[] {
-        todo("Iterator.toArray")
+        this.collect<^T[]>()
     }
 
     /// Consume every yielded value with `visit`.
@@ -100,25 +159,54 @@ export newtype interface Iterator<T, R = void> {
         todo("Iterator.find")
     }
 
+    /// Return the index of the first value accepted by `predicate`.
+    findIndex(this, predicate: (value: T, index: isize) => boolean): isize | undefined {
+        todo("Iterator.findIndex")
+    }
+
+    /// Count the remaining yielded values.
+    count(this): isize {
+        todo("Iterator.count")
+    }
+
+    /// Return the first yielded value.
+    first(this): T | undefined {
+        todo("Iterator.first")
+    }
+
+    /// Return the last yielded value.
+    last(this): T | undefined {
+        todo("Iterator.last")
+    }
+
     /// Collect this iterator into `C`.
     collect<C>(this): C where C: FromIterator<T> {
         C.fromIterator(this)
     }
 
     /// Return the first mapped value that is present.
-    findMap<U>(this, map: (value: T) => U | undefined): U | undefined {
+    findMap<U>(this, map: (value: T, index: isize) => U | undefined): U | undefined {
         todo("Iterator.findMap")
     }
 
     /// Fold values until the returned carrier breaks.
-    tryFold<F: Try>(this, initial: F.Output, fold: (accumulator: F.Output, value: T) => F): F {
+    tryFold<F: Try>(
+        this,
+        initial: F.Output,
+        fold: (accumulator: F.Output, value: T, index: isize) => F,
+    ): F {
         todo("Iterator.tryFold")
+    }
+
+    /// Visit values until the returned carrier breaks.
+    tryForEach<F: Try<type Output = void>>(this, visit: (value: T, index: isize) => F): F {
+        todo("Iterator.tryForEach")
     }
 
     /// Observe each yielded value without changing the sequence.
     inspect(
         this,
-        observe: (value: &readonly T) => void,
+        observe: (value: &readonly T, index: isize) => void,
     ): InspectIterator<this, T, R> {
         todo("Iterator.inspect")
     }
@@ -220,6 +308,25 @@ export extension<T, R, I: Iterator<T, R>> of FilterIterator<I, T> implements Ite
     }
 }
 
+/// Iterator that maps yielded values and retains the defined results.
+export struct FilterMapIterator<I, T, U> {
+    /// The source iterator.
+    private iterator: I;
+
+    /// The transformation applied to each yielded value.
+    private transform: (value: T, index: isize) => U | undefined;
+
+    /// The index of the next source value.
+    private index: isize = 0;
+}
+
+export extension<T, U, R, I: Iterator<T, R>> of FilterMapIterator<I, T, U> implements Iterator<U> {
+    /// Advance to the next defined mapped value.
+    next(): IteratorResult<U> {
+        todo("FilterMapIterator.next")
+    }
+}
+
 /// Iterator limited to an initial number of yielded values.
 export struct TakeIterator<I, out T> {
     /// The source iterator.
@@ -236,6 +343,28 @@ export extension<T, R, I: Iterator<T, R>> of TakeIterator<I, T> implements Itera
     }
 }
 
+/// Iterator that yields values while a predicate accepts them.
+export struct TakeWhileIterator<I, T> {
+    /// The source iterator.
+    private iterator: I;
+
+    /// The predicate applied to each yielded value.
+    private predicate: (value: &readonly T, index: isize) => boolean;
+
+    /// The index of the next source value.
+    private index: isize = 0;
+
+    /// Whether the predicate has rejected a value.
+    private isDone: boolean = false;
+}
+
+export extension<T, R, I: Iterator<T, R>> of TakeWhileIterator<I, T> implements Iterator<T> {
+    /// Advance while the predicate accepts source values.
+    next(): IteratorResult<T> {
+        todo("TakeWhileIterator.next")
+    }
+}
+
 /// Iterator that skips an initial number of yielded values.
 export struct DropIterator<I, out T> {
     /// The source iterator.
@@ -249,6 +378,28 @@ export extension<T, R, I: Iterator<T, R>> of DropIterator<I, T> implements Itera
     /// Skip the configured prefix and advance.
     next(): IteratorResult<T> {
         todo("DropIterator.next")
+    }
+}
+
+/// Iterator that skips values while a predicate accepts them.
+export struct DropWhileIterator<I, T> {
+    /// The source iterator.
+    private iterator: I;
+
+    /// The predicate applied to each yielded value.
+    private predicate: (value: &readonly T, index: isize) => boolean;
+
+    /// The index of the next source value.
+    private index: isize = 0;
+
+    /// Whether source values are still being tested.
+    private isDropping: boolean = true;
+}
+
+export extension<T, R, I: Iterator<T, R>> of DropWhileIterator<I, T> implements Iterator<T> {
+    /// Skip accepted source values and advance through the remainder.
+    next(): IteratorResult<T> {
+        todo("DropWhileIterator.next")
     }
 }
 
@@ -275,13 +426,119 @@ export extension<T, U, R, Q, I, J, V> of FlatMapIterator<I, T, V, J, U> implemen
     }
 }
 
+/// Iterator that yields values from each nested iterable.
+export struct FlattenIterator<I, J, out T> {
+    /// The source iterator.
+    private iterator: I;
+
+    /// The nested iterator currently being consumed.
+    private nested?: J;
+}
+
+export extension<T, R, Q, I, J> of FlattenIterator<I, J, T> implements Iterator<T>
+    where I: Iterator<Iterable<T, Q, type Iterator = J>, R> {
+    /// Advance through the current nested iterator or the next iterable.
+    next(): IteratorResult<T> {
+        todo("FlattenIterator.next")
+    }
+}
+
+/// Iterator that yields two iterators in sequence.
+export struct ChainIterator<I, J, out T> {
+    /// The first source iterator.
+    private first: I;
+
+    /// The second source iterator.
+    private second: J;
+
+    /// Whether the first source may still yield values.
+    private isFirst: boolean = true;
+}
+
+export extension<T, R, Q, I: Iterator<T, R>, J: Iterator<T, Q>> of ChainIterator<I, J, T>
+    implements
+        Iterator<T> {
+    /// Advance through the first source and then the second.
+    next(): IteratorResult<T> {
+        todo("ChainIterator.next")
+    }
+}
+
+/// Iterator that pairs values from two iterators.
+export struct ZipIterator<I, J, out T, out U> {
+    /// The left source iterator.
+    private left: I;
+
+    /// The right source iterator.
+    private right: J;
+}
+
+export extension<T, U, R, Q, I: Iterator<T, R>, J: Iterator<U, Q>> of ZipIterator<I, J, T, U>
+    implements
+        Iterator<(T, U)> {
+    /// Advance both sources and return their next pair.
+    next(): IteratorResult<(T, U)> {
+        todo("ZipIterator.next")
+    }
+}
+
+/// Iterator that maps values until the transformation returns undefined.
+export struct MapWhileIterator<I, T, U> {
+    /// The source iterator.
+    private iterator: I;
+
+    /// The transformation applied to each yielded value.
+    private transform: (value: T, index: isize) => U | undefined;
+
+    /// The index of the next source value.
+    private index: isize = 0;
+
+    /// Whether the transformation has returned undefined.
+    private isDone: boolean = false;
+}
+
+export extension<T, U, R, I: Iterator<T, R>> of MapWhileIterator<I, T, U> implements Iterator<U> {
+    /// Advance until the transformation returns undefined.
+    next(): IteratorResult<U> {
+        todo("MapWhileIterator.next")
+    }
+}
+
+/// Iterator that maps values with mutable state.
+export struct ScanIterator<I, T, S, U> {
+    /// The source iterator.
+    private iterator: I;
+
+    /// The mutable transformation state.
+    private state: S;
+
+    /// The transformation applied to each yielded value.
+    private transform: (state: &exclusive S, value: T, index: isize) => U | undefined;
+
+    /// The index of the next source value.
+    private index: isize = 0;
+
+    /// Whether the transformation has returned undefined.
+    private isDone: boolean = false;
+}
+
+export extension<T, S, U, R, I: Iterator<T, R>> of ScanIterator<I, T, S, U> implements Iterator<U> {
+    /// Advance with the current state until the transformation returns undefined.
+    next(): IteratorResult<U> {
+        todo("ScanIterator.next")
+    }
+}
+
 /// Iterator that observes each yielded value.
 export struct InspectIterator<I, T, out R = void> {
     /// The source iterator.
     private iterator: I;
 
     /// The observation performed for each yielded value.
-    private observe: (value: &readonly T) => void;
+    private observe: (value: &readonly T, index: isize) => void;
+
+    /// The index of the next source value.
+    private index: isize = 0;
 }
 
 export extension<T, R, I: Iterator<T, R>> of InspectIterator<I, T, R> implements Iterator<T, R> {
