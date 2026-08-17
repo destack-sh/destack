@@ -51,6 +51,7 @@ entry:
     v2: int32 = call test.main.talk(v1): (dynamic<Greeter, managed, mutable>) => int32
     return v2
 }
+
 /// @layout.struct name=Console size=0 align=1
 /// @layout.struct name=Greeter size=0 align=1
 
@@ -99,6 +100,7 @@ b2:
     v5: int32 = call.dynamic v0, Sink, 0(v4): (int32) => int32
     return v5
 }
+
 /// @layout.struct name=Sink size=0 align=1
 
 /// @dispatch.shape constraint=type@0 function=put
@@ -173,6 +175,7 @@ entry:
     v2: int32 = call test.main.read(v1): (dynamic<Counted, managed, mutable>) => int32
     return v2
 }
+
 /// @layout.struct name=Register size=0 align=1
 /// @layout.struct name=Counted size=0 align=1
 

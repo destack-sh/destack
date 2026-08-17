@@ -15,6 +15,7 @@ function test.main.keep(v0: variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2
 entry(v0: variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; }):
     return v0
 }
+
 /// @layout.variant name=type@4 size=16 align=8
 /// @layout.discriminant owner=type@4 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@4 index=0 discriminant=0 payload_offset=8
@@ -67,6 +68,7 @@ function test.main.keep(v0: Shape): Shape {
 entry(v0: Shape):
     return v0
 }
+
 /// @layout.struct name=Circle size=8 align=8
 /// @layout.field owner=Circle index=0 name=kind offset=8 size=0 align=1
 /// @layout.field owner=Circle index=1 name=radius offset=0 size=8 align=8
@@ -108,6 +110,7 @@ entry:
     v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; } = variant.new 1
     return v0
 }
+
 /// @layout.variant name=type@3 size=1 align=1
 /// @layout.discriminant owner=type@3 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
 /// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=0
@@ -162,6 +165,7 @@ entry(v0: float64):
     v2: Shape = aggregate (v1)
     return v2
 }
+
 /// @layout.struct name=Circle size=8 align=8
 /// @layout.field owner=Circle index=0 name=kind offset=8 size=0 align=1
 /// @layout.field owner=Circle index=1 name=radius offset=0 size=8 align=8
@@ -218,6 +222,7 @@ entry:
     v1: Status = aggregate (v0)
     return v1
 }
+
 /// @layout.struct name=Ready size=0 align=1
 /// @layout.field owner=Ready index=0 name=state offset=0 size=0 align=1
 /// @layout.struct name=Pending size=0 align=1
@@ -262,6 +267,7 @@ entry(v0: int32):
     v4: variant<uint1> { 0uint1 = ref<{ kind: void, value: int32 }, managed, mutable>; 1uint1 = ref<{ kind: void, flag: boolean }, managed, mutable>; } = variant.new 0, v3
     return v4
 }
+
 /// @layout.variant name=Selector size=16 align=8
 /// @layout.discriminant owner=Selector kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=Selector index=0 discriminant=0 payload_offset=8
@@ -317,6 +323,7 @@ entry(v0: ref<Meter, borrowed, 'a, readonly>):
     v2: Label = load v1
     return v2
 }
+
 /// @layout.struct name=destack.string.string.String size=16 align=8
 /// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
 /// @layout.struct name=Meter size=8 align=8
@@ -531,6 +538,7 @@ entry(v0: Shape):
     v7: boolean = int.not v6
     return v7
 }
+
 /// @layout.struct name=Circle size=8 align=8
 /// @layout.field owner=Circle index=0 name=kind offset=8 size=0 align=1
 /// @layout.field owner=Circle index=1 name=radius offset=0 size=8 align=8
@@ -621,6 +629,7 @@ b2:
     v9: float64 = load v8
     return v9
 }
+
 /// @layout.struct name=Circle size=8 align=8
 /// @layout.field owner=Circle index=0 name=kind offset=8 size=0 align=1
 /// @layout.field owner=Circle index=1 name=radius offset=0 size=8 align=8

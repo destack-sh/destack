@@ -36,6 +36,7 @@ entry(v0: ref<Node, borrowed, exclusive>, v1: Wrapper):
     store v2, v1
     return
 }
+
 /// @layout.struct name=Node size=8 align=8
 /// @layout.field owner=Node index=0 name=wrapper offset=0 size=8 align=8
 /// @layout.struct name=Wrapper size=8 align=8
@@ -111,6 +112,7 @@ entry(v0: int32):
     v8: int32 = int.add v4, v7
     return v8
 }
+
 /// @layout.struct name=Counter size=4 align=4
 /// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
@@ -165,6 +167,7 @@ entry(v0: ref<Counter, managed, readonly>):
     v2: int32 = load v1
     return v2
 }
+
 /// @layout.struct name=Counter size=4 align=4
 /// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
@@ -244,6 +247,7 @@ b1:
 b2:
     return v0
 }
+
 /// @layout.struct name=Counter size=4 align=4
 /// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
@@ -335,6 +339,7 @@ b4:
     v8: int32 = load v7
     return v8
 }
+
 /// @layout.struct name=Counter size=4 align=4
 /// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
@@ -385,6 +390,7 @@ entry(v0: ref<Chain, managed, mutable>):
     v2: int32 = load v1
     return v2
 }
+
 /// @layout.struct name=Chain size=16 align=8
 /// @layout.field owner=Chain index=0 name=next offset=0 size=8 align=8
 /// @layout.field owner=Chain index=1 name=weight offset=8 size=4 align=4
@@ -441,6 +447,7 @@ entry(v0: ref<Counter, managed, mutable>):
     v2: int32 = call test.main.peek(v1): <'a>(ref<Counter, borrowed, 'a, readonly>) => int32
     return v2
 }
+
 /// @layout.struct name=Counter size=4 align=4
 /// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
@@ -493,8 +500,128 @@ entry(v0: int32):
     v4: int32 = field.get v3, 0
     return v4
 }
+
 /// @layout.struct name=Counter size=4 align=4
 /// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_lower_default_construction_synthesizes_an_initializer_constructor() {
+    let session = TestSession::single(
+        r#"
+class Counter {
+    count: int32 = 3;
+}
+
+function make(): ^Counter {
+    return new Counter();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+type Counter {
+    count: int32;
+}
+
+function test.main.Counter.constructor(v0: ref<Counter, borrowed, exclusive>): void {
+entry(v0: ref<Counter, borrowed, exclusive>):
+    v1: int32 = 3
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
+function test.main.make(): Counter {
+    local l0: Counter
+
+entry:
+    v0: ref<Counter, borrowed, exclusive> = local.address l0
+    call test.main.Counter.constructor(v0): (ref<Counter, borrowed, exclusive>) => void
+    v1: Counter = local.get l0
+    return v1
+}
+
+/// @layout.struct name=Counter size=4 align=4
+/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_store_derived_initializers_after_the_super_call() {
+    let session = TestSession::single(
+        r#"
+class Base {
+    tag: int32 = 1;
+
+    constructor() {}
+}
+
+class Derived extends Base {
+    extra: int32 = 2;
+
+    constructor() {
+        super();
+    }
+}
+
+function build(): ^Derived {
+    return new Derived();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+type Base {
+    tag: int32;
+}
+
+type Derived {
+    tag: int32;
+    extra: int32;
+}
+
+function test.main.Base.constructor(v0: ref<Base, borrowed, exclusive>): void {
+entry(v0: ref<Base, borrowed, exclusive>):
+    v1: int32 = 1
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
+function test.main.Derived.constructor(v0: ref<Derived, borrowed, exclusive>): void {
+entry(v0: ref<Derived, borrowed, exclusive>):
+    v1: ref<Base, borrowed, exclusive> = cast.bit v0 -> ref<Base, borrowed, exclusive>
+    call test.main.Base.constructor(v1): (ref<Base, borrowed, exclusive>) => void
+    v2: int32 = 2
+    v3: ref<int32, borrowed, exclusive> = field.address v0, 1
+    store v3, v2
+    v4: void = undefined
+    return
+}
+
+function test.main.build(): Derived {
+    local l0: Derived
+
+entry:
+    v0: ref<Derived, borrowed, exclusive> = local.address l0
+    call test.main.Derived.constructor(v0): (ref<Derived, borrowed, exclusive>) => void
+    v1: Derived = local.get l0
+    return v1
+}
+
+/// @layout.struct name=Base size=4 align=4
+/// @layout.field owner=Base index=0 name=tag offset=0 size=4 align=4
+/// @layout.struct name=Derived size=8 align=4
+/// @layout.field owner=Derived index=0 name=tag offset=0 size=4 align=4
+/// @layout.field owner=Derived index=1 name=extra offset=4 size=4 align=4
 "#,
     );
 }

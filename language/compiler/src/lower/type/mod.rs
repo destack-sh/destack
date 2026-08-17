@@ -25,4 +25,3 @@ pub use layout::{LayoutBuilder, LayoutError};
 pub(in crate::lower) use lifetime::LifetimeParameters;
 pub(in crate::lower) use lower::TypeLowerer;
 pub(in crate::lower) use nominal::*;
-pub(in crate::lower) use signature::LoweredSignature;

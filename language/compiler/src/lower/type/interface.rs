@@ -25,13 +25,12 @@ impl TypeLowerer<'_, '_> {
     /// Lower one interface declaration to its dynamic constraint type.
     pub(in crate::lower) fn lower_interface(
         &mut self,
-        symbol: dir::GlobalSymbolId,
         definition: dir::InterfaceDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
         // flatten the interface and its bases into one member list by name
         let mut entries = FxIndexMap::default();
-        self.collect_interface_members(symbol, &definition, &mut entries)?;
+        self.collect_interface_members(&definition, &mut entries)?;
 
         // split the flattened members into storage fields and dispatch slots
         let mut fields = Vec::new();
@@ -73,7 +72,6 @@ impl TypeLowerer<'_, '_> {
     /// Collect one interface's members into a flattened list keyed by name.
     fn collect_interface_members(
         &mut self,
-        symbol: dir::GlobalSymbolId,
         definition: &dir::InterfaceDefinition,
         entries: &mut FxIndexMap<StringId, InterfaceMember>,
     ) -> CompilerResult<()> {
@@ -121,19 +119,14 @@ impl TypeLowerer<'_, '_> {
                     specialization
                 }
             };
-            self.nested(base_instance).collect_interface_members(
-                application.symbol,
-                &base_definition,
-                entries,
-            )?;
+            self.nested(base_instance)
+                .collect_interface_members(&base_definition, entries)?;
         }
 
         // lower each property into a field node and dispatch slot
         let fields = self.lowerer.instance_fields(&definition.members);
         for field in fields {
-            let declared = self
-                .lowerer
-                .symbol_type(field.symbol.into_global(symbol.module_id))?;
+            let declared = self.lowerer.symbol_type(field.symbol)?;
             let declared = self.lower(declared)?;
             let dir::StaticKey::Name(name) = field.key else {
                 return Err(LowerError::Unsupported {

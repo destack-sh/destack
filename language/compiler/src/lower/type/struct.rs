@@ -8,7 +8,6 @@ impl TypeLowerer<'_, '_> {
     /// Lower one struct declaration to its representation.
     pub(in crate::lower) fn lower_struct(
         &mut self,
-        symbol: dir::GlobalSymbolId,
         definition: dir::StructDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
@@ -18,9 +17,7 @@ impl TypeLowerer<'_, '_> {
         // lower each field's type into a field node
         let mut field_nodes = Vec::with_capacity(fields.len());
         for field in &fields {
-            let ty = self
-                .lowerer
-                .symbol_type(field.symbol.into_global(symbol.module_id))?;
+            let ty = self.lowerer.symbol_type(field.symbol)?;
             let mut ty = self.lower(ty)?;
 
             // widen optional fields so their absent case stores as undefined

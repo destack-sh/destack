@@ -31,6 +31,7 @@ entry:
     v2: Point = aggregate (v0, v1)
     return v2
 }
+
 /// @layout.struct name=Point size=8 align=4
 /// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
@@ -67,6 +68,7 @@ entry(v0: Point):
     v1: int32 = field.get v0, 0
     return v1
 }
+
 /// @layout.struct name=Point size=8 align=4
 /// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
@@ -118,6 +120,7 @@ entry(v0: int32):
     v5: Segment = aggregate (v3, v4)
     return v5
 }
+
 /// @layout.struct name=Point size=8 align=4
 /// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
@@ -154,6 +157,7 @@ entry(v0: slice<uint8, borrowed, 'a, mutable>):
     v1: Entry<'a> = aggregate (v0)
     return
 }
+
 /// @layout.struct name=Entry size=16 align=8
 /// @layout.field owner=Entry index=0 name=name offset=0 size=16 align=8
 "#,
@@ -185,6 +189,14 @@ type Counter {
     total: int32;
 }
 
+function test.main.Counter.constructor(v0: ref<Counter, borrowed, exclusive>): void {
+entry(v0: ref<Counter, borrowed, exclusive>):
+    v1: int32 = 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
 function test.main.Counter.read<'a>(v0: ref<Counter, borrowed, 'a, readonly>): int32 {
 entry(v0: ref<Counter, borrowed, 'a, readonly>):
     v1: ref<int32, borrowed, readonly> = field.address v0, 0
@@ -199,6 +211,7 @@ entry(v0: ref<Counter, borrowed, 'a, readonly>):
     v3: int32 = int.mul v1, v2
     return v3
 }
+
 /// @layout.struct name=Counter size=4 align=4
 /// @layout.field owner=Counter index=0 name=total offset=0 size=4 align=4
 "#,
@@ -236,6 +249,7 @@ entry:
     v2: Options = aggregate (v0, v1)
     return v2
 }
+
 /// @layout.struct name=Options size=12 align=4
 /// @layout.field owner=Options index=0 name=count offset=0 size=4 align=4
 /// @layout.field owner=Options index=1 name=limit offset=4 size=8 align=4
@@ -243,6 +257,132 @@ entry:
 /// @layout.discriminant owner=type@5 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@5 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@5 index=1 discriminant=1 payload_offset=4
+"#,
+    );
+}
+
+#[test]
+fn test_lower_omitted_field_evaluates_its_initializer() {
+    let session = TestSession::single(
+        r#"
+struct Counter {
+    count: int32 = 3;
+    label: int32;
+}
+
+function make(): Counter {
+    return Counter { label: 7 };
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Counter {
+    count: int32;
+    label: int32;
+}
+
+function test.main.make(): Counter {
+entry:
+    v0: int32 = 3
+    v1: int32 = 7
+    v2: Counter = aggregate (v0, v1)
+    return v2
+}
+
+/// @layout.struct name=Counter size=8 align=4
+/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.field owner=Counter index=1 name=label offset=4 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_lower_imported_construction_evaluates_foreign_initializers() {
+    let session = TestSession::builder()
+        .module(
+            "counter.ds",
+            r#"
+export struct Counter {
+    count: int32 = 3;
+    label: int32;
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Counter } from "./counter";
+
+function make(): Counter {
+    return Counter { label: 7 };
+}
+"#,
+        )
+        .build();
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type test.counter.Counter {
+    count: int32;
+    label: int32;
+}
+
+function test.main.make(): test.counter.Counter {
+entry:
+    v0: int32 = 3
+    v1: int32 = 7
+    v2: test.counter.Counter = aggregate (v0, v1)
+    return v2
+}
+
+/// @layout.struct name=test.counter.Counter size=8 align=4
+/// @layout.field owner=test.counter.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.field owner=test.counter.Counter index=1 name=label offset=4 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_lower_generic_construction_grounds_initializer_parameters() {
+    let session = TestSession::single(
+        r#"
+struct Slot<T> {
+    value: T;
+    index: isize = 0;
+}
+
+function fill(): Slot<int32> {
+    return Slot { value: 9 };
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Slot<int32> {
+    value: int32;
+    index: isize;
+}
+
+function test.main.fill(): Slot<int32> {
+entry:
+    v0: int32 = 9
+    v1: isize = 0
+    v2: Slot<int32> = aggregate (v0, v1)
+    return v2
+}
+
+/// @layout.struct name=Slot<int32> size=16 align=8
+/// @layout.field owner=Slot<int32> index=0 name=value offset=8 size=4 align=4
+/// @layout.field owner=Slot<int32> index=1 name=index offset=0 size=8 align=8
 "#,
     );
 }

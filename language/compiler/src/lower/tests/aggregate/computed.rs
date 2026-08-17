@@ -38,6 +38,7 @@ entry(v0: int32, v1: int32):
     v4: Compact = aggregate (v3)
     return v4
 }
+
 /// @layout.struct name=Full size=16 align=8
 /// @layout.field owner=Full index=0 name=kept offset=8 size=4 align=4
 /// @layout.field owner=Full index=1 name=dropped offset=0 size=8 align=8
@@ -95,6 +96,7 @@ entry(v0: Holder):
     v3: int32 = load v2
     return v3
 }
+
 /// @layout.struct name=Full size=16 align=8
 /// @layout.field owner=Full index=0 name=kept offset=8 size=4 align=4
 /// @layout.field owner=Full index=1 name=dropped offset=0 size=8 align=8
@@ -131,6 +133,7 @@ entry(v0: int32):
     v3: Pair = aggregate (v2)
     return v3
 }
+
 /// @layout.struct name=type@4 size=8 align=4
 /// @layout.field owner=type@4 index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=type@4 index=1 name=y offset=4 size=4 align=4

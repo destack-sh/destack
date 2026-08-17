@@ -356,7 +356,8 @@ impl ModuleLowerer<'_> {
             | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
             | dir::Type::Slice(_)
-            | dir::Type::Object(_) => dir::Ownership::Managed,
+            | dir::Type::Object(_)
+            | dir::Type::Unknown => dir::Ownership::Managed,
 
             // follow the declaration family for nominal defaults
             dir::Type::Application(instance) => match self.definition(instance.symbol)? {
@@ -467,11 +468,22 @@ impl TypeLowerer<'_, '_> {
         ty: mir::LocalNodeId<mir::Type>,
         nullability: mir::Nullability,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // widen through lifetime applications onto the wrapped base
+        if let mir::Type::Application { base, lifetimes } = self.tree.get(ty) {
+            let (base, lifetimes) = (*base, lifetimes.clone());
+            let base = self.insert_nullability(base, nullability)?;
+
+            return Ok(self.tree.intern_type(mir::Type::Application {
+                base: mir::TypeId::from(base),
+                lifetimes,
+            }));
+        }
+
         let mut ty = self.tree.get(ty).clone();
         if !ty.set_nullability(nullability) {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: "a nullable union without a reference-like carrier".to_string(),
+                construct: format!("a nullable union over the '{ty:?}' carrier"),
             }
             .into());
         }

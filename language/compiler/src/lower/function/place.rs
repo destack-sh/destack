@@ -151,6 +151,17 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(place)
             }
+            // root the place at the receiver's home
+            dir::Expression::This => {
+                let Some(binding) = self.this else {
+                    return Err(CompilerError::Internal {
+                        message: "this used outside a method body".to_string(),
+                    });
+                };
+
+                self.binding_home(binding)
+            }
+
             // bind the place base at the identifier
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
@@ -169,21 +180,32 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return the place behind one binding symbol.
     fn binding_place(&self, symbol: dir::LocalSymbolId) -> CompilerResult<Place> {
         match self.values.get(&symbol).copied() {
+            Some(binding) => self.binding_home(binding),
+            // unbound symbols have no writable home
+            None => Err(CompilerError::Internal {
+                message: "a write through a binding without a mutable home".to_string(),
+            }),
+        }
+    }
+
+    /// Return the writable place rooted at one binding's home.
+    fn binding_home(&self, binding: Binding) -> CompilerResult<Place> {
+        match binding {
             // mutable locals root their own place
-            Some(Binding::Local(local)) => Ok(Place {
+            Binding::Local(local) => Ok(Place {
                 root: PlaceRoot::Local(local),
                 path: Vec::new(),
             }),
             // captured bindings live behind their frame reference
-            Some(Binding::Captured { frame, field, ty }) => Ok(Place {
+            Binding::Captured { frame, field, ty } => Ok(Place {
                 root: PlaceRoot::Reference {
                     value: frame,
                     access: mir::Access::Mutable,
                 },
                 path: vec![PlaceProjection { field, ty }],
             }),
-            // pure values and unbound symbols have no writable home
-            Some(Binding::Value(_)) | None => Err(CompilerError::Internal {
+            // pure values have no writable home
+            Binding::Value(_) => Err(CompilerError::Internal {
                 message: "a write through a binding without a mutable home".to_string(),
             }),
         }

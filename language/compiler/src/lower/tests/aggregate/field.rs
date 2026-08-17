@@ -31,6 +31,7 @@ entry(v0: Point):
     v3: int32 = int.add v1, v2
     return v3
 }
+
 /// @layout.struct name=Point size=8 align=4
 /// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
@@ -82,6 +83,7 @@ entry(v0: Frame):
     v5: int32 = int.mul v2, v4
     return v5
 }
+
 /// @layout.struct name=Size size=8 align=4
 /// @layout.field owner=Size index=0 name=width offset=0 size=4 align=4
 /// @layout.field owner=Size index=1 name=height offset=4 size=4 align=4
@@ -127,6 +129,7 @@ entry(v0: ref<Meter, borrowed, 'a, readonly>):
     v3: ref<destack.string.string.String, borrowed, 'a, readonly> = cast.bit v2 -> ref<destack.string.string.String, borrowed, 'a, readonly>
     return v3
 }
+
 /// @layout.struct name=destack.string.string.String size=16 align=8
 /// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
 /// @layout.struct name=Meter size=8 align=8

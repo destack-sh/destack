@@ -42,8 +42,9 @@ impl TypeLowerer<'_, '_> {
             // record the member beside the discriminant it carries
             fields.push(NominalField {
                 key: variant.key,
-                symbol: variant.symbol.local_id,
+                symbol: variant.symbol,
                 is_optional: false,
+                initializer: None,
             });
             let discriminant = match integer.is_signed() {
                 true => mir::Constant::Int {

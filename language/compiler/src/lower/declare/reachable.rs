@@ -4,7 +4,7 @@ use destack_core::{FxIndexSet, StringId};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::lower::{CallableImplementation, LowerModuleState, ModuleLowerer};
+use crate::lower::{CallableImplementation, LowerModuleState, ModuleLowerer, NominalField};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// Everything reachable from the bodies that lowering must declare.
@@ -29,6 +29,14 @@ pub(in crate::lower) struct Reachable {
         dir::LocalNodeId<dir::Declaration>,
         dir::LocalNodeId<dir::Expression>,
     )>,
+    /// Field initializer bodies already collected, closing recursive constructions.
+    pub(in crate::lower) initializers: FxIndexSet<(
+        dir::GlobalNodeIdAny,
+        Option<(ModuleId, dir::LocalInstanceId)>,
+    )>,
+    /// Initializer-bearing classes constructed without a declared constructor.
+    pub(in crate::lower) default_constructors:
+        FxIndexSet<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
 }
 
 /// Visitor collecting every node in one body subtree.
@@ -127,6 +135,45 @@ impl ModuleLowerer<'_> {
                 }
             }
 
+            // collect the omitted-field initializers evaluated by struct constructions
+            if let Ok(expression) = id.try_into_typed::<dir::Expression>()
+                && let dir::Expression::StructExpression { properties, .. } =
+                    state.tree().get(expression)
+            {
+                let properties = properties.clone();
+                self.collect_construction_initializers(
+                    module,
+                    node,
+                    instance,
+                    &properties,
+                    reachable,
+                )?;
+            }
+
+            // queue a synthesized constructor for initializer-bearing default constructions
+            if let Some(resolution) = state.decisions.construct_decision(node)
+                && let dir::ConstructTarget::Class {
+                    selection,
+                    constructor: dir::ClassConstructor::Default,
+                } = &resolution.target
+                && self.class_has_field_initializers(selection.symbol)?
+            {
+                let bindings = self.instance_bindings(&selection.arguments, instance)?;
+                if reachable
+                    .default_constructors
+                    .insert((selection.symbol, bindings.clone()))
+                {
+                    let arguments: Vec<_> =
+                        bindings.iter().map(|binding| binding.argument).collect();
+                    let specialization = self.specialization_of(selection.symbol, &arguments)?;
+                    self.collect_constructor_initializers(
+                        selection.symbol,
+                        specialization,
+                        reachable,
+                    )?;
+                }
+            }
+
             // import plain foreign declared constructors; generic ones declare from their instances
             if let Some(resolution) = state.decisions.construct_decision(node)
                 && let dir::ConstructTarget::Class {
@@ -214,6 +261,107 @@ impl ModuleLowerer<'_> {
                 continue;
             };
             self.collect_call_decision(resolution, reachable)?;
+        }
+
+        Ok(())
+    }
+
+    /// Return whether one class declares instance fields with initializers.
+    pub(in crate::lower) fn class_has_field_initializers(
+        &self,
+        class: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let Some(definition) = self.definition(class)? else {
+            return Ok(false);
+        };
+
+        Ok(self
+            .instance_fields(definition.members())
+            .iter()
+            .any(|field| field.initializer.is_some()))
+    }
+
+    /// Collect every field initializer body one constructor evaluates.
+    pub(super) fn collect_constructor_initializers(
+        &self,
+        owner: dir::GlobalSymbolId,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
+        reachable: &mut Reachable,
+    ) -> CompilerResult<()> {
+        let Some(definition) = self.definition(owner)? else {
+            return Ok(());
+        };
+        for field in self.instance_fields(definition.members()) {
+            self.collect_field_initializer(&field, instance, reachable)?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect one field's initializer body under its constructed instance.
+    fn collect_field_initializer(
+        &self,
+        field: &NominalField,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
+        reachable: &mut Reachable,
+    ) -> CompilerResult<()> {
+        let Some(initializer) = field.initializer else {
+            return Ok(());
+        };
+        if !reachable.initializers.insert((initializer, instance)) {
+            return Ok(());
+        }
+        let expression = initializer
+            .local_id
+            .try_into_typed::<dir::Expression>()
+            .map_err(|message| CompilerError::Internal { message })?;
+
+        self.collect_body(initializer.module_id, expression, instance, reachable)
+    }
+
+    /// Collect the omitted-field initializers one struct construction evaluates.
+    fn collect_construction_initializers(
+        &self,
+        module: ModuleId,
+        node: dir::GlobalNodeIdAny,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
+        properties: &[dir::LocalNodeId<dir::Property>],
+        reachable: &mut Reachable,
+    ) -> CompilerResult<()> {
+        // read the constructed nominal beneath its owner form
+        let state = self.state(module)?;
+        let Some(ty) = state.types.get_node_type_id(node) else {
+            return Ok(());
+        };
+        let ty = self.instance_type(instance, ty)?;
+        let ty = self.peel_owned(ty)?;
+        let dir::Type::Application(instance) = self.ty(ty)? else {
+            return Ok(());
+        };
+        let Some(definition) = self.definition(instance.symbol)? else {
+            return Ok(());
+        };
+        let fields = self.instance_fields(definition.members());
+
+        // gather the field keys the construction writes
+        let mut written = Vec::with_capacity(properties.len());
+        for property in properties {
+            if let dir::Property::Field { name, .. } = state.tree().get(*property) {
+                written.push(dir::StaticKey::from(*name));
+            }
+        }
+
+        // collect each omitted initializer body under the constructed instance
+        let arguments = self
+            .types(ty.module_id)?
+            .type_ids(instance.arguments)
+            .to_vec();
+        let specialization = self.specialization_of(instance.symbol, &arguments)?;
+        for field in fields {
+            if written.contains(&field.key) {
+                continue;
+            }
+            self.collect_field_initializer(&field, specialization, reachable)?;
         }
 
         Ok(())

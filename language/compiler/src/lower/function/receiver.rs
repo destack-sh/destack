@@ -1,10 +1,26 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionLowerer, GenericInstanceKey};
+use crate::lower::FunctionLowerer;
+use crate::lower::function::body::Binding;
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
+    /// Bind the incoming receiver, giving owned receivers a mutable home.
+    pub(in crate::lower) fn bind_receiver(&mut self, value: mir::Value) -> CompilerResult<Binding> {
+        // indirect receivers write through their reference
+        let carrier = self.value_carrier(value)?;
+        if self.builder.tree().get(carrier).is_reference_carrier() {
+            return Ok(Binding::Value(value));
+        }
+
+        // owned receivers live in a mutable local
+        let local = self.builder.local(carrier, mir::Mutability::Mutable);
+        self.builder.local_set(local, value);
+
+        Ok(Binding::Local(local))
+    }
+
     /// Lower one receiver expression through its selected adjustments.
     pub(in crate::lower) fn lower_adjusted_receiver(
         &mut self,
@@ -44,11 +60,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 // unwrap a newtype value or stored newtype place
                 dir::ReceiverAdjustment::NewtypePayload { ty, .. } => {
-                    let Some(value_type) = self.builder.value_type(value) else {
-                        return Err(CompilerError::Internal {
-                            message: "a newtype payload receiver has no lowered type".to_string(),
-                        });
-                    };
+                    let value_type = self.value_carrier(value)?;
 
                     // retain the address form of stored receivers
                     match self.builder.tree().get(value_type) {
@@ -69,11 +81,7 @@ impl FunctionLowerer<'_, '_, '_> {
                                 .to_string(),
                         });
                     };
-                    let Some(value_type) = self.builder.value_type(value) else {
-                        return Err(CompilerError::Internal {
-                            message: "a union payload receiver has no lowered type".to_string(),
-                        });
-                    };
+                    let value_type = self.value_carrier(value)?;
 
                     // retain the address form of stored receivers
                     match self.builder.tree().get(value_type) {
@@ -98,11 +106,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: mir::Value,
         target: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        let Some(ty) = self.builder.value_type(value) else {
-            return Err(CompilerError::Internal {
-                message: "a borrowed receiver value has no type".to_string(),
-            });
-        };
+        let ty = self.value_carrier(value)?;
         let local = self.builder.local(ty, mir::Mutability::Immutable);
         self.builder.local_set(local, value);
 
@@ -133,19 +137,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a protocol dereference selected no direct method".to_string(),
                     });
                 };
-                let key = match function.selection.arguments.is_empty() {
-                    true => GenericInstanceKey::non_generic(function.selection.symbol),
-                    false => {
-                        let bindings = self
-                            .lowerer
-                            .instance_bindings(&function.selection.arguments, self.instance)?;
-                        let arguments: Vec<_> =
-                            bindings.iter().map(|binding| binding.argument).collect();
-
-                        self.generic_instance_key(function.selection.symbol, &arguments)?
-                    }
-                };
-                let target = self.function(&key)?;
+                let target = self.selection_function(&function.selection)?;
                 let result = self.builder.call_function(target, vec![value]);
 
                 result.ok_or_else(|| CompilerError::Internal {

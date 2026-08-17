@@ -59,9 +59,11 @@ pub(in crate::lower) struct NominalField {
     /// The field key.
     pub(in crate::lower) key: dir::StaticKey,
     /// The field symbol.
-    pub(in crate::lower) symbol: dir::LocalSymbolId,
+    pub(in crate::lower) symbol: dir::GlobalSymbolId,
     /// Whether absence stores as undefined.
     pub(in crate::lower) is_optional: bool,
+    /// The declared initializer construction reads for omitted fields.
+    pub(in crate::lower) initializer: Option<dir::GlobalNodeIdAny>,
 }
 
 /// The identity and types of one lowered nominal instance.
@@ -242,16 +244,14 @@ impl TypeLowerer<'_, '_> {
                 )
                 .with_instance(specialization);
             match definition {
-                dir::Definition::Struct(definition) => types.lower_struct(symbol, definition, ty),
+                dir::Definition::Struct(definition) => types.lower_struct(definition, ty),
                 dir::Definition::Newtype(definition) => {
                     types.lower_newtype(symbol, definition, ty, &arguments.type_arguments)
                 }
                 dir::Definition::Enum(definition) => types.lower_enum(symbol, definition, ty),
                 dir::Definition::Class(definition) => types.lower_class(symbol, definition, ty),
                 dir::Definition::TypeAlias(definition) => types.lower_alias(&definition, ty),
-                dir::Definition::Interface(definition) => {
-                    types.lower_interface(symbol, definition, ty)
-                }
+                dir::Definition::Interface(definition) => types.lower_interface(definition, ty),
                 _ => Err(CompilerError::Internal {
                     message: "nominal lowering entered a non-nominal definition".to_string(),
                 }),
@@ -501,8 +501,9 @@ impl ModuleLowerer<'_> {
 
             fields.push(NominalField {
                 key: field.key,
-                symbol: field.symbol.local_id,
+                symbol: field.symbol,
                 is_optional: field.is_optional,
+                initializer: field.initializer,
             });
         }
 
@@ -520,7 +521,16 @@ impl ModuleLowerer<'_> {
             });
         };
         let members = match definition {
-            dir::Definition::Class(definition) => &definition.members,
+            // classes store their base chain's fields first
+            dir::Definition::Class(definition) => {
+                let mut fields = match &definition.extends {
+                    Some(heritage) => self.nominal_fields(self.heritage_symbol(heritage)?)?,
+                    None => Vec::new(),
+                };
+                fields.extend(self.instance_fields(&definition.members));
+
+                return Ok(fields);
+            }
             dir::Definition::Struct(definition) => &definition.members,
             dir::Definition::Enum(definition) => &definition.members,
             dir::Definition::Newtype(_) => return Ok(Vec::new()),
@@ -532,6 +542,32 @@ impl ModuleLowerer<'_> {
         };
 
         Ok(self.instance_fields(members))
+    }
+
+    /// Return whether one class declaration extends a base class.
+    pub(in crate::lower) fn class_extends_base(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        match self.definition(symbol)? {
+            Some(dir::Definition::Class(definition)) => Ok(definition.extends.is_some()),
+            _ => Ok(false),
+        }
+    }
+
+    /// Return the class symbol one heritage extends.
+    pub(in crate::lower) fn heritage_symbol(
+        &self,
+        heritage: &dir::NominalHeritage,
+    ) -> CompilerResult<dir::GlobalSymbolId> {
+        let base = self.peel_owned(heritage.ty)?;
+        let dir::Type::Application(instance) = self.ty(base)? else {
+            return Err(CompilerError::Internal {
+                message: "a class heritage outside an application type".to_string(),
+            });
+        };
+
+        Ok(instance.symbol)
     }
 
     /// Return one completed nominal by declaration symbol.

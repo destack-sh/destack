@@ -36,6 +36,7 @@ b2:
     v2: Mode = variant.new 1
     return v2
 }
+
 /// @layout.variant name=Mode size=8 align=8
 /// @layout.discriminant owner=Mode kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
 /// @layout.case owner=Mode index=0 discriminant=1 payload_offset=8
@@ -116,6 +117,7 @@ b3:
     v3: int32 = local.get l0
     return v3
 }
+
 /// @layout.variant name=Mode size=8 align=8
 /// @layout.discriminant owner=Mode kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
 /// @layout.case owner=Mode index=0 discriminant=1 payload_offset=8

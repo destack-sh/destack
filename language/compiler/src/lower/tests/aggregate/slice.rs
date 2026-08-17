@@ -45,6 +45,7 @@ function test.main.keep(v0: ref<destack.string.string.String, managed, mutable>)
 entry(v0: ref<destack.string.string.String, managed, mutable>):
     return v0
 }
+
 /// @layout.struct name=destack.string.string.String size=16 align=8
 /// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
 "#,

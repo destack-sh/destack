@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::CompilerResult;
 use crate::lower::{NominalField, TypeLowerer};
+use crate::{CompilerError, CompilerResult};
 
 impl TypeLowerer<'_, '_> {
     /// Lower one class declaration to its managed reference nominal.
@@ -12,15 +12,39 @@ impl TypeLowerer<'_, '_> {
         definition: dir::ClassDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
-        // gather the instance fields in declaration order
-        let fields = self.lowerer.instance_fields(&definition.members);
-
-        // lower each field's type into a field node
+        // embed the base storage first, grounded through its heritage application
+        let fields = self.lowerer.nominal_fields(symbol)?;
         let mut field_nodes = Vec::with_capacity(fields.len());
-        for field in &fields {
-            let ty = self
+        if let Some(heritage) = &definition.extends {
+            let base = self.lowerer.instance_type(self.instance, heritage.ty)?;
+            let base = self.lowerer.peel_owned(base)?;
+            let dir::Type::Application(application) = self.lowerer.ty(base)? else {
+                return Err(CompilerError::Internal {
+                    message: "a class heritage outside an application type".to_string(),
+                });
+            };
+            let arguments = self
                 .lowerer
-                .symbol_type(field.symbol.into_global(symbol.module_id))?;
+                .types(base.module_id)?
+                .type_ids(application.arguments)
+                .to_vec();
+            let storage = self.lower_nominal(application.symbol, &arguments)?.storage;
+            let (storage, _) = self.tree.split_lifetime_application(storage);
+            let mir::Type::Struct {
+                fields: base_nodes, ..
+            } = self.tree.get(storage)
+            else {
+                return Err(CompilerError::Internal {
+                    message: "a class heritage without struct storage".to_string(),
+                });
+            };
+            field_nodes.extend(base_nodes.iter().copied());
+        }
+
+        // lower each own field's type into a field node
+        let own = self.lowerer.instance_fields(&definition.members);
+        for field in &own {
+            let ty = self.lowerer.symbol_type(field.symbol)?;
             let ty = self.lower(ty)?;
             let name = match field.key {
                 dir::StaticKey::Name(name) => Some(name),

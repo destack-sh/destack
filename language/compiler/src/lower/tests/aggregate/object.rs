@@ -40,6 +40,7 @@ entry:
     v3: int32 = call test.main.read(v2): (ref<Point, managed, mutable>) => int32
     return v3
 }
+
 /// @layout.struct name=Point size=4 align=4
 /// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
 "#,
@@ -90,6 +91,7 @@ entry:
     v5: int32 = call test.main.pick(v4): (ref<Selector, managed, mutable>) => int32
     return v5
 }
+
 /// @layout.struct name=Selector size=16 align=8
 /// @layout.field owner=Selector index=0 name=depth offset=8 size=8 align=4
 /// @layout.field owner=Selector index=1 name=nested offset=0 size=8 align=8
@@ -123,6 +125,7 @@ entry:
     v2: int32 = field.get v1, 0
     return v2
 }
+
 /// @layout.struct name=type@5 size=4 align=4
 /// @layout.field owner=type@5 index=0 name=x offset=0 size=4 align=4
 "#,

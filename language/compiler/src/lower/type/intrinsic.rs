@@ -99,6 +99,19 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(())
             }
+            // carry the payload representation, initialization is a checker concept
+            Some(dir::LanguageItem::MaybeUninit) => {
+                let [payload] = arguments else {
+                    return Err(CompilerError::Internal {
+                        message: "MaybeUninit instantiated without its payload".to_string(),
+                    });
+                };
+                let payload = self.lower(*payload)?;
+                let representation = self.tree.get(payload).clone();
+                self.tree.define_type(ty, representation);
+
+                Ok(())
+            }
             // carry the value representation, leaving the aliasing exemption to emit
             Some(dir::LanguageItem::UnsafeCell) => {
                 let [value] = arguments else {

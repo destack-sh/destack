@@ -51,6 +51,7 @@ entry:
     v4: int32 = call test.main.Point.length(v3): <'a>(ref<Point, borrowed, 'a, readonly>) => int32
     return v4
 }
+
 /// @layout.struct name=Point size=8 align=4
 /// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
@@ -110,6 +111,7 @@ entry:
     v5: int32 = field.get v4, 0
     return v5
 }
+
 /// @layout.struct name=Counter size=4 align=4
 /// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
@@ -141,6 +143,14 @@ type User {
     id: int32;
 }
 
+function test.main.User.constructor(v0: ref<User, borrowed, exclusive>): void {
+entry(v0: ref<User, borrowed, exclusive>):
+    v1: int32 = 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
 function test.main.User.identity(v0: ref<User, managed, mutable>): ref<User, managed, mutable> {
 entry(v0: ref<User, managed, mutable>):
     return v0
@@ -151,6 +161,7 @@ entry(v0: ref<User, managed, mutable>):
     v1: ref<User, managed, mutable> = call test.main.User.identity(v0): (ref<User, managed, mutable>) => ref<User, managed, mutable>
     return v1
 }
+
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 "#,
@@ -201,6 +212,7 @@ entry(v0: Status):
     v2: boolean = call test.main.Status.isActive(v1): <'a>(ref<Status, borrowed, 'a, readonly>) => boolean
     return v2
 }
+
 /// @layout.variant name=Status size=8 align=8
 /// @layout.discriminant owner=Status kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
 /// @layout.case owner=Status index=0 discriminant=1 payload_offset=8
@@ -241,15 +253,22 @@ type Box {
 
 function test.main.Box.constructor(v0: ref<Box, borrowed, exclusive>, v1: int32): void {
 entry(v0: ref<Box, borrowed, exclusive>, v1: int32):
-    v2: ref<int32, borrowed, mutable> = field.address v0, 0
-    store v2, v1
+    v2: int32 = 0
+    v3: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v3, v2
+    v4: ref<int32, borrowed, mutable> = field.address v0, 0
+    store v4, v1
     return
 }
 
 function test.main.Box.unwrap(v0: Box): int32 {
+    local l0: Box
+
 entry(v0: Box):
-    v1: int32 = field.get v0, 0
-    return v1
+    local.set l0, v0
+    v1: Box = local.get l0
+    v2: int32 = field.get v1, 0
+    return v2
 }
 
 function test.main.open(): int32 {
@@ -263,6 +282,7 @@ entry:
     v3: int32 = call test.main.Box.unwrap(v2): (Box) => int32
     return v3
 }
+
 /// @layout.struct name=Box size=4 align=4
 /// @layout.field owner=Box index=0 name=weight offset=0 size=4 align=4
 "#,
@@ -306,6 +326,7 @@ entry:
     v0: int32 = call test.main.Point.origin(): () => int32
     return v0
 }
+
 /// @layout.struct name=Point size=4 align=4
 /// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
 "#,
@@ -375,6 +396,7 @@ entry:
     v5: int32 = call test.main.Circle.diameter.get(v4): <'a>(ref<Circle, borrowed, 'a, readonly>) => int32
     return v5
 }
+
 /// @layout.struct name=Circle size=4 align=4
 /// @layout.field owner=Circle index=0 name=radius offset=0 size=4 align=4
 "#,

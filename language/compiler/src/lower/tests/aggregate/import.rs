@@ -47,6 +47,7 @@ entry(v0: int32):
     v6: int32 = int.add v3, v5
     return v6
 }
+
 /// @layout.struct name=test.point.Point size=8 align=4
 /// @layout.field owner=test.point.Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=test.point.Point index=1 name=y offset=4 size=4 align=4

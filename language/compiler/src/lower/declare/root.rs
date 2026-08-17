@@ -20,6 +20,9 @@ impl ModuleLowerer<'_> {
         let mut errors = Vec::new();
         self.lower_nominal_declarations(builder)?;
 
+        // define the synthesized constructors beside their class declarations
+        self.declare_default_constructors(builder)?;
+
         // declare every callable header so bodies can call in any order
         let mut bodies = Vec::new();
         for index in 0..self.local().roots.len() {
@@ -65,6 +68,15 @@ impl ModuleLowerer<'_> {
         let (instances, reachable) =
             self.declare_reachable_instances(builder, &bodies, &mut errors)?;
         bodies.extend(instances);
+
+        // declare a synthesized constructor for every initializer-bearing default construction
+        for (class, bindings) in &reachable.default_constructors {
+            match self.declare_default_constructor(builder, *class, bindings) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(error) => return Err(error),
+            }
+        }
 
         // declare an import for every foreign callable the bodies call
         for symbol in reachable.imports {

@@ -24,6 +24,7 @@ type Dynamic<dynamic<Meter, managed, mutable>> = dynamic<Meter, managed, mutable
 
 @copy
 type Reading = newtype<Dynamic<dynamic<Meter, managed, mutable>>>;
+
 /// @layout.struct name=Meter size=0 align=1
 
 /// @dispatch.shape constraint=type@1 function=read

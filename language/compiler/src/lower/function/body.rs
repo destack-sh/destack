@@ -57,6 +57,10 @@ pub(in crate::lower) struct FunctionDefinition {
     pub(in crate::lower) source: destack_source::ModuleId,
     /// The body expression.
     pub(in crate::lower) expression: dir::LocalNodeId<dir::Expression>,
+    /// The class this constructor body initializes, when one exists.
+    pub(in crate::lower) constructs: Option<dir::GlobalSymbolId>,
+    /// The declared default expression of each parameter, in header order.
+    pub(in crate::lower) defaults: Vec<Option<dir::LocalNodeId<dir::Expression>>>,
 }
 
 /// Lowering state for one function body.
@@ -75,8 +79,10 @@ pub(in crate::lower) struct FunctionLowerer<'lowerer, 'builder, 'module> {
     pub(in crate::lower) values: FxIndexMap<dir::LocalSymbolId, Binding>,
     /// The allocated capture frame for each lifted scope.
     pub(in crate::lower) frames: FxIndexMap<dir::GlobalScopeId, mir::Value>,
-    /// The receiver reference of the enclosing method, when one exists.
-    pub(in crate::lower) this: Option<mir::Value>,
+    /// The receiver binding of the enclosing method, when one exists.
+    pub(in crate::lower) this: Option<Binding>,
+    /// The class whose constructor this body runs, when it is one.
+    pub(in crate::lower) constructs: Option<dir::GlobalSymbolId>,
     /// The enclosing control statements, innermost last.
     pub(in crate::lower) controls: Vec<ControlFrame>,
 }
@@ -97,6 +103,8 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             lifetime_parameters,
             source,
             expression,
+            constructs,
+            defaults,
         } = definition;
         let builder = builder
             .function_body(function)
@@ -112,14 +120,12 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             values: FxIndexMap::default(),
             frames: FxIndexMap::default(),
             this: None,
+            constructs,
             controls: Vec::new(),
         };
 
-        // bind the receiver and the parameters in header order
+        // bind the parameters in header order past any receiver
         let shift = has_this as usize;
-        if has_this {
-            function.this = Some(function.builder.function_parameter(0));
-        }
         for (index, symbol) in parameters.iter().enumerate() {
             let value = function.builder.function_parameter(index + shift);
             function.values.insert(*symbol, Binding::Value(value));
@@ -129,16 +135,77 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         let entry = function.builder.block();
         function.builder.switch_to_block(entry);
 
-        // receive the closure environment and lift any captured parameters
+        // home the receiver ahead of anything reading it
+        if has_this {
+            let value = function.builder.function_parameter(0);
+            function.this = Some(function.bind_receiver(value)?);
+        }
+
+        // receive the closure environment before defaults can read captures
         function.bind_captures(symbol)?;
+
+        // resolve the defaulted parameters before anything reads them
+        function.lower_parameter_defaults(&parameters, &defaults)?;
         for symbol in &parameters {
             if let Some(Binding::Value(value)) = function.values.get(symbol).copied() {
                 function.bind_lifted(symbol.into_global(source), value)?;
             }
         }
 
+        // store the declared field initializers before a base class constructor body
+        if let Some(owner) = constructs
+            && !function.lowerer.class_extends_base(owner)?
+        {
+            function.lower_field_initializers(owner)?;
+        }
+
         // lower the body and finalize its blocks
         function.lower_body(expression)?;
+        function.builder.seal_all_blocks();
+        function
+            .builder
+            .finish()
+            .map_err(|error| CompilerError::Internal {
+                message: format!("function build failed: {error}"),
+            })?;
+
+        Ok(())
+    }
+
+    /// Lower one synthesized default constructor to its initializer prologue.
+    pub(in crate::lower) fn lower_default_constructor(
+        lowerer: &mut ModuleLowerer<'_>,
+        builder: &mut mir::ModuleBuilder,
+        class: dir::GlobalSymbolId,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
+        function: mir::FunctionId,
+    ) -> CompilerResult<()> {
+        let builder = builder
+            .function_body(function)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("function body start failed: {error}"),
+            })?;
+        let mut function = FunctionLowerer {
+            lowerer,
+            builder,
+            source: class.module_id,
+            instance,
+            lifetime_parameters: LifetimeParameters::default(),
+            values: FxIndexMap::default(),
+            frames: FxIndexMap::default(),
+            this: None,
+            constructs: None,
+            controls: Vec::new(),
+        };
+        // open the entry block and home the receiver like any declared constructor
+        let entry = function.builder.block();
+        function.builder.switch_to_block(entry);
+        let value = function.builder.function_parameter(0);
+        function.this = Some(function.bind_receiver(value)?);
+        function.lower_field_initializers(class)?;
+
+        // close the constructor with a void return
+        function.builder.return_(None);
         function.builder.seal_all_blocks();
         function
             .builder
@@ -175,6 +242,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             values: FxIndexMap::default(),
             frames: FxIndexMap::default(),
             this: None,
+            constructs: None,
             controls: Vec::new(),
         };
 
@@ -201,12 +269,49 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         Ok(())
     }
 
+    /// Lower one expression from another module's tree.
+    pub(in crate::lower) fn lower_foreign_expression(
+        &mut self,
+        module: ModuleId,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<mir::Value> {
+        // swap into the declaring module with no local bindings in scope
+        let source = std::mem::replace(&mut self.source, module);
+        let outer_instance = std::mem::replace(&mut self.instance, instance);
+        let values = std::mem::take(&mut self.values);
+        let frames = std::mem::take(&mut self.frames);
+        let this = self.this.take();
+
+        let value = self.lower_expression(expression);
+
+        self.source = source;
+        self.instance = outer_instance;
+        self.values = values;
+        self.frames = frames;
+        self.this = this;
+
+        value
+    }
+
     /// Return the state of the module declaring this function.
     pub(in crate::lower) fn source(&self) -> &LowerModuleState {
         match self.lowerer.modules.get(&self.source) {
             Some(state) => state,
             None => unreachable!("the function source module is always loaded"),
         }
+    }
+
+    /// Return the carrier type of one lowered value.
+    pub(in crate::lower) fn value_carrier(
+        &self,
+        value: mir::Value,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        self.builder
+            .value_type(value)
+            .ok_or_else(|| CompilerError::Internal {
+                message: "a lowered value has no carrier".to_string(),
+            })
     }
 
     /// Allocate one join local typed as one expression's runtime type.
@@ -312,7 +417,10 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         if !self.lowerer.stored_nominals.contains_key(&stored) {
             let dir::Type::Application(instance) = self.lowerer.ty(stored)? else {
                 return Err(CompilerError::Internal {
-                    message: format!("a nominal read outside an application type {stored:?}"),
+                    message: format!(
+                        "a nominal read outside an application type: {:?}",
+                        self.lowerer.ty(stored)?
+                    ),
                 });
             };
             let arguments = self

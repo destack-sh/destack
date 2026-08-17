@@ -29,6 +29,7 @@ entry(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>):
     v2: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = dynamic.find v0, v1
     return v2
 }
+
 /// @layout.struct name=destack.string.string.String size=16 align=8
 /// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
 /// @layout.struct name=type@1 size=0 align=1
@@ -71,6 +72,7 @@ entry(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>):
     v2: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = dynamic.find v0, v1
     return v2
 }
+
 /// @layout.struct name=destack.string.string.String size=16 align=8
 /// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
 /// @layout.struct name=type@1 size=0 align=1

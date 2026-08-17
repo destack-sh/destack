@@ -1,3 +1,5 @@
+mod alias;
+mod array;
 mod class;
 mod computed;
 mod construct;

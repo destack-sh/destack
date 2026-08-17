@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::FunctionLowerer;
+use crate::lower::{FunctionLowerer, NominalField};
 
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -17,8 +17,16 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one construct call through its construct resolution.
     pub(in crate::lower) fn lower_construct(
         &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
         resolution: &dir::ConstructDecision,
     ) -> CompilerResult<mir::Value> {
+        // super(...) initializes the current receiver through the base constructor
+        if let dir::Expression::Call { left, .. } = *self.source().tree().get(expression)
+            && matches!(*self.source().tree().get(left), dir::Expression::Super)
+        {
+            return self.lower_super_construct(resolution);
+        }
+
         match &resolution.target {
             // Meters(5)
             dir::ConstructTarget::Newtype { .. } => self.lower_newtype_construct(resolution),
@@ -36,6 +44,87 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+    /// Lower one super call initializing the current receiver.
+    fn lower_super_construct(
+        &mut self,
+        resolution: &dir::ConstructDecision,
+    ) -> CompilerResult<mir::Value> {
+        let dir::ConstructTarget::Class {
+            selection,
+            constructor,
+        } = &resolution.target
+        else {
+            return Err(CompilerError::Internal {
+                message: "a super call outside a class constructor target".to_string(),
+            });
+        };
+        let Some(this) = self.this else {
+            return Err(CompilerError::Internal {
+                message: "a super call without a receiver".to_string(),
+            });
+        };
+        let this = self.read_binding(this);
+
+        // resolve the base constructor behind the selection
+        let symbol = match constructor {
+            dir::ClassConstructor::Declared { symbol } => Some(*symbol),
+            dir::ClassConstructor::Default => None,
+            other => {
+                return Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: format!("a {other:?} super constructor"),
+                }
+                .into());
+            }
+        };
+
+        // a defaulted base runs its synthesized constructor when it stores initializers
+        let target = match symbol {
+            Some(symbol) => Some(symbol),
+            None if self
+                .lowerer
+                .class_has_field_initializers(selection.symbol)? =>
+            {
+                Some(selection.symbol)
+            }
+            None => None,
+        };
+        let function = match target {
+            Some(symbol) => {
+                let key = self.selection_key(symbol, selection)?;
+
+                Some(self.function(&key)?)
+            }
+            None => None,
+        };
+
+        // call the base constructor over the narrowed receiver
+        if let Some(function) = function {
+            let parameters = self.function_parameters(function);
+            let Some((receiver, parameters)) = parameters.split_first() else {
+                return Err(CompilerError::Internal {
+                    message: "a base constructor without a declared receiver slot".to_string(),
+                });
+            };
+            let receiver = self
+                .builder
+                .cast(mir::CastOperator::Bitcast, this, *receiver);
+            let mut values = vec![receiver];
+            values.extend(self.lower_call_arguments(&resolution.arguments, parameters, None)?);
+            self.builder.call_function(function, values);
+        }
+
+        // store the derived field initializers once the base storage settles
+        if let Some(owner) = self.constructs {
+            self.lower_field_initializers(owner)?;
+        }
+
+        // a super call carries no value
+        let void = self.builder.tree_mut().intern_type(mir::Type::Void);
+
+        Ok(self.builder.constant(mir::Constant::Undefined, void))
+    }
+
     /// Lower one class construction to an allocation and its constructor call.
     fn lower_class_construct(
         &mut self,
@@ -43,18 +132,29 @@ impl FunctionLowerer<'_, '_, '_> {
         selection: &dir::Selection,
         constructor: &dir::ClassConstructor,
     ) -> CompilerResult<mir::Value> {
-        // lower the constructor arguments in declaration order
-        let mut values = Vec::with_capacity(resolution.arguments.len());
-        for binding in &resolution.arguments {
-            let dir::ArgumentSource::Provided(source) = binding.source else {
+        // adapt the arguments against the declared constructor header
+        let values = match constructor {
+            dir::ClassConstructor::Declared { symbol } => {
+                let key = self.selection_key(*symbol, selection)?;
+                let function = self.function(&key)?;
+                let parameters = self.function_parameters(function);
+                let Some((_, parameters)) = parameters.split_first() else {
+                    return Err(CompilerError::Internal {
+                        message: "a constructor without a declared receiver slot".to_string(),
+                    });
+                };
+
+                self.lower_call_arguments(&resolution.arguments, parameters, None)?
+            }
+            dir::ClassConstructor::Default => Vec::new(),
+            other => {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
-                    construct: "a defaulted or spread argument".to_string(),
+                    construct: format!("a {other:?} constructor"),
                 }
                 .into());
-            };
-            values.push(self.lower_argument(source)?);
-        }
+            }
+        };
 
         self.lower_class_instance(
             resolution.return_type,
@@ -109,19 +209,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let instance: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
                 let key = self.generic_instance_key(*symbol, &instance)?;
                 let function = self.function(&key)?;
-
-                // borrow heap references exclusively
-                let exclusive = self.insert_reference(
-                    mir::ReferenceKind::Borrowed,
-                    mir::Access::Exclusive,
-                    pointee,
-                );
-                let receiver = match is_reference {
-                    true => self
-                        .builder
-                        .cast(mir::CastOperator::Bitcast, storage, exclusive),
-                    false => storage,
-                };
+                let receiver = self.constructed_receiver(storage, pointee, is_reference);
 
                 // bind the constructor arguments after the receiver
                 let mut values = Vec::with_capacity(arguments.len() + 1);
@@ -129,7 +217,30 @@ impl FunctionLowerer<'_, '_, '_> {
                 values.extend(arguments);
                 self.builder.call_function(function, values);
             }
-            dir::ClassConstructor::Default => {}
+            dir::ClassConstructor::Default => {
+                // call the synthesized constructor of initializer-bearing classes
+                let stored = match self.lowerer.peel_indirection(return_type)? {
+                    Some(reference) => reference.stored,
+                    None => self.lowerer.peel_owned(return_type)?,
+                };
+                let dir::Type::Application(application) = self.lowerer.ty(stored)? else {
+                    return Err(CompilerError::Internal {
+                        message: "a class construction outside an application type".to_string(),
+                    });
+                };
+                let class = application.symbol;
+                if self.lowerer.class_has_field_initializers(class)? {
+                    let bindings = self
+                        .lowerer
+                        .instance_bindings(generic_arguments, self.instance)?;
+                    let instance: Vec<_> =
+                        bindings.iter().map(|binding| binding.argument).collect();
+                    let key = self.generic_instance_key(class, &instance)?;
+                    let function = self.function(&key)?;
+                    let receiver = self.constructed_receiver(storage, pointee, is_reference);
+                    self.builder.call_function(function, vec![receiver]);
+                }
+            }
             other => {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -146,6 +257,27 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         Ok(object)
+    }
+
+    /// Borrow one constructed storage exclusively for its constructor call.
+    fn constructed_receiver(
+        &mut self,
+        storage: mir::Value,
+        pointee: mir::LocalNodeId<mir::Type>,
+        is_reference: bool,
+    ) -> mir::Value {
+        if !is_reference {
+            return storage;
+        }
+
+        let exclusive = self.insert_reference(
+            mir::ReferenceKind::Borrowed,
+            mir::Access::Exclusive,
+            pointee,
+        );
+
+        self.builder
+            .cast(mir::CastOperator::Bitcast, storage, exclusive)
     }
 
     /// Lower one newtype construction to a single-value aggregate.
@@ -203,6 +335,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         };
+        let application = ty;
         let nominal = self.lower_nominal(ty)?;
         let ty = self.lower_type(ty)?;
         let nominal = self.lowerer.nominal(&nominal.key)?;
@@ -239,6 +372,17 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut ordered = Vec::with_capacity(fields.len());
         for (index, field) in fields.into_iter().enumerate() {
             let Some((_, value)) = values.iter().find(|(key, _)| *key == field.key) else {
+                // evaluate the declared initializer for omitted fields
+                if field.initializer.is_some() {
+                    if let Some(value) =
+                        self.lower_omitted_field(application, storage, index, &field)?
+                    {
+                        ordered.push(value);
+                    }
+
+                    continue;
+                }
+
                 // store the undefined case for absent optional fields
                 if field.is_optional {
                     ordered.push(self.lower_absent_property(storage, index)?);
@@ -248,7 +392,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
-                    construct: "a defaulted struct field".to_string(),
+                    construct: "an omitted field without an initializer".to_string(),
                 }
                 .into());
             };
@@ -269,10 +413,156 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // store the written value at the field's own case
             let value = self.lower_expression(*value)?;
-            ordered.push(self.lower_property_case(storage, index, value)?);
+            let carrier = self.property_carrier(storage, index)?;
+            ordered.push(self.adapt_to_carrier(value, carrier)?);
         }
 
         Ok(self.builder.aggregate(ty, ordered))
+    }
+
+    /// Store the declared field initializers through one constructor receiver.
+    pub(in crate::lower) fn lower_field_initializers(
+        &mut self,
+        owner: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let Some(definition) = self.lowerer.definition(owner)? else {
+            return Err(CompilerError::Internal {
+                message: "a constructor body without its class definition".to_string(),
+            });
+        };
+        // offset own initializers past the base's chained fields
+        let total = self.lowerer.nominal_fields(owner)?.len();
+        let own = self.lowerer.instance_fields(definition.members());
+        let inherited = total
+            .checked_sub(own.len())
+            .ok_or_else(|| CompilerError::Internal {
+                message: "a class chaining fewer fields than it declares".to_string(),
+            })?;
+        if own.iter().all(|field| field.initializer.is_none()) {
+            return Ok(());
+        }
+
+        // address the constructed storage behind the receiver
+        let Some(this) = self.this else {
+            return Err(CompilerError::Internal {
+                message: "a constructor body without a receiver".to_string(),
+            });
+        };
+        let this = self.read_binding(this);
+        let reference = self.value_carrier(this)?;
+        let mir::Type::Reference { pointee, .. } =
+            self.builder.tree().get(mir::TypeId::from(reference))
+        else {
+            return Err(CompilerError::Internal {
+                message: "a constructor receiver outside a reference".to_string(),
+            });
+        };
+        let (concrete, _) = self.builder.tree().split_lifetime_application(*pointee);
+
+        for (index, field) in own.iter().enumerate() {
+            let index = inherited + index;
+            let Some(initializer) = field.initializer else {
+                continue;
+            };
+            if initializer.module_id != self.source {
+                return Err(CompilerError::Internal {
+                    message: "a field initializer declared outside its class module".to_string(),
+                });
+            }
+            let expression = initializer
+                .local_id
+                .try_into_typed::<dir::Expression>()
+                .map_err(|message| CompilerError::Internal { message })?;
+
+            // skip singleton literal initializers storing no runtime value
+            let carrier = self.property_carrier(concrete, index)?;
+            let is_void = matches!(self.builder.tree().get(carrier), mir::Type::Void);
+            if is_void && self.is_literal_initializer(self.source, expression)? {
+                continue;
+            }
+
+            // evaluate the initializer outside the constructor's bindings, keeping this live
+            let values = std::mem::take(&mut self.values);
+            let frames = std::mem::take(&mut self.frames);
+            let value = self.lower_expression(expression);
+            self.values = values;
+            self.frames = frames;
+            let value = value?;
+            if is_void {
+                continue;
+            }
+
+            // store the initialized value at its declared carrier
+            let value = self.adapt_to_carrier(value, carrier)?;
+            let address =
+                self.emit_field_address(this, index as u32, carrier, mir::Access::Exclusive);
+            self.builder.store(address, value);
+        }
+
+        Ok(())
+    }
+
+    /// Return whether one initializer is a scalar literal computing nothing.
+    fn is_literal_initializer(
+        &self,
+        module: destack_source::ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<bool> {
+        let Some(declaring) = self.lowerer.modules.get(&module) else {
+            return Err(CompilerError::Internal {
+                message: "a field initializer read outside its loaded module".to_string(),
+            });
+        };
+
+        Ok(matches!(
+            declaring.tree().get(expression),
+            dir::Expression::ScalarLiteral(_)
+        ))
+    }
+
+    /// Lower one omitted field through its declared initializer.
+    fn lower_omitted_field(
+        &mut self,
+        application: dir::GlobalTypeId,
+        storage: mir::LocalNodeId<mir::Type>,
+        index: usize,
+        field: &NominalField,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let Some(initializer) = field.initializer else {
+            return Err(CompilerError::Internal {
+                message: "an omitted field lowered without a declared initializer".to_string(),
+            });
+        };
+        let expression = initializer
+            .local_id
+            .try_into_typed::<dir::Expression>()
+            .map_err(|message| CompilerError::Internal { message })?;
+
+        // skip singleton literal initializers storing no runtime value
+        let carrier = self.property_carrier(storage, index)?;
+        let is_void = matches!(self.builder.tree().get(carrier), mir::Type::Void);
+        if is_void && self.is_literal_initializer(initializer.module_id, expression)? {
+            return Ok(None);
+        }
+
+        // evaluate the initializer inside the constructed instance
+        let dir::Type::Application(instance) = self.lowerer.ty(application)? else {
+            return Err(CompilerError::Internal {
+                message: "a field initializer read outside an application type".to_string(),
+            });
+        };
+        let arguments = self
+            .lowerer
+            .types(application.module_id)?
+            .type_ids(instance.arguments)
+            .to_vec();
+        let specialization = self
+            .lowerer
+            .specialization_of(instance.symbol, &arguments)?;
+        let value =
+            self.lower_foreign_expression(initializer.module_id, specialization, expression)?;
+
+        Ok(Some(self.adapt_to_carrier(value, carrier)?))
     }
 
     /// Lower one tuple expression to an aggregate value.
@@ -339,9 +629,10 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // lower the declared carrier, construction fills its struct storage
         let carrier = self.lower_type(committed)?;
-        let (concrete, reference) = match self.builder.tree().get(carrier) {
+        let (base, _) = self.builder.tree().split_lifetime_application(carrier);
+        let (concrete, reference) = match self.builder.tree().get(base) {
             mir::Type::Reference { pointee, .. } => (*pointee, Some(carrier)),
-            mir::Type::Struct { .. } => (carrier, None),
+            mir::Type::Struct { .. } => (base, None),
             _ => {
                 return Err(CompilerError::Internal {
                     message: "an object class outside its struct or reference carrier".to_string(),
@@ -368,7 +659,8 @@ impl FunctionLowerer<'_, '_, '_> {
                     }
 
                     let value = self.lower_expression(*value)?;
-                    values.push(self.lower_property_case(concrete, index, value)?);
+                    let carrier = self.property_carrier(concrete, index)?;
+                    values.push(self.adapt_to_carrier(value, carrier)?);
                 }
                 // store the undefined case for absent optional properties
                 None if field.is_optional => {
@@ -448,46 +740,58 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Inject one written value into its declared property carrier.
-    fn lower_property_case(
+    /// Adapt one lowered value into its declared carrier.
+    pub(in crate::lower) fn adapt_to_carrier(
         &mut self,
-        concrete: mir::LocalNodeId<mir::Type>,
-        index: usize,
         value: mir::Value,
+        carrier: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
         // store a value already at its carrier type directly
-        let carrier = self.property_carrier(concrete, index)?;
-        let Some(value_type) = self.builder.value_type(value) else {
-            return Err(CompilerError::Internal {
-                message: "the lowered property value has no type".to_string(),
-            });
-        };
+        let value_type = self.value_carrier(value)?;
         if value_type == carrier {
             return Ok(value);
         }
 
-        // store no value in erased zero-sized carriers such as variant tags
-        if matches!(self.builder.tree().get(carrier), mir::Type::Void) {
-            return Ok(self.builder.constant(mir::Constant::Undefined, carrier));
+        // classify through proof-only lifetime applications
+        let (value_base, _) = self.builder.tree().split_lifetime_application(value_type);
+        let (carrier_base, _) = self.builder.tree().split_lifetime_application(carrier);
+        if value_base == carrier_base {
+            return Ok(value);
         }
 
-        // widen values into niched nullable carriers as a kind change
-        if let mir::Type::Reference { .. } | mir::Type::Slice { .. } | mir::Type::Dynamic { .. } =
-            self.builder.tree().get(carrier)
-        {
+        // store no value in erased zero-sized carriers such as variant tags
+        if matches!(self.builder.tree().get(carrier_base), mir::Type::Void) {
+            return Ok(self
+                .builder
+                .constant(mir::Constant::Undefined, carrier_base));
+        }
+
+        // reinterpret reference-family kind changes over the shared fat carrier
+        if self.builder.tree().get(carrier_base).is_reference_carrier() {
+            // pass heads equal under erased lifetimes unchanged
+            let source = self.builder.tree().get(value_base).erased_lifetime();
+            let target = self.builder.tree().get(carrier_base).erased_lifetime();
+            if source == target {
+                return Ok(value);
+            }
+
             return Ok(self
                 .builder
                 .cast(mir::CastOperator::Bitcast, value, carrier));
         }
 
         // select the carrier case the value type declares
-        let mir::Type::Variant { cases, .. } = self.builder.tree().get(carrier) else {
+        let mir::Type::Variant { cases, .. } = self.builder.tree().get(carrier_base) else {
             return Err(CompilerError::Internal {
-                message: "lowered property value misses its declared carrier".to_string(),
+                message: format!(
+                    "an adapted value at '{:?}' misses its declared '{:?}' carrier",
+                    self.builder.tree().get(value_type),
+                    self.builder.tree().get(carrier)
+                ),
             });
         };
         let Some(case) = cases.iter().position(|case| {
-            case.ty == mir::TypeId::from(value_type)
+            case.ty == mir::TypeId::from(value_base)
                 || self
                     .builder
                     .tree()
@@ -495,12 +799,14 @@ impl FunctionLowerer<'_, '_, '_> {
         }) else {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "lowered property value {value_type:?} selects no case of carrier {carrier:?}"
+                    "an adapted value {value_type:?} selects no case of carrier {carrier:?}"
                 ),
             });
         };
 
-        Ok(self.builder.variant_new(carrier, case as u32, Some(value)))
+        Ok(self
+            .builder
+            .variant_new(carrier_base, case as u32, Some(value)))
     }
 
     /// Materialize the undefined case of one absent optional property.
@@ -509,33 +815,42 @@ impl FunctionLowerer<'_, '_, '_> {
         concrete: mir::LocalNodeId<mir::Type>,
         index: usize,
     ) -> CompilerResult<mir::Value> {
-        // store undefined directly in niched nullable carriers
         let carrier = self.property_carrier(concrete, index)?;
-        if let mir::Type::Reference { .. }
-        | mir::Type::Slice { .. }
-        | mir::Type::Dynamic { .. }
-        | mir::Type::Function { .. } = self.builder.tree().get(carrier)
-        {
-            return Ok(self.builder.constant(mir::Constant::Undefined, carrier));
+
+        self.absent_carrier_value(carrier)
+    }
+
+    /// Materialize the undefined case of one optional carrier.
+    pub(in crate::lower) fn absent_carrier_value(
+        &mut self,
+        carrier: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::Value> {
+        match self.builder.tree().undefined_case(carrier) {
+            // select the void case of a variant carrier
+            Some(mir::NullishCase::Case(case)) => Ok(self.builder.variant_new(carrier, case, None)),
+            // store undefined directly in niched nullable carriers
+            Some(mir::NullishCase::Niche) => {
+                Ok(self.builder.constant(mir::Constant::Undefined, carrier))
+            }
+            None => Err(CompilerError::Internal {
+                message: "an optional value lowered without its undefined case".to_string(),
+            }),
         }
+    }
 
-        // select the void case of the optional property's carrier
-        let tree = self.builder.tree();
-        let mir::Type::Variant { cases, .. } = tree.get(carrier) else {
-            return Err(CompilerError::Internal {
-                message: "an optional property lowered without its undefined case".to_string(),
-            });
-        };
-        let Some(undefined) = cases
-            .iter()
-            .position(|case| matches!(tree.get(case.ty), mir::Type::Void))
-        else {
-            return Err(CompilerError::Internal {
-                message: "an optional property lowered without its undefined case".to_string(),
-            });
-        };
-
-        Ok(self.builder.variant_new(carrier, undefined as u32, None))
+    /// Return the value one omitted argument passes at its carrier.
+    pub(in crate::lower) fn absent_argument_value(
+        &mut self,
+        carrier: mir::LocalNodeId<mir::Type>,
+    ) -> mir::Value {
+        match self.builder.tree().undefined_case(carrier) {
+            // select the void case of a variant carrier
+            Some(mir::NullishCase::Case(case)) => self.builder.variant_new(carrier, case, None),
+            // niched and headerless carriers take the bare placeholder
+            Some(mir::NullishCase::Niche) | None => {
+                self.builder.constant(mir::Constant::Undefined, carrier)
+            }
+        }
     }
 
     /// Return the declared carrier type of one concrete class property.
