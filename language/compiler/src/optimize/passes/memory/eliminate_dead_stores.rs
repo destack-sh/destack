@@ -445,8 +445,8 @@ fn def_fully_overwrites_store(
     let overwrite_size = overwrite_location.size?;
     let store_size = store_location.size?;
 
-    let overwrite_region = alias.region(overwrite_location.address);
-    let store_region = alias.region(store_location.address);
+    let overwrite_region = alias.region(overwrite_location.address.value());
+    let store_region = alias.region(store_location.address.value());
 
     let MemoryRegion::Place(overwrite_place) = overwrite_region else {
         return None;

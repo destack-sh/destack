@@ -562,7 +562,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                 .place()
                 .is_some_and(|place| self.alias.may_overlap(&Place::local(*local), place)),
             MemoryRegion::Address { location, .. } => {
-                let place = self.places.get(location.address).clone();
+                let place = self.places.get(location.address.value()).clone();
 
                 loan.place()
                     .is_some_and(|loan| self.alias.may_overlap(&place, loan))
