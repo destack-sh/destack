@@ -239,6 +239,19 @@ export extension<T: Hash> of Set<T> implements Extend<T, "exclusive"> where T: E
     }
 }
 
+export extension<T: Hash> of Set<T> implements From<Iterable<T>>, FromIterator<T>
+    where T: Equal<T> {
+    /// Create a managed set from `values`.
+    static from(values: Iterable<T>): Set<T> {
+        Set.from(values)
+    }
+
+    /// Create a managed set from `values`.
+    static fromIterator(values: Iterator<T>): Set<T> {
+        Set.fromIterator(values)
+    }
+}
+
 export extension<T: Hash> of ^Set<T> implements From<Iterable<T>>, FromIterator<T>
     where T: Equal<T> {
     /// Create an owned set from values.

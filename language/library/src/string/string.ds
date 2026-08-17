@@ -272,6 +272,18 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 }
 
+export extension of string implements From<&readonly StringSlice>, From<^StringBuilder> {
+    /// Create a managed string from borrowed text.
+    static from(value: &readonly StringSlice): string {
+        String.from(value)
+    }
+
+    /// Create a managed string from a string builder.
+    static from(value: ^StringBuilder): string {
+        String.from(value)
+    }
+}
+
 export extension of ^string implements From<&readonly StringSlice>, From<^StringBuilder> {
     /// Create an owned string from borrowed text.
     static from(value: &readonly StringSlice): ^string {

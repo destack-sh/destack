@@ -746,6 +746,18 @@ export extension<T, R: RangeBounds<isize>, const A: Access = "readonly"> of Arra
     }
 }
 
+export extension<T> of Array<T> implements From<Iterable<T>>, FromIterator<T> {
+    /// Create a managed array from `values`.
+    static from(values: Iterable<T>): Array<T> {
+        Array.from(values)
+    }
+
+    /// Create a managed array from `values`.
+    static fromIterator(values: Iterator<T>): Array<T> {
+        Array.fromIterator(values)
+    }
+}
+
 export extension<T> of ^Array<T> implements From<Iterable<T>>, FromIterator<T> {
     /// Create an owned array from `values`.
     static from(values: Iterable<T>): ^Array<T> {

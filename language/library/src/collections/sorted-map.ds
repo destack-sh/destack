@@ -320,6 +320,21 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 }
 
+export extension<K: Compare<K>, V> of SortedMap<K, V>
+    implements
+        From<Iterable<(K, V)>>,
+        FromIterator<(K, V)> {
+    /// Create a managed sorted map from `entries`.
+    static from(entries: Iterable<(K, V)>): SortedMap<K, V> {
+        SortedMap.from(entries)
+    }
+
+    /// Create a managed sorted map from `entries`.
+    static fromIterator(entries: Iterator<(K, V)>): SortedMap<K, V> {
+        SortedMap.fromIterator(entries)
+    }
+}
+
 export extension<K: Compare<K>, V> of ^SortedMap<K, V>
     implements
         From<Iterable<(K, V)>>,

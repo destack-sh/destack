@@ -289,6 +289,21 @@ export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V), "m
     }
 }
 
+export extension<K: Hash, V> of ConcurrentMap<K, V>
+    implements
+        From<Iterable<(K, V)>>,
+        FromIterator<(K, V)> {
+    /// Create a managed concurrent map from `entries`.
+    static from(entries: Iterable<(K, V)>): ConcurrentMap<K, V> {
+        ConcurrentMap.from(entries)
+    }
+
+    /// Create a managed concurrent map from `entries`.
+    static fromIterator(entries: Iterator<(K, V)>): ConcurrentMap<K, V> {
+        ConcurrentMap.fromIterator(entries)
+    }
+}
+
 export extension<K: Hash, V> of ^ConcurrentMap<K, V>
     implements
         From<Iterable<(K, V)>>,

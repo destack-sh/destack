@@ -324,6 +324,19 @@ export extension<K: Hash, V> of Map<K, V>
     }
 }
 
+export extension<K: Hash, V> of Map<K, V> implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
+    where K: Equal<K> {
+    /// Create a managed map from `entries`.
+    static from(entries: Iterable<(K, V)>): Map<K, V> {
+        Map.from(entries)
+    }
+
+    /// Create a managed map from `entries`.
+    static fromIterator(entries: Iterator<(K, V)>): Map<K, V> {
+        Map.fromIterator(entries)
+    }
+}
+
 export extension<K: Hash, V> of ^Map<K, V> implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
     where K: Equal<K> {
     /// Create an owned map from entries.

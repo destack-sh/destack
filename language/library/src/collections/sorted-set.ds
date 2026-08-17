@@ -228,6 +228,18 @@ export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "exclusive"
     }
 }
 
+export extension<T: Compare<T>> of SortedSet<T> implements From<Iterable<T>>, FromIterator<T> {
+    /// Create a managed sorted set from `values`.
+    static from(values: Iterable<T>): SortedSet<T> {
+        SortedSet.from(values)
+    }
+
+    /// Create a managed sorted set from `values`.
+    static fromIterator(values: Iterator<T>): SortedSet<T> {
+        SortedSet.fromIterator(values)
+    }
+}
+
 export extension<T: Compare<T>> of ^SortedSet<T> implements From<Iterable<T>>, FromIterator<T> {
     /// Create an owned sorted set from values.
     static from(values: Iterable<T>): ^SortedSet<T> {

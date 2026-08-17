@@ -88,6 +88,18 @@ export extension of StringBuilder implements Default {
     }
 }
 
+export extension of StringBuilder implements From<string>, From<&readonly StringSlice> {
+    /// Create a managed string builder from owned text.
+    static from(value: string): StringBuilder {
+        StringBuilder.from(value)
+    }
+
+    /// Create a managed string builder from borrowed text.
+    static from(value: &readonly StringSlice): StringBuilder {
+        StringBuilder.from(value)
+    }
+}
+
 export extension of ^StringBuilder implements From<string>, From<&readonly StringSlice> {
     /// Create an owned string builder from owned text.
     static from(value: string): ^StringBuilder {

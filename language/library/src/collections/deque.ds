@@ -225,6 +225,18 @@ export extension<T> of Deque<T>
     }
 }
 
+export extension<T> of Deque<T> implements From<Iterable<T>>, FromIterator<T> {
+    /// Create a managed deque from `values`.
+    static from(values: Iterable<T>): Deque<T> {
+        Deque.from(values)
+    }
+
+    /// Create a managed deque from `values`.
+    static fromIterator(values: Iterator<T>): Deque<T> {
+        Deque.fromIterator(values)
+    }
+}
+
 export extension<T> of ^Deque<T> implements From<Iterable<T>>, FromIterator<T> {
     /// Create an owned deque from values.
     static from(values: Iterable<T>): ^Deque<T> {

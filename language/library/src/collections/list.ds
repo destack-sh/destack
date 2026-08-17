@@ -228,6 +228,18 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "exclusive"> 
     }
 }
 
+export extension<T> of LinkedList<T> implements From<Iterable<T>>, FromIterator<T> {
+    /// Create a managed linked list from `values`.
+    static from(values: Iterable<T>): LinkedList<T> {
+        LinkedList.from(values)
+    }
+
+    /// Create a managed linked list from `values`.
+    static fromIterator(values: Iterator<T>): LinkedList<T> {
+        LinkedList.fromIterator(values)
+    }
+}
+
 export extension<T> of ^LinkedList<T> implements From<Iterable<T>>, FromIterator<T> {
     /// Create an owned linked list from values.
     static from(values: Iterable<T>): ^LinkedList<T> {
