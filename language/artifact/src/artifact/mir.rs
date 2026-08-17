@@ -3,13 +3,16 @@ use destack_mir::{self as mir, CallComponentGraph, LinkSupergraph, LinkTable, Sy
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// Lowered MIR payload before optimization.
+/// MIR produced by lowering.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirLowered {
     /// The MIR tree.
     pub tree: mir::Tree,
     /// Target ABI layout.
     pub target: mir::TargetLayout,
+    /// The module initializer storing runtime bindings, when one exists.
+    pub initializer: Option<mir::FunctionId>,
+
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
     /// Canonical MIR dispatch table.
@@ -22,8 +25,6 @@ pub struct MirLowered {
     pub effects: mir::EffectTable,
     /// Static profile counter table.
     pub profile: mir::ProfileTable,
-    /// The module initializer storing runtime bindings, when one exists.
-    pub initializer: Option<mir::FunctionId>,
 }
 
 impl MirLowered {
@@ -32,13 +33,13 @@ impl MirLowered {
         Self {
             tree: mir::Tree::new(),
             target: mir::TargetLayout::default(),
+            initializer: None,
             layouts: mir::LayoutTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
             accesses: mir::AccessTable::default(),
             effects: mir::EffectTable::default(),
             profile: mir::ProfileTable::default(),
-            initializer: None,
         }
     }
 }
@@ -49,41 +50,31 @@ impl Default for MirLowered {
     }
 }
 
-/// Verified MIR ownership retention.
+/// Ownership retention produced by MIR verification.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirVerified {
     /// Ownership retention required by drop elaboration.
     pub retention: mir::RetentionTable,
 }
 
-/// MIR after required elaboration.
+/// MIR produced by drop elaboration.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirElaborated {
     /// The elaborated MIR tree.
     pub tree: mir::Tree,
-    /// Target ABI layout.
-    pub target: mir::TargetLayout,
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
-    /// Canonical MIR dispatch table.
-    pub dispatch: mir::DispatchTable,
     /// Canonical MIR drop table.
     pub drops: mir::DropTable,
-    /// Explicit MIR memory access table.
-    pub accesses: mir::AccessTable,
     /// Function and call effect table.
     pub effects: mir::EffectTable,
-    /// Static profile counter table.
-    pub profile: mir::ProfileTable,
 }
 
-/// Optimized MIR payload after pipeline transforms.
+/// MIR produced by optimization.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirOptimized {
     /// The optimized MIR tree.
     pub tree: mir::Tree,
-    /// Target ABI layout.
-    pub target: mir::TargetLayout,
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
     /// Canonical MIR dispatch table.
@@ -103,7 +94,6 @@ impl MirOptimized {
     pub fn new() -> Self {
         Self {
             tree: mir::Tree::new(),
-            target: mir::TargetLayout::default(),
             layouts: mir::LayoutTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
