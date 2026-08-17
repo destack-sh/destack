@@ -15,6 +15,12 @@
     --publication-line: #c9beaa;
     --publication-accent: #dc5b2d;
     --publication-rust: #a44328;
+    --publication-syntax-type: #0f6470;
+    --publication-syntax-function: #8a5a0e;
+    --publication-syntax-property: #33586b;
+    --publication-syntax-literal: #96690a;
+    --publication-syntax-string: #3f7038;
+    --publication-syntax-punctuation: #6d5b45;
     --publication-hairline: 1px;
     --publication-stroke: 3px;
     --size-page-title: clamp(2.625rem, 4vw, 3rem);
@@ -379,9 +385,6 @@ summary::-webkit-details-marker {
 }
 
 .markdown-code-gutter {
-    position: sticky;
-    left: 0;
-    z-index: 1;
     user-select: none;
 }
 
@@ -390,12 +393,13 @@ summary::-webkit-details-marker {
 .markdown-code {
     background: var(--publication-page);
     color: var(--publication-ink);
+    overflow: visible;
 }
 
 [data-publication-caption],
 .markdown-code figcaption {
     display: grid;
-    min-height: 2.5rem;
+    min-height: 2.25rem;
     grid-template-columns: 2.75rem minmax(0, 1fr) auto;
     align-items: stretch;
     gap: 0;
@@ -406,7 +410,6 @@ summary::-webkit-details-marker {
     font-weight: 600;
     letter-spacing: 0.02em;
     line-height: 1.4;
-    text-transform: uppercase;
 }
 
 [data-publication-caption]::before,
@@ -428,12 +431,10 @@ summary::-webkit-details-marker {
 
 [data-publication-body],
 .markdown-code pre {
-    overflow-x: auto;
+    overflow: visible;
     font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.875rem;
     line-height: 1.5rem;
-    overscroll-behavior-inline: contain;
-    -webkit-overflow-scrolling: touch;
 }
 
 [data-publication-lines],
@@ -471,14 +472,14 @@ summary::-webkit-details-marker {
 [data-publication-line]:first-child > [data-publication-code],
 .markdown-code-line:first-child > .markdown-code-gutter,
 .markdown-code-line:first-child > .markdown-code-text {
-    padding-top: 0.75rem;
+    padding-top: 0.5rem;
 }
 
 [data-publication-line]:last-child > [data-publication-gutter],
 [data-publication-line]:last-child > [data-publication-code],
 .markdown-code-line:last-child > .markdown-code-gutter,
 .markdown-code-line:last-child > .markdown-code-text {
-    padding-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
 }
 
 .markdown-diagram {
@@ -523,51 +524,302 @@ summary::-webkit-details-marker {
     padding-top: 2rem;
 }
 
-/* generated syntax spans */
-.markdown-code :is(.hljs-keyword, [data-k="keyword"]),
-[data-publication-listing] :is(.hljs-keyword, [data-k="keyword"]) {
+/* generated standard library reference */
+.reference-catalog > p,
+.reference-import {
+    max-width: 42rem;
+    margin: 0;
+}
+
+.reference-catalog dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0 0 2rem;
+    border-block: var(--publication-hairline) solid var(--publication-ink);
+}
+
+.reference-catalog dl > div {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    border-right: var(--publication-hairline) solid var(--publication-line);
+}
+
+.reference-catalog dl > div:last-child {
+    border-right: 0;
+}
+
+.reference-catalog dt {
+    color: var(--publication-soft);
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+}
+
+.reference-catalog dd {
+    margin: 0;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.reference-module-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin: 0;
+    padding: 0;
+    border-top: var(--publication-hairline) solid var(--publication-ink);
+    list-style: none;
+}
+
+.reference-module-list li {
+    min-width: 0;
+    border-bottom: var(--publication-hairline) solid var(--publication-line);
+}
+
+.reference-module-list a {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.65rem 0.75rem;
+}
+
+.reference-module-list a:hover {
     color: var(--publication-accent);
 }
 
-.markdown-code :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]),
-[data-publication-listing] :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]) {
-    color: var(--publication-ink);
+.reference-module-list code {
+    overflow-wrap: anywhere;
 }
 
-.markdown-code :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]),
-[data-publication-listing] :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
-    color: var(--publication-ink);
+.reference-module-list span {
+    flex: none;
+    color: var(--publication-soft);
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+}
+
+.reference-module,
+.reference-item {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.reference-group {
+    display: grid;
+    gap: 0;
+    scroll-margin-top: 5rem;
+}
+
+.reference-group > h2,
+.reference-member-section > h2 {
+    border-bottom: var(--publication-hairline) solid var(--publication-ink);
+    margin-top: 0;
+    padding-bottom: 0.5rem;
+}
+
+.reference-item-list {
+    display: grid;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.reference-item-list li {
+    border-bottom: var(--publication-hairline) solid var(--publication-line);
+}
+
+.reference-item-list li > div {
+    align-items: baseline;
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0.65rem 0;
+}
+
+.reference-item-list code,
+.reference-item-list span {
+    overflow-wrap: anywhere;
+}
+
+.reference-item-list a:hover {
+    color: var(--publication-accent);
+}
+
+.reference-item-list code {
+    background: transparent;
+    padding: 0;
+}
+
+.reference-item-list span {
+    color: var(--publication-soft);
+}
+
+.reference-declaration {
+    display: grid;
+}
+
+.reference-item > :not(.reference-signature, .reference-declaration, .reference-member-section) {
+    max-width: 42rem;
+}
+
+.reference-signature [data-publication-caption] {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    min-height: 1.75rem;
+}
+
+.reference-signature {
+    margin: 0;
+}
+
+.reference-signature .reference-source {
+    align-self: center;
+    color: var(--publication-soft);
+    font-size: 0.6875rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+    padding-block: 0.2rem;
+    white-space: normal;
+}
+
+.reference-signature .reference-source a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.reference-signature .reference-source a:hover {
+    color: var(--publication-accent);
+}
+
+.reference-member-section {
+    display: grid;
+    gap: 0;
+}
+
+.reference-members {
+    display: grid;
+    margin: 0;
+}
+
+.reference-members > div {
+    align-items: start;
+    border-bottom: var(--publication-hairline) solid var(--publication-line);
+    display: grid;
+    column-gap: 2rem;
+    grid-template-columns: minmax(15rem, 0.8fr) minmax(18rem, 1fr);
+    padding: 0.75rem 0;
+}
+
+.reference-members dt {
+    grid-column: 1;
+}
+
+.reference-members dd {
+    grid-column: 2;
+}
+
+.reference-members dt,
+.reference-members dd,
+.reference-members p {
+    margin: 0;
+    min-width: 0;
+}
+
+.reference-members dt code {
+    background: transparent;
+    display: block;
+    font-size: 0.8125rem;
+    line-height: 1.5rem;
+    overflow-wrap: anywhere;
+    padding: 0;
+}
+
+.reference-item a[data-reference],
+.reference-members a[data-reference] {
+    color: inherit;
+    text-decoration: none;
+}
+
+.reference-item a[data-reference]:hover,
+.reference-members a[data-reference]:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--publication-accent);
+    text-underline-offset: 0.2em;
+}
+
+.reference-members dd {
+    line-height: 1.5rem;
+}
+
+@media (max-width: 767px) {
+    .reference-catalog dl,
+    .reference-module-list {
+        grid-template-columns: 1fr;
+    }
+
+    .reference-catalog dl > div {
+        border-right: 0;
+    }
+
+    .reference-item-list li > div,
+    .reference-members > div {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
+    }
+
+    .reference-members dt,
+    .reference-members dd {
+        grid-column: 1;
+        padding-left: 0;
+    }
+}
+
+/* generated syntax spans */
+:is(.markdown-code, [data-publication-listing], .reference-members)
+    :is(.hljs-keyword, [data-k="keyword"]) {
+    color: var(--publication-accent);
+}
+
+:is(.markdown-code, [data-publication-listing], .reference-members)
+    :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]) {
+    color: var(--publication-syntax-type);
+}
+
+:is(.markdown-code, [data-publication-listing], .reference-members)
+    :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
+    color: var(--publication-syntax-function);
     font-weight: 600;
 }
 
-.markdown-code :is(.hljs-attr, .hljs-property, [data-k="property"]),
-[data-publication-listing] :is(.hljs-attr, .hljs-property, [data-k="property"]) {
+:is(.markdown-code, [data-publication-listing], .reference-members)
+    :is(.hljs-attr, .hljs-property, [data-k="property"]) {
+    color: var(--publication-syntax-property);
+}
+
+:is(.markdown-code, [data-publication-listing], .reference-members)
+    :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
+    color: var(--publication-syntax-literal);
+}
+
+:is(.markdown-code, [data-publication-listing], .reference-members)
+    :is(.hljs-string, [data-k="string"]) {
+    color: var(--publication-syntax-string);
+}
+
+:is(.markdown-code, [data-publication-listing], .reference-members)
+    :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
     color: var(--publication-ink);
 }
 
-.markdown-code :is(.hljs-literal, .hljs-number, [data-k="literal"]),
-[data-publication-listing] :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
-    color: var(--publication-ink);
-}
-
-.markdown-code :is(.hljs-string, [data-k="string"]),
-[data-publication-listing] :is(.hljs-string, [data-k="string"]) {
-    color: var(--publication-ink);
-}
-
-.markdown-code :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]),
-[data-publication-listing] :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
-    color: var(--publication-ink);
-}
-
-.markdown-code :is(.hljs-comment, .hljs-meta, [data-k="comment"]),
-[data-publication-listing] :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {
+:is(.markdown-code, [data-publication-listing], .reference-members)
+    :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {
     color: var(--publication-soft);
 }
 
-.markdown-code :is(.hljs-params, [data-k="punct"]),
-[data-publication-listing] :is(.hljs-params, [data-k="punct"]) {
-    color: var(--publication-soft);
+:is(.markdown-code, [data-publication-listing], .reference-members)
+    :is(.hljs-params, [data-k="punct"]) {
+    color: var(--publication-syntax-punctuation);
 }
 
 @media (width < 60rem) {

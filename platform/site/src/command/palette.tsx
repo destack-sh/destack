@@ -10,7 +10,7 @@ import {
     highlightParts,
     matchCommands,
 } from "./command";
-import type { SearchEntry } from "../content/search";
+import { loadSearchEntries, type SearchEntry } from "../content/search";
 import { siteSearchEntries } from "../content/site";
 import type { PageFormats } from "../content/source";
 import { isExternalLink } from "../navigation/link";
@@ -55,8 +55,7 @@ export function CommandPalette() {
     // load search content only when somebody asks for it
     const openPalette = async () => {
         if (entries().length === 0) {
-            const search = await import("../generated/search");
-            setEntries(search.searchEntries);
+            setEntries(await loadSearchEntries());
         }
 
         setQuery("");

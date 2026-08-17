@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import {
+    copyFileSync,
     existsSync,
     mkdirSync,
     readFileSync,
@@ -8,7 +10,7 @@ import {
     statSync,
     writeFileSync,
 } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -21,6 +23,7 @@ import {
 import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.mjs";
 import { writePageSources } from "./sources.mjs";
 import { highlightCode } from "./highlight.mjs";
+import { readLibraryReference, renderLibraryDocuments } from "./reference.mjs";
 import { homeExamples } from "../src/content/home.ts";
 
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -29,6 +32,8 @@ const contentDirectory = join(siteDirectory, "src/content/blog");
 const documentDirectory = join(repositoryDirectory, "docs");
 const generatedDirectory = join(siteDirectory, "src/generated");
 const publicDirectory = join(siteDirectory, "public");
+const publicContentDirectory = join(publicDirectory, "_content");
+const publicSearchFile = join(publicDirectory, "search.json");
 const generatedDocumentDirectory = join(generatedDirectory, "document");
 const generatedPostDirectory = join(generatedDirectory, "post");
 const generatedDocumentFile = join(generatedDirectory, "documents.ts");
@@ -40,37 +45,123 @@ const isCheck = process.argv.includes("--check");
 const documentPathPattern = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 
 const documentSources = readDocumentSources();
-const documents = renderDocuments(documentSources);
+const libraryReference = readLibraryReference();
+const library = renderLibraryDocuments(libraryReference);
+const documents = [
+    ...renderDocuments(documentSources),
+    ...library.documents,
+].sort((left, right) => left.order - right.order || left.route.localeCompare(right.route));
 const postSources = readPostSources();
 const posts = renderPosts(postSources);
+const pages = [...documents, ...library.items, ...posts];
+const searchEntries = searchEntriesFor(posts, documents, library.items);
 if (!isCheck) {
-    await writePageSources([...documents, ...posts], publicDirectory);
+    await writePageSources(pages, publicDirectory);
+    writePageContent(pages);
+    writeLibraryItemMetadata(library.items);
+    writeGeneratedFile(publicSearchFile, `${JSON.stringify(searchEntries)}\n`);
 }
 const documentSource = renderDocumentModule(documents);
-const documentContentSources = renderDocumentContentModules(documents);
 const homeHighlightSource = renderHomeHighlightModule();
 const postSource = renderPostModule(posts);
-const postContentSources = renderPostContentModules(posts);
-const routeSource = renderRouteModule(posts, documents);
-const searchSource = renderSearchModule(posts, documents);
+const routeSource = renderRouteModule(posts, documents, library.items);
 
 if (isCheck) {
     checkGeneratedFile(generatedDocumentFile, documentSource);
-    checkGeneratedModules(generatedDocumentDirectory, documentContentSources, "document");
     checkGeneratedFile(generatedHomeHighlightFile, homeHighlightSource);
     checkGeneratedFile(generatedPostFile, postSource);
-    checkGeneratedModules(generatedPostDirectory, postContentSources, "post");
     checkGeneratedFile(generatedRouteFile, routeSource);
-    checkGeneratedFile(generatedSearchFile, searchSource);
+    checkMissingGeneratedPath(generatedDocumentDirectory);
+    checkMissingGeneratedPath(generatedPostDirectory);
+    checkMissingGeneratedPath(generatedSearchFile);
 } else {
     mkdirSync(generatedDirectory, { recursive: true });
     writeGeneratedFile(generatedDocumentFile, documentSource);
-    writeGeneratedModules(generatedDocumentDirectory, documentContentSources);
     writeGeneratedFile(generatedHomeHighlightFile, homeHighlightSource);
     writeGeneratedFile(generatedPostFile, postSource);
-    writeGeneratedModules(generatedPostDirectory, postContentSources);
     writeGeneratedFile(generatedRouteFile, routeSource);
-    writeGeneratedFile(generatedSearchFile, searchSource);
+    rmSync(generatedDocumentDirectory, { force: true, recursive: true });
+    rmSync(generatedPostDirectory, { force: true, recursive: true });
+    rmSync(generatedSearchFile, { force: true });
+}
+
+/// Write rendered page bodies and their content-addressed assets.
+function writePageContent(pages) {
+    rmSync(publicContentDirectory, { force: true, recursive: true });
+    mkdirSync(publicContentDirectory, { recursive: true });
+    const assetRoutes = new Map();
+
+    // resolve every page against one deduplicated asset collection
+    for (const page of pages) {
+        const assets = Object.fromEntries(page.assets.map((asset) => {
+            let route = assetRoutes.get(asset.path);
+
+            // copy each source asset once under its content hash
+            if (route == undefined) {
+                const digest = createHash("sha256")
+                    .update(readFileSync(asset.path))
+                    .digest("hex")
+                    .slice(0, 16);
+                route = `/_content/assets/${digest}${extname(asset.path)}`;
+                const file = join(publicDirectory, route.slice(1));
+                mkdirSync(dirname(file), { recursive: true });
+                copyFileSync(asset.path, file);
+                assetRoutes.set(asset.path, route);
+            }
+
+            return [asset.placeholder, route];
+        }));
+        const html = resolveAssets(page.html, assets);
+        const file = join(publicDirectory, contentRouteFor(page).slice(1));
+        mkdirSync(dirname(file), { recursive: true });
+        writeFileSync(file, html);
+    }
+}
+
+/// Write independently loaded metadata for every generated library item.
+function writeLibraryItemMetadata(items) {
+    for (const item of items) {
+        const metadata = {
+            contentRoute: contentRouteFor(item),
+            description: item.description,
+            lead: item.lead,
+            markdownRoute: item.markdownRoute,
+            moduleRoute: item.moduleRoute,
+            moduleTitle: item.moduleTitle,
+            order: item.order,
+            path: item.path,
+            route: item.route,
+            tableOfContents: item.tableOfContents,
+            textRoute: item.textRoute,
+            title: item.title,
+            tokens: item.tokens,
+        };
+        const file = join(publicDirectory, libraryItemMetadataRoute(item.route).slice(1));
+        mkdirSync(dirname(file), { recursive: true });
+        writeFileSync(file, `${JSON.stringify(metadata)}\n`);
+    }
+}
+
+/// Return the static metadata route for one generated library item.
+function libraryItemMetadataRoute(route) {
+    return `/_content${route}index.json`;
+}
+
+/// Return the static rendered-body route for one content page.
+function contentRouteFor(page) {
+    return `/_content${page.route}index.html`;
+}
+
+/// Replace content asset placeholders with their public routes.
+function resolveAssets(html, assets) {
+    let resolved = html;
+
+    // replace every placeholder emitted by the Markdown renderer
+    for (const [placeholder, route] of Object.entries(assets)) {
+        resolved = resolved.replaceAll(placeholder, route);
+    }
+
+    return resolved;
 }
 
 /// Generate parser-backed syntax spans for every homepage technical listing.
@@ -119,6 +210,7 @@ function readDocumentSources() {
                 description: metadata.description,
                 file,
                 headings,
+                lead: metadata.description,
                 markdownRoute: `/${join("docs", path).replaceAll("\\", "/")}`,
                 markdown,
                 order,
@@ -221,7 +313,7 @@ function renderDocuments(sources) {
     });
 }
 
-/// Read and validate every blog source.
+/// Read the checked standard library package reference.
 function readPostSources() {
     if (!existsSync(contentDirectory)) {
         return [];
@@ -300,10 +392,12 @@ function renderPosts(sources) {
     });
 }
 
-/// Generate the documentation metadata and lazy-loader module.
+/// Generate the documentation metadata and rendered-body loader.
 function renderDocumentModule(documents) {
     const records = documents.map((document) => `    {
+        contentRoute: ${JSON.stringify(contentRouteFor(document))},
         description: ${JSON.stringify(document.description)},
+        lead: ${JSON.stringify(document.lead)},
         markdownRoute: ${JSON.stringify(document.markdownRoute)},
         order: ${document.order},
         path: ${JSON.stringify(document.path)},
@@ -313,114 +407,129 @@ function renderDocumentModule(documents) {
         title: ${JSON.stringify(document.title)},
         tokens: ${document.tokens},
     }`).join(",\n");
-    const loaders = documents.map((document) => {
-        const name = generatedDocumentName(document);
 
-        return `    ${JSON.stringify(document.route)}: () => import("./document/${name}"),`;
-    }).join("\n");
+    return `import { loadContent, type RenderedContent } from "../content/load";
 
-    return `export type Document = {
+export type Document = {
+    /// The static rendered HTML route.
+    contentRoute: string;
+    /// The concise chapter description.
     description: string;
+    /// The optional introductory sentence.
+    lead?: string;
+    /// The authored Markdown route.
     markdownRoute: string;
+    /// The containing generated module route.
+    moduleRoute?: string;
+    /// The containing generated module title.
+    moduleTitle?: string;
+    /// The manual sort order.
     order: number;
+    /// The repository-relative authored path.
     path: string;
+    /// The canonical browser route.
     route: string;
+    /// The rendered heading tree.
     tableOfContents: readonly TableOfContentsEntry[];
+    /// The plain text route.
     textRoute: string;
+    /// The chapter title.
     title: string;
+    /// The approximate token count.
     tokens: number;
 };
 
-export type DocumentContent = {
-    html: string;
-};
+/// One rendered document body.
+export type DocumentContent = RenderedContent;
 
+/// One rendered document heading.
 export type TableOfContentsEntry = {
+    /// The heading depth.
     depth: number;
+    /// The heading fragment identifier.
     id: string;
+    /// The heading text.
     text: string;
 };
 
+/// The generated manual chapters.
 export const documents = [
 ${records}
 ] as const satisfies readonly Document[];
 
+/// Manual chapters indexed by canonical route.
 export const documentByRoute: ReadonlyMap<string, Document> = new Map(
     documents.map((document): [string, Document] => [document.route, document]),
 );
 
-const documentLoaders: Record<string, () => Promise<{ default: DocumentContent }>> = {
-${loaders}
-};
-
 /// Load one rendered document body by canonical route.
 export async function loadDocument(route: string): Promise<DocumentContent | undefined> {
-    return documentLoaders[route]?.().then((module) => module.default);
+    const document = documentByRoute.get(route);
+
+    return document == undefined ? undefined : loadContent(document.contentRoute);
 }
 `;
 }
 
-/// Generate one lazy body module per document.
-function renderDocumentContentModules(documents) {
-    return renderContentModules(
-        documents,
-        generatedDocumentDirectory,
-        "DocumentContent",
-        "../documents",
-        generatedDocumentName,
-    );
-}
-
-/// Return the collision-free module name for a validated document path.
-function generatedDocumentName(document) {
-    return document.path.slice(0, -3).replaceAll("/", "_");
-}
-
-/// Generate the blog metadata and lazy-loader module.
+/// Generate the blog metadata and rendered-body loader.
 function renderPostModule(posts) {
     const records = posts.map((post) => renderPostRecord(post)).join(",\n");
-    const loaders = posts
-        .map((post) => `    ${JSON.stringify(post.slug)}: () => import("./post/${post.slug}"),`)
-        .join("\n");
 
-    return `export type Post = {
+    return `import { loadContent, type RenderedContent } from "../content/load";
+
+export type Post = {
+    /// The post author.
     author: string;
+    /// The static rendered HTML route.
+    contentRoute: string;
+    /// The publication date.
     date: string;
+    /// The authored Markdown route.
     markdownRoute: string;
+    /// The canonical browser route.
     route: string;
+    /// The canonical post slug.
     slug: string;
+    /// The post subtitle.
     subtitle: string;
+    /// The rendered heading tree.
     tableOfContents: readonly TableOfContentsEntry[];
+    /// The plain text route.
     textRoute: string;
+    /// The post title.
     title: string;
+    /// The approximate token count.
     tokens: number;
 };
 
-export type PostContent = {
-    html: string;
-};
+/// One rendered post body.
+export type PostContent = RenderedContent;
 
+/// One rendered post heading.
 export type TableOfContentsEntry = {
+    /// The heading depth.
     depth: number;
+    /// The heading fragment identifier.
     id: string;
+    /// The heading text.
     text: string;
 };
 
+/// The generated blog posts.
 export const posts = [
 ${records}
 ] as const satisfies readonly Post[];
 
+/// Blog posts indexed by slug.
 export const postBySlug: ReadonlyMap<string, Post> = new Map(
     posts.map((post): [string, Post] => [post.slug, post]),
 );
 
-const postLoaders: Record<string, () => Promise<{ default: PostContent }>> = {
-${loaders}
-};
-
 /// Load one rendered post body by slug.
 export async function loadPost(slug: string): Promise<PostContent | undefined> {
-    return postLoaders[slug]?.().then((module) => module.default);
+    const post = postBySlug.get(slug);
+
+    return post == undefined ? undefined : loadContent(post.contentRoute);
 }
 `;
 }
@@ -429,6 +538,7 @@ export async function loadPost(slug: string): Promise<PostContent | undefined> {
 function renderPostRecord(post) {
     return `    {
         author: ${JSON.stringify(post.author)},
+        contentRoute: ${JSON.stringify(contentRouteFor(post))},
         date: ${JSON.stringify(post.date)},
         markdownRoute: ${JSON.stringify(post.markdownRoute)},
         route: ${JSON.stringify(post.route)},
@@ -441,63 +551,23 @@ function renderPostRecord(post) {
     }`;
 }
 
-/// Generate one lazy body module per post.
-function renderPostContentModules(posts) {
-    return renderContentModules(
-        posts,
-        generatedPostDirectory,
-        "PostContent",
-        "../posts",
-        (post) => post.slug,
-    );
-}
-
-/// Generate independently loadable rendered-content modules.
-function renderContentModules(contents, directory, type, typeImport, nameFor) {
-    return new Map(contents.map((content) => {
-        const imports = content.assets.map((asset) => {
-            const path = relative(directory, asset.path).replaceAll("\\", "/");
-            const importPath = JSON.stringify(`${path}?url`);
-
-            return `import ${asset.importName} from ${importPath};`;
-        });
-        const assets = content.assets
-            .map((asset) => `${JSON.stringify(asset.placeholder)}: ${asset.importName}`)
-            .join(", ");
-        const source = `${imports.join("\n")}${imports.length === 0 ? "" : "\n\n"}import type { ${type} } from ${JSON.stringify(typeImport)};
-
-const content = {
-    html: resolveAssets(${JSON.stringify(content.html)}, { ${assets} }),
-} satisfies ${type};
-
-export default content;
-
-/// Replace build-time asset placeholders with bundled URLs.
-function resolveAssets(html: string, assets: Record<string, string>) {
-    let resolved = html;
-
-    for (const [placeholder, asset] of Object.entries(assets)) {
-        resolved = resolved.replaceAll(placeholder, asset);
-    }
-
-    return resolved;
-}
-`;
-
-        return [nameFor(content), source];
-    }));
-}
-
 /// Generate the complete prerender route list.
-function renderRouteModule(posts, documents) {
-    const routes = ["/", "/blog/", "/docs/", ...posts.map((post) => post.route), ...documents.map((document) => document.route)];
+function renderRouteModule(posts, documents, libraryItems) {
+    const routes = [
+        "/",
+        "/blog/",
+        "/docs/",
+        ...posts.map((post) => post.route),
+        ...documents.map((document) => document.route),
+        ...libraryItems.map((item) => item.route),
+    ];
 
-    return `export const prerenderRoutes = ${JSON.stringify(routes, null, 4)} as const;\n`;
+    return `/// The complete static browser route set.\nexport const prerenderRoutes = ${JSON.stringify(routes, null, 4)} as const;\n`;
 }
 
-/// Generate the lazy full-text search index.
-function renderSearchModule(posts, documents) {
-    const entries = [
+/// Return the complete full-text search index.
+function searchEntriesFor(posts, documents, libraryItems) {
+    return [
         ...documents.flatMap((document) => [
             {
                 context: "docs",
@@ -530,12 +600,13 @@ function renderSearchModule(posts, documents) {
                     title: section.title,
                 })),
         ]),
+        ...libraryItems.map((item) => ({
+            context: `docs / ${item.module.specifier}`,
+            route: item.route,
+            text: item.searchSections[0].text,
+            title: item.title,
+        })),
     ];
-
-    return `import type { SearchEntry } from "../content/search";
-
-export const searchEntries = ${JSON.stringify(entries, null, 4)} as const satisfies readonly SearchEntry[];
-`;
 }
 
 /// Require one generated file to match its expected contents.
@@ -550,20 +621,10 @@ function checkGeneratedFile(file, source) {
     }
 }
 
-/// Require one generated module directory to match exactly.
-function checkGeneratedModules(directory, sources, kind) {
-    if (!existsSync(directory)) {
-        throw new Error(`missing generated ${kind} directory: ${directory}`);
-    }
-
-    const expected = [...sources.keys()].map((name) => `${name}.ts`).sort();
-    const actual = readdirSync(directory).sort();
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-        throw new Error(`generated ${kind} modules are out of date, run \`just platform/site/generate\``);
-    }
-
-    for (const [name, source] of sources) {
-        checkGeneratedFile(join(directory, `${name}.ts`), source);
+/// Require one obsolete generated path to remain absent.
+function checkMissingGeneratedPath(path) {
+    if (existsSync(path)) {
+        throw new Error(`obsolete generated content remains: ${path}`);
     }
 }
 
@@ -573,14 +634,4 @@ function writeGeneratedFile(file, source) {
 
     writeFileSync(temporaryFile, source);
     renameSync(temporaryFile, file);
-}
-
-/// Replace one generated module directory.
-function writeGeneratedModules(directory, sources) {
-    rmSync(directory, { force: true, recursive: true });
-    mkdirSync(directory, { recursive: true });
-
-    for (const [name, source] of sources) {
-        writeGeneratedFile(join(directory, `${name}.ts`), source);
-    }
 }

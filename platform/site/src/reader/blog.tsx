@@ -153,7 +153,8 @@ const styles = stylex.create({
         borderBottomWidth: tokens.hairline,
         display: "grid",
         gap: `calc(${tokens.publicationSpace} * 2)`,
-        paddingBlock: `calc(${tokens.publicationSpace} * 4)`,
+        paddingBottom: `calc(${tokens.publicationSpace} * 4)`,
+        paddingTop: `calc(${tokens.publicationSpace} * 3)`,
     },
     articleSubtitle: {
         color: tokens.soft,

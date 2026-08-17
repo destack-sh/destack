@@ -24,6 +24,7 @@ const repositoryDirectory = resolve(dirname(scriptFile), "../../..");
 const treeSitter = join(repositoryDirectory, "node_modules/.bin/tree-sitter");
 const cacheDirectory = join(tmpdir(), "destack-highlight-cache");
 const highlighterFingerprint = createHash("sha256").update(readFileSync(scriptFile)).digest("hex");
+const maximumQueryOutputBytes = 64 * 1024 * 1024;
 
 const languages = {
     bytecode: loadGrammar(
@@ -44,6 +45,7 @@ hljs.registerLanguage("tsx", typescript);
 hljs.registerLanguage("xml", xml);
 hljs.registerLanguage("svg", xml);
 
+/// Load one checked-in Tree-sitter grammar.
 function loadGrammar(directory, name) {
     const config = JSON.parse(readFileSync(join(directory, "tree-sitter.json"), "utf8"));
     const grammar = config.grammars.find((grammar) => grammar.name === name);
@@ -62,6 +64,7 @@ function loadGrammar(directory, name) {
     };
 }
 
+/// Hash every grammar input that affects highlighted output.
 function grammarFingerprint(directory, queries) {
     const parser = join(directory, "src/parser.c");
     const scanner = join(directory, "src/scanner.c");
@@ -78,6 +81,7 @@ function grammarFingerprint(directory, queries) {
     return hash.digest("hex");
 }
 
+/// Resolve one declared highlighting query.
 function resolveQuery(directory, query) {
     const localQuery = resolve(directory, query);
     if (existsSync(localQuery)) {
@@ -87,6 +91,7 @@ function resolveQuery(directory, query) {
     throw new Error(`missing grammar query: ${query}`);
 }
 
+/// Highlight one source string.
 export function highlightCode(source, language) {
     const normalized = normalizeLanguage(language);
     if (normalized === "text") {
@@ -105,14 +110,126 @@ export function highlightCode(source, language) {
     return hljs.highlightAuto(source).value;
 }
 
+/// Highlight several independent snippets with one parser invocation.
+export function highlightCodeFragments(sources, language, semanticTokens = [], references = {}) {
+    const normalized = normalizeLanguage(language);
+    const grammar = grammarFor(normalized);
+    if (grammar == undefined) {
+        return sources.map((source) => highlightCode(source, language));
+    }
+
+    // return the cached fragment set when its grammar and inputs are unchanged
+    const key = createHash("sha256")
+        .update(highlighterFingerprint)
+        .update(grammar.fingerprint)
+        .update(JSON.stringify(sources))
+        .update(JSON.stringify(semanticTokens))
+        .update(JSON.stringify(references))
+        .digest("hex");
+    const cached = join(cacheDirectory, `${key}.json`);
+    if (existsSync(cached)) {
+        return JSON.parse(readFileSync(cached, "utf8"));
+    }
+
+    // parse one synthetic file while retaining each snippet's byte interval
+    const starts = [];
+    let source = "";
+    for (const fragment of sources) {
+        starts.push(source.length);
+        source += `${fragment}\n\n`;
+    }
+    const ranges = grammarSourceRanges(source, grammar);
+
+    // project global capture ranges back into each independent snippet
+    const highlighted = sources.map((fragment, index) => {
+        const start = starts[index];
+        const end = start + fragment.length;
+        const fragmentRanges = ranges
+            .filter((range) => range.start >= start && range.end <= end)
+            .map((range) => ({ ...range, start: range.start - start, end: range.end - start }))
+            .map((range) => linkReference(fragment, range, references));
+        const checkedRanges = semanticRanges(fragment, semanticTokens[index] ?? []);
+
+        return render(fragment, mergeRanges([...fragmentRanges, ...checkedRanges]));
+    });
+
+    // cache the complete batch atomically
+    mkdirSync(cacheDirectory, { recursive: true });
+    const temporary = `${cached}.${process.pid}.tmp`;
+    writeFileSync(temporary, JSON.stringify(highlighted));
+    renameSync(temporary, cached);
+
+    return highlighted;
+}
+
+/// Link one parsed type name to its unambiguous public declaration.
+/// Link one highlighted name to its generated reference page.
+function linkReference(source, range, references) {
+    if (range.kind !== "type") {
+        return range;
+    }
+    const name = source.slice(range.start, range.end);
+    const href = references[name];
+
+    return href == undefined ? range : { ...range, href };
+}
+
+/// Convert checked UTF-8 token intervals into JavaScript string intervals.
+/// Convert compiler semantic tokens into JavaScript string ranges.
+function semanticRanges(source, tokens) {
+    return tokens.map((token) => ({
+        start: codeUnitOffset(source, token.start),
+        end: codeUnitOffset(source, token.end),
+        kind: semanticKind(token.kind),
+        modifiers: token.modifiers,
+        priority: 5,
+        semantic: token.kind,
+    }));
+}
+
+/// Return the syntax color shared by one semantic token kind.
+/// Return the stable CSS category for one compiler token kind.
+function semanticKind(kind) {
+    if (["type", "class", "enum", "interface", "struct", "type_parameter"].includes(kind)) {
+        return "type";
+    }
+
+    if (["function", "method"].includes(kind)) {
+        return "function";
+    }
+
+    if (["property", "enum_member"].includes(kind)) {
+        return "property";
+    }
+
+    if (kind === "comment") {
+        return "comment";
+    }
+
+    return "name";
+}
+
+/// Convert one UTF-8 byte offset into a JavaScript string offset.
+function codeUnitOffset(source, byteOffset) {
+    const bytes = Buffer.from(source);
+    if (!Number.isInteger(byteOffset) || byteOffset < 0 || byteOffset > bytes.length) {
+        throw new Error(`invalid semantic byte offset ${byteOffset} for ${bytes.length} bytes`);
+    }
+
+    return bytes.subarray(0, byteOffset).toString("utf8").length;
+}
+
+/// Highlight one Destack source file.
 export function highlightDestackFile(file, source) {
     return highlightGrammarFile(file, source, languages.destack);
 }
 
+/// Normalize one Markdown language identifier.
 function normalizeLanguage(language) {
     return (language ?? "").trim().split(/[:\s]+/)[0].toLowerCase();
 }
 
+/// Select the Tree-sitter grammar for one normalized language.
 function grammarFor(language) {
     if (language === "ds" || language === "destack" || language === "pattern") {
         return languages.destack;
@@ -129,6 +246,7 @@ function grammarFor(language) {
     return undefined;
 }
 
+/// Highlight an in-memory source string with one grammar.
 function highlightGrammarSource(source, grammar) {
     const key = createHash("sha256")
         .update(highlighterFingerprint)
@@ -140,30 +258,39 @@ function highlightGrammarSource(source, grammar) {
         return readFileSync(cached, "utf8");
     }
 
+    const ranges = grammarSourceRanges(source, grammar);
+    const highlighted = render(source, ranges);
+    mkdirSync(cacheDirectory, { recursive: true });
+    const temporary = `${cached}.${process.pid}.tmp`;
+    writeFileSync(temporary, highlighted);
+    renameSync(temporary, cached);
+
+    return highlighted;
+}
+
+/// Parse one in-memory source and return its highlighting ranges.
+/// Parse an in-memory source string and return its capture ranges.
+function grammarSourceRanges(source, grammar) {
     const directory = mkdtempSync(join(tmpdir(), "destack-highlight-"));
     const file = join(directory, `source.${grammar.extension}`);
 
     try {
         writeFileSync(file, source);
 
-        const highlighted = highlightGrammarFile(file, source, grammar);
-        mkdirSync(cacheDirectory, { recursive: true });
-        const temporary = `${cached}.${process.pid}.tmp`;
-        writeFileSync(temporary, highlighted);
-        renameSync(temporary, cached);
-
-        return highlighted;
+        return grammarRanges(file, source, grammar);
     } finally {
         rmSync(directory, { force: true, recursive: true });
     }
 }
 
+/// Highlight one existing source file with one grammar.
 function highlightGrammarFile(file, source, grammar) {
     const ranges = grammarRanges(file, source, grammar);
 
     return render(source, ranges);
 }
 
+/// Query one parsed source file for highlighting captures.
 function grammarRanges(file, source, grammar) {
     const ranges = diagnosticRanges(source);
     const library = grammarLibrary(grammar);
@@ -181,6 +308,7 @@ function grammarRanges(file, source, grammar) {
         ], {
             cwd: grammar.directory,
             encoding: "utf8",
+            maxBuffer: maximumQueryOutputBytes,
             stdio: ["ignore", "pipe", "pipe"],
         });
         ranges.push(...parseQueryRanges(output, source));
@@ -189,6 +317,7 @@ function grammarRanges(file, source, grammar) {
     return mergeRanges(ranges);
 }
 
+/// Build or reuse one native Tree-sitter grammar library.
 function grammarLibrary(grammar) {
     const extension = process.platform === "darwin" ? "dylib" : process.platform === "win32" ? "dll" : "so";
     const library = join(cacheDirectory, `${grammar.name}-${grammar.fingerprint}.${extension}`);
@@ -208,6 +337,7 @@ function grammarLibrary(grammar) {
     return library;
 }
 
+/// Parse Tree-sitter query captures into source ranges.
 function parseQueryRanges(output, source) {
     const starts = lineStarts(source.split("\n"));
     const ranges = [];
@@ -228,6 +358,7 @@ function parseQueryRanges(output, source) {
     return ranges;
 }
 
+/// Return inline diagnostic ranges embedded in example source.
 function diagnosticRanges(source) {
     const ranges = [];
     const lines = source.split("\n");
@@ -260,6 +391,7 @@ function diagnosticRanges(source) {
     return ranges;
 }
 
+/// Return the CSS category for one Tree-sitter capture name.
 function captureKind(capture) {
     if (capture === "keyword" || capture.startsWith("keyword.")) {
         return "keyword";
@@ -309,6 +441,7 @@ function captureKind(capture) {
     return undefined;
 }
 
+/// Return the precedence of one overlapping capture.
 function capturePriority(capture) {
     if (
         capture.includes(".definition") ||
@@ -332,6 +465,7 @@ function capturePriority(capture) {
     return 2;
 }
 
+/// Merge compatible adjacent highlighting ranges.
 function mergeRanges(ranges) {
     const sorted = ranges
         .filter((range) => range.end > range.start)
@@ -350,6 +484,7 @@ function mergeRanges(ranges) {
     return merged;
 }
 
+/// Render highlighted source ranges as escaped HTML.
 function render(source, ranges) {
     const lines = source.split("\n");
     const starts = lineStarts(lines);
@@ -388,6 +523,7 @@ function render(source, ranges) {
     return html;
 }
 
+/// Render one diagnostic marker and message as an inline annotation.
 function renderInlineDiagnostic(source, ranges, lines, starts, startIndex, endIndex) {
     const indent = commonInlineDiagnosticIndent(lines, startIndex, endIndex);
     const parts = [];
@@ -404,6 +540,7 @@ function renderInlineDiagnostic(source, ranges, lines, starts, startIndex, endIn
     return `${padding}<span data-k="inline-diagnostic-shadow"><span data-k="inline-diagnostic-box">${body}</span></span>`;
 }
 
+/// Return the shared indentation of one inline diagnostic block.
 function commonInlineDiagnosticIndent(lines, startIndex, endIndex) {
     let indent = Infinity;
 
@@ -415,6 +552,7 @@ function commonInlineDiagnosticIndent(lines, startIndex, endIndex) {
     return Number.isFinite(indent) ? indent : 0;
 }
 
+/// Render one source interval with its active highlighting ranges.
 function renderSegment(source, ranges, start, end) {
     let html = "";
     let cursor = start;
@@ -431,7 +569,12 @@ function renderSegment(source, ranges, start, end) {
         const rangeStart = Math.max(range.start, start);
         const rangeEnd = Math.min(range.end, end);
         html += escapeHtml(source.slice(cursor, rangeStart));
-        html += `<span data-k="${range.kind}">${escapeHtml(source.slice(rangeStart, rangeEnd))}</span>`;
+        const semantic = range.semantic == undefined ? "" : ` data-s="${range.semantic}"`;
+        const modifiers = range.modifiers == undefined ? "" : ` data-m="${range.modifiers}"`;
+        const value = `<span data-k="${range.kind}"${semantic}${modifiers}>${escapeHtml(source.slice(rangeStart, rangeEnd))}</span>`;
+        html += range.href == undefined
+            ? value
+            : `<a data-reference href="${escapeHtml(range.href)}">${value}</a>`;
         cursor = rangeEnd;
     }
 
@@ -440,6 +583,7 @@ function renderSegment(source, ranges, start, end) {
     return html;
 }
 
+/// Return the source offset of every line.
 function lineStarts(lines) {
     const starts = [];
     let offset = 0;
@@ -452,10 +596,12 @@ function lineStarts(lines) {
     return starts;
 }
 
+/// Return whether one line belongs to an inline diagnostic.
 function isInlineDiagnosticLine(line) {
     return /^\s*~+\s*$/.test(line) || /^\s*error:/.test(line);
 }
 
+/// Escape one string for insertion into generated HTML.
 function escapeHtml(value) {
     return value
         .replaceAll("&", "&amp;")

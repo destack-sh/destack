@@ -135,6 +135,9 @@ destack-infra/.*
 platform/site/public/brand/
 platform/site/public/blog/
 platform/site/public/docs/
+platform/site/public/_content/
+platform/site/public/search.json
+platform/site/.generated/
 .DS_Store
 
 *.destack

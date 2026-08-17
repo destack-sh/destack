@@ -5,6 +5,7 @@ date: "2026-08-21"
 author: "Florian"
 ---
 
+- how do we build correct, optimal, integrated software?
 - We need a new _universal_ programming system to write all the world's software: a language that compiles very fast, runs very fast (ideally at machine speed), supports deep static and dynamic analysis, runs seamlssly everywhere (incl. on the web), can run systems software at machine speed, and is legible to humans and agents alike.
 - above all, we need a complete system, a unified method of software production, to reliably produce correct, optimal, integrated software in one standardized way
 - fully integrated infrastructure, from the bottom to the top of the "stack". 
@@ -13,11 +14,14 @@ author: "Florian"
 - If we squint a little, TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language
 - If we could get something _like_ TypeScript to run like a native systems language - or at least like a "serious managed" language a la JVM / CLR - that would get us predictable systems-ish performance,  while writing and reading the same language we already like! 
 - begone with the need for a separate language and stack to run "backend" or "compute heavy" tasks once we "outgrow" node.js or whatever.
-- .. TypeScript also happens to be the very same language that runs the web, the biggest software platform in the world.
+- .. TypeScript also happens to be the very same language that runs the web, the biggest software platform in the world!
+- but of course, it would have to really *feel* like TypeScript, not just "look" like TypeScript! as much as possible, TypeScript semantics - far beyond the surface syntax - should be preserved for this to really be a day one language.
 
 - but beyond performance, the opportunities in a standardized, fully integrated computing stack are very interesting
 - now that the cost of writing and rewriting code is nearly zero, what can we do
 - how can we build better, correct, integrated software systems
+- homoiconic software
+- "unreal engine for software production"?
 - what are the decisions we can fix and freeze, sort of like how the advent of opinionated formatters put an end to a whole series of unproductive discussions?
 - the world is going to run on software, even more so than now, how do we make sure that software is doing what we want?
 - (hint: agents are just software, too)
@@ -69,6 +73,8 @@ author: "Florian"
 - (in this sense, the "alignment problem" feels much more like a product and legibility problem, and certainly not _merely_ an intelligence problem, which is short term bearish but long term very bullish)
 - this does not magically go away with more abstractions or "smarter AI"
 - understand the shape of software and the space of all possible software
+- make a map
+
 - code is going to run everything (literally)
 - much better static and dynamic analysis
 - study software and code
@@ -171,6 +177,7 @@ author: "Florian"
 
 ## Types
 
+- types are great, type systems are fantastic
 - keep muscle memory
 - make it strict and sound
 - no footguns, remove weirdness
@@ -182,13 +189,18 @@ author: "Florian"
 
 ### Soundness
 
+- obviously, the trivial part out the way first: no soundness holes, no dynamic shenanigans, no JS legacy compat
 - need strict, sound TS with predictable module boundaries and type behavior
 - ideally also make it fast to compile, which requires cleaner boundaries than standard TS gives
+
+- the basic rundown is
 - no `any`, no `as` (where that is unsound), no array holes, no predicate functions (e.g. `isUser(user: any): user is User` is unsound)
 - unknown still works as a fat existential
 - and certainly no dynamic JS shenanigans or monkey patching, so goodbye to `__proto__` or anything like that
 - no `Object.isOwnProperty`, ...
 - no "truthiness"; conditionals always take booleans
+
+- the more interesting question is how much of TS can we make sound, predictable, and fast.
 
 ### Primitives
 
@@ -228,6 +240,9 @@ author: "Florian"
 - implicit and explicit this
 - value and borrowed forms
 
+- no method binding (i.e. no obj.method, instead use () => object.method()) for clarity)
+
+
 ### Nominality
 
 - usually use symbol branding in TS, which is kinda icky
@@ -244,7 +259,7 @@ author: "Florian"
 - what doees `type Point = { x: number; y: number }` mean?
 - can I pass `{ x: 0, y: 1, z: 2 }` to a function expecting a `Point`? (no, has to match exactly, in order)
 - Pick, Readonly, ...
-- interval types
+- interval types over finite sets (integers)
 
 ### Unions
 
@@ -271,12 +286,16 @@ author: "Florian"
 - call signatures
 - construct signatures
 
-### Generics and Variance
+### Generics
 
-- `T extends string` -> `T: string`
+- trivial syntactic cleanup: `T extends string` -> `T: string`
 - stay the same basically
 - in, out, in out, measured variance
 - generalised `const` parameter for value generics (literal types!)
+- monomorph or not to monomorph
+- how far? do we monomorph refs?
+- JVM / CLR -> Go -> Rust / C++
+- build vs release mode
 
 ### Narrowing
 
@@ -285,6 +304,7 @@ author: "Florian"
 - typeof in type position
 - is for type queries
 - instanceof for classes
+- match narrowing
 
 ## Expressions
 
@@ -338,22 +358,36 @@ author: "Florian"
 - catch (e) is all Try error residuals
 - catch match (e) as the ergonomic switch
 
+### Using
+
+- using / async using
+- Dispose / AsyncDIspose
+- vs Drop
+
 ### Extensions
 
 - like `impl` in Rust but a little broader
 - inherent, anonymous, named extensions
+- E / T, T may be local or imported
+- `extension of T`
+- `extension E of T`
+- `export extension of T`
+- `export extension E of T`
+- `extension<T> of T`: blanket extension
 
 ### Operator Overloading
 
 - serious math-y applications want operator overloading
 - `Add`, `Subtract`, `Multiply`, `Divide`, etc.
+- `Vector2<float32> + Vector2<float32>`
 
 ### Const Evaluation
 
 - originally envisioned something closer to Zig's comptime (or even Jai's version of it)
+- originally had a comptime keyword here but was kinda confusing
 - `const <expr>` and `const { ... }` for comptime evaluation
 - `const function` for comptime functions
-- originally had a comptime keyword here but was kinda confusing
+- cardinality is measured by usage (sort of like how variance and )
 
 ### Functions, Lambdas and Captures
 
@@ -362,18 +396,19 @@ author: "Florian"
 - `FunctionPointer` for raw function pointers without environment
 - `@capture`
 
-### Async, Promise, Tasks
+### Async
 
 - proper async
 - keep Promise for aliased async
 - introduce Task for structured affine concurrency (same async/await model)
 - (Promise = managed class, Task = value type, Promise requires aliasable / copyable type)
-- fiber-based execution (e.g. JVM's new model)
+- *fiber*-based execution (e.g. JVM's new model)
 
 ### Context, ContextVars
 
 - like Python
 - but for all bindings
+- `Context`
 
 ### Panics, Traps
 
@@ -391,7 +426,7 @@ author: "Florian"
 
 ## Memory
 
-- TS has no real direct way to control memory shapes
+- TS, following JS, has no real direct way to control memory shapes or allocations
 - we can trivially restrict to closed shapes, which buys us predictable layouts
 - but sometimes we want even more
 
@@ -407,13 +442,18 @@ author: "Florian"
 - generalise SharedArrayBuffer and friends?
 - worker-first, local-first, shared-nothing-first memory model
 
-### Structs and Value Types
+### Structs
 
 - every serious programming language eventually cares about memory layout
 - need fixed no overhead shapes
+- no inheritance
+- no embedding (unlike Go, Jai)
+
 
 ### Ownership
 
+- Value Types
+- with move semantics
 - bare T just means whatever the default form is. preserve TS behavior
 - reference types are reference types, value types are value types
 - ^T, T, &T, *T, ...
@@ -433,7 +473,7 @@ author: "Florian"
 - well wouldn't you know, lifetimes
 - tried a bunch of things to make this more TS-native, but ultimately, the Rust model really is best (inference only locally within functions, no induced generics beyond that)
 
-### Access, Mutability, Exclusive
+### Mutability
 
 - readonly
 - &T default to mutable
@@ -444,8 +484,6 @@ author: "Florian"
 - we can now distinguish "readonly, non-exclusive", "mutable, non-exclusive", "mutable, exclusive"
 - exclusive ownership
 - worker-local, borrowing
-
-### Memory Type Algebra
 
 - WithAccess
 - PlaceOF
@@ -458,6 +496,12 @@ author: "Florian"
 - json based, json is nice, let's use use that
 - package.json is okay, let's just use that -> destack.json
 - familiar mental model, just combine the disparate pieces
+
+- "Write Once, Run Everywhere"
+- yada yada heard it a million times
+- (though it did arguably sorta work for Java, and now JavaScript, and maybe WASM, .. mostly)
+- want portable
+- always build from source?
 
 ### Burning the Boats
 
@@ -490,14 +534,6 @@ author: "Florian"
 - effect tracking
 - @binding
 
-### Durability
-
-- rewind, fork
-
-### Policy
-
-- control bindings
-
 ### import.meta
 
 -
@@ -507,23 +543,6 @@ author: "Florian"
 - Generalised Module
 - x.ds, x.test.ds, x.whatever.ds
 
-### "Write Once, Run Everywhere"
-
-- yada yada heard it a million times
-- (though it did arguably sorta work for Java, and now JavaScript, and maybe WASM, .. mostly)
-- want portable
-- always build from source?
-
-### MIR, Bytecode
-
-- beautiful inside and out
-- not sure where to put it
-- pretty bytecode
-
-```dsm
-v0: int32 = add v1, v2
-
-```
 
 ## So
 
