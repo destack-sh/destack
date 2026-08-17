@@ -2,7 +2,7 @@ use crate::tests::TestProgram;
 
 /// Emit integer machine intrinsics without runtime calls.
 #[test]
-fn test_emit_native_integer_intrinsics() {
+fn test_emit_integer_intrinsics() {
     let program = TestProgram::mir(
         r#"
 export function bits(v0: uint32, v1: uint32): uint32 {
@@ -20,6 +20,26 @@ entry(v0: uint32, v1: uint32):
     v12: uint32 = intrinsic.math.arithmetic.saturating.add(v11, v1)
     v13: uint32 = intrinsic.math.arithmetic.saturating.subtract(v12, v1)
     return v13
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function bits {
+    countLeadingZeros.uint32 r2, r0
+    countTrailingZeros.uint32 r0, r2
+    countOnes.uint32 r2, r0
+    byteSwap.uint32 r0, r2
+    reverseBits.uint32 r2, r0
+    rotateLeft.uint32 r0, r2, r1
+    rotateRight.uint32 r2, r0, r1
+    add.uint32 r0, r2, r1
+    sub.uint32 r2, r0, r1
+    mul.uint32 r0, r2, r1
+    add.saturating.uint32 r2, r0, r1
+    sub.saturating.uint32 r0, r2, r1
+    return r0
 }
 "#,
     );
@@ -64,7 +84,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Emit integer arithmetic intrinsics without runtime calls.
 #[test]
-fn test_emit_native_integer_arithmetic_intrinsics() {
+fn test_emit_integer_arithmetic_intrinsics() {
     let program = TestProgram::mir(
         r#"
 export function arithmetic(v0: int64, v1: int64, v2: int64): boolean {
@@ -82,6 +102,25 @@ export function difference(v0: int64, v1: int64): uint64 {
 entry(v0: int64, v1: int64):
     v2: uint64 = intrinsic.math.arithmetic.absDiff(v0, v1)
     return v2
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function arithmetic {
+    midpoint.int64 r3, r0, r1
+    clamp.int64 r0, r3, r1, r2
+    divideCeil.int64 r3, r0, r1
+    remainderEuclidean.int64 r0, r3, r2
+    isolateLowestOne.int64 r1, r0
+    isMultipleOf.int64 r0, r1, r2
+    return r0
+}
+
+function difference {
+    absDiff.int64 r2, r0, r1
+    return r2
 }
 "#,
     );
@@ -184,7 +223,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Emit direct floating intrinsics and explicit platform math imports.
 #[test]
-fn test_emit_native_float_intrinsics() {
+fn test_emit_float_intrinsics() {
     let program = TestProgram::mir(
         r#"
 export function math(v0: float64, v1: float64): float64 {
@@ -208,6 +247,32 @@ entry(v0: float64, v1: float64):
     v18: float64 = intrinsic.math.float.log(v17)
     v19: float64 = intrinsic.math.float.pow(v18, v1)
     return v19
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function math {
+    sqrt.float64 r2, r0
+    abs.float64 r3, r2
+    fma.float64 r2, r3, r1, r0
+    copySign.float64 r3, r2, r1
+    min.float64 r2, r3, r0
+    max.float64 r0, r2, r1
+    floor.float64 r2, r0
+    ceil.float64 r0, r2
+    truncate.float64 r2, r0
+    round.float64 r0, r2
+    roundTiesEven.float64 r2, r0
+    roundTiesAway.float64 r0, r2
+    sin.float64 r2, r0
+    cos.float64 r0, r2
+    atan2.float64 r2, r0, r1
+    exp.float64 r0, r2
+    log.float64 r2, r0
+    pow.float64 r0, r2, r1
+    return r0
 }
 "#,
     );
@@ -309,7 +374,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Emit floating-point midpoint, clamp, and predicates without runtime calls.
 #[test]
-fn test_emit_native_float_midpoint_clamp_and_predicates() {
+fn test_emit_float_midpoint_clamp_and_predicates() {
     let program = TestProgram::mir(
         r#"
 export function bounds(v0: float64, v1: float64, v2: float64): float64 {
@@ -321,6 +386,20 @@ entry(v0: float64, v1: float64, v2: float64):
     v7: float64 = select v5, v4, v0
     v8: float64 = select v6, v7, v1
     return v8
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function bounds {
+    midpoint.float64 r3, r0, r1
+    clamp.float64 r4, r3, r1, r2
+    isFinite.float64 r2, r4
+    isInfinite.float64 r3, r0
+    select r5, r2, r4, r0
+    select r0, r3, r5, r1
+    return r0
 }
 "#,
     );

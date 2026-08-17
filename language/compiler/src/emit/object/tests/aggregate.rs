@@ -1,8 +1,73 @@
 use crate::tests::TestProgram;
 
+/// Emit aggregate construction, local transfer, update, and projection.
+#[test]
+fn test_emit_aggregate() {
+    let program = TestProgram::mir(
+        r#"
+type Pair {
+    left: int32;
+    right: int32;
+}
+
+export function transform(v0: int32, v1: int32): int32 {
+    local l0: Pair
+
+entry(v0: int32, v1: int32):
+    v2: Pair = aggregate (v0, v1)
+    v3: Pair = field.set v2, 1, v0
+    local.set l0, v3
+    v4: Pair = local.get l0
+    v5: int32 = field.get v4, 1
+    return v5
+}
+"#,
+    );
+    program.assert_bytecode(
+        r#"
+function transform {
+    aggregate r2, [r0 @ 0:4, r1 @ 4:4]
+    insert r1, r2, 4:4, r0
+    move r3, r1
+    move r0, r3
+    extract r1, r0, 4:4
+    return r1
+}
+"#,
+    );
+
+    program.assert_native(
+        r#"
+function u0:0(i64, i32, i32) -> i32 native {
+    ss0 = explicit_slot 8, align = 4, key = 0
+
+block0(v0: i64, v1: i32, v2: i32):
+    v3 = stack_addr.i64 ss0
+    store notrap aligned v1, v3
+    store notrap aligned v1, v3+4
+    v4 = load.i32 notrap aligned v3
+    v5 = load.i32 notrap aligned v3+4
+    return v5
+}
+
+function u1:0(i64, i64, i64) native {
+    sig0 = (i64, i32, i32) -> i32 native
+    fn0 = colocated u0:0 sig0
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = load.i32 notrap aligned v1
+    v4 = load.i32 notrap aligned v1+8
+    v5 = call fn0(v0, v3, v4)
+    store notrap aligned v5, v2
+    return
+}
+"#,
+    );
+}
+
 /// Construct and project one two-scalar aggregate entirely in SSA.
 #[test]
-fn test_emit_native_scalar_pair_aggregate() {
+fn test_emit_scalar_pair_aggregate() {
     let program = TestProgram::mir(
         r#"
 type Pair {
@@ -15,6 +80,16 @@ entry(v0: int32, v1: int64):
     v2: Pair = aggregate (v0, v1)
     v3: int64 = field.get v2, 1
     return v3
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function second {
+    aggregate r2:r3, [r0 @ 8:4, r1 @ 0:8]
+    extract r0, r2:r3, 0:8
+    return r0
 }
 "#,
     );
@@ -43,7 +118,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Construct and project one indirect aggregate in canonical stack storage.
 #[test]
-fn test_emit_native_indirect_aggregate() {
+fn test_emit_indirect_aggregate() {
     let program = TestProgram::mir(
         r#"
 type Triple {
@@ -57,6 +132,16 @@ entry(v0: int64, v1: int64, v2: int64):
     v3: Triple = aggregate (v0, v1, v2)
     v4: int64 = field.get v3, 2
     return v4
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function third {
+    aggregate r3:r5, [r0 @ 0:8, r1 @ 8:8, r2 @ 16:8]
+    extract r0, r3:r5, 16:8
+    return r0
 }
 "#,
     );
@@ -101,7 +186,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Construct and project one fixed array in canonical stack storage.
 #[test]
-fn test_emit_native_fixed_array_aggregate() {
+fn test_emit_fixed_array_aggregate() {
     let program = TestProgram::mir(
         r#"
 export function second(v0: int32, v1: int32, v2: int32): int32 {
@@ -109,6 +194,16 @@ entry(v0: int32, v1: int32, v2: int32):
     v3: [int32; 3] = aggregate (v0, v1, v2)
     v4: int32 = element.get v3, 1
     return v4
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function second {
+    aggregate r3:r4, [r0 @ 0:4, r1 @ 4:4, r2 @ 8:4]
+    extract r0, r3:r4, 4:4
+    return r0
 }
 "#,
     );
@@ -153,7 +248,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Replace one field in a two-scalar aggregate without materializing memory.
 #[test]
-fn test_emit_native_scalar_pair_update() {
+fn test_emit_scalar_pair_update() {
     let program = TestProgram::mir(
         r#"
 type Pair {
@@ -167,6 +262,17 @@ entry(v0: int32, v1: int64, v2: int64):
     v4: Pair = field.set v3, 1, v2
     v5: int64 = field.get v4, 1
     return v5
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function replace {
+    aggregate r3:r4, [r0 @ 8:4, r1 @ 0:8]
+    insert r0:r1, r3:r4, 0:8, r2
+    extract r2, r0:r1, 0:8
+    return r2
 }
 "#,
     );
@@ -196,7 +302,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Copy and update one indirect aggregate in canonical stack storage.
 #[test]
-fn test_emit_native_indirect_update() {
+fn test_emit_indirect_update() {
     let program = TestProgram::mir(
         r#"
 type Triple {
@@ -210,6 +316,16 @@ entry(v0: Triple, v1: int64):
     v2: Triple = field.set v0, 1, v1
     v3: int64 = field.get v2, 1
     return v3
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function replace {
+    insert r4:r6, r0:r2, 8:8, r3
+    extract r0, r4:r6, 8:8
+    return r0
 }
 "#,
     );
@@ -254,7 +370,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Replace and project one fixed-array element.
 #[test]
-fn test_emit_native_fixed_array_update() {
+fn test_emit_fixed_array_update() {
     let program = TestProgram::mir(
         r#"
 export function replace(v0: [int32; 3], v1: int32): int32 {
@@ -262,6 +378,16 @@ entry(v0: [int32; 3], v1: int32):
     v2: [int32; 3] = element.set v0, 1, v1
     v3: int32 = element.get v2, 1
     return v3
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function replace {
+    insert r3:r4, r0:r1, 4:4, r2
+    extract r0, r3:r4, 4:4
+    return r0
 }
 "#,
     );

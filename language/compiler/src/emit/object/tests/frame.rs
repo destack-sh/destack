@@ -1,20 +1,42 @@
+use crate::tests::TestProgram;
+use destack_bytecode::{RegisterId, RegisterSpan};
 use destack_native::FrameSource;
 
-use crate::tests::TestProgram;
-
-/// Preserve one live MIR value in the physical frame map at a runtime poll.
+/// Map one runtime poll onto the exact live bytecode registers at its resume point.
 #[test]
-fn test_emit_native_frame_map() {
+fn test_emit_frame_map() {
     let program = TestProgram::mir(
         r#"
 export function advance(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     poll
     return v1
 }
 "#,
     );
+    let object = program.assert_bytecode(
+        r#"
+function advance {
+    add.int32 r1, r0, r0
+    poll
+    return r1
+}
+"#,
+    );
+    let bytecode = object
+        .bytecode()
+        .expect("bytecode emission should attach bytecode");
+    let maps = bytecode.frames();
+    let registers = bytecode.registers();
+
+    // retain only the result live when execution resumes after the poll
+    assert_eq!(maps.len(), 1);
+    assert_eq!(
+        maps[0].registers(registers),
+        &[RegisterSpan::new(RegisterId(1), 1)]
+    );
+
     let object = program.assert_native(
         r#"
 function u0:0(i64, i32) -> i32 native {
@@ -36,7 +58,7 @@ block1:
     v7 = symbol_value.i64 gv0
     v8 = load.i32 notrap aligned v7
     v9 = load.i64 notrap aligned v0+8
-    v10 = load.i64 notrap aligned v9+48
+    v10 = load.i64 notrap aligned v9+56
     call_indirect sig0, v10(v0, v8, v5), stack_map=[i8 @ ss0+0, i8 @ ss1+0]
     trap user4
 

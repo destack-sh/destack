@@ -17,7 +17,6 @@ use destack_source::{
 
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 use crate::NativeEmitter;
-use crate::lower::LayoutBuilder;
 use crate::tests::snapshot::assert_snapshot;
 use crate::{BytecodeEmitter, ObjectEmitter};
 
@@ -54,18 +53,17 @@ impl TestProgram {
         {
             panic!("failed to parse MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, types, layouts, dispatch, drops, memory, effects, profile, strings, _) =
+        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
             parsed.into_parts();
 
         Self {
             lowered: MirLowered {
                 tree,
                 target,
-                types,
                 layouts,
                 dispatch,
                 drops,
-                memory,
+                accesses,
                 effects,
                 profile,
                 initializer: None,
@@ -80,23 +78,13 @@ impl TestProgram {
         test_module_id()
     }
 
-    /// Return the test profile id.
-    pub(crate) fn profile_id(&self) -> ProfileId {
-        test_profile_id()
-    }
-
-    /// Return the test target id.
-    pub(crate) fn target_id(&self) -> TargetId {
-        test_target_id()
-    }
-
     /// Emit one object and assert its exact bytecode text.
     #[track_caller]
     pub(crate) fn assert_bytecode(&self, expected: &str) -> Object {
         let optimized = self.optimized();
 
         // emit and format the exact relocatable bytecode object
-        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new())
+        let object = ObjectEmitter::new(self.module_id(), &self.lowered, &optimized, Vec::new())
             .expect("test MIR should emit object metadata");
         let mut function_names = optimized
             .tree
@@ -132,10 +120,11 @@ impl TestProgram {
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub(crate) fn assert_native(&self, expected: &str) -> destack_native::Object {
         let optimized = self.optimized();
-        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new())
+        let object = ObjectEmitter::new(self.module_id(), &self.lowered, &optimized, Vec::new())
             .expect("test MIR should emit object metadata");
         let emitter = NativeEmitter::new(
             self.module_id(),
+            self.lowered.target,
             &optimized,
             &object,
             &destack_repository::Target::native(),
@@ -149,6 +138,7 @@ impl TestProgram {
         // compile and reload the complete zero-copy object
         let native = NativeEmitter::new(
             self.module_id(),
+            self.lowered.target,
             &optimized,
             &object,
             &destack_repository::Target::native(),
@@ -196,10 +186,7 @@ impl TestProgram {
             panic!("drop hook {function_name} has no reference receiver");
         };
         self.lowered.drops.set_hook(ty, *storage, function);
-        self.lowered
-            .effects
-            .functions
-            .insert(function, mir::FunctionEffect::none());
+        *self.lowered.effects.upsert_function(function) = mir::FunctionEffect::none();
     }
 
     /// Register one generated frame destructor.
@@ -229,26 +216,23 @@ impl TestProgram {
             });
     }
 
-    /// Complete the physical MIR required by execution emitters.
+    /// Build optimized MIR with target layouts.
     fn optimized(&self) -> MirOptimized {
         let tree = self.lowered.tree.clone();
         let mut layouts = self.lowered.layouts.clone();
 
-        // complete physical layouts before exercising the emission boundary
-        let mut builder =
-            LayoutBuilder::new(self.module_id(), &tree, &mut layouts, self.lowered.target);
+        // compute target layouts before exercising the emitters
+        let mut builder = mir::LayoutBuilder::new(&tree, &mut layouts, self.lowered.target);
         builder
             .layout_reachable_types()
             .expect("test MIR layouts should lower");
 
         MirOptimized {
             tree,
-            target: self.lowered.target,
-            types: self.lowered.types.clone(),
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),
-            memory: self.lowered.memory.clone(),
+            accesses: self.lowered.accesses.clone(),
             effects: self.lowered.effects.clone(),
             profile: self.lowered.profile.clone(),
         }

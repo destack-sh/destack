@@ -1,8 +1,8 @@
 use crate::tests::TestProgram;
 
-/// Lower fixed-width vector structure directly into native SIMD values.
+/// Emit every fixed-width vector operation family.
 #[test]
-fn test_emit_native_vector_operations() {
+fn test_emit_vector_operations() {
     let program = TestProgram::mir(
         r#"
 export function vectors(
@@ -17,13 +17,29 @@ entry(v0: vector<int32, 4>, v1: vector<int32, 4>, v2: vector<boolean, 4>, v3: in
     v6: vector<int32, 4> = vector.insert v4, v3, v5
     v7: vector<int32, 4> = vector.shuffle v6, v1, [0, 5, 2, 7]
     v8: vector<int32, 4> = vector.select v2, v7, v0
-    v9: vector<int32, 4> = int.add v0, v1
+    v9: vector<int32, 4> = add v0, v1
     v10: int32 = vector.reduce add, v9
-    v11: vector<boolean, 4> = vector.compare int.lt.s, v8, v1
+    v11: vector<boolean, 4> = vector.compare lt, v8, v1
     v12: vector<int32, 4> = vector.convert exact, v8
     return v10
 }
+"#,
+    );
 
+    program.assert_bytecode(
+        r#"
+function vectors {
+    vector.splat r6:r7, r5: vector<int32, 4>
+    vector.extract r8, r6:r7, r5: vector<int32, 4>
+    vector.insert r9:r10, r6:r7, r5, r8: vector<int32, 4>
+    vector.shuffle r5:r6, r9:r10, r2:r3, [0, 5, 2, 7]: vector<int32, 4>
+    vector.select r7:r8, r4, r5:r6, r0:r1: vector<int32, 4>
+    vector.add r4:r5, r0:r1, r2:r3: vector<int32, 4>
+    vector.reduce.add r0, r4:r5: vector<int32, 4>
+    vector.compare.lt r1, r7:r8, r2:r3: vector<int32, 4>
+    vector.convert.exact r1:r2, r7:r8: vector<int32, 4> -> vector<int32, 4>
+    return r0
+}
 "#,
     );
 
@@ -121,9 +137,70 @@ block0(v0: i64, v1: i64, v2: i64):
     );
 }
 
+/// Select floating-point vector operations from the MIR element type.
+#[test]
+fn test_emit_float_vector_operations() {
+    let program = TestProgram::mir(
+        r#"
+export function float(
+    v0: vector<float32, 2>,
+    v1: vector<float32, 2>,
+): vector<float32, 2> {
+entry(v0: vector<float32, 2>, v1: vector<float32, 2>):
+    v2: vector<float32, 2> = add v0, v1
+    v3: vector<float32, 2> = rem v2, v1
+    return v3
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function float {
+    vector.add r2, r0, r1: vector<float32, 2>
+    vector.rem r0, r2, r1: vector<float32, 2>
+    return r0
+}
+"#,
+    );
+
+    program.assert_native(
+        r#"
+function u0:0(i64, f32x2, f32x2) -> f32x2 native {
+    sig0 = (f32, f32) -> f32 native
+    fn0 = colocated u0:2 sig0
+
+block0(v0: i64, v1: f32x2, v2: f32x2):
+    v3 = fadd v1, v2
+    v4 = extractlane v3, 0
+    v5 = extractlane v2, 0
+    v6 = call fn0(v4, v5)
+    v7 = splat.f32x2 v6
+    v8 = extractlane v3, 1
+    v9 = extractlane v2, 1
+    v10 = call fn0(v8, v9)
+    v11 = insertlane v7, v10, 1
+    return v11
+}
+
+function u1:0(i64, i64, i64) native {
+    sig0 = (i64, f32x2, f32x2) -> f32x2 native
+    fn0 = colocated u0:0 sig0
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = load.f32x2 notrap aligned v1
+    v4 = load.f32x2 notrap aligned v1+8
+    v5 = call fn0(v0, v3, v4)
+    store notrap aligned v5, v2
+    return
+}
+"#,
+    );
+}
+
 /// Lower every numeric vector conversion domain with its explicit policy.
 #[test]
-fn test_emit_native_vector_conversions() {
+fn test_emit_vector_conversions() {
     let program = TestProgram::mir(
         r#"
 export function convert(
@@ -137,6 +214,19 @@ entry(v0: vector<int32, 2>, v1: vector<float32, 2>, v2: vector<float64, 2>):
     v5: vector<int32, 2> = vector.convert roundFloor, v1
     v6: vector<int32, 2> = vector.convert saturate, v1
     v7: vector<float32, 2> = vector.convert exact, v2
+    return
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function convert {
+    vector.convert.exact r4, r0: vector<int32, 2> -> vector<int8, 2>
+    vector.convert.exact r4, r0: vector<int32, 2> -> vector<float32, 2>
+    vector.convert.roundFloor r0, r1: vector<float32, 2> -> vector<int32, 2>
+    vector.convert.saturate r0, r1: vector<float32, 2> -> vector<int32, 2>
+    vector.convert.exact r0, r2:r3: vector<float64, 2> -> vector<float32, 2>
     return
 }
 "#,

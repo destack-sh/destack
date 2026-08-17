@@ -1,8 +1,8 @@
 use crate::tests::TestProgram;
 
-/// Encode, inspect, and project one directly tagged variant.
+/// Emit tagged variant construction, tag access, and payload projection.
 #[test]
-fn test_emit_native_variant() {
+fn test_emit_variant() {
     let program = TestProgram::mir(
         r#"
 export function payload(v0: int32): int32 {
@@ -11,6 +11,17 @@ entry(v0: int32):
     v2: uint8 = variant.tag v1
     v3: int32 = variant.payload v1, 0
     return v3
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function payload {
+    variant.new r1, l4, 0, r0
+    variant.tag r0, r1, l4
+    extract r0, r1, 4:4
+    return r0
 }
 "#,
     );

@@ -1,8 +1,90 @@
 use crate::tests::TestProgram;
+use destack_bytecode as bytecode;
+
+/// Pack scattered MIR values into one contiguous outgoing call window.
+#[test]
+fn test_emit_call_arguments() {
+    let program = TestProgram::mir(
+        r#"
+external function consume(int32, boolean, int32): int32
+
+export function caller(v0: int32, v1: boolean, v2: int32): int32 {
+entry(v0: int32, v1: boolean, v2: int32):
+    v3: int32 = add v0, v2
+    v4: int32 = call consume(v3, v1, v0): (int32, boolean, int32) => int32
+    return v4
+}
+"#,
+    );
+
+    let object = program.assert_bytecode(
+        r#"
+external function consume
+
+function caller {
+    add.int32 r3, r0, r2
+    move r4, r3
+    move r5, r1
+    move r6, r0
+    call r2, consume(r4:r6)
+    return r2
+}
+"#,
+    );
+
+    // retain the semantic call coordinate after its outgoing register moves
+    let bytecode = object
+        .bytecode()
+        .expect("bytecode emission should attach bytecode");
+    let function = bytecode::FunctionId(1);
+    let instruction = bytecode
+        .operation(function, 1)
+        .expect("caller operation should decode")
+        .expect("caller operation should exist");
+    assert_eq!(instruction.opcode(), bytecode::Opcode::CALL);
+
+    program.assert_native(
+        r#"
+function u0:1(i64, i32, i8, i32) -> i32 native {
+    ss0 = explicit_slot 1, key = 4294967296
+    ss1 = explicit_slot 4, align = 4, key = 4294967297
+    ss2 = explicit_slot 1, key = 4294967298
+    ss3 = explicit_slot 4, align = 4, key = 4294967299
+    sig0 = (i64, i32, i8, i32) -> i32 native
+    fn0 = colocated u0:0 sig0
+
+block0(v0: i64, v1: i32, v2: i8, v3: i32):
+    v4 = iadd v1, v3
+    v5 = stack_addr.i64 ss0
+    v6 = stack_addr.i64 ss1
+    store notrap aligned v1, v6
+    v7 = stack_addr.i64 ss2
+    store notrap aligned v2, v7
+    v8 = stack_addr.i64 ss3
+    store notrap aligned v4, v8
+    v9 = call fn0(v0, v4, v2, v1), stack_map=[i8 @ ss0+0, i8 @ ss1+0, i8 @ ss2+0, i8 @ ss3+0]
+    return v9
+}
+
+function u1:1(i64, i64, i64) native {
+    sig0 = (i64, i32, i8, i32) -> i32 native
+    fn0 = colocated u0:1 sig0
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = load.i32 notrap aligned v1
+    v4 = load.i8 notrap aligned v1+8
+    v5 = load.i32 notrap aligned v1+16
+    v6 = call fn0(v0, v3, v4, v5)
+    store notrap aligned v6, v2
+    return
+}
+"#,
+    );
+}
 
 /// Route native calls through explicit normal and unwind continuations.
 #[test]
-fn test_emit_native_invoke() {
+fn test_emit_invoke() {
     let program = TestProgram::mir(
         r#"
 external function callee(): int32
@@ -15,6 +97,22 @@ returned(v0: int32):
     return v0
 
 cleanup:
+    unwind.resume
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+external function callee
+
+function caller {
+    invoke r0, callee() => b0 | b1
+
+b0:
+    return r0
+
+b1:
     unwind.resume
 }
 "#,
@@ -42,13 +140,13 @@ block4(v4: i64, v5: i64):
     v6 = stack_addr.i64 ss1
     store notrap aligned v4, v6
     v7 = load.i64 notrap aligned v1+8
-    v8 = load.i64 notrap aligned v7+88
+    v8 = load.i64 notrap aligned v7+96
     v9 = call_indirect sig1, v8(v1)
     brif v9, block5, block2
 
 block5:
     v10 = load.i64 notrap aligned v1+8
-    v11 = load.i64 notrap aligned v10+96
+    v11 = load.i64 notrap aligned v10+104
     call_indirect sig2, v11(v1, v4)
     trap user4
 
@@ -59,7 +157,7 @@ block2:
     v12 = stack_addr.i64 ss1
     v13 = load.i64 notrap aligned v12
     v14 = load.i64 notrap aligned v1+8
-    v15 = load.i64 notrap aligned v14+96
+    v15 = load.i64 notrap aligned v14+104
     call_indirect sig3, v15(v1, v13)
     trap user4
 }
@@ -79,12 +177,12 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Preserve the caller frame required to resume after one native call.
 #[test]
-fn test_emit_native_caller_frame() {
+fn test_emit_caller_frame() {
     let program = TestProgram::mir(
         r#"
 function double(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = int.add v0, v0
+    v1: int32 = add v0, v0
     return v1
 }
 
@@ -95,6 +193,20 @@ entry(v0: int32):
 }
 "#,
     );
+    program.assert_bytecode(
+        r#"
+function double {
+    add.int32 r1, r0, r0
+    return r1
+}
+
+function advance {
+    call r1, double(r0)
+    return r1
+}
+"#,
+    );
+
     let object = program.assert_native(
         r#"
 function u0:0(i64, i32) -> i32 native {
@@ -154,13 +266,13 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Invoke one bare function pointer through the internal native ABI.
 #[test]
-fn test_emit_native_function_pointer_call() {
+fn test_emit_function_pointer_call() {
     let program = TestProgram::mir(
         r#"
 function increment(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = int.add v0, v1
+    v2: int32 = add v0, v1
     return v2
 }
 
@@ -169,6 +281,22 @@ entry(v0: int32):
     v1: fn(int32) => int32 = function.address increment
     v2: int32 = call.indirect v1(v0): (int32) => int32
     return v2
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function increment {
+    constant.int32 r1, 1
+    add.int32 r2, r0, r1
+    return r2
+}
+
+function dispatch {
+    function.address r1, increment
+    call.indirect r2, r1(r0)
+    return r2
 }
 "#,
     );
@@ -226,7 +354,7 @@ block2:
     v17 = symbol_value.i64 gv1
     v18 = load.i32 notrap aligned v17
     v19 = load.i64 notrap aligned v0+8
-    v20 = load.i64 notrap aligned v19+64
+    v20 = load.i64 notrap aligned v19+72
     call_indirect sig0, v20(v0, v18, v7), stack_map=[i8 @ ss0+0, i8 @ ss1+0, i8 @ ss2+0]
     trap user4
 
@@ -251,7 +379,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Invoke one closure with its captured environment before explicit arguments.
 #[test]
-fn test_emit_native_closure_call() {
+fn test_emit_closure_call() {
     let program = TestProgram::mir(
         r#"
 @environment(ref<void, managed, readonly>)
@@ -269,6 +397,21 @@ entry(v0: ref<void, managed, readonly>, v1: int32):
     v2: function<(int32) => ref<void, managed, readonly>, repeatable, managed, readonly> = function.bind captured, v0
     v3: ref<void, managed, readonly> = call.indirect v2(v1): (int32) => ref<void, managed, readonly>
     return v3
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function captured {
+    move r1, r0
+    return r1
+}
+
+function dispatch {
+    function.bind r2:r3, captured, r0
+    call.indirect r0, r2:r3(r1)
+    return r0
 }
 "#,
     );
@@ -326,7 +469,7 @@ block2:
     v18 = symbol_value.i64 gv1
     v19 = load.i32 notrap aligned v18
     v20 = load.i64 notrap aligned v0+8
-    v21 = load.i64 notrap aligned v20+64
+    v21 = load.i64 notrap aligned v20+72
     call_indirect sig0, v21(v0, v19, v8), stack_map=[i8 @ ss0+0, i8 @ ss1+0, i8 @ ss2+0]
     trap user4
 
@@ -352,7 +495,7 @@ block0(v0: i64, v1: i64, v2: i64):
 
 /// Marshal one imported binding through the runtime Word ABI.
 #[test]
-fn test_emit_native_binding_call() {
+fn test_emit_binding_call() {
     let program = TestProgram::mir(
         r#"
 @binding("runtime.touch", { provider: "runtime", effect: "deterministic", replay: "forbidden", affinity: "worker" })
@@ -362,6 +505,17 @@ export function dispatch(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = call touch(v0): (int32) => int32
     return v1
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+external function touch
+
+function dispatch {
+    call r1, touch(r0)
+    return r1
 }
 "#,
     );
@@ -393,7 +547,7 @@ block0(v0: i64, v1: i32):
     v12 = iconst.i64 1
     v13 = iconst.i64 1
     v14 = load.i64 notrap aligned v0+8
-    v15 = load.i64 notrap aligned v14+120
+    v15 = load.i64 notrap aligned v14+136
     call_indirect sig0, v15(v0, v11, v4, v12, v8, v13), stack_map=[i8 @ ss0+0, i8 @ ss1+0]  ; v12 = 1, v13 = 1
     v16 = load.i32 notrap aligned v8
     return v16

@@ -1,6 +1,6 @@
 use crate::tests::TestProgram;
 
-/// Emit the complete tensor access, shape, reduction, and kernel operation families.
+/// Emit the complete bytecode tensor operation families.
 #[test]
 fn test_emit_bytecode_tensor_operations() {
     let program = TestProgram::mir(
@@ -26,7 +26,7 @@ entry(v0: tensor<int32, managed, mutable, (2, 2)>, v1: tensorView<int32, borrowe
     v12: tensor<int32, managed, mutable, (2, 2)> = tensor.slice v0, offsets(v3, v3), sizes(v4, v4), strides(v4, v4)
     v13: tensor<int32, managed, mutable, (2, 2)> = tensor.pad v0, value(v3), low(v3, v3), high(v3, v3), interior(v3, v3)
     v14: tensor<int32, managed, mutable, (2, 2)> = tensor.concat tensors(v0, v0), axis(0)
-    v15: tensor<boolean, managed, mutable, (2, 2)> = tensor.compare int.eq, v0, v0
+    v15: tensor<boolean, managed, mutable, (2, 2)> = tensor.compare eq, v0, v0
     v16: tensor<int32, managed, mutable, (2, 2)> = tensor.select v15, v0, v0
     v17: tensor<int32, managed, mutable, (2, 2)> = tensor.reduce add, v0, v3, axes(0)
     v18: tensor<uint64, managed, mutable, (2, 2)> = tensor.indexReduce min, v0, axis(0), tieBreak(first)
@@ -44,8 +44,8 @@ entry(v0: tensor<int32, managed, mutable, (2, 2)>, v1: tensorView<int32, borrowe
     program.assert_bytecode(
         r#"
 function tensors {
-    constant r8, 0: int32
-    constant r9, 1: int32
+    constant.int32 r8, 0
+    constant.int32 r9, 1
     tensor.load r10, r1:r6 @ l3, [r8, r9]
     tensor.extract r11, r0 @ l2, [r9, r8]
     tensor.store r1:r6 @ l3, [r8, r9], r10
@@ -59,7 +59,7 @@ function tensors {
     tensor.slice r1, r0 @ l2, [r8, r8], [r9, r9], [r9, r9], a4
     tensor.pad r1, r0 @ l2, r8, [r8, r8], [r8, r8], [r8, r8], a5
     tensor.concat r1, [r0 @ l2, r0 @ l2], 0, a6
-    tensor.compare r1, r0 @ l2, r0 @ l2, int.eq, a7
+    tensor.compare r1, r0 @ l2, r0 @ l2, eq.int, a7
     tensor.select r2, r1 @ l5, r0 @ l2, r0 @ l2, a8
     tensor.reduce r1, r0 @ l2, r8, add, [0], a9
     tensor.indexReduce r1, r0 @ l2, min, 0, 0, a10
