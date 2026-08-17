@@ -58,9 +58,9 @@ function f0 {
     constant.zeroed r4:r5
     frame.address r11, r4:r5
     memory.store r11, r2:r3, 16
-    memory.load r7:r8, r11, 16
-    extract r9, r7:r8, 0:8
-    extract r10, r7:r8, 8:8
+    memory.load r5:r6, r11, 16
+    extract r9, r5:r6, 0:8
+    extract r10, r5:r6, 8:8
     return r9:r10
 }
 "#,

@@ -260,23 +260,25 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         }
         let address = self.resolve_address(address.0, mode)?;
 
-        // clear register padding before loading exact layout bytes
-        self.fiber.stack.zero(target.start, target.len())?;
-
         // load each volatile byte exactly once or copy the ordinary range
-        let target = self.fiber.stack.address(target.start) as *mut u8;
+        let target_address = self.fiber.stack.address(target.start) as *mut u8;
         if is_volatile {
             for offset in 0..byte_len {
                 // SAFETY: volatile load requires one live source and target byte
                 unsafe {
                     let value = ptr::read_volatile((address + offset) as *const u8);
-                    ptr::write(target.add(offset), value);
+                    ptr::write(target_address.add(offset), value);
                 }
             }
         } else {
             // SAFETY: load requires a live source layout and checked target range
-            unsafe { ptr::copy(address as *const u8, target, byte_len) };
+            unsafe { ptr::copy(address as *const u8, target_address, byte_len) };
         }
+
+        // clear trailing register padding after reading any overlapping frame source
+        self.fiber
+            .stack
+            .zero(target.start + byte_len, target.len() - byte_len)?;
 
         Ok(())
     }
