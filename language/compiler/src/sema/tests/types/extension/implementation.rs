@@ -2284,3 +2284,297 @@ extension ToInt32 of int8 implements Convert<int32> {
 "#,
     );
 }
+
+#[test]
+fn test_skip_private_members_when_selecting_conformance_members() {
+    let session = TestSession::single(
+        r#"
+newtype interface It<T, R = void> {
+    next(this): R {
+        todo("next")
+    }
+
+    first(this): T | undefined {
+        todo("first")
+    }
+}
+
+struct Chain<I, J, out T> {
+    private first: I;
+    private second: J;
+    private marker: () => T;
+}
+
+extension<T, R, Q, I: It<T, R>, J: It<T, Q>> of Chain<I, J, T> implements It<T> {
+    next(): void {
+        todo("next")
+    }
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+=== annotated ===
+newtype interface It<out T, out R = void> {
+    next(this): R {
+        todo("next")
+    }
+
+    first(this): T | undefined {
+        todo("first")
+    }
+}
+
+struct Chain<out I, out J, out T> {
+    private first: I;
+    private second: J;
+    private marker: () => T;
+}
+
+extension<T, R, Q, I: It<T, R>, J: It<T, Q>> of Chain<I, J, T> implements It<T> {
+    next(): void {
+        todo("next" as string | undefined);
+    }
+}
+
+=== dir ===
+newtype interface It<T, R = void> {
+/// @generic.template symbol=It parameters=(out T#1, out R#1 = void)
+/// @type.symbol symbol=It type=It
+/// @definition.interface symbol=It template=(out T#1, out R#1 = void) nominal=true
+/// @definition.where symbol=It relation=satisfies left=this right=It<T#1, R#1>
+/// @definition.method symbol=It.first slot=first type=(this: this) => T#1 | undefined
+/// @definition.method symbol=It.next slot=next type=(this: this) => R#1
+/// @type.symbol symbol=It.T source=T type=T#1
+/// @type.symbol symbol=It.R source="R = void" type=R#1
+
+    next(this): R {
+    /// @type.symbol symbol=It.next type=(this: this) => R#1
+    /// @type.symbol symbol=It.next.this source=this type=this
+    /// @resolution.name source=R target=It.R
+
+        todo("next")
+    }
+
+    first(this): T | undefined {
+    /// @type.symbol symbol=It.first type=(this: this) => T#1 | undefined
+    /// @type.symbol symbol=It.first.this source=this type=this
+    /// @resolution.name source=T target=It.T
+
+        todo("first")
+    }
+}
+
+struct Chain<I, J, out T> {
+/// @generic.template symbol=Chain parameters=(out I#1, out J#1, out T#2)
+/// @type.symbol symbol=Chain type=Chain
+/// @definition.struct symbol=Chain template=(out I#1, out J#1, out T#2)
+/// @definition.field symbol=Chain.first source="private first: I" key=first type=I#1
+/// @definition.field symbol=Chain.marker source="private marker: () => T" key=marker type=Function<(), T#2>
+/// @definition.field symbol=Chain.second source="private second: J" key=second type=J#1
+/// @type.symbol symbol=Chain.I source=I type=I#1
+/// @type.symbol symbol=Chain.J source=J type=J#1
+/// @type.symbol symbol=Chain.T source="out T" type=T#2
+
+    private first: I;
+    /// @type.symbol symbol=Chain.first source="private first: I" type=I#1
+    /// @resolution.name source=I target=Chain.I
+
+    private second: J;
+    /// @type.symbol symbol=Chain.second source="private second: J" type=J#1
+    /// @resolution.name source=J target=Chain.J
+
+    private marker: () => T;
+    /// @type.symbol symbol=Chain.marker source="private marker: () => T" type=Function<(), T#2>
+    /// @resolution.name source=T target=Chain.T
+
+}
+
+extension<T, R, Q, I: It<T, R>, J: It<T, Q>> of Chain<I, J, T> implements It<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#3, R#2, Q, I#2: It<T#3, R#2>, J#2: It<T#3, Q>)
+/// @definition.extension symbol=<module>#2 form=local target=Chain<I#2, J#2, T#3>
+/// @definition.implements symbol=<module>#2 source=It<T> target="It<T#3, void>"
+/// @definition.method symbol=next slot=next type=<next.'a>(this: &next.'a readonly this) => void
+/// @definition.conformance symbol=<module>#2 member=It.first requirement=It.first
+/// @definition.conformance symbol=<module>#2 member=next requirement=It.next
+/// @type.symbol symbol=T source=T type=T#3
+/// @type.symbol symbol=R source=R type=R#2
+/// @type.symbol symbol=Q source=Q type=Q
+/// @type.symbol symbol=I source="I: It<T, R>" type=I#2
+/// @resolution.name source=It target=It
+/// @resolution.name source=T target=T
+/// @resolution.name source=R target=R
+/// @type.symbol symbol=J source="J: It<T, Q>" type=J#2
+/// @resolution.name source=It target=It
+/// @resolution.name source=T target=T
+/// @resolution.name source=Q target=Q
+/// @resolution.name source=Chain target=Chain
+/// @resolution.name source=I target=I
+/// @resolution.name source=J target=J
+/// @resolution.name source=T target=T
+/// @resolution.name source=It target=It
+/// @resolution.name source=T target=T
+
+    next(): void {
+    /// @generic.template symbol=next parent=template#2 parameters=('a)
+    /// @type.symbol symbol=next type=<next.'a>(this: &next.'a readonly this) => void
+
+        todo("next")
+        /// @type.node source="todo(\"next\")" type=never
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @type.node source="\"next\"" type="next"
+
+    }
+}
+"#);
+}
+
+#[test]
+fn test_select_conformance_members_from_the_target_declaration() {
+    let session = TestSession::single(
+        r#"
+newtype interface Sized {
+    size(this): isize;
+}
+
+class Box {
+    width: isize = 0;
+
+    size(this): isize {
+        this.width
+    }
+}
+
+extension of Box implements Sized {}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+=== annotated ===
+newtype interface Sized {
+    size(this): isize;
+}
+
+class Box {
+    width: isize = 0;
+
+    size(this): isize {
+        this.width
+    }
+}
+
+extension of Box implements Sized {}
+
+=== dir ===
+newtype interface Sized {
+/// @type.symbol symbol=Sized type=Sized
+/// @definition.interface symbol=Sized nominal=true
+/// @definition.method symbol=Sized.size source="size(this): isize" slot=size type=(this: Sized) => isize
+
+    size(this): isize;
+    /// @type.symbol symbol=Sized.size source="size(this): isize" type=(this: Sized) => isize
+    /// @type.symbol symbol=Sized.size.this source=this type=this
+
+}
+
+class Box {
+/// @type.symbol symbol=Box type=Box
+/// @definition.class symbol=Box
+/// @definition.field symbol=Box.width source="width: isize = 0" key=width type=isize
+/// @definition.method symbol=Box.size slot=size type=(this: Box) => isize
+
+    width: isize = 0;
+    /// @type.symbol symbol=Box.width source="width: isize = 0" type=isize
+    /// @type.node source=0 type=0
+
+    size(this): isize {
+    /// @type.symbol symbol=Box.size type=(this: Box) => isize
+    /// @type.symbol symbol=Box.size.this source=this type=this
+
+        this.width
+        /// @type.node source=this.width type=isize
+        /// @resolution.member source=this.width receiver=Box type=isize kind=field target_receiver=Box key=width target=Box.width target_type=isize
+        /// @resolution.receiver source=this kind=this declaration=Box type=Box
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.width placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.width root=this keys=[width]
+
+    }
+}
+
+extension of Box implements Sized {}
+/// @definition.extension symbol=<module>#2 source="extension of Box implements Sized {}" form=local target=Box
+/// @definition.implements symbol=<module>#2 source=Sized target=Sized
+/// @definition.conformance symbol=<module>#2 member=Box.size requirement=Sized.size
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Sized target=Sized
+"#);
+}
+
+#[test]
+fn test_reject_conformances_without_a_providing_member() {
+    let session = TestSession::single(
+        r#"
+newtype interface Sized {
+    size(this): isize;
+}
+
+struct Box {
+    private size: isize;
+}
+
+extension of Box implements Sized {}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_node_types(),
+        r#"
+=== annotated ===
+newtype interface Sized {
+    size(this): isize;
+}
+
+struct Box {
+    private size: isize;
+}
+
+extension of Box implements Sized {}
+
+=== dir ===
+newtype interface Sized {
+/// @type.symbol symbol=Sized type=Sized
+/// @definition.interface symbol=Sized nominal=true
+/// @definition.method symbol=Sized.size source="size(this): isize" slot=size type=(this: this) => isize
+
+    size(this): isize;
+    /// @type.symbol symbol=Sized.size source="size(this): isize" type=(this: this) => isize
+    /// @type.symbol symbol=Sized.size.this source=this type=this
+
+}
+
+struct Box {
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box
+/// @definition.field symbol=Box.size source="private size: isize" key=size type=isize
+
+    private size: isize;
+    /// @type.symbol symbol=Box.size source="private size: isize" type=isize
+
+}
+
+extension of Box implements Sized {}
+/// @definition.extension symbol=<module>#2 source="extension of Box implements Sized {}" form=local target=Box
+/// @definition.implements symbol=<module>#2 source=Sized target=Sized
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Sized target=Sized
+"#,
+        r#"
+/// @diagnostic.error id=interface-not-implemented message="type 'Box' does not implement interface 'Sized'"
+/// @diagnostic.label line=10 column=29 span="Sized" line_source="extension of Box implements Sized {}"
+"#,
+    );
+}

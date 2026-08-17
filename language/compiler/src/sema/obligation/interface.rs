@@ -421,7 +421,7 @@ impl CheckState<'_> {
         )?;
 
         // yield declaration candidates for a nominal implementation
-        let candidates = match lookup {
+        let mut candidates = match lookup {
             MemberLookup::Missing => Vec::new(),
             MemberLookup::Found(candidates) => candidates,
             lookup @ MemberLookup::Intersection(_) => {
@@ -438,7 +438,30 @@ impl CheckState<'_> {
             }
         };
 
+        // conformances select only public members
+        candidates.retain(|candidate| self.is_public_member(candidate.symbol));
+
         Ok(candidates)
+    }
+
+    /// Return whether one member is part of its declaration's public surface.
+    fn is_public_member(&self, symbol: dir::GlobalSymbolId) -> bool {
+        !matches!(
+            self.member_visibility(symbol),
+            Some(dir::Visibility::Private | dir::Visibility::Protected)
+        )
+    }
+
+    /// Return one member symbol's declared visibility.
+    fn member_visibility(&self, symbol: dir::GlobalSymbolId) -> Option<dir::Visibility> {
+        let state = self.module_maybe(symbol.module_id)?;
+        let declaration = state
+            .binding_table()
+            .get_symbol(symbol.local_id)
+            .declaration?;
+        let member = declaration.local_id.try_into_typed::<dir::Member>().ok()?;
+
+        state.view().get(member).visibility()
     }
 
     /// Check whether one type satisfies one compiler-known auto interface.
