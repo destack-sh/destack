@@ -111,16 +111,6 @@ impl program::Runtime for Activation<'_> {
             None => Ok(program::Park::Parked),
         }
     }
-
-    /// Allocate one detached fiber identity at a task boundary.
-    fn detach(&mut self) -> RuntimeResult<program::FiberId> {
-        Ok(self.event_loop.insert_fiber())
-    }
-
-    /// Retire one running detached fiber.
-    fn retire(&mut self, fiber_id: program::FiberId) -> RuntimeResult<()> {
-        self.event_loop.retire_fiber(fiber_id)
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -260,22 +250,6 @@ impl<'a> Activation<'a> {
         context: program::Context,
     ) -> RunnableId {
         self.event_loop.enqueue_microtask(Invocation::Function {
-            function,
-            environment,
-            arguments,
-            context,
-        })
-    }
-
-    /// Queue one function to run on a fresh fiber.
-    pub fn spawn_fiber(
-        &mut self,
-        function: program::FunctionId,
-        environment: Option<program::Value>,
-        arguments: Vec<program::Value>,
-        context: program::Context,
-    ) -> RunnableId {
-        self.event_loop.enqueue_task(Invocation::Function {
             function,
             environment,
             arguments,

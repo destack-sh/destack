@@ -169,9 +169,7 @@ impl Worker {
             Some(&self.watch_points),
             self.profile.as_mut(),
         );
-        let parked = self.park_detached(&mut execution);
         let mut outcome = outcome?;
-        parked?;
 
         // service polls without interleaving another runnable
         loop {
@@ -252,9 +250,7 @@ impl Worker {
                         self.profile.as_mut(),
                         None,
                     );
-                    let parked = self.park_detached(&mut execution);
                     outcome = continued?;
-                    parked?;
                 }
                 Outcome::Stopped { .. } => {
                     return Err(RuntimeError::execution_stopped().boxed());
@@ -1100,29 +1096,6 @@ impl Worker {
         }
     }
 
-    /// Park every execution split off at detach boundaries.
-    fn park_detached(&mut self, execution: &mut vm::Fiber) -> RuntimeResult<()> {
-        let mut failure = None;
-
-        // park every suffix before surfacing the first failure
-        for suffix in execution.take_detached() {
-            let Some(fiber_id) = suffix.fiber_id() else {
-                let error = RuntimeError::Internal {
-                    message: "detached execution has no logical fiber".to_string(),
-                }
-                .boxed();
-                failure.get_or_insert(error);
-
-                continue;
-            };
-            if let Err(error) = self.event_loop.park_fiber(fiber_id, suffix) {
-                failure.get_or_insert(error);
-            }
-        }
-
-        failure.map_or(Ok(()), Err)
-    }
-
     /// Report progress for one settled runnable scope.
     fn runnable_progress(&self, scope: RunnableScope) -> RuntimeResult<WorkerRunOutcome> {
         let Some(progress) = scope.progress() else {
@@ -1240,7 +1213,6 @@ impl Worker {
                 self.profile.as_mut(),
             ),
         };
-        let parked = self.park_detached(&mut execution);
         let outcome = match outcome {
             Ok(outcome) => outcome,
             Err(error) => {
@@ -1249,8 +1221,6 @@ impl Worker {
                 return Err(error);
             }
         };
-        parked?;
-
         Ok(FiberOutcome {
             fiber_id,
             execution,
@@ -1323,7 +1293,6 @@ impl Worker {
             self.profile.as_mut(),
             resume_skip,
         );
-        let parked = self.park_detached(&mut execution);
         let outcome = match outcome {
             Ok(outcome) => outcome,
             Err(error) => {
@@ -1332,8 +1301,6 @@ impl Worker {
                 return Err(error);
             }
         };
-        parked?;
-
         Ok(FiberOutcome {
             fiber_id,
             execution,
