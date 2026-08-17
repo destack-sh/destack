@@ -107,7 +107,8 @@ impl CheckState<'_> {
             if source_instance.symbol == target_instance.symbol {
                 Some((source.module_id, source_instance))
             } else {
-                let inherited = self.heritage_instance(origin, source, target_instance.symbol)?;
+                let inherited =
+                    self.heritage_instance(origin, source, source, target_instance.symbol)?;
 
                 match inherited {
                     Some(inherited) => Some(self.nominal_application(inherited)?),
@@ -253,9 +254,12 @@ impl CheckState<'_> {
                     Some((implemented_module, implemented_instance)),
                     implemented,
                 )
-            } else if let Some(inherited) =
-                self.heritage_instance(origin, implemented, interface.symbol)?
-            {
+            } else if let Some(inherited) = self.heritage_instance(
+                origin,
+                implemented,
+                scratch.receiver.unwrap_or(implemented),
+                interface.symbol,
+            )? {
                 (Some(self.nominal_application(inherited)?), inherited)
             } else {
                 (None, implemented)

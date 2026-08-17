@@ -261,3 +261,63 @@ const selected = attempt ?? 0;
 "#,
     );
 }
+
+#[test]
+fn test_propagate_try_through_result_carriers() {
+    let session = TestSession::single(
+        r#"
+import { Result } from "destack:error";
+
+function passthrough(value: Result<int32, string>): Result<int32, string> {
+    const total = value?;
+
+    return Result.ok(total);
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+=== annotated ===
+import { Result } from "destack:error";
+
+function passthrough(value: Result<int32, string>): Result<int32, string> {
+    const total: int32 = value?;
+
+    return Result.ok<int32, string>(total);
+}
+
+=== dir ===
+import { Result } from "destack:error";
+
+function passthrough(value: Result<int32, string>): Result<int32, string> {
+/// @type.symbol symbol=passthrough type=(error.result.Result<int32, string>) => error.result.Result<int32, string>
+/// @generic.instance id="error.result.Result<int32, string>" template=error.result.Result arguments=(int32, string)
+/// @generic.instance id=error.result.Err<string> template=error.result.Err arguments=(string)
+/// @generic.instance id=error.result.Ok<int32> template=error.result.Ok arguments=(int32)
+/// @type.symbol symbol=passthrough.value source="value: Result<int32, string>" type=error.result.Result<int32, string>
+/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Result target=error.result.Result
+
+    const total = value?;
+    /// @type.symbol symbol=passthrough.total source=total type=int32
+    /// @resolution.pattern source=total kind=binding target=passthrough.total
+    /// @type.node source=value? type=int32
+    /// @resolution.name source=value target=passthrough.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=passthrough.value
+
+    return Result.ok(total);
+    /// @type.node source=Result.ok type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1>
+    /// @type.node source=Result.ok(total) type=error.result.Result<int32, string>
+    /// @resolution.name source=Result target=error.result.Result
+    /// @resolution.member source=Result.ok receiver=error.result.Result type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1> kind=symbol target_receiver=error.result.Result target=error.result.ok#1
+    /// @resolution.call source=Result.ok(total) parameters=(int32) arguments=(provided(total) as int32) return=error.result.Result<int32, string> kind=symbol target=error.result.ok#1 instance="error.result.Result<int32, string>.<extension#1>.ok#1"
+    /// @generic.instantiation id="error.result.ok#1<int32, string>" template=error.result.ok#1 arguments=(int32, string)
+    /// @generic.instance id="error.result.ok#1<int32, string>" template=error.result.ok#1 arguments=(int32, string)
+    /// @resolution.name source=total target=passthrough.total
+    /// @resolution.place source=total placement="local" lifetime="frame" access="readonly"
+    /// @resolution.access source=total root=passthrough.total
+
+}
+"#);
+}

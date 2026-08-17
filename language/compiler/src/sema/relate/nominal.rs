@@ -268,7 +268,8 @@ impl CheckState<'_> {
         let application = if source_instance.symbol == target_instance.symbol {
             Some((source.module_id, *source_instance))
         } else {
-            let heritage = self.heritage_instance(origin, source, target_instance.symbol)?;
+            let heritage =
+                self.heritage_instance(origin, source, source, target_instance.symbol)?;
 
             match heritage {
                 Some(heritage) => Some(self.nominal_application(heritage)?),
@@ -704,19 +705,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<HeritageClosure> {
-        // read the root application the closure grows from, resolving aliases to their nominal
-        let is_alias = match self.nominal_application_maybe(ty)? {
-            Some((_, instance)) => matches!(
-                self.definition(instance.symbol)?,
-                Some(dir::Definition::TypeAlias(_))
-            ),
-            None => true,
-        };
-        let ty = if is_alias {
-            self.normalize(origin, ty)?
-        } else {
-            ty
-        };
+        let ty = self.heritage_root(origin, ty)?;
 
         // close a structural entry over an empty heritage
         let Some((instance_module, instance)) = self.nominal_application_maybe(ty)? else {
@@ -726,11 +715,31 @@ impl CheckState<'_> {
         self.instance_heritage_closure(origin, ty, instance_module, instance)
     }
 
-    /// Build the heritage closure from one nominal instance.
-    pub(in crate::sema) fn instance_heritage_closure(
+    /// Resolve one heritage root, reducing aliases to their nominal application.
+    fn heritage_root(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let is_alias = match self.nominal_application_maybe(ty)? {
+            Some((_, instance)) => matches!(
+                self.definition(instance.symbol)?,
+                Some(dir::Definition::TypeAlias(_))
+            ),
+            None => true,
+        };
+
+        Ok(match is_alias {
+            true => self.normalize(origin, ty)?,
+            false => ty,
+        })
+    }
+
+    /// Build the heritage closure from one nominal instance under one receiver.
+    pub(in crate::sema) fn instance_heritage_closure(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
         instance_module: ModuleId,
         instance: dir::GenericApplication,
     ) -> CompilerResult<HeritageClosure> {
@@ -747,7 +756,7 @@ impl CheckState<'_> {
         active.push(instance.symbol);
         self.collect_heritage(
             origin,
-            ty,
+            receiver,
             instance_module,
             &instance,
             None,
@@ -833,12 +842,12 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // recurse through newly reached applications
+            // recurse through newly reached applications, keeping this at the root receiver
             closure.applications.push(application.clone());
             active.push(instance.symbol);
             self.collect_heritage(
                 origin,
-                application.ty,
+                receiver,
                 application_module,
                 &instance,
                 Some(application.source),
@@ -918,9 +927,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
+        receiver: dir::GlobalTypeId,
         target: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let closure = self.heritage_closure(origin, ty)?;
+        let ty = self.heritage_root(origin, ty)?;
+        let Some((instance_module, instance)) = self.nominal_application_maybe(ty)? else {
+            return Ok(None);
+        };
+        let closure =
+            self.instance_heritage_closure(origin, receiver, instance_module, instance)?;
         if let Some(application) = closure.application(target, self)? {
             return Ok(Some(application.ty));
         }
