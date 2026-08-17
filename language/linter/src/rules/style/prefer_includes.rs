@@ -61,7 +61,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let Some(call) = module.member_call(search) else {
                 continue;
             };
-            if call.is_optional || call.is_member_optional {
+            if call.is_optional() {
                 continue;
             }
 

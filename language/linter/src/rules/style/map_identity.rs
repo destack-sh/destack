@@ -44,8 +44,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(call) = module.member_call(expression) else {
             continue;
         };
-        if call.is_optional
-            || call.is_member_optional
+        if call.is_optional()
             || module.language_member(expression)? != Some(dir::LanguageItem::Array.member("map"))
         {
             continue;
@@ -85,9 +84,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let result_type = module.dir.get_type(result_type_id)?;
         let is_owned = matches!(receiver_type, dir::Type::Form(form) if form.form == dir::Form::Owned)
             && matches!(result_type, dir::Type::Form(form) if form.form == dir::Form::Owned);
-        let is_array = module.dir.representation_item(receiver_type_id)?
+        let is_array = module.representation_item(call.receiver.into_any())?
             == Some(dir::LanguageItem::Array)
-            && module.dir.representation_item(result_type_id)? == Some(dir::LanguageItem::Array);
+            && module.representation_item(expression.into_any())? == Some(dir::LanguageItem::Array);
         let is_unadjusted = module
             .coercions
             .coercion(body.into_global_any(module.id))

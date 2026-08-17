@@ -44,8 +44,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(filter) = module.member_call(expression) else {
             continue;
         };
-        if filter.is_optional
-            || filter.is_member_optional
+        if filter.is_optional()
             || module.language_member(expression)?
                 != Some(dir::LanguageItem::Array.member("filter"))
         {
@@ -57,7 +56,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let dir::Argument::Positional { value: predicate } = view.get(*predicate) else {
             continue;
         };
-        if !is_undefined_filter(module, *predicate)? {
+        if !module.is_defined_predicate(*predicate)? {
             continue;
         }
 
@@ -65,8 +64,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(map) = module.member_call(filter.receiver) else {
             continue;
         };
-        if map.is_optional
-            || map.is_member_optional
+        if map.is_optional()
             || map.arguments.len() != 1
             || module.language_member(filter.receiver)?
                 != Some(dir::LanguageItem::Array.member("map"))
@@ -86,45 +84,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Return whether a callback excludes `undefined` with a strict comparison.
-fn is_undefined_filter(
-    module: &DirModule<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> Result<bool, ProviderError> {
-    let Some(lambda) = module.lambda(expression) else {
-        return Ok(false);
-    };
-    let Some(parameter) = lambda.signature.parameters.first() else {
-        return Ok(false);
-    };
-    if !matches!(module.view().get(*parameter), dir::Parameter::Named { .. }) {
-        return Ok(false);
-    }
-    let Some(body) = lambda.body.and_then(|body| module.value_expression(body)) else {
-        return Ok(false);
-    };
-    let Some((operator, operands)) = module.builtin_binary(body)? else {
-        return Ok(false);
-    };
-    if operator != dir::BinaryOperator::NotEqualStrict {
-        return Ok(false);
-    }
-
-    // match the parameter and undefined in either operand order
-    let parameter = module.declaration_symbol(*parameter)?;
-    let view = module.view();
-    let mut has_parameter = false;
-    let mut has_undefined = false;
-    for operand in operands {
-        let expression = operand.source.local_id;
-        has_parameter |= module.selected_symbol(expression)? == Some(parameter);
-        has_undefined |= view.get(expression).as_scalar() == Some(dir::ScalarLiteral::Undefined);
-    }
-    let is_defined = has_parameter && has_undefined;
-
-    Ok(is_defined)
 }
 
 /// Build one filterMap call from a mapped defined-value filter.

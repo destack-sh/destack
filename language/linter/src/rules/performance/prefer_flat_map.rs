@@ -43,8 +43,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(flat) = module.member_call(expression) else {
             continue;
         };
-        if flat.is_optional
-            || flat.is_member_optional
+        if flat.is_optional()
             || !flat.arguments.is_empty()
             || module.language_member(expression)? != Some(dir::LanguageItem::Array.member("flat"))
         {
@@ -55,8 +54,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(map) = module.member_call(flat.receiver) else {
             continue;
         };
-        if map.is_optional
-            || map.is_member_optional
+        if map.is_optional()
             || map.arguments.len() != 1
             || module.language_member(flat.receiver)?
                 != Some(dir::LanguageItem::Array.member("map"))

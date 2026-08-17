@@ -44,8 +44,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(call) = module.member_call(expression) else {
             continue;
         };
-        if call.is_optional
-            || call.is_member_optional
+        if call.is_optional()
             || module.language_member(expression)?
                 != Some(dir::LanguageItem::Array.member("filterMap"))
         {

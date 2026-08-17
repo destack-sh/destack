@@ -15,9 +15,16 @@ pub(crate) struct MemberCall<'a> {
     /// The authored call arguments.
     pub(crate) arguments: &'a [dir::LocalNodeId<dir::Argument>],
     /// Whether the call itself is optional.
-    pub(crate) is_optional: bool,
+    pub(crate) is_call_optional: bool,
     /// Whether the selected member access is optional.
     pub(crate) is_member_optional: bool,
+}
+
+impl MemberCall<'_> {
+    /// Return whether the call or its member access is optional.
+    pub(crate) fn is_optional(self) -> bool {
+        self.is_call_optional || self.is_member_optional
+    }
 }
 
 /// One authored assignment to a direct place.
@@ -64,7 +71,7 @@ impl DirModule<'_> {
             receiver: *receiver,
             generic_arguments,
             arguments,
-            is_optional: *is_optional,
+            is_call_optional: *is_optional,
             is_member_optional: *is_member_optional,
         })
     }
@@ -171,6 +178,99 @@ impl DirModule<'_> {
         }
 
         Ok(Some(step))
+    }
+
+    /// Return the parameters selected by one checked call.
+    pub(crate) fn call_parameters(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<Vec<dir::FunctionParameterType>>, ProviderError> {
+        // select one callable type shared by every runtime arm
+        let Some(callable) = self
+            .call_decision(expression)?
+            .and_then(dir::CallDecision::agreed_callable_type)
+        else {
+            return Ok(None);
+        };
+
+        // read its concrete function parameters
+        let signature = self
+            .dir
+            .callable_signature_type_id(callable)?
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "checked call expression {expression:?} selected non-callable type {callable:?}"
+                ))
+            })?;
+
+        self.dir.signature_parameters(signature).map(Some)
+    }
+
+    /// Return the receiver type selected by every arm of one checked call.
+    pub(crate) fn call_receiver_type_id(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::GlobalTypeId>, ProviderError> {
+        // read the checked runtime alternatives
+        let Some(decision) = self.call_decision(expression)? else {
+            return Ok(None);
+        };
+        if decision.arms().is_empty() {
+            return Err(ProviderError::internal(
+                "checked call resolution has no runtime alternatives",
+            ));
+        }
+        let mut receiver = None;
+
+        // require every runtime arm to select the same receiver type
+        for call in decision.arms() {
+            let selected = match &call.target {
+                // declaration backed method
+                dir::CallableTarget::Symbol { function, .. } => {
+                    function.receiver.as_ref().map(dir::AdjustedReceiver::ty)
+                }
+                // erased interface method
+                dir::CallableTarget::Dynamic { dispatch, .. } => Some(dispatch.receiver.ty()),
+                // receiverless callable value
+                dir::CallableTarget::Expression { .. } => None,
+            };
+            let Some(selected) = selected else {
+                return Ok(None);
+            };
+            if receiver.is_some_and(|receiver| receiver != selected) {
+                return Ok(None);
+            }
+
+            receiver = Some(selected);
+        }
+
+        Ok(receiver)
+    }
+
+    /// Return the declaration symbol selected by every arm of one checked call.
+    pub(crate) fn call_symbol(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::GlobalSymbolId>, ProviderError> {
+        // require every runtime arm to select one common symbol
+        let Some(decision) = self.call_decision(expression)? else {
+            return Ok(None);
+        };
+        let symbols = decision.target_symbols();
+        let [symbol] = symbols.as_slice() else {
+            return Ok(None);
+        };
+
+        // reject callable expressions and mixed runtime targets
+        let is_declaration = decision
+            .arms()
+            .iter()
+            .all(|call| call.target.symbol() == Some(*symbol));
+        if !is_declaration {
+            return Ok(None);
+        }
+
+        Ok(Some(*symbol))
     }
 
     /// Iterate expressions with a checked call resolution.

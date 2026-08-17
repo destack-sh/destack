@@ -85,7 +85,7 @@ pub(super) struct DirModuleStorage {
     /// The static table.
     pub(super) statics: dir::StaticTable<'static>,
     /// The checked decorator table.
-    decorators: dir::DecoratorTable<'static>,
+    pub(super) decorators: dir::DecoratorTable<'static>,
     /// The auto implementation table.
     auto: dir::AutoTable<'static>,
     /// The resolution table.

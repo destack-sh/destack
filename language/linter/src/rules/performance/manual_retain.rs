@@ -61,8 +61,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(filter) = module.member_call(assignment.value) else {
             continue;
         };
-        if filter.is_optional
-            || filter.is_member_optional
+        if filter.is_optional()
             || module.language_member(assignment.value)?
                 != Some(dir::LanguageItem::Array.member("filter"))
         {

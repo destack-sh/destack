@@ -69,7 +69,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(push) = module.member_call(action) else {
             continue;
         };
-        if push.is_optional || push.is_member_optional {
+        if push.is_optional() {
             continue;
         }
         if module.language_member(action)? != Some(dir::LanguageItem::Array.member("push")) {

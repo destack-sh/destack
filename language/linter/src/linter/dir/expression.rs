@@ -46,6 +46,23 @@ impl DirModule<'_> {
         }
     }
 
+    /// Return the value expression when its block performs no preceding work.
+    pub(crate) fn sole_value_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        let view = self.view();
+        let dir::Expression::Block(block) = view.get(expression) else {
+            return Some(expression);
+        };
+        let block = view.get(*block);
+        if !block.leading_expressions.is_empty() {
+            return None;
+        }
+
+        block.value_expression()
+    }
+
     /// Return the nearest expression that contains one expression in value position.
     pub(crate) fn enclosing_value_expression(
         &self,

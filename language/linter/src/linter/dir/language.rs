@@ -27,59 +27,98 @@ impl Dir<'_> {
         Ok(item)
     }
 
-    /// Return the canonical language member declared by one symbol.
+    /// Return the canonical language member selected by one symbol.
     pub fn language_member(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Option<dir::LanguageMember>, ProviderError> {
-        self.read_declaration_tables(symbol.module_id, |bindings, definitions| {
-            // read the selected member declaration
-            let declaration = bindings.get_symbol_maybe(symbol.local_id).ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "selected member symbol {symbol:?} is absent from its binding table"
-                ))
+        let (direct, requirements) =
+            self.read_declaration_tables(symbol.module_id, |bindings, definitions| {
+                // read the selected member declaration
+                let declaration = bindings.get_symbol_maybe(symbol.local_id).ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "selected member symbol {symbol:?} is absent from its binding table"
+                    ))
+                })?;
+                let Some(key) = declaration.key else {
+                    return Ok((None, Vec::new()));
+                };
+
+                // select the declaration that owns the member symbol
+                let owner = bindings.symbol_owner(symbol.local_id).ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "selected member symbol {symbol:?} has no owning declaration"
+                    ))
+                })?;
+                let owner = owner.into_global(symbol.module_id);
+
+                // resolve inherent extension members to their receiver declaration
+                let owner = match definitions.extension_definition(owner) {
+                    Some(dir::ExtensionDefinition {
+                        symbol: extension_symbol,
+                        target: dir::ExtensionTarget::Rooted { root, .. },
+                        ..
+                    }) if extension_symbol.module_id == root.module_id => Some(*root),
+                    Some(dir::ExtensionDefinition {
+                        symbol: extension_symbol,
+                        target:
+                            dir::ExtensionTarget::Blanket {
+                                coverage: dir::BlanketCoverage::Interface(interface),
+                                ..
+                            },
+                        ..
+                    }) if extension_symbol.module_id == interface.module_id => Some(*interface),
+                    Some(_) => None,
+                    None => Some(owner),
+                };
+                let direct = owner
+                    .and_then(|owner| self.environment.language.item(owner))
+                    .map(|owner| dir::LanguageMember { owner, key });
+                if direct.is_some() {
+                    return Ok((direct, Vec::new()));
+                }
+
+                // retain canonical requirements implemented by this member
+                let requirements = definitions
+                    .member_conformances()
+                    .filter(|conformance| conformance.member == symbol)
+                    .map(|conformance| conformance.requirement)
+                    .collect();
+
+                Ok((direct, requirements))
             })?;
-            let Some(key) = declaration.key else {
+        if direct.is_some() {
+            return Ok(direct);
+        }
+
+        // require every canonical requirement to identify the same member
+        let mut selected = None;
+        for requirement in requirements {
+            let Some(member) = self.language_member(requirement)? else {
+                continue;
+            };
+            if selected.is_some_and(|selected| selected != member) {
                 return Ok(None);
-            };
+            }
 
-            // select the declaration that owns the member symbol
-            let owner = bindings.symbol_owner(symbol.local_id).ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "selected member symbol {symbol:?} has no owning declaration"
-                ))
-            })?;
-            let owner = owner.into_global(symbol.module_id);
+            selected = Some(member);
+        }
 
-            // resolve inherent extension members to their receiver declaration
-            let owner = match definitions.extension_definition(owner) {
-                Some(dir::ExtensionDefinition {
-                    symbol: extension_symbol,
-                    target: dir::ExtensionTarget::Rooted { root, .. },
-                    ..
-                }) if extension_symbol.module_id == root.module_id => *root,
-                Some(dir::ExtensionDefinition {
-                    symbol: extension_symbol,
-                    target:
-                        dir::ExtensionTarget::Blanket {
-                            coverage: dir::BlanketCoverage::Interface(interface),
-                            ..
-                        },
-                    ..
-                }) if extension_symbol.module_id == interface.module_id => *interface,
-                Some(_) => return Ok(None),
-                None => owner,
-            };
-            let Some(owner) = self.environment.language.item(owner) else {
-                return Ok(None);
-            };
-
-            Ok(Some(dir::LanguageMember { owner, key }))
-        })
+        Ok(selected)
     }
 }
 
 impl DirModule<'_> {
+    /// Return the canonical language item represented by one checked node.
+    pub fn representation_item(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Result<Option<dir::LanguageItem>, ProviderError> {
+        let type_id = self.node_type_id(node)?;
+
+        self.dir.representation_item(type_id)
+    }
+
     /// Return whether one node is within a declaration or implementation of a language member.
     pub fn is_within_language_member(
         &self,
@@ -103,23 +142,9 @@ impl DirModule<'_> {
             })?;
         let symbol = symbol.into_global(self.id);
 
-        // recognize a directly declared canonical member
-        if self.dir.language_member(symbol)? == Some(language_member) {
-            return Ok(true);
-        }
-
-        // recognize a canonical requirement implemented by this member
-        for conformance in self
-            .definitions
-            .member_conformances()
-            .filter(|conformance| conformance.member == symbol)
-        {
-            if self.dir.language_member(conformance.requirement)? == Some(language_member) {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
+        self.dir
+            .language_member(symbol)
+            .map(|member| member == Some(language_member))
     }
 
     /// Return the canonical language item selected directly by one expression.

@@ -36,6 +36,11 @@ impl DirModule<'_> {
         &self,
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::ScalarLiteral>, ProviderError> {
+        // read authored scalar literals directly
+        if let Some(value) = self.view().get(node).as_scalar() {
+            return Ok(Some(value));
+        }
+
         // select one symbol-backed constant expression
         if let Some(symbol) = self.selected_symbol(node)?
             && let Some(value) = self.dir.symbol_static(symbol)?

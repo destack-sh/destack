@@ -95,6 +95,58 @@ impl DirModule<'_> {
         Some(function)
     }
 
+    /// Return whether one callback is exactly `firstParameter !== undefined`.
+    pub(crate) fn is_defined_predicate(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        // select one synchronous lambda with a required first parameter
+        let Some(lambda) = self.lambda(expression) else {
+            return Ok(false);
+        };
+        if lambda.signature.asynchrony != dir::Asynchrony::Sync || lambda.signature.is_generator {
+            return Ok(false);
+        }
+        let Some(parameter) = lambda.signature.parameters.first() else {
+            return Ok(false);
+        };
+        if !matches!(
+            self.view().get(*parameter),
+            dir::Parameter::Named {
+                default: None,
+                is_optional: false,
+                ..
+            }
+        ) {
+            return Ok(false);
+        }
+
+        // require one direct strict inequality body
+        let Some(body) = lambda
+            .body
+            .and_then(|body| self.sole_value_expression(body))
+        else {
+            return Ok(false);
+        };
+        let Some((dir::BinaryOperator::NotEqualStrict, [left, right])) =
+            self.builtin_binary(body)?
+        else {
+            return Ok(false);
+        };
+
+        // match the parameter and undefined in either operand order
+        let parameter = self.declaration_symbol(*parameter)?;
+        let left = left.source.local_id;
+        let right = right.source.local_id;
+        let is_parameter_left = self.selected_symbol(left)? == Some(parameter);
+        let is_parameter_right = self.selected_symbol(right)? == Some(parameter);
+        let is_undefined_left = self.scalar_constant(left)? == Some(dir::ScalarLiteral::Undefined);
+        let is_undefined_right =
+            self.scalar_constant(right)? == Some(dir::ScalarLiteral::Undefined);
+
+        Ok(is_parameter_left && is_undefined_right || is_undefined_left && is_parameter_right)
+    }
+
     /// Return whether one expression occurs within an explicit or implicit return value.
     pub(crate) fn is_within_return_value(
         &self,
@@ -143,20 +195,14 @@ impl DirModule<'_> {
     ) -> Result<dir::GlobalTypeId, ProviderError> {
         // inspect the callable value beneath placement forms
         let type_id = self.node_type_id(expression.into_any())?;
-        let type_id = self.dir.strip_form(type_id)?;
-        let ty = self.dir.get_type(type_id)?;
-
-        // select the callable signature
-        let signature = match ty {
-            dir::Type::FunctionSignature(_) => type_id,
-            dir::Type::Function(function) => function.signature,
-            dir::Type::FunctionPointer(function) => function.signature,
-            _ => {
-                return Err(ProviderError::internal(format!(
-                    "checked callback expression {expression:?} has non-callable type {ty:?}"
-                )));
-            }
-        };
+        let signature = self
+            .dir
+            .callable_signature_type_id(type_id)?
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "checked callback expression {expression:?} has non-callable type {type_id:?}"
+                ))
+            })?;
 
         self.dir.signature_return_type_id(signature)
     }

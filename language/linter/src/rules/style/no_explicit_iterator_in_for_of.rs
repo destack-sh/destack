@@ -57,7 +57,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(call) = module.member_call(loop_.iterator) else {
             continue;
         };
-        if !call.arguments.is_empty() || call.is_optional || call.is_member_optional {
+        if !call.arguments.is_empty() || call.is_optional() {
             continue;
         }
 

@@ -77,8 +77,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(filter_call) = module.member_call(*filter) else {
             continue;
         };
-        if filter_call.is_optional
-            || filter_call.is_member_optional
+        if filter_call.is_optional()
             || filter_call.arguments.len() != 1
             || module.language_member(*filter)? != Some(dir::LanguageItem::Array.member("filter"))
         {

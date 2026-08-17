@@ -67,9 +67,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 continue;
             };
             if iteration.asynchrony != dir::Asynchrony::Sync
-                || module
-                    .dir
-                    .representation_item(module.node_type_id(iteration.iterator.into_any())?)?
+                || module.representation_item(iteration.iterator.into_any())?
                     != Some(dir::LanguageItem::Array)
             {
                 continue;
@@ -89,8 +87,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let Some(push) = module.member_call(action) else {
                 continue;
             };
-            if push.is_optional
-                || push.is_member_optional
+            if push.is_optional()
                 || module.language_member(action)? != Some(dir::LanguageItem::Array.member("push"))
                 || module.selected_symbol(push.receiver)? != Some(result)
             {

@@ -69,11 +69,87 @@ impl<'a> Dir<'a> {
         Ok(type_id)
     }
 
+    /// Return the access carried by one checked borrowed type.
+    pub(crate) fn borrow_access(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<Option<dir::Access>, ProviderError> {
+        // select one borrowed memory form
+        let dir::Type::Form(dir::FormType {
+            form: dir::Form::Borrowed(borrow),
+            ..
+        }) = self.get_type(type_id)?
+        else {
+            return Ok(None);
+        };
+
+        // read the concrete access singleton from the borrow payload
+        self.read_types(type_id.module_id, |types| {
+            let borrow = types.borrow_form_maybe(borrow).ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "checked borrowed type {type_id:?} has no borrow payload"
+                ))
+            })?;
+            let access = self.get_type(borrow.access)?;
+            let dir::Type::Memory(dir::MemoryLiteral::Access(access)) = access else {
+                return Err(ProviderError::internal(format!(
+                    "checked borrowed type {type_id:?} has non-access payload {access:?}"
+                )));
+            };
+
+            Ok(Some(access))
+        })
+    }
+
+    /// Return the function signature behind one callable type.
+    pub(super) fn callable_signature_type_id(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<Option<dir::GlobalTypeId>, ProviderError> {
+        let type_id = self.strip_form(type_id)?;
+        let signature = match self.get_type(type_id)? {
+            dir::Type::FunctionSignature(_) => Some(type_id),
+            dir::Type::Function(function) => Some(function.signature),
+            dir::Type::FunctionPointer(function) => Some(function.signature),
+            _ => None,
+        };
+
+        Ok(signature)
+    }
+
+    /// Return the checked parameters from one function signature.
+    pub(super) fn signature_parameters(
+        &self,
+        signature: dir::GlobalTypeId,
+    ) -> Result<Vec<dir::FunctionParameterType>, ProviderError> {
+        let signature_type = self.signature_type(signature)?;
+
+        self.read_types(signature.module_id, |types| {
+            let parameters = types.parameters(signature_type.parameters).to_vec();
+
+            Ok(parameters)
+        })
+    }
+
     /// Return the checked result type id from one callable signature.
     pub(super) fn signature_return_type_id(
         &self,
         signature: dir::GlobalTypeId,
     ) -> Result<dir::GlobalTypeId, ProviderError> {
+        let signature_type = self.signature_type(signature)?;
+
+        signature_type.return_type.ok_or_else(|| {
+            ProviderError::internal(format!(
+                "checked callable signature {signature:?} has no return type"
+            ))
+        })
+    }
+
+    /// Return one checked function signature payload.
+    fn signature_type(
+        &self,
+        signature: dir::GlobalTypeId,
+    ) -> Result<dir::FunctionSignatureType, ProviderError> {
         let ty = self.get_type(signature)?;
         let dir::Type::FunctionSignature(signature_id) = ty else {
             return Err(ProviderError::internal(format!(
@@ -82,15 +158,9 @@ impl<'a> Dir<'a> {
         };
 
         self.read_types(signature.module_id, |types| {
-            let signature = types.signature_maybe(signature_id).ok_or_else(|| {
+            types.signature_maybe(signature_id).copied().ok_or_else(|| {
                 ProviderError::internal(format!(
                     "callable signature {signature:?} has no function signature payload"
-                ))
-            })?;
-
-            signature.return_type.ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "checked callable signature {signature:?} has no return type"
                 ))
             })
         })
@@ -146,6 +216,35 @@ impl<'a> Dir<'a> {
                 .cloned();
 
             Ok(value)
+        })
+    }
+
+    /// Return whether one declaration carries any checked decorator.
+    pub(crate) fn has_decorators(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Result<bool, ProviderError> {
+        // resolve the declaration that owns the selected symbol
+        let declaration = self.read_declaration_tables(symbol.module_id, |bindings, _| {
+            let binding = bindings.get_symbol_maybe(symbol.local_id).ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "selected symbol {symbol:?} is absent from its binding table"
+                ))
+            })?;
+
+            binding.declaration.ok_or_else(|| {
+                ProviderError::internal(format!("selected symbol {symbol:?} has no declaration"))
+            })
+        })?;
+
+        // inspect checked applications attached to the declaration
+        self.read_decorators(symbol.module_id, |decorators| {
+            let has_decorator = decorators
+                .applications_for_owner(declaration)
+                .next()
+                .is_some();
+
+            Ok(has_decorator)
         })
     }
 
@@ -236,6 +335,27 @@ impl<'a> Dir<'a> {
         let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
 
         read(&statics)
+    }
+
+    /// Read the decorator table that owns globally addressed declarations.
+    fn read_decorators<T>(
+        &self,
+        module: ModuleId,
+        read: impl FnOnce(&dir::DecoratorTable<'_>) -> Result<T, ProviderError>,
+    ) -> Result<T, ProviderError> {
+        // read the table already loaded for direct inspection
+        if let Some(module) = self.modules.get(&module) {
+            return read(&module.decorators);
+        }
+
+        // compose the foreign table from its checked DIR
+        let elaborated = self
+            .artifacts
+            .read::<DirElaborated>((module, self.profile))?;
+        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
+        let decorators = checked.decorator_table(&elaborated);
+
+        read(&decorators)
     }
 
     /// Read binding and definition tables for one globally addressed declaration.

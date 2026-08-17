@@ -61,8 +61,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // report the callback iteration and offer a loop when control flow permits
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic = lint.diagnostic("iteration uses a forEach callback", span);
-        if !call.is_optional
-            && !call.is_member_optional
+        if !call.is_optional()
             && let Some(suggestion) = suggestion(
                 module,
                 lint,

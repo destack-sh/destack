@@ -66,9 +66,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             if iteration.asynchrony != dir::Asynchrony::Sync {
                 continue;
             }
-            let iterator_item = module
-                .dir
-                .representation_item(module.node_type_id(iteration.iterator.into_any())?)?;
+            let iterator_item = module.representation_item(iteration.iterator.into_any())?;
             let dir::ForEachBinding::Pattern {
                 pattern: value,
                 keyword: Some(_),

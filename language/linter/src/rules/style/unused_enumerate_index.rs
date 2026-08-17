@@ -55,8 +55,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
         let member = module.language_member(iteration.iterator)?;
-        if enumeration.is_optional
-            || enumeration.is_member_optional
+        if enumeration.is_optional()
             || !enumeration.arguments.is_empty()
             || member != Some(dir::LanguageItem::Array.member("entries"))
                 && member != Some(dir::LanguageItem::Iterator.member("enumerate"))
