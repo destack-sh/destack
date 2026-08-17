@@ -638,6 +638,7 @@ impl BodyState<'_, '_> {
                 ty: Some(row),
                 relation: Relation::Assignable,
                 use_: ValueUse::Argument,
+                is_spread: false,
             }],
             None,
         )?;
@@ -761,6 +762,7 @@ impl BodyState<'_, '_> {
                 ty: Some(row),
                 relation: Relation::Assignable,
                 use_: ValueUse::Argument,
+                is_spread: false,
             }],
             None,
             None,

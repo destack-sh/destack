@@ -127,8 +127,12 @@ impl CheckState<'_> {
                 return Ok(Verdict::Fails);
             }
 
-            let source_elements = self.tuple_elements(source.module_id, source_tuple.elements)?;
-            let target_elements = self.tuple_elements(target.module_id, target_tuple.elements)?;
+            let source_elements = self
+                .tuple_elements(source.module_id, source_tuple.elements)?
+                .to_vec();
+            let target_elements = self
+                .tuple_elements(target.module_id, target_tuple.elements)?
+                .to_vec();
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
             let mut source_index = 0usize;
             for target in target_elements {
@@ -185,13 +189,21 @@ impl CheckState<'_> {
 
     /// Return the item type yielded when one spread or rest container expands.
     pub(in crate::sema) fn spread_element_type(
-        &self,
+        &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let element = match self.ty(ty)? {
+        // read the sequence head beneath ownership and access forms
+        let mut value = self.shallow_resolve(ty)?;
+        while let dir::Type::Form(form) = self.ty(value)? {
+            value = self.shallow_resolve(form.value)?;
+        }
+
+        let element = match self.ty(value)? {
             dir::Type::Array(array) => array.element,
             dir::Type::Slice(slice) => slice.element,
             dir::Type::FixedArray(array) => array.element,
+            // erased sequences carry their element on the iterable constraint
+            dir::Type::Dynamic(_) => self.iterable_value_argument(value)?.unwrap_or(ty),
             _ => ty,
         };
 

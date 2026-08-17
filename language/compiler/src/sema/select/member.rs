@@ -1218,6 +1218,7 @@ impl BodyState<'_, '_> {
             ty: Some(candidate.access_type),
             relation: Relation::Assignable,
             use_: ValueUse::Argument,
+            is_spread: false,
         }];
         let selected = self.attempt_callable(
             origin,
