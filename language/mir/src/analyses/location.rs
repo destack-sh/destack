@@ -108,13 +108,8 @@ impl MemoryLocation {
         }
     }
 
-    /// Return whether both locations are compatible for value forwarding.
-    pub fn is_compatible_with(&self, other: &MemoryLocation) -> bool {
-        // require the same address identity
-        if self.address != other.address {
-            return false;
-        }
-
+    /// Return whether both locations carry compatible values for forwarding.
+    pub fn has_compatible_value(&self, other: &MemoryLocation) -> bool {
         // compare byte sizes when both sides know them
         if let (Some(left_size), Some(right_size)) = (self.size, other.size)
             && left_size != right_size

@@ -303,7 +303,7 @@ impl ScopedValueTable {
                         MemoryRegion::Address { location: b, .. },
                     ) => {
                         if a.address == b.address {
-                            if a.is_compatible_with(b) {
+                            if a.has_compatible_value(b) {
                                 return Some(entry.value);
                             }
 
@@ -316,7 +316,7 @@ impl ScopedValueTable {
                             continue;
                         }
                         if result.is_must_alias() {
-                            if a.is_compatible_with(b) {
+                            if a.has_compatible_value(b) {
                                 return Some(entry.value);
                             }
 

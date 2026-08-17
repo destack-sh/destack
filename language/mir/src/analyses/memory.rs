@@ -168,7 +168,7 @@ impl MemoryAccessEffect {
                     ..
                 },
             ) => {
-                if !location.is_compatible_with(other_location) {
+                if !location.has_compatible_value(other_location) {
                     return false;
                 }
 
@@ -195,13 +195,7 @@ impl MemoryAccessEffect {
                     location: other_location,
                     ..
                 },
-            ) => {
-                if !location.is_compatible_with(other_location) {
-                    return false;
-                }
-
-                alias.alias(location, other_location).may_alias()
-            }
+            ) => alias.alias(location, other_location).may_alias(),
             _ => false,
         }
     }
@@ -2848,7 +2842,6 @@ entry(v0: dynamic<Writer, managed, readonly>):
         );
         assert_eq!(first_location.size, Some(4));
         assert_eq!(second_location.size, Some(4));
-        assert!(!first_location.is_compatible_with(&second_location));
     }
 
     /// Loop headers get memory phis when defs flow around the backedge.
