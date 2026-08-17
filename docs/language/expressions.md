@@ -39,7 +39,16 @@ if (let (x, y) = point) {
 }
 ```
 
-`do { ... }` turns a block into an expression when braces would otherwise be ambiguous with an object expression or statement block.
+Binding conditions also work in `while` loops, where each successful match scopes its bindings
+through the remaining condition and the loop body:
+
+```ds
+while (let value! = queue.tryPop() && value.isReady()) {
+    process(value);
+}
+```
+
+We adopt the proposed `do { ... }` syntax to denote a block into an expression when braces would otherwise be ambiguous with an object expression or statement block.
 The final expression without a trailing semicolon becomes the block value.
 
 ```ds
