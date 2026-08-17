@@ -54,7 +54,7 @@ impl WalkState<'_, '_> {
             // T[]
             dir::TypeExpression::Array { element } => {
                 let element = self.walk_type_expression(*element)?;
-                self.intern_type(dir::Type::Array(dir::ArrayType { element }))
+                self.array_type(element)
             }
             // [T]
             dir::TypeExpression::Slice { element } => {

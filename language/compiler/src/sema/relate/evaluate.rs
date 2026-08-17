@@ -593,14 +593,7 @@ impl CheckState<'_> {
             (dir::Type::Dynamic(_), _) | (_, dir::Type::Dynamic(_)) => Verdict::Fails,
 
             // subtype inclusion observes collection elements covariantly
-            (dir::Type::Array(source), dir::Type::Array(target)) => self.constrain_type(
-                origin,
-                cause,
-                Relation::Subtype,
-                source.element,
-                target.element,
-            )?,
-            (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type
+            (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type(
                 origin,
                 cause,
                 Relation::Subtype,
@@ -636,7 +629,6 @@ impl CheckState<'_> {
             (
                 dir::Type::Object(_)
                 | dir::Type::Primitive(_)
-                | dir::Type::Array(_)
                 | dir::Type::Slice(_)
                 | dir::Type::FixedArray(_),
                 dir::Type::Application(instance),

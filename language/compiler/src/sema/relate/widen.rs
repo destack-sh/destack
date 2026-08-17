@@ -305,14 +305,12 @@ impl CheckState<'_> {
                 Ok(Some(self.intern_type(managed)?))
             }
             // collections rebuild around widened elements
-            dir::Type::Array(array) => {
-                let Some(widened) = self.widen_tree(module, array.element, active)? else {
+            _ if let Some(element) = self.array_element(id)? => {
+                let Some(widened) = self.widen_tree(module, element, active)? else {
                     return Ok(None);
                 };
 
-                Ok(Some(self.intern_type(dir::Type::Array(
-                    dir::ArrayType { element: widened },
-                ))?))
+                Ok(Some(self.array_type(widened)?))
             }
             dir::Type::Slice(slice) => {
                 let Some(widened) = self.widen_tree(module, slice.element, active)? else {

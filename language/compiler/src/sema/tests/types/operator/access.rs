@@ -468,9 +468,9 @@ declare const value: string;
 
 === dir ===
 type Element<T: string[]> = T[usize];
-/// @generic.template symbol=Element parameters=(T: Array<string>)
+/// @generic.template symbol=Element parameters=(T: string[])
 /// @type.symbol symbol=Element source="type Element<T: string[]> = T[usize]" type=T[usize]
-/// @definition.type symbol=Element source="type Element<T: string[]> = T[usize]" template=(T: Array<string>) value=T[usize]
+/// @definition.type symbol=Element source="type Element<T: string[]> = T[usize]" template=(T: string[]) value=T[usize]
 /// @type.symbol symbol=Element.T source="T: string[]" type=T
 /// @generic.instance id=Array<string> template=collections.array.Array arguments=(string)
 /// @generic.instance id=memory.init.MaybeUninit<string> template=memory.init.MaybeUninit arguments=(string)

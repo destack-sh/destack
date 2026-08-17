@@ -81,6 +81,8 @@ impl CheckState<'_> {
             dir::Type::Any | dir::Type::Parameter(_) => true,
             dir::Type::Object(_) => true,
             dir::Type::Dynamic(dynamic) => self.is_keyed_type(origin, dynamic.constraint)?,
+            // arrays enumerate positionally
+            dir::Type::Application(_) if self.array_element(ty)?.is_some() => false,
             dir::Type::Application(instance) => matches!(
                 self.symbol_kind_maybe(instance.symbol)?,
                 Some(dir::SymbolKind::Class | dir::SymbolKind::Struct | dir::SymbolKind::Interface)
@@ -199,7 +201,7 @@ impl CheckState<'_> {
         }
 
         let element = match self.ty(value)? {
-            dir::Type::Array(array) => array.element,
+            dir::Type::Application(_) if let Some(element) = self.array_element(value)? => element,
             dir::Type::Slice(slice) => slice.element,
             dir::Type::FixedArray(array) => array.element,
             // erased sequences carry their element on the iterable constraint

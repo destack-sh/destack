@@ -109,7 +109,7 @@ impl BodyState<'_, '_> {
 
             element
         };
-        let array = self.intern_type(dir::Type::Array(dir::ArrayType { element }))?;
+        let array = self.array_type(element)?;
 
         // constrain each spread item to the array element type
         let has_spreads = !spreads.is_empty();
@@ -136,7 +136,7 @@ impl BodyState<'_, '_> {
         };
 
         // convert each authored value into the selected element type
-        let dir::Type::Array(array) = self.ty(ty)? else {
+        let Some(element) = self.check.array_element(ty)? else {
             return Ok(ty);
         };
 
@@ -144,13 +144,13 @@ impl BodyState<'_, '_> {
         let sources: Vec<_> = values.iter().filter_map(|(source, _)| *source).collect();
         if self.check.is_checking() && !has_spreads && sources.len() == values.len() {
             let origin = Origin::Node(node.into_any(), site.scope);
-            self.commit_array_construction(origin, node.into_any(), array.element, ty, sources)?;
+            self.commit_array_construction(origin, node.into_any(), element, ty, sources)?;
         }
         for (source, source_type) in values {
             let Some(source) = source else {
                 continue;
             };
-            if source_type == array.element {
+            if source_type == element {
                 continue;
             }
 
@@ -159,7 +159,7 @@ impl BodyState<'_, '_> {
                 CauseKind::Expression,
             ));
             let source_site = self.visit_site(source)?;
-            let expectation = Expectation::assignable(array.element, cause, ValueUse::Store);
+            let expectation = Expectation::assignable(element, cause, ValueUse::Store);
             self.check_value(source_site, source_type, expectation)?;
         }
 
@@ -347,15 +347,18 @@ impl BodyState<'_, '_> {
         let elements = elements.as_slice();
 
         // read the expected element type and any declared length
-        let expected = match self.ty(target_value)? {
-            dir::Type::Array(array) => Some((array.element, None)),
-            dir::Type::Slice(slice) => Some((slice.element, None)),
-            dir::Type::FixedArray(array) => Some((array.element, Some(array.count))),
-            // erased iterable expectations type elements at the yielded value
-            dir::Type::Dynamic(_) => self
-                .iterable_value_argument(target_value)?
-                .map(|element| (element, None)),
-            _ => None,
+        let expected = if let Some(element) = self.check.array_element(target_value)? {
+            Some((element, None))
+        } else {
+            match self.ty(target_value)? {
+                dir::Type::Slice(slice) => Some((slice.element, None)),
+                dir::Type::FixedArray(array) => Some((array.element, Some(array.count))),
+                // erased iterable expectations type elements at the yielded value
+                dir::Type::Dynamic(_) => self
+                    .iterable_value_argument(target_value)?
+                    .map(|element| (element, None)),
+                _ => None,
+            }
         };
         let Some((element, count)) = expected else {
             return Ok(CheckAttempt::NotApplicable);
@@ -403,9 +406,7 @@ impl BodyState<'_, '_> {
         let (carrier, constructed) = if expectation.relation == Relation::Satisfies {
             let source_element =
                 self.normalized_union_type(source_elements.iter().map(|(_, storage)| *storage))?;
-            let array = self.intern_type(dir::Type::Array(dir::ArrayType {
-                element: source_element,
-            }))?;
+            let array = self.array_type(source_element)?;
 
             (array, Some((source_element, array)))
         }
@@ -426,7 +427,7 @@ impl BodyState<'_, '_> {
         }
         // commit an array behind a slice target
         else if matches!(self.ty(target_value)?, dir::Type::Slice(_)) {
-            let value = self.intern_type(dir::Type::Array(dir::ArrayType { element }))?;
+            let value = self.array_type(element)?;
 
             (
                 self.replace_form_value(site.origin(), carrier, value)?,
@@ -435,7 +436,7 @@ impl BodyState<'_, '_> {
         }
         // otherwise keep the checked carrier
         else {
-            let value = self.intern_type(dir::Type::Array(dir::ArrayType { element }))?;
+            let value = self.array_type(element)?;
 
             (carrier, Some((element, value)))
         };

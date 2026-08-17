@@ -328,6 +328,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 Self::reference(name)
             }
+            // array applications reify in their written rest form
+            dir::Type::Application(_) if let Some(element) = self.check.array_element(id)? => {
+                let Some(element) = self.reify_depth(element, next)? else {
+                    return Ok(None);
+                };
+
+                return Ok(Some(self.insert(dir::TypeExpression::Array { element })));
+            }
             dir::Type::Application(instance) => {
                 let Some(name) = self.symbol_name(instance.symbol) else {
                     return Ok(None);
@@ -373,13 +381,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
             dir::Type::Variant(_) => return Ok(None),
 
-            dir::Type::Array(array) => {
-                let Some(element) = self.reify_depth(array.element, next)? else {
-                    return Ok(None);
-                };
-
-                dir::TypeExpression::Array { element }
-            }
             dir::Type::Slice(slice) => {
                 let Some(element) = self.reify_depth(slice.element, next)? else {
                     return Ok(None);

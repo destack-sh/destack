@@ -128,17 +128,6 @@ impl CheckState<'_> {
             }
 
             // keep independently mutable sequence storage invariant
-            (dir::Type::Array(source_array), dir::Type::Array(target_array))
-                if form != VarianceForm::Readonly =>
-            {
-                self.constrain_type(
-                    origin,
-                    cause,
-                    Relation::Equal,
-                    source_array.element,
-                    target_array.element,
-                )
-            }
             (dir::Type::Slice(source_slice), dir::Type::Slice(target_slice))
                 if form != VarianceForm::Readonly =>
             {
@@ -152,15 +141,6 @@ impl CheckState<'_> {
             }
 
             // readonly sequence storage relates recursively
-            (dir::Type::Array(source_array), dir::Type::Array(target_array)) => self
-                .constrain_variance(
-                    origin,
-                    cause,
-                    form,
-                    relation.interior(),
-                    source_array.element,
-                    target_array.element,
-                ),
             (dir::Type::Slice(source_slice), dir::Type::Slice(target_slice)) => self
                 .constrain_variance(
                     origin,
@@ -170,15 +150,16 @@ impl CheckState<'_> {
                     source_slice.element,
                     target_slice.element,
                 ),
-            (dir::Type::Array(source_array), dir::Type::Slice(target_slice))
-                if form == VarianceForm::Readonly =>
+            (dir::Type::Application(_), dir::Type::Slice(target_slice))
+                if form == VarianceForm::Readonly
+                    && let Some(element) = self.array_element(source)? =>
             {
                 self.constrain_variance(
                     origin,
                     cause,
                     form,
                     relation.interior(),
-                    source_array.element,
+                    element,
                     target_slice.element,
                 )
             }

@@ -329,11 +329,18 @@ impl CheckState<'_> {
                 .tuple_elements(left.module_id, tuple.elements)?
                 .get(index)
                 .map(|element| element.ty),
-            (dir::Type::Array(array), Some(dir::StaticKey::Index(_))) => Some(array.element),
             (dir::Type::FixedArray(array), Some(dir::StaticKey::Index(_))) => Some(array.element),
             // integer-domain keys project every positional element
-            (dir::Type::Array(array), None) if key_domain == Some(KeyDomain::Usize) => {
-                Some(array.element)
+            (dir::Type::Application(_), Some(dir::StaticKey::Index(_)))
+                if let Some(element) = self.array_element(left)? =>
+            {
+                Some(element)
+            }
+            (dir::Type::Application(_), None)
+                if key_domain == Some(KeyDomain::Usize)
+                    && let Some(element) = self.array_element(left)? =>
+            {
+                Some(element)
             }
             (dir::Type::FixedArray(array), None) if key_domain == Some(KeyDomain::Usize) => {
                 Some(array.element)
@@ -356,7 +363,7 @@ impl CheckState<'_> {
                 _,
             ) => return Ok(OperationReduction::Rigid),
             // closed non-indexable receivers reject the operation
-            (dir::Type::Tuple(_) | dir::Type::Array(_) | dir::Type::FixedArray(_), _) => None,
+            (dir::Type::Tuple(_) | dir::Type::FixedArray(_), _) => None,
             _ => {
                 return Ok(OperationReduction::Invalid(
                     InvalidOperation::IndexReceiver { receiver: left },
@@ -508,6 +515,13 @@ impl CheckState<'_> {
             }
 
             // nominal instance keys follow public instance members through heritage
+            // arrays key by the index domain
+            _ if self.array_element(target)?.is_some() => {
+                let mut set = KeySet::default();
+                set.insert_domain(KeyDomain::Usize);
+
+                set
+            }
             dir::Type::Application(instance) => self.instance_keyof_set(origin, instance.symbol)?,
 
             // declaration references expose static declaration members
@@ -579,8 +593,8 @@ impl CheckState<'_> {
                 set
             }
 
-            // arrays and slices key by the index domain
-            dir::Type::Array(_) | dir::Type::Slice(_) => {
+            // slices key by the index domain
+            dir::Type::Slice(_) => {
                 let mut set = KeySet::default();
                 set.insert_domain(KeyDomain::Usize);
 

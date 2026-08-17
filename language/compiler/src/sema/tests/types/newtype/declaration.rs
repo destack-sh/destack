@@ -43,11 +43,11 @@ const writer: NamedWriter = Buffer {};
 interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer
-/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(this: this, readonly Array<uint8>) => usize
+/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(this: this, readonly uint8[]) => usize
 
     write(bytes: readonly uint8[]): usize;
-    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): usize" type=(this: this, readonly Array<uint8>) => usize
-    /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly Array<uint8>
+    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): usize" type=(this: this, readonly uint8[]) => usize
+    /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
 }
 
@@ -59,16 +59,16 @@ newtype NamedWriter = Writer;
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly Array<uint8>) => usize
+/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
 
     write(bytes: readonly uint8[]): usize {
     /// @generic.template symbol=Buffer.write parameters=('a)
-    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly Array<uint8>) => usize
-    /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly Array<uint8>
+    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
+    /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
         bytes.length
         /// @resolution.name source=bytes target=Buffer.write.bytes
-        /// @resolution.member source=bytes.length receiver=readonly Array<uint8> type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
+        /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
         /// @resolution.place source=bytes placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=bytes root=Buffer.write.bytes
         /// @generic.instantiation id=collections.array.length#2<uint8> template=collections.array.length#2 arguments=(uint8)

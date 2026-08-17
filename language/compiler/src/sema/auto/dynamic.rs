@@ -90,7 +90,6 @@ impl CheckState<'_> {
             dir::Type::Dynamic(dynamic) => {
                 self.satisfies_dynamic_safe(origin, dynamic.constraint, active)
             }
-            dir::Type::Array(array) => self.satisfies_dynamic_safe(origin, array.element, active),
             dir::Type::FixedArray(array) => {
                 self.satisfies_dynamic_safe(origin, array.element, active)
             }

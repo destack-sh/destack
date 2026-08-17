@@ -277,7 +277,6 @@ impl BodyState<'_, '_> {
                 }
             }
             dir::Type::Tuple(_)
-            | dir::Type::Array(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Slice(_) => dir::PredicateCondition::Type(target),
             dir::Type::Form(_) => dir::PredicateCondition::Type(target),

@@ -351,8 +351,8 @@ function read(values: ("pending" | "ready")[]): "ready" {
 
 === dir ===
 function read(values: ("pending" | "ready")[]): "ready" {
-/// @type.symbol symbol=read type=(Array<"pending" | "ready">) => "ready"
-/// @type.symbol symbol=read.values source="values: (\"pending\" | \"ready\")[]" type=Array<"pending" | "ready">
+/// @type.symbol symbol=read type=("pending" | "ready"[]) => "ready"
+/// @type.symbol symbol=read.values source="values: (\"pending\" | \"ready\")[]" type="pending" | "ready"[]
 
     if (values[0] === "ready") {
     /// @resolution.name source=values target=read.values

@@ -56,16 +56,16 @@ function capture<T>(value: T): { reactions: T[] } {
 === dir ===
 function capture<T>(value: T): { reactions: T[] } {
 /// @generic.template symbol=capture parameters=(T)
-/// @type.symbol symbol=capture type=<T>(T) => { reactions: Array<T> }
+/// @type.symbol symbol=capture type=<T>(T) => { reactions: T[] }
 /// @type.symbol symbol=capture.T source=T type=T
 /// @type.symbol symbol=capture.value source="value: T" type=T
 /// @resolution.name source=T target=capture.T
 /// @resolution.name source=T target=capture.T
 
     return { reactions: [] };
-    /// @type.node source={ reactions: [] } type={ reactions: Array<T> }
-    /// @type.node source=[] type=Array<T>
-    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T) return=Array<T> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T>
+    /// @type.node source={ reactions: [] } type={ reactions: T[] }
+    /// @type.node source=[] type=T[]
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T>
     /// @generic.instantiation id=collections.array.arrayFromSlice<T> template=collections.array.arrayFromSlice arguments=(T) owner=capture
 
 }
@@ -123,14 +123,14 @@ interface Pending<T> {
 /// @definition.interface symbol=Pending template=(in out T#1)
 /// @definition.where symbol=Pending relation=satisfies left=this right=Pending<T#1>
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
-/// @definition.field symbol=Pending.reactions source="reactions: T[]" key=reactions type=Array<T#1>
+/// @definition.field symbol=Pending.reactions source="reactions: T[]" key=reactions type=T#1[]
 /// @type.symbol symbol=Pending.T source=T type=T#1
 
     kind: "pending";
     /// @type.symbol symbol=Pending.kind source="kind: \"pending\"" type="pending"
 
     reactions: T[];
-    /// @type.symbol symbol=Pending.reactions source="reactions: T[]" type=Array<T#1>
+    /// @type.symbol symbol=Pending.reactions source="reactions: T[]" type=T#1[]
     /// @resolution.name source=T target=Pending.T
 
 }
@@ -171,10 +171,10 @@ function pending<T>(): State<T> {
 /// @resolution.name source=T target=pending.T
 
     return { kind: "pending", reactions: [] };
-    /// @type.node source={ kind: "pending", reactions: [] } type={ kind: "pending"; reactions: Array<T#4> }
+    /// @type.node source={ kind: "pending", reactions: [] } type={ kind: "pending"; reactions: T#4[] }
     /// @type.node source="\"pending\"" type="pending"
-    /// @type.node source=[] type=Array<T#4>
-    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T#4) return=Array<T#4> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#4>
+    /// @type.node source=[] type=T#4[]
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T#4) return=T#4[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#4>
     /// @generic.instantiation id=collections.array.arrayFromSlice<T#4> template=collections.array.arrayFromSlice arguments=(T#4) owner=pending
 
 }

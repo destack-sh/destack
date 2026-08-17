@@ -148,7 +148,10 @@ impl CheckState<'_> {
                     return Ok(ObligationCheck::holds());
                 }
                 let use_fields = match self.ty(chain.base())? {
-                    dir::Type::Application(instance) => {
+                    // require an own-module declaration to name the source site
+                    dir::Type::Application(instance)
+                        if self.is_own_module(instance.symbol.module_id) =>
+                    {
                         let declaration = self
                             .module(instance.symbol.module_id)
                             .symbol_declaration_node(instance.symbol.local_id)?
@@ -404,9 +407,6 @@ impl CheckState<'_> {
                     return Ok(None);
                 }
             },
-            dir::Type::Array(array) if matches!(check, RepresentationCheck::Shared { .. }) => {
-                SmallVec::from_slice(&[(array.element, source)])
-            }
             dir::Type::Slice(slice) if matches!(check, RepresentationCheck::Shared { .. }) => {
                 SmallVec::from_slice(&[(slice.element, source)])
             }

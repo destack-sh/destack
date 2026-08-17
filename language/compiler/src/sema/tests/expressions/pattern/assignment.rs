@@ -213,7 +213,7 @@ let head: int32 = 0;
 /// @type.node source=0 type=0
 
 let tail: int32[] = [];
-/// @type.symbol symbol=tail source=tail type=Array<int32>
+/// @type.symbol symbol=tail source=tail type=int32[]
 /// @resolution.pattern source=tail kind=binding target=tail
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
@@ -222,35 +222,35 @@ let tail: int32[] = [];
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
-/// @type.node source=[] type=Array<int32>
-/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=Array<int32> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+/// @type.node source=[] type=int32[]
+/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
 /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 /// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 
 declare const values: int32[];
-/// @type.symbol symbol=values source=values type=Array<int32>
+/// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
 
 [head, ...tail] = values;
-/// @type.node source="[head, ...tail] = values" type=Array<int32>
+/// @type.node source="[head, ...tail] = values" type=int32[]
 /// @resolution.pattern.assign source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
 /// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
 /// @generic.instantiation id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
 /// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<int32>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<int32>, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame int32[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32[], "exclusive")
 /// @generic.instance id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
 /// @type.node source=head type=int32
 /// @resolution.name source=head target=head
 /// @resolution.pattern.assign source=head kind=place
 /// @resolution.access source=head root=head
 /// @resolution.assignment source=head write=binding(head) type=int32
-/// @type.node source=tail type=Array<int32>
+/// @type.node source=tail type=int32[]
 /// @resolution.name source=tail target=tail
 /// @resolution.pattern.assign source=tail kind=place
 /// @resolution.access source=tail root=tail
-/// @resolution.assignment source=tail write=binding(tail) type=Array<int32>
-/// @type.node source=values type=Array<int32>
+/// @resolution.assignment source=tail write=binding(tail) type=int32[]
+/// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values

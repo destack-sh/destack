@@ -252,7 +252,6 @@ impl BodyState<'_, '_> {
             dir::Type::Application(_)
             | dir::Type::Literal(_)
             | dir::Type::Primitive(_)
-            | dir::Type::Array(_)
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_) => {
                 // widen literal subjects to their carrier before lookup
@@ -1785,7 +1784,6 @@ impl BodyState<'_, '_> {
             // read primitive, literal, and collection keys from the apparent tables
             dir::Type::Primitive(_)
             | dir::Type::Literal(_)
-            | dir::Type::Array(_)
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_) => {
                 self.collect_instance_keys(origin, module, subject, space, keys)?;

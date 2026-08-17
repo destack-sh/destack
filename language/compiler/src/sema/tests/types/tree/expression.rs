@@ -1021,7 +1021,7 @@ function render(items: Panel[]): Panel {
     );
 
     session.assert_dir_diagnostics("main.ds", r#"
-/// @diagnostic.error id=tree-spread-not-tuple message="spread children splat tuples, found 'Array<Panel>'"
+/// @diagnostic.error id=tree-spread-not-tuple message="spread children splat tuples, found 'Panel[]'"
 /// @diagnostic.label line=29 column=25 span="<div>{...items}</div>" line_source="const page: Panel = <div>{...items}</div>;"
 "#);
 }

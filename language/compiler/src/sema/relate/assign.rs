@@ -267,22 +267,17 @@ impl CheckState<'_> {
                 self.constrain_type(origin, cause, relation, member.owner, target)?
             }
 
-            // keep mutable collection elements invariant, since they alias
-            (dir::Type::Array(source), dir::Type::Array(target)) => self.constrain_type(
-                origin,
-                cause,
-                Relation::Equal,
-                source.element,
-                target.element,
-            )?,
-            (dir::Type::Array(source), dir::Type::Slice(target)) => self.constrain_type(
-                origin,
-                cause,
-                Relation::Equal,
-                source.element,
-                target.element,
-            )?,
-            (dir::Type::Array(_), dir::Type::FixedArray(_)) => Verdict::Fails,
+            // keep array views over slices and fixed arrays element-invariant
+            (dir::Type::Application(_), dir::Type::Slice(target))
+                if let Some(element) = self.array_element(source)? =>
+            {
+                self.constrain_type(origin, cause, Relation::Equal, element, target.element)?
+            }
+            (dir::Type::Application(_), dir::Type::FixedArray(_))
+                if self.array_element(source)?.is_some() =>
+            {
+                Verdict::Fails
+            }
             (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type(
                 origin,
                 cause,
@@ -319,7 +314,11 @@ impl CheckState<'_> {
                     target.element,
                 )?,
             // reject growing into a managed array, which allocates and copies
-            (dir::Type::FixedArray(_), dir::Type::Array(_)) => Verdict::Fails,
+            (dir::Type::FixedArray(_), dir::Type::Application(_))
+                if self.array_element(target)?.is_some() =>
+            {
+                Verdict::Fails
+            }
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
                 self.relate_tuple_assignable(origin, cause, relation, source, target)?
             }
@@ -369,7 +368,6 @@ impl CheckState<'_> {
                 | dir::Type::Function(_)
                 | dir::Type::FunctionPointer(_)
                 | dir::Type::Primitive(_)
-                | dir::Type::Array(_)
                 | dir::Type::Slice(_)
                 | dir::Type::FixedArray(_),
                 dir::Type::Application(instance),

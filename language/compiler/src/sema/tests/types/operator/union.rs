@@ -486,7 +486,7 @@ const first: int32 | string = values[0];
 
 === dir ===
 declare const values: int32[] | string[];
-/// @type.symbol symbol=values source=values type=Array<int32> | Array<string>
+/// @type.symbol symbol=values source=values type=int32[] | string[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=Array<string> template=collections.array.Array arguments=(string)
@@ -515,10 +515,10 @@ const first = values[0];
 /// @generic.instantiation id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
 /// @generic.instance id="collections.array.index#1<int32, \"readonly\">" template=collections.array.index#1 arguments=(int32, "readonly")
 /// @generic.instance id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<int32>, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame Array<int32>, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<string>, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame Array<string>, "readonly")
 /// @generic.instance id="memory.type.WithAccess<&'frame int32, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame int32, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&'frame int32[], \"readonly\">" template=memory.type.WithAccess arguments=(&'frame int32[], "readonly")
 /// @generic.instance id="memory.type.WithAccess<&'frame string, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame string, "readonly")
+/// @generic.instance id="memory.type.WithAccess<&'frame string[], \"readonly\">" template=memory.type.WithAccess arguments=(&'frame string[], "readonly")
 "#,
     );
 }

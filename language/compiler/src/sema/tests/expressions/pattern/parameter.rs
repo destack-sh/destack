@@ -78,7 +78,7 @@ function first([head]: int32[]): int32 {
 
 === dir ===
 function first([head]: int32[]): int32 {
-/// @type.symbol symbol=first type=(Array<int32>) => int32
+/// @type.symbol symbol=first type=(int32[]) => int32
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
 /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
@@ -89,8 +89,8 @@ function first([head]: int32[]): int32 {
 /// @resolution.pattern source=[head] kind=sequence element=int32 arity=1 fields=(first.head)
 /// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
 /// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<int32>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<int32>, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame int32[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32[], "exclusive")
 /// @type.symbol symbol=first.head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=first.head
 

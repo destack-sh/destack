@@ -2209,7 +2209,6 @@ impl BodyState<'_, '_> {
             | dir::Type::Form(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Operation(_)
-            | dir::Type::Array(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Range(_)
             | dir::Type::Slice(_)

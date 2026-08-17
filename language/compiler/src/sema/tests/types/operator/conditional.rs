@@ -516,18 +516,18 @@ const first: int32[] = values[0];
 === dir ===
 type Element<T> = T extends readonly (infer U)[] ? U : never;
 /// @generic.template symbol=Element parameters=(T)
-/// @type.symbol symbol=Element source="type Element<T> = T extends readonly (infer U)[] ? U : never" type=T extends readonly Array<infer U> ? Element.U : never
-/// @definition.type symbol=Element source="type Element<T> = T extends readonly (infer U)[] ? U : never" template=(T) value=T extends readonly Array<infer U> ? Element.U : never
+/// @type.symbol symbol=Element source="type Element<T> = T extends readonly (infer U)[] ? U : never" type=T extends readonly infer U[] ? Element.U : never
+/// @definition.type symbol=Element source="type Element<T> = T extends readonly (infer U)[] ? U : never" template=(T) value=T extends readonly infer U[] ? Element.U : never
 /// @type.symbol symbol=Element.T source=T type=T
 /// @resolution.name source=T target=Element.T
 /// @resolution.name source=U target=Element.U
 
 declare const values: int32[][];
-/// @type.symbol symbol=values source=values type=Array<Array<int32>>
+/// @type.symbol symbol=values source=values type=int32[][]
 /// @resolution.pattern source=values kind=binding target=values
 
 const first: Element<typeof values> = values[0];
-/// @type.symbol symbol=first source=first type=Array<int32>
+/// @type.symbol symbol=first source=first type=int32[]
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Element target=Element
 /// @resolution.name source=values target=values
@@ -536,8 +536,8 @@ const first: Element<typeof values> = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.place source=values[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=Array<int32> kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static Array<int32>, \"exclusive\">)"
-/// @generic.instantiation id="collections.array.index#1<Array<int32>, \"exclusive\">" template=collections.array.index#1 arguments=(Array<int32>, "exclusive")
+/// @resolution.subscript source=values[0] type=int32[] kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int32[], \"exclusive\">)"
+/// @generic.instantiation id="collections.array.index#1<int32[], \"exclusive\">" template=collections.array.index#1 arguments=(int32[], "exclusive")
 "#,
         r#"
 "#,

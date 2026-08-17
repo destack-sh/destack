@@ -82,7 +82,7 @@ fn test_bind_shares_repeated_infer_binders() {
         .module(
             "main.ds",
             r#"
-type Repeat<T> = T extends [infer A, infer A] ? A : never;
+type Repeat<T> = T extends (infer A, infer A) ? A : never;
 "#,
         )
         .build();
@@ -92,7 +92,7 @@ type Repeat<T> = T extends [infer A, infer A] ? A : never;
         "main.ds",
         DirRows::binding().with_summaries(),
         r#"
-type Repeat<T> = T extends [infer A, infer A] ? A : never;
+type Repeat<T> = T extends (infer A, infer A) ? A : never;
 /// @binding.symbol symbol=Repeat role=item kind=type_alias scope=<module>@1
 /// @binding.scope scope=Repeat kind=type parent=<module>@2 owner=Repeat
 /// @binding.owner_scope owner=Repeat scope=Repeat

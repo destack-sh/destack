@@ -452,7 +452,6 @@ impl BodyState<'_, '_> {
 
         // project the element from the collection the annotation names
         match self.check.ty(reduced)? {
-            dir::Type::Array(array) => Ok(Some(array.element)),
             dir::Type::Slice(slice) => Ok(Some(slice.element)),
             dir::Type::FixedArray(array) => Ok(Some(array.element)),
             dir::Type::Application(instance) => {

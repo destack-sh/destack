@@ -19,7 +19,7 @@ const first: float64 = values[0];
 
 === dir ===
 let values = [1, 2];
-/// @type.symbol symbol=values source=values type=Array<float64>
+/// @type.symbol symbol=values source=values type=float64[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
@@ -28,8 +28,8 @@ let values = [1, 2];
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
-/// @type.node source=[1, 2] type=Array<float64>
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @type.node source=[1, 2] type=float64[]
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
 /// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @type.node source=1 type=1
@@ -38,7 +38,7 @@ let values = [1, 2];
 const first = values[0];
 /// @type.symbol symbol=first source=first type=float64
 /// @resolution.pattern source=first kind=binding target=first
-/// @type.node source=values type=Array<float64>
+/// @type.node source=values type=float64[]
 /// @type.node source=values[0] type=float64
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
@@ -47,8 +47,8 @@ const first = values[0];
 /// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 /// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<float64>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<float64>, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame float64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64[], "exclusive")
 /// @type.node source=0 type=0
 "#,
     );
@@ -73,7 +73,7 @@ const first: 1 | 2 = values[0];
 
 === dir ===
 const values: (1 | 2)[] = [1, 2];
-/// @type.symbol symbol=values source=values type=Array<1 | 2>
+/// @type.symbol symbol=values source=values type=1 | 2[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id="Array<1 | 2>" template=collections.array.Array arguments=(1 | 2)
 /// @generic.instance id="memory.init.MaybeUninit<1 | 2>" template=memory.init.MaybeUninit arguments=(1 | 2)
@@ -82,8 +82,8 @@ const values: (1 | 2)[] = [1, 2];
 /// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<1 | 2>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<1 | 2>)
 /// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<1 | 2>>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<1 | 2>)
 /// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<1 | 2>>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<1 | 2>)
-/// @type.node source=[1, 2] type=Array<1 | 2>
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=Array<1 | 2> kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<1 | 2>"
+/// @type.node source=[1, 2] type=1 | 2[]
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<1 | 2>"
 /// @generic.instantiation id="collections.array.arrayFromSlice<1 | 2>" template=collections.array.arrayFromSlice arguments=(1 | 2)
 /// @generic.instance id="collections.array.arrayFromSlice<1 | 2>" template=collections.array.arrayFromSlice arguments=(1 | 2)
 /// @type.node source=1 type=1
@@ -92,7 +92,7 @@ const values: (1 | 2)[] = [1, 2];
 const first = values[0];
 /// @type.symbol symbol=first source=first type=1 | 2
 /// @resolution.pattern source=first kind=binding target=first
-/// @type.node source=values type=Array<1 | 2>
+/// @type.node source=values type=1 | 2[]
 /// @type.node source=values[0] type=1 | 2
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
@@ -102,7 +102,7 @@ const first = values[0];
 /// @generic.instantiation id="collections.array.index#1<1 | 2, \"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
 /// @generic.instance id="collections.array.index#1<1 | 2, \"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame 1 | 2, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame 1 | 2, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<1 | 2>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<1 | 2>, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame 1 | 2[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame 1 | 2[], "exclusive")
 /// @type.node source=0 type=0
 "#,
     );

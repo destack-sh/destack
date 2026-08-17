@@ -32,7 +32,6 @@ impl CheckState<'_> {
             }
 
             // reduce collection aliases to structural types
-            dir::LanguageItem::Array => self.reduce_array_application(origin, module, instance),
             dir::LanguageItem::Slice => self.reduce_slice_application(origin, module, instance),
             dir::LanguageItem::FixedArray => {
                 self.reduce_fixed_array_application(origin, module, instance)
@@ -185,22 +184,6 @@ impl CheckState<'_> {
         let operation = dir::TypeOperation::Awaited(dir::UnaryType { target: *target });
 
         let ty = self.intern_operation(operation)?;
-
-        Ok(Some(ty))
-    }
-
-    /// Reduce one Array intrinsic application.
-    fn reduce_array_application(
-        &mut self,
-        _origin: Origin,
-        module: ModuleId,
-        instance: &dir::GenericApplication,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let [element] = self.type_ids(module, instance.arguments)? else {
-            return Ok(None);
-        };
-        let ty = dir::Type::Array(dir::ArrayType { element: *element });
-        let ty = self.intern_type(ty)?;
 
         Ok(Some(ty))
     }

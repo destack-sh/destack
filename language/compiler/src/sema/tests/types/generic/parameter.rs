@@ -120,7 +120,7 @@ declare function id<T>(value: T): T;
 /// @resolution.name source=T target=id.T
 
 const values = id([1, 2]);
-/// @type.symbol symbol=values source=values type=Array<float64>
+/// @type.symbol symbol=values source=values type=float64[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
@@ -130,10 +130,10 @@ const values = id([1, 2]);
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 /// @resolution.name source=id target=id
-/// @resolution.call source="id([1, 2])" parameters=(Array<float64>) arguments=(provided([1, 2]) as Array<float64>) return=Array<float64> kind=symbol target=id instance=id<Array<float64>>
-/// @generic.instantiation id=id<Array<float64>> template=id arguments=(Array<float64>)
-/// @generic.instance id=id<Array<float64>> template=id arguments=(Array<float64>)
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @resolution.call source="id([1, 2])" parameters=(float64[]) arguments=(provided([1, 2]) as float64[]) return=float64[] kind=symbol target=id instance=id<float64[]>
+/// @generic.instantiation id=id<float64[]> template=id arguments=(float64[])
+/// @generic.instance id=id<float64[]> template=id arguments=(float64[])
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
 /// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 
@@ -147,8 +147,8 @@ const first = values[0];
 /// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 /// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<float64>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<float64>, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame float64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64[], "exclusive")
 "#,
     );
 }
@@ -176,25 +176,25 @@ take(values);
 
 === dir ===
 declare function take(values: float64[]): void;
-/// @type.symbol symbol=take source="declare function take(values: float64[]): void" type=(Array<float64>) => void
-/// @type.symbol symbol=take.values source="values: float64[]" type=Array<float64>
+/// @type.symbol symbol=take source="declare function take(values: float64[]): void" type=(float64[]) => void
+/// @type.symbol symbol=take.values source="values: float64[]" type=float64[]
 
 declare const values: (1 | 2)[];
-/// @type.symbol symbol=values source=values type=Array<1 | 2>
+/// @type.symbol symbol=values source=values type=1 | 2[]
 /// @resolution.pattern source=values kind=binding target=values
 
 take(values);
 /// @resolution.name source=take target=take
-/// @resolution.call source=take(values) parameters=(Array<float64>) arguments=(provided(values) as Array<float64>) return=void kind=symbol target=take
+/// @resolution.call source=take(values) parameters=(float64[]) arguments=(provided(values) as float64[]) return=void kind=symbol target=take
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'Array<1 | 2>' is not assignable to parameter of type 'Array<float64>'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '1 | 2[]' is not assignable to parameter of type 'float64[]'"
 /// @diagnostic.label line=5 column=6 span="values" line_source="take(values);"
 /// @diagnostic.related line=5 column=1 span="take(values)" line_source="take(values);" message="in this call"
-/// @diagnostic.note message="the mismatch is in the element type: expected 'float64', found '1 | 2'"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Array': expected 'float64', found '1 | 2'"
 "#,
     );
 }
@@ -228,7 +228,7 @@ declare function take(values: Slice<float64>): void;
 take([1, 2]);
 /// @resolution.name source=take target=take
 /// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
 /// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
 /// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
@@ -375,14 +375,14 @@ const kind: "ready" = values[0].kind;
 === dir ===
 declare function collect<const T>(values: T[]): T[];
 /// @generic.template symbol=collect parameters=(const T)
-/// @type.symbol symbol=collect source="declare function collect<const T>(values: T[]): T[]" type=<const T>(Array<T>) => Array<T>
+/// @type.symbol symbol=collect source="declare function collect<const T>(values: T[]): T[]" type=<const T>(T[]) => T[]
 /// @type.symbol symbol=collect.T source="const T" type=T
-/// @type.symbol symbol=collect.values source="values: T[]" type=Array<T>
+/// @type.symbol symbol=collect.values source="values: T[]" type=T[]
 /// @resolution.name source=T target=collect.T
 /// @resolution.name source=T target=collect.T
 
 const values = collect([{ kind: "ready" }]);
-/// @type.symbol symbol=values source=values type=Array<{ readonly kind: "ready" }>
+/// @type.symbol symbol=values source=values type={ readonly kind: "ready" }[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id="Array<{ readonly kind: \"ready\" }>" template=collections.array.Array arguments=({ readonly kind: "ready" })
 /// @generic.instance id="memory.init.MaybeUninit<{ readonly kind: \"ready\" }>" template=memory.init.MaybeUninit arguments=({ readonly kind: "ready" })
@@ -392,10 +392,10 @@ const values = collect([{ kind: "ready" }]);
 /// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
 /// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
 /// @resolution.name source=collect target=collect
-/// @resolution.call source="collect([{ kind: \"ready\" }])" parameters=(Array<{ readonly kind: "ready" }>) arguments=(provided([{ kind: "ready" }]) as Array<{ readonly kind: "ready" }>) return=Array<{ readonly kind: "ready" }> kind=symbol target=collect instance="collect<{ readonly kind: \"ready\" }>"
+/// @resolution.call source="collect([{ kind: \"ready\" }])" parameters=({ readonly kind: "ready" }[]) arguments=(provided([{ kind: "ready" }]) as { readonly kind: "ready" }[]) return={ readonly kind: "ready" }[] kind=symbol target=collect instance="collect<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
 /// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
-/// @resolution.call source=[{ kind: "ready" }] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest({ kind: "ready" }) as { readonly kind: "ready" }) return=Array<{ readonly kind: "ready" }> kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>"
+/// @resolution.call source=[{ kind: "ready" }] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest({ kind: "ready" }) as { readonly kind: "ready" }) return={ readonly kind: "ready" }[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>" template=collections.array.arrayFromSlice arguments=({ readonly kind: "ready" })
 /// @generic.instance id="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>" template=collections.array.arrayFromSlice arguments=({ readonly kind: "ready" })
 
@@ -412,8 +412,8 @@ const kind = values[0].kind;
 /// @resolution.access source=values[0].kind root=values keys=[0, kind]
 /// @generic.instantiation id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
 /// @generic.instance id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<{ readonly kind: \"ready\" }>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<{ readonly kind: "ready" }>, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame { readonly kind: \"ready\" }, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame { readonly kind: "ready" }, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame { readonly kind: \"ready\" }[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame { readonly kind: "ready" }[], "exclusive")
 "#,
     );
 }

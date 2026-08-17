@@ -181,10 +181,10 @@ impl TypeLowerer<'_, '_> {
         let ty = self.lowerer.ty(id)?;
 
         // store reference primitives as their representation classes
-        if let Some((item, arguments)) = ModuleLowerer::representation_application(&ty) {
+        if let Some(item) = ModuleLowerer::representation_item(&ty) {
             let symbol = self.lowerer.language_item_symbol(item)?;
 
-            return Ok(self.lower_nominal(symbol, &arguments)?.storage);
+            return Ok(self.lower_nominal(symbol, &[])?.storage);
         }
 
         match ty {
@@ -352,8 +352,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<dir::Ownership> {
         Ok(match base {
             // default reference families to managed
-            dir::Type::Array(_)
-            | dir::Type::Dynamic(_)
+            dir::Type::Dynamic(_)
             | dir::Type::Function(_)
             | dir::Type::Slice(_)
             | dir::Type::Object(_)

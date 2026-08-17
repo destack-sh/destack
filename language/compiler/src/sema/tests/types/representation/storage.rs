@@ -421,7 +421,7 @@ type Shape = Circle | Rectangle;
 /// @resolution.name source=Rectangle target=Rectangle
 
 const shapes: Array<Shape> = [
-/// @type.symbol symbol=shapes source=shapes type=Array<Shape>
+/// @type.symbol symbol=shapes source=shapes type=Shape[]
 /// @resolution.pattern source=shapes kind=binding target=shapes
 /// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
 /// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
@@ -432,7 +432,7 @@ const shapes: Array<Shape> = [
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<Shape>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<Shape>)
 /// @resolution.name source=Array target=collections.array.Array
 /// @resolution.name source=Shape target=Shape
-/// @resolution.call parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Array<Shape> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<Shape>
+/// @resolution.call parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<Shape>
 /// @generic.instantiation id=collections.array.arrayFromSlice<Shape> template=collections.array.arrayFromSlice arguments=(Shape)
 /// @generic.instance id=collections.array.arrayFromSlice<Shape> template=collections.array.arrayFromSlice arguments=(Shape)
 
@@ -454,8 +454,8 @@ const first = shapes[0];
 /// @resolution.subscript source=shapes[0] type=Shape kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
 /// @generic.instantiation id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
 /// @generic.instance id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Array<Shape>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<Shape>, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame Shape, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Shape, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame Shape[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Shape[], "exclusive")
 
 first satisfies Shape;
 /// @resolution.name source=first target=first

@@ -93,7 +93,6 @@ impl CheckState<'_> {
             dir::Type::Application(instance) => {
                 self.satisfies_overwrite_stable_instance(origin, ty.module_id, instance, active)
             }
-            dir::Type::Array(_) => Ok(Verdict::Holds),
             dir::Type::FixedArray(array) => {
                 self.satisfies_overwrite_stable(origin, array.element, active)
             }

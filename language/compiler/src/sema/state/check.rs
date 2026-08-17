@@ -488,7 +488,7 @@ impl<'a> CheckState<'a> {
 
     /// Return the language item named by one resolved symbol.
     pub(in crate::sema) fn language_item(
-        &mut self,
+        &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::LanguageItem>> {
         Ok(self.environment_bound.language.item(symbol))
@@ -1482,11 +1482,6 @@ impl CheckState<'_> {
             }
 
             // collections
-            dir::Type::Array(mut array) => {
-                array.element = map(self, array.element)?;
-
-                dir::Type::Array(array)
-            }
             dir::Type::FixedArray(mut array) => {
                 array.element = map(self, array.element)?;
                 array.count = map(self, array.count)?;

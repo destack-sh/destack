@@ -35,12 +35,12 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 declare const circles: Circle[];
-/// @type.symbol symbol=circles source=circles type=Array<Circle>
+/// @type.symbol symbol=circles source=circles type=Circle[]
 /// @resolution.pattern source=circles kind=binding target=circles
 /// @resolution.name source=Circle target=Circle
 
 const shapes: Shape[] = circles;
-/// @type.symbol symbol=shapes source=shapes type=Array<Shape>
+/// @type.symbol symbol=shapes source=shapes type=Shape[]
 /// @resolution.pattern source=shapes kind=binding target=shapes
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
@@ -48,10 +48,10 @@ const shapes: Shape[] = circles;
 /// @resolution.access source=circles root=circles
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Array<Circle>' is not assignable to type 'Array<Shape>'"
+/// @diagnostic.error id=not-assignable message="type 'Circle[]' is not assignable to type 'Shape[]'"
 /// @diagnostic.label line=6 column=25 span="circles" line_source="const shapes: Shape[] = circles;"
 /// @diagnostic.related line=6 column=15 span="Shape[]" line_source="const shapes: Shape[] = circles;" message="expected due to this annotation"
-/// @diagnostic.note message="the mismatch is in the element type: expected 'Shape', found 'Circle'"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Array': expected 'Shape', found 'Circle'"
 "#,
     );
 }
@@ -91,7 +91,7 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 declare const circles: Circle[];
-/// @type.symbol symbol=circles source=circles type=Array<Circle>
+/// @type.symbol symbol=circles source=circles type=Circle[]
 /// @resolution.pattern source=circles kind=binding target=circles
 /// @generic.instance id=Array<Circle> template=collections.array.Array arguments=(Circle)
 /// @generic.instance id=memory.init.MaybeUninit<Circle> template=memory.init.MaybeUninit arguments=(Circle)
@@ -103,7 +103,7 @@ declare const circles: Circle[];
 /// @resolution.name source=Circle target=Circle
 
 const shapes: readonly Shape[] = circles;
-/// @type.symbol symbol=shapes source=shapes type=readonly Array<Shape>
+/// @type.symbol symbol=shapes source=shapes type=readonly Shape[]
 /// @resolution.pattern source=shapes kind=binding target=shapes
 /// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
 /// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
@@ -163,12 +163,12 @@ class Square extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 declare const circles: Circle[];
-/// @type.symbol symbol=circles source=circles type=Array<Circle>
+/// @type.symbol symbol=circles source=circles type=Circle[]
 /// @resolution.pattern source=circles kind=binding target=circles
 /// @resolution.name source=Circle target=Circle
 
 const widened: readonly (Circle | Square)[] = circles;
-/// @type.symbol symbol=widened source=widened type=readonly Array<Circle | Square>
+/// @type.symbol symbol=widened source=widened type=readonly Circle | Square[]
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
@@ -177,7 +177,7 @@ const widened: readonly (Circle | Square)[] = circles;
 /// @resolution.access source=circles root=circles
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Array<Circle>' is not assignable to type 'readonly Array<Circle | Square>'"
+/// @diagnostic.error id=not-assignable message="type 'Circle[]' is not assignable to type 'readonly Circle | Square[]'"
 /// @diagnostic.label line=7 column=47 span="circles" line_source="const widened: readonly (Circle | Square)[] = circles;"
 /// @diagnostic.related line=7 column=16 span="readonly" line_source="const widened: readonly (Circle | Square)[] = circles;" message="expected due to this annotation"
 "#,

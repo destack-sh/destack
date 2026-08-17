@@ -78,6 +78,12 @@ impl CheckState<'_> {
             dir::Type::Reference(reference) => {
                 self.format_symbol_path_maybe_at(module, reference.symbol)
             }
+            // array applications render in their written rest form
+            dir::Type::Application(_) if let Some(element) = self.array_element(id)? => {
+                let element = self.format_depth_at(module, element, next)?;
+
+                format!("{element}[]")
+            }
             dir::Type::Application(instance) => {
                 let name = self.format_symbol_path_maybe_at(module, instance.symbol);
                 if instance.arguments.is_empty() {
@@ -109,12 +115,6 @@ impl CheckState<'_> {
             }
 
             // intrinsic collections render their declared names
-            dir::Type::Array(array) => {
-                format!(
-                    "Array<{}>",
-                    self.format_depth_at(module, array.element, next)?
-                )
-            }
             dir::Type::Slice(slice) => {
                 format!(
                     "Slice<{}>",
@@ -410,11 +410,7 @@ impl CheckState<'_> {
         parameter: &dir::FunctionParameterType,
         depth: usize,
     ) -> CompilerResult<String> {
-        let parameter_type = if parameter.is_rest {
-            self.format_rest_parameter_type_at(module, parameter.ty, depth)?
-        } else {
-            self.format_depth_at(module, parameter.ty, depth)?
-        };
+        let parameter_type = self.format_depth_at(module, parameter.ty, depth)?;
         let parameter_type = if parameter.is_rest {
             format!("...{parameter_type}")
         } else {
@@ -428,26 +424,6 @@ impl CheckState<'_> {
         };
 
         Ok(parameter_type)
-    }
-
-    /// Format one rest parameter payload relative to an optional source module.
-    fn format_rest_parameter_type_at(
-        &self,
-        module: Option<ModuleId>,
-        ty: dir::GlobalTypeId,
-        depth: usize,
-    ) -> CompilerResult<String> {
-        let ty = self.shallow_resolve(ty)?;
-
-        // arrays use the written rest form
-        match self.ty(ty)? {
-            dir::Type::Array(array) => {
-                let element = self.format_depth_at(module, array.element, depth)?;
-
-                Ok(format!("{element}[]"))
-            }
-            _ => self.format_depth_at(module, ty, depth),
-        }
     }
 
     /// Format one memory form relative to an optional source module.

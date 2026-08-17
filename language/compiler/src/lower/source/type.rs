@@ -97,18 +97,11 @@ impl ModuleLowerer<'_> {
         Ok((signature, owner))
     }
 
-    /// Return the library class application representing one compiler-primitive type.
-    pub(in crate::lower) fn representation_application(
-        ty: &dir::Type,
-    ) -> Option<(dir::LanguageItem, Vec<dir::GlobalTypeId>)> {
+    /// Return the library class representing one compiler-primitive type.
+    pub(in crate::lower) fn representation_item(ty: &dir::Type) -> Option<dir::LanguageItem> {
         match ty {
-            dir::Type::Primitive(dir::PrimitiveType::String) => {
-                Some((dir::LanguageItem::String, Vec::new()))
-            }
-            dir::Type::Primitive(dir::PrimitiveType::Bigint) => {
-                Some((dir::LanguageItem::BigInt, Vec::new()))
-            }
-            dir::Type::Array(array) => Some((dir::LanguageItem::Array, vec![array.element])),
+            dir::Type::Primitive(dir::PrimitiveType::String) => Some(dir::LanguageItem::String),
+            dir::Type::Primitive(dir::PrimitiveType::Bigint) => Some(dir::LanguageItem::BigInt),
             _ => None,
         }
     }

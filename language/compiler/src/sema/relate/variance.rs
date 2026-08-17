@@ -508,9 +508,6 @@ impl CheckState<'_> {
             }
 
             // independently aliased storage remains writable outside owned values
-            dir::Type::Array(array) => {
-                self.measure_type(array.element, form.aliased(position), form, parameter)?
-            }
             dir::Type::Slice(slice) => {
                 self.measure_type(slice.element, form.aliased(position), form, parameter)?
             }

@@ -122,10 +122,6 @@ impl CheckState<'_> {
             }
 
             // value containers decompose over their contained types
-            (dir::Type::Array(source_type), dir::Type::Array(target_type)) => (
-                SmallVec::from_slice(&[source_type.element]),
-                SmallVec::from_slice(&[target_type.element]),
-            ),
             (dir::Type::Slice(source_type), dir::Type::Slice(target_type)) => (
                 SmallVec::from_slice(&[source_type.element]),
                 SmallVec::from_slice(&[target_type.element]),

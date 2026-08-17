@@ -355,9 +355,9 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 === dir ===
 export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 /// @generic.template symbol=ArrayAccess parameters=(T, const A: Access = "readonly")
-/// @definition.extension symbol=ArrayAccess form=exported target=Array<T>
-/// @definition.method symbol=ArrayAccess.peek slot=peek type=<ArrayAccess.peek.'a>(this: WithAccess<&ArrayAccess.peek.'a Array<T>, A>) => int32
-/// @definition.method symbol=ArrayAccess.view slot=view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32
+/// @definition.extension symbol=ArrayAccess form=exported target=T[]
+/// @definition.method symbol=ArrayAccess.peek slot=peek type=<ArrayAccess.peek.'a>(this: WithAccess<&ArrayAccess.peek.'a T[], A>) => int32
+/// @definition.method symbol=ArrayAccess.view slot=view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a T[], A>) => int32
 /// @type.symbol symbol=ArrayAccess.T source=T type=T
 /// @type.symbol symbol=ArrayAccess.A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=memory.access.Access
@@ -366,8 +366,8 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 
     view(this: WithAccess<&Array<T>, A>): int32 {
     /// @generic.template symbol=ArrayAccess.view parent=template#0 parameters=('a)
-    /// @type.symbol symbol=ArrayAccess.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32
-    /// @type.symbol symbol=ArrayAccess.view.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.view.'a Array<T>, A>
+    /// @type.symbol symbol=ArrayAccess.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a T[], A>) => int32
+    /// @type.symbol symbol=ArrayAccess.view.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.view.'a T[], A>
     /// @resolution.name source=WithAccess target=memory.type.WithAccess
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.name source=T target=ArrayAccess.T
@@ -380,20 +380,20 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 
     peek(this: WithAccess<&Array<T>, A>): int32 {
     /// @generic.template symbol=ArrayAccess.peek parent=template#0 parameters=('a)
-    /// @type.symbol symbol=ArrayAccess.peek type=<ArrayAccess.peek.'a>(this: WithAccess<&ArrayAccess.peek.'a Array<T>, A>) => int32
-    /// @type.symbol symbol=ArrayAccess.peek.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.peek.'a Array<T>, A>
+    /// @type.symbol symbol=ArrayAccess.peek type=<ArrayAccess.peek.'a>(this: WithAccess<&ArrayAccess.peek.'a T[], A>) => int32
+    /// @type.symbol symbol=ArrayAccess.peek.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.peek.'a T[], A>
     /// @resolution.name source=WithAccess target=memory.type.WithAccess
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.name source=T target=ArrayAccess.T
     /// @resolution.name source=A target=ArrayAccess.A
 
         this.view()
-        /// @type.node source=this type=WithAccess<&ArrayAccess.peek.'a Array<T>, A>
-        /// @type.node source=this.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <const collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>, isize, isize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A>
+        /// @type.node source=this type=WithAccess<&ArrayAccess.peek.'a T[], A>
+        /// @type.node source=this.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a T[], A>) => int32 & <const collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a T[], collections.array.view.A>, isize, isize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A>
         /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=WithAccess<&ArrayAccess.peek.'a Array<T>, A> type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <const collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>, isize, isize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A> kind=existential targets=[ArrayAccess.view, collections.array.view]
-        /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=ArrayAccess.view receiver=WithAccess<&ArrayAccess.peek.'a Array<T>, A> instance="ArrayAccess<T, A>.view"
-        /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.peek.'a Array<T>, A>
+        /// @resolution.member source=this.view receiver=WithAccess<&ArrayAccess.peek.'a T[], A> type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a T[], A>) => int32 & <const collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a T[], collections.array.view.A>, isize, isize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A> kind=existential targets=[ArrayAccess.view, collections.array.view]
+        /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=ArrayAccess.view receiver=WithAccess<&ArrayAccess.peek.'a T[], A> instance="ArrayAccess<T, A>.view"
+        /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.peek.'a T[], A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id="ArrayAccess.view<T, A>" template=ArrayAccess.view arguments=(T, A) owner=ArrayAccess.peek

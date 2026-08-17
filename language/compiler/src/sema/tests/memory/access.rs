@@ -905,27 +905,27 @@ items.push(1);
         DirRows::checked(),
         r#"
 === annotated ===
-declare const items: ^Array<int32>;
+declare const items: ^int32[];
 
 items.push<int32>(1);
 
 === dir ===
 declare const items: ^Array<int32>;
-/// @type.symbol symbol=items source=items type=Owned<Array<int32>>
+/// @type.symbol symbol=items source=items type=Owned<int32[]>
 /// @resolution.pattern source=items kind=binding target=items
 /// @resolution.name source=Array target=collections.array.Array
 
 items.push(1);
 /// @resolution.name source=items target=items
-/// @resolution.member source=items.push receiver=Owned<Array<int32>> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Owned<Array<int32>>, ...int32[]) => isize kind=symbol target_receiver=Owned<Array<int32>> target=collections.array.push
-/// @resolution.call source=items.push(1) parameters=(Array<int32>) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=Owned<Array<int32>> instance=Array<int32>.<extension#5>.push
+/// @resolution.member source=items.push receiver=Owned<int32[]> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Owned<int32[]>, ...int32[]) => isize kind=symbol target_receiver=Owned<int32[]> target=collections.array.push
+/// @resolution.call source=items.push(1) parameters=(int32[]) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=Owned<int32[]> instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=items placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=items root=items
 /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 /// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type '^Array<int32>' is not assignable to the method's 'this' type '&exclusive ^Array<int32>'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '^int32[]' is not assignable to the method's 'this' type '&exclusive ^int32[]'"
 /// @diagnostic.label line=4 column=1 span="items.push(1)" line_source="items.push(1);"
 "#,
     );
@@ -952,7 +952,7 @@ items.push<int32>(1);
 
 === dir ===
 declare const items: Array<int32>;
-/// @type.symbol symbol=items source=items type=Array<int32>
+/// @type.symbol symbol=items source=items type=int32[]
 /// @resolution.pattern source=items kind=binding target=items
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
@@ -965,8 +965,8 @@ declare const items: Array<int32>;
 
 items.push(1);
 /// @resolution.name source=items target=items
-/// @resolution.member source=items.push receiver=Array<int32> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => isize kind=symbol target_receiver=Array<int32> target=collections.array.push
-/// @resolution.call source=items.push(1) parameters=(Array<int32>) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=Array<int32> adjustments=(borrow(&'static exclusive Array<int32>)) instance=Array<int32>.<extension#5>.push
+/// @resolution.member source=items.push receiver=int32[] type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=collections.array.push
+/// @resolution.call source=items.push(1) parameters=(int32[]) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=int32[] adjustments=(borrow(&'static exclusive int32[])) instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=items placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=items root=items
 /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)

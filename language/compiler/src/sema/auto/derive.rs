@@ -117,7 +117,7 @@ impl CheckState<'_> {
             }
 
             // structural containers stay with their declared library conformances
-            dir::Type::Array(_) | dir::Type::Slice(_) | dir::Type::Object(_) => Ok(false),
+            dir::Type::Slice(_) | dir::Type::Object(_) => Ok(false),
 
             // decide composites through every component type
             dir::Type::FixedArray(array) => self.field_conforms(origin, array.element, interface),

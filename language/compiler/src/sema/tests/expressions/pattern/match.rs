@@ -1295,7 +1295,7 @@ match (values) {
 
 === dir ===
 declare const values: int32[];
-/// @type.symbol symbol=values source=values type=Array<int32>
+/// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
@@ -1306,7 +1306,7 @@ declare const values: int32[];
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 
 match (values) {
-/// @type.node source=values type=Array<int32>
+/// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
@@ -1316,12 +1316,12 @@ match (values) {
     /// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
     /// @generic.instantiation id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
     /// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-    /// @generic.instance id="memory.type.WithAccess<&'frame Array<int32>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Array<int32>, "exclusive")
     /// @generic.instance id="memory.type.WithAccess<&'frame int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32, "exclusive")
+    /// @generic.instance id="memory.type.WithAccess<&'frame int32[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32[], "exclusive")
     /// @generic.instance id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
     /// @type.symbol symbol=head source=head type=int32
     /// @resolution.pattern source=head kind=binding target=head
-    /// @type.symbol symbol=tail source=tail type=Owned<Array<int32>>
+    /// @type.symbol symbol=tail source=tail type=Owned<int32[]>
     /// @resolution.pattern source=tail kind=binding target=tail
 
         head satisfies int32;
@@ -1332,8 +1332,8 @@ match (values) {
         /// @resolution.access source=head root=head
 
         tail satisfies ^int32[];
-        /// @type.node source="tail satisfies ^int32[]" type=Owned<Array<int32>>
-        /// @type.node source=tail type=Owned<Array<int32>>
+        /// @type.node source="tail satisfies ^int32[]" type=Owned<int32[]>
+        /// @type.node source=tail type=Owned<int32[]>
         /// @resolution.name source=tail target=tail
         /// @resolution.place source=tail placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=tail root=tail

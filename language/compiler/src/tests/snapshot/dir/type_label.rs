@@ -53,7 +53,6 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Operation(operation) => {
                 self.operation_type_label(types, types.operation(*operation))
             }
-            dir::Type::Array(array) => self.array_type_label(types, array),
             dir::Type::FixedArray(array) => self.fixed_array_type_label(types, array),
             dir::Type::Range(range) => self.range_type_label(range),
             dir::Type::Slice(slice) => self.slice_type_label(types, slice),
@@ -303,7 +302,7 @@ impl DirSnapshotBuilder<'_> {
             (dir::LanguageItem::Array, [element]) => {
                 let element = self.type_id_label(types, *element);
 
-                Some(format!("Array<{element}>"))
+                Some(format!("{element}[]"))
             }
             (dir::LanguageItem::ReadonlyArray, [element]) => {
                 let element = self.type_id_label(types, *element);
@@ -370,7 +369,13 @@ impl DirSnapshotBuilder<'_> {
             }
             dir::Form::Readonly if form.value.module_id == types.module_id => {
                 match types.get_type(form.value.local_id) {
-                    dir::Type::Array(_) | dir::Type::Tuple(_) => format!("readonly {value}"),
+                    dir::Type::Tuple(_) => format!("readonly {value}"),
+                    dir::Type::Application(instance)
+                        if self.language_item_by_symbol.get(&instance.symbol)
+                            == Some(&dir::LanguageItem::Array) =>
+                    {
+                        format!("readonly {value}")
+                    }
                     _ => format!("Readonly<{value}>"),
                 }
             }
@@ -577,14 +582,6 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one fixed array type label.
-    fn array_type_label(&self, types: &dir::TypeTable<'_>, array: &dir::ArrayType) -> String {
-        // intrinsic collections render their declared names
-        let element = self.type_id_label(types, array.element);
-
-        format!("Array<{element}>")
-    }
-
-    /// Return one fixed array type label.
     fn fixed_array_type_label(
         &self,
         types: &dir::TypeTable<'_>,
@@ -669,14 +666,7 @@ impl DirSnapshotBuilder<'_> {
             return self.global_type_label(ty);
         }
 
-        match types.get_type(ty.local_id) {
-            dir::Type::Array(array) => {
-                let element = self.type_id_label(types, array.element);
-
-                format!("{element}[]")
-            }
-            _ => self.type_id_label(types, ty),
-        }
+        self.type_id_label(types, ty)
     }
 
     /// Return one shape type label.

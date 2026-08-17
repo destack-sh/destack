@@ -215,7 +215,7 @@ const length: isize = values.length;
 
 === dir ===
 let values: int32[] = [];
-/// @type.symbol symbol=values source=values type=Array<int32>
+/// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
@@ -224,18 +224,18 @@ let values: int32[] = [];
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
-/// @type.node source=[] type=Array<int32>
-/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=Array<int32> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+/// @type.node source=[] type=int32[]
+/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
 /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 /// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 
 const length = values.length;
 /// @type.symbol symbol=length source=length type=isize
 /// @resolution.pattern source=length kind=binding target=length
-/// @type.node source=values type=Array<int32>
+/// @type.node source=values type=int32[]
 /// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.length receiver=Array<int32> type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
@@ -278,10 +278,10 @@ import { values } from "./values.ds";
 const length = values.length;
 /// @type.symbol symbol=length source=length type=isize
 /// @resolution.pattern source=length kind=binding target=length
-/// @type.node source=values type=Array<int32>
+/// @type.node source=values type=int32[]
 /// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values.values
-/// @resolution.member source=values.length receiver=Array<int32> type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values.values
 /// @generic.instantiation id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
@@ -383,7 +383,7 @@ values.push<int32>(1);
 
 === dir ===
 let values: int32[] = [];
-/// @type.symbol symbol=values source=values type=Array<int32>
+/// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
@@ -392,18 +392,18 @@ let values: int32[] = [];
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
-/// @type.node source=[] type=Array<int32>
-/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=Array<int32> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+/// @type.node source=[] type=int32[]
+/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
 /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 /// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 
 values.push(1);
-/// @type.node source=values type=Array<int32>
-/// @type.node source=values.push type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => isize
+/// @type.node source=values type=int32[]
+/// @type.node source=values.push type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize
 /// @type.node source=values.push(1) type=isize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Array<int32> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => isize kind=symbol target_receiver=Array<int32> target=collections.array.push
-/// @resolution.call source=values.push(1) parameters=(Array<int32>) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=Array<int32> adjustments=(borrow(&'static exclusive Array<int32>)) instance=Array<int32>.<extension#5>.push
+/// @resolution.member source=values.push receiver=int32[] type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=collections.array.push
+/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=int32[] adjustments=(borrow(&'static exclusive int32[])) instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)

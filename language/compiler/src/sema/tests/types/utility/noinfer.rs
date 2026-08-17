@@ -27,9 +27,9 @@ ok satisfies "red" | "blue";
 === dir ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
-/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C> | undefined?) => C
+/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(C[], NoInfer<C> | undefined?) => C
 /// @type.symbol symbol=choose.C source="C: string" type=C
-/// @type.symbol symbol=choose.values source="values: C[]" type=Array<C>
+/// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
 /// @type.symbol symbol=choose.fallback source="fallback?: NoInfer<C>" type=NoInfer<C> | undefined
 /// @resolution.name source=NoInfer target=types.object.NoInfer
@@ -40,7 +40,7 @@ const ok = choose(["red", "blue"], "red");
 /// @type.symbol symbol=ok source=ok type="red" | "blue"
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=choose target=choose
-/// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=(Array<"red" | "blue">, "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("red") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
+/// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=("red" | "blue"[], "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as "red" | "blue"[], provided("red") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 /// @generic.instance id="Array<\"red\" | \"blue\">" template=collections.array.Array arguments=("red" | "blue")
 /// @generic.instance id="NoInfer<\"red\" | \"blue\">" template=types.object.NoInfer arguments=("red" | "blue")
@@ -51,7 +51,7 @@ const ok = choose(["red", "blue"], "red");
 /// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<\"red\" | \"blue\">>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<"red" | "blue">)
 /// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<\"red\" | \"blue\">>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<"red" | "blue">)
 /// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<\"red\" | \"blue\">>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<"red" | "blue">)
-/// @resolution.call source=["red", "blue"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return=Array<"red" | "blue"> kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\" | \"blue\">"
+/// @resolution.call source=["red", "blue"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="collections.array.arrayFromSlice<\"red\" | \"blue\">" template=collections.array.arrayFromSlice arguments=("red" | "blue")
 /// @generic.instance id="collections.array.arrayFromSlice<\"red\" | \"blue\">" template=collections.array.arrayFromSlice arguments=("red" | "blue")
 
@@ -91,9 +91,9 @@ const reds: "red"[] = values;
 === dir ===
 declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
-/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C>) => C
+/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C" type=<C: string>(C[], NoInfer<C>) => C
 /// @type.symbol symbol=choose.C source="C: string" type=C
-/// @type.symbol symbol=choose.values source="values: C[]" type=Array<C>
+/// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
 /// @type.symbol symbol=choose.fallback source="fallback: NoInfer<C>" type=NoInfer<C>
 /// @resolution.name source=NoInfer target=types.object.NoInfer
@@ -102,29 +102,29 @@ declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
 
 declare function make<T>(): T[];
 /// @generic.template symbol=make parameters=(T)
-/// @type.symbol symbol=make source="declare function make<T>(): T[]" type=<T>() => Array<T>
+/// @type.symbol symbol=make source="declare function make<T>(): T[]" type=<T>() => T[]
 /// @type.symbol symbol=make.T source=T type=T
 /// @resolution.name source=T target=make.T
 
 const values = make();
-/// @type.symbol symbol=values source=values type=Array<"red">
+/// @type.symbol symbol=values source=values type="red"[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=make target=make
-/// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
+/// @resolution.call source=make() parameters=() return="red"[] kind=symbol target=make instance="make<\"red\">"
 /// @generic.instantiation id="make<\"red\">" template=make arguments=("red")
 
 const picked = choose(values, "green");
 /// @type.symbol symbol=picked source=picked type="red"
 /// @resolution.pattern source=picked kind=binding target=picked
 /// @resolution.name source=choose target=choose
-/// @resolution.call source="choose(values, \"green\")" parameters=(Array<"red">, "red") arguments=(provided(values) as Array<"red">, provided("green") as "red") return="red" kind=symbol target=choose instance="choose<\"red\">"
+/// @resolution.call source="choose(values, \"green\")" parameters=("red"[], "red") arguments=(provided(values) as "red"[], provided("green") as "red") return="red" kind=symbol target=choose instance="choose<\"red\">"
 /// @generic.instantiation id="choose<\"red\">" template=choose arguments=("red")
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 
 const reds: "red"[] = values;
-/// @type.symbol symbol=reds source=reds type=Array<"red">
+/// @type.symbol symbol=reds source=reds type="red"[]
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
@@ -166,42 +166,42 @@ const reds: "red"[] = values;
 === dir ===
 declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C;
 /// @generic.template symbol=keep parameters=(C: string)
-/// @type.symbol symbol=keep source="declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C" type=<C: string>(Array<C>, NoInfer<Array<C>>) => C
+/// @type.symbol symbol=keep source="declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C" type=<C: string>(C[], NoInfer<C[]>) => C
 /// @type.symbol symbol=keep.C source="C: string" type=C
-/// @type.symbol symbol=keep.values source="values: C[]" type=Array<C>
+/// @type.symbol symbol=keep.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=keep.C
-/// @type.symbol symbol=keep.extras source="extras: NoInfer<C[]>" type=NoInfer<Array<C>>
+/// @type.symbol symbol=keep.extras source="extras: NoInfer<C[]>" type=NoInfer<C[]>
 /// @resolution.name source=NoInfer target=types.object.NoInfer
 /// @resolution.name source=C target=keep.C
 /// @resolution.name source=C target=keep.C
 
 declare function make<T>(): T[];
 /// @generic.template symbol=make parameters=(T)
-/// @type.symbol symbol=make source="declare function make<T>(): T[]" type=<T>() => Array<T>
+/// @type.symbol symbol=make source="declare function make<T>(): T[]" type=<T>() => T[]
 /// @type.symbol symbol=make.T source=T type=T
 /// @resolution.name source=T target=make.T
 
 const values = make();
-/// @type.symbol symbol=values source=values type=Array<"red">
+/// @type.symbol symbol=values source=values type="red"[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=make target=make
-/// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
+/// @resolution.call source=make() parameters=() return="red"[] kind=symbol target=make instance="make<\"red\">"
 /// @generic.instantiation id="make<\"red\">" template=make arguments=("red")
 
 const kept = keep(values, ["green"]);
 /// @type.symbol symbol=kept source=kept type="red"
 /// @resolution.pattern source=kept kind=binding target=kept
 /// @resolution.name source=keep target=keep
-/// @resolution.call source="keep(values, [\"green\"])" parameters=(Array<"red">, Array<"red">) arguments=(provided(values) as Array<"red">, provided(["green"]) as Array<"red">) return="red" kind=symbol target=keep instance="keep<\"red\">"
+/// @resolution.call source="keep(values, [\"green\"])" parameters=("red"[], "red"[]) arguments=(provided(values) as "red"[], provided(["green"]) as "red"[]) return="red" kind=symbol target=keep instance="keep<\"red\">"
 /// @generic.instantiation id="keep<\"red\">" template=keep arguments=("red")
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @resolution.call source=["green"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("green") as "red") return=Array<"red"> kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\">"
+/// @resolution.call source=["green"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("green") as "red") return="red"[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\">"
 /// @generic.instantiation id="collections.array.arrayFromSlice<\"red\">" template=collections.array.arrayFromSlice arguments=("red")
 
 const reds: "red"[] = values;
-/// @type.symbol symbol=reds source=reds type=Array<"red">
+/// @type.symbol symbol=reds source=reds type="red"[]
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
@@ -291,9 +291,9 @@ const reds: "red"[] = seeds;
 === dir ===
 declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
 /// @generic.template symbol=on parameters=(T#1)
-/// @type.symbol symbol=on source="declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void" type=<T#1>(Array<T#1>, NoInfer<Function<(T#1,), void>>) => void
+/// @type.symbol symbol=on source="declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void" type=<T#1>(T#1[], NoInfer<Function<(T#1,), void>>) => void
 /// @type.symbol symbol=on.T source=T type=T#1
-/// @type.symbol symbol=on.seeds source="seeds: T[]" type=Array<T#1>
+/// @type.symbol symbol=on.seeds source="seeds: T[]" type=T#1[]
 /// @resolution.name source=T target=on.T
 /// @type.symbol symbol=on.callback source="callback: NoInfer<(value: T) => void>" type=NoInfer<Function<(T#1,), void>>
 /// @resolution.name source=NoInfer target=types.object.NoInfer
@@ -302,20 +302,20 @@ declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
 
 declare function make<T>(): T[];
 /// @generic.template symbol=make parameters=(T#2)
-/// @type.symbol symbol=make source="declare function make<T>(): T[]" type=<T#2>() => Array<T#2>
+/// @type.symbol symbol=make source="declare function make<T>(): T[]" type=<T#2>() => T#2[]
 /// @type.symbol symbol=make.T source=T type=T#2
 /// @resolution.name source=T target=make.T
 
 const seeds = make();
-/// @type.symbol symbol=seeds source=seeds type=Array<"red">
+/// @type.symbol symbol=seeds source=seeds type="red"[]
 /// @resolution.pattern source=seeds kind=binding target=seeds
 /// @resolution.name source=make target=make
-/// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
+/// @resolution.call source=make() parameters=() return="red"[] kind=symbol target=make instance="make<\"red\">"
 /// @generic.instantiation id="make<\"red\">" template=make arguments=("red")
 
 on(seeds, (value) => {});
 /// @resolution.name source=on target=on
-/// @resolution.call source="on(seeds, (value) => {})" parameters=(Array<"red">, Function<("red",), void>) arguments=(provided(seeds) as Array<"red">, provided((value) => {}) as Function<("red",), void>) return=void kind=symbol target=on instance="on<\"red\">"
+/// @resolution.call source="on(seeds, (value) => {})" parameters=("red"[], Function<("red",), void>) arguments=(provided(seeds) as "red"[], provided((value) => {}) as Function<("red",), void>) return=void kind=symbol target=on instance="on<\"red\">"
 /// @generic.instantiation id="on<\"red\">" template=on arguments=("red")
 /// @resolution.name source=seeds target=seeds
 /// @resolution.place source=seeds placement="local" lifetime="static" access="exclusive"
@@ -324,7 +324,7 @@ on(seeds, (value) => {});
 /// @type.symbol symbol=symbol9.value source=value type="red"
 
 const reds: "red"[] = seeds;
-/// @type.symbol symbol=reds source=reds type=Array<"red">
+/// @type.symbol symbol=reds source=reds type="red"[]
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=seeds target=seeds
 /// @resolution.place source=seeds placement="local" lifetime="static" access="exclusive"
@@ -360,9 +360,9 @@ choose<"red" | "blue">(["red" as "red" | "blue", "blue" as "red" | "blue"], "gre
 === dir ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
-/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C> | undefined?) => C
+/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(C[], NoInfer<C> | undefined?) => C
 /// @type.symbol symbol=choose.C source="C: string" type=C
-/// @type.symbol symbol=choose.values source="values: C[]" type=Array<C>
+/// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
 /// @type.symbol symbol=choose.fallback source="fallback?: NoInfer<C>" type=NoInfer<C> | undefined
 /// @resolution.name source=NoInfer target=types.object.NoInfer
@@ -371,9 +371,9 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 
 choose(["red", "blue"], "green");
 /// @resolution.name source=choose target=choose
-/// @resolution.call source="choose([\"red\", \"blue\"], \"green\")" parameters=(Array<"red" | "blue">, "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("green") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
+/// @resolution.call source="choose([\"red\", \"blue\"], \"green\")" parameters=("red" | "blue"[], "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as "red" | "blue"[], provided("green") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
-/// @resolution.call source=["red", "blue"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return=Array<"red" | "blue"> kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\" | \"blue\">"
+/// @resolution.call source=["red", "blue"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="collections.array.arrayFromSlice<\"red\" | \"blue\">" template=collections.array.arrayFromSlice arguments=("red" | "blue")
 "#,
         r#"

@@ -487,7 +487,6 @@ impl BodyState<'_, '_> {
             | dir::Type::Reference(_)
             | dir::Type::Form(_)
             | dir::Type::Parameter(_)
-            | dir::Type::Array(_)
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Primitive(_)

@@ -339,14 +339,6 @@ impl CheckState<'_> {
             }
 
             // blame collection elements and lengths
-            (dir::Type::Array(source_array), dir::Type::Array(target_array)) => {
-                pairs.push((
-                    Some("the element type".to_string()),
-                    Relation::Equal,
-                    source_array.element,
-                    target_array.element,
-                ));
-            }
             (dir::Type::Slice(source_slice), dir::Type::Slice(target_slice)) => {
                 pairs.push((
                     Some("the element type".to_string()),

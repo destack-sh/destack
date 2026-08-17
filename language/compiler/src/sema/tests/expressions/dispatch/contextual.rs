@@ -24,18 +24,18 @@ class Bag<T> {
 /// @generic.template symbol=Bag parameters=(in out T)
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag template=(in out T)
-/// @definition.field symbol=Bag.values source="values: T[] = Array.new()" key=values type=Array<T>
+/// @definition.field symbol=Bag.values source="values: T[] = Array.new()" key=values type=T[]
 /// @type.symbol symbol=Bag.T source=T type=T
 
     values: T[] = Array.new();
-    /// @type.symbol symbol=Bag.values source="values: T[] = Array.new()" type=Array<T>
+    /// @type.symbol symbol=Bag.values source="values: T[] = Array.new()" type=T[]
     /// @resolution.name source=T target=Bag.T
     /// @type.node source=Array type=Array
-    /// @type.node source=Array.new type=() => Owned<Array<collections.array.T#5>>
-    /// @type.node source=Array.new() type=Owned<Array<T>>
+    /// @type.node source=Array.new type=() => Owned<collections.array.T#5[]>
+    /// @type.node source=Array.new() type=Owned<T[]>
     /// @resolution.name source=Array target=collections.array.Array
-    /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#5>> kind=symbol target_receiver=Array target=collections.array.new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<T>> kind=symbol target=collections.array.new instance=Array<T>.<extension#5>.new
+    /// @resolution.member source=Array.new receiver=Array type=() => Owned<collections.array.T#5[]> kind=symbol target_receiver=Array target=collections.array.new
+    /// @resolution.call source=Array.new() parameters=() return=Owned<T[]> kind=symbol target=collections.array.new instance=Array<T>.<extension#5>.new
     /// @generic.instantiation id=collections.array.new<T> template=collections.array.new arguments=(T) owner=Bag
 
 }
@@ -69,7 +69,7 @@ function build(): void {
 /// @type.symbol symbol=build type=() => void
 
     let values: int32[] = Array.new();
-    /// @type.symbol symbol=build.values source=values type=Array<int32>
+    /// @type.symbol symbol=build.values source=values type=int32[]
     /// @resolution.pattern source=values kind=binding target=build.values
     /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
     /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
@@ -79,16 +79,16 @@ function build(): void {
     /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
     /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
     /// @type.node source=Array type=Array
-    /// @type.node source=Array.new type=() => Owned<Array<collections.array.T#5>>
-    /// @type.node source=Array.new() type=Owned<Array<int32>>
+    /// @type.node source=Array.new type=() => Owned<collections.array.T#5[]>
+    /// @type.node source=Array.new() type=Owned<int32[]>
     /// @resolution.name source=Array target=collections.array.Array
-    /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#5>> kind=symbol target_receiver=Array target=collections.array.new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<int32>> kind=symbol target=collections.array.new instance=Array<int32>.<extension#5>.new
+    /// @resolution.member source=Array.new receiver=Array type=() => Owned<collections.array.T#5[]> kind=symbol target_receiver=Array target=collections.array.new
+    /// @resolution.call source=Array.new() parameters=() return=Owned<int32[]> kind=symbol target=collections.array.new instance=Array<int32>.<extension#5>.new
     /// @generic.instantiation id=collections.array.new<int32> template=collections.array.new arguments=(int32)
     /// @generic.instance id=collections.array.new<int32> template=collections.array.new arguments=(int32)
 
     values;
-    /// @type.node source=values type=Array<int32>
+    /// @type.node source=values type=int32[]
     /// @resolution.name source=values target=build.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=build.values
@@ -287,7 +287,7 @@ function values(entries: { value: int32 }[]): int32[] {
 
 === dir ===
 function values(entries: { value: int32 }[]): int32[] {
-/// @type.symbol symbol=values type=(Array<{ value: int32 }>) => Array<int32>
+/// @type.symbol symbol=values type=({ value: int32 }[]) => int32[]
 /// @generic.instance id="Array<{ value: int32 }>" template=collections.array.Array arguments=({ value: int32 })
 /// @generic.instance id="memory.init.MaybeUninit<{ value: int32 }>" template=memory.init.MaybeUninit arguments=({ value: int32 })
 /// @generic.instance id="memory.raw.dangling<memory.init.MaybeUninit<{ value: int32 }>>" template=memory.raw.dangling arguments=(memory.init.MaybeUninit<{ value: int32 }>)
@@ -302,12 +302,12 @@ function values(entries: { value: int32 }[]): int32[] {
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
-/// @type.symbol symbol=values.entries source="entries: { value: int32 }[]" type=Array<{ value: int32 }>
+/// @type.symbol symbol=values.entries source="entries: { value: int32 }[]" type={ value: int32 }[]
 
     return entries.map(({ value }) => value);
     /// @resolution.name source=entries target=values.entries
-    /// @resolution.member source=entries.map receiver=Array<{ value: int32 }> type=<collections.array.map.U#2>(this: Array<{ value: int32 }>, Function<({ value: int32 }, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=symbol target_receiver=Array<{ value: int32 }> target=collections.array.map#2
-    /// @resolution.call source="entries.map(({ value }) => value)" parameters=(Function<({ value: int32 }, isize), int32>) arguments=(provided(({ value }) => value) as Function<({ value: int32 }, isize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#2 receiver=Array<{ value: int32 }> instance="Array<{ value: int32 }>.<extension#3>.map#2<int32>"
+    /// @resolution.member source=entries.map receiver={ value: int32 }[] type=<collections.array.map.U#2>(this: { value: int32 }[], Function<({ value: int32 }, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]> kind=symbol target_receiver={ value: int32 }[] target=collections.array.map#2
+    /// @resolution.call source="entries.map(({ value }) => value)" parameters=(Function<({ value: int32 }, isize), int32>) arguments=(provided(({ value }) => value) as Function<({ value: int32 }, isize), int32>) return=Owned<int32[]> kind=symbol target=collections.array.map#2 receiver={ value: int32 }[] instance="Array<{ value: int32 }>.<extension#3>.map#2<int32>"
     /// @resolution.place source=entries placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=entries root=values.entries
     /// @generic.instantiation id="collections.array.map#2<{ value: int32 }, int32>" template=collections.array.map#2 arguments=({ value: int32 }, int32)
@@ -346,7 +346,7 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
 
 === dir ===
 function unwrap(values: (int32 | undefined)[]): int32[] {
-/// @type.symbol symbol=unwrap type=(Array<int32 | undefined>) => Array<int32>
+/// @type.symbol symbol=unwrap type=(int32 | undefined[]) => int32[]
 /// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
 /// @generic.instance id="memory.init.MaybeUninit<int32 | undefined>" template=memory.init.MaybeUninit arguments=(int32 | undefined)
 /// @generic.instance id="memory.raw.dangling<memory.init.MaybeUninit<int32 | undefined>>" template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32 | undefined>)
@@ -361,12 +361,12 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
-/// @type.symbol symbol=unwrap.values source="values: (int32 | undefined)[]" type=Array<int32 | undefined>
+/// @type.symbol symbol=unwrap.values source="values: (int32 | undefined)[]" type=int32 | undefined[]
 
     return values.map((value) => value!);
     /// @resolution.name source=values target=unwrap.values
-    /// @resolution.member source=values.map receiver=Array<int32 | undefined> type=<collections.array.map.U#2>(this: Array<int32 | undefined>, Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<Array<collections.array.map.U#2>> kind=symbol target_receiver=Array<int32 | undefined> target=collections.array.map#2
-    /// @resolution.call source="values.map((value) => value!)" parameters=(Function<(int32 | undefined, isize), int32>) arguments=(provided((value) => value!) as Function<(int32 | undefined, isize), int32>) return=Owned<Array<int32>> kind=symbol target=collections.array.map#2 receiver=Array<int32 | undefined> instance="Array<int32 | undefined>.<extension#3>.map#2<int32>"
+    /// @resolution.member source=values.map receiver=int32 | undefined[] type=<collections.array.map.U#2>(this: int32 | undefined[], Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]> kind=symbol target_receiver=int32 | undefined[] target=collections.array.map#2
+    /// @resolution.call source="values.map((value) => value!)" parameters=(Function<(int32 | undefined, isize), int32>) arguments=(provided((value) => value!) as Function<(int32 | undefined, isize), int32>) return=Owned<int32[]> kind=symbol target=collections.array.map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32>"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=unwrap.values
     /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32>" template=collections.array.map#2 arguments=(int32 | undefined, int32)

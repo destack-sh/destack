@@ -49,9 +49,9 @@ newtype Axis = intrinsic;
 /// @definition.newtype symbol=Axis source="newtype Axis = intrinsic" backing=intrinsic constructors=[(intrinsic) => Axis]
 
 newtype Sharding<...Axes: Axis[]> = intrinsic;
-/// @generic.template symbol=Sharding parameters=(in out ...Axes#1: Array<Axis>)
+/// @generic.template symbol=Sharding parameters=(in out ...Axes#1: Axis[])
 /// @type.symbol symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" type=Sharding
-/// @definition.newtype symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" template=(in out ...Axes#1: Array<Axis>) backing=intrinsic constructors=[<...Axes#1: Array<Axis>>(intrinsic) => Sharding<Axes#1>]
+/// @definition.newtype symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" template=(in out ...Axes#1: Axis[]) backing=intrinsic constructors=[<...Axes#1: Axis[]>(intrinsic) => Sharding<Axes#1>]
 /// @type.symbol symbol=Sharding.Axes source="...Axes: Axis[]" type=Axes#1
 /// @resolution.name source=Axis target=Axis
 /// @generic.instance id=Array<Axis> template=collections.array.Array arguments=(Axis)
@@ -70,8 +70,8 @@ newtype Grid<T, P> = intrinsic;
 /// @type.symbol symbol=Grid.P source=P type=P
 
 declare function mesh<T, ...Axes: Axis[]>(
-/// @generic.template symbol=mesh parameters=(T#2, ...Axes#2: Array<Axis>, 'a)
-/// @type.symbol symbol=mesh type=<T#2, ...Axes#2: Array<Axis>, mesh.'a>(&mesh.'a readonly Grid<T#2, Sharding<Axes#2>>) => int32
+/// @generic.template symbol=mesh parameters=(T#2, ...Axes#2: Axis[], 'a)
+/// @type.symbol symbol=mesh type=<T#2, ...Axes#2: Axis[], mesh.'a>(&mesh.'a readonly Grid<T#2, Sharding<Axes#2>>) => int32
 /// @type.symbol symbol=mesh.T source=T type=T#2
 /// @type.symbol symbol=mesh.Axes source="...Axes: Axis[]" type=Axes#2
 /// @resolution.name source=Axis target=Axis
@@ -86,7 +86,7 @@ declare function mesh<T, ...Axes: Axis[]>(
 ): int32;
 
 export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
-/// @generic.template symbol=<module>#2 parameters=(T#3, ...Axes#3: Array<Axis>)
+/// @generic.template symbol=<module>#2 parameters=(T#3, ...Axes#3: Axis[])
 /// @definition.extension symbol=<module>#2 form=exported target=Grid<T#3, Sharding<Axes#3>>
 /// @definition.method symbol=mesh#1 slot=mesh role=getter type=<mesh#1.'a>(this: &mesh#1.'a readonly this) => int32
 /// @type.symbol symbol=T source=T type=T#3
@@ -176,8 +176,8 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 
 declare function mesh<T, ...Xs: Axis[]>(
-/// @generic.template symbol=mesh parameters=(T#1, ...Xs#1: Array<sharding.Axis>, 'a)
-/// @type.symbol symbol=mesh type=<T#1, ...Xs#1: Array<sharding.Axis>, mesh.'a>(&mesh.'a readonly <error>) => int32
+/// @generic.template symbol=mesh parameters=(T#1, ...Xs#1: sharding.Axis[], 'a)
+/// @type.symbol symbol=mesh type=<T#1, ...Xs#1: sharding.Axis[], mesh.'a>(&mesh.'a readonly <error>) => int32
 /// @type.symbol symbol=mesh.T source=T type=T#1
 /// @type.symbol symbol=mesh.Xs source="...Xs: Axis[]" type=Xs#1
 /// @resolution.name source=Axis target=sharding.Axis
@@ -227,7 +227,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'sharding.Marker'"
 /// @diagnostic.label line=5 column=34 span="...Xs" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
 /// @diagnostic.related file="sharding.ds" line=6 column=30 span="Xs" line_source="export newtype Wrap<const ...Xs: Marker> = intrinsic;" message="required by this bound on 'Xs'"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'Array<sharding.Axis>'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'sharding.Axis[]'"
 /// @diagnostic.label line=11 column=16 span="mesh<T, ...Xs>(this)" line_source="return mesh<T, ...Xs>(this);"
 /// @diagnostic.related line=4 column=29 span="Xs" line_source="declare function mesh<T, ...Xs: Axis[]>(" message="required by this bound on 'Xs'"
 "#,
@@ -251,8 +251,8 @@ declare function mesh<...Axes: Missing[]>(value: int32): int32;
 
 === dir ===
 declare function mesh<...Axes: Missing[]>(value: int32): int32;
-/// @generic.template symbol=mesh parameters=(...Axes: Array<<error>>)
-/// @type.symbol symbol=mesh source="declare function mesh<...Axes: Missing[]>(value: int32): int32" type=<...Axes: Array<<error>>>(int32) => int32
+/// @generic.template symbol=mesh parameters=(...Axes: <error>[])
+/// @type.symbol symbol=mesh source="declare function mesh<...Axes: Missing[]>(value: int32): int32" type=<...Axes: <error>[]>(int32) => int32
 /// @type.symbol symbol=mesh.Axes source="...Axes: Missing[]" type=Axes
 /// @resolution.unresolved source=Missing path=Missing
 /// @type.symbol symbol=mesh.value source="value: int32" type=int32

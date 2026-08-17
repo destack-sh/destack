@@ -482,9 +482,6 @@ impl CheckState<'_> {
                     &actual_arguments,
                 )
             }
-            (dir::Type::Array(pattern), dir::Type::Array(actual)) => {
-                self.match_infer_type(origin, captures, variance, pattern.element, actual.element)
-            }
             (dir::Type::Slice(pattern), dir::Type::Slice(actual)) => {
                 self.match_infer_type(origin, captures, variance, pattern.element, actual.element)
             }

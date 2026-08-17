@@ -51,6 +51,41 @@ impl ApparentInstance {
 }
 
 impl CheckState<'_> {
+    /// Intern the canonical Array application over one element type.
+    pub(in crate::sema) fn array_type(
+        &mut self,
+        element: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let symbol = self.language_symbol(dir::LanguageItem::Array)?;
+        if !self.is_own_module(symbol.module_id) {
+            self.import_external_module(symbol.module_id)?;
+        }
+        let arguments = self.intern_type_ids(&[element])?;
+
+        self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol,
+            arguments,
+        }))
+    }
+
+    /// Return the element type behind one canonical Array application.
+    pub(in crate::sema) fn array_element(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let dir::Type::Application(instance) = self.ty(ty)? else {
+            return Ok(None);
+        };
+        if self.language_item(instance.symbol)? != Some(dir::LanguageItem::Array) {
+            return Ok(None);
+        }
+        let [element] = self.type_ids(ty.module_id, instance.arguments)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(*element))
+    }
+
     /// Intern the type used for apparent member lookup into the checked module.
     pub(in crate::sema) fn intern_apparent_type(
         &mut self,
@@ -91,10 +126,6 @@ impl CheckState<'_> {
                     arguments: SmallVec::new(),
                 }
             }
-            dir::Type::Array(array) => ApparentInstance {
-                symbol: self.language_symbol(dir::LanguageItem::Array)?,
-                arguments: SmallVec::from_slice(&[array.element]),
-            },
             dir::Type::Slice(slice) => ApparentInstance {
                 symbol: self.language_symbol(dir::LanguageItem::Slice)?,
                 arguments: SmallVec::from_slice(&[slice.element]),

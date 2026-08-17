@@ -108,20 +108,8 @@ impl CheckState<'_> {
             }
 
             let ty = self.ty(id)?;
-            match &ty {
-                dir::Type::Application(application) => {
-                    let application = *application;
-                    self.intern_application(id.module_id, &application, source, depth, worklist)?;
-                }
-                // arrays run on the Array representation class
-                dir::Type::Array(array) => {
-                    let application = dir::GenericApplication {
-                        symbol: self.language_symbol(dir::LanguageItem::Array)?,
-                        arguments: self.intern_type_ids(&[array.element])?,
-                    };
-                    self.intern_application(self.module_id, &application, source, depth, worklist)?;
-                }
-                _ => {}
+            if let dir::Type::Application(application) = ty {
+                self.intern_application(id.module_id, &application, source, depth, worklist)?;
             }
 
             self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;

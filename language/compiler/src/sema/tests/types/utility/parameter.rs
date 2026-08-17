@@ -116,7 +116,7 @@ type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=(string, ...boolean[])
 /// @resolution.name source=Parameters target=types.function.Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
-/// @type.symbol symbol=Args.flags source="...flags: boolean[]" type=Array<boolean>
+/// @type.symbol symbol=Args.flags source="...flags: boolean[]" type=boolean[]
 
 const ok: Args = ("Ada", true, false);
 /// @type.symbol symbol=ok source=ok type=(string, ...boolean[])

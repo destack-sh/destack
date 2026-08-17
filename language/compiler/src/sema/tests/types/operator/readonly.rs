@@ -85,7 +85,7 @@ frozen satisfies readonly number[];
 
 === dir ===
 declare let values: number[];
-/// @type.symbol symbol=values source=values type=Array<float64>
+/// @type.symbol symbol=values source=values type=float64[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
@@ -96,7 +96,7 @@ declare let values: number[];
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 
 let frozen: readonly number[] = values;
-/// @type.symbol symbol=frozen source=frozen type=readonly Array<float64>
+/// @type.symbol symbol=frozen source=frozen type=readonly float64[]
 /// @resolution.pattern source=frozen kind=binding target=frozen
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
@@ -129,18 +129,18 @@ let bad: float64[] = frozen;
 
 === dir ===
 declare let frozen: readonly number[];
-/// @type.symbol symbol=frozen source=frozen type=readonly Array<float64>
+/// @type.symbol symbol=frozen source=frozen type=readonly float64[]
 /// @resolution.pattern source=frozen kind=binding target=frozen
 
 let bad: number[] = frozen;
-/// @type.symbol symbol=bad source=bad type=Array<float64>
+/// @type.symbol symbol=bad source=bad type=float64[]
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=frozen target=frozen
 /// @resolution.place source=frozen placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=frozen root=frozen
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'readonly Array<float64>' is not assignable to type 'Array<float64>'"
+/// @diagnostic.error id=not-assignable message="type 'readonly float64[]' is not assignable to type 'float64[]'"
 /// @diagnostic.label line=3 column=21 span="frozen" line_source="let bad: number[] = frozen;"
 /// @diagnostic.related line=3 column=10 span="number[]" line_source="let bad: number[] = frozen;" message="expected due to this annotation"
 "#,

@@ -63,21 +63,21 @@ declare const fixed: [int32; 3];
 /// @resolution.pattern source=fixed kind=binding target=fixed
 
 const grown: int32[] = fixed;
-/// @type.symbol symbol=grown source=grown type=Array<int32>
+/// @type.symbol symbol=grown source=grown type=int32[]
 /// @resolution.pattern source=grown kind=binding target=grown
 /// @resolution.name source=fixed target=fixed
 /// @resolution.place source=fixed placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=fixed root=fixed
 
 const copied: int32[] = [...fixed];
-/// @type.symbol symbol=copied source=copied type=Array<int32>
+/// @type.symbol symbol=copied source=copied type=int32[]
 /// @resolution.pattern source=copied kind=binding target=copied
 /// @resolution.name source=fixed target=fixed
 /// @resolution.place source=fixed placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=fixed root=fixed
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'Array<int32>'"
+/// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'int32[]'"
 /// @diagnostic.label line=3 column=24 span="fixed" line_source="const grown: int32[] = fixed;"
 /// @diagnostic.related line=3 column=14 span="int32[]" line_source="const grown: int32[] = fixed;" message="expected due to this annotation"
 "#,

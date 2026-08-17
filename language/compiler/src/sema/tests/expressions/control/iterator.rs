@@ -25,7 +25,7 @@ for (const value of values) {
 
 === dir ===
 const values: int32[] = [1, 2, 3];
-/// @type.symbol symbol=values source=values type=Array<int32>
+/// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
@@ -34,8 +34,8 @@ const values: int32[] = [1, 2, 3];
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
-/// @type.node source=[1, 2, 3] type=Array<int32>
-/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int32) return=Array<int32> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+/// @type.node source=[1, 2, 3] type=int32[]
+/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
 /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 /// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 /// @type.node source=1 type=1
@@ -45,7 +45,7 @@ const values: int32[] = [1, 2, 3];
 for (const value of values) {
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=values type=Array<int32>
+/// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
 /// @resolution.access source=values root=values
 
@@ -417,8 +417,8 @@ for (const key in [1, 2, 3]) {
 for (const key in [1, 2, 3]) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=[1, 2, 3] type=Array<float64>
-/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @type.node source=[1, 2, 3] type=float64[]
+/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
 /// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -650,7 +650,7 @@ function visit(values: int32[]): void {
 
 === dir ===
 function visit(values: int32[]): void {
-/// @type.symbol symbol=visit type=(Array<int32>) => void
+/// @type.symbol symbol=visit type=(int32[]) => void
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
 /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
@@ -658,7 +658,7 @@ function visit(values: int32[]): void {
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
-/// @type.symbol symbol=visit.values source="values: int32[]" type=Array<int32>
+/// @type.symbol symbol=visit.values source="values: int32[]" type=int32[]
 
     for (let value of values) {
     /// @type.symbol symbol=visit.value source=value type=int32
@@ -701,7 +701,7 @@ function total(values: int32[]): int32 {
 === annotated ===
 function total(values: int32[]): int32 {
     let sum: int32 = 0;
-    for (const (index, value) of values.iterator<int32>().enumerate<int32, void>()) {
+    for (const (index, value) of values.iterator<int32>().enumerate<int32>()) {
         sum = sum + value;
     }
     return sum;
@@ -709,7 +709,7 @@ function total(values: int32[]): int32 {
 
 === dir ===
 function total(values: int32[]): int32 {
-/// @type.symbol symbol=total type=(Array<int32>) => int32
+/// @type.symbol symbol=total type=(int32[]) => int32
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
 /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
@@ -717,7 +717,7 @@ function total(values: int32[]): int32 {
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
-/// @type.symbol symbol=total.values source="values: int32[]" type=Array<int32>
+/// @type.symbol symbol=total.values source="values: int32[]" type=int32[]
 
     let sum: int32 = 0;
     /// @type.symbol symbol=total.sum source=sum type=int32
@@ -730,26 +730,28 @@ function total(values: int32[]): int32 {
     /// @type.symbol symbol=total.value source=value type=int32
     /// @resolution.pattern source=value kind=binding target=total.value
     /// @resolution.name source=values target=total.values
-    /// @resolution.member source=values.iterator receiver=Array<int32> type=(this: Array<int32>) => iter.iterator.Iterator<int32, void> kind=symbol target_receiver=Array<int32> target=collections.array.iterator#2
-    /// @resolution.member source=values.iterator().enumerate receiver=iter.iterator.Iterator<int32, void> type=(this: iter.iterator.Iterator<int32, void>) => iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32, void>, int32, void> kind=symbol target_receiver=iter.iterator.Iterator<int32, void> target=iter.iterator.Iterator.enumerate
-    /// @resolution.call source=values.iterator() parameters=() return=iter.iterator.Iterator<int32, void> kind=symbol target=collections.array.iterator#2 receiver=Array<int32> instance=Array<int32>.<extension#3>.iterator#2
-    /// @resolution.call source=values.iterator().enumerate() parameters=() return=iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32, void>, int32, void> kind=symbol target=iter.iterator.Iterator.enumerate receiver=iter.iterator.Iterator<int32, void> instance="iter.iterator.Iterator<int32, void>.enumerate"
+    /// @resolution.member source=values.iterator receiver=int32[] type=(this: int32[]) => iter.iterator.Iterator<int32> kind=symbol target_receiver=int32[] target=collections.array.iterator#2
+    /// @resolution.member source=values.iterator().enumerate receiver=iter.iterator.Iterator<int32> type=(this: iter.iterator.Iterator<int32>) => iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32>, int32> kind=symbol target_receiver=iter.iterator.Iterator<int32> target=iter.iterator.Iterator.enumerate
+    /// @resolution.call source=values.iterator() parameters=() return=iter.iterator.Iterator<int32> kind=symbol target=collections.array.iterator#2 receiver=int32[] instance=Array<int32>.<extension#3>.iterator#2
+    /// @resolution.call source=values.iterator().enumerate() parameters=() return=iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32>, int32> kind=symbol target=iter.iterator.Iterator.enumerate receiver=iter.iterator.Iterator<int32> instance=iter.iterator.Iterator<int32>.enumerate
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=total.values
-    /// @generic.instantiation id="iter.iterator.Iterator.enumerate<int32, void>" template=iter.iterator.Iterator.enumerate arguments=(int32, void)
     /// @generic.instantiation id=collections.array.iterator#2<int32> template=collections.array.iterator#2 arguments=(int32)
-    /// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int32, void>, int32>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int32, void>, int32)
-    /// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<int32, void>, int32>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<int32, void>, int32)
-    /// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32, void>, int32, void>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int32, void>, int32, void)
-    /// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int32, void>, int32>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int32, void>, int32)
-    /// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int32, void>, int32, void>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int32, void>, int32, void)
-    /// @generic.instance id="iter.iterator.Iterator.enumerate<int32, void>" template=iter.iterator.Iterator.enumerate arguments=(int32, void)
-    /// @generic.instance id="iter.iterator.Iterator<int32, void>" template=iter.iterator.Iterator arguments=(int32, void)
+    /// @generic.instantiation id=iter.iterator.Iterator.enumerate<int32> template=iter.iterator.Iterator.enumerate arguments=(int32)
+    /// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int32>, int32)
+    /// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<int32>, int32)
+    /// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int32>, int32)
+    /// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int32>, int32)
+    /// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int32>, int32)
+    /// @generic.instance id="iter.iterator.IteratorResult<int32, iter.iterator.Iterator<int32>.Return>" template=iter.iterator.IteratorResult arguments=(int32, iter.iterator.Iterator<int32>.Return)
     /// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
-    /// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int32, void>, int32, void>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int32, void>, int32, void)
-    /// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int32, void>, int32>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int32, void>, int32)
-    /// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<int32, void>, int32>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<int32, void>, int32)
+    /// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int32>, int32)
+    /// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int32>, int32)
+    /// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<int32>, int32)
     /// @generic.instance id=collections.array.iterator#2<int32> template=collections.array.iterator#2 arguments=(int32)
+    /// @generic.instance id=iter.iterator.Iterator.enumerate<int32> template=iter.iterator.Iterator.enumerate arguments=(int32)
+    /// @generic.instance id=iter.iterator.Iterator<int32> template=iter.iterator.Iterator arguments=(int32)
+    /// @generic.instance id=iter.iterator.IteratorReturn<iter.iterator.Iterator<int32>.Return> template=iter.iterator.IteratorReturn arguments=(iter.iterator.Iterator<int32>.Return)
     /// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
     /// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
 
