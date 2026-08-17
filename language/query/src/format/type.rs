@@ -83,11 +83,6 @@ impl Formatter<'_, '_, '_> {
 
                 format!("Dynamic<{constraint}>")
             }
-            dir::Type::Array(array) => {
-                let element = self.type_operand(array.element, TypeOperand::Postfix)?;
-
-                format!("{element}[]")
-            }
             dir::Type::FixedArray(array) => {
                 let element = self.global_type(array.element)?;
                 let count = self.global_type(array.count)?;
@@ -161,9 +156,19 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one generic instance.
     fn instance(&self, instance: dir::GenericApplication) -> QueryResult<String> {
-        let symbol = self.symbol(instance.symbol)?;
         let arguments = self.types()?.type_ids(instance.arguments);
 
+        // array applications render in their written rest form
+        if self.program.environment_bound()?.language.item(instance.symbol)
+            == Some(dir::LanguageItem::Array)
+            && let [element] = arguments
+        {
+            let element = self.type_operand(*element, TypeOperand::Postfix)?;
+
+            return Ok(format!("{element}[]"));
+        }
+
+        let symbol = self.symbol(instance.symbol)?;
         if arguments.is_empty() {
             return Ok(symbol);
         }
