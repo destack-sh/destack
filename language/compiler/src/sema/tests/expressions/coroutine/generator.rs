@@ -24,8 +24,18 @@ function* count(limit: int32): Generator<int32, void, void> {
 function* count(limit: int32): Generator<int32, void, void> {
 /// @type.symbol symbol=count type=(int32) => *Generator<int32, void, void>
 /// @generic.instance id="Generator<int32, void, void>" template=async.generator.Generator arguments=(int32, void, void)
+/// @generic.instance id="async.generator.GeneratorPhase<int32, void, void>" template=async.generator.GeneratorPhase arguments=(int32, void, void)
+/// @generic.instance id="async.generator.GeneratorRequest<void, void>" template=async.generator.GeneratorRequest arguments=(void, void)
+/// @generic.instance id="async.generator.GeneratorRequested<void, void>" template=async.generator.GeneratorRequested arguments=(void, void)
 /// @generic.instance id="async.generator.GeneratorResult<int32, void>" template=async.generator.GeneratorResult arguments=(int32, void)
+/// @generic.instance id="async.generator.GeneratorState<int32, void, void>" template=async.generator.GeneratorState arguments=(int32, void, void)
 /// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
+/// @generic.instance id="memory.cell.cell.Cell<async.generator.GeneratorPhase<int32, void, void>>" template=memory.cell.cell.Cell arguments=(async.generator.GeneratorPhase<int32, void, void>)
+/// @generic.instance id="memory.cell.cell.UnsafeCell<async.generator.GeneratorPhase<int32, void, void>>" template=memory.cell.cell.UnsafeCell arguments=(async.generator.GeneratorPhase<int32, void, void>)
+/// @generic.instance id=async.generator.GeneratorNext<void> template=async.generator.GeneratorNext arguments=(void)
+/// @generic.instance id=async.generator.GeneratorReturn<void> template=async.generator.GeneratorReturn arguments=(void)
+/// @generic.instance id=async.generator.GeneratorReturned<void> template=async.generator.GeneratorReturned arguments=(void)
+/// @generic.instance id=async.generator.GeneratorYielded<int32> template=async.generator.GeneratorYielded arguments=(int32)
 /// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
 /// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
 /// @type.symbol symbol=count.limit source="limit: int32" type=int32
