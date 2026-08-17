@@ -3,8 +3,8 @@ use crate::parse::context::TypeContext;
 use crate::parse::r#type::operator::{TypeOperator, TypePrefixOperator};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_dir::{
-    LocalNodeId, Mutability, NodeType, OperatorPrecedence, RangeEnd, ScalarLiteral, TokenType,
-    TypeExpression, UnaryOperator, VarianceBound,
+    LocalNodeId, Mutability, NodeType, OperatorPrecedence, RangeEnd, TokenType, TypeExpression,
+    VarianceBound,
 };
 use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanType};
 use smallvec::{SmallVec, smallvec};
@@ -290,7 +290,14 @@ impl Parser {
             {
                 self.parse_type_template_literal(context)
             }
-            TokenType::Add | TokenType::Subtract => self.parse_signed_type_literal(start),
+            TokenType::Add | TokenType::Subtract => {
+                let value = self.parse_signed_numeric_literal()?;
+
+                Ok(self.insert_node(
+                    TypeExpression::ScalarLiteral { value },
+                    self.range_since(start),
+                ))
+            }
             TokenType::Literal if self.peek_scalar_literal_start() => {
                 let value = self.parse_scalar_literal()?;
 
@@ -337,37 +344,6 @@ impl Parser {
         let members = self.parse_type_object_literal(context.function)?;
 
         Ok(self.insert_node(TypeExpression::Object { members }, self.range_since(start)))
-    }
-
-    /// Parse a scalar literal with one explicit sign.
-    fn parse_signed_type_literal(
-        &mut self,
-        start: &ParseStart,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let Some(operator) = UnaryOperator::from_prefix_token(self.peek_token_type()) else {
-            return Err(ParserError::unexpected(self.peek_token_span()));
-        };
-        if !matches!(operator, UnaryOperator::Plus | UnaryOperator::Negate) {
-            return Err(ParserError::unexpected(self.peek_token_span()));
-        }
-
-        self.bump();
-        let value = self.parse_scalar_literal()?;
-        let value = match (operator, value) {
-            (UnaryOperator::Negate, ScalarLiteral::Integer(number)) => {
-                ScalarLiteral::Integer(-number)
-            }
-            (UnaryOperator::Negate, ScalarLiteral::Bigint(number)) => {
-                ScalarLiteral::Bigint(-number)
-            }
-            (UnaryOperator::Negate, ScalarLiteral::Float(number)) => ScalarLiteral::Float(-number),
-            (_, value) => value,
-        };
-
-        Ok(self.insert_node(
-            TypeExpression::ScalarLiteral { value },
-            self.range_since(start),
-        ))
     }
 
     /// Parse a type list with one leading separator.

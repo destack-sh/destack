@@ -148,11 +148,18 @@ impl Parser {
                 )?;
                 self.insert_node(Pattern::Sequence { fields }, self.range_since(&start))
             }
-            // literal expression
-            else if self.peek_scalar_literal_start() {
-                let scalar_literal_id = self.parse_scalar_literal().in_node(NodeType::Pattern)?;
+            // scalar literal expression
+            else if matches!(self.peek_token_type(), TokenType::Add | TokenType::Subtract)
+                || self.peek_scalar_literal_start()
+            {
+                let scalar_literal = match self.peek_token_type() {
+                    TokenType::Add | TokenType::Subtract => self
+                        .parse_signed_numeric_literal()
+                        .in_node(NodeType::Pattern)?,
+                    _ => self.parse_scalar_literal().in_node(NodeType::Pattern)?,
+                };
                 let expression_id = self.insert_node(
-                    Expression::ScalarLiteral(scalar_literal_id),
+                    Expression::ScalarLiteral(scalar_literal),
                     self.range_since(&start),
                 );
                 if let Some(end_kind) = self.peek_range_end() {
@@ -388,6 +395,17 @@ impl Parser {
         context: PatternContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
+
+        // fold explicit signs into numeric scalar bounds
+        if matches!(self.peek_token_type(), TokenType::Add | TokenType::Subtract)
+            && self.peek_token_type_at(1) == TokenType::Literal
+        {
+            let value = self
+                .parse_signed_numeric_literal()
+                .in_node(NodeType::Pattern)?;
+
+            return Ok(self.insert_node(Expression::ScalarLiteral(value), self.range_since(&start)));
+        }
 
         // match arrows terminate symbolic endpoints
         if self.peek_is(TokenType::Identifier)

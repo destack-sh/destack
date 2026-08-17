@@ -412,6 +412,45 @@ fn test_parse_pattern_range_inclusive() {
     test.assert_no_errors(&parser);
 }
 
+/// Fold a signed integer into one range-pattern bound.
+#[test]
+fn test_parse_signed_pattern_range() {
+    let test = TestParser::new("-10..=-5");
+    let mut parser = test.prepare();
+    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+
+    assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
+        assert_eq!(*end_kind, RangeEnd::Inclusive);
+        assert_integer_expression(&parser.tree, *start, -10);
+        assert_integer_expression(&parser.tree, *end, -5);
+    });
+    test.assert_no_errors(&parser);
+}
+
+/// Fold explicit signs into every numeric literal pattern family.
+#[test]
+fn test_parse_signed_numeric_patterns() {
+    let test = TestParser::new("-1 | +2n | -3.5");
+    let mut parser = test.prepare();
+    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+
+    assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
+        assert_eq!(patterns.len(), 3);
+        assert_node!(parser.tree, patterns[0], Pattern::Expression { value } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(-1)));
+        });
+        assert_node!(parser.tree, patterns[1], Pattern::Expression { value } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Bigint(2)));
+        });
+        assert_node!(parser.tree, patterns[2], Pattern::Expression { value } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Float(value)) => {
+                assert_eq!(*value, -3.5);
+            });
+        });
+    });
+    test.assert_no_errors(&parser);
+}
+
 #[test]
 fn test_parse_pattern_range_open_ended() {
     let test = TestParser::new("0..");

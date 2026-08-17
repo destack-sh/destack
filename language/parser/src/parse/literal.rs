@@ -135,6 +135,31 @@ impl<'a> IntegerLiteral<'a> {
 }
 
 impl Parser {
+    /// Parse one numeric scalar literal with an explicit sign.
+    pub(crate) fn parse_signed_numeric_literal(&mut self) -> ParserResult<ScalarLiteral> {
+        let start = self.mark_parse_start();
+        let is_negative = match self.peek_token_type() {
+            TokenType::Add => false,
+            TokenType::Subtract => true,
+            _ => return Err(ParserError::unexpected(self.peek_token_span())),
+        };
+
+        // apply the sign only to numeric scalar families
+        self.bump();
+        let value = self.parse_scalar_literal()?;
+        let value = match (is_negative, value) {
+            (true, ScalarLiteral::Integer(number)) => ScalarLiteral::Integer(-number),
+            (true, ScalarLiteral::Bigint(number)) => ScalarLiteral::Bigint(-number),
+            (true, ScalarLiteral::Float(number)) => ScalarLiteral::Float(-number),
+            (false, value @ ScalarLiteral::Integer(_))
+            | (false, value @ ScalarLiteral::Bigint(_))
+            | (false, value @ ScalarLiteral::Float(_)) => value,
+            (_, _) => return Err(ParserError::unexpected(self.range_since(&start))),
+        };
+
+        Ok(value)
+    }
+
     /// Decode one fixed-width hexadecimal character escape.
     fn decode_fixed_character_escape(characters: &mut Chars<'_>, width: usize) -> Option<char> {
         let mut value = 0u32;
