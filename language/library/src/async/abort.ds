@@ -23,7 +23,7 @@ export local class AbortController {
     }
 
     /// Return the controlled signal.
-    get signal(): AbortSignal {
+    get signal(&this): AbortSignal {
         return this.state;
     }
 
@@ -142,7 +142,7 @@ local class AbortState implements AbortSignal {
 
         // unlink from the head or its predecessor
         if (previous == undefined) {
-            if (this.head != listener) {
+            if (this.head !== listener) {
                 return;
             }
             this.head = next;
