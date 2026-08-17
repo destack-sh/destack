@@ -109,11 +109,26 @@ fn expression_is_statement_sensitive_identifier(
 /// Return whether one compound condition requires parentheses around an expression operand.
 fn expression_condition_operand_needs_parentheses(
     context: &DestackFormatContext<'_>,
-    parent: &Expression,
+    parent_id: u32,
+    parent_type: NodeType,
     operand: LocalNodeId<Expression>,
 ) -> bool {
-    let condition = match parent {
-        Expression::If { condition, .. } | Expression::While { condition, .. } => condition,
+    let condition = match parent_type {
+        NodeType::Expression => {
+            let parent = LocalNodeId::<Expression>::new(parent_id);
+            match context.tree.get(parent) {
+                Expression::If { condition, .. } | Expression::While { condition, .. } => condition,
+                _ => return false,
+            }
+        }
+        NodeType::MatchArm => {
+            let parent = LocalNodeId::<MatchArm>::new(parent_id);
+            let Some(condition) = context.tree.get(parent).guard() else {
+                return false;
+            };
+
+            condition
+        }
         _ => return false,
     };
 
@@ -698,6 +713,11 @@ pub(crate) fn expression_requires_parentheses_in_parent(
     };
     let parent_child_id = node_id;
 
+    // treat compound condition operands as children of their implicit logical and
+    if expression_condition_operand_needs_parentheses(context, parent_id, parent_type, node_id) {
+        return true;
+    }
+
     // statement context
     if parent_type != NodeType::Expression {
         let is_match_arm_body =
@@ -742,11 +762,6 @@ pub(crate) fn expression_requires_parentheses_in_parent(
 
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
-
-    // treat compound condition operands as children of their implicit logical and
-    if expression_condition_operand_needs_parentheses(context, parent_expression, node_id) {
-        return true;
-    }
 
     // assignment expressions need parentheses unless they are already in assignment position
     if let Expression::Assign { .. } = context.tree.get(node_id) {

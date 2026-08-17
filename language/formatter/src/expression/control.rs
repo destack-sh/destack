@@ -33,8 +33,8 @@ use destack_fir::prelude::{
 use destack_fir::{best_fitting, format_args, write};
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
-/// Write one `if` or `while` test expression before the closing `)`.
-fn write_if_or_while_test_expression<'ast>(
+/// Write one condition expression before the closing `)`.
+fn write_condition_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     condition_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -164,7 +164,7 @@ fn write_match_guard<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     arm_id: LocalNodeId<MatchArm>,
     pattern_id: LocalNodeId<Pattern>,
-    guard_id: LocalNodeId<Expression>,
+    guard: &Condition,
 ) -> FormatResult<()> {
     let guard_clause_span = f
         .context()
@@ -178,6 +178,7 @@ fn write_match_guard<'ast>(
         .comments()
         .comments_in_range(f.context().span(pattern_id).end, guard_clause_span.start)
         .to_vec();
+    let guard = format_with(|f| write_condition(f, guard));
 
     write!(
         f,
@@ -187,7 +188,7 @@ fn write_match_guard<'ast>(
             Keyword::If,
             space(),
             token("("),
-            format_with(|f| write_grouped_control_head(f, &guard_id)),
+            format_with(|f| write_grouped_control_head(f, &guard)),
             token(")")
         ]
     )
@@ -693,7 +694,7 @@ fn write_condition_operand<'ast>(
     match operand {
         // boolean condition
         ConditionOperand::Expression { condition } => {
-            write_if_or_while_test_expression(f, *condition)?;
+            write_condition_expression(f, *condition)?;
         }
         // pattern binding condition
         ConditionOperand::Binding {

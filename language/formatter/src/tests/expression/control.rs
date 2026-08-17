@@ -103,6 +103,19 @@ fn test_format_match_with_block_case_and_guard() {
     );
 }
 
+/// Format one grouped binding condition in a match guard.
+#[test]
+fn test_format_match_binding_guard() {
+    assert_format_program!(
+        r#"match(value){text if((ready||retry)&&let parsed! = parse(text)&&parsed>0)=>parsed}"#,
+        r#"match (value) {
+    text if ((ready || retry) && let parsed! = parse(text) && parsed > 0) => parsed
+}
+"#,
+        FileType::Destack
+    );
+}
+
 #[test]
 fn test_format_switch_expression_cases() {
     assert_format!(
