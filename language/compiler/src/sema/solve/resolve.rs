@@ -16,6 +16,8 @@ pub(in crate::sema) enum FallbackStage {
     Bounded,
     /// Complete the remaining variables, widening literals.
     Widened,
+    /// Fix variables a contextual closure is about to read, widening literals.
+    Fixed,
     /// Complete every variable from its bounds as they stand.
     Final,
 }
@@ -111,14 +113,7 @@ impl CheckState<'_> {
         &mut self,
         variables: &[dir::TypeVariableId],
     ) -> CompilerResult<()> {
-        // collect the distinct component roots once
-        let mut roots = SmallVec::<[dir::TypeVariableId; 4]>::new();
-        for variable in variables {
-            let root = self.infer.alias_root(*variable)?;
-            if !roots.contains(&root) {
-                roots.push(root);
-            }
-        }
+        let roots = self.variable_roots(variables)?;
 
         // alternate bound resolution and defaults until nothing applies
         loop {
@@ -131,6 +126,33 @@ impl CheckState<'_> {
         }
 
         Ok(())
+    }
+
+    /// Fix variables a contextual closure reads, from their bounds without defaults.
+    pub(in crate::sema) fn fix_scope_variables(
+        &mut self,
+        variables: &[dir::TypeVariableId],
+    ) -> CompilerResult<()> {
+        let roots = self.variable_roots(variables)?;
+        while self.resolve_scope_roots(&roots, FallbackStage::Fixed)? {}
+
+        Ok(())
+    }
+
+    /// Collect the distinct component roots of one variable list.
+    fn variable_roots(
+        &mut self,
+        variables: &[dir::TypeVariableId],
+    ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 4]>> {
+        let mut roots = SmallVec::<[dir::TypeVariableId; 4]>::new();
+        for variable in variables {
+            let root = self.infer.alias_root(*variable)?;
+            if !roots.contains(&root) {
+                roots.push(root);
+            }
+        }
+
+        Ok(roots)
     }
 
     /// Apply one default to one of a scope's open variables.
@@ -268,7 +290,9 @@ impl CheckState<'_> {
         stage: FallbackStage,
     ) -> CompilerResult<bool> {
         // wait for a live producer that may still grow this variable's bounds
-        if stage != FallbackStage::Final && self.variable_may_grow(variable)? {
+        if !matches!(stage, FallbackStage::Final | FallbackStage::Fixed)
+            && self.variable_may_grow(variable)?
+        {
             return Ok(false);
         }
 
@@ -323,15 +347,18 @@ impl CheckState<'_> {
         let origin = self.infer.origin(state.origin);
         let widens = !has_equation
             && match state.widening {
+                // fixing widens the literals a contextual closure is about to read
                 Widening::Never => false,
-                Widening::Aggregate => false,
-                Widening::Multiple => self.has_distinct_types(origin, &candidates)?,
+                Widening::Aggregate => stage == FallbackStage::Fixed,
+                Widening::Multiple => {
+                    stage == FallbackStage::Fixed || self.has_distinct_types(origin, &candidates)?
+                }
                 Widening::Always => true,
                 Widening::Const => self.has_only_literal_types(&candidates)?,
             };
 
         // defer literal widening to its own fallback stage
-        if widens && stage != FallbackStage::Widened {
+        if widens && !matches!(stage, FallbackStage::Widened | FallbackStage::Fixed) {
             for bound in &closed_lower {
                 if matches!(bound.relation, Relation::Assignable | Relation::Castable)
                     && self.widen_bound_type(state.widening, bound.ty)? != bound.ty
@@ -349,7 +376,11 @@ impl CheckState<'_> {
             }
             let ty =
                 if widens && matches!(bound.relation, Relation::Assignable | Relation::Castable) {
-                    self.widen_bound_type(state.widening, bound.ty)?
+                    // a typed sibling candidate absorbs a literal without widening it
+                    match self.candidate_absorbs_literal(origin, &candidates, bound.ty)? {
+                        true => bound.ty,
+                        false => self.widen_bound_type(state.widening, bound.ty)?,
+                    }
                 } else {
                     bound.ty
                 };
@@ -375,6 +406,23 @@ impl CheckState<'_> {
         } else if is_unconstrained_recursion {
             None
         } else if let Some(lower_solution) = lower_solution {
+            // prefer a bounds-satisfying contextual over widening literal candidates
+            if widens
+                && let Some(contextual) = contextual
+                && self.solution_satisfies_bounds(
+                    origin,
+                    contextual,
+                    &closed_lower,
+                    &closed_upper,
+                )? == Verdict::Holds
+            {
+                let solution = self.shallow_resolve(contextual)?;
+                let solution = self.reduce_redundant_forms(origin, solution)?;
+                self.commit_solution(variable, solution)?;
+
+                return Ok(true);
+            }
+
             let verdict = self.solution_satisfies_bounds(
                 origin,
                 lower_solution,
@@ -519,6 +567,34 @@ impl CheckState<'_> {
                 self.widen_type(ty)
             }
         }
+    }
+
+    /// Return whether a sibling typed candidate admits one literal candidate.
+    fn candidate_absorbs_literal(
+        &mut self,
+        origin: Origin,
+        candidates: &[dir::GlobalTypeId],
+        literal: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let resolved = self.shallow_resolve(literal)?;
+        if !matches!(self.ty(resolved)?, dir::Type::Literal(_)) {
+            return Ok(false);
+        }
+
+        for candidate in candidates {
+            let candidate = self.shallow_resolve(*candidate)?;
+            if candidate == resolved || matches!(self.ty(candidate)?, dir::Type::Literal(_)) {
+                continue;
+            }
+            if self
+                .evaluate_relation(origin, Relation::Assignable, resolved, candidate)?
+                .holds()
+            {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return whether every candidate is an exact literal type.
