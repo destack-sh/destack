@@ -6,10 +6,10 @@ use destack_core::StringId;
 use destack_source::ModuleId;
 
 use crate::{
-    Access, ArgumentBinding, AutoInterface, BinaryOperator, CaptureMode, CastOrigin,
-    ClassConstructor, EnumBackingType, EnumVariantValue, FunctionRole, FunctionSignature,
-    GenericArgumentBinding, GlobalGenericParameterId, GlobalNodeId, GlobalNodeIdAny, GlobalScopeId,
-    GlobalStaticId, GlobalSymbolId, GlobalTypeId, IntegerType, LanguageItem, LocalCaptureFrameId,
+    Access, AutoInterface, BinaryOperator, CaptureMode, CastOrigin, ClassConstructor,
+    EnumBackingType, EnumVariantValue, FunctionRole, FunctionSignature, GenericArgumentBinding,
+    GlobalGenericParameterId, GlobalNodeId, GlobalNodeIdAny, GlobalScopeId, GlobalStaticId,
+    GlobalSymbolId, GlobalTypeId, IntegerType, LanguageItem, LocalCaptureFrameId,
     LocalGenericParameterId, LocalGenericTemplateId, LocalNodeId, LocalScopeId, MemberKind,
     MemberOrigin, MemberRole, MemberSlot, MemberSpace, MethodAbstraction, Node, PrimitiveType,
     RangeEnd, ScalarFamilySet, ScalarLiteral, Space, StaticKey, TypeFold, UnaryOperator,
@@ -148,7 +148,6 @@ selection_walk_leaves!(
     LocalGenericTemplateId,
     LocalScopeId,
     Access,
-    ArgumentBinding,
     AutoInterface,
     BinaryOperator,
     CaptureMode,

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeIdAny, LocalScopeId,
-    Selection, StringId, TypeFold, VarianceModifier, WhereRelation,
+    Selection, StringId, TypeFold, VarianceModifier, WalkSelections, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -463,7 +463,9 @@ impl GenericArgumentBinding {
 }
 
 /// One selected parameter bound to its runtime argument source.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub struct ArgumentBinding {
     /// The complete parameter type after static substitutions.
     pub parameter_type: GlobalTypeId,
@@ -478,14 +480,16 @@ impl ArgumentBinding {
     pub fn contains_argument(&self, argument: GlobalNodeIdAny) -> bool {
         match &self.source {
             ArgumentSource::Provided(source) => *source == argument,
-            ArgumentSource::Rest(sources) => sources.contains(&argument),
+            ArgumentSource::Rest { elements, .. } => elements.contains(&argument),
             ArgumentSource::Static(_) | ArgumentSource::Write | ArgumentSource::Omitted => false,
         }
     }
 }
 
 /// Source argument bound to one selected parameter slot.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+)]
 pub enum ArgumentSource {
     /// One source argument was supplied.
     Provided(GlobalNodeIdAny),
@@ -496,5 +500,10 @@ pub enum ArgumentSource {
     /// No source argument was supplied.
     Omitted,
     /// Remaining source arguments were supplied to a rest parameter.
-    Rest(Vec<GlobalNodeIdAny>),
+    Rest {
+        /// The packed source arguments in call order.
+        elements: Vec<GlobalNodeIdAny>,
+        /// The selected pack constructor, absent for slice parameters.
+        pack: Option<Selection>,
+    },
 }

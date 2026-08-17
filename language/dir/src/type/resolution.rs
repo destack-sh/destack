@@ -1528,6 +1528,8 @@ pub struct PatternBindingResolution {
 pub struct PatternMustResolution {
     /// The nested pattern that must match.
     pub pattern: GlobalNodeIdAny,
+    /// The non-nullish type the requirement accepts.
+    pub ty: GlobalTypeId,
 }
 
 /// Defaulted nested pattern selected during checking.

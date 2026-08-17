@@ -322,6 +322,14 @@ define_language_items! {
 
             /// Readonly dynamic array alias.
             ReadonlyArray => (Type, "collections/array", "ReadonlyArray"),
+
+            /// Slice-taking array constructor.
+            ArrayFromSlice => (
+                Function,
+                "collections/array",
+                "arrayFromSlice",
+                "collections.array.fromSlice"
+            ),
         }
 
         /// `destack:collections/map`.
