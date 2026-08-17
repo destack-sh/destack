@@ -627,7 +627,7 @@ export type Expression =
       }
     /** Compile time evaluated expression. */
     | {
-          readonly kind: "comptime";
+          readonly kind: "const";
           readonly body: LocalNodeId;
       }
     /** TypeScript-style `as` assertion. */
@@ -946,8 +946,8 @@ export const Expression = {
     },
 
     /** Compile time evaluated expression. */
-    comptime(body: LocalNodeId): Expression {
-        return { kind: "comptime", body };
+    "const"(body: LocalNodeId): Expression {
+        return { kind: "const", body };
     },
 
     /** TypeScript-style `as` assertion. */
@@ -1366,7 +1366,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             writer.writeUnsigned(37);
             encodeLocalNodeId(writer, value.value);
             return;
-        case "comptime":
+        case "const":
             writer.writeUnsigned(38);
             encodeLocalNodeId(writer, value.body);
             return;
@@ -1879,7 +1879,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
             const body = decodeLocalNodeId(reader);
 
             return {
-                kind: "comptime",
+                kind: "const",
                 body,
             };
         }
@@ -2320,9 +2320,9 @@ export function toJsonExpression(value: Expression): Json {
                 kind: "type",
                 value: toJsonLocalNodeId(value.value),
             };
-        case "comptime":
+        case "const":
             return {
-                kind: "comptime",
+                kind: "const",
                 body: toJsonLocalNodeId(value.body),
             };
         case "as":
@@ -2692,7 +2692,7 @@ export function fromJsonExpression(value: Json): Expression {
                 kind,
                 value: fromJsonLocalNodeId(jsonField(object, "value")),
             };
-        case "comptime":
+        case "const":
             return {
                 kind,
                 body: fromJsonLocalNodeId(jsonField(object, "body")),

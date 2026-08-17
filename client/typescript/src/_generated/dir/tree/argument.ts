@@ -193,23 +193,13 @@ export type GenericArgument =
           readonly kind: "spreadType";
           readonly value: LocalNodeId;
       }
-    /** Value generic argument. */
-    | {
-          readonly kind: "value";
-          readonly value: LocalNodeId;
-      }
-    /** Spread value generic argument. */
-    | {
-          readonly kind: "spreadValue";
-          readonly value: LocalNodeId;
-      }
     /** Associated type refinement. */
     | {
           readonly kind: "associatedType";
           readonly name: StringId;
           readonly value: LocalNodeId;
       }
-    /** Associated compile-time constant refinement. */
+    /** Associated const refinement. */
     | {
           readonly kind: "associatedConst";
           readonly name: StringId;
@@ -232,22 +222,12 @@ export const GenericArgument = {
         return { kind: "spreadType", value };
     },
 
-    /** Value generic argument. */
-    value(value: LocalNodeId): GenericArgument {
-        return { kind: "value", value };
-    },
-
-    /** Spread value generic argument. */
-    spreadValue(value: LocalNodeId): GenericArgument {
-        return { kind: "spreadValue", value };
-    },
-
     /** Associated type refinement. */
     associatedType(name: StringId, value: LocalNodeId): GenericArgument {
         return { kind: "associatedType", name, value };
     },
 
-    /** Associated compile-time constant refinement. */
+    /** Associated const refinement. */
     associatedConst(name: StringId, value: LocalNodeId): GenericArgument {
         return { kind: "associatedConst", name, value };
     },
@@ -289,26 +269,18 @@ export function encodeGenericArgument(writer: BinaryWriter, value: GenericArgume
             writer.writeUnsigned(1);
             encodeLocalNodeId(writer, value.value);
             return;
-        case "value":
-            writer.writeUnsigned(2);
-            encodeLocalNodeId(writer, value.value);
-            return;
-        case "spreadValue":
-            writer.writeUnsigned(3);
-            encodeLocalNodeId(writer, value.value);
-            return;
         case "associatedType":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(2);
             encodeStringId(writer, value.name);
             encodeLocalNodeId(writer, value.value);
             return;
         case "associatedConst":
-            writer.writeUnsigned(5);
+            writer.writeUnsigned(3);
             encodeStringId(writer, value.name);
             encodeLocalNodeId(writer, value.value);
             return;
         case "error":
-            writer.writeUnsigned(6);
+            writer.writeUnsigned(4);
             return;
     }
 
@@ -337,22 +309,6 @@ export function decodeGenericArgument(reader: BinaryReader): GenericArgument {
             };
         }
         case 2: {
-            const value = decodeLocalNodeId(reader);
-
-            return {
-                kind: "value",
-                value,
-            };
-        }
-        case 3: {
-            const value = decodeLocalNodeId(reader);
-
-            return {
-                kind: "spreadValue",
-                value,
-            };
-        }
-        case 4: {
             const name = decodeStringId(reader);
             const value = decodeLocalNodeId(reader);
 
@@ -362,7 +318,7 @@ export function decodeGenericArgument(reader: BinaryReader): GenericArgument {
                 value,
             };
         }
-        case 5: {
+        case 3: {
             const name = decodeStringId(reader);
             const value = decodeLocalNodeId(reader);
 
@@ -372,7 +328,7 @@ export function decodeGenericArgument(reader: BinaryReader): GenericArgument {
                 value,
             };
         }
-        case 6: {
+        case 4: {
             return { kind: "error" };
         }
     }
@@ -391,16 +347,6 @@ export function toJsonGenericArgument(value: GenericArgument): Json {
         case "spreadType":
             return {
                 kind: "spreadType",
-                value: toJsonLocalNodeId(value.value),
-            };
-        case "value":
-            return {
-                kind: "value",
-                value: toJsonLocalNodeId(value.value),
-            };
-        case "spreadValue":
-            return {
-                kind: "spreadValue",
                 value: toJsonLocalNodeId(value.value),
             };
         case "associatedType":
@@ -436,16 +382,6 @@ export function fromJsonGenericArgument(value: Json): GenericArgument {
                 value: fromJsonLocalNodeId(jsonField(object, "value")),
             };
         case "spreadType":
-            return {
-                kind,
-                value: fromJsonLocalNodeId(jsonField(object, "value")),
-            };
-        case "value":
-            return {
-                kind,
-                value: fromJsonLocalNodeId(jsonField(object, "value")),
-            };
-        case "spreadValue":
             return {
                 kind,
                 value: fromJsonLocalNodeId(jsonField(object, "value")),
@@ -496,22 +432,6 @@ export type GenericParameter =
           readonly kind: "lifetime";
           readonly name: StringId;
       }
-    /** Value parameter. */
-    | {
-          readonly kind: "value";
-          readonly name: StringId;
-          readonly declaredType?: LocalNodeId;
-          readonly default?: LocalNodeId;
-          readonly isComptime: boolean;
-      }
-    /** Variadic value parameter. */
-    | {
-          readonly kind: "variadicValue";
-          readonly name: StringId;
-          readonly declaredType?: LocalNodeId;
-          readonly default?: LocalNodeId;
-          readonly isComptime: boolean;
-      }
     /** Malformed generic parameter. */
     | {
           readonly kind: "error";
@@ -532,16 +452,6 @@ export const GenericParameter = {
     /** Lifetime parameter. */
     lifetime(name: StringId): GenericParameter {
         return { kind: "lifetime", name };
-    },
-
-    /** Value parameter. */
-    value(name: StringId, declaredType: LocalNodeId | undefined, default_: LocalNodeId | undefined, isComptime: boolean): GenericParameter {
-        return { kind: "value", name, declaredType, default: default_, isComptime };
-    },
-
-    /** Variadic value parameter. */
-    variadicValue(name: StringId, declaredType: LocalNodeId | undefined, default_: LocalNodeId | undefined, isComptime: boolean): GenericParameter {
-        return { kind: "variadicValue", name, declaredType, default: default_, isComptime };
     },
 
     /** Malformed generic parameter. */
@@ -605,30 +515,8 @@ export function encodeGenericParameter(writer: BinaryWriter, value: GenericParam
             writer.writeUnsigned(2);
             encodeStringId(writer, value.name);
             return;
-        case "value":
-            writer.writeUnsigned(3);
-            encodeStringId(writer, value.name);
-            writer.writeOption(value.declaredType, (value1) => {
-                encodeLocalNodeId(writer, value1);
-            });
-            writer.writeOption(value.default, (value2) => {
-                encodeLocalNodeId(writer, value2);
-            });
-            writer.writeBool(value.isComptime);
-            return;
-        case "variadicValue":
-            writer.writeUnsigned(4);
-            encodeStringId(writer, value.name);
-            writer.writeOption(value.declaredType, (value1) => {
-                encodeLocalNodeId(writer, value1);
-            });
-            writer.writeOption(value.default, (value2) => {
-                encodeLocalNodeId(writer, value2);
-            });
-            writer.writeBool(value.isComptime);
-            return;
         case "error":
-            writer.writeUnsigned(5);
+            writer.writeUnsigned(3);
             return;
     }
 
@@ -681,34 +569,6 @@ export function decodeGenericParameter(reader: BinaryReader): GenericParameter {
             };
         }
         case 3: {
-            const name = decodeStringId(reader);
-            const declaredType = reader.readOption(() => decodeLocalNodeId(reader));
-            const default_ = reader.readOption(() => decodeLocalNodeId(reader));
-            const isComptime = reader.readBool();
-
-            return {
-                kind: "value",
-                name,
-                ...(declaredType === undefined ? {} : { declaredType }),
-                ...(default_ === undefined ? {} : { default: default_ }),
-                isComptime,
-            };
-        }
-        case 4: {
-            const name = decodeStringId(reader);
-            const declaredType = reader.readOption(() => decodeLocalNodeId(reader));
-            const default_ = reader.readOption(() => decodeLocalNodeId(reader));
-            const isComptime = reader.readBool();
-
-            return {
-                kind: "variadicValue",
-                name,
-                ...(declaredType === undefined ? {} : { declaredType }),
-                ...(default_ === undefined ? {} : { default: default_ }),
-                isComptime,
-            };
-        }
-        case 5: {
             return { kind: "error" };
         }
     }
@@ -741,22 +601,6 @@ export function toJsonGenericParameter(value: GenericParameter): Json {
             return {
                 kind: "lifetime",
                 name: toJsonStringId(value.name),
-            };
-        case "value":
-            return {
-                kind: "value",
-                name: toJsonStringId(value.name),
-                ...(value.declaredType === undefined ? {} : { declaredType: toJsonLocalNodeId(value.declaredType) }),
-                ...(value.default === undefined ? {} : { default: toJsonLocalNodeId(value.default) }),
-                isComptime: value.isComptime,
-            };
-        case "variadicValue":
-            return {
-                kind: "variadicValue",
-                name: toJsonStringId(value.name),
-                ...(value.declaredType === undefined ? {} : { declaredType: toJsonLocalNodeId(value.declaredType) }),
-                ...(value.default === undefined ? {} : { default: toJsonLocalNodeId(value.default) }),
-                isComptime: value.isComptime,
             };
         case "error":
             return {
@@ -795,22 +639,6 @@ export function fromJsonGenericParameter(value: Json): GenericParameter {
             return {
                 kind,
                 name: fromJsonStringId(jsonField(object, "name")),
-            };
-        case "value":
-            return {
-                kind,
-                name: fromJsonStringId(jsonField(object, "name")),
-                declaredType: jsonOptional(object, "declaredType", (value) => fromJsonLocalNodeId(value)),
-                default: jsonOptional(object, "default", (value) => fromJsonLocalNodeId(value)),
-                isComptime: jsonBool(jsonField(object, "isComptime")),
-            };
-        case "variadicValue":
-            return {
-                kind,
-                name: fromJsonStringId(jsonField(object, "name")),
-                declaredType: jsonOptional(object, "declaredType", (value) => fromJsonLocalNodeId(value)),
-                default: jsonOptional(object, "default", (value) => fromJsonLocalNodeId(value)),
-                isComptime: jsonBool(jsonField(object, "isComptime")),
             };
         case "error":
             return {

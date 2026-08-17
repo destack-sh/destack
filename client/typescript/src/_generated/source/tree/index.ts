@@ -221,7 +221,7 @@ export function fromJsonNodeSpanList(value: Json): NodeSpanList {
 }
 
 /** A named source region within one node. */
-export type NodeSpanRegion = "opening" | "genericParameters" | "parameters" | "arguments" | "body" | "else" | "alternate" | "guard" | "attributes" | "type" | "parentheses" | "treeContainer";
+export type NodeSpanRegion = "keyword" | "bindingKeyword" | "opening" | "genericParameters" | "parameters" | "arguments" | "body" | "else" | "alternate" | "guard" | "attributes" | "type" | "parentheses" | "treeContainer";
 
 export const NodeSpanRegion = {
     /** Encode this value. */
@@ -248,41 +248,47 @@ export const NodeSpanRegion = {
 /** Encode one NodeSpanRegion. */
 export function encodeNodeSpanRegion(writer: BinaryWriter, value: NodeSpanRegion): void {
     switch (value) {
-        case "opening":
+        case "keyword":
             writer.writeUnsigned(0);
             return;
-        case "genericParameters":
+        case "bindingKeyword":
             writer.writeUnsigned(1);
             return;
-        case "parameters":
+        case "opening":
             writer.writeUnsigned(2);
             return;
-        case "arguments":
+        case "genericParameters":
             writer.writeUnsigned(3);
             return;
-        case "body":
+        case "parameters":
             writer.writeUnsigned(4);
             return;
-        case "else":
+        case "arguments":
             writer.writeUnsigned(5);
             return;
-        case "alternate":
+        case "body":
             writer.writeUnsigned(6);
             return;
-        case "guard":
+        case "else":
             writer.writeUnsigned(7);
             return;
-        case "attributes":
+        case "alternate":
             writer.writeUnsigned(8);
             return;
-        case "type":
+        case "guard":
             writer.writeUnsigned(9);
             return;
-        case "parentheses":
+        case "attributes":
             writer.writeUnsigned(10);
             return;
-        case "treeContainer":
+        case "type":
             writer.writeUnsigned(11);
+            return;
+        case "parentheses":
+            writer.writeUnsigned(12);
+            return;
+        case "treeContainer":
+            writer.writeUnsigned(13);
             return;
     }
 
@@ -295,28 +301,32 @@ export function decodeNodeSpanRegion(reader: BinaryReader): NodeSpanRegion {
 
     switch (variant) {
         case 0:
-            return "opening";
+            return "keyword";
         case 1:
-            return "genericParameters";
+            return "bindingKeyword";
         case 2:
-            return "parameters";
+            return "opening";
         case 3:
-            return "arguments";
+            return "genericParameters";
         case 4:
-            return "body";
+            return "parameters";
         case 5:
-            return "else";
+            return "arguments";
         case 6:
-            return "alternate";
+            return "body";
         case 7:
-            return "guard";
+            return "else";
         case 8:
-            return "attributes";
+            return "alternate";
         case 9:
-            return "type";
+            return "guard";
         case 10:
-            return "parentheses";
+            return "attributes";
         case 11:
+            return "type";
+        case 12:
+            return "parentheses";
+        case 13:
             return "treeContainer";
     }
 
@@ -333,6 +343,10 @@ export function fromJsonNodeSpanRegion(value: Json): NodeSpanRegion {
     const variant = jsonString(value);
 
     switch (variant) {
+        case "keyword":
+            return "keyword";
+        case "bindingKeyword":
+            return "bindingKeyword";
         case "opening":
             return "opening";
         case "genericParameters":

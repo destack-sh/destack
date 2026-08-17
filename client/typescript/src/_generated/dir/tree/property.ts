@@ -171,9 +171,9 @@ export type Member =
           readonly kind: "staticBlock";
           readonly body: LocalNodeId;
       }
-    /** Comptime block. */
+    /** Const evaluation block. */
     | {
-          readonly kind: "comptimeBlock";
+          readonly kind: "constBlock";
           readonly body: LocalNodeId;
       }
     /** Malformed member slot. */
@@ -208,9 +208,9 @@ export const Member = {
         return { kind: "staticBlock", body };
     },
 
-    /** Comptime block. */
-    comptimeBlock(body: LocalNodeId): Member {
-        return { kind: "comptimeBlock", body };
+    /** Const evaluation block. */
+    constBlock(body: LocalNodeId): Member {
+        return { kind: "constBlock", body };
     },
 
     /** Malformed member slot. */
@@ -329,7 +329,7 @@ export function encodeMember(writer: BinaryWriter, value: Member): void {
             writer.writeUnsigned(4);
             encodeLocalNodeId(writer, value.body);
             return;
-        case "comptimeBlock":
+        case "constBlock":
             writer.writeUnsigned(5);
             encodeLocalNodeId(writer, value.body);
             return;
@@ -460,7 +460,7 @@ export function decodeMember(reader: BinaryReader): Member {
             const body = decodeLocalNodeId(reader);
 
             return {
-                kind: "comptimeBlock",
+                kind: "constBlock",
                 body,
             };
         }
@@ -535,9 +535,9 @@ export function toJsonMember(value: Member): Json {
                 kind: "staticBlock",
                 body: toJsonLocalNodeId(value.body),
             };
-        case "comptimeBlock":
+        case "constBlock":
             return {
-                kind: "comptimeBlock",
+                kind: "constBlock",
                 body: toJsonLocalNodeId(value.body),
             };
         case "error":
@@ -615,7 +615,7 @@ export function fromJsonMember(value: Json): Member {
                 kind,
                 body: fromJsonLocalNodeId(jsonField(object, "body")),
             };
-        case "comptimeBlock":
+        case "constBlock":
             return {
                 kind,
                 body: fromJsonLocalNodeId(jsonField(object, "body")),

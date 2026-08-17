@@ -121,7 +121,7 @@ export type CoercionAdjustment =
           /** The scalar type after this adjustment. */
           readonly target: GlobalTypeId;
       }
-    /** Materialize one comptime scalar at its selected carrier, like `42` into `int32`. */
+    /** Materialize one const scalar at its selected carrier, like `42` into `int32`. */
     | {
           readonly kind: "widen";
           /** The scalar type after this adjustment. */
@@ -175,7 +175,7 @@ export const CoercionAdjustment = {
         return { kind: "scalar", target };
     },
 
-    /** Materialize one comptime scalar at its selected carrier, like `42` into `int32`. */
+    /** Materialize one const scalar at its selected carrier, like `42` into `int32`. */
     widen(target: GlobalTypeId): CoercionAdjustment {
         return { kind: "widen", target };
     },

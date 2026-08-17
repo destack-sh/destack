@@ -164,6 +164,8 @@ export function fromJsonDirBound(value: Json): DirBound {
 export type DirChecked = {
     /** The stable fingerprint of this module's checked output. */
     readonly fingerprint: ArtifactProjectionFingerprint;
+    /** The modules the checked entries mention. */
+    readonly references: ReadonlyArray<ModuleId>;
     /** Checked binding segment. */
     readonly bindings: BindingSegment;
     /** New decorator applications. */
@@ -178,7 +180,7 @@ export type DirChecked = {
     readonly resolutions: ResolutionSegment;
     /** New decisions. */
     readonly decisions: DecisionSegment;
-    /** New generic slots and instances. */
+    /** New generic slots and the instantiations the bodies perform. */
     readonly generics: GenericSegment;
     /** Refined declaration definitions. */
     readonly definitions: DefinitionSegment;
@@ -217,6 +219,10 @@ export const DirChecked = {
 /** Encode one DirChecked. */
 export function encodeDirChecked(writer: BinaryWriter, value: DirChecked): void {
     encodeArtifactProjectionFingerprint(writer, value.fingerprint);
+    writer.writeUnsigned(value.references.length);
+    for (const item1 of value.references) {
+        encodeModuleId(writer, item1);
+    }
     encodeBindingSegment(writer, value.bindings);
     encodeDecoratorSegment(writer, value.decorators);
     encodeDiagnosticControlTable(writer, value.controls);
@@ -235,6 +241,7 @@ export function encodeDirChecked(writer: BinaryWriter, value: DirChecked): void 
 /** Decode one DirChecked. */
 export function decodeDirChecked(reader: BinaryReader): DirChecked {
     const fingerprint = decodeArtifactProjectionFingerprint(reader);
+    const references = (() => { const length1 = reader.readNumber(); const items1: Array<ModuleId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeModuleId(reader)); } return items1; })();
     const bindings = decodeBindingSegment(reader);
     const decorators = decodeDecoratorSegment(reader);
     const controls = decodeDiagnosticControlTable(reader);
@@ -251,6 +258,7 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
 
     return {
         fingerprint,
+        references,
         bindings,
         decorators,
         controls,
@@ -271,6 +279,7 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
 export function toJsonDirChecked(value: DirChecked): Json {
     return {
         fingerprint: toJsonArtifactProjectionFingerprint(value.fingerprint),
+        references: value.references.map((item0) => toJsonModuleId(item0)),
         bindings: toJsonBindingSegment(value.bindings),
         decorators: toJsonDecoratorSegment(value.decorators),
         controls: toJsonDiagnosticControlTable(value.controls),
@@ -293,6 +302,7 @@ export function fromJsonDirChecked(value: Json): DirChecked {
 
     return {
         fingerprint: fromJsonArtifactProjectionFingerprint(jsonField(object, "fingerprint")),
+        references: jsonArray(jsonField(object, "references")).map((item0) => fromJsonModuleId(item0)),
         bindings: fromJsonBindingSegment(jsonField(object, "bindings")),
         decorators: fromJsonDecoratorSegment(jsonField(object, "decorators")),
         controls: fromJsonDiagnosticControlTable(jsonField(object, "controls")),
@@ -333,6 +343,8 @@ export type DirDeclared = {
     readonly decisions: DecisionSegment;
     /** Authored member lookup subjects. */
     readonly members: MemberSegment;
+    /** Flow conclusions proved while declaring. */
+    readonly flows: FlowSegment;
 };
 
 export const DirDeclared = {
@@ -373,6 +385,7 @@ export function encodeDirDeclared(writer: BinaryWriter, value: DirDeclared): voi
     encodeResolutionSegment(writer, value.resolutions);
     encodeDecisionSegment(writer, value.decisions);
     encodeMemberSegment(writer, value.members);
+    encodeFlowSegment(writer, value.flows);
 }
 
 /** Decode one DirDeclared. */
@@ -388,6 +401,7 @@ export function decodeDirDeclared(reader: BinaryReader): DirDeclared {
     const resolutions = decodeResolutionSegment(reader);
     const decisions = decodeDecisionSegment(reader);
     const members = decodeMemberSegment(reader);
+    const flows = decodeFlowSegment(reader);
 
     return {
         fingerprint,
@@ -401,6 +415,7 @@ export function decodeDirDeclared(reader: BinaryReader): DirDeclared {
         resolutions,
         decisions,
         members,
+        flows,
     };
 }
 
@@ -418,6 +433,7 @@ export function toJsonDirDeclared(value: DirDeclared): Json {
         resolutions: toJsonResolutionSegment(value.resolutions),
         decisions: toJsonDecisionSegment(value.decisions),
         members: toJsonMemberSegment(value.members),
+        flows: toJsonFlowSegment(value.flows),
     };
 }
 
@@ -437,6 +453,7 @@ export function fromJsonDirDeclared(value: Json): DirDeclared {
         resolutions: fromJsonResolutionSegment(jsonField(object, "resolutions")),
         decisions: fromJsonDecisionSegment(jsonField(object, "decisions")),
         members: fromJsonMemberSegment(jsonField(object, "members")),
+        flows: fromJsonFlowSegment(jsonField(object, "flows")),
     };
 }
 
@@ -466,6 +483,8 @@ export type DirElaborated = {
     readonly decisions: DecisionSegment;
     /** Static values evaluated for decorator applications. */
     readonly statics: StaticSegment;
+    /** Flow conclusions proved while elaborating. */
+    readonly flows: FlowSegment;
     /** Diagnostic controls applied by decorators. */
     readonly controls: DiagnosticControlTable;
 };
@@ -509,6 +528,7 @@ export function encodeDirElaborated(writer: BinaryWriter, value: DirElaborated):
     encodeResolutionSegment(writer, value.resolutions);
     encodeDecisionSegment(writer, value.decisions);
     encodeStaticSegment(writer, value.statics);
+    encodeFlowSegment(writer, value.flows);
     encodeDiagnosticControlTable(writer, value.controls);
 }
 
@@ -526,6 +546,7 @@ export function decodeDirElaborated(reader: BinaryReader): DirElaborated {
     const resolutions = decodeResolutionSegment(reader);
     const decisions = decodeDecisionSegment(reader);
     const statics = decodeStaticSegment(reader);
+    const flows = decodeFlowSegment(reader);
     const controls = decodeDiagnosticControlTable(reader);
 
     return {
@@ -541,6 +562,7 @@ export function decodeDirElaborated(reader: BinaryReader): DirElaborated {
         resolutions,
         decisions,
         statics,
+        flows,
         controls,
     };
 }
@@ -560,6 +582,7 @@ export function toJsonDirElaborated(value: DirElaborated): Json {
         resolutions: toJsonResolutionSegment(value.resolutions),
         decisions: toJsonDecisionSegment(value.decisions),
         statics: toJsonStaticSegment(value.statics),
+        flows: toJsonFlowSegment(value.flows),
         controls: toJsonDiagnosticControlTable(value.controls),
     };
 }
@@ -581,6 +604,7 @@ export function fromJsonDirElaborated(value: Json): DirElaborated {
         resolutions: fromJsonResolutionSegment(jsonField(object, "resolutions")),
         decisions: fromJsonDecisionSegment(jsonField(object, "decisions")),
         statics: fromJsonStaticSegment(jsonField(object, "statics")),
+        flows: fromJsonFlowSegment(jsonField(object, "flows")),
         controls: fromJsonDiagnosticControlTable(jsonField(object, "controls")),
     };
 }
@@ -821,26 +845,20 @@ export function fromJsonDirImported(value: Json): DirImported {
     };
 }
 
-/** Comptime materialization segment for one module under one profile. */
+/** Materialized DIR for one module under one profile. */
 export type DirMaterialized = {
     /** Tree changes. */
     readonly patch: Patch;
-    /** New bindings. */
-    readonly bindings: BindingSegment;
     /** New types. */
     readonly types: TypeSegment;
-    /** New static values. */
-    readonly statics: StaticSegment;
-    /** New resolutions. */
-    readonly resolutions: ResolutionSegment;
-    /** New decisions. */
-    readonly decisions: DecisionSegment;
-    /** New generic slots and instances. */
+    /** Closed generic instances and their materialized types. */
     readonly generics: GenericSegment;
-    /** New implicit coercions. */
+    /** Evaluated declaration definitions. */
+    readonly definitions: DefinitionSegment;
+    /** Grounded node decisions. */
+    readonly decisions: DecisionSegment;
+    /** Grounded implicit coercions. */
     readonly coercions: CoercionSegment;
-    /** New captures. */
-    readonly captures: CaptureSegment;
     /** Top-level expressions. */
     readonly roots: ReadonlyArray<LocalNodeId>;
 };
@@ -870,43 +888,34 @@ export const DirMaterialized = {
 /** Encode one DirMaterialized. */
 export function encodeDirMaterialized(writer: BinaryWriter, value: DirMaterialized): void {
     encodePatch(writer, value.patch);
-    encodeBindingSegment(writer, value.bindings);
     encodeTypeSegment(writer, value.types);
-    encodeStaticSegment(writer, value.statics);
-    encodeResolutionSegment(writer, value.resolutions);
-    encodeDecisionSegment(writer, value.decisions);
     encodeGenericSegment(writer, value.generics);
+    encodeDefinitionSegment(writer, value.definitions);
+    encodeDecisionSegment(writer, value.decisions);
     encodeCoercionSegment(writer, value.coercions);
-    encodeCaptureSegment(writer, value.captures);
     writer.writeUnsigned(value.roots.length);
-    for (const item9 of value.roots) {
-        encodeLocalNodeId(writer, item9);
+    for (const item6 of value.roots) {
+        encodeLocalNodeId(writer, item6);
     }
 }
 
 /** Decode one DirMaterialized. */
 export function decodeDirMaterialized(reader: BinaryReader): DirMaterialized {
     const patch = decodePatch(reader);
-    const bindings = decodeBindingSegment(reader);
     const types = decodeTypeSegment(reader);
-    const statics = decodeStaticSegment(reader);
-    const resolutions = decodeResolutionSegment(reader);
-    const decisions = decodeDecisionSegment(reader);
     const generics = decodeGenericSegment(reader);
+    const definitions = decodeDefinitionSegment(reader);
+    const decisions = decodeDecisionSegment(reader);
     const coercions = decodeCoercionSegment(reader);
-    const captures = decodeCaptureSegment(reader);
-    const roots = (() => { const length9 = reader.readNumber(); const items9: Array<LocalNodeId> = []; for (let index = 0; index < length9; index += 1) { items9.push(decodeLocalNodeId(reader)); } return items9; })();
+    const roots = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
 
     return {
         patch,
-        bindings,
         types,
-        statics,
-        resolutions,
-        decisions,
         generics,
+        definitions,
+        decisions,
         coercions,
-        captures,
         roots,
     };
 }
@@ -915,14 +924,11 @@ export function decodeDirMaterialized(reader: BinaryReader): DirMaterialized {
 export function toJsonDirMaterialized(value: DirMaterialized): Json {
     return {
         patch: toJsonPatch(value.patch),
-        bindings: toJsonBindingSegment(value.bindings),
         types: toJsonTypeSegment(value.types),
-        statics: toJsonStaticSegment(value.statics),
-        resolutions: toJsonResolutionSegment(value.resolutions),
-        decisions: toJsonDecisionSegment(value.decisions),
         generics: toJsonGenericSegment(value.generics),
+        definitions: toJsonDefinitionSegment(value.definitions),
+        decisions: toJsonDecisionSegment(value.decisions),
         coercions: toJsonCoercionSegment(value.coercions),
-        captures: toJsonCaptureSegment(value.captures),
         roots: value.roots.map((item0) => toJsonLocalNodeId(item0)),
     };
 }
@@ -933,14 +939,11 @@ export function fromJsonDirMaterialized(value: Json): DirMaterialized {
 
     return {
         patch: fromJsonPatch(jsonField(object, "patch")),
-        bindings: fromJsonBindingSegment(jsonField(object, "bindings")),
         types: fromJsonTypeSegment(jsonField(object, "types")),
-        statics: fromJsonStaticSegment(jsonField(object, "statics")),
-        resolutions: fromJsonResolutionSegment(jsonField(object, "resolutions")),
-        decisions: fromJsonDecisionSegment(jsonField(object, "decisions")),
         generics: fromJsonGenericSegment(jsonField(object, "generics")),
+        definitions: fromJsonDefinitionSegment(jsonField(object, "definitions")),
+        decisions: fromJsonDecisionSegment(jsonField(object, "decisions")),
         coercions: fromJsonCoercionSegment(jsonField(object, "coercions")),
-        captures: fromJsonCaptureSegment(jsonField(object, "captures")),
         roots: jsonArray(jsonField(object, "roots")).map((item0) => fromJsonLocalNodeId(item0)),
     };
 }

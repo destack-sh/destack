@@ -271,7 +271,7 @@ export function fromJsonSymbol(value: Json): Symbol {
 }
 
 /** The declaration kind of a symbol. */
-export type SymbolKind = "variable" | "parameter" | "label" | "import" | "exportAlias" | "class" | "struct" | "interface" | "newtypeInterface" | "enum" | "variant" | "function" | "extension" | "typeAlias" | "genericTypeParameter" | "genericValueParameter" | "associatedType" | "associatedConst" | "newtype";
+export type SymbolKind = "variable" | "parameter" | "label" | "import" | "exportAlias" | "class" | "struct" | "interface" | "newtypeInterface" | "enum" | "variant" | "function" | "extension" | "typeAlias" | "genericTypeParameter" | "genericConstParameter" | "genericLifetimeParameter" | "associatedType" | "associatedConst" | "newtype";
 
 export const SymbolKind = {
     /** Encode this value. */
@@ -343,17 +343,20 @@ export function encodeSymbolKind(writer: BinaryWriter, value: SymbolKind): void 
         case "genericTypeParameter":
             writer.writeUnsigned(14);
             return;
-        case "genericValueParameter":
+        case "genericConstParameter":
             writer.writeUnsigned(15);
             return;
-        case "associatedType":
+        case "genericLifetimeParameter":
             writer.writeUnsigned(16);
             return;
-        case "associatedConst":
+        case "associatedType":
             writer.writeUnsigned(17);
             return;
-        case "newtype":
+        case "associatedConst":
             writer.writeUnsigned(18);
+            return;
+        case "newtype":
+            writer.writeUnsigned(19);
             return;
     }
 
@@ -396,12 +399,14 @@ export function decodeSymbolKind(reader: BinaryReader): SymbolKind {
         case 14:
             return "genericTypeParameter";
         case 15:
-            return "genericValueParameter";
+            return "genericConstParameter";
         case 16:
-            return "associatedType";
+            return "genericLifetimeParameter";
         case 17:
-            return "associatedConst";
+            return "associatedType";
         case 18:
+            return "associatedConst";
+        case 19:
             return "newtype";
     }
 
@@ -448,8 +453,10 @@ export function fromJsonSymbolKind(value: Json): SymbolKind {
             return "typeAlias";
         case "genericTypeParameter":
             return "genericTypeParameter";
-        case "genericValueParameter":
-            return "genericValueParameter";
+        case "genericConstParameter":
+            return "genericConstParameter";
+        case "genericLifetimeParameter":
+            return "genericLifetimeParameter";
         case "associatedType":
             return "associatedType";
         case "associatedConst":

@@ -2,25 +2,23 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonField, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StaticKey } from "../symbol/key.js";
-import type { GlobalSymbolId } from "../symbol/symbol.js";
 import type { ScalarLiteral } from "../tree/literal.js";
-import type { GenericArgumentBinding } from "./generic.js";
 import type { Call } from "./resolution.js";
 import type { Dereference } from "./resolution.js";
 import type { FieldResolution } from "./resolution.js";
 import type { MemberAccess } from "./resolution.js";
 import type { Subscript } from "./resolution.js";
+import type { Selection } from "./selection.js";
 import type { Access } from "./type.js";
 import type { GlobalTypeId } from "./type.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
-import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
 import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "../tree/literal.js";
-import { decodeGenericArgumentBinding, encodeGenericArgumentBinding, fromJsonGenericArgumentBinding, toJsonGenericArgumentBinding } from "./generic.js";
 import { decodeCall, encodeCall, fromJsonCall, toJsonCall } from "./resolution.js";
 import { decodeDereference, encodeDereference, fromJsonDereference, toJsonDereference } from "./resolution.js";
 import { decodeFieldResolution, encodeFieldResolution, fromJsonFieldResolution, toJsonFieldResolution } from "./resolution.js";
 import { decodeMemberAccess, encodeMemberAccess, fromJsonMemberAccess, toJsonMemberAccess } from "./resolution.js";
 import { decodeSubscript, encodeSubscript, fromJsonSubscript, toJsonSubscript } from "./resolution.js";
+import { decodeSelection, encodeSelection, fromJsonSelection, toJsonSelection } from "./selection.js";
 import { decodeAccess, encodeAccess, fromJsonAccess, toJsonAccess } from "./type.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
 
@@ -223,10 +221,8 @@ export type Projection =
     /** Unwrap one newtype payload. */
     | {
           readonly kind: "newtypePayload";
-          /** The selected newtype symbol. */
-          readonly symbol: GlobalSymbolId;
-          /** The selected generic argument bindings for the selected newtype. */
-          readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
+          /** The selected newtype declaration and its generic arguments. */
+          readonly selection: Selection;
           /** The projected payload type. */
           readonly ty: GlobalTypeId;
       }
@@ -311,8 +307,8 @@ export const Projection = {
     },
 
     /** Unwrap one newtype payload. */
-    newtypePayload(symbol_: GlobalSymbolId, genericArguments: ReadonlyArray<GenericArgumentBinding>, ty: GlobalTypeId): Projection {
-        return { kind: "newtypePayload", symbol: symbol_, genericArguments, ty };
+    newtypePayload(selection: Selection, ty: GlobalTypeId): Projection {
+        return { kind: "newtypePayload", selection, ty };
     },
 
     /** Borrow the input before matching it. */
@@ -411,11 +407,7 @@ export function encodeProjection(writer: BinaryWriter, value: Projection): void 
             return;
         case "newtypePayload":
             writer.writeUnsigned(10);
-            encodeGlobalSymbolId(writer, value.symbol);
-            writer.writeUnsigned(value.genericArguments.length);
-            for (const item1 of value.genericArguments) {
-                encodeGenericArgumentBinding(writer, item1);
-            }
+            encodeSelection(writer, value.selection);
             encodeGlobalTypeId(writer, value.ty);
             return;
         case "borrow":
@@ -527,14 +519,12 @@ export function decodeProjection(reader: BinaryReader): Projection {
             };
         }
         case 10: {
-            const symbol_ = decodeGlobalSymbolId(reader);
-            const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
+            const selection = decodeSelection(reader);
             const ty = decodeGlobalTypeId(reader);
 
             return {
                 kind: "newtypePayload",
-                symbol: symbol_,
-                genericArguments,
+                selection,
                 ty,
             };
         }
@@ -636,8 +626,7 @@ export function toJsonProjection(value: Projection): Json {
         case "newtypePayload":
             return {
                 kind: "newtypePayload",
-                symbol: toJsonGlobalSymbolId(value.symbol),
-                genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
+                selection: toJsonSelection(value.selection),
                 ty: toJsonGlobalTypeId(value.ty),
             };
         case "borrow":
@@ -730,8 +719,7 @@ export function fromJsonProjection(value: Json): Projection {
         case "newtypePayload":
             return {
                 kind,
-                symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
-                genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
+                selection: fromJsonSelection(jsonField(object, "selection")),
                 ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
             };
         case "borrow":

@@ -5,6 +5,7 @@ import type { DispatchTable } from "../../mir/table/dispatch.js";
 import type { DropTable } from "../../mir/table/drop.js";
 import type { LayoutTable } from "../../mir/table/layout.js";
 import type { TargetLayout } from "../../mir/table/target.js";
+import type { LocalNodeId } from "../../mir/tree/node.js";
 import type { FrameState } from "./frame.js";
 import type { Function } from "./function.js";
 import type { Global } from "./global.js";
@@ -23,6 +24,7 @@ import { decodeDispatchTable, encodeDispatchTable, fromJsonDispatchTable, toJson
 import { decodeDropTable, encodeDropTable, fromJsonDropTable, toJsonDropTable } from "../../mir/table/drop.js";
 import { decodeLayoutTable, encodeLayoutTable, fromJsonLayoutTable, toJsonLayoutTable } from "../../mir/table/layout.js";
 import { decodeTargetLayout, encodeTargetLayout, fromJsonTargetLayout, toJsonTargetLayout } from "../../mir/table/target.js";
+import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "../../mir/tree/node.js";
 import { decodeFrameState, encodeFrameState, fromJsonFrameState, toJsonFrameState } from "./frame.js";
 import { decodeFunction, encodeFunction, fromJsonFunction, toJsonFunction } from "./function.js";
 import { decodeGlobal, encodeGlobal, fromJsonGlobal, toJsonGlobal } from "./global.js";
@@ -51,6 +53,8 @@ export type Object = {
     readonly dispatch: DispatchTable;
     /** Object-local function declarations in ascending MIR id order. */
     readonly functions: ReadonlyArray<Function>;
+    /** The object-local module initializer when one exists. */
+    readonly initializer?: LocalNodeId;
     /** Object-local global declarations and definitions in ascending MIR id order. */
     readonly globals: ReadonlyArray<Global>;
     /** Logical frame states in object-local identity order. */
@@ -115,46 +119,49 @@ export function encodeObject(writer: BinaryWriter, value: Object): void {
     for (const item6 of value.functions) {
         encodeFunction(writer, item6);
     }
+    writer.writeOption(value.initializer, (value7) => {
+        encodeLocalNodeId(writer, value7);
+    });
     writer.writeUnsigned(value.globals.length);
-    for (const item7 of value.globals) {
-        encodeGlobal(writer, item7);
+    for (const item8 of value.globals) {
+        encodeGlobal(writer, item8);
     }
     writer.writeUnsigned(value.frames.length);
-    for (const item8 of value.frames) {
-        encodeFrameState(writer, item8);
+    for (const item9 of value.frames) {
+        encodeFrameState(writer, item9);
     }
     writer.writeUnsigned(value.allocations.length);
-    for (const item9 of value.allocations) {
-        encodeAllocationSite(writer, item9);
+    for (const item10 of value.allocations) {
+        encodeAllocationSite(writer, item10);
     }
     writer.writeUnsigned(value.memory.length);
-    for (const item10 of value.memory) {
-        encodeMemorySite(writer, item10);
+    for (const item11 of value.memory) {
+        encodeMemorySite(writer, item11);
     }
     writer.writeUnsigned(value.calls.length);
-    for (const item11 of value.calls) {
-        encodeCallSite(writer, item11);
+    for (const item12 of value.calls) {
+        encodeCallSite(writer, item12);
     }
     writer.writeUnsigned(value.edges.length);
-    for (const item12 of value.edges) {
-        encodeEdgeSite(writer, item12);
+    for (const item13 of value.edges) {
+        encodeEdgeSite(writer, item13);
     }
     writer.writeUnsigned(value.counters.length);
-    for (const item13 of value.counters) {
-        encodeCounterSite(writer, item13);
+    for (const item14 of value.counters) {
+        encodeCounterSite(writer, item14);
     }
     writer.writeUnsigned(value.samples.length);
-    for (const item14 of value.samples) {
-        encodeSampleSite(writer, item14);
+    for (const item15 of value.samples) {
+        encodeSampleSite(writer, item15);
     }
-    writer.writeOption(value.bytecode, (value15) => {
-        bytecodeTreeObject.encodeObject(writer, value15);
+    writer.writeOption(value.bytecode, (value16) => {
+        bytecodeTreeObject.encodeObject(writer, value16);
     });
-    writer.writeOption(value.native, (value16) => {
-        nativeCodeObject.encodeObject(writer, value16);
+    writer.writeOption(value.native, (value17) => {
+        nativeCodeObject.encodeObject(writer, value17);
     });
-    writer.writeOption(value.wasm, (value17) => {
-        webassemblyObject.encodeObject(writer, value17);
+    writer.writeOption(value.wasm, (value18) => {
+        webassemblyObject.encodeObject(writer, value18);
     });
 }
 
@@ -167,14 +174,15 @@ export function decodeObject(reader: BinaryReader): Object {
     const drops = decodeDropTable(reader);
     const dispatch = decodeDispatchTable(reader);
     const functions = (() => { const length6 = reader.readNumber(); const items6: Array<Function> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeFunction(reader)); } return items6; })();
-    const globals = (() => { const length7 = reader.readNumber(); const items7: Array<Global> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeGlobal(reader)); } return items7; })();
-    const frames = (() => { const length8 = reader.readNumber(); const items8: Array<FrameState> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeFrameState(reader)); } return items8; })();
-    const allocations = (() => { const length9 = reader.readNumber(); const items9: Array<AllocationSite> = []; for (let index = 0; index < length9; index += 1) { items9.push(decodeAllocationSite(reader)); } return items9; })();
-    const memory = (() => { const length10 = reader.readNumber(); const items10: Array<MemorySite> = []; for (let index = 0; index < length10; index += 1) { items10.push(decodeMemorySite(reader)); } return items10; })();
-    const calls = (() => { const length11 = reader.readNumber(); const items11: Array<CallSite> = []; for (let index = 0; index < length11; index += 1) { items11.push(decodeCallSite(reader)); } return items11; })();
-    const edges = (() => { const length12 = reader.readNumber(); const items12: Array<EdgeSite> = []; for (let index = 0; index < length12; index += 1) { items12.push(decodeEdgeSite(reader)); } return items12; })();
-    const counters = (() => { const length13 = reader.readNumber(); const items13: Array<CounterSite> = []; for (let index = 0; index < length13; index += 1) { items13.push(decodeCounterSite(reader)); } return items13; })();
-    const samples = (() => { const length14 = reader.readNumber(); const items14: Array<SampleSite> = []; for (let index = 0; index < length14; index += 1) { items14.push(decodeSampleSite(reader)); } return items14; })();
+    const initializer = reader.readOption(() => decodeLocalNodeId(reader));
+    const globals = (() => { const length8 = reader.readNumber(); const items8: Array<Global> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeGlobal(reader)); } return items8; })();
+    const frames = (() => { const length9 = reader.readNumber(); const items9: Array<FrameState> = []; for (let index = 0; index < length9; index += 1) { items9.push(decodeFrameState(reader)); } return items9; })();
+    const allocations = (() => { const length10 = reader.readNumber(); const items10: Array<AllocationSite> = []; for (let index = 0; index < length10; index += 1) { items10.push(decodeAllocationSite(reader)); } return items10; })();
+    const memory = (() => { const length11 = reader.readNumber(); const items11: Array<MemorySite> = []; for (let index = 0; index < length11; index += 1) { items11.push(decodeMemorySite(reader)); } return items11; })();
+    const calls = (() => { const length12 = reader.readNumber(); const items12: Array<CallSite> = []; for (let index = 0; index < length12; index += 1) { items12.push(decodeCallSite(reader)); } return items12; })();
+    const edges = (() => { const length13 = reader.readNumber(); const items13: Array<EdgeSite> = []; for (let index = 0; index < length13; index += 1) { items13.push(decodeEdgeSite(reader)); } return items13; })();
+    const counters = (() => { const length14 = reader.readNumber(); const items14: Array<CounterSite> = []; for (let index = 0; index < length14; index += 1) { items14.push(decodeCounterSite(reader)); } return items14; })();
+    const samples = (() => { const length15 = reader.readNumber(); const items15: Array<SampleSite> = []; for (let index = 0; index < length15; index += 1) { items15.push(decodeSampleSite(reader)); } return items15; })();
     const bytecode = reader.readOption(() => bytecodeTreeObject.decodeObject(reader));
     const native = reader.readOption(() => nativeCodeObject.decodeObject(reader));
     const wasm = reader.readOption(() => webassemblyObject.decodeObject(reader));
@@ -187,6 +195,7 @@ export function decodeObject(reader: BinaryReader): Object {
         drops,
         dispatch,
         functions,
+        ...(initializer === undefined ? {} : { initializer }),
         globals,
         frames,
         allocations,
@@ -211,6 +220,7 @@ export function toJsonObject(value: Object): Json {
         drops: toJsonDropTable(value.drops),
         dispatch: toJsonDispatchTable(value.dispatch),
         functions: value.functions.map((item0) => toJsonFunction(item0)),
+        ...(value.initializer === undefined ? {} : { initializer: toJsonLocalNodeId(value.initializer) }),
         globals: value.globals.map((item0) => toJsonGlobal(item0)),
         frames: value.frames.map((item0) => toJsonFrameState(item0)),
         allocations: value.allocations.map((item0) => toJsonAllocationSite(item0)),
@@ -237,6 +247,7 @@ export function fromJsonObject(value: Json): Object {
         drops: fromJsonDropTable(jsonField(object, "drops")),
         dispatch: fromJsonDispatchTable(jsonField(object, "dispatch")),
         functions: jsonArray(jsonField(object, "functions")).map((item0) => fromJsonFunction(item0)),
+        initializer: jsonOptional(object, "initializer", (value) => fromJsonLocalNodeId(value)),
         globals: jsonArray(jsonField(object, "globals")).map((item0) => fromJsonGlobal(item0)),
         frames: jsonArray(jsonField(object, "frames")).map((item0) => fromJsonFrameState(item0)),
         allocations: jsonArray(jsonField(object, "allocations")).map((item0) => fromJsonAllocationSite(item0)),

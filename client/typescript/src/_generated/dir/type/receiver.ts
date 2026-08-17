@@ -2,12 +2,12 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonField, jsonObject, jsonString } from "../../../protocol/serde.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
-import type { GenericArgumentBinding } from "./generic.js";
 import type { Dereference } from "./resolution.js";
+import type { Selection } from "./selection.js";
 import type { GlobalTypeId } from "./type.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
-import { decodeGenericArgumentBinding, encodeGenericArgumentBinding, fromJsonGenericArgumentBinding, toJsonGenericArgumentBinding } from "./generic.js";
 import { decodeDereference, encodeDereference, fromJsonDereference, toJsonDereference } from "./resolution.js";
+import { decodeSelection, encodeSelection, fromJsonSelection, toJsonSelection } from "./selection.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
 
 /** One receiver and its ordered implicit transformations. */
@@ -280,10 +280,8 @@ export type ReceiverAdjustment =
     /** Project the payload of one newtype receiver. */
     | {
           readonly kind: "newtypePayload";
-          /** The selected newtype symbol. */
-          readonly symbol: GlobalSymbolId;
-          /** The selected generic argument bindings. */
-          readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
+          /** The selected newtype declaration and its generic arguments. */
+          readonly selection: Selection;
           /** The adjusted receiver type. */
           readonly ty: GlobalTypeId;
       }
@@ -311,8 +309,8 @@ export const ReceiverAdjustment = {
     },
 
     /** Project the payload of one newtype receiver. */
-    newtypePayload(symbol_: GlobalSymbolId, genericArguments: ReadonlyArray<GenericArgumentBinding>, ty: GlobalTypeId): ReceiverAdjustment {
-        return { kind: "newtypePayload", symbol: symbol_, genericArguments, ty };
+    newtypePayload(selection: Selection, ty: GlobalTypeId): ReceiverAdjustment {
+        return { kind: "newtypePayload", selection, ty };
     },
 
     /** Project the payload selected by one precise union arm. */
@@ -354,11 +352,7 @@ export function encodeReceiverAdjustment(writer: BinaryWriter, value: ReceiverAd
             return;
         case "newtypePayload":
             writer.writeUnsigned(2);
-            encodeGlobalSymbolId(writer, value.symbol);
-            writer.writeUnsigned(value.genericArguments.length);
-            for (const item1 of value.genericArguments) {
-                encodeGenericArgumentBinding(writer, item1);
-            }
+            encodeSelection(writer, value.selection);
             encodeGlobalTypeId(writer, value.ty);
             return;
         case "unionPayload":
@@ -391,14 +385,12 @@ export function decodeReceiverAdjustment(reader: BinaryReader): ReceiverAdjustme
             return { kind: "dereference", dereference };
         }
         case 2: {
-            const symbol_ = decodeGlobalSymbolId(reader);
-            const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
+            const selection = decodeSelection(reader);
             const ty = decodeGlobalTypeId(reader);
 
             return {
                 kind: "newtypePayload",
-                symbol: symbol_,
-                genericArguments,
+                selection,
                 ty,
             };
         }
@@ -435,8 +427,7 @@ export function toJsonReceiverAdjustment(value: ReceiverAdjustment): Json {
         case "newtypePayload":
             return {
                 kind: "newtypePayload",
-                symbol: toJsonGlobalSymbolId(value.symbol),
-                genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
+                selection: toJsonSelection(value.selection),
                 ty: toJsonGlobalTypeId(value.ty),
             };
         case "unionPayload":
@@ -470,8 +461,7 @@ export function fromJsonReceiverAdjustment(value: Json): ReceiverAdjustment {
         case "newtypePayload":
             return {
                 kind,
-                symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
-                genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
+                selection: fromJsonSelection(jsonField(object, "selection")),
                 ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
             };
         case "unionPayload":

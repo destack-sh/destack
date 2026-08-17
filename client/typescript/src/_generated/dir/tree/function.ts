@@ -81,7 +81,7 @@ export function fromJsonFunctionForm(value: Json): FunctionForm {
 }
 
 /** When a function may be called. */
-export type FunctionPhase = "normal" | "comptime";
+export type FunctionPhase = "normal" | "const";
 
 export const FunctionPhase = {
     /** Encode this value. */
@@ -111,7 +111,7 @@ export function encodeFunctionPhase(writer: BinaryWriter, value: FunctionPhase):
         case "normal":
             writer.writeUnsigned(0);
             return;
-        case "comptime":
+        case "const":
             writer.writeUnsigned(1);
             return;
     }
@@ -127,7 +127,7 @@ export function decodeFunctionPhase(reader: BinaryReader): FunctionPhase {
         case 0:
             return "normal";
         case 1:
-            return "comptime";
+            return "const";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -145,8 +145,8 @@ export function fromJsonFunctionPhase(value: Json): FunctionPhase {
     switch (variant) {
         case "normal":
             return "normal";
-        case "comptime":
-            return "comptime";
+        case "const":
+            return "const";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
