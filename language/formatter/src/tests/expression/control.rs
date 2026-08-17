@@ -63,6 +63,32 @@ fn test_format_for_assignment_slots() {
     );
 }
 
+/// Format one while binding condition as a logical operand sequence.
+#[test]
+fn test_format_while_binding_condition() {
+    assert_format_program!(
+        r#"while(let value! = queue.tryPop()&&value.isReady()){process(value);}"#,
+        r#"while (let value! = queue.tryPop() && value.isReady()) {
+    process(value);
+}
+"#,
+        FileType::Destack
+    );
+}
+
+/// Preserve grouping required by one compound while-condition operand.
+#[test]
+fn test_format_grouped_while_binding_condition_operand() {
+    assert_format_program!(
+        r#"while((ready||retry)&&let value! = queue.tryPop()){process(value);}"#,
+        r#"while ((ready || retry) && let value! = queue.tryPop()) {
+    process(value);
+}
+"#,
+        FileType::Destack
+    );
+}
+
 #[test]
 fn test_format_match_with_block_case_and_guard() {
     assert_format!(

@@ -1135,14 +1135,14 @@ fn statement_body_requires_head_space(
 pub(crate) fn format_while_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     form: WhileForm,
-    condition: LocalNodeId<Expression>,
+    condition: &Condition,
     body: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     match form {
         // while (<condition>) <body>
         WhileForm::While => {
             let head = format_with(|f| {
-                write_if_or_while_test_expression(f, condition)?;
+                write_condition(f, condition)?;
                 write_comments_for_empty_statement_body(f, body)
             });
 
@@ -1179,7 +1179,7 @@ pub(crate) fn format_while_expression<'ast>(
                     format_with(|f| write_grouped_control_head(
                         f,
                         &format_with(|f| {
-                            write_if_or_while_test_expression(f, condition)?;
+                            write_condition(f, condition)?;
                             write_comments_for_empty_statement_body(f, body)
                         }),
                     )),

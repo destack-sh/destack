@@ -162,7 +162,7 @@ pub(crate) fn format_statement_expression<'ast>(
             body,
         } => {
             format_loop_label(f, label.as_ref(), node_id)?;
-            format_while_expression(f, *form, *condition, *body)?;
+            format_while_expression(f, *form, condition, *body)?;
         }
 
         // for each

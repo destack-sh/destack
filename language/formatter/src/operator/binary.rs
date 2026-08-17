@@ -246,7 +246,7 @@ impl BinaryLikeExpression {
                 condition,
                 ..
             } => condition.as_expression() == Some(self.node_id),
-            Expression::While { condition, .. } => *condition == self.node_id,
+            Expression::While { condition, .. } => condition.as_expression() == Some(self.node_id),
             Expression::For { condition, .. } => {
                 condition.is_some_and(|condition| condition == self.node_id)
             }

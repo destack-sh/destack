@@ -106,6 +106,24 @@ fn expression_is_statement_sensitive_identifier(
     )
 }
 
+/// Return whether one compound condition requires parentheses around an expression operand.
+fn expression_condition_operand_needs_parentheses(
+    context: &DestackFormatContext<'_>,
+    parent: &Expression,
+    operand: LocalNodeId<Expression>,
+) -> bool {
+    let condition = match parent {
+        Expression::If { condition, .. } | Expression::While { condition, .. } => condition,
+        _ => return false,
+    };
+
+    condition.operands.len() > 1
+        && condition
+            .expressions()
+            .any(|expression| expression == operand)
+        && context.tree.get(operand).precedence() < OperatorPrecedence::LogicalAnd
+}
+
 /// Return whether one statement-context expression is the left chain of `as` or `satisfies`.
 fn expression_is_type_relation_left_chain_in_statement_context(
     context: &DestackFormatContext<'_>,
@@ -724,6 +742,11 @@ pub(crate) fn expression_requires_parentheses_in_parent(
 
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
+
+    // treat compound condition operands as children of their implicit logical and
+    if expression_condition_operand_needs_parentheses(context, parent_expression, node_id) {
+        return true;
+    }
 
     // assignment expressions need parentheses unless they are already in assignment position
     if let Expression::Assign { .. } = context.tree.get(node_id) {
