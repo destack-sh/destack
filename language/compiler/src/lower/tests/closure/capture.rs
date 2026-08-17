@@ -61,6 +61,7 @@ entry:
     v4: int32 = int.add v2, v3
     return v4
 }
+
 /// @layout.struct name=type@9 size=4 align=4
 /// @layout.field owner=type@9 index=0 name=value offset=0 size=4 align=4
 "#);
@@ -114,6 +115,7 @@ entry:
     v7: int32 = load v6
     return v7
 }
+
 /// @layout.struct name=type@9 size=4 align=4
 /// @layout.field owner=type@9 index=0 name=count offset=0 size=4 align=4
 "#);

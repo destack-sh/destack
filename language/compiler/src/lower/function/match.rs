@@ -5,16 +5,22 @@ use crate::lower::FunctionLowerer;
 use crate::lower::function::equality::LoweredOperand;
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// One lowered match arm awaiting its body.
-struct LoweredMatchArm {
+/// One match arm routed to its block.
+struct ArmBlock {
+    /// The arm pattern.
+    pattern: dir::LocalNodeId<dir::Pattern>,
+    /// The pattern decision selecting this arm.
+    decision: dir::PatternDecision,
+    /// The case index the arm selects, when refutable.
+    case: Option<u32>,
     /// The arm body expression.
     body: dir::LocalNodeId<dir::Expression>,
     /// The block lowering this arm.
     block: mir::LocalNodeId<mir::Block>,
 }
 
-/// One lowered switch case awaiting its body.
-struct LoweredSwitchCase {
+/// One switch case routed to its block.
+struct CaseBlock {
     /// The source switch case.
     case: dir::LocalNodeId<dir::SwitchCase>,
     /// The block lowering this case.
@@ -31,9 +37,20 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // evaluate the matched value once before dispatch
         let matched = self.lower_expression(value)?;
+        let scrutinee = self.node_type_id(value)?;
+
+        // dispatch newtype scrutinees on their wrapped payload
+        let dispatch = match self.builder.value_type(matched) {
+            Some(carrier)
+                if matches!(self.builder.tree().get(carrier), mir::Type::Newtype { .. }) =>
+            {
+                self.builder.field_get(matched, 0)
+            }
+            _ => matched,
+        };
 
         // resolve each arm's case through its pattern
-        let mut lowered_arms = Vec::with_capacity(arms.len());
+        let mut arm_blocks = Vec::with_capacity(arms.len());
         let mut targets = Vec::new();
         let mut default = None;
         for arm in arms {
@@ -60,7 +77,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 .into());
             }
-            let selected = self.match_arm_case(pattern)?;
+            let decision = self.pattern_decision(pattern)?;
+            let selected = self.match_arm_case(scrutinee, &decision)?;
 
             // route each arm to its own block
             let block = self.builder.block();
@@ -73,15 +91,47 @@ impl FunctionLowerer<'_, '_, '_> {
                     });
                 }
             }
-            lowered_arms.push(LoweredMatchArm { body, block });
+            arm_blocks.push(ArmBlock {
+                pattern,
+                decision,
+                case: selected,
+                body,
+                block,
+            });
+        }
+
+        // case dispatch reads a materialized variant carrier
+        if !targets.is_empty() {
+            let carrier = self.builder.value_type(dispatch);
+            let is_variant = carrier.is_some_and(|carrier| {
+                matches!(self.builder.tree().get(carrier), mir::Type::Variant { .. })
+            });
+            if !is_variant {
+                return Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: "a match over an indirect scrutinee".to_string(),
+                }
+                .into());
+            }
         }
 
         // dispatch on the logical case and join the arm values through one slot
         let slot = self.value_slot(expression)?;
-        self.builder.variant_switch(matched, default, targets);
+        self.builder.variant_switch(dispatch, default, targets);
         let exit = self.builder.block();
-        for arm in &lowered_arms {
+        for arm in &arm_blocks {
             self.builder.switch_to_block(arm.block);
+
+            // bind the pattern over the selected payload before the body
+            let destructures = matches!(arm.decision, dir::PatternDecision::Destructure(_));
+            let input = match arm.case {
+                Some(index) if destructures => Some(self.builder.variant_payload(dispatch, index)),
+                Some(_) => None,
+                None => Some(matched),
+            };
+            if let Some(input) = input {
+                self.lower_pattern_bindings(arm.pattern, input, dir::Mutability::Immutable)?;
+            }
             let value = self.lower_expression(arm.body)?;
             self.builder.local_set(slot, value);
             self.builder.jump(exit);
@@ -155,7 +205,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     }
                 }
             }
-            lowered_cases.push(LoweredSwitchCase { case: *case, block });
+            lowered_cases.push(CaseBlock { case: *case, block });
         }
 
         // dispatch constant integer selectors through one switch terminator
@@ -219,7 +269,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn constant_switch_cases(
         &mut self,
         value: dir::LocalNodeId<dir::Expression>,
-        cases: &[LoweredSwitchCase],
+        cases: &[CaseBlock],
     ) -> CompilerResult<Option<Vec<(i128, mir::LocalNodeId<mir::Block>)>>> {
         // require a runtime carrier dispatching by integer identity
         let carrier = self.operand_carrier(value)?;
@@ -267,9 +317,10 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return the case index selected by one match arm's pattern.
     fn match_arm_case(
         &mut self,
-        pattern: dir::LocalNodeId<dir::Pattern>,
+        scrutinee: dir::GlobalTypeId,
+        decision: &dir::PatternDecision,
     ) -> CompilerResult<Option<u32>> {
-        match self.pattern_decision(pattern)? {
+        match decision {
             // take the default arm for wildcards and bare bindings
             dir::PatternDecision::Ignore => Ok(None),
             dir::PatternDecision::Bind(dir::PatternBindingResolution { pattern: None, .. }) => {
@@ -285,11 +336,58 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(Some(index))
             }
 
+            // select the union case the destructured nominal narrows
+            dir::PatternDecision::Destructure(resolution) => {
+                let dir::PatternDestructureResolution::Nominal(nominal) = &**resolution else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a structural destructure match arm".to_string(),
+                    }
+                    .into());
+                };
+
+                Ok(Some(
+                    self.union_member_case(scrutinee, nominal.selection.symbol)?,
+                ))
+            }
+
             other => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("a '{other:?}' match pattern"),
             }
             .into()),
         }
+    }
+
+    /// Return the union case position of the member one nominal narrows.
+    fn union_member_case(
+        &mut self,
+        scrutinee: dir::GlobalTypeId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<u32> {
+        // resolve the scrutinee union behind owner forms and newtype backings
+        let mut stored = self.lowerer.peel_owned(scrutinee)?;
+        while let dir::Type::Application(instance) = self.lowerer.ty(stored)? {
+            let defined = match self.lowerer.definition(instance.symbol)? {
+                Some(dir::Definition::TypeAlias(alias)) => alias.value,
+                Some(dir::Definition::Newtype(newtype)) => newtype.backing,
+                _ => break,
+            };
+            stored = self.lowerer.peel_owned(defined)?;
+        }
+
+        // find the member declaring the narrowed nominal
+        for (index, member) in self.union_members(stored)?.into_iter().enumerate() {
+            let member = self.lowerer.peel_owned(member)?;
+            if let dir::Type::Application(instance) = self.lowerer.ty(member)?
+                && instance.symbol == symbol
+            {
+                return Ok(index as u32);
+            }
+        }
+
+        Err(CompilerError::Internal {
+            message: "a destructured nominal outside the matched union".to_string(),
+        })
     }
 }

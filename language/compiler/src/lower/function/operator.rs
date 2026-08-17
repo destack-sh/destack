@@ -84,6 +84,117 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+    /// Lower one nullish coalescing operation over its variant or niched carrier.
+    pub(in crate::lower) fn lower_coalesce(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<mir::Value> {
+        // pre-classify both carriers without lowering either operand
+        let source = self.node_type_id(left)?;
+        let carrier = self.lower_type(source)?;
+        let result = self.lower_type(self.node_type_id(expression)?)?;
+
+        // narrow variant carriers through their undefined case
+        if matches!(self.builder.tree().get(carrier), mir::Type::Variant { .. }) {
+            let value = self.lower_expression(left)?;
+            if self.builder.tree().undefined_case(carrier).is_none() {
+                return self.adapt_to_carrier(value, result);
+            }
+
+            return self.lower_absent_fallback(value, result, |lowerer| {
+                lowerer.lower_coalesce_fallback(right, result)
+            });
+        }
+
+        // a never-absent operand keeps its own value
+        let Some(nullability) = self.builder.tree().get(carrier).nullability() else {
+            let value = self.lower_expression(left)?;
+
+            return self.adapt_to_carrier(value, result);
+        };
+        if !self.builder.tree().get(result).is_reference_carrier() {
+            return Err(CompilerError::Internal {
+                message: "a coalesce joining reference and value carriers".to_string(),
+            });
+        }
+
+        // a never-nullish reference keeps its own value
+        let value = self.lower_expression(left)?;
+        if nullability == mir::Nullability::None {
+            return self.adapt_to_carrier(value, result);
+        }
+
+        // test the nullish niches the carrier declares
+        let mut is_nullish = None;
+        if nullability.admits(mir::Nullish::Undefined) {
+            let undefined = self.builder.constant(mir::Constant::Undefined, carrier);
+            is_nullish = Some(
+                self.builder
+                    .binary_op(mir::BinaryOperator::Equal, value, undefined),
+            );
+        }
+        if nullability.admits(mir::Nullish::Null) {
+            let null = self.builder.constant(mir::Constant::Null, carrier);
+            let test = self
+                .builder
+                .binary_op(mir::BinaryOperator::Equal, value, null);
+            is_nullish = Some(match is_nullish {
+                Some(nullish) => self
+                    .builder
+                    .binary_op(mir::BinaryOperator::Or, nullish, test),
+                None => test,
+            });
+        }
+        let Some(is_nullish) = is_nullish else {
+            return Err(CompilerError::Internal {
+                message: "a nullable carrier without a nullish test".to_string(),
+            });
+        };
+
+        // short-circuit the right operand behind the nullish test
+        let join_value = self.builder.local(result, mir::Mutability::Mutable);
+        let keep_block = self.builder.block();
+        let right_block = self.builder.block();
+        let join = self.builder.block();
+        self.builder.branch(is_nullish, right_block, keep_block);
+
+        // keep the present reference at the narrowed result carrier
+        self.builder.switch_to_block(keep_block);
+        let kept = self.adapt_to_carrier(value, result)?;
+        self.builder.local_set(join_value, kept);
+        self.builder.jump(join);
+
+        // evaluate the fallback only when the reference is nullish
+        self.builder.switch_to_block(right_block);
+        if let Some(fallback) = self.lower_coalesce_fallback(right, result)? {
+            self.builder.local_set(join_value, fallback);
+            self.builder.jump(join);
+        }
+        self.builder.switch_to_block(join);
+
+        Ok(self.builder.local_get(join_value))
+    }
+
+    /// Lower one coalesce fallback, terminating instead of joining for never arms.
+    fn lower_coalesce_fallback(
+        &mut self,
+        right: dir::LocalNodeId<dir::Expression>,
+        result: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<Option<mir::Value>> {
+        // never-typed fallbacks end their block without a value
+        if matches!(self.node_type(right)?, dir::Type::Never) {
+            self.lower_expression(right)?;
+
+            return Ok(None);
+        }
+
+        let fallback = self.lower_expression(right)?;
+
+        Ok(Some(self.adapt_to_carrier(fallback, result)?))
+    }
+
     /// Lower one short-circuiting logical operation over boolean operands.
     pub(in crate::lower) fn lower_logical(
         &mut self,
@@ -178,11 +289,7 @@ impl FunctionLowerer<'_, '_, '_> {
         operator: dir::BinaryOperator,
         operand: mir::Value,
     ) -> CompilerResult<mir::BinaryOperator> {
-        let Some(ty) = self.builder.value_type(operand) else {
-            return Err(CompilerError::Internal {
-                message: "the lowered scalar operand has no type".to_string(),
-            });
-        };
+        let ty = self.value_carrier(operand)?;
         let class = self.mir_operand_class(self.builder.tree().get(ty))?;
 
         self.binary_operator_class(operator, class)

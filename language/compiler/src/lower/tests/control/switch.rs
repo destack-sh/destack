@@ -208,6 +208,7 @@ b3:
 b4:
     jump b3
 }
+
 /// @layout.variant name=type@2 size=1 align=1
 /// @layout.discriminant owner=type@2 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@2 index=0 discriminant=0 payload_offset=1
@@ -267,6 +268,7 @@ b3:
 b4:
     jump b3
 }
+
 /// @layout.variant name=type@6 size=1 align=1
 /// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=1

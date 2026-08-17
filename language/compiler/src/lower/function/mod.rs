@@ -15,6 +15,7 @@ mod literal;
 mod r#match;
 mod member;
 mod operator;
+mod pattern;
 mod place;
 mod receiver;
 mod tree;
