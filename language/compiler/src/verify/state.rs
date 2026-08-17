@@ -11,8 +11,8 @@ use destack_source::ModuleId;
 use crate::DiagnosticAnchor;
 use crate::verify::{BorrowChecker, MoveChecker, VerifyError};
 
-/// Verifier for one MIR module.
-pub(crate) struct Verifier<'a> {
+/// State for one MIR verification.
+pub(crate) struct VerifyState<'a> {
     /// The module being verified.
     module: ModuleId,
     /// The MIR tree being verified.
@@ -22,19 +22,21 @@ pub(crate) struct Verifier<'a> {
     /// Explicit MIR memory accesses.
     pub(in crate::verify) accesses: &'a AccessTable,
     /// Target ABI layout.
-    target_layout: TargetLayout,
+    target: TargetLayout,
+
     /// Function and call effect table.
     pub(in crate::verify) effects: Arc<EffectTable>,
     /// Static callsite resolutions.
     pub(in crate::verify) resolution: Arc<ResolutionTable>,
+
     /// Verified ownership retention.
     retention: RetentionTable,
     /// Accumulated errors.
     errors: Vec<DiagnosticBuilder<VerifyError>>,
 }
 
-impl<'a> Verifier<'a> {
-    /// Create a verifier for one lowered MIR module.
+impl<'a> VerifyState<'a> {
+    /// Create verification state for one lowered MIR module.
     pub(crate) fn new(module: ModuleId, lowered: &'a MirLowered) -> Self {
         let mut analyses = AnalysisCache::new();
         let resolution = analyses.resolution(&lowered.tree, &lowered.dispatch);
@@ -50,7 +52,7 @@ impl<'a> Verifier<'a> {
             tree: &lowered.tree,
             drops: &lowered.drops,
             accesses: &lowered.accesses,
-            target_layout: lowered.target,
+            target: lowered.target,
             effects,
             resolution,
             retention: RetentionTable::default(),
@@ -68,7 +70,7 @@ impl<'a> Verifier<'a> {
                 continue;
             }
 
-            let options = AnalysisOptions::new(self.target_layout);
+            let options = AnalysisOptions::new(self.target);
             let mut analyses = FunctionCache::with_options(options);
 
             // check moves before borrow legality

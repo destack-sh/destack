@@ -10,7 +10,7 @@ use destack_mir::{
     TypeId, Value,
 };
 
-use crate::verify::{Verifier, VerifyError};
+use crate::verify::{VerifyError, VerifyState};
 
 /// Borrow checker for one MIR function.
 pub(in crate::verify) struct BorrowChecker<'a, 'b> {
@@ -18,8 +18,8 @@ pub(in crate::verify) struct BorrowChecker<'a, 'b> {
     function: &'a Function,
     /// The MIR tree.
     tree: &'a Tree,
-    /// Module verifier receiving diagnostics.
-    verifier: &'a mut Verifier<'b>,
+    /// Module verification state.
+    verification: &'a mut VerifyState<'b>,
     /// SSA value liveness.
     liveness: Arc<LivenessTable>,
     /// Alias relation for physical memory accesses.
@@ -47,21 +47,21 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     pub(in crate::verify) fn new(
         function: &'a Function,
         tree: &'a Tree,
-        verifier: &'a mut Verifier<'b>,
+        verification: &'a mut VerifyState<'b>,
         analyses: &mut FunctionCache,
     ) -> Self {
         let liveness = analyses.liveness(function, tree);
         let places = analyses.place(function, tree);
         let moves = analyses.moves(function, tree);
         let alias = analyses.alias(function, tree);
-        let memory = analyses.memory(function, tree, verifier.accesses, &verifier.effects);
-        let provenance = analyses.provenance(function, tree, &verifier.resolution);
+        let memory = analyses.memory(function, tree, verification.accesses, &verification.effects);
+        let provenance = analyses.provenance(function, tree, &verification.resolution);
         let loan_count = provenance.loans().len();
 
         Self {
             function,
             tree,
-            verifier,
+            verification,
             liveness,
             alias,
             memory,
@@ -114,7 +114,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                 self.function,
                 self.tree,
                 &self.places,
-                &self.verifier.resolution,
+                &self.verification.resolution,
                 self.provenance.loans(),
             );
 
@@ -450,9 +450,9 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             .reference_access(root)
             .is_some_and(|access| !access.can_write());
         if is_writable && is_readonly_root {
-            self.verifier
+            self.verification
                 .emit_error(VerifyError::BorrowThroughReadonlyReference {
-                    anchor: self.verifier.anchor(anchor),
+                    anchor: self.verification.anchor(anchor),
                 });
             self.reject_loan(reference);
         }
@@ -549,19 +549,19 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                 }
 
                 let issued_at = loan.issued_at;
-                let borrowed_at = self.verifier.anchor(issued_at);
+                let borrowed_at = self.verification.anchor(issued_at);
                 if effect.writes {
-                    self.verifier.emit_error(
+                    self.verification.emit_error(
                         VerifyError::InvalidationOfBorrowedPlace {
-                            anchor: self.verifier.anchor(anchor),
+                            anchor: self.verification.anchor(anchor),
                             borrowed_at: borrowed_at.clone(),
                         }
                         .label(borrowed_at, "borrow starts here"),
                     );
                 } else if effect.reads {
-                    self.verifier.emit_error(
+                    self.verification.emit_error(
                         VerifyError::UseOfExclusivelyBorrowedPlace {
-                            anchor: self.verifier.anchor(anchor),
+                            anchor: self.verification.anchor(anchor),
                             borrowed_at: borrowed_at.clone(),
                         }
                         .label(borrowed_at, "borrow starts here"),
@@ -614,9 +614,9 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             return;
         }
 
-        self.verifier
+        self.verification
             .emit_error(VerifyError::WriteThroughReadonlyReference {
-                anchor: self.verifier.anchor(anchor),
+                anchor: self.verification.anchor(anchor),
             });
     }
 
@@ -645,19 +645,19 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
 
         // reject exclusive access to shared storage
         if is_shared_exclusive {
-            self.verifier
+            self.verification
                 .emit_error(VerifyError::ExclusiveBorrowFromSharedStorage {
-                    anchor: self.verifier.anchor(anchor),
+                    anchor: self.verification.anchor(anchor),
                 });
             self.reject_loan(reference);
         }
 
         // reject overlap with a loan already active here
         if let Some(conflict) = conflict {
-            let active_borrow = self.verifier.anchor(conflict);
-            self.verifier.emit_error(
+            let active_borrow = self.verification.anchor(conflict);
+            self.verification.emit_error(
                 VerifyError::BorrowConflict {
-                    anchor: self.verifier.anchor(anchor),
+                    anchor: self.verification.anchor(anchor),
                     active_borrow: active_borrow.clone(),
                 }
                 .label(active_borrow, "borrow starts here"),
@@ -706,9 +706,9 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
 
             // prevent calls from strengthening readonly references
             if access.can_write() && !argument_access.can_write() {
-                self.verifier
+                self.verification
                     .emit_error(VerifyError::BorrowThroughReadonlyReference {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                     });
                 continue;
             }
@@ -725,9 +725,9 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             // reject exclusive access to shared storage
             let storage = loan.place().and_then(|place| self.alias.storage(place));
             if loan.is_exclusive() && storage.is_some_and(Storage::is_shared) {
-                self.verifier
+                self.verification
                     .emit_error(VerifyError::ExclusiveBorrowFromSharedStorage {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                     });
                 continue;
             }
@@ -741,10 +741,10 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                 })
                 .map(|conflict| self.provenance.loans().get(conflict).issued_at)
             {
-                let active_borrow = self.verifier.anchor(conflict);
-                self.verifier.emit_error(
+                let active_borrow = self.verification.anchor(conflict);
+                self.verification.emit_error(
                     VerifyError::BorrowConflict {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                         active_borrow: active_borrow.clone(),
                     }
                     .label(active_borrow, "borrow starts here"),
@@ -759,9 +759,9 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                         .zip(loan.place())
                         .is_some_and(|(left, right)| self.alias.may_overlap(left, right))
             }) {
-                self.verifier
+                self.verification
                     .emit_error(VerifyError::ExclusiveArgumentAlias {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                     });
             }
 
@@ -817,9 +817,10 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             if provenance.is_empty()
                 || !provenance.is_covered_by(&required, &self.function.lifetimes)
             {
-                self.verifier.emit_error(VerifyError::BorrowOutlivesOrigin {
-                    anchor: self.verifier.anchor(anchor),
-                });
+                self.verification
+                    .emit_error(VerifyError::BorrowOutlivesOrigin {
+                        anchor: self.verification.anchor(anchor),
+                    });
 
                 return;
             }
@@ -927,9 +928,10 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             };
 
             if is_unproven || is_uncovered {
-                self.verifier.emit_error(VerifyError::BorrowOutlivesOrigin {
-                    anchor: self.verifier.anchor(anchor),
-                });
+                self.verification
+                    .emit_error(VerifyError::BorrowOutlivesOrigin {
+                        anchor: self.verification.anchor(anchor),
+                    });
 
                 return;
             }
@@ -975,14 +977,14 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
 
     /// Return whether one call may park the current fiber.
     fn call_may_park(&self, callsite: CallSite, target: Option<LocalNodeId<Function>>) -> bool {
-        let call = self.verifier.effects.call(callsite);
+        let call = self.verification.effects.call(callsite);
         if let Some(call) = call
             && call.behavior != FunctionBehavior::unknown()
         {
             return call.behavior.park.may_park();
         }
 
-        if let Some(effect) = target.and_then(|target| self.verifier.effects.function(target)) {
+        if let Some(effect) = target.and_then(|target| self.verification.effects.function(target)) {
             effect.behavior.park.may_park()
         } else {
             true
@@ -1012,10 +1014,10 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             .collect::<Vec<_>>();
 
         for borrowed_at in borrowed_at {
-            let borrowed_at = self.verifier.anchor(borrowed_at);
-            self.verifier.emit_error(
+            let borrowed_at = self.verification.anchor(borrowed_at);
+            self.verification.emit_error(
                 VerifyError::ManagedBorrowAcrossPark {
-                    anchor: self.verifier.anchor(anchor),
+                    anchor: self.verification.anchor(anchor),
                     borrowed_at: borrowed_at.clone(),
                 }
                 .label(borrowed_at, "borrow starts here"),
@@ -1029,7 +1031,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         callsite: CallSite,
         direct: Option<LocalNodeId<Function>>,
     ) -> Option<LocalNodeId<Function>> {
-        direct.or_else(|| self.verifier.resolution.target(callsite))
+        direct.or_else(|| self.verification.resolution.target(callsite))
     }
 
     /// Check declared lifetime relations against call arguments.
@@ -1067,9 +1069,10 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                     continue;
                 }
                 if !longer.outlives(&shorter, &self.function.lifetimes) {
-                    self.verifier.emit_error(VerifyError::BorrowOutlivesOrigin {
-                        anchor: self.verifier.anchor(anchor),
-                    });
+                    self.verification
+                        .emit_error(VerifyError::BorrowOutlivesOrigin {
+                            anchor: self.verification.anchor(anchor),
+                        });
                 }
             }
         }
@@ -1089,9 +1092,10 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                 continue;
             }
 
-            self.verifier.emit_error(VerifyError::BorrowOutlivesOrigin {
-                anchor: self.verifier.anchor(anchor),
-            });
+            self.verification
+                .emit_error(VerifyError::BorrowOutlivesOrigin {
+                    anchor: self.verification.anchor(anchor),
+                });
             for (_, provenance) in escaping {
                 for loan in provenance.loans() {
                     self.rejected_loans.insert(loan.index());
@@ -1114,10 +1118,10 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         };
 
         // reject changes blocked by active loans
-        let borrowed_at = self.verifier.anchor(loan);
-        self.verifier.emit_error(
+        let borrowed_at = self.verification.anchor(loan);
+        self.verification.emit_error(
             VerifyError::InvalidationOfBorrowedPlace {
-                anchor: self.verifier.anchor(anchor),
+                anchor: self.verification.anchor(anchor),
                 borrowed_at: borrowed_at.clone(),
             }
             .label(borrowed_at, "borrow starts here"),

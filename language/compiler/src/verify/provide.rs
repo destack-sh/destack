@@ -6,7 +6,7 @@ use destack_artifact::{
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 
-use crate::verify::Verifier;
+use crate::verify::VerifyState;
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
@@ -36,14 +36,14 @@ impl Compiler {
         let lowered = artifacts
             .read::<MirLowered>((module, profile, target))
             .map_err(CompilerError::from)?;
-        let mut verifier = Verifier::new(module, &lowered);
+        let mut state = VerifyState::new(module, &lowered);
 
-        verifier.verify();
+        state.verify();
 
         // emit every diagnostic and fail the verified artifact
-        let mut errors = verifier.take_errors();
+        let mut errors = state.take_errors();
         let Some(error) = errors.pop() else {
-            let retention = verifier.take_retention();
+            let retention = state.take_retention();
 
             return Ok(ArtifactPayload::MirVerified(Arc::new(MirVerified {
                 retention,

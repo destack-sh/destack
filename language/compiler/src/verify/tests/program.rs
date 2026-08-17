@@ -5,15 +5,15 @@ use destack_source::{DiagnosticCollection, FileId, PrintOptions, print_diagnosti
 
 use crate::tests::TestProgram;
 use crate::tests::snapshot::assert_snapshot;
-use crate::verify::{Verifier, VerifyError};
+use crate::verify::{VerifyError, VerifyState};
 
 impl TestProgram {
     /// Run MIR verification.
     pub(in crate::verify) fn verify(&mut self) -> Vec<DiagnosticBuilder<VerifyError>> {
-        let mut verifier = Verifier::new(self.module_id(), &self.lowered);
-        verifier.verify();
+        let mut state = VerifyState::new(self.module_id(), &self.lowered);
+        state.verify();
 
-        verifier.take_errors()
+        state.take_errors()
     }
 
     /// Assert that MIR verification succeeds.

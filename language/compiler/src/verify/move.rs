@@ -5,7 +5,7 @@ use destack_mir::{
     LocalNodeId, LocalNodeIdAny, Terminator, Tree, Type, Unavailability, Value,
 };
 
-use crate::verify::{Verifier, VerifyError};
+use crate::verify::{VerifyError, VerifyState};
 
 /// Move checker for one MIR function.
 pub(in crate::verify) struct MoveChecker<'a, 'b> {
@@ -13,8 +13,8 @@ pub(in crate::verify) struct MoveChecker<'a, 'b> {
     function: &'a Function,
     /// The MIR tree.
     tree: &'a Tree,
-    /// Module verifier receiving diagnostics.
-    verifier: &'a mut Verifier<'b>,
+    /// Module verification state.
+    verification: &'a mut VerifyState<'b>,
     /// Move-path initialization.
     initialization: Arc<InitializationTable>,
 }
@@ -24,7 +24,7 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
     pub(in crate::verify) fn new(
         function: &'a Function,
         tree: &'a Tree,
-        verifier: &'a mut Verifier<'b>,
+        verification: &'a mut VerifyState<'b>,
         analyses: &mut FunctionCache,
     ) -> Self {
         let initialization = analyses.initialization(function, tree);
@@ -32,7 +32,7 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
         Self {
             function,
             tree,
-            verifier,
+            verification,
             initialization,
         }
     }
@@ -79,9 +79,9 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
         // enforce instruction-specific move rules
         match instruction {
             Instruction::Select { destination, .. } if self.is_move_only(*destination) => {
-                self.verifier
+                self.verification
                     .emit_error(VerifyError::SelectOfMoveOnlyValue {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                     });
             }
             Instruction::FieldGet {
@@ -94,8 +94,8 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
                 aggregate,
                 ..
             } if self.is_move_only(*destination) && self.has_drop_hook(*aggregate) => {
-                self.verifier.emit_error(VerifyError::MoveOutOfDrop {
-                    anchor: self.verifier.anchor(anchor),
+                self.verification.emit_error(VerifyError::MoveOutOfDrop {
+                    anchor: self.verification.anchor(anchor),
                 });
             }
             Instruction::VariantPayload {
@@ -103,8 +103,8 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
                 variant,
                 ..
             } if self.is_move_only(*destination) && self.has_drop_hook(*variant) => {
-                self.verifier.emit_error(VerifyError::MoveOutOfDrop {
-                    anchor: self.verifier.anchor(anchor),
+                self.verification.emit_error(VerifyError::MoveOutOfDrop {
+                    anchor: self.verification.anchor(anchor),
                 });
             }
             Instruction::Load {
@@ -112,18 +112,19 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
                 pointer,
                 ..
             } if !self.is_pointer(*pointer) && self.is_move_only(*destination) => {
-                self.verifier.emit_error(VerifyError::MoveOutOfReference {
-                    anchor: self.verifier.anchor(anchor),
-                });
+                self.verification
+                    .emit_error(VerifyError::MoveOutOfReference {
+                        anchor: self.verification.anchor(anchor),
+                    });
             }
             Instruction::Store { pointer, value }
                 if !self.is_pointer(*pointer)
                     && self.is_move_only(*value)
                     && !self.points_to_uninitialized(*pointer) =>
             {
-                self.verifier
+                self.verification
                     .emit_error(VerifyError::OverwriteOfMoveOnlyPlace {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                     });
             }
             _ => {}
@@ -152,35 +153,35 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
     fn emit_unavailability(&mut self, unavailable: Unavailability, anchor: LocalNodeIdAny) {
         match (unavailable.initialization, unavailable.moved_at) {
             (Initialization::Uninitialized, Some(moved_at)) => {
-                let moved_at = self.verifier.anchor(moved_at);
-                self.verifier.emit_error(
+                let moved_at = self.verification.anchor(moved_at);
+                self.verification.emit_error(
                     VerifyError::UseAfterMove {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                         moved_at: moved_at.clone(),
                     }
                     .label(moved_at, "value moved here"),
                 );
             }
             (Initialization::MaybeInitialized, Some(moved_at)) => {
-                let moved_at = self.verifier.anchor(moved_at);
-                self.verifier.emit_error(
+                let moved_at = self.verification.anchor(moved_at);
+                self.verification.emit_error(
                     VerifyError::MaybeUseAfterMove {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                         moved_at: moved_at.clone(),
                     }
                     .label(moved_at, "value moved on this path"),
                 );
             }
             (Initialization::Uninitialized, None) => {
-                self.verifier
+                self.verification
                     .emit_error(VerifyError::UseOfUninitializedPlace {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                     });
             }
             (Initialization::MaybeInitialized, None) => {
-                self.verifier
+                self.verification
                     .emit_error(VerifyError::MaybeUseOfUninitializedPlace {
-                        anchor: self.verifier.anchor(anchor),
+                        anchor: self.verification.anchor(anchor),
                     });
             }
             (Initialization::Initialized, _) => {
@@ -200,7 +201,7 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
     fn has_drop_hook(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
-        self.verifier.drops.has_hook(ty)
+        self.verification.drops.has_hook(ty)
     }
 
     /// Return whether one value has an unchecked pointer type.
