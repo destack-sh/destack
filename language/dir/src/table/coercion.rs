@@ -282,8 +282,7 @@ impl CoercionAdjustment {
         // sized sequences and thin pointers convert into their fat carriers
         if matches!(
             (source, target),
-            (Type::Array(_), Type::Slice(_))
-                | (Type::FixedArray(_), Type::Slice(_))
+            (Type::FixedArray(_), Type::Slice(_))
                 | (Type::FunctionPointer(_), Type::Function(_))
         ) {
             return Some(Self::Carrier { target: target_id });

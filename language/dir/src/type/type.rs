@@ -71,15 +71,6 @@ pub enum Type {
     /// Type-level operation.
     Operation(TypeOperationId),
 
-    /// Homogeneous array type, like `int32[]`.
-    ///
-    /// FUGU #Architecture: remove this head and commit `T[]` as
-    /// `Application(Array, [T])`, matching tsc where `T[]` and `Array<T>` are one
-    /// type; Slice and FixedArray stay primitive. Deletes the admission arm, the
-    /// representation mapping, the apparent-member arm, and the relate decompose
-    /// arms, and forces the array variance ruling (tsc-covariant vs derived
-    /// invariance) into the open.
-    Array(ArrayType),
     /// Fixed-length array type, like `[uint8; 4]`.
     FixedArray(FixedArrayType),
     /// Compact scalar interval type, like `0..10`.
@@ -187,7 +178,6 @@ impl Type {
             Self::Form(_) => "Form",
             Self::Dynamic(_) => "Dynamic",
             Self::Operation(_) => "Operation",
-            Self::Array(_) => "Array",
             Self::FixedArray(_) => "FixedArray",
             Self::Slice(_) => "Slice",
             Self::Tuple(_) => "Tuple",
@@ -272,7 +262,6 @@ impl Type {
         }
 
         match self {
-            Self::Array(_) => Some(LanguageItem::Array),
             Self::Slice(_) => Some(LanguageItem::Slice),
             Self::FixedArray(_) => Some(LanguageItem::FixedArray),
             _ => None,
@@ -286,7 +275,6 @@ impl Type {
         }
 
         match self {
-            Self::Array(_) => Some(LanguageItem::Array),
             Self::Slice(_) => Some(LanguageItem::Slice),
             Self::FixedArray(_) => Some(LanguageItem::FixedArray),
             _ => None,
@@ -366,7 +354,6 @@ impl Type {
             | Self::Variant(_)
             | Self::Form(_)
             | Self::Dynamic(_)
-            | Self::Array(_)
             | Self::FixedArray(_)
             | Self::Range(_)
             | Self::Slice(_)
@@ -399,7 +386,6 @@ impl Type {
             // wrapped value heads
             Self::Form(form) => collect(form.value.module_id),
             Self::Dynamic(dynamic) => collect(dynamic.constraint.module_id),
-            Self::Array(array) => collect(array.element.module_id),
             Self::FixedArray(array) => {
                 collect(array.element.module_id);
                 collect(array.count.module_id);
@@ -1764,19 +1750,6 @@ impl TryFrom<UnaryOperator> for StaticUnaryOperator {
 
         Ok(operator)
     }
-}
-
-/// Homogeneous array type.
-///
-/// Examples:
-/// ```ds
-/// int32[]
-/// Array<int32>
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct ArrayType {
-    /// The element type.
-    pub element: GlobalTypeId,
 }
 
 /// A fixed-length array type.

@@ -390,7 +390,6 @@ impl<'a> TypeTable<'a> {
             },
 
             // collections
-            Type::Array(array) => visit(array.element),
             Type::FixedArray(array) => {
                 visit(array.element);
                 visit(array.count);
