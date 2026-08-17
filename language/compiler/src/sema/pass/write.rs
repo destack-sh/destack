@@ -4,7 +4,7 @@ use destack_dir::TypeFold;
 use destack_repository::ArtifactAttemptRecorder;
 use destack_source::ModuleId;
 
-use crate::sema::{CheckState, Origin};
+use crate::sema::{CheckState, Origin, VariableRole};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -188,20 +188,44 @@ impl CheckState<'_> {
         site: dir::MemberSite,
         subject: dir::MemberSubject,
     ) -> CompilerResult<Vec<dir::MemberBinding>> {
-        // resolve the subject in its declared form and read what it selects
+        // resolve the subject in its declared form through throwaway variables
         let origin = Origin::Node(site.node(), subject.scope);
         let declared = self.declared_member_subject(subject)?;
-        let mut bindings = self
-            .body()
-            .subject_member_bindings(origin, module, declared)?;
+        self.settling = true;
+        let bindings = self.body().subject_member_bindings(origin, module, declared);
+        self.settling = false;
+        let mut bindings = bindings?;
 
-        // settle the access and callable types each selected binding carries
+        // settle the access and callable types each selected binding carries,
+        //  folding instantiation variables to erased parameter holes
         let intact = FxIndexSet::default();
         for binding in &mut bindings {
-            binding.map_types(&mut |ty| self.fully_resolve(ty, &intact))?;
+            binding.map_types(&mut |ty| {
+                let ty = self.erase_instantiations(module, ty)?;
+                self.fully_resolve(ty, &intact)
+            })?;
         }
 
         Ok(bindings)
+    }
+
+    /// Replace instantiation variables in one type with erased parameter holes.
+    fn erase_instantiations(
+        &mut self,
+        module: ModuleId,
+        mut id: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        for variable in self.type_variables(id)? {
+            let VariableRole::Instantiation { parameter } = self.infer.variable_role(variable)?
+            else {
+                continue;
+            };
+            let from = self.intern_type(dir::Type::Variable(variable))?;
+            let to = self.intern_type(dir::Type::Erased(parameter))?;
+            id = self.replace_type(module, id, from, to)?;
+        }
+
+        Ok(id)
     }
 
     /// Write the declaration selected for each source path segment.

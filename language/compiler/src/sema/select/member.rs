@@ -9,7 +9,7 @@ use smallvec::SmallVec;
 use crate::sema::{
     BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Check, CheckState, FlowSite,
     InferMode, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation, SelectionCheck,
-    SignatureMatch, TypeSubstitution, Value, ValueUse, VariableRole, Widening,
+    SignatureMatch, TypeSubstitution, UnboundParameters, Value, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -1729,8 +1729,14 @@ impl BodyState<'_, '_> {
                 let template = self.symbol_template(scope)?;
                 let target = extension.target.r#type();
                 let owner = self.strip_form(origin, member.owner)?;
-                let matched =
-                    self.match_extension_subject(origin, owner, owner, template, target)?;
+                let matched = self.match_extension_subject(
+                    origin,
+                    owner,
+                    owner,
+                    template,
+                    target,
+                    UnboundParameters::Open,
+                )?;
                 let Some(matched) = matched else {
                     return Ok(None);
                 };
@@ -1983,48 +1989,30 @@ impl BodyState<'_, '_> {
         if let dir::Type::Parameter(parameter) = self.ty(owner)? {
             interfaces.extend(self.parameter_bounds(origin, parameter)?);
         }
-        // nominal projections select from their checked heritage
-        else if self.nominal_application_maybe(owner)?.is_some() {
-            let closure = self.heritage_closure(origin, owner)?;
-            interfaces.extend(
-                closure
-                    .applications
-                    .into_iter()
-                    .map(|application| application.ty),
-            );
-        }
-        // other owners select no qualifier
+        // other owners select from their checked heritage and extension conformances
         else {
-            return Ok(None);
+            if self.nominal_application_maybe(owner)?.is_some() {
+                let closure = self.heritage_closure(origin, owner)?;
+                interfaces.extend(
+                    closure
+                        .applications
+                        .into_iter()
+                        .map(|application| application.ty),
+                );
+            }
+            interfaces.extend(self.conformed_interfaces(origin, owner, key)?);
         }
 
         // retain only interfaces declaring this associated member
         let mut qualifier = None;
         for interface in interfaces {
-            let Some((_, instance)) = self.nominal_application_maybe(interface)? else {
-                continue;
-            };
-            let Some(dir::Definition::Interface(definition)) = self.definition(instance.symbol)?
-            else {
-                continue;
-            };
-
-            let declares = definition.members.iter().any(|member| {
-                matches!(
-                    member,
-                    dir::DefinitionMember::AssociatedType(associated)
-                        if associated.key == key
-                )
-            });
+            let declares = self.declares_associated_type(interface, key)?;
             if !declares || qualifier == Some(interface) {
                 continue;
             }
 
-            // two declaring interfaces leave the projection ambiguous
+            // leave the qualifier unselected between two declaring interfaces
             if qualifier.is_some() {
-                let key = self.format_static_key(&key);
-                self.report_ambiguous_member(origin, key)?;
-
                 return Ok(None);
             }
 
@@ -2032,6 +2020,30 @@ impl BodyState<'_, '_> {
         }
 
         Ok(qualifier)
+    }
+
+    /// Return whether one applied interface declares an associated member under one key.
+    pub(in crate::sema) fn declares_associated_type(
+        &mut self,
+        interface: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<bool> {
+        let Some((_, instance)) = self.nominal_application_maybe(interface)? else {
+            return Ok(false);
+        };
+        let Some(dir::Definition::Interface(definition)) = self.definition(instance.symbol)? else {
+            return Ok(false);
+        };
+
+        let declares = definition.members.iter().any(|member| {
+            matches!(
+                member,
+                dir::DefinitionMember::AssociatedType(associated)
+                    if associated.key == key
+            )
+        });
+
+        Ok(declares)
     }
 
     /// Return the substituted constraint declared for one rigid projection.

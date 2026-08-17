@@ -105,7 +105,9 @@ impl CheckState<'_> {
 
             // reuse a parameter opened earlier at this typing position
             let origin_id = self.infer.intern_origin(origin);
-            if let Some(existing) = self.infer.instantiation(origin_id, parameter) {
+            if !self.settling
+                && let Some(existing) = self.infer.instantiation(origin_id, parameter)
+            {
                 let argument = self.variable_type(existing)?;
                 substitution.bind(parameter, argument)?;
 
@@ -116,8 +118,11 @@ impl CheckState<'_> {
             let widening = self.type_argument_widening(origin, parameter, binding, inference)?;
             let variable =
                 self.allocate_variable(origin, widening, VariableRole::Instantiation { parameter });
-            self.infer
-                .record_instantiation(origin_id, parameter, variable);
+            // settled throwaway variables never claim the site's typing position
+            if !self.settling {
+                self.infer
+                    .record_instantiation(origin_id, parameter, variable);
+            }
 
             // retain the declared default for dry inference
             if let Some(default) = binding.default {

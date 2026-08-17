@@ -169,6 +169,8 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) erasures: FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     /// Extension member tables of closed subjects, grouped by key.
     pub(in crate::sema) members: FxIndexMap<MemberSubject, MemberTable>,
+    /// Whether writeback is settling declared-form member bindings.
+    pub(in crate::sema) settling: bool,
     /// Decided auto interface conformances of closed types.
     pub(in crate::sema) conforms: FxIndexMap<(dir::GlobalTypeId, dir::AutoInterface, Scope), bool>,
     /// Declarations reached by each declaration's heritage.
@@ -322,6 +324,7 @@ impl<'a> CheckState<'a> {
             normalizations: FxIndexMap::default(),
             erasures: FxIndexMap::default(),
             members: FxIndexMap::default(),
+            settling: false,
             conforms: FxIndexMap::default(),
             heritages: FxIndexMap::default(),
             deriving: FxIndexSet::default(),

@@ -1784,21 +1784,21 @@ export class Bag<K, V> {
 /// @generic.template symbol=Bag parameters=(in out K#2, in out V#2)
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag template=(in out K#2, in out V#2)
-/// @definition.field symbol=Bag.keys source="keys: K[] = []" key=keys type=Array<K#2>
-/// @definition.field symbol=Bag.values source="values: V[] = []" key=values type=Array<V#2>
+/// @definition.field symbol=Bag.keys source="keys: K[] = []" key=keys type=K#2[]
+/// @definition.field symbol=Bag.values source="values: V[] = []" key=values type=V#2[]
 /// @type.symbol symbol=Bag.K source=K type=K#2
 /// @type.symbol symbol=Bag.V source=V type=V#2
 
     keys: K[] = [];
-    /// @type.symbol symbol=Bag.keys source="keys: K[] = []" type=Array<K#2>
+    /// @type.symbol symbol=Bag.keys source="keys: K[] = []" type=K#2[]
     /// @resolution.name source=K target=Bag.K
-    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as K#2) return=Array<K#2> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<K#2>
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as K#2) return=K#2[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<K#2>
     /// @generic.instantiation id=collections.array.arrayFromSlice<K#2> template=collections.array.arrayFromSlice arguments=(K#2) owner=Bag
 
     values: V[] = [];
-    /// @type.symbol symbol=Bag.values source="values: V[] = []" type=Array<V#2>
+    /// @type.symbol symbol=Bag.values source="values: V[] = []" type=V#2[]
     /// @resolution.name source=V target=Bag.V
-    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as V#2) return=Array<V#2> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<V#2>
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as V#2) return=V#2[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<V#2>
     /// @generic.instantiation id=collections.array.arrayFromSlice<V#2> template=collections.array.arrayFromSlice arguments=(V#2) owner=Bag
 
 }

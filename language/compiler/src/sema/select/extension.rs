@@ -13,6 +13,15 @@ use crate::sema::{
 };
 use crate::{CompilerError, CompilerResult};
 
+/// How one subject match treats parameters the target leaves unbound.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::sema) enum UnboundParameters {
+    /// Open inference variables for the unbound parameters.
+    Open,
+    /// Reject the match while any parameter stays unbound.
+    Reject,
+}
+
 impl BodyState<'_, '_> {
     /// Look up one extension member on a declaration reference.
     pub(in crate::sema) fn lookup_extension_member(
@@ -46,7 +55,7 @@ impl BodyState<'_, '_> {
         // decide the table once per closed subject: candidates are pure
         //  functions of the interned subject and the module's scope
         let flags = self.check.type_flags(receiver)? | self.check.type_flags(subject)?;
-        let is_closed = !flags.has_variable();
+        let mut is_closed = !flags.has_variable();
         let key = MemberSubject {
             module,
             receiver,
@@ -94,6 +103,8 @@ impl BodyState<'_, '_> {
                     continue;
                 }
 
+                // candidates opened over site variables stay per-site
+                is_closed &= self.candidate_is_closed(&candidate)?;
                 members.entry(key).or_default().push(candidate);
             }
         }
@@ -106,6 +117,22 @@ impl BodyState<'_, '_> {
         }
 
         Ok(members)
+    }
+
+    /// Return whether one candidate row carries no open inference variables.
+    fn candidate_is_closed(&self, candidate: &MemberCandidate) -> CompilerResult<bool> {
+        let mut flags = self.check.type_flags(candidate.access_type)?;
+        if let Some(callable) = candidate.callable {
+            flags |= self.check.type_flags(callable)?;
+        }
+        if let Some(value_type) = candidate.value_type {
+            flags |= self.check.type_flags(value_type)?;
+        }
+        for binding in &candidate.generic_arguments {
+            flags |= self.check.type_flags(binding.argument)?;
+        }
+
+        Ok(!flags.has_variable())
     }
 
     /// Return the implicit extensions declared for one primitive type.
@@ -768,15 +795,7 @@ impl BodyState<'_, '_> {
         interface: dir::GlobalSymbolId,
     ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
         // collect the extensions in scope for the receiver's own head
-        let mut parameters = SmallVec::new();
-        let mut symbols = SmallVec::new();
-        self.collect_implementation_extensions(
-            origin,
-            module,
-            receiver,
-            &mut parameters,
-            &mut symbols,
-        )?;
+        let mut symbols = self.collect_implementation_extensions(origin, module, receiver)?;
 
         // admit the implicit implementors of the interface
         if let Some(environment) = &self.check.environment_declared
@@ -794,6 +813,20 @@ impl BodyState<'_, '_> {
 
     /// Collect the implementation extension candidates for one receiver head.
     fn collect_implementation_extensions(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
+        let mut parameters = SmallVec::new();
+        let mut symbols = SmallVec::new();
+        self.collect_receiver_extensions(origin, module, receiver, &mut parameters, &mut symbols)?;
+
+        Ok(symbols)
+    }
+
+    /// Collect extension candidates through one receiver, guarding parameter cycles.
+    fn collect_receiver_extensions(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -819,7 +852,7 @@ impl BodyState<'_, '_> {
                 let bounds = self.parameter_bounds(origin, parameter)?;
                 parameters.push(parameter);
                 for bound in bounds {
-                    let collected = self.collect_implementation_extensions(
+                    let collected = self.collect_receiver_extensions(
                         origin, module, bound, parameters, symbols,
                     );
                     match collected {
@@ -843,7 +876,7 @@ impl BodyState<'_, '_> {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(receiver.module_id, elements)?.into();
                 for element in elements {
-                    self.collect_implementation_extensions(
+                    self.collect_receiver_extensions(
                         origin, module, element, parameters, symbols,
                     )?;
                 }
@@ -1165,6 +1198,7 @@ impl BodyState<'_, '_> {
                         applied,
                         template,
                         target_type,
+                        UnboundParameters::Open,
                     )?;
                     Ok(match matched {
                         Some(substitution) => CandidateOutcome::Accepted(substitution),
@@ -1258,6 +1292,68 @@ impl BodyState<'_, '_> {
         Ok(candidates)
     }
 
+    /// Collect the applied interfaces extensions conform one owner to under one associated key.
+    pub(in crate::sema) fn conformed_interfaces(
+        &mut self,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        let module = self.module_id;
+        let symbols = self.collect_implementation_extensions(origin, module, owner)?;
+
+        let mut interfaces = SmallVec::new();
+        for extension_symbol in symbols {
+            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
+            else {
+                continue;
+            };
+            if !extension.is_visible_from(module) {
+                continue;
+            }
+            let conformances = extension
+                .implements
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
+            let target_type = extension.target.r#type();
+
+            // retain conformances whose interface declares the projected member
+            let mut declaring = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+            for conformance in conformances {
+                if self.declares_associated_type(conformance, key)? {
+                    declaring.push(conformance);
+                }
+            }
+            if declaring.is_empty() {
+                continue;
+            }
+
+            // a written projection qualifies through target-closed rows only
+            let template = self.symbol_template(extension_symbol)?;
+            let matched = self.match_extension_subject(
+                origin,
+                owner,
+                owner,
+                template,
+                target_type,
+                UnboundParameters::Reject,
+            )?;
+            let Some(substitution) = matched else {
+                continue;
+            };
+
+            for interface in declaring {
+                let applied = self.substitute_type(interface, &substitution)?;
+                if !interfaces.contains(&applied) {
+                    interfaces.push(applied);
+                }
+            }
+        }
+
+        Ok(interfaces)
+    }
+
     /// Match one extension target against a receiver and its widened lookup subject.
     pub(in crate::sema) fn match_extension(
         &mut self,
@@ -1268,10 +1364,23 @@ impl BodyState<'_, '_> {
         target_type: dir::GlobalTypeId,
     ) -> CompilerResult<Option<TypeSubstitution>> {
         // match the exact receiver first, then its widened lookup subject
-        let substitution =
-            self.match_extension_subject(origin, receiver, receiver, template, target_type)?;
+        let substitution = self.match_extension_subject(
+            origin,
+            receiver,
+            receiver,
+            template,
+            target_type,
+            UnboundParameters::Open,
+        )?;
         if substitution.is_none() && subject != receiver {
-            return self.match_extension_subject(origin, receiver, subject, template, target_type);
+            return self.match_extension_subject(
+                origin,
+                receiver,
+                subject,
+                template,
+                target_type,
+                UnboundParameters::Open,
+            );
         }
 
         Ok(substitution)
@@ -1285,6 +1394,7 @@ impl BodyState<'_, '_> {
         subject: dir::GlobalTypeId,
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
+        unbound: UnboundParameters,
     ) -> CompilerResult<Option<TypeSubstitution>> {
         // written class names match as their canonical declaration instance
         let subject = match self.ty(subject)? {
@@ -1310,18 +1420,31 @@ impl BodyState<'_, '_> {
                 return Ok(None);
             }
 
-            // open the parameters the target leaves unbound
-            let opened = self.instantiate_parameters(
-                origin,
-                &parameters,
-                &[],
-                substitution,
-                TypeArgumentInference::Exact,
-            )?;
-            let Some(opened) = opened else {
-                return Ok(None);
-            };
-            substitution = opened;
+            match unbound {
+                // open the parameters the target leaves unbound
+                UnboundParameters::Open => {
+                    let opened = self.instantiate_parameters(
+                        origin,
+                        &parameters,
+                        &[],
+                        substitution,
+                        TypeArgumentInference::Exact,
+                    )?;
+                    let Some(opened) = opened else {
+                        return Ok(None);
+                    };
+                    substitution = opened;
+                }
+                // require the target header to bind every parameter
+                UnboundParameters::Reject => {
+                    let is_unbound = parameters
+                        .iter()
+                        .any(|parameter| substitution.argument(*parameter).is_none());
+                    if is_unbound {
+                        return Ok(None);
+                    }
+                }
+            }
         }
 
         let substitution = substitution.with_receiver(receiver);

@@ -591,30 +591,32 @@ impl BodyState<'_, '_> {
         }
 
         // search inherent members first
-        if !self.symbol_kind(symbol)?.is_type_alias() {
+        let is_alias = self.symbol_kind(symbol)?.is_type_alias();
+        if !is_alias {
             let inherent =
                 self.lookup_inherent_declaration_member(origin, receiver, symbol, arguments, key)?;
             if inherent.is_found() {
                 return Ok(inherent);
             }
-
-            // search associated members next
-            let associated = self.lookup_associated_member(origin, receiver, space, key)?;
-            if associated.is_found() {
-                return Ok(associated);
-            }
         }
 
-        // search extensions last
+        // search extensions next: declared members shadow interface defaults
         let lookup = match extensions {
             ExtensionFilter::Include => {
                 self.lookup_static_extension_member(origin, module, symbol, arguments, key)?
             }
             ExtensionFilter::Exclude => MemberLookup::Missing,
         };
+        if !lookup.is_found() && !is_alias {
+            // search associated members through their declaring interface last
+            let associated = self.lookup_associated_member(origin, receiver, space, key)?;
+            if associated.is_found() {
+                return Ok(associated);
+            }
+        }
 
         // aliased bodies answer whatever the root declaration lacks
-        if matches!(lookup, MemberLookup::Missing)
+        if !lookup.is_found()
             && let Some(body) = alias_body
         {
             return self.lookup_subject_member(
@@ -777,45 +779,46 @@ impl BodyState<'_, '_> {
             return Ok(inherent);
         }
 
-        // search associated members next
+        // search extensions next: declared members shadow interface defaults
+        let mut lookup = MemberLookup::Missing;
+        if extensions == ExtensionFilter::Include {
+            lookup = self.lookup_extension_member(
+                origin,
+                module,
+                receiver,
+                subject,
+                instance.symbol,
+                space,
+                key,
+            )?;
+
+            // retry a missing lookup against the receiver's apparent owner
+            if matches!(lookup, MemberLookup::Missing) {
+                let apparent = self.intern_apparent_type(receiver)?;
+                if apparent != receiver {
+                    lookup = self.lookup_extension_member(
+                        origin,
+                        module,
+                        receiver,
+                        apparent,
+                        instance.symbol,
+                        space,
+                        key,
+                    )?;
+                }
+            }
+        }
+        if lookup.is_found() {
+            return Ok(lookup);
+        }
+
+        // search associated members through their declaring interface last
         let associated = self.lookup_associated_member(origin, receiver, space, key)?;
         if associated.is_found() {
             return Ok(associated);
         }
 
-        // search extensions last
-        match extensions {
-            ExtensionFilter::Include => {
-                let lookup = self.lookup_extension_member(
-                    origin,
-                    module,
-                    receiver,
-                    subject,
-                    instance.symbol,
-                    space,
-                    key,
-                )?;
-
-                // retry a missing lookup against the receiver's apparent owner
-                if matches!(lookup, MemberLookup::Missing) {
-                    let apparent = self.intern_apparent_type(receiver)?;
-                    if apparent != receiver {
-                        return self.lookup_extension_member(
-                            origin,
-                            module,
-                            receiver,
-                            apparent,
-                            instance.symbol,
-                            space,
-                            key,
-                        );
-                    }
-                }
-
-                Ok(lookup)
-            }
-            ExtensionFilter::Exclude => Ok(MemberLookup::Missing),
-        }
+        Ok(MemberLookup::Missing)
     }
 
     /// Look up one associated member through its uniquely declaring interface.
