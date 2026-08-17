@@ -30,8 +30,38 @@ pub(crate) struct TestSession {
     lint: &'static Lint,
     /// The emitted diagnostics.
     diagnostics: DiagnosticCollection,
+    /// The source available to the test session.
+    source: TestSource,
     /// The displayed fixture file.
     file: Arc<File>,
+}
+
+/// Source available to one lint test session.
+enum TestSource {
+    /// One repository revision.
+    Revision {
+        /// The source repository.
+        repository: Arc<Repository>,
+        /// The checked revision.
+        revision: Revision,
+    },
+    /// One standalone source file.
+    File(Arc<File>),
+}
+
+impl TestSource {
+    /// Return one source file.
+    fn file(&self, id: FileId) -> Option<Arc<File>> {
+        match self {
+            Self::Revision {
+                repository,
+                revision,
+            } => repository
+                .file(*revision, id)
+                .expect("lint diagnostic source should be readable"),
+            Self::File(file) => (id == file.id).then(|| file.clone()),
+        }
+    }
 }
 
 impl TestSession {
@@ -173,6 +203,10 @@ impl TestSession {
         Self {
             lint,
             diagnostics,
+            source: TestSource::Revision {
+                repository: repository.clone(),
+                revision,
+            },
             file,
         }
     }
@@ -246,6 +280,7 @@ impl TestSession {
         Self {
             lint,
             diagnostics: DiagnosticCollection::from_diagnostics(diagnostics),
+            source: TestSource::File(file.clone()),
             file,
         }
     }
@@ -326,11 +361,7 @@ impl TestSession {
 
     /// Render all diagnostics in stable source order.
     fn render_diagnostics(&self) -> String {
-        let file = self.file.clone();
-
-        render_diagnostics_with(&self.diagnostics, move |id| {
-            (id == file.id).then(|| file.clone())
-        })
+        render_diagnostics_with(&self.diagnostics, |id| self.source.file(id))
     }
 }
 
