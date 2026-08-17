@@ -51,7 +51,6 @@ pub(crate) struct DirRows {
     pub(super) summaries: bool,
 }
 
-#[allow(dead_code)]
 impl DirRows {
     /// Select no tables.
     pub(crate) const fn none() -> Self {
@@ -107,14 +106,6 @@ impl DirRows {
     pub(crate) const fn exports() -> Self {
         Self {
             export: true,
-            ..Self::none()
-        }
-    }
-
-    /// Select macro expansion rows.
-    pub(crate) const fn macros() -> Self {
-        Self {
-            macros: true,
             ..Self::none()
         }
     }
@@ -192,18 +183,6 @@ impl DirRows {
     /// Include check stats rows.
     pub(crate) const fn with_check_stats(mut self) -> Self {
         self.metadata_rows = CHECK_STATS_ROWS;
-        self
-    }
-
-    /// Include check event rows.
-    pub(crate) const fn with_check_events(mut self) -> Self {
-        self.event_rows = CHECK_EVENT_ROWS;
-        self
-    }
-
-    /// Include selected event row prefixes.
-    pub(crate) const fn with_event_rows(mut self, rows: &'static [&'static str]) -> Self {
-        self.event_rows = rows;
         self
     }
 
