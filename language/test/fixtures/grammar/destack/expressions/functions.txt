@@ -17,12 +17,8 @@ const async function load<const Value: Input>(): Output {}
 declare const function sizeOf<T>(): usize;
 //      ^^^^^ keyword.declaration.variable.ds
 
-function specialize(static value: int32): int32 { return value; }
-//                  ^^^^^^ keyword.other.modifier.ds
-
-function allocate<T: static Type, const ...Shape: usize, const Count: uint>(static allocator: Allocator): [T; Count] {}
-//                   ^^^^^^ keyword.other.modifier.ds
-//                                ^^^^^ storage.modifier.ds
+function allocate<T, const ...Shape: usize, const Count: uint>(allocator: Allocator): [T; Count] {}
+//                   ^^^^^ storage.modifier.ds
 
 // expressions / functions / calls and type arguments
 const user = create<User, const 4>(input);

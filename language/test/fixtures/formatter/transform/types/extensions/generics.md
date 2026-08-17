@@ -4,7 +4,7 @@
 
 ### generic extension with methods
 
-Generic extensions keep static parameters and format member bodies.
+Generic extensions keep parameters and format member bodies.
 
 ```ds
 extension<T> of Box<T> { map<U>(f: (T) => U): Box<U> { return Box { value: f(this.value) } } }

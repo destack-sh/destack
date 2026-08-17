@@ -560,7 +560,7 @@ fn test_parse_generic_arrow_with_function_type_return_annotation() {
     });
 }
 
-/// Parse static parameter constraints with object keys named `in`.
+/// Parse generic parameter constraints with object keys named `in`.
 #[test]
 fn test_parse_generic_parameter_constraint_object_property_named_in() {
     // source: <V: { in: string }>() => {}

@@ -60,7 +60,7 @@ function create<T = any>(): T[] {
 
 ### generic with const parameter
 
-Const static parameters keep the keyword in the parameter list.
+Const parameters keep the keyword in the parameter list.
 
 ```ds
 function repeat<const N: int>(value: string): string { return value }

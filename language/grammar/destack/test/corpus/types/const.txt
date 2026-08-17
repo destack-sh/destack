@@ -1,5 +1,5 @@
 =======================================================
-Static parameters size arrays
+Const parameters size arrays
 :language(destack)
 =======================================================
 
@@ -55,7 +55,7 @@ lane satisfies [uint8; 8];
       (number))))
 
 =======================================================
-Variadic static parameters
+Variadic const parameters
 :language(destack)
 =======================================================
 
@@ -83,12 +83,12 @@ type Shape<const ...Dims: usize> = [usize; Dims];
       (identifier))))
 
 =======================================================
-Static parameter constraints
+Const parameter constraints
 :language(destack)
 =======================================================
 
-type StaticLane<N: static uint> = [uint8; N];
-type StaticFactory<T: static abstract new (...args: any) => any> = T;
+type Lane<const N: uint> = [uint8; N];
+type Factory<const T: abstract new (...args: any) => any> = T;
 
 ---
 
@@ -118,53 +118,3 @@ type StaticFactory<T: static abstract new (...args: any) => any> = T;
                   (predefined_type))))
             (predefined_type)))))
     (type_identifier)))
-
-=======================================================
-Static and const parameter modifiers compose
-:language(destack)
-=======================================================
-
-function allocate<T: static Type, const ...Shape: usize>(
-  static allocator: Allocator,
-  const count: uint,
-): [T; count] {
-  return allocator.make<T, count>();
-}
-
----
-
-(program
-  (function_declaration
-    (identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)
-        (constraint
-          (type_identifier)))
-      (type_parameter
-        (type_identifier)
-        (constraint
-          (type_identifier))))
-    (formal_parameters
-      (required_parameter
-        (identifier)
-        (type_annotation
-          (type_identifier)))
-      (required_parameter
-        (identifier)
-        (type_annotation
-          (type_identifier))))
-    (type_annotation
-      (fixed_array_type
-        (type_identifier)
-        (identifier)))
-    (statement_block
-      (return_statement
-        (call_expression
-          (member_expression
-            (identifier)
-            (property_identifier))
-          (type_arguments
-            (type_identifier)
-            (type_identifier))
-          (arguments))))))

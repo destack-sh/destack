@@ -206,7 +206,7 @@
         "named": true
       },
       {
-        "type": "comptime_expression",
+        "type": "const_expression",
         "named": true
       },
       {
@@ -430,7 +430,7 @@
         "named": true
       },
       {
-        "type": "comptime_block_statement",
+        "type": "const_block_statement",
         "named": true
       },
       {
@@ -1841,7 +1841,7 @@
           "named": true
         },
         {
-          "type": "comptime_block_statement",
+          "type": "const_block_statement",
           "named": true
         },
         {
@@ -1972,116 +1972,6 @@
     }
   },
   {
-    "type": "comptime_block_statement",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "statement_block",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "comptime_default_type",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "false",
-          "named": true
-        },
-        {
-          "type": "identifier",
-          "named": true
-        },
-        {
-          "type": "number",
-          "named": true
-        },
-        {
-          "type": "static_value_argument",
-          "named": true
-        },
-        {
-          "type": "string",
-          "named": true
-        },
-        {
-          "type": "true",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "comptime_expression",
-    "named": true,
-    "fields": {
-      "value": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          },
-          {
-            "type": "if_expression",
-            "named": true
-          },
-          {
-            "type": "statement_block",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "comptime_type_argument",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "false",
-          "named": true
-        },
-        {
-          "type": "identifier",
-          "named": true
-        },
-        {
-          "type": "number",
-          "named": true
-        },
-        {
-          "type": "static_value_argument",
-          "named": true
-        },
-        {
-          "type": "string",
-          "named": true
-        },
-        {
-          "type": "true",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "computed_property_name",
     "named": true,
     "fields": {},
@@ -2190,6 +2080,116 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "const_block_statement",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "statement_block",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "const_default_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "false",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "static_value_argument",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "true",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "const_expression",
+    "named": true,
+    "fields": {
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          },
+          {
+            "type": "if_expression",
+            "named": true
+          },
+          {
+            "type": "statement_block",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "const_type_argument",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "false",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "static_value_argument",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "true",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -2402,7 +2402,7 @@
           "named": true
         },
         {
-          "type": "comptime_block_statement",
+          "type": "const_block_statement",
           "named": true
         },
         {
@@ -2538,7 +2538,7 @@
       "required": true,
       "types": [
         {
-          "type": "comptime_default_type",
+          "type": "const_default_type",
           "named": true
         },
         {
@@ -8206,7 +8206,7 @@
           "named": true
         },
         {
-          "type": "comptime_block_statement",
+          "type": "const_block_statement",
           "named": true
         },
         {
@@ -9198,7 +9198,7 @@
       "required": true,
       "types": [
         {
-          "type": "comptime_type_argument",
+          "type": "const_type_argument",
           "named": true
         },
         {
@@ -10268,10 +10268,6 @@
     "type": "comment",
     "named": true,
     "extra": true
-  },
-  {
-    "type": "comptime",
-    "named": false
   },
   {
     "type": "const",

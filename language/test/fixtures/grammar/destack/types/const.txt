@@ -13,6 +13,3 @@ type Tagged<const Tag: string> = { tag: Tag };
 
 type Shape<const ...Dims: usize> = [usize; Dims];
 //         ^^^^^ storage.modifier.ds
-
-type StaticLane<N: static uint> = [uint8; N];
-//                 ^^^^^^ keyword.other.modifier.ds

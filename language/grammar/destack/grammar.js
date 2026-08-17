@@ -85,11 +85,10 @@ module.exports = grammar(JavaScript, {
 
   conflicts: ($, previous) => previous
     .filter((conflict) => !sameConflict(conflict, ['class_static_block', '_property_name']))
-    .filter((conflict) => !sameConflict(conflict, ['computed_property_name', 'array']))
     .filter((conflict) => !sameConflict(conflict, ['primary_expression', 'method_definition']))
     .filter((conflict) => !sameConflict(conflict, ['_initializer', 'binary_expression']))
     .concat([
-      [$.const_expression, $.let_else_literal_pattern],
+      [$.const_expression, $.primary_type],
       [$.statement_block, $.object, $.match_object_pattern],
       [$.object_assignment_pattern, $.assignment_expression, $._property_name],
       [$.assignment_expression, $._initializer],
@@ -629,7 +628,7 @@ module.exports = grammar(JavaScript, {
       $._semicolon,
     )),
 
-    lexical_declaration: $ => seq(
+    lexical_declaration: $ => prec.right('declaration', seq(
       field('kind', choice('let', 'const')),
       commaSep1($.variable_declarator),
       optional(seq(
@@ -637,7 +636,7 @@ module.exports = grammar(JavaScript, {
         field('alternative', $.statement_block),
       )),
       $._semicolon,
-    ),
+    )),
 
     if_statement: ($, previous) => choice(
       prec.right(seq(
@@ -918,14 +917,14 @@ module.exports = grammar(JavaScript, {
 
     _await_try_propagation_operator: _ => token(prec(2, seq('await', choice('?', '!')))),
 
-    const_expression: $ => prec.right(1, seq(
+    const_expression: $ => prec.dynamic(-1, prec.right('unary', seq(
       'const',
       field('value', choice(
         $.statement_block,
         $.if_expression,
         $.expression,
       )),
-    )),
+    ))),
 
     break_statement: $ => prec(1, seq(
       'break',
@@ -1898,7 +1897,6 @@ module.exports = grammar(JavaScript, {
       repeat(field('decorator', $.decorator)),
       optional($.accessibility_modifier),
       optional('readonly'),
-      optional('static'),
       field('pattern', choice(
         $.pattern,
         $.this,
@@ -2447,7 +2445,6 @@ module.exports = grammar(JavaScript, {
 
     constraint: $ => seq(
       ':',
-      optional('static'),
       $.type,
     ),
 

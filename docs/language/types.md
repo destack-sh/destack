@@ -120,7 +120,7 @@ type NonZeroByte = 1..=255;
 newtype Port = 1..=65535;
 ```
 
-Intervals can also constrain static parameters:
+Intervals can also constrain const parameters:
 
 ```ds
 struct InlineBuffer<T, const N: 0..=4096> {

@@ -571,11 +571,11 @@ declare function* ids(): Generator<int32, void, unknown>;
           (predefined_type))))))
 
 ===============================================================================
-Const function declarations and parameters
+Const function declarations
 :language(destack)
 ===============================================================================
 
-const function evaluate(const value: T, const maybe?: U = fallback, const ...rest: Item[]): T {
+const function evaluate(value: T, maybe?: U = fallback, ...rest: Item[]): T {
   return value;
 }
 
@@ -658,36 +658,6 @@ declare const async function fetch<T>(): Promise<T>;
         (type_identifier)
         (type_arguments
           (type_identifier))))))
-
-===============================================================================
-Static dynamic parameters
-:language(destack)
-===============================================================================
-
-function specialize(static value: int32, static maybe?: int32 = 1): int32 {
-  return value;
-}
-
--------------------------------------------------------------------------------
-
-(program
-  (function_declaration
-    (identifier)
-    (formal_parameters
-      (required_parameter
-        (identifier)
-        (type_annotation
-          (type_identifier)))
-      (optional_parameter
-        (identifier)
-        (type_annotation
-          (type_identifier))
-        (number)))
-    (type_annotation
-      (type_identifier))
-    (statement_block
-      (return_statement
-        (identifier)))))
 
 ==================================
 Closures with capture policies
