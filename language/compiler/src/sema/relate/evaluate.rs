@@ -90,24 +90,39 @@ impl CheckState<'_> {
                 false => CandidateOutcome::Rejected(()),
             })
         })?;
-        match probe {
-            CandidateVerdict::Viable => return Ok(Verdict::Holds),
-            // leave a relation that bound open variables undecided
-            CandidateVerdict::Indeterminate => return Ok(Verdict::Ambiguous),
-            CandidateVerdict::Rejected => {}
-        }
-        if related == Verdict::Ambiguous {
-            return Ok(Verdict::Ambiguous);
+        if probe == CandidateVerdict::Viable {
+            return Ok(Verdict::Holds);
         }
 
         // retry a stuck decision once over reduced heads
         let reduced_source = self.structurally_normalize(origin, source)?;
         let reduced_target = self.structurally_normalize(origin, target)?;
         if reduced_source == source && reduced_target == target {
-            return Ok(Verdict::Fails);
+            // leave a relation over open heads undecided
+            let is_undecided = probe == CandidateVerdict::Indeterminate
+                || related == Verdict::Ambiguous
+                || self.open_head(source)?
+                || self.open_head(target)?;
+
+            return Ok(match is_undecided {
+                true => Verdict::Ambiguous,
+                false => Verdict::Fails,
+            });
         }
 
         self.evaluate_relation(origin, relation, reduced_source, reduced_target)
+    }
+
+    /// Return whether one head stays open: a variable, or a projection over one.
+    fn open_head(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        if self.root_variable(ty)?.is_some() {
+            return Ok(true);
+        }
+        if !matches!(self.ty(ty)?, dir::Type::Member(_) | dir::Type::Operation(_)) {
+            return Ok(false);
+        }
+
+        Ok(!self.type_variables(ty)?.is_empty())
     }
 
     /// Classify one judged outcome, where failure over an open head is ambiguity.
@@ -126,7 +141,7 @@ impl CheckState<'_> {
         // retry the judgment once an open head solves
         let source = self.shallow_resolve(source)?;
         let target = self.shallow_resolve(target)?;
-        if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
+        if self.open_head(source)? || self.open_head(target)? {
             return Ok(Verdict::Ambiguous);
         }
 
