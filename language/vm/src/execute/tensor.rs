@@ -19,10 +19,6 @@ use crate::machine::Activation;
 
 use super::arithmetic::Arithmetic;
 
-/// Direct CPU executor for one tensor bytecode instruction.
-#[derive(Debug)]
-pub struct TensorExecutor;
-
 /// State required to execute one tensor instruction.
 struct Execution<'program, 'memory, 'registers, 'profile> {
     /// Linked metadata used by tensor operands.
@@ -386,50 +382,6 @@ impl Coordinate {
         }
 
         Some(())
-    }
-}
-
-impl TensorExecutor {
-    /// Execute one linked tensor instruction from its first encoded byte.
-    ///
-    /// # Safety
-    ///
-    /// The pointer must address one complete linked tensor instruction.
-    pub unsafe fn execute_raw(
-        program: &Program,
-        memory: Memory<'_>,
-        registers: &mut [Word],
-        profile: Option<&mut Profile>,
-        instruction: *const u8,
-    ) -> Result<Option<(MemoryAccess, (usize, usize))>> {
-        // SAFETY: the caller guarantees one complete linked instruction
-        let instruction = unsafe { Instruction::read_raw(instruction) };
-        let operation = instruction
-            .opcode()
-            .tensor_operation()
-            .ok_or_else(Error::invalid_instruction)?;
-
-        Self::execute(program, memory, registers, profile, instruction, operation)
-    }
-
-    /// Execute one tensor bytecode instruction over one canonical word frame.
-    pub fn execute(
-        program: &Program,
-        memory: Memory<'_>,
-        registers: &mut [Word],
-        profile: Option<&mut Profile>,
-        instruction: Instruction<'_>,
-        operation: TensorOperation,
-    ) -> Result<Option<(MemoryAccess, (usize, usize))>> {
-        let mut execution = Execution {
-            program,
-            memory,
-            registers,
-            profile,
-            allocation: None,
-        };
-
-        execution.execute(instruction, operation)
     }
 }
 

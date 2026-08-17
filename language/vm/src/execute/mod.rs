@@ -23,5 +23,3 @@ mod tensor;
 mod value;
 mod vector;
 mod watch;
-
-pub use tensor::TensorExecutor;

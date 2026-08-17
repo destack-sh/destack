@@ -10,7 +10,6 @@ pub mod machine;
 pub mod options;
 
 pub use diagnostic::*;
-pub use execute::TensorExecutor;
 pub use machine::*;
 pub use options::*;
 
