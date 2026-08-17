@@ -1,4 +1,3 @@
-mod aggregate;
 mod alias;
 mod class;
 mod dispatch;
@@ -7,7 +6,6 @@ mod r#enum;
 mod form;
 mod interface;
 mod intrinsic;
-mod layout;
 mod lifetime;
 mod lower;
 mod newtype;
@@ -16,12 +14,10 @@ mod object;
 mod scalar;
 mod signature;
 mod r#struct;
-mod variant;
 
 pub(in crate::lower) use alias::AliasForm;
 pub(in crate::lower) use dispatch::Implementer;
 pub(in crate::lower) use form::insert_local_reference;
-pub use layout::{LayoutBuilder, LayoutError};
 pub(in crate::lower) use lifetime::LifetimeParameters;
 pub(in crate::lower) use lower::TypeLowerer;
 pub(in crate::lower) use nominal::*;

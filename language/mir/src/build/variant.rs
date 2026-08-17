@@ -1,12 +1,15 @@
-use destack_mir as mir;
-use destack_source::ModuleId;
+use crate::{
+    Discriminant, DiscriminantField, Layout, LayoutShape, Representation, Scalar, ScalarField,
+    TraceMap, TypeId, Validity, VariantCase, VariantCaseLayout, VariantEncoding, VariantLayout,
+    VariantTrace,
+};
 
 use super::{LayoutBuilder, LayoutError};
 
 /// Physical construction state for one variant type.
 pub(super) struct Variant {
     /// The logical discriminant type.
-    discriminant: mir::TypeId,
+    discriminant: TypeId,
     /// The physical discriminant layout.
     tag: Tag,
     /// The variant cases in source order.
@@ -20,7 +23,7 @@ pub(super) struct Variant {
 /// Physical properties of one variant discriminant.
 struct Tag {
     /// The discriminant register representation.
-    representation: mir::Representation,
+    representation: Representation,
     /// The discriminant size in bytes.
     size: u32,
     /// The discriminant alignment in bytes.
@@ -30,26 +33,26 @@ struct Tag {
 /// One variant case and its computed payload layout.
 struct Case {
     /// The logical discriminant bits.
-    discriminant: mir::Discriminant,
+    discriminant: Discriminant,
     /// The logical payload type.
-    ty: mir::TypeId,
+    ty: TypeId,
     /// The payload register representation.
-    representation: mir::Representation,
+    representation: Representation,
     /// The largest invalid scalar range in the payload.
-    niche: Option<mir::ScalarField>,
+    niche: Option<ScalarField>,
     /// The payload size in bytes.
     size: u32,
     /// The payload alignment in bytes.
     alignment: u32,
     /// The payload reference trace map.
-    trace_map: mir::TraceMap,
+    trace_map: TraceMap,
 }
 
 impl Variant {
     /// Compute the case layouts required to construct one variant.
     pub(super) fn new(
-        discriminant: mir::TypeId,
-        cases: &[mir::VariantCase],
+        discriminant: TypeId,
+        cases: &[VariantCase],
         layouts: &mut LayoutBuilder<'_>,
     ) -> Result<Self, LayoutError> {
         let tag = layouts.layout_type(discriminant)?;
@@ -95,16 +98,16 @@ impl Variant {
     }
 
     /// Select the most compact valid encoding for this variant.
-    pub(super) fn layout(self, module: ModuleId) -> Result<mir::Layout, LayoutError> {
+    pub(super) fn layout(self) -> Result<Layout, LayoutError> {
         if let Some(layout) = self.niche()? {
             return Ok(layout);
         }
 
-        self.direct(module)
+        self.direct()
     }
 
     /// Encode this variant in one payload niche when possible.
-    fn niche(&self) -> Result<Option<mir::Layout>, LayoutError> {
+    fn niche(&self) -> Result<Option<Layout>, LayoutError> {
         if self.cases.len() < 2 {
             return Ok(None);
         }
@@ -138,9 +141,9 @@ impl Variant {
         // admit the encoded cases and retain any remaining invalid values
         let mask = scalar.bit_mask();
         let end = scalar.validity.end.bits().wrapping_add(required) & mask;
-        let expanded = mir::Scalar::with_validity(
+        let expanded = Scalar::with_validity(
             scalar.primitive,
-            mir::Validity::new(scalar.validity.start.bits(), end),
+            Validity::new(scalar.validity.start.bits(), end),
         );
         let niche = if niche_count == required {
             None
@@ -148,10 +151,8 @@ impl Variant {
             expanded.niche(field.offset)
         };
         let representation = match payload.representation {
-            mir::Representation::Scalar(_) if field.offset == 0 => {
-                mir::Representation::Scalar(expanded)
-            }
-            mir::Representation::ScalarPair(mut fields) => {
+            Representation::Scalar(_) if field.offset == 0 => Representation::Scalar(expanded),
+            Representation::ScalarPair(mut fields) => {
                 let Some(candidate) = fields
                     .iter_mut()
                     .find(|candidate| candidate.offset == field.offset)
@@ -162,9 +163,9 @@ impl Variant {
                 };
                 candidate.scalar = expanded;
 
-                mir::Representation::ScalarPair(fields)
+                Representation::ScalarPair(fields)
             }
-            mir::Representation::Memory => mir::Representation::Memory,
+            Representation::Memory => Representation::Memory,
             _ => {
                 return Err(LayoutError::InvalidNiche {
                     offset: field.offset,
@@ -174,8 +175,8 @@ impl Variant {
 
         // map every encoded case around the untagged payload case
         let cases = self.case_layouts(0);
-        let encoding = mir::VariantEncoding::Niche {
-            field: mir::DiscriminantField {
+        let encoding = VariantEncoding::Niche {
+            field: DiscriminantField {
                 offset: field.offset,
                 byte_len: field.scalar.bit_width().div_ceil(8) as u8,
                 bit_offset: 0,
@@ -186,8 +187,8 @@ impl Variant {
         };
         let trace_map = self.trace(encoding, &cases);
 
-        Ok(Some(mir::Layout {
-            shape: mir::LayoutShape::Variant(mir::VariantLayout {
+        Ok(Some(Layout {
+            shape: LayoutShape::Variant(VariantLayout {
                 discriminant: self.discriminant,
                 encoding,
                 cases,
@@ -201,10 +202,9 @@ impl Variant {
     }
 
     /// Store this variant behind one direct discriminant field.
-    fn direct(self, module: ModuleId) -> Result<mir::Layout, LayoutError> {
-        let mir::Representation::Scalar(tag_scalar) = self.tag.representation else {
+    fn direct(self) -> Result<Layout, LayoutError> {
+        let Representation::Scalar(tag_scalar) = self.tag.representation else {
             return Err(LayoutError::Unsupported {
-                module,
                 construct: "a layout for this variant discriminant".to_string(),
             });
         };
@@ -221,7 +221,7 @@ impl Variant {
         values.sort_unstable();
         values.dedup();
         let tag_scalar = if let Some(&first) = values.first() {
-            let mut validity = mir::Validity::new(first, first);
+            let mut validity = Validity::new(first, first);
             let mut largest_gap = 0;
             for index in 0..values.len() {
                 let current = values[index];
@@ -233,11 +233,11 @@ impl Variant {
                 };
                 if gap >= largest_gap {
                     largest_gap = gap;
-                    validity = mir::Validity::new(next, current);
+                    validity = Validity::new(next, current);
                 }
             }
 
-            mir::Scalar::with_validity(tag_scalar.primitive, validity)
+            Scalar::with_validity(tag_scalar.primitive, validity)
         } else {
             tag_scalar
         };
@@ -247,17 +247,17 @@ impl Variant {
         let alignment = tag_alignment.max(self.payload_alignment);
         let size = (payload_offset + self.payload_size).next_multiple_of(alignment);
         let cases = self.case_layouts(payload_offset);
-        let encoding = mir::VariantEncoding::Direct {
-            field: mir::DiscriminantField::scalar(0, tag_size as u8),
+        let encoding = VariantEncoding::Direct {
+            field: DiscriminantField::scalar(0, tag_size as u8),
         };
 
         // keep direct payloads in registers only under one shared scalar primitive
         let representation = if self.payload_size == 0 {
-            mir::Representation::Scalar(tag_scalar)
+            Representation::Scalar(tag_scalar)
         } else {
             let mut payload = None;
             for case in self.cases.iter().filter(|case| case.size != 0) {
-                let mir::Representation::Scalar(scalar) = case.representation else {
+                let Representation::Scalar(scalar) = case.representation else {
                     payload = None;
                     break;
                 };
@@ -269,17 +269,17 @@ impl Variant {
             }
 
             match payload {
-                Some(payload) => mir::Representation::ScalarPair([
-                    mir::ScalarField::new(tag_scalar, 0),
-                    mir::ScalarField::new(mir::Scalar::new(payload), payload_offset),
+                Some(payload) => Representation::ScalarPair([
+                    ScalarField::new(tag_scalar, 0),
+                    ScalarField::new(Scalar::new(payload), payload_offset),
                 ]),
-                None => mir::Representation::Memory,
+                None => Representation::Memory,
             }
         };
         let trace_map = self.trace(encoding, &cases);
 
-        Ok(mir::Layout {
-            shape: mir::LayoutShape::Variant(mir::VariantLayout {
+        Ok(Layout {
+            shape: LayoutShape::Variant(VariantLayout {
                 discriminant: self.discriminant,
                 encoding,
                 cases,
@@ -293,10 +293,10 @@ impl Variant {
     }
 
     /// Return the physical case records at one shared payload offset.
-    fn case_layouts(&self, payload_offset: u32) -> Vec<mir::VariantCaseLayout> {
+    fn case_layouts(&self, payload_offset: u32) -> Vec<VariantCaseLayout> {
         self.cases
             .iter()
-            .map(|case| mir::VariantCaseLayout {
+            .map(|case| VariantCaseLayout {
                 discriminant: case.discriminant,
                 ty: case.ty,
                 payload_offset,
@@ -305,24 +305,20 @@ impl Variant {
     }
 
     /// Build the case-selected trace map for one variant encoding.
-    fn trace(
-        &self,
-        encoding: mir::VariantEncoding,
-        cases: &[mir::VariantCaseLayout],
-    ) -> mir::TraceMap {
+    fn trace(&self, encoding: VariantEncoding, cases: &[VariantCaseLayout]) -> TraceMap {
         let cases = cases
             .iter()
             .zip(&self.cases)
-            .map(|(layout, case)| mir::VariantTrace {
+            .map(|(layout, case)| VariantTrace {
                 discriminant: layout.discriminant,
                 payload_offset: layout.payload_offset,
                 map: case.trace_map.clone(),
             })
             .collect::<Vec<_>>();
         if cases.iter().all(|case| !case.map.has_reference()) {
-            mir::TraceMap::Empty
+            TraceMap::Empty
         } else {
-            mir::TraceMap::Variant {
+            TraceMap::Variant {
                 encoding,
                 cases: cases.into_boxed_slice(),
             }

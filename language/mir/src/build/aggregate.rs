@@ -1,30 +1,31 @@
 use std::cmp::Reverse;
 
 use destack_core::StringId;
-use destack_mir as mir;
+
+use crate::{LayoutField, Representation, ScalarField, TraceMap, TypeId};
 
 use super::{LayoutBuilder, LayoutError};
 
 /// One completely packed aggregate layout.
 pub(super) struct Aggregate {
     /// The fields in source order with their physical offsets.
-    pub(super) fields: Vec<mir::LayoutField>,
+    pub(super) fields: Vec<LayoutField>,
     /// The aggregate register representation.
-    pub(super) representation: mir::Representation,
+    pub(super) representation: Representation,
     /// The largest invalid scalar range in the aggregate.
-    pub(super) niche: Option<mir::ScalarField>,
+    pub(super) niche: Option<ScalarField>,
     /// The aggregate size in bytes.
     pub(super) size: u32,
     /// The aggregate alignment in bytes.
     pub(super) alignment: u32,
     /// The aggregate reference trace map.
-    pub(super) trace_map: mir::TraceMap,
+    pub(super) trace_map: TraceMap,
 }
 
 impl Aggregate {
     /// Pack one aggregate from fields in source order.
     pub(super) fn new(
-        components: &[(Option<StringId>, mir::TypeId)],
+        components: &[(Option<StringId>, TypeId)],
         layouts: &mut LayoutBuilder<'_>,
     ) -> Result<Self, LayoutError> {
         // compute each field layout before physical ordering
@@ -46,8 +47,8 @@ impl Aggregate {
             let layout = layouts.layout(layout_id);
             offset = offset.next_multiple_of(layout.alignment.max(1));
             alignment = alignment.max(layout.alignment);
-            traces.push(mir::TraceMap::nested(offset, layout.trace_map.clone()));
-            let field = mir::LayoutField {
+            traces.push(TraceMap::nested(offset, layout.trace_map.clone()));
+            let field = LayoutField {
                 name,
                 ty,
                 offset,
@@ -68,8 +69,8 @@ impl Aggregate {
             let layout = layouts.layout(*layout_id);
             if field.size != 0 {
                 match layout.representation {
-                    mir::Representation::Scalar(scalar) => {
-                        scalars.push(mir::ScalarField::new(scalar, field.offset));
+                    Representation::Scalar(scalar) => {
+                        scalars.push(ScalarField::new(scalar, field.offset));
                     }
                     _ => is_register = false,
                 }
@@ -77,7 +78,7 @@ impl Aggregate {
 
             if let Some(mut candidate) = layout.niche {
                 candidate.offset += field.offset;
-                if niche.is_none_or(|current: mir::ScalarField| {
+                if niche.is_none_or(|current: ScalarField| {
                     candidate.invalid_count() > current.invalid_count()
                 }) {
                     niche = Some(candidate);
@@ -85,24 +86,24 @@ impl Aggregate {
             }
         }
         let representation = if !is_register {
-            mir::Representation::Memory
+            Representation::Memory
         } else {
             match scalars.as_slice() {
-                [field] if field.offset == 0 => mir::Representation::Scalar(field.scalar),
+                [field] if field.offset == 0 => Representation::Scalar(field.scalar),
                 [first, second] => {
                     let mut fields = [*first, *second];
                     fields.sort_by_key(|field| field.offset);
 
-                    mir::Representation::ScalarPair(fields)
+                    Representation::ScalarPair(fields)
                 }
-                _ => mir::Representation::Memory,
+                _ => Representation::Memory,
             }
         };
 
         // seal the complete aggregate layout
         let fields = placed.into_iter().map(|(field, _)| field).collect();
         let size = offset.next_multiple_of(alignment);
-        let trace_map = mir::TraceMap::composite(traces);
+        let trace_map = TraceMap::composite(traces);
 
         Ok(Self {
             fields,
