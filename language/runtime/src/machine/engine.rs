@@ -2,6 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_memory::MemoryMap;
+use destack_native::abi::{DynamicTable, VirtualTable};
 use destack_program as program;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -57,18 +58,18 @@ impl Engine {
         self.entries.target(function)
     }
 
-    /// Return typed native body addresses keyed by Program function id.
+    /// Return typed native body addresses keyed by encoded callable word.
     pub(crate) fn functions(&self) -> *const usize {
         self.entries.native.functions.as_ptr()
     }
 
     /// Return virtual method entries keyed by Program virtual table id.
-    pub(crate) fn virtuals(&self) -> *const *const u32 {
+    pub(crate) fn virtuals(&self) -> *const *const VirtualTable {
         self.entries.native.virtuals.as_ptr().cast()
     }
 
     /// Return dynamic entries keyed by Program dynamic table id.
-    pub(crate) fn dynamics(&self) -> *const *const u32 {
+    pub(crate) fn dynamics(&self) -> *const *const DynamicTable {
         self.entries.native.dynamics.as_ptr().cast()
     }
 
@@ -189,7 +190,7 @@ impl EntryTable {
 
 /// Stable process-local storage backing native dispatch pointers.
 struct NativeTable {
-    /// Typed native body addresses keyed by Program function id.
+    /// Typed native body addresses keyed by encoded callable word.
     functions: Box<[usize]>,
     /// Virtual entry addresses keyed by Program virtual table id.
     virtuals: Box<[usize]>,
@@ -205,8 +206,9 @@ impl NativeTable {
     /// Build dense process-local dispatch tables from one linked Program.
     fn new(program: &program::Program, native: Option<&native::Code>) -> Self {
         let function_count = program.functions().entries(program.sections()).len();
-        let mut functions = Vec::with_capacity(function_count + 2);
-        functions.extend([0, 0]);
+        let function_word_bias = program::FunctionId::WORD_BIAS as usize;
+        let mut functions = Vec::with_capacity(function_count + function_word_bias);
+        functions.resize(function_word_bias, DEOPTIMIZE_ENTRY);
         functions.extend((0..function_count).map(|index| {
             let function = native
                 .and_then(|native| native.function(program::FunctionId(index as u32)))
@@ -234,12 +236,17 @@ impl NativeTable {
             .dynamic_tables(program.sections())
             .iter()
             .map(|table| {
-                program
+                let entries = program
                     .dispatch()
                     .dynamic_entries(program.sections(), table)
                     .iter()
                     .map(|entry| entry.value)
-                    .collect::<Box<_>>()
+                    .collect::<Vec<_>>();
+                let mut row = Vec::with_capacity(entries.len() + 1);
+                row.push(table.concrete.0);
+                row.extend(entries);
+
+                row.into_boxed_slice()
             })
             .collect::<Box<_>>();
 
@@ -265,9 +272,11 @@ impl NativeTable {
 impl fmt::Debug for NativeTable {
     /// Format native dispatch storage without exposing process addresses.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let function_count = self.functions.len() - program::FunctionId::WORD_BIAS as usize;
+
         formatter
             .debug_struct("NativeTable")
-            .field("function_count", &self.functions.len())
+            .field("function_count", &function_count)
             .field("virtual_table_count", &self.virtuals.len())
             .field(
                 "virtual_method_count",

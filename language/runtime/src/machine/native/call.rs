@@ -8,7 +8,6 @@ use destack_native as native;
 use destack_native::abi;
 use destack_program as program;
 use destack_program::Runtime;
-use destack_vm::TensorExecutor;
 
 use crate::diagnostic::RuntimeError;
 use crate::worker::Activation;
@@ -96,12 +95,12 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         panic_value: Self::panic_value,
         unwind_classify: Self::unwind_classify,
         unwind_resume: Self::unwind_resume,
+        is_subtype: Self::is_subtype,
         profile_increment: Self::increment_profile,
         profile_sample: Self::sample_profile,
         binding_call: Self::binding,
         volatile_read: Self::volatile_read,
         volatile_write: Self::volatile_write,
-        tensor_execute: Self::execute_tensor,
     };
 
     /// Create one active native call.
@@ -130,8 +129,8 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     pub fn activation(
         &mut self,
         functions: *const usize,
-        virtuals: *const *const u32,
-        dynamics: *const *const u32,
+        virtuals: *const *const abi::VirtualTable,
+        dynamics: *const *const abi::DynamicTable,
         exit: &mut abi::Exit,
     ) -> abi::Activation {
         let call = (self as *mut Self).cast::<abi::Call>();
@@ -549,36 +548,19 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         }
     }
 
-    /// Execute one linked tensor instruction over generated native storage.
-    unsafe extern "C-unwind" fn execute_tensor(
+    /// Return whether one concrete Program type satisfies an expected type.
+    unsafe extern "C-unwind" fn is_subtype(
         activation: *mut abi::Activation,
-        instruction: *const u8,
-        registers: *mut u64,
-        register_count: usize,
-    ) {
-        // SAFETY: generated code passes the active activation and complete descriptor
+        concrete: u32,
+        expected: u32,
+    ) -> u32 {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
-        if instruction.is_null() || (register_count != 0 && registers.is_null()) {
-            call.fail(RuntimeError::Internal {
-                message: "native tensor command has invalid storage".to_string(),
-            });
-        }
-
-        // execute through the same semantics as interpreted bytecode
-        let registers = unsafe {
-            std::slice::from_raw_parts_mut(registers.cast::<program::Word>(), register_count)
-        };
-        let execution = unsafe {
-            TensorExecutor::execute_raw(
-                call.program,
-                call.activation.memory.reborrow(),
-                registers,
-                call.profile.as_deref_mut(),
-                instruction,
-            )
-        };
-        if let Err(error) = execution {
-            call.fail(error);
+        let concrete = program::TypeId(concrete);
+        let expected = program::TypeId(expected);
+        match call.program.is_subtype(concrete, expected) {
+            Ok(is_subtype) => u32::from(is_subtype),
+            Err(error) => call.fail(error),
         }
     }
 
