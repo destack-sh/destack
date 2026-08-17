@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, Origin};
+use crate::sema::{CheckState, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
 /// Working accumulator for merging shape elements of an intersection.
@@ -63,10 +63,104 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // collect the elements this intersection merges, resolving solved spellings
+        // collect the elements this intersection merges
         let mut closed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for element in elements {
-            closed.push(self.shallow_resolve(*element)?);
+            let element = self.shallow_resolve(*element)?;
+            let head = self.structurally_normalize(origin, element)?;
+            if let dir::Type::Intersection(nested) = self.ty(head)? {
+                let nested = self.type_ids(head.module_id, nested.elements)?.to_vec();
+                for nested in nested {
+                    closed.push(self.shallow_resolve(nested)?);
+                }
+
+                continue;
+            }
+            closed.push(element);
+        }
+
+        // distribute the intersection over one union element at a time
+        for (index, element) in closed.iter().enumerate() {
+            let head = self.structurally_normalize(origin, *element)?;
+            let dir::Type::Union(union) = self.ty(head)? else {
+                continue;
+            };
+            let arms = self.type_ids(head.module_id, union.elements)?.to_vec();
+            let mut distributed = Vec::with_capacity(arms.len());
+            for arm in arms {
+                let mut arm_elements = closed.clone();
+                arm_elements[index] = arm;
+                let list = self.intern_type_ids(&arm_elements)?;
+                let sub = self.intern_type(dir::Type::Intersection(dir::IntersectionType {
+                    elements: list,
+                }))?;
+                distributed.push(self.reduce_intersection(origin, sub, &arm_elements)?);
+            }
+
+            return self.normalized_union_type(distributed);
+        }
+
+        // annihilate disjoint scalars and absorb literals into their primitive
+        let mut scalar: Option<(dir::GlobalTypeId, bool)> = None;
+        for element in &closed {
+            let family = match self.ty(*element)? {
+                dir::Type::Primitive(_) => Some(false),
+                dir::Type::Literal(_) => Some(true),
+                _ => None,
+            };
+            let Some(is_literal) = family else {
+                continue;
+            };
+            let Some((kept, kept_is_literal)) = scalar else {
+                scalar = Some((*element, is_literal));
+                continue;
+            };
+
+            // keep the scalar that the other one covers
+            let (narrow, wide) = match (kept_is_literal, is_literal) {
+                (true, false) => (kept, *element),
+                (false, true) => (*element, kept),
+                _ if kept == *element => continue,
+                _ => {
+                    return self.intern_type(dir::Type::Never);
+                }
+            };
+            let verdict = self.evaluate_relation(origin, Relation::Assignable, narrow, wide)?;
+            if !verdict.holds() {
+                return self.intern_type(dir::Type::Never);
+            }
+            scalar = Some((narrow, true));
+        }
+        if let Some((kept, _)) = scalar {
+            let mut narrowed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+            for element in closed {
+                let is_scalar = matches!(
+                    self.ty(element)?,
+                    dir::Type::Primitive(_) | dir::Type::Literal(_)
+                );
+                if !is_scalar || element == kept {
+                    narrowed.push(element);
+                }
+            }
+            closed = narrowed;
+
+            // annihilate a scalar met by a nominal class, struct or enum
+            for element in &closed {
+                let head = self.structurally_normalize(origin, *element)?;
+                let dir::Type::Application(application) = self.ty(head)? else {
+                    continue;
+                };
+                if matches!(
+                    self.definition(application.symbol)?,
+                    Some(
+                        dir::Definition::Class(_)
+                            | dir::Definition::Struct(_)
+                            | dir::Definition::Enum(_)
+                    )
+                ) {
+                    return self.intern_type(dir::Type::Never);
+                }
+            }
         }
 
         // exact key members absorb the string primitive
@@ -95,13 +189,15 @@ impl CheckState<'_> {
         let mut others = Vec::new();
         let mut shape_count = 0usize;
         for element in closed {
-            let dir::Type::Object(shape) = self.ty(element)? else {
+            // resolve each element to the shape it names
+            let head = self.structurally_normalize(origin, element)?;
+            let dir::Type::Object(shape) = self.ty(head)? else {
                 others.push(element);
                 continue;
             };
 
             shape_count += 1;
-            self.merge_intersection_shape(origin, &mut merged, element.module_id, shape)?;
+            self.merge_intersection_shape(origin, &mut merged, head.module_id, shape)?;
         }
 
         // keep intersections symbolic unless two or more shapes contributed
@@ -201,13 +297,25 @@ impl CheckState<'_> {
     /// Intersect one shared property slot pair.
     fn intersect_property_slot(
         &mut self,
-        _origin: Origin,
+        origin: Origin,
         left: Option<dir::GlobalTypeId>,
         right: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         Ok(match (left, right) {
             (Some(left), Some(right)) if left != right => {
-                Some(self.normalized_intersection_type([left, right])?)
+                let interned = self.normalized_intersection_type([left, right])?;
+                let reduced = match self.ty(interned)? {
+                    dir::Type::Intersection(intersection) => {
+                        let elements = self
+                            .type_ids(interned.module_id, intersection.elements)?
+                            .to_vec();
+
+                        self.reduce_intersection(origin, interned, &elements)?
+                    }
+                    _ => interned,
+                };
+
+                Some(reduced)
             }
             (left, right) => left.or(right),
         })

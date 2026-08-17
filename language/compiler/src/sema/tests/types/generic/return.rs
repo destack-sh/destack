@@ -65,6 +65,8 @@ function capture<T>(value: T): { reactions: T[] } {
     return { reactions: [] };
     /// @type.node source={ reactions: [] } type={ reactions: Array<T> }
     /// @type.node source=[] type=Array<T>
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T) return=Array<T> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<T> template=collections.array.arrayFromSlice arguments=(T) owner=capture
 
 }
 "#,
@@ -172,6 +174,8 @@ function pending<T>(): State<T> {
     /// @type.node source={ kind: "pending", reactions: [] } type={ kind: "pending"; reactions: Array<T#4> }
     /// @type.node source="\"pending\"" type="pending"
     /// @type.node source=[] type=Array<T#4>
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T#4) return=Array<T#4> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#4>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<T#4> template=collections.array.arrayFromSlice arguments=(T#4) owner=pending
 
 }
 "#,

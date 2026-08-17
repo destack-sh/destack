@@ -56,8 +56,11 @@ newtype Sharding<...Axes: Axis[]> = intrinsic;
 /// @resolution.name source=Axis target=Axis
 /// @generic.instance id=Array<Axis> template=collections.array.Array arguments=(Axis)
 /// @generic.instance id=memory.init.MaybeUninit<Axis> template=memory.init.MaybeUninit arguments=(Axis)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<Axis>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<Axis>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Axis>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Axis>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Axis>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Axis>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<Axis>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<Axis>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<Axis>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<Axis>)
 
 newtype Grid<T, P> = intrinsic;
 /// @generic.template symbol=Grid parameters=(in out T#1, in out P)
@@ -102,7 +105,7 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
         return mesh<T, ...Axes>(this);
         /// @resolution.name source=mesh target=mesh
         /// @resolution.call source="mesh<T, ...Axes>(this)" parameters=(&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) arguments=(provided(this) as &mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) return=int32 kind=symbol target=mesh instance="mesh<T#3, Axes#3>"
-        /// @generic.instantiation id="mesh<T#3, Axes#3>" template=mesh arguments=(T#3, Axes#3) owner=<module>#2
+        /// @generic.instantiation id="mesh<T#3, Axes#3>" template=mesh arguments=(T#3, Axes#3) owner=mesh#1
         /// @resolution.name source=T target=T
         /// @resolution.name source=Axes target=Axes
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>
@@ -208,7 +211,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
         return mesh<T, ...Xs>(this);
         /// @resolution.name source=mesh target=mesh
         /// @resolution.call source="mesh<T, ...Xs>(this)" parameters=(&'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) arguments=(provided(this) as &'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) return=int32 kind=symbol target=mesh instance="mesh<T#2, Xs#2>"
-        /// @generic.instantiation id="mesh<T#2, Xs#2>" template=mesh arguments=(T#2, Xs#2) owner=<module>#2
+        /// @generic.instantiation id="mesh<T#2, Xs#2>" template=mesh arguments=(T#2, Xs#2) owner=mesh#1
         /// @resolution.name source=T target=T
         /// @resolution.name source=Xs target=Xs
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&mesh#1.'a readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>

@@ -124,12 +124,18 @@ const values = id([1, 2]);
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([1, 2])" parameters=(Array<float64>) arguments=(provided([1, 2]) as Array<float64>) return=Array<float64> kind=symbol target=id instance=id<Array<float64>>
 /// @generic.instantiation id=id<Array<float64>> template=id arguments=(Array<float64>)
 /// @generic.instance id=id<Array<float64>> template=id arguments=(Array<float64>)
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=float64
@@ -222,10 +228,16 @@ declare function take(values: Slice<float64>): void;
 take([1, 2]);
 /// @resolution.name source=take target=take
 /// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 "#,
     );
 }
@@ -374,12 +386,18 @@ const values = collect([{ kind: "ready" }]);
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id="Array<{ readonly kind: \"ready\" }>" template=collections.array.Array arguments=({ readonly kind: "ready" })
 /// @generic.instance id="memory.init.MaybeUninit<{ readonly kind: \"ready\" }>" template=memory.init.MaybeUninit arguments=({ readonly kind: "ready" })
+/// @generic.instance id="memory.raw.dangling<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=memory.raw.dangling arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
 /// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<{ readonly kind: "ready" }>>)
 /// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
+/// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
+/// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
 /// @resolution.name source=collect target=collect
 /// @resolution.call source="collect([{ kind: \"ready\" }])" parameters=(Array<{ readonly kind: "ready" }>) arguments=(provided([{ kind: "ready" }]) as Array<{ readonly kind: "ready" }>) return=Array<{ readonly kind: "ready" }> kind=symbol target=collect instance="collect<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
 /// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
+/// @resolution.call source=[{ kind: "ready" }] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest({ kind: "ready" }) as { readonly kind: "ready" }) return=Array<{ readonly kind: "ready" }> kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>"
+/// @generic.instantiation id="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>" template=collections.array.arrayFromSlice arguments=({ readonly kind: "ready" })
+/// @generic.instance id="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>" template=collections.array.arrayFromSlice arguments=({ readonly kind: "ready" })
 
 const kind = values[0].kind;
 /// @type.symbol symbol=kind source=kind type="ready"
@@ -704,8 +722,8 @@ class Bucket<K: Equal<K>> {
 
         return new Bucket<K>(this.key);
         /// @resolution.construct source="new Bucket<K>(this.key)" parameters=(K) arguments=(provided(this.key) as K) return=Bucket<K> kind=class target=Bucket constructor=Bucket.constructor instance=Bucket<K>
-        /// @generic.instantiation id=Bucket.constructor<K> template=Bucket.constructor arguments=(K) owner=Bucket
-        /// @generic.instantiation id=Bucket<K> template=Bucket arguments=(K) owner=Bucket
+        /// @generic.instantiation id=Bucket.constructor<K> template=Bucket.constructor arguments=(K) owner=Bucket.pair
+        /// @generic.instantiation id=Bucket<K> template=Bucket arguments=(K) owner=Bucket.pair
         /// @resolution.name source=Bucket target=Bucket
         /// @resolution.name source=K target=Bucket.K
         /// @resolution.member source=this.key receiver=Bucket<K> type=K kind=field target_receiver=Bucket<K> key=key target=Bucket.key target_type=K
@@ -842,7 +860,7 @@ extension<K> of Box<K> where K: Equal<K> {
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
-        /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=<module>#2
+        /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=check
         /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -964,7 +982,7 @@ class Box<K> {
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K) arguments=(provided(this.key) as K) return=boolean kind=symbol target=probe instance=probe<K>
-        /// @generic.instantiation id=probe<K> template=probe arguments=(K) owner=Box
+        /// @generic.instantiation id=probe<K> template=probe arguments=(K) owner=Box.check
         /// @resolution.member source=this.key receiver=Box<K> type=K kind=field target_receiver=Box<K> key=key target=Box.key target_type=K
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<K>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -1070,7 +1088,7 @@ extension<K> of Box<K> {
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
-        /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=<module>#2
+        /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=check
         /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -1224,7 +1242,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
-        /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=<module>#2
+        /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=check
         /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -1449,7 +1467,7 @@ export extension<T> of Cell<T> {
         /// @resolution.name source=Inner target=Inner
         /// @resolution.member source=Inner.new receiver=Inner type=(T#2) => Inner<T#2> kind=symbol target_receiver=Inner target=new#1
         /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 instance=Inner<T#4>.<extension#1>.new#1
-        /// @generic.instantiation id=new#1<T#4> template=new#1 arguments=(T#4) owner=<module>#3
+        /// @generic.instantiation id=new#1<T#4> template=new#1 arguments=(T#4) owner=new#2
         /// @resolution.name source=value target=new.value#2
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=new.value#2
@@ -1896,8 +1914,8 @@ extension<T> of Box<T> {
 
         new Box<T>(value)
         /// @resolution.construct source="new Box<T>(value)" parameters=(T#2) arguments=(provided(value) as T#2) return=Box<T#2> kind=class target=Box constructor=Box.constructor instance=Box<T#2>
-        /// @generic.instantiation id=Box.constructor<T#2> template=Box.constructor arguments=(T#2) owner=<module>#2
-        /// @generic.instantiation id=Box<T#2> template=Box arguments=(T#2) owner=<module>#2
+        /// @generic.instantiation id=Box.constructor<T#2> template=Box.constructor arguments=(T#2) owner=make
+        /// @generic.instantiation id=Box<T#2> template=Box arguments=(T#2) owner=make
         /// @resolution.name source=Box target=Box
         /// @resolution.name source=T target=T#1
         /// @resolution.name source=value target=make.value
@@ -1926,7 +1944,7 @@ extension<T> of Box<T> {
         /// @resolution.name source=Box target=Box
         /// @resolution.member source=Box.make receiver=Box type=(T#2) => Box<T#2> kind=symbol target_receiver=Box target=make
         /// @resolution.call source=Box.make(value) parameters=(T#3) arguments=(provided(value) as T#3) return=Box<T#3> kind=symbol target=make instance=Box<T#3>.<extension#1>.make
-        /// @generic.instantiation id=make<T#3> template=make arguments=(T#3) owner=<module>#3
+        /// @generic.instantiation id=make<T#3> template=make arguments=(T#3) owner=wrap
         /// @resolution.name source=value target=wrap.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=wrap.value
@@ -2056,7 +2074,7 @@ extension<T> of Outer<T> {
         /// @resolution.name source=Inner target=Inner
         /// @resolution.member source=Inner.new receiver=Inner type=(T#2) => Inner<T#2> kind=symbol target_receiver=Inner target=new#1
         /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 instance=Inner<T#4>.<extension#1>.new#1
-        /// @generic.instantiation id=new#1<T#4> template=new#1 arguments=(T#4) owner=<module>#3
+        /// @generic.instantiation id=new#1<T#4> template=new#1 arguments=(T#4) owner=new#2
         /// @resolution.name source=value target=new.value#2
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=new.value#2
@@ -2462,7 +2480,6 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
     (a - b).length()
     /// @resolution.member source="(a - b).length" receiver=a.Vec<T>.Output type=(this: a.Vec<T>) => T kind=symbol target_receiver=a.Vec<T>.Output target=a.Vec.length
     /// @resolution.call source=(a - b).length() parameters=() return=T kind=symbol target=a.Vec.length receiver=a.Vec<T>.Output instance=a.Vec<T>.length
-    /// @generic.instantiation id=a.Vec.length<T> template=a.Vec.length arguments=(T) owner=f
     /// @generic.instantiation id=a.Vec.length<T> template=a.Vec.length arguments=(T) owner=f
     /// @resolution.name source=a target=f.a
     /// @resolution.operator source="a - b" type=a.Vec<T>.Output operator="-" kind=call parameters=(a.Vec<T>) arguments=(provided(b) as a.Vec<T>) return=a.Vec<T>.Output kind=symbol target=a.subtract receiver=a.Vec<T> instance=a.Vec<T>.<extension#1>.subtract

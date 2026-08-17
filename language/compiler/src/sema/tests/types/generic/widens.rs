@@ -921,6 +921,8 @@ class Stack<T> {
     items: T[] = [];
     /// @type.symbol symbol=Stack.items source="items: T[] = []" type=Array<T#1>
     /// @resolution.name source=T target=Stack.T
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T#1) return=Array<T#1> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#1>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<T#1> template=collections.array.arrayFromSlice arguments=(T#1) owner=Stack
 
 }
 
@@ -945,6 +947,8 @@ extension<T> of Stack<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=Array<T#2>), type=Array<T#2>" type=Array<T#2>
+        /// @resolution.call source=[value] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(value) as T#2) return=Array<T#2> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#2>
+        /// @generic.instantiation id=collections.array.arrayFromSlice<T#2> template=collections.array.arrayFromSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=refill.value
@@ -1040,6 +1044,8 @@ class Stack<T> {
     items: T[] = [];
     /// @type.symbol symbol=Stack.items source="items: T[] = []" type=Array<T#1>
     /// @resolution.name source=T target=Stack.T
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T#1) return=Array<T#1> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#1>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<T#1> template=collections.array.arrayFromSlice arguments=(T#1) owner=Stack
 
 }
 
@@ -1064,6 +1070,8 @@ extension<T> of Stack<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=Array<T#2>), type=Array<T#2>" type=Array<T#2>
+        /// @resolution.call source=[value] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(value) as T#2) return=Array<T#2> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#2>
+        /// @generic.instantiation id=collections.array.arrayFromSlice<T#2> template=collections.array.arrayFromSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=refill.value
@@ -1076,9 +1084,13 @@ declare const circles: Stack<Circle>;
 /// @resolution.pattern source=circles kind=binding target=circles
 /// @generic.instance id=Array<Circle> template=collections.array.Array arguments=(Circle)
 /// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
+/// @generic.instance id=collections.array.arrayFromSlice<Circle> template=collections.array.arrayFromSlice arguments=(Circle)
 /// @generic.instance id=memory.init.MaybeUninit<Circle> template=memory.init.MaybeUninit arguments=(Circle)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<Circle>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<Circle>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Circle>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Circle>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Circle>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Circle>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<Circle>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<Circle>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<Circle>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<Circle>)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Circle target=Circle
 
@@ -1087,9 +1099,13 @@ const view: readonly Stack<Shape> = circles;
 /// @resolution.pattern source=view kind=binding target=view
 /// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
+/// @generic.instance id=collections.array.arrayFromSlice<Shape> template=collections.array.arrayFromSlice arguments=(Shape)
 /// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<Shape>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<Shape>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Shape>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Shape>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Shape>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Shape>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<Shape>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<Shape>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<Shape>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<Shape>)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
@@ -1160,6 +1176,8 @@ class Bag<T> {
     items: T[] = [];
     /// @type.symbol symbol=Bag.items source="items: T[] = []" type=Array<T>
     /// @resolution.name source=T target=Bag.T
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T) return=Array<T> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<T> template=collections.array.arrayFromSlice arguments=(T) owner=Bag
 
     refill(this, value: T): void {
     /// @type.symbol symbol=Bag.refill type=(this: this, T) => void
@@ -1174,6 +1192,8 @@ class Bag<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Bag<T>, target=field(receiver=Bag<T>, target=Bag.items, type=Array<T>), type=Array<T>" type=Array<T>
+        /// @resolution.call source=[value] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(value) as T) return=Array<T> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T>
+        /// @generic.instantiation id=collections.array.arrayFromSlice<T> template=collections.array.arrayFromSlice arguments=(T) owner=Bag.refill
         /// @resolution.name source=value target=Bag.refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=Bag.refill.value

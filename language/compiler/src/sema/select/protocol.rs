@@ -57,9 +57,15 @@ impl Protocol {
         check: &mut CheckState<'_>,
         _module: ModuleId,
     ) -> CompilerResult<dir::GenericApplication> {
+        let mut arguments = self.arguments.clone();
         match check.symbol_template(self.symbol)? {
             Some(template) => {
-                check.template_substitution(template, &self.arguments)?;
+                let substitution = check.applied_substitution(template, &self.arguments)?;
+                arguments = substitution
+                    .bindings
+                    .iter()
+                    .map(|binding| binding.argument)
+                    .collect();
             }
             None if self.arguments.is_empty() => {}
             // keep unloaded foreign templates symbolic
@@ -74,7 +80,7 @@ impl Protocol {
                 });
             }
         }
-        let arguments = check.intern_type_ids(&self.arguments)?;
+        let arguments = check.intern_type_ids(&arguments)?;
 
         Ok(dir::GenericApplication {
             symbol: self.symbol,
@@ -923,7 +929,7 @@ impl BodyState<'_, '_> {
             let application_type = if owner == receiver_instance.symbol {
                 Some(receiver)
             } else {
-                self.heritage_instance(origin, receiver, owner)?
+                self.heritage_instance(origin, receiver, receiver, owner)?
             };
             let Some(application_type) = application_type else {
                 continue;

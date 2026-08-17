@@ -105,34 +105,6 @@ declare const input: Promise<int32>;
 /// @resolution.pattern source=input kind=binding target=input
 /// @generic.instance id=async.awaitable.Awaitable<int32> template=async.awaitable.Awaitable arguments=(int32)
 /// @generic.instance id=async.awaitable.Awaitable<void> template=async.awaitable.Awaitable arguments=(void)
-/// @generic.instance id=async.fiber.Fiber.wake<int32> template=async.fiber.Fiber.wake arguments=(int32)
-/// @generic.instance id=async.fiber.Fiber.wake<void> template=async.fiber.Fiber.wake arguments=(void)
-/// @generic.instance id=async.fiber.wakeFiber<int32> template=async.fiber.wakeFiber arguments=(int32)
-/// @generic.instance id=async.fiber.wakeFiber<void> template=async.fiber.wakeFiber arguments=(void)
-/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
-/// @generic.instance id=async.promise.Promise.addReaction<void> template=async.promise.Promise.addReaction arguments=(void)
-/// @generic.instance id=async.promise.Promise.addWaiter<int32> template=async.promise.Promise.addWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.addWaiter<void> template=async.promise.Promise.addWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancel<int32> template=async.promise.Promise.cancel arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancel<void> template=async.promise.Promise.cancel arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<int32> template=async.promise.Promise.cancelWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<void> template=async.promise.Promise.cancelWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<int32> template=async.promise.Promise.cancelWaiters arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<void> template=async.promise.Promise.cancelWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.forward<int32> template=async.promise.Promise.forward arguments=(int32)
-/// @generic.instance id=async.promise.Promise.forward<void> template=async.promise.Promise.forward arguments=(void)
-/// @generic.instance id=async.promise.Promise.fulfill<int32> template=async.promise.Promise.fulfill arguments=(int32)
-/// @generic.instance id=async.promise.Promise.fulfill<void> template=async.promise.Promise.fulfill arguments=(void)
-/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
-/// @generic.instance id=async.promise.Promise.observe<void> template=async.promise.Promise.observe arguments=(void)
-/// @generic.instance id=async.promise.Promise.pending<int32> template=async.promise.Promise.pending arguments=(int32)
-/// @generic.instance id=async.promise.Promise.pending<void> template=async.promise.Promise.pending arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiter<int32> template=async.promise.Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.queueWaiter<void> template=async.promise.Promise.queueWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiters<int32> template=async.promise.Promise.queueWaiters arguments=(int32)
-/// @generic.instance id=async.promise.Promise.queueWaiters<void> template=async.promise.Promise.queueWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.symbol12<int32> template=async.promise.Promise.symbol12 arguments=(int32)
-/// @generic.instance id=async.promise.Promise.symbol12<void> template=async.promise.Promise.symbol12 arguments=(void)
 /// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
 /// @generic.instance id=async.promise.Promise<void> template=async.promise.Promise arguments=(void)
 /// @generic.instance id=async.promise.PromiseAwaiter<int32> template=async.promise.PromiseAwaiter arguments=(int32)
@@ -143,8 +115,6 @@ declare const input: Promise<int32>;
 /// @generic.instance id=async.promise.PromiseFulfilled<void> template=async.promise.PromiseFulfilled arguments=(void)
 /// @generic.instance id=async.promise.PromisePending<int32> template=async.promise.PromisePending arguments=(int32)
 /// @generic.instance id=async.promise.PromisePending<void> template=async.promise.PromisePending arguments=(void)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<int32> template=async.promise.PromiseReaction.symbol194 arguments=(int32)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<void> template=async.promise.PromiseReaction.symbol194 arguments=(void)
 /// @generic.instance id=async.promise.PromiseReaction<int32> template=async.promise.PromiseReaction arguments=(int32)
 /// @generic.instance id=async.promise.PromiseReaction<void> template=async.promise.PromiseReaction arguments=(void)
 /// @generic.instance id=async.promise.PromiseState<int32> template=async.promise.PromiseState arguments=(int32)
@@ -157,26 +127,11 @@ const result: Promise<string> = input.then(() => "done");
 /// @type.symbol symbol=result source=result type=async.promise.Promise<string>
 /// @resolution.pattern source=result kind=binding target=result
 /// @generic.instance id=async.awaitable.Awaitable<string> template=async.awaitable.Awaitable arguments=(string)
-/// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
-/// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
-/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
-/// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
-/// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
-/// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
-/// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string)
 /// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 /// @generic.instance id=async.promise.PromiseAwaiter<string> template=async.promise.PromiseAwaiter arguments=(string)
 /// @generic.instance id=async.promise.PromiseForwarded<string> template=async.promise.PromiseForwarded arguments=(string)
 /// @generic.instance id=async.promise.PromiseFulfilled<string> template=async.promise.PromiseFulfilled arguments=(string)
 /// @generic.instance id=async.promise.PromisePending<string> template=async.promise.PromisePending arguments=(string)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
 /// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
 /// @generic.instance id=async.promise.PromiseState<string> template=async.promise.PromiseState arguments=(string)
 /// @generic.instance id=async.promise.PromiseWaiter<string> template=async.promise.PromiseWaiter arguments=(string)
@@ -193,6 +148,25 @@ const result: Promise<string> = input.then(() => "done");
 /// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
 /// @generic.instance id="async.promise.Promise.then#2<int32, string>" template=async.promise.Promise.then#2 arguments=(int32, string)
+/// @generic.instance id=async.fiber.Fiber.wake<int32> template=async.fiber.Fiber.wake arguments=(int32)
+/// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
+/// @generic.instance id=async.fiber.wakeFiber<int32> template=async.fiber.wakeFiber arguments=(int32)
+/// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
+/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
+/// @generic.instance id=async.promise.Promise.addWaiter<int32> template=async.promise.Promise.addWaiter arguments=(int32)
+/// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
+/// @generic.instance id=async.promise.Promise.cancelWaiter<int32> template=async.promise.Promise.cancelWaiter arguments=(int32)
+/// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string)
+/// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
+/// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
+/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
+/// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
+/// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
+/// @generic.instance id=async.promise.Promise.queueWaiter<int32> template=async.promise.Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string)
+/// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
+/// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string)
+/// @generic.instance id=async.promise.PromiseReaction.symbol194<int32> template=async.promise.PromiseReaction.symbol194 arguments=(int32)
 /// @type.symbol symbol=symbol3 source="() => \"done\"" type=Function<(), string>
 /// @type.node source="() => \"done\"" type=Function<(), string>
 /// @type.node source="\"done\"" type="done"
@@ -231,34 +205,6 @@ declare const input: Promise<int32>;
 /// @resolution.pattern source=input kind=binding target=input
 /// @generic.instance id=async.awaitable.Awaitable<int32> template=async.awaitable.Awaitable arguments=(int32)
 /// @generic.instance id=async.awaitable.Awaitable<void> template=async.awaitable.Awaitable arguments=(void)
-/// @generic.instance id=async.fiber.Fiber.wake<int32> template=async.fiber.Fiber.wake arguments=(int32)
-/// @generic.instance id=async.fiber.Fiber.wake<void> template=async.fiber.Fiber.wake arguments=(void)
-/// @generic.instance id=async.fiber.wakeFiber<int32> template=async.fiber.wakeFiber arguments=(int32)
-/// @generic.instance id=async.fiber.wakeFiber<void> template=async.fiber.wakeFiber arguments=(void)
-/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
-/// @generic.instance id=async.promise.Promise.addReaction<void> template=async.promise.Promise.addReaction arguments=(void)
-/// @generic.instance id=async.promise.Promise.addWaiter<int32> template=async.promise.Promise.addWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.addWaiter<void> template=async.promise.Promise.addWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancel<int32> template=async.promise.Promise.cancel arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancel<void> template=async.promise.Promise.cancel arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<int32> template=async.promise.Promise.cancelWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<void> template=async.promise.Promise.cancelWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<int32> template=async.promise.Promise.cancelWaiters arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<void> template=async.promise.Promise.cancelWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.forward<int32> template=async.promise.Promise.forward arguments=(int32)
-/// @generic.instance id=async.promise.Promise.forward<void> template=async.promise.Promise.forward arguments=(void)
-/// @generic.instance id=async.promise.Promise.fulfill<int32> template=async.promise.Promise.fulfill arguments=(int32)
-/// @generic.instance id=async.promise.Promise.fulfill<void> template=async.promise.Promise.fulfill arguments=(void)
-/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
-/// @generic.instance id=async.promise.Promise.observe<void> template=async.promise.Promise.observe arguments=(void)
-/// @generic.instance id=async.promise.Promise.pending<int32> template=async.promise.Promise.pending arguments=(int32)
-/// @generic.instance id=async.promise.Promise.pending<void> template=async.promise.Promise.pending arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiter<int32> template=async.promise.Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.queueWaiter<void> template=async.promise.Promise.queueWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiters<int32> template=async.promise.Promise.queueWaiters arguments=(int32)
-/// @generic.instance id=async.promise.Promise.queueWaiters<void> template=async.promise.Promise.queueWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.symbol12<int32> template=async.promise.Promise.symbol12 arguments=(int32)
-/// @generic.instance id=async.promise.Promise.symbol12<void> template=async.promise.Promise.symbol12 arguments=(void)
 /// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
 /// @generic.instance id=async.promise.Promise<void> template=async.promise.Promise arguments=(void)
 /// @generic.instance id=async.promise.PromiseAwaiter<int32> template=async.promise.PromiseAwaiter arguments=(int32)
@@ -269,8 +215,6 @@ declare const input: Promise<int32>;
 /// @generic.instance id=async.promise.PromiseFulfilled<void> template=async.promise.PromiseFulfilled arguments=(void)
 /// @generic.instance id=async.promise.PromisePending<int32> template=async.promise.PromisePending arguments=(int32)
 /// @generic.instance id=async.promise.PromisePending<void> template=async.promise.PromisePending arguments=(void)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<int32> template=async.promise.PromiseReaction.symbol194 arguments=(int32)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<void> template=async.promise.PromiseReaction.symbol194 arguments=(void)
 /// @generic.instance id=async.promise.PromiseReaction<int32> template=async.promise.PromiseReaction arguments=(int32)
 /// @generic.instance id=async.promise.PromiseReaction<void> template=async.promise.PromiseReaction arguments=(void)
 /// @generic.instance id=async.promise.PromiseState<int32> template=async.promise.PromiseState arguments=(int32)
@@ -283,26 +227,11 @@ declare const next: Promise<string>;
 /// @type.symbol symbol=next source=next type=async.promise.Promise<string>
 /// @resolution.pattern source=next kind=binding target=next
 /// @generic.instance id=async.awaitable.Awaitable<string> template=async.awaitable.Awaitable arguments=(string)
-/// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
-/// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
-/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
-/// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
-/// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
-/// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
-/// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string)
 /// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 /// @generic.instance id=async.promise.PromiseAwaiter<string> template=async.promise.PromiseAwaiter arguments=(string)
 /// @generic.instance id=async.promise.PromiseForwarded<string> template=async.promise.PromiseForwarded arguments=(string)
 /// @generic.instance id=async.promise.PromiseFulfilled<string> template=async.promise.PromiseFulfilled arguments=(string)
 /// @generic.instance id=async.promise.PromisePending<string> template=async.promise.PromisePending arguments=(string)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
 /// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
 /// @generic.instance id=async.promise.PromiseState<string> template=async.promise.PromiseState arguments=(string)
 /// @generic.instance id=async.promise.PromiseWaiter<string> template=async.promise.PromiseWaiter arguments=(string)
@@ -324,6 +253,29 @@ const result: Promise<string> = input.then(() => next);
 /// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
 /// @generic.instance id="async.promise.Promise.then#1<int32, string>" template=async.promise.Promise.then#1 arguments=(int32, string)
+/// @generic.instance id=async.fiber.Fiber.wake<int32> template=async.fiber.Fiber.wake arguments=(int32)
+/// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
+/// @generic.instance id=async.fiber.wakeFiber<int32> template=async.fiber.wakeFiber arguments=(int32)
+/// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
+/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
+/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
+/// @generic.instance id=async.promise.Promise.addWaiter<int32> template=async.promise.Promise.addWaiter arguments=(int32)
+/// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string)
+/// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
+/// @generic.instance id=async.promise.Promise.cancelWaiter<int32> template=async.promise.Promise.cancelWaiter arguments=(int32)
+/// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string)
+/// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
+/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
+/// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
+/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
+/// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
+/// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
+/// @generic.instance id=async.promise.Promise.queueWaiter<int32> template=async.promise.Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string)
+/// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
+/// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string)
+/// @generic.instance id=async.promise.PromiseReaction.symbol194<int32> template=async.promise.PromiseReaction.symbol194 arguments=(int32)
+/// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
 /// @type.symbol symbol=symbol4 source="() => next" type=Function<(), async.promise.Promise<string>>
 /// @type.node source="() => next" type=Function<(), async.promise.Promise<string>>
 /// @type.node source=next type=async.promise.Promise<string>
@@ -367,34 +319,6 @@ declare const input: Promise<int32>;
 /// @resolution.pattern source=input kind=binding target=input
 /// @generic.instance id=async.awaitable.Awaitable<int32> template=async.awaitable.Awaitable arguments=(int32)
 /// @generic.instance id=async.awaitable.Awaitable<void> template=async.awaitable.Awaitable arguments=(void)
-/// @generic.instance id=async.fiber.Fiber.wake<int32> template=async.fiber.Fiber.wake arguments=(int32)
-/// @generic.instance id=async.fiber.Fiber.wake<void> template=async.fiber.Fiber.wake arguments=(void)
-/// @generic.instance id=async.fiber.wakeFiber<int32> template=async.fiber.wakeFiber arguments=(int32)
-/// @generic.instance id=async.fiber.wakeFiber<void> template=async.fiber.wakeFiber arguments=(void)
-/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
-/// @generic.instance id=async.promise.Promise.addReaction<void> template=async.promise.Promise.addReaction arguments=(void)
-/// @generic.instance id=async.promise.Promise.addWaiter<int32> template=async.promise.Promise.addWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.addWaiter<void> template=async.promise.Promise.addWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancel<int32> template=async.promise.Promise.cancel arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancel<void> template=async.promise.Promise.cancel arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<int32> template=async.promise.Promise.cancelWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<void> template=async.promise.Promise.cancelWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<int32> template=async.promise.Promise.cancelWaiters arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<void> template=async.promise.Promise.cancelWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.forward<int32> template=async.promise.Promise.forward arguments=(int32)
-/// @generic.instance id=async.promise.Promise.forward<void> template=async.promise.Promise.forward arguments=(void)
-/// @generic.instance id=async.promise.Promise.fulfill<int32> template=async.promise.Promise.fulfill arguments=(int32)
-/// @generic.instance id=async.promise.Promise.fulfill<void> template=async.promise.Promise.fulfill arguments=(void)
-/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
-/// @generic.instance id=async.promise.Promise.observe<void> template=async.promise.Promise.observe arguments=(void)
-/// @generic.instance id=async.promise.Promise.pending<int32> template=async.promise.Promise.pending arguments=(int32)
-/// @generic.instance id=async.promise.Promise.pending<void> template=async.promise.Promise.pending arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiter<int32> template=async.promise.Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.queueWaiter<void> template=async.promise.Promise.queueWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiters<int32> template=async.promise.Promise.queueWaiters arguments=(int32)
-/// @generic.instance id=async.promise.Promise.queueWaiters<void> template=async.promise.Promise.queueWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.symbol12<int32> template=async.promise.Promise.symbol12 arguments=(int32)
-/// @generic.instance id=async.promise.Promise.symbol12<void> template=async.promise.Promise.symbol12 arguments=(void)
 /// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
 /// @generic.instance id=async.promise.Promise<void> template=async.promise.Promise arguments=(void)
 /// @generic.instance id=async.promise.PromiseAwaiter<int32> template=async.promise.PromiseAwaiter arguments=(int32)
@@ -405,8 +329,6 @@ declare const input: Promise<int32>;
 /// @generic.instance id=async.promise.PromiseFulfilled<void> template=async.promise.PromiseFulfilled arguments=(void)
 /// @generic.instance id=async.promise.PromisePending<int32> template=async.promise.PromisePending arguments=(int32)
 /// @generic.instance id=async.promise.PromisePending<void> template=async.promise.PromisePending arguments=(void)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<int32> template=async.promise.PromiseReaction.symbol194 arguments=(int32)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<void> template=async.promise.PromiseReaction.symbol194 arguments=(void)
 /// @generic.instance id=async.promise.PromiseReaction<int32> template=async.promise.PromiseReaction arguments=(int32)
 /// @generic.instance id=async.promise.PromiseReaction<void> template=async.promise.PromiseReaction arguments=(void)
 /// @generic.instance id=async.promise.PromiseState<int32> template=async.promise.PromiseState arguments=(int32)
@@ -419,26 +341,11 @@ const result: Promise<string> = input.then((value) => {
 /// @type.symbol symbol=result source=result type=async.promise.Promise<string>
 /// @resolution.pattern source=result kind=binding target=result
 /// @generic.instance id=async.awaitable.Awaitable<string> template=async.awaitable.Awaitable arguments=(string)
-/// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
-/// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
-/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
-/// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
-/// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
-/// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
-/// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string)
 /// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 /// @generic.instance id=async.promise.PromiseAwaiter<string> template=async.promise.PromiseAwaiter arguments=(string)
 /// @generic.instance id=async.promise.PromiseForwarded<string> template=async.promise.PromiseForwarded arguments=(string)
 /// @generic.instance id=async.promise.PromiseFulfilled<string> template=async.promise.PromiseFulfilled arguments=(string)
 /// @generic.instance id=async.promise.PromisePending<string> template=async.promise.PromisePending arguments=(string)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
 /// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
 /// @generic.instance id=async.promise.PromiseState<string> template=async.promise.PromiseState arguments=(string)
 /// @generic.instance id=async.promise.PromiseWaiter<string> template=async.promise.PromiseWaiter arguments=(string)
@@ -455,6 +362,10 @@ const result: Promise<string> = input.then((value) => {
 /// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
 /// @generic.instance id="async.promise.Promise.then#1<int32, string>" template=async.promise.Promise.then#1 arguments=(int32, string)
+/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
+/// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string)
+/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
+/// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
 /// @type.symbol symbol=symbol3 type=Function<(int32,), async.promise.Promise<string>>
 /// @type.node type=Function<(int32,), async.promise.Promise<string>>
 /// @type.symbol symbol=symbol3.value source=value type=int32
@@ -469,9 +380,26 @@ const result: Promise<string> = input.then((value) => {
     /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=input root=input
     /// @generic.instantiation id="async.promise.Promise.then#2<int32, string>" template=async.promise.Promise.then#2 arguments=(int32, string)
-    /// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
-    /// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
     /// @generic.instance id="async.promise.Promise.then#2<int32, string>" template=async.promise.Promise.then#2 arguments=(int32, string)
+    /// @generic.instance id=async.fiber.Fiber.wake<int32> template=async.fiber.Fiber.wake arguments=(int32)
+    /// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
+    /// @generic.instance id=async.fiber.wakeFiber<int32> template=async.fiber.wakeFiber arguments=(int32)
+    /// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
+    /// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
+    /// @generic.instance id=async.promise.Promise.addWaiter<int32> template=async.promise.Promise.addWaiter arguments=(int32)
+    /// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
+    /// @generic.instance id=async.promise.Promise.cancelWaiter<int32> template=async.promise.Promise.cancelWaiter arguments=(int32)
+    /// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string)
+    /// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
+    /// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
+    /// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
+    /// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
+    /// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
+    /// @generic.instance id=async.promise.Promise.queueWaiter<int32> template=async.promise.Promise.queueWaiter arguments=(int32)
+    /// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string)
+    /// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
+    /// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string)
+    /// @generic.instance id=async.promise.PromiseReaction.symbol194<int32> template=async.promise.PromiseReaction.symbol194 arguments=(int32)
     /// @type.symbol symbol=symbol3.symbol5 source="() => \"done\"" type=Function<(), string>
     /// @type.node source="() => \"done\"" type=Function<(), string>
     /// @type.node source="\"done\"" type="done"
@@ -520,34 +448,6 @@ declare const input: Promise<int32>;
 /// @resolution.pattern source=input kind=binding target=input
 /// @generic.instance id=async.awaitable.Awaitable<int32> template=async.awaitable.Awaitable arguments=(int32)
 /// @generic.instance id=async.awaitable.Awaitable<void> template=async.awaitable.Awaitable arguments=(void)
-/// @generic.instance id=async.fiber.Fiber.wake<int32> template=async.fiber.Fiber.wake arguments=(int32)
-/// @generic.instance id=async.fiber.Fiber.wake<void> template=async.fiber.Fiber.wake arguments=(void)
-/// @generic.instance id=async.fiber.wakeFiber<int32> template=async.fiber.wakeFiber arguments=(int32)
-/// @generic.instance id=async.fiber.wakeFiber<void> template=async.fiber.wakeFiber arguments=(void)
-/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
-/// @generic.instance id=async.promise.Promise.addReaction<void> template=async.promise.Promise.addReaction arguments=(void)
-/// @generic.instance id=async.promise.Promise.addWaiter<int32> template=async.promise.Promise.addWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.addWaiter<void> template=async.promise.Promise.addWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancel<int32> template=async.promise.Promise.cancel arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancel<void> template=async.promise.Promise.cancel arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<int32> template=async.promise.Promise.cancelWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<void> template=async.promise.Promise.cancelWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<int32> template=async.promise.Promise.cancelWaiters arguments=(int32)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<void> template=async.promise.Promise.cancelWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.forward<int32> template=async.promise.Promise.forward arguments=(int32)
-/// @generic.instance id=async.promise.Promise.forward<void> template=async.promise.Promise.forward arguments=(void)
-/// @generic.instance id=async.promise.Promise.fulfill<int32> template=async.promise.Promise.fulfill arguments=(int32)
-/// @generic.instance id=async.promise.Promise.fulfill<void> template=async.promise.Promise.fulfill arguments=(void)
-/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
-/// @generic.instance id=async.promise.Promise.observe<void> template=async.promise.Promise.observe arguments=(void)
-/// @generic.instance id=async.promise.Promise.pending<int32> template=async.promise.Promise.pending arguments=(int32)
-/// @generic.instance id=async.promise.Promise.pending<void> template=async.promise.Promise.pending arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiter<int32> template=async.promise.Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=async.promise.Promise.queueWaiter<void> template=async.promise.Promise.queueWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiters<int32> template=async.promise.Promise.queueWaiters arguments=(int32)
-/// @generic.instance id=async.promise.Promise.queueWaiters<void> template=async.promise.Promise.queueWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.symbol12<int32> template=async.promise.Promise.symbol12 arguments=(int32)
-/// @generic.instance id=async.promise.Promise.symbol12<void> template=async.promise.Promise.symbol12 arguments=(void)
 /// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
 /// @generic.instance id=async.promise.Promise<void> template=async.promise.Promise arguments=(void)
 /// @generic.instance id=async.promise.PromiseAwaiter<int32> template=async.promise.PromiseAwaiter arguments=(int32)
@@ -558,8 +458,6 @@ declare const input: Promise<int32>;
 /// @generic.instance id=async.promise.PromiseFulfilled<void> template=async.promise.PromiseFulfilled arguments=(void)
 /// @generic.instance id=async.promise.PromisePending<int32> template=async.promise.PromisePending arguments=(int32)
 /// @generic.instance id=async.promise.PromisePending<void> template=async.promise.PromisePending arguments=(void)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<int32> template=async.promise.PromiseReaction.symbol194 arguments=(int32)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<void> template=async.promise.PromiseReaction.symbol194 arguments=(void)
 /// @generic.instance id=async.promise.PromiseReaction<int32> template=async.promise.PromiseReaction arguments=(int32)
 /// @generic.instance id=async.promise.PromiseReaction<void> template=async.promise.PromiseReaction arguments=(void)
 /// @generic.instance id=async.promise.PromiseState<int32> template=async.promise.PromiseState arguments=(int32)
@@ -572,26 +470,11 @@ declare const next: Promise<string>;
 /// @type.symbol symbol=next source=next type=async.promise.Promise<string>
 /// @resolution.pattern source=next kind=binding target=next
 /// @generic.instance id=async.awaitable.Awaitable<string> template=async.awaitable.Awaitable arguments=(string)
-/// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
-/// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
-/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
-/// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
-/// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
-/// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
-/// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string)
 /// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 /// @generic.instance id=async.promise.PromiseAwaiter<string> template=async.promise.PromiseAwaiter arguments=(string)
 /// @generic.instance id=async.promise.PromiseForwarded<string> template=async.promise.PromiseForwarded arguments=(string)
 /// @generic.instance id=async.promise.PromiseFulfilled<string> template=async.promise.PromiseFulfilled arguments=(string)
 /// @generic.instance id=async.promise.PromisePending<string> template=async.promise.PromisePending arguments=(string)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
 /// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
 /// @generic.instance id=async.promise.PromiseState<string> template=async.promise.PromiseState arguments=(string)
 /// @generic.instance id=async.promise.PromiseWaiter<string> template=async.promise.PromiseWaiter arguments=(string)
@@ -605,26 +488,11 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 /// @type.symbol symbol=result source=result type=async.promise.Promise<string | async.promise.Promise<string>>
 /// @resolution.pattern source=result kind=binding target=result
 /// @generic.instance id="async.awaitable.Awaitable<string | async.promise.Promise<string>>" template=async.awaitable.Awaitable arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.fiber.Fiber.wake<string | async.promise.Promise<string>>" template=async.fiber.Fiber.wake arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.fiber.wakeFiber<string | async.promise.Promise<string>>" template=async.fiber.wakeFiber arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.addReaction<string | async.promise.Promise<string>>" template=async.promise.Promise.addReaction arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.addWaiter<string | async.promise.Promise<string>>" template=async.promise.Promise.addWaiter arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.cancel<string | async.promise.Promise<string>>" template=async.promise.Promise.cancel arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.cancelWaiter<string | async.promise.Promise<string>>" template=async.promise.Promise.cancelWaiter arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.cancelWaiters<string | async.promise.Promise<string>>" template=async.promise.Promise.cancelWaiters arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.forward<string | async.promise.Promise<string>>" template=async.promise.Promise.forward arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.fulfill<string | async.promise.Promise<string>>" template=async.promise.Promise.fulfill arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.observe<string | async.promise.Promise<string>>" template=async.promise.Promise.observe arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.pending<string | async.promise.Promise<string>>" template=async.promise.Promise.pending arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.queueWaiter<string | async.promise.Promise<string>>" template=async.promise.Promise.queueWaiter arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.queueWaiters<string | async.promise.Promise<string>>" template=async.promise.Promise.queueWaiters arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.Promise.symbol12<string | async.promise.Promise<string>>" template=async.promise.Promise.symbol12 arguments=(string | async.promise.Promise<string>)
 /// @generic.instance id="async.promise.Promise<string | async.promise.Promise<string>>" template=async.promise.Promise arguments=(string | async.promise.Promise<string>)
 /// @generic.instance id="async.promise.PromiseAwaiter<string | async.promise.Promise<string>>" template=async.promise.PromiseAwaiter arguments=(string | async.promise.Promise<string>)
 /// @generic.instance id="async.promise.PromiseForwarded<string | async.promise.Promise<string>>" template=async.promise.PromiseForwarded arguments=(string | async.promise.Promise<string>)
 /// @generic.instance id="async.promise.PromiseFulfilled<string | async.promise.Promise<string>>" template=async.promise.PromiseFulfilled arguments=(string | async.promise.Promise<string>)
 /// @generic.instance id="async.promise.PromisePending<string | async.promise.Promise<string>>" template=async.promise.PromisePending arguments=(string | async.promise.Promise<string>)
-/// @generic.instance id="async.promise.PromiseReaction.symbol194<string | async.promise.Promise<string>>" template=async.promise.PromiseReaction.symbol194 arguments=(string | async.promise.Promise<string>)
 /// @generic.instance id="async.promise.PromiseReaction<string | async.promise.Promise<string>>" template=async.promise.PromiseReaction arguments=(string | async.promise.Promise<string>)
 /// @generic.instance id="async.promise.PromiseState<string | async.promise.Promise<string>>" template=async.promise.PromiseState arguments=(string | async.promise.Promise<string>)
 /// @generic.instance id="async.promise.PromiseWaiter<string | async.promise.Promise<string>>" template=async.promise.PromiseWaiter arguments=(string | async.promise.Promise<string>)
@@ -641,7 +509,26 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 /// @generic.instantiation id="async.promise.Promise.then#2<int32, string | async.promise.Promise<string>>" template=async.promise.Promise.then#2 arguments=(int32, string | async.promise.Promise<string>)
 /// @generic.instantiation id=async.promise.Promise.then#1<int32> template=async.promise.Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=async.promise.Promise.then#2<int32> template=async.promise.Promise.then#2 arguments=(int32)
+/// @generic.instance id="async.fiber.Fiber.wake<string | async.promise.Promise<string>>" template=async.fiber.Fiber.wake arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.fiber.wakeFiber<string | async.promise.Promise<string>>" template=async.fiber.wakeFiber arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.cancel<string | async.promise.Promise<string>>" template=async.promise.Promise.cancel arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.cancelWaiter<string | async.promise.Promise<string>>" template=async.promise.Promise.cancelWaiter arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.cancelWaiters<string | async.promise.Promise<string>>" template=async.promise.Promise.cancelWaiters arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.fulfill<string | async.promise.Promise<string>>" template=async.promise.Promise.fulfill arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.observe<string | async.promise.Promise<string>>" template=async.promise.Promise.observe arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.pending<string | async.promise.Promise<string>>" template=async.promise.Promise.pending arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.queueWaiter<string | async.promise.Promise<string>>" template=async.promise.Promise.queueWaiter arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.queueWaiters<string | async.promise.Promise<string>>" template=async.promise.Promise.queueWaiters arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise.symbol12<string | async.promise.Promise<string>>" template=async.promise.Promise.symbol12 arguments=(string | async.promise.Promise<string>)
 /// @generic.instance id="async.promise.Promise.then#2<int32, string | async.promise.Promise<string>>" template=async.promise.Promise.then#2 arguments=(int32, string | async.promise.Promise<string>)
+/// @generic.instance id=async.fiber.Fiber.wake<int32> template=async.fiber.Fiber.wake arguments=(int32)
+/// @generic.instance id=async.fiber.wakeFiber<int32> template=async.fiber.wakeFiber arguments=(int32)
+/// @generic.instance id=async.promise.Promise.addReaction<int32> template=async.promise.Promise.addReaction arguments=(int32)
+/// @generic.instance id=async.promise.Promise.addWaiter<int32> template=async.promise.Promise.addWaiter arguments=(int32)
+/// @generic.instance id=async.promise.Promise.cancelWaiter<int32> template=async.promise.Promise.cancelWaiter arguments=(int32)
+/// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
+/// @generic.instance id=async.promise.Promise.queueWaiter<int32> template=async.promise.Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=async.promise.PromiseReaction.symbol194<int32> template=async.promise.PromiseReaction.symbol194 arguments=(int32)
 /// @type.symbol symbol=symbol5 type=Function<(), async.promise.Promise<string> | string>
 /// @type.node type=Function<(), async.promise.Promise<string> | string>
 
@@ -691,34 +578,6 @@ declare const input: Promise<string>;
 /// @resolution.pattern source=input kind=binding target=input
 /// @generic.instance id=async.awaitable.Awaitable<string> template=async.awaitable.Awaitable arguments=(string)
 /// @generic.instance id=async.awaitable.Awaitable<void> template=async.awaitable.Awaitable arguments=(void)
-/// @generic.instance id=async.fiber.Fiber.wake<string> template=async.fiber.Fiber.wake arguments=(string)
-/// @generic.instance id=async.fiber.Fiber.wake<void> template=async.fiber.Fiber.wake arguments=(void)
-/// @generic.instance id=async.fiber.wakeFiber<string> template=async.fiber.wakeFiber arguments=(string)
-/// @generic.instance id=async.fiber.wakeFiber<void> template=async.fiber.wakeFiber arguments=(void)
-/// @generic.instance id=async.promise.Promise.addReaction<string> template=async.promise.Promise.addReaction arguments=(string)
-/// @generic.instance id=async.promise.Promise.addReaction<void> template=async.promise.Promise.addReaction arguments=(void)
-/// @generic.instance id=async.promise.Promise.addWaiter<string> template=async.promise.Promise.addWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.addWaiter<void> template=async.promise.Promise.addWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancel<string> template=async.promise.Promise.cancel arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancel<void> template=async.promise.Promise.cancel arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<string> template=async.promise.Promise.cancelWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiter<void> template=async.promise.Promise.cancelWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<string> template=async.promise.Promise.cancelWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.cancelWaiters<void> template=async.promise.Promise.cancelWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.forward<string> template=async.promise.Promise.forward arguments=(string)
-/// @generic.instance id=async.promise.Promise.forward<void> template=async.promise.Promise.forward arguments=(void)
-/// @generic.instance id=async.promise.Promise.fulfill<string> template=async.promise.Promise.fulfill arguments=(string)
-/// @generic.instance id=async.promise.Promise.fulfill<void> template=async.promise.Promise.fulfill arguments=(void)
-/// @generic.instance id=async.promise.Promise.observe<string> template=async.promise.Promise.observe arguments=(string)
-/// @generic.instance id=async.promise.Promise.observe<void> template=async.promise.Promise.observe arguments=(void)
-/// @generic.instance id=async.promise.Promise.pending<string> template=async.promise.Promise.pending arguments=(string)
-/// @generic.instance id=async.promise.Promise.pending<void> template=async.promise.Promise.pending arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiter<string> template=async.promise.Promise.queueWaiter arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiter<void> template=async.promise.Promise.queueWaiter arguments=(void)
-/// @generic.instance id=async.promise.Promise.queueWaiters<string> template=async.promise.Promise.queueWaiters arguments=(string)
-/// @generic.instance id=async.promise.Promise.queueWaiters<void> template=async.promise.Promise.queueWaiters arguments=(void)
-/// @generic.instance id=async.promise.Promise.symbol12<string> template=async.promise.Promise.symbol12 arguments=(string)
-/// @generic.instance id=async.promise.Promise.symbol12<void> template=async.promise.Promise.symbol12 arguments=(void)
 /// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 /// @generic.instance id=async.promise.Promise<void> template=async.promise.Promise arguments=(void)
 /// @generic.instance id=async.promise.PromiseAwaiter<string> template=async.promise.PromiseAwaiter arguments=(string)
@@ -729,8 +588,6 @@ declare const input: Promise<string>;
 /// @generic.instance id=async.promise.PromiseFulfilled<void> template=async.promise.PromiseFulfilled arguments=(void)
 /// @generic.instance id=async.promise.PromisePending<string> template=async.promise.PromisePending arguments=(string)
 /// @generic.instance id=async.promise.PromisePending<void> template=async.promise.PromisePending arguments=(void)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<string> template=async.promise.PromiseReaction.symbol194 arguments=(string)
-/// @generic.instance id=async.promise.PromiseReaction.symbol194<void> template=async.promise.PromiseReaction.symbol194 arguments=(void)
 /// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
 /// @generic.instance id=async.promise.PromiseReaction<void> template=async.promise.PromiseReaction arguments=(void)
 /// @generic.instance id=async.promise.PromiseState<string> template=async.promise.PromiseState arguments=(string)
@@ -871,8 +728,11 @@ const values = identity([1, 2]);
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source="identity([1, 2])" type=Array<float64>
 /// @type.node source=identity type=(Array<float64>) => Array<float64>
 /// @resolution.name source=identity target=identity
@@ -880,6 +740,9 @@ const values = identity([1, 2]);
 /// @generic.instantiation id=identity<Array<float64>> template=identity arguments=(Array<float64>)
 /// @generic.instance id=identity<Array<float64>> template=identity arguments=(Array<float64>)
 /// @type.node source=[1, 2] type=Array<float64>
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -946,9 +809,15 @@ const value = first([1, 2]);
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
 /// @generic.instance id=first<float64> template=first arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source=[1, 2] type=Array<float64>
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=Array<float64> kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -1584,7 +1453,6 @@ const kept = values
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="collections.array.map#1<int32, int32>" template=collections.array.map#1 arguments=(int32, int32)
 /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
-/// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
 /// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
 /// @generic.instantiation id=collections.array.map#1<int32> template=collections.array.map#1 arguments=(int32)
 /// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
@@ -1728,7 +1596,6 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
-/// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
 /// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
 /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
 /// @generic.instantiation id="collections.array.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined)
@@ -1854,7 +1721,6 @@ const twice = values.flat(2);
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="Values.flat<int32, 2>" template=Values.flat arguments=(int32, 2)
-/// @generic.instantiation id=Values.flat<int32> template=Values.flat arguments=(int32)
 "#,
         r#"
 "#,
@@ -2460,7 +2326,6 @@ const positive = values.filter((value) => value > 0);
 /// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
-/// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
 /// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
 /// @type.symbol symbol=symbol2 source="(value) => value > 0" type=Function<(&type_expression.'a readonly int32,), boolean>
 /// @type.symbol symbol=symbol2.value source=value type=&type_expression.'a readonly int32
@@ -2544,7 +2409,6 @@ const held: Holder<int32> = Holder<int32>.wrap(42);
 /// @resolution.call source=Holder<int32>.wrap(42) parameters=(int32) arguments=(provided(42) as int32) return=Holder<int32> kind=symbol target=wrap instance=Holder<int32>.<extension#1>.wrap
 /// @resolution.function source=Holder<int32> type=Holder<int32> target=Holder instance=Holder<int32>
 /// @generic.instantiation id=Holder<int32> template=Holder arguments=(int32)
-/// @generic.instantiation id=wrap<int32> template=wrap arguments=(int32)
 /// @generic.instantiation id=wrap<int32> template=wrap arguments=(int32)
 "#,
         r#"
@@ -3043,7 +2907,6 @@ extension<T, E> of AsyncResult<T, E> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id="AsyncResult<T#7, E#6>" template=AsyncResult arguments=(T#7, E#6) owner=andThenSync
-        /// @generic.instantiation id="AsyncResult<T#7, E#6>" template=AsyncResult arguments=(T#7, E#6) owner=andThenSync
         /// @generic.instantiation id="Promise.then<Result<T#7, E#6>, Result<U#3, E#6 | F#2>>" template=Promise.then arguments=(Result<T#7, E#6>, Result<U#3, E#6 | F#2>) owner=andThenSync
         /// @generic.instantiation id="Promise.then<Result<T#7, E#6>>" template=Promise.then arguments=(Result<T#7, E#6>) owner=andThenSync
         /// @type.symbol symbol=andThenSync.symbol47 source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2>>
@@ -3093,8 +2956,11 @@ function positive(values: int32[]): int32[] {
 /// @type.symbol symbol=positive type=(Array<int32>) => Array<int32>
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
 /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 /// @type.symbol symbol=positive.values source="values: int32[]" type=Array<int32>
 
     return values.map((value) => value + 1).filter((value) => value > 0);
@@ -3111,7 +2977,6 @@ function positive(values: int32[]): int32[] {
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=positive.values
     /// @generic.instantiation id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
-    /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
     /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
     /// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
     /// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
@@ -3170,8 +3035,11 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 /// @type.symbol symbol=defined type=(Array<int32 | undefined>) => Array<int32 | undefined>
 /// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
 /// @generic.instance id="memory.init.MaybeUninit<int32 | undefined>" template=memory.init.MaybeUninit arguments=(int32 | undefined)
+/// @generic.instance id="memory.raw.dangling<memory.init.MaybeUninit<int32 | undefined>>" template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32 | undefined>)
 /// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<int32 | undefined>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32 | undefined>>)
 /// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32 | undefined>)
+/// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32 | undefined>)
+/// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32 | undefined>)
 /// @type.symbol symbol=defined.values source="values: (int32 | undefined)[]" type=Array<int32 | undefined>
 
     return values.map((value) => value).filter((value) => value !== undefined);
@@ -3187,7 +3055,6 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<Array<int32 | undefined>> kind=symbol target=collections.array.filter#1 receiver=Owned<Array<int32 | undefined>> instance=Owned<Array<collections.array.T#2>>.<extension#2>.filter#1
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=defined.values
-    /// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
     /// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
     /// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
     /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
@@ -3212,6 +3079,178 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=defined.symbol5.value
     /// @type.node source=undefined type=undefined
+
+}
+"#);
+}
+
+#[test]
+fn test_closure_forced_inference_widens_the_literal_initial() {
+    let session = TestSession::single(
+        r#"
+function containsPositive(values: int32[]): boolean {
+    return values.reduce(
+        (found, value) => found || value > 0,
+        false,
+    );
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+=== annotated ===
+function containsPositive(values: int32[]): boolean {
+    return values.reduce<int32, boolean>(
+        (found: boolean, value: int32): boolean => found || value > 0,
+        false,
+    );
+}
+
+=== dir ===
+function containsPositive(values: int32[]): boolean {
+/// @type.symbol symbol=containsPositive type=(Array<int32>) => boolean
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
+/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
+/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
+/// @type.symbol symbol=containsPositive.values source="values: int32[]" type=Array<int32>
+
+    return values.reduce(
+    /// @type.node source=values.reduce type=<collections.array.reduce.U#2>(this: Array<int32>, Function<(collections.array.reduce.U#2, int32, isize), collections.array.reduce.U#2>, collections.array.reduce.U#2) => collections.array.reduce.U#2
+    /// @type.node type=boolean
+    /// @resolution.name source=values target=containsPositive.values
+    /// @resolution.member source=values.reduce receiver=Array<int32> type=<collections.array.reduce.U#2>(this: Array<int32>, Function<(collections.array.reduce.U#2, int32, isize), collections.array.reduce.U#2>, collections.array.reduce.U#2) => collections.array.reduce.U#2 kind=symbol target_receiver=Array<int32> target=collections.array.reduce#2
+    /// @resolution.call parameters=(Function<(boolean, int32, isize), boolean>, boolean) arguments=(provided((found, value) => found || value > 0) as Function<(boolean, int32, isize), boolean>, provided(false) as boolean) return=boolean kind=symbol target=collections.array.reduce#2 receiver=Array<int32> instance=Array<int32>.<extension#3>.reduce#2<boolean>
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=containsPositive.values
+    /// @generic.instantiation id="collections.array.reduce#2<int32, boolean>" template=collections.array.reduce#2 arguments=(int32, boolean)
+    /// @generic.instantiation id=collections.array.reduce#2<int32> template=collections.array.reduce#2 arguments=(int32)
+    /// @generic.instance id="collections.array.reduce#2<int32, boolean>" template=collections.array.reduce#2 arguments=(int32, boolean)
+
+        (found, value) => found || value > 0,
+        /// @type.symbol symbol=containsPositive.symbol3 source="(found, value) => found || value > 0" type=Function<(boolean, int32), boolean>
+        /// @type.node source="(found, value) => found || value > 0" type=Function<(boolean, int32), boolean>
+        /// @type.symbol symbol=containsPositive.symbol3.found source=found type=boolean
+        /// @type.symbol symbol=containsPositive.symbol3.value source=value type=int32
+        /// @type.node source="found || value > 0" type=boolean
+        /// @resolution.name source=found target=containsPositive.symbol3.found
+        /// @resolution.operator source="found || value > 0" type=boolean operator="||" kind=builtin operands=[found as boolean families=(boolean), value > 0 as boolean families=(boolean)]
+        /// @resolution.place source=found placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=found root=containsPositive.symbol3.found
+        /// @type.node source="value > 0" type=boolean
+        /// @resolution.name source=value target=containsPositive.symbol3.value
+        /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=containsPositive.symbol3.value
+        /// @type.node source=0 type=0
+
+        false,
+        /// @type.node source=false type=false
+
+    );
+}
+"#);
+}
+
+#[test]
+fn test_fill_defaulted_interface_parameters_at_partial_written_rows() {
+    let session = TestSession::single(
+        r#"
+newtype interface It<T, R = void> {
+    next(this): R {
+        todo("next")
+    }
+
+    first(this): T | undefined {
+        todo("first")
+    }
+
+    count(this): isize {
+        todo("count")
+    }
+}
+
+function length(values: It<int32>): isize {
+    return values.count();
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+=== annotated ===
+newtype interface It<out T, out R = void> {
+    next(this): R {
+        todo("next")
+    }
+
+    first(this): T | undefined {
+        todo("first")
+    }
+
+    count(this): isize {
+        todo("count")
+    }
+}
+
+function length(values: Dynamic<It<int32, void>>): isize {
+    return values.count<int32, void>();
+}
+
+=== dir ===
+newtype interface It<T, R = void> {
+/// @generic.template symbol=It parameters=(out T, out R = void)
+/// @type.symbol symbol=It type=It
+/// @definition.interface symbol=It template=(out T, out R = void) nominal=true
+/// @definition.where symbol=It relation=satisfies left=this right=It<T, R>
+/// @definition.method symbol=It.count slot=count type=(this: this) => isize
+/// @definition.method symbol=It.first slot=first type=(this: this) => T | undefined
+/// @definition.method symbol=It.next slot=next type=(this: this) => R
+/// @type.symbol symbol=It.T source=T type=T
+/// @type.symbol symbol=It.R source="R = void" type=R
+
+    next(this): R {
+    /// @type.symbol symbol=It.next type=(this: this) => R
+    /// @type.symbol symbol=It.next.this source=this type=this
+    /// @resolution.name source=R target=It.R
+
+        todo("next")
+    }
+
+    first(this): T | undefined {
+    /// @type.symbol symbol=It.first type=(this: this) => T | undefined
+    /// @type.symbol symbol=It.first.this source=this type=this
+    /// @resolution.name source=T target=It.T
+
+        todo("first")
+    }
+
+    count(this): isize {
+    /// @type.symbol symbol=It.count type=(this: this) => isize
+    /// @type.symbol symbol=It.count.this source=this type=this
+
+        todo("count")
+    }
+}
+
+function length(values: It<int32>): isize {
+/// @type.symbol symbol=length type=(Dynamic<It<int32, void>>) => isize
+/// @generic.instance id="It<int32, void>" template=It arguments=(int32, void)
+/// @type.symbol symbol=length.values source="values: It<int32>" type=Dynamic<It<int32, void>>
+/// @resolution.name source=It target=It
+
+    return values.count();
+    /// @type.node source=values.count type=(this: It<int32, void>) => isize
+    /// @type.node source=values.count() type=isize
+    /// @resolution.name source=values target=length.values
+    /// @resolution.member source=values.count receiver=Dynamic<It<int32, void>> type=(this: It<int32, void>) => isize kind=symbol target_receiver=Dynamic<It<int32, void>> dispatch=dynamic constraint=It<int32, void> target=It.count
+    /// @resolution.call source=values.count() parameters=() return=isize kind=dynamic target=It.count receiver=Dynamic<It<int32, void>> constraint=It<int32, void> generic_arguments=(int32, void)
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=length.values
+    /// @generic.instantiation id="It.count<int32, void>" template=It.count arguments=(int32, void)
+    /// @generic.instance id="It.count<int32, void>" template=It.count arguments=(int32, void)
 
 }
 "#);

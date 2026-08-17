@@ -333,42 +333,19 @@ impl CheckState<'_> {
         parameters: &[GenericParameterId],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
-        // drop lifetime slots from erased instance identities
-        let lifetimes = parameters
-            .iter()
-            .map(|parameter| {
-                self.generic_parameter(*parameter).is_some_and(|binding| {
-                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
-                })
-            })
-            .collect::<Vec<_>>();
-        let values = lifetimes.iter().filter(|lifetime| !**lifetime).count();
-        if arguments.len() != parameters.len() && arguments.len() != values {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "generic argument count {} does not match parameter count {}",
-                    arguments.len(),
-                    parameters.len(),
-                ),
-            });
-        }
-
-        // slot written lifetime arguments and skip them in the instance identity
-        let written = arguments.len() == parameters.len();
-        let mut bindings = Vec::with_capacity(values);
-        let mut cursor = 0usize;
-        for (parameter, is_lifetime) in parameters.iter().copied().zip(lifetimes) {
-            if is_lifetime {
-                if written {
-                    self.generic_argument(parameter, arguments[cursor])?;
-                    cursor += 1;
-                }
+        // drop lifetime slots from the erased instance identity
+        let substitution = self.parameter_substitution(parameters, arguments)?;
+        let mut bindings = Vec::with_capacity(substitution.bindings.len());
+        for binding in substitution.bindings {
+            if self.is_lifetime_parameter(binding.parameter) {
                 continue;
             }
 
-            let argument = self.generic_argument(parameter, arguments[cursor])?;
-            cursor += 1;
-            bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
+            let argument = self.generic_argument(binding.parameter, binding.argument)?;
+            bindings.push(dir::GenericArgumentBinding::new(
+                binding.parameter,
+                argument,
+            ));
         }
 
         Ok(bindings)
@@ -889,33 +866,101 @@ impl CheckState<'_> {
         Ok(bounds)
     }
 
-    /// Return a positional substitution for one complete template application.
-    pub(in crate::sema) fn template_substitution(
-        &self,
+    /// Return the substitution one applied argument row selects, filling elided slots.
+    pub(in crate::sema) fn applied_substitution(
+        &mut self,
         template: GenericTemplateId,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<TypeSubstitution> {
         let parameters = self.generic_template_parameters(template)?;
-        if arguments.len() != parameters.len() {
+
+        self.parameter_substitution(&parameters, arguments)
+    }
+
+    /// Slot one applied argument row over ordered parameters, filling elided slots.
+    ///
+    /// Rows bind positionally. A row may elide trailing defaulted slots, and may
+    /// elide lifetime slots wherever it writes no lifetime of its own.
+    fn parameter_substitution(
+        &mut self,
+        parameters: &[GenericParameterId],
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<TypeSubstitution> {
+        if arguments.len() > parameters.len() {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "generic template {template:?} received {} arguments for {} parameters",
+                    "an application received {} arguments for {} parameters",
                     arguments.len(),
                     parameters.len(),
                 ),
             });
         }
 
-        let bindings = parameters
-            .into_iter()
-            .zip(arguments.iter().copied())
-            .map(|(parameter, argument)| dir::GenericArgumentBinding::new(parameter, argument))
-            .collect();
+        // bind a complete row positionally, blind to unresolved argument shapes
+        if arguments.len() == parameters.len() {
+            let bindings = parameters
+                .iter()
+                .copied()
+                .zip(arguments.iter().copied())
+                .map(|(parameter, argument)| dir::GenericArgumentBinding::new(parameter, argument))
+                .collect();
 
-        Ok(TypeSubstitution {
-            bindings,
-            receiver: None,
-        })
+            return Ok(TypeSubstitution {
+                bindings,
+                receiver: None,
+            });
+        }
+
+        let mut substitution = TypeSubstitution::default();
+        let mut cursor = 0usize;
+        for parameter in parameters.iter().copied() {
+            let binding = self.generic_parameter(parameter).copied().ok_or_else(|| {
+                CompilerError::Internal {
+                    message: format!("generic parameter {parameter:?} is missing"),
+                }
+            })?;
+
+            // lifetime slots consume only written lifetimes
+            let wants_lifetime = binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
+            let next_is_lifetime =
+                cursor < arguments.len() && self.written_argument_is_lifetime(arguments[cursor])?;
+
+            // bind the next written argument to the next writable slot
+            let argument = if binding.is_writable()
+                && cursor < arguments.len()
+                && (!wants_lifetime || next_is_lifetime)
+            {
+                let argument = arguments[cursor];
+                cursor += 1;
+
+                argument
+            }
+            // evaluate defaults against the application built so far
+            else if let Some(default) = binding.default {
+                self.substitute_type(default, &substitution)?
+            }
+            // fill elided lifetimes with the frame literal
+            else if wants_lifetime {
+                self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
+                    dir::Lifetime::Frame,
+                )))?
+            }
+            // reject truly unbound parameters
+            else {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "an application received {} arguments for {} parameters",
+                        arguments.len(),
+                        parameters.len(),
+                    ),
+                });
+            };
+            substitution
+                .bindings
+                .push(dir::GenericArgumentBinding::new(parameter, argument));
+        }
+
+        Ok(substitution)
     }
 
     /// Return the type substitution for one generic instance.
@@ -954,63 +999,7 @@ impl CheckState<'_> {
             self.type_ids(module, instance.arguments)?,
         );
 
-        // fill elided defaults before instantiating the written application
-        let parameters = self.generic_template_parameters(template)?;
-        if arguments.len() < parameters.len() {
-            let mut substitution = TypeSubstitution::default();
-            let mut cursor = 0usize;
-            for parameter in parameters.iter().copied() {
-                let binding = self.generic_parameter(parameter).copied().ok_or_else(|| {
-                    CompilerError::Internal {
-                        message: format!("generic parameter {parameter:?} is missing"),
-                    }
-                })?;
-
-                // lifetime slots consume only written lifetimes
-                let wants_lifetime =
-                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
-                let next_is_lifetime = cursor < arguments.len()
-                    && self.written_argument_is_lifetime(arguments[cursor])?;
-
-                // bind the next written argument to the next writable slot
-                let argument = if binding.is_writable()
-                    && cursor < arguments.len()
-                    && (!wants_lifetime || next_is_lifetime)
-                {
-                    let argument = arguments[cursor];
-                    cursor += 1;
-
-                    argument
-                }
-                // evaluate defaults against the application built so far
-                else if let Some(default) = binding.default {
-                    self.substitute_type(default, &substitution)?
-                }
-                // fill elided lifetimes with the frame literal
-                else if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
-                    self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
-                        dir::Lifetime::Frame,
-                    )))?
-                }
-                // reject truly unbound parameters
-                else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "generic template {template:?} received {} arguments for {} parameters",
-                            arguments.len(),
-                            parameters.len(),
-                        ),
-                    });
-                };
-                substitution
-                    .bindings
-                    .push(dir::GenericArgumentBinding::new(parameter, argument));
-            }
-
-            return Ok(substitution);
-        }
-
-        self.template_substitution(template, &arguments)
+        self.applied_substitution(template, &arguments)
     }
 
     /// Return whether one written argument spells a lifetime.
@@ -1211,9 +1200,7 @@ impl CheckState<'_> {
             // skip lifetime arguments, which erase from instance identity
             let parameter = applied.parameter;
             let argument = self.shallow_resolve(applied.argument)?;
-            let binding = self.require_generic_parameter(parameter)?;
-            let is_lifetime = binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
-            if is_lifetime {
+            if self.is_lifetime_parameter(parameter) {
                 continue;
             }
             bindings.push(dir::GenericArgumentBinding::new(parameter, argument));

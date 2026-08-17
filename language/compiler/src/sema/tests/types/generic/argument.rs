@@ -104,7 +104,7 @@ extension<T, E> of Result<T, E> {
         Result(value)
         /// @resolution.name source=Result target=Result
         /// @resolution.construct source=Result(value) parameters=(T#2) arguments=(provided(value) as T#2) return=Result<T#2, E#2> kind=newtype target=Result backing=T#2 instance="Result<T#2, E#2>"
-        /// @generic.instantiation id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2) owner=<module>#2
+        /// @generic.instantiation id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2) owner=ok
         /// @resolution.name source=value target=ok.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=ok.value
@@ -121,7 +121,6 @@ const result = Result<int32, string>.ok(42);
 /// @resolution.call source="Result<int32, string>.ok(42)" parameters=(int32) arguments=(provided(42) as int32) return=Result<int32, string> kind=symbol target=ok instance="Result<int32, string>.<extension#1>.ok"
 /// @resolution.function source="Result<int32, string>" type=Result<int32, string> target=Result instance="Result<int32, string>"
 /// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
-/// @generic.instantiation id="ok<int32, string>" template=ok arguments=(int32, string)
 /// @generic.instantiation id="ok<int32, string>" template=ok arguments=(int32, string)
 /// @generic.instance id="ok<int32, string>" template=ok arguments=(int32, string)
 "#,

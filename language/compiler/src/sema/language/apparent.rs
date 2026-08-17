@@ -46,7 +46,7 @@ impl ApparentInstance {
             });
         };
 
-        check.template_substitution(template, &self.arguments)
+        check.applied_substitution(template, &self.arguments)
     }
 }
 

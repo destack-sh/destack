@@ -75,7 +75,7 @@ extension Arithmetic<T: Scalar> of T {
         /// @type.node source=checkedAdd type=(T#2, T#2) => T#2 | undefined
         /// @resolution.name source=checkedAdd target=checkedAdd
         /// @resolution.call source="checkedAdd(this, other)" parameters=(T#2, T#2) arguments=(provided(this) as T#2, provided(other) as T#2) return=T#2 | undefined kind=symbol target=checkedAdd instance=checkedAdd<T#2>
-        /// @generic.instantiation id=checkedAdd<T#2> template=checkedAdd arguments=(T#2) owner=Arithmetic
+        /// @generic.instantiation id=checkedAdd<T#2> template=checkedAdd arguments=(T#2) owner=Arithmetic.checkedAdd
         /// @type.node source=this type=T#2
         /// @resolution.receiver source=this kind=this declaration=Arithmetic type=T#2
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -161,7 +161,7 @@ extension Forward<T> of T {
         /// @type.node source=choose type=(T#2, T#2) => T#2
         /// @resolution.name source=choose target=choose
         /// @resolution.call source="choose(this, other)" parameters=(T#2, T#2) arguments=(provided(this) as T#2, provided(other) as T#2) return=T#2 kind=symbol target=choose instance=choose<T#2>
-        /// @generic.instantiation id=choose<T#2> template=choose arguments=(T#2) owner=Forward
+        /// @generic.instantiation id=choose<T#2> template=choose arguments=(T#2) owner=Forward.choose
         /// @type.node source=this type=T#2
         /// @resolution.receiver source=this kind=this declaration=Forward type=T#2
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -240,7 +240,6 @@ function read<T>(source: &readonly Box<T>): &readonly T {
     /// @resolution.call source=source.get() parameters=() return=&read.'a readonly T#2 kind=symbol target=Box.get receiver=&read.'a readonly Box<T#2> instance=Box<T#2>.get
     /// @resolution.place source=source placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=source root=read.source
-    /// @generic.instantiation id=Box.get<T#2> template=Box.get arguments=(T#2) owner=read
     /// @generic.instantiation id=Box.get<T#2> template=Box.get arguments=(T#2) owner=read
 
 }
