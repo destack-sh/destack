@@ -120,6 +120,10 @@ impl HeapStorage {
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
+        if extent.byte_offset != 0 {
+            return Err(HeapError::invalid_shared_heap_reference(reference));
+        }
+
         let released_bytes = extent.byte_len as u64;
         let mut store = self.state.write();
 

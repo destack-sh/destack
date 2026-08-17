@@ -4,11 +4,47 @@ use std::sync::Arc;
 
 use super::{HeapExtent, HeapPlace, HeapStorage, LargeBlockId};
 use crate::{
-    HeapError, HeapResult, ReferenceClass, ReferenceInput, ReferenceRange, SharedHeapReference,
-    visit_references, visit_trace_references,
+    DropPlan, HeapError, HeapResult, ReferenceClass, ReferenceInput, ReferenceRange,
+    SharedHeapReference, visit_references, visit_trace_references,
 };
 
 impl HeapStorage {
+    /// Return the drop plan for one live shared allocation base.
+    pub(crate) fn drop_plan(&self, reference: SharedHeapReference) -> HeapResult<Option<DropPlan>> {
+        let Some(extent) = self.resolve_extent(reference) else {
+            return Err(HeapError::invalid_shared_heap_reference(reference));
+        };
+        if extent.byte_offset != 0 {
+            return Err(HeapError::invalid_shared_heap_reference(reference));
+        }
+
+        match extent.place {
+            HeapPlace::SmallSlot(slot) => {
+                let store = self.state.read();
+                let span = store
+                    .small
+                    .spans
+                    .get(slot.span_index())
+                    .ok_or_else(|| HeapError::internal("missing shared span"))?;
+
+                Ok(span.class.drop_plan())
+            }
+            HeapPlace::LargeBlock(block_id) => {
+                let store = self.state.read();
+                let index = block_id.index()?;
+                let block = store
+                    .large
+                    .blocks
+                    .get(index)
+                    .and_then(Option::as_ref)
+                    .ok_or_else(|| HeapError::internal("missing shared large block"))?;
+                let block = block.read();
+
+                Ok(block.drop)
+            }
+        }
+    }
+
     /// Zero one byte range in a live shared heap allocation.
     pub(crate) fn zero(&self, reference: SharedHeapReference, byte_len: usize) -> HeapResult<()> {
         let (extent, byte_offset) = self.resolve_range(reference, 0, byte_len)?;

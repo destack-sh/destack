@@ -3,7 +3,8 @@ use destack_mir::TraceMap;
 
 use super::{HeapExtent, HeapPlace, HeapStorage};
 use crate::{
-    HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference,
+    DropPlan, HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange,
+    SharedHeapReference,
 };
 
 impl HeapStorage {
@@ -16,6 +17,36 @@ impl HeapStorage {
     /// Return whether one heap reference currently refers to one live block.
     pub(crate) fn is_live(&self, reference: HeapReference) -> bool {
         self.resolve_extent(reference).is_some()
+    }
+
+    /// Return the drop plan for one live allocation base.
+    pub(crate) fn drop_plan(&self, reference: HeapReference) -> HeapResult<Option<DropPlan>> {
+        let Some(extent) = self.resolve_extent(reference) else {
+            return Err(HeapError::invalid_heap_reference(reference));
+        };
+        if extent.byte_offset != 0 {
+            return Err(HeapError::invalid_heap_reference(reference));
+        }
+
+        match extent.place {
+            HeapPlace::YoungRange { first_offset } => self
+                .young_range_by_offset(first_offset)
+                .map(|range| range.range.drop)
+                .ok_or_else(|| HeapError::internal("missing young range")),
+            HeapPlace::YoungSlot(slot) => self
+                .young
+                .span(slot.span_index())
+                .map(|span| span.class().drop_plan())
+                .ok_or_else(|| HeapError::internal("missing young span")),
+            HeapPlace::MatureSlot(slot) => self
+                .span(slot.span_index())
+                .map(|span| span.class.drop_plan())
+                .ok_or_else(|| HeapError::internal("missing mature span")),
+            HeapPlace::LargeBlock(block_id) => self
+                .large_block(block_id)
+                .map(|block| block.drop)
+                .ok_or_else(|| HeapError::internal("missing large block")),
+        }
     }
 
     /// Zero one byte range in a live heap allocation.

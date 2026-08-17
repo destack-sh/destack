@@ -5,9 +5,9 @@ use destack_mir::TraceMap;
 
 use crate::local::storage::HeapStorage;
 use crate::{
-    Allocation, AllocationPlan, DropReference, GcAdvance, GcDrop, GcPacer, GcPressure, GcState,
-    GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RootSlot,
-    SharedHeapReference, SmallAllocationPlan,
+    Allocation, AllocationPlan, DropPlan, DropReference, GcAdvance, GcDrop, GcPacer, GcPressure,
+    GcState, GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload,
+    RootSlot, SharedHeapReference, SmallAllocationPlan,
 };
 use destack_memory::{MemoryMap, MemoryRange};
 
@@ -405,6 +405,11 @@ impl Heap {
     /// Return whether one heap reference currently refers to one live block.
     pub fn is_heap_live(&self, reference: HeapReference) -> bool {
         self.storage.is_live(reference)
+    }
+
+    /// Return the drop plan for one live allocation base.
+    pub fn drop_plan(&self, reference: HeapReference) -> HeapResult<Option<DropPlan>> {
+        self.storage.drop_plan(reference)
     }
 
     /// Return the base native address for direct heap access.

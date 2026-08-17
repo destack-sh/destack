@@ -10,8 +10,8 @@ use super::usage::SharedHeapUsage;
 use crate::shared::gc::{Pacer, SharedMarkWorker};
 use crate::shared::storage::{AllocationCache, HeapStorage, HeapStorageImage};
 use crate::{
-    AccountingRegion, Allocation, AllocationPlan, DropReference, GcAdvance, GcCollector, GcDrop,
-    GcPacer, GcPhase, GcPressure, GcState, GcStats, HeapAllocationError, HeapError,
+    AccountingRegion, Allocation, AllocationPlan, DropPlan, DropReference, GcAdvance, GcCollector,
+    GcDrop, GcPacer, GcPhase, GcPressure, GcState, GcStats, HeapAllocationError, HeapError,
     HeapGcStateError, HeapResult, Payload, SharedHeapOptions, SharedHeapReference,
     SmallAllocationClass, TraceView, apply_byte_delta,
 };
@@ -331,6 +331,17 @@ impl SharedHeap {
     /// Return whether one shared heap reference currently refers to one live block.
     pub fn is_heap_live(&self, reference: SharedHeapReference) -> bool {
         self.storage.is_live(reference)
+    }
+
+    /// Return the drop plan for one live shared allocation base.
+    pub fn drop_plan(
+        &self,
+        cache: &mut AllocationCache,
+        reference: SharedHeapReference,
+    ) -> HeapResult<Option<DropPlan>> {
+        self.storage.flush_reference_cache(cache, reference);
+
+        self.storage.drop_plan(reference)
     }
 
     /// Free one shared heap block immediately.

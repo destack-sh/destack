@@ -354,6 +354,10 @@ impl HeapStorage {
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
+        if extent.byte_offset != 0 {
+            return Err(HeapError::invalid_heap_reference(reference));
+        }
+
         match extent.place {
             // retire one young range until the next young sweep
             HeapPlace::YoungRange { first_offset } => {
