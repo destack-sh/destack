@@ -534,3 +534,243 @@ export extension<T> of Pack<T> where T: Copy {
 "#,
     );
 }
+
+#[test]
+fn test_reject_extension_parameters_the_header_cannot_reach() {
+    let session = TestSession::single(
+        r#"
+struct Box<T> {
+    value: T;
+}
+
+extension<T, U> of Box<T> {
+    first(this): T {
+        return this.value;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Box<out T> {
+    value: T;
+}
+
+extension<T, U> of Box<T> {
+    first(this): T {
+        return this.value;
+    }
+}
+
+=== dir ===
+struct Box<T> {
+/// @generic.template symbol=Box parameters=(out T#1)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out T#1)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Box.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Box.T
+
+}
+
+extension<T, U> of Box<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2, U)
+/// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
+/// @definition.method symbol=first slot=first type=(this: this) => T#2
+/// @type.symbol symbol=T source=T type=T#2
+/// @type.symbol symbol=U source=U type=U
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=T
+
+    first(this): T {
+    /// @type.symbol symbol=first type=(this: this) => T#2
+    /// @type.symbol symbol=first.this source=this type=this
+    /// @resolution.name source=T target=T
+
+        return this.value;
+        /// @resolution.member source=this.value receiver=Box<T#2> type=T#2 kind=field target_receiver=Box<T#2> key=value target=Box.value target_type=T#2
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<T#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
+
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=unconstrained-extension-parameter message="extension parameter 'U' is not constrained by the extension target or an implemented interface"
+/// @diagnostic.label line=6 column=14 span="U" line_source="extension<T, U> of Box<T> {"
+"#,
+    );
+}
+
+#[test]
+fn test_accept_extension_parameters_reached_through_bounds() {
+    let session = TestSession::single(
+        r#"
+newtype interface Give<T> {
+    give(this): T;
+}
+
+struct Box<T> {
+    value: T;
+}
+
+extension<T, I: Give<Box<T>>> of I {
+    unwrap(this): T {
+        return this.give().value;
+    }
+}
+
+struct Token {}
+
+extension of Token implements Give<Box<boolean>> {
+    give(this): Box<boolean> {
+        return Box<boolean> { value: true };
+    }
+}
+
+function open(value: Token): boolean {
+    return value.unwrap();
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked(), r#"
+=== annotated ===
+newtype interface Give<out T> {
+    give(this): T;
+}
+
+struct Box<out T> {
+    value: T;
+}
+
+extension<T, I: Give<Box<T>>> of I {
+    unwrap(this): T {
+        return this.give<Box<T>>().value;
+    }
+}
+
+struct Token {}
+
+extension of Token implements Give<Box<boolean>> {
+    give(this): Box<boolean> {
+        return Box<boolean> { value: true };
+    }
+}
+
+function open(value: Token): boolean {
+    return value.unwrap<Token, boolean>();
+}
+
+=== dir ===
+newtype interface Give<T> {
+/// @generic.template symbol=Give parameters=(out T#1)
+/// @type.symbol symbol=Give type=Give
+/// @definition.interface symbol=Give template=(out T#1) nominal=true
+/// @definition.where symbol=Give relation=satisfies left=this right=Give<T#1>
+/// @definition.method symbol=Give.give source="give(this): T" slot=give type=(this: this) => T#1
+/// @type.symbol symbol=Give.T source=T type=T#1
+
+    give(this): T;
+    /// @type.symbol symbol=Give.give source="give(this): T" type=(this: this) => T#1
+    /// @type.symbol symbol=Give.give.this source=this type=this
+    /// @resolution.name source=T target=Give.T
+
+}
+
+struct Box<T> {
+/// @generic.template symbol=Box parameters=(out T#2)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out T#2)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#2
+/// @type.symbol symbol=Box.T source=T type=T#2
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T#2
+    /// @resolution.name source=T target=Box.T
+
+}
+
+extension<T, I: Give<Box<T>>> of I {
+/// @generic.template symbol=<module>#2 parameters=(T#3, I: Give<Box<T#3>>)
+/// @definition.extension symbol=<module>#2 form=local target=I
+/// @definition.method symbol=unwrap slot=unwrap type=(this: this) => T#3
+/// @type.symbol symbol=T source=T type=T#3
+/// @type.symbol symbol=I source="I: Give<Box<T>>" type=I
+/// @resolution.name source=Give target=Give
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=T
+/// @resolution.name source=I target=I
+
+    unwrap(this): T {
+    /// @type.symbol symbol=unwrap type=(this: this) => T#3
+    /// @type.symbol symbol=unwrap.this source=this type=this
+    /// @resolution.name source=T target=T
+
+        return this.give().value;
+        /// @resolution.member source=this.give receiver=I type=(this: I) => Box<T#3> kind=symbol target_receiver=I target=Give.give
+        /// @resolution.member source=this.give().value receiver=Box<T#3> type=T#3 kind=field target_receiver=Box<T#3> key=value target=Box.value target_type=T#3
+        /// @resolution.call source=this.give() parameters=() return=Box<T#3> kind=symbol target=Give.give receiver=I instance=Give<Box<T#3>>.give
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.give().value placement="local" lifetime="frame" access="exclusive"
+        /// @generic.instantiation id=Give.give<Box<T#3>> template=Give.give arguments=(Box<T#3>) owner=unwrap
+
+    }
+}
+
+struct Token {}
+/// @type.symbol symbol=Token source="struct Token {}" type=Token
+/// @definition.struct symbol=Token source="struct Token {}"
+
+extension of Token implements Give<Box<boolean>> {
+/// @generic.instance id=Box<boolean> template=Box arguments=(boolean)
+/// @generic.instance id=Give<Box<boolean>> template=Give arguments=(Box<boolean>)
+/// @definition.extension symbol=<module>#3 form=local target=Token
+/// @definition.implements symbol=<module>#3 source=Give<Box<boolean>> target=Give<Box<boolean>>
+/// @definition.method symbol=give slot=give type=(this: Token) => Box<boolean>
+/// @definition.conformance symbol=<module>#3 member=give requirement=Give.give
+/// @resolution.name source=Token target=Token
+/// @resolution.name source=Give target=Give
+/// @resolution.name source=Box target=Box
+
+    give(this): Box<boolean> {
+    /// @type.symbol symbol=give type=(this: Token) => Box<boolean>
+    /// @type.symbol symbol=give.this source=this type=this
+    /// @resolution.name source=Box target=Box
+
+        return Box<boolean> { value: true };
+        /// @resolution.name source=Box target=Box
+
+    }
+}
+
+function open(value: Token): boolean {
+/// @type.symbol symbol=open type=(Token) => boolean
+/// @type.symbol symbol=open.value source="value: Token" type=Token
+/// @resolution.name source=Token target=Token
+
+    return value.unwrap();
+    /// @resolution.name source=value target=open.value
+    /// @resolution.member source=value.unwrap receiver=Token type=(this: Token) => boolean kind=symbol target_receiver=Token target=unwrap
+    /// @resolution.call source=value.unwrap() parameters=() return=boolean kind=symbol target=unwrap receiver=Token instance=Token.<extension#1>.unwrap
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=open.value
+    /// @generic.instantiation id="unwrap<Token, boolean>" template=unwrap arguments=(Token, boolean)
+    /// @generic.instance id="unwrap<Token, boolean>" template=unwrap arguments=(Token, boolean)
+    /// @generic.instance id=Give.give<Box<boolean>> template=Give.give arguments=(Box<boolean>)
+
+}
+"#);
+}

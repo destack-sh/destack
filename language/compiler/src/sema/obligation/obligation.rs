@@ -311,6 +311,13 @@ pub(in crate::sema) enum ObligationFailure {
         /// The implemented interface.
         interface: dir::GlobalSymbolId,
     },
+    /// Extension parameter left unconstrained by the target and its conformances.
+    UnconstrainedExtensionParameter {
+        /// The parameter declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The unconstrained parameter.
+        parameter: String,
+    },
     /// An exported nonlocal extension has no source-level name.
     UnnamedExportedNonlocalExtension {
         /// The extension declaration source.

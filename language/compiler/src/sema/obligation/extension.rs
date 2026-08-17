@@ -1,3 +1,4 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -38,6 +39,14 @@ impl CheckState<'_> {
                 target: target.r#type(),
             });
         }
+
+        // reject parameters the target and conformances leave unconstrained
+        self.check_unconstrained_extension_parameters(
+            symbol,
+            target.r#type(),
+            &interfaces,
+            &mut failures,
+        )?;
 
         if interfaces.is_empty() {
             let check = ObligationCheck::from_failures(failures);
@@ -91,6 +100,90 @@ impl CheckState<'_> {
         let check = ObligationCheck::from_failures(failures);
 
         Ok(check)
+    }
+
+    /// Reject extension parameters the target and conformances leave unconstrained.
+    fn check_unconstrained_extension_parameters(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        target: dir::GlobalTypeId,
+        interfaces: &[dir::GlobalTypeId],
+        failures: &mut Vec<ObligationFailure>,
+    ) -> CompilerResult<()> {
+        let Some(template) = self.symbol_template(symbol)? else {
+            return Ok(());
+        };
+
+        // walk constraint reachability from the target and conformance headers
+        let mut constrained = FxIndexSet::default();
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(interfaces);
+        pending.push(target);
+        while let Some(ty) = pending.pop() {
+            for parameter in self.type_parameters(ty)? {
+                if !constrained.insert(parameter) {
+                    continue;
+                }
+                let constraint = self
+                    .generic_parameter(parameter)
+                    .and_then(|binding| binding.constraint);
+                pending.extend(constraint);
+            }
+        }
+
+        // declared type parameters outside the constrained set are rejected
+        for parameter in self.generic_template_parameters(template)? {
+            let Some(binding) = self.generic_parameter(parameter).copied() else {
+                continue;
+            };
+            if binding.kind != dir::GenericParameterKind::Type
+                || binding.symbol.is_none()
+                || constrained.contains(&parameter)
+            {
+                continue;
+            }
+
+            failures.push(ObligationFailure::UnconstrainedExtensionParameter {
+                source: binding.source,
+                parameter: self.format_type(binding.ty),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Return the generic parameters one type graph mentions.
+    fn type_parameters(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<SmallVec<[dir::GlobalGenericParameterId; 2]>> {
+        // skip the scan when the interned flags name no parameter
+        if !self.type_flags(id)?.has_parameter() {
+            return Ok(SmallVec::new());
+        }
+
+        // scan the type graph, stopping at symbol references
+        let mut parameters = SmallVec::new();
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        let mut visited = FxIndexSet::default();
+        pending.push(id);
+        while let Some(id) = pending.pop() {
+            if !visited.insert(id) {
+                continue;
+            }
+
+            let ty = self.ty(id)?;
+            if let dir::Type::Parameter(parameter) = ty {
+                if !parameters.contains(&parameter) {
+                    parameters.push(parameter);
+                }
+
+                continue;
+            }
+
+            self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
+        }
+
+        Ok(parameters)
     }
 
     /// Return whether an exported extension needs a source-level name.

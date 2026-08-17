@@ -2113,6 +2113,9 @@ impl CheckState<'_> {
             ObligationFailure::ForeignBlanketImplementation { source, interface } => {
                 self.report_foreign_blanket_implementation(source, interface);
             }
+            ObligationFailure::UnconstrainedExtensionParameter { source, parameter } => {
+                self.report_unconstrained_extension_parameter(source, parameter);
+            }
             ObligationFailure::UnnamedExportedNonlocalExtension { source, target } => {
                 self.report_unnamed_exported_nonlocal_extension(source, target);
             }
@@ -2556,6 +2559,22 @@ impl CheckState<'_> {
             anchor,
             module,
             interface: self.format_symbol(interface),
+        };
+
+        self.report(module, error);
+    }
+
+    /// Report one extension parameter its target and conformances leave unconstrained.
+    pub(in crate::sema) fn report_unconstrained_extension_parameter(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        parameter: String,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::UnconstrainedExtensionParameter {
+            anchor,
+            module,
+            parameter,
         };
 
         self.report(module, error);

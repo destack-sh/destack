@@ -2861,6 +2861,24 @@ pub enum CheckError {
         source: String,
     },
 
+    /// Extension parameter left unconstrained by the target and its conformances.
+    ///
+    /// ```ds
+    /// extension<T, U> of Box<T> {}
+    /// ```
+    #[diagnostic(
+        id = "unconstrained-extension-parameter",
+        message = "extension parameter '{parameter}' is not constrained by the extension target or an implemented interface"
+    )]
+    UnconstrainedExtensionParameter {
+        /// Report the parameter declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The unconstrained parameter.
+        parameter: String,
+    },
+
     /// Exported nonlocal extension has no source name.
     ///
     /// ```ds
