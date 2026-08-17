@@ -158,7 +158,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 form,
                 condition,
                 body,
-            } => self.lower_while(label, form, condition, body),
+            } => self.lower_while(label, form, &condition, body),
 
             // for (init; cond; step) { ... }
             dir::Expression::For {

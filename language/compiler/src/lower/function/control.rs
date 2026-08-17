@@ -93,7 +93,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         label: Option<StringId>,
         form: dir::WhileForm,
-        condition: dir::LocalNodeId<dir::Expression>,
+        condition: &dir::Condition,
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<bool> {
         // enter through the condition for while, through the body for do-while
@@ -107,7 +107,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // re-evaluate the condition in the header on every iteration
         self.builder.switch_to_block(header);
-        let condition = self.lower_expression(condition)?;
+        let condition = self.lower_condition(condition)?;
         self.builder.branch(condition, body_block, exit);
 
         // lower the body back-edged through the condition header
