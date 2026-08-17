@@ -2034,8 +2034,7 @@ pub fn walk_match_arm<V: NodeVisitor + ?Sized>(
     let pattern_node = tree.get(pattern);
     visitor.visit_pattern(tree, pattern, pattern_node);
     if let Some(guard) = arm.guard() {
-        let guard_node = tree.get(guard);
-        visitor.visit_expression(tree, guard, guard_node);
+        walk_condition(visitor, tree, guard);
     }
 
     match arm {

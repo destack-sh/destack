@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Block, Expression, LocalNodeId, Node, NodeType, Pattern};
+use crate::{Block, Condition, Expression, LocalNodeId, Node, NodeType, Pattern};
 
 /// One arm of a match expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -11,7 +11,7 @@ pub enum MatchArm {
         /// The selected pattern.
         pattern: LocalNodeId<Pattern>,
         /// The optional match guard.
-        guard: Option<LocalNodeId<Expression>>,
+        guard: Option<Condition>,
         /// The expression body.
         body: LocalNodeId<Expression>,
     },
@@ -20,7 +20,7 @@ pub enum MatchArm {
         /// The selected pattern.
         pattern: LocalNodeId<Pattern>,
         /// The optional match guard.
-        guard: Option<LocalNodeId<Expression>>,
+        guard: Option<Condition>,
         /// The block body.
         body: LocalNodeId<Block>,
     },
@@ -35,9 +35,9 @@ impl MatchArm {
     }
 
     /// Return the optional arm guard.
-    pub fn guard(&self) -> Option<LocalNodeId<Expression>> {
+    pub fn guard(&self) -> Option<&Condition> {
         match self {
-            Self::Expression { guard, .. } | Self::Block { guard, .. } => *guard,
+            Self::Expression { guard, .. } | Self::Block { guard, .. } => guard.as_ref(),
         }
     }
 }
