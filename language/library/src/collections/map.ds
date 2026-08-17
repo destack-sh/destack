@@ -222,7 +222,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Create a map from entries.
-    static fromIterator<R>(entries: Iterator<(K, V), R>): ^Map<K, V> {
+    static fromIterator(entries: Iterator<(K, V)>): ^Map<K, V> {
         todo("Map.fromIterator")
     }
 
@@ -332,7 +332,7 @@ export extension<K: Hash, V> of ^Map<K, V> implements From<Iterable<(K, V)>>, Fr
     }
 
     /// Create an owned map from entries.
-    static fromIterator<R>(entries: Iterator<(K, V), R>): ^Map<K, V> {
+    static fromIterator(entries: Iterator<(K, V)>): ^Map<K, V> {
         Map.fromIterator(entries)
     }
 }

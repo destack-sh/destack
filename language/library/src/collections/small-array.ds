@@ -119,7 +119,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Create a small array from `values`.
-    static fromIterator<R>(values: Iterator<T, R>): SmallArray<T, N> {
+    static fromIterator(values: Iterator<T>): SmallArray<T, N> {
         todo("SmallArray.fromIterator")
     }
 

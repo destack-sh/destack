@@ -176,7 +176,7 @@ export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V), "m
     }
 
     /// Create a concurrent map from `entries`.
-    static fromIterator<R>(entries: Iterator<(K, V), R>): ^ConcurrentMap<K, V> {
+    static fromIterator(entries: Iterator<(K, V)>): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.fromIterator")
     }
 
@@ -299,7 +299,7 @@ export extension<K: Hash, V> of ^ConcurrentMap<K, V>
     }
 
     /// Create an owned concurrent map from entries.
-    static fromIterator<R>(entries: Iterator<(K, V), R>): ^ConcurrentMap<K, V> {
+    static fromIterator(entries: Iterator<(K, V)>): ^ConcurrentMap<K, V> {
         ConcurrentMap.fromIterator(entries)
     }
 }

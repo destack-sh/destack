@@ -62,7 +62,7 @@ export extension<T: Hash> of ConcurrentSet<T> implements Extend<T, "mutable"> {
     }
 
     /// Create a concurrent set from `values`.
-    static fromIterator<R>(values: Iterator<T, R>): ^ConcurrentSet<T> {
+    static fromIterator(values: Iterator<T>): ^ConcurrentSet<T> {
         todo("ConcurrentSet.fromIterator")
     }
 
@@ -143,7 +143,7 @@ export extension<T: Hash> of ^ConcurrentSet<T> implements From<Iterable<T>>, Fro
     }
 
     /// Create an owned concurrent set from values.
-    static fromIterator<R>(values: Iterator<T, R>): ^ConcurrentSet<T> {
+    static fromIterator(values: Iterator<T>): ^ConcurrentSet<T> {
         ConcurrentSet.fromIterator(values)
     }
 }

@@ -28,12 +28,15 @@ export struct IteratorReturn<R = void> {
 
 /// A protocol for producing a sequence of values.
 @languageItem("iter.Iterator")
-export newtype interface Iterator<T, R = void> {
+export newtype interface Iterator<T> {
+    /// The completion value produced when the sequence ends.
+    type Return = void;
+
     /// Advance and return the next yield or completion.
-    next(): IteratorResult<T, R>;
+    next(): IteratorResult<T, this.Return>;
 
     /// Pair each yielded value with its index.
-    enumerate(this): EnumeratedIterator<this, T, R> {
+    enumerate(this): EnumeratedIterator<this, T> {
         todo("Iterator.enumerate")
     }
 
@@ -85,7 +88,7 @@ export newtype interface Iterator<T, R = void> {
     }
 
     /// Map each yielded value to an iterable and yield its values.
-    flatMap<U, Q, V: Iterable<U, Q>>(
+    flatMap<U, V: Iterable<U>>(
         this,
         map: (value: T, index: isize) => V,
     ): FlatMapIterator<this, T, V, V.Iterator, U> {
@@ -93,17 +96,17 @@ export newtype interface Iterator<T, R = void> {
     }
 
     /// Yield the values from each nested iterable.
-    flat<U, Q>(this): FlattenIterator<this, T.Iterator, U> where T: Iterable<U, Q> {
+    flat<U>(this): FlattenIterator<this, T.Iterator, U> where T: Iterable<U> {
         todo("Iterator.flat")
     }
 
     /// Yield these values followed by the values from `other`.
-    chain<Q, V: Iterable<T, Q>>(this, other: V): ChainIterator<this, V.Iterator, T> {
+    chain<V: Iterable<T>>(this, other: V): ChainIterator<this, V.Iterator, T> {
         todo("Iterator.chain")
     }
 
     /// Pair these values with values from `other` until either iterator completes.
-    zip<U, Q, V: Iterable<U, Q>>(this, other: V): ZipIterator<this, V.Iterator, T, U> {
+    zip<U, V: Iterable<U>>(this, other: V): ZipIterator<this, V.Iterator, T, U> {
         todo("Iterator.zip")
     }
 
@@ -212,28 +215,28 @@ export newtype interface Iterator<T, R = void> {
     inspect(
         this,
         observe: (value: &readonly T, index: isize) => void,
-    ): InspectIterator<this, T, R> {
+    ): InspectIterator<this, T> {
         todo("Iterator.inspect")
     }
 
     /// Add one value of lookahead.
-    peekable(this): PeekableIterator<this, T, R> {
+    peekable(this): PeekableIterator<this, T> {
         todo("Iterator.peekable")
     }
 }
 
 /// A value that can produce an iterator.
 @languageItem("iter.Iterable")
-export newtype interface Iterable<T, R = void> {
+export newtype interface Iterable<T> {
     /// The iterator produced by this value.
-    type Iterator: Iterator<T, R> = Iterator<T, R>;
+    type Iterator: Iterator<T> = Iterator<T>;
 
     /// Return an iterator over this value.
     iterator(): this.Iterator;
 }
 
 /// Every iterator is trivially iterable as itself.
-export extension<T, R, I: Iterator<T, R>> of I implements Iterable<T, R> {
+export extension<T, I: Iterator<T>> of I implements Iterable<T> {
     /// The iterator itself.
     type Iterator = I;
 
@@ -247,7 +250,7 @@ export extension<T, R, I: Iterator<T, R>> of I implements Iterable<T, R> {
 @languageItem("iter.FromIterator")
 export newtype interface FromIterator<T> {
     /// Build this value from `values`.
-    static fromIterator<R>(values: Iterator<T, R>): this;
+    static fromIterator(values: Iterator<T>): this;
 }
 
 /// Collection extended from an iterable sequence.
@@ -258,7 +261,7 @@ export newtype interface Extend<T, const A: Access = "exclusive"> {
 }
 
 /// Iterator that pairs each yielded value with its index.
-export struct EnumeratedIterator<I, out T, out R = void> {
+export struct EnumeratedIterator<I, out T> {
     /// The source iterator.
     private iterator: I;
 
@@ -266,11 +269,14 @@ export struct EnumeratedIterator<I, out T, out R = void> {
     private index: isize = 0;
 }
 
-export extension<T, R, I: Iterator<T, R>> of EnumeratedIterator<I, T, R>
+export extension<T, I: Iterator<T>> of EnumeratedIterator<I, T>
     implements
-        Iterator<(isize, T), R> {
+        Iterator<(isize, T)> {
+    /// The source iterator's completion value.
+    type Return = I.Return;
+
     /// Advance and pair the next yielded value with its index.
-    next(): IteratorResult<(isize, T), R> {
+    next(): IteratorResult<(isize, T), I.Return> {
         todo("EnumeratedIterator.next")
     }
 }
@@ -287,7 +293,7 @@ export struct MapIterator<I, T, U> {
     private index: isize = 0;
 }
 
-export extension<T, U, R, I: Iterator<T, R>> of MapIterator<I, T, U> implements Iterator<U> {
+export extension<T, U, I: Iterator<T>> of MapIterator<I, T, U> implements Iterator<U> {
     /// Advance and map the next yielded value.
     next(): IteratorResult<U> {
         todo("MapIterator.next")
@@ -306,7 +312,7 @@ export struct FilterIterator<I, T> {
     private index: isize = 0;
 }
 
-export extension<T, R, I: Iterator<T, R>> of FilterIterator<I, T> implements Iterator<T> {
+export extension<T, I: Iterator<T>> of FilterIterator<I, T> implements Iterator<T> {
     /// Advance to the next accepted value.
     next(): IteratorResult<T> {
         todo("FilterIterator.next")
@@ -325,7 +331,7 @@ export struct FilterMapIterator<I, T, U> {
     private index: isize = 0;
 }
 
-export extension<T, U, R, I: Iterator<T, R>> of FilterMapIterator<I, T, U> implements Iterator<U> {
+export extension<T, U, I: Iterator<T>> of FilterMapIterator<I, T, U> implements Iterator<U> {
     /// Advance to the next defined mapped value.
     next(): IteratorResult<U> {
         todo("FilterMapIterator.next")
@@ -341,7 +347,7 @@ export struct TakeIterator<I, out T> {
     private remaining: isize;
 }
 
-export extension<T, R, I: Iterator<T, R>> of TakeIterator<I, T> implements Iterator<T> {
+export extension<T, I: Iterator<T>> of TakeIterator<I, T> implements Iterator<T> {
     /// Advance while the configured limit remains.
     next(): IteratorResult<T> {
         todo("TakeIterator.next")
@@ -363,7 +369,7 @@ export struct TakeWhileIterator<I, T> {
     private isDone: boolean = false;
 }
 
-export extension<T, R, I: Iterator<T, R>> of TakeWhileIterator<I, T> implements Iterator<T> {
+export extension<T, I: Iterator<T>> of TakeWhileIterator<I, T> implements Iterator<T> {
     /// Advance while the predicate accepts source values.
     next(): IteratorResult<T> {
         todo("TakeWhileIterator.next")
@@ -379,7 +385,7 @@ export struct DropIterator<I, out T> {
     private remaining: isize;
 }
 
-export extension<T, R, I: Iterator<T, R>> of DropIterator<I, T> implements Iterator<T> {
+export extension<T, I: Iterator<T>> of DropIterator<I, T> implements Iterator<T> {
     /// Skip the configured prefix and advance.
     next(): IteratorResult<T> {
         todo("DropIterator.next")
@@ -401,7 +407,7 @@ export struct DropWhileIterator<I, T> {
     private isDropping: boolean = true;
 }
 
-export extension<T, R, I: Iterator<T, R>> of DropWhileIterator<I, T> implements Iterator<T> {
+export extension<T, I: Iterator<T>> of DropWhileIterator<I, T> implements Iterator<T> {
     /// Skip accepted source values and advance through the remainder.
     next(): IteratorResult<T> {
         todo("DropWhileIterator.next")
@@ -423,8 +429,8 @@ export struct FlatMapIterator<I, T, V, J, out U> {
     private index: isize = 0;
 }
 
-export extension<T, U, R, Q, I, J, V> of FlatMapIterator<I, T, V, J, U> implements Iterator<U>
-    where I: Iterator<T, R>, V: Iterable<U, Q, type Iterator = J> {
+export extension<T, U, I, J, V> of FlatMapIterator<I, T, V, J, U> implements Iterator<U>
+    where I: Iterator<T>, V: Iterable<U, type Iterator = J> {
     /// Advance through the current nested iterator or map the next source value.
     next(): IteratorResult<U> {
         todo("FlatMapIterator.next")
@@ -440,8 +446,8 @@ export struct FlattenIterator<I, J, out T> {
     private nested?: J;
 }
 
-export extension<T, R, Q, I, J> of FlattenIterator<I, J, T> implements Iterator<T>
-    where I: Iterator<Iterable<T, Q, type Iterator = J>, R> {
+export extension<T, I, J> of FlattenIterator<I, J, T> implements Iterator<T>
+    where I: Iterator<Iterable<T, type Iterator = J>> {
     /// Advance through the current nested iterator or the next iterable.
     next(): IteratorResult<T> {
         todo("FlattenIterator.next")
@@ -460,7 +466,7 @@ export struct ChainIterator<I, J, out T> {
     private isFirst: boolean = true;
 }
 
-export extension<T, R, Q, I: Iterator<T, R>, J: Iterator<T, Q>> of ChainIterator<I, J, T>
+export extension<T, I: Iterator<T>, J: Iterator<T>> of ChainIterator<I, J, T>
     implements
         Iterator<T> {
     /// Advance through the first source and then the second.
@@ -478,7 +484,7 @@ export struct ZipIterator<I, J, out T, out U> {
     private right: J;
 }
 
-export extension<T, U, R, Q, I: Iterator<T, R>, J: Iterator<U, Q>> of ZipIterator<I, J, T, U>
+export extension<T, U, I: Iterator<T>, J: Iterator<U>> of ZipIterator<I, J, T, U>
     implements
         Iterator<(T, U)> {
     /// Advance both sources and return their next pair.
@@ -502,7 +508,7 @@ export struct MapWhileIterator<I, T, U> {
     private isDone: boolean = false;
 }
 
-export extension<T, U, R, I: Iterator<T, R>> of MapWhileIterator<I, T, U> implements Iterator<U> {
+export extension<T, U, I: Iterator<T>> of MapWhileIterator<I, T, U> implements Iterator<U> {
     /// Advance until the transformation returns undefined.
     next(): IteratorResult<U> {
         todo("MapWhileIterator.next")
@@ -527,7 +533,7 @@ export struct ScanIterator<I, T, S, U> {
     private isDone: boolean = false;
 }
 
-export extension<T, S, U, R, I: Iterator<T, R>> of ScanIterator<I, T, S, U> implements Iterator<U> {
+export extension<T, S, U, I: Iterator<T>> of ScanIterator<I, T, S, U> implements Iterator<U> {
     /// Advance with the current state until the transformation returns undefined.
     next(): IteratorResult<U> {
         todo("ScanIterator.next")
@@ -535,7 +541,7 @@ export extension<T, S, U, R, I: Iterator<T, R>> of ScanIterator<I, T, S, U> impl
 }
 
 /// Iterator that observes each yielded value.
-export struct InspectIterator<I, T, out R = void> {
+export struct InspectIterator<I, T> {
     /// The source iterator.
     private iterator: I;
 
@@ -546,74 +552,86 @@ export struct InspectIterator<I, T, out R = void> {
     private index: isize = 0;
 }
 
-export extension<T, R, I: Iterator<T, R>> of InspectIterator<I, T, R> implements Iterator<T, R> {
+export extension<T, I: Iterator<T>> of InspectIterator<I, T> implements Iterator<T> {
+    /// The source iterator's completion value.
+    type Return = I.Return;
+
     /// Advance the source after observing its next yielded value.
-    next(): IteratorResult<T, R> {
+    next(): IteratorResult<T, I.Return> {
         todo("InspectIterator.next")
     }
 }
 
 /// Iterator with one buffered yielded value.
-export struct PeekableIterator<I, T, R = void> {
+export struct PeekableIterator<I, T> {
     /// The source iterator.
     private iterator: I;
 
     /// The buffered result, when the source has been inspected.
-    private buffered?: IteratorResult<T, R>;
+    private buffered?: IteratorResult<T, I.Return>;
 }
 
-export extension<T, R, I: Iterator<T, R>> of PeekableIterator<I, T, R> implements Iterator<T, R> {
+export extension<T, I: Iterator<T>> of PeekableIterator<I, T> implements Iterator<T> {
+    /// The source iterator's completion value.
+    type Return = I.Return;
+
     /// Borrow the next yielded value without consuming it.
     peek(): &readonly T | undefined {
         todo("PeekableIterator.peek")
     }
 
     /// Return the buffered result or advance the source.
-    next(): IteratorResult<T, R> {
+    next(): IteratorResult<T, I.Return> {
         todo("PeekableIterator.next")
     }
 }
 
 /// Iterator that copies borrowed values.
-export struct CopyIterator<I, out T, out R = void> {
+export struct CopyIterator<I, out T> {
     /// The source iterator.
     private iterator: I;
 }
 
-export extension<T: Copy, R, I: Iterator<&readonly T, R>> of CopyIterator<I, T, R>
+export extension<T: Copy, I: Iterator<&readonly T>> of CopyIterator<I, T>
     implements
-        Iterator<T, R> {
+        Iterator<T> {
+    /// The source iterator's completion value.
+    type Return = I.Return;
+
     /// Advance and copy the next yielded value.
-    next(): IteratorResult<T, R> {
+    next(): IteratorResult<T, I.Return> {
         todo("CopyIterator.next")
     }
 }
 
 /// Iterator that clones borrowed values.
-export struct CloneIterator<I, out T, out R = void> {
+export struct CloneIterator<I, out T> {
     /// The source iterator.
     private iterator: I;
 }
 
-export extension<T: Clone, R, I: Iterator<&readonly T, R>> of CloneIterator<I, T, R>
+export extension<T: Clone, I: Iterator<&readonly T>> of CloneIterator<I, T>
     implements
-        Iterator<T, R> {
+        Iterator<T> {
+    /// The source iterator's completion value.
+    type Return = I.Return;
+
     /// Advance and clone the next yielded value.
-    next(): IteratorResult<T, R> {
+    next(): IteratorResult<T, I.Return> {
         todo("CloneIterator.next")
     }
 }
 
-export extension<T: Copy, R, I: Iterator<&readonly T, R>> of I {
+export extension<T: Copy, I: Iterator<&readonly T>> of I {
     /// Copy each borrowed value.
-    copied(this): CopyIterator<I, T, R> {
+    copied(this): CopyIterator<I, T> {
         todo("Iterator.copied")
     }
 }
 
-export extension<T: Clone, R, I: Iterator<&readonly T, R>> of I {
+export extension<T: Clone, I: Iterator<&readonly T>> of I {
     /// Clone each borrowed value.
-    cloned(this): CloneIterator<I, T, R> {
+    cloned(this): CloneIterator<I, T> {
         todo("Iterator.cloned")
     }
 }

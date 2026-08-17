@@ -9,7 +9,10 @@ export newtype interface From<T> {
 
 /// Fallible conversion from `T`.
 @languageItem("convert.TryFrom")
-export newtype interface TryFrom<T, E = Error> {
+export newtype interface TryFrom<T> {
+    /// The error produced when the conversion fails.
+    type Error = Error;
+
     /// Convert `value`, or return an error.
-    static tryFrom(value: T): Result<this, E>;
+    static tryFrom(value: T): Result<this, this.Error>;
 }

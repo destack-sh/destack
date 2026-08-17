@@ -408,7 +408,7 @@ export extension<T> of Array<T>
     }
 
     /// Create an array from `values`.
-    static fromIterator<R>(values: Iterator<T, R>): ^Array<T> {
+    static fromIterator(values: Iterator<T>): ^Array<T> {
         todo("Array.fromIterator")
     }
 
@@ -753,7 +753,7 @@ export extension<T> of ^Array<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create an owned array from `values`.
-    static fromIterator<R>(values: Iterator<T, R>): ^Array<T> {
+    static fromIterator(values: Iterator<T>): ^Array<T> {
         Array.fromIterator(values)
     }
 }

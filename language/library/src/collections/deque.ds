@@ -129,7 +129,7 @@ export extension<T> of Deque<T>
     }
 
     /// Create a deque from `values`.
-    static fromIterator<R>(values: Iterator<T, R>): ^Deque<T> {
+    static fromIterator(values: Iterator<T>): ^Deque<T> {
         todo("Deque.fromIterator")
     }
 
@@ -232,7 +232,7 @@ export extension<T> of ^Deque<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create an owned deque from values.
-    static fromIterator<R>(values: Iterator<T, R>): ^Deque<T> {
+    static fromIterator(values: Iterator<T>): ^Deque<T> {
         Deque.fromIterator(values)
     }
 }

@@ -145,7 +145,7 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "exclusive"> 
     }
 
     /// Create a linked list from `values`.
-    static fromIterator<R>(values: Iterator<T, R>): ^LinkedList<T> {
+    static fromIterator(values: Iterator<T>): ^LinkedList<T> {
         todo("LinkedList.fromIterator")
     }
 
@@ -235,7 +235,7 @@ export extension<T> of ^LinkedList<T> implements From<Iterable<T>>, FromIterator
     }
 
     /// Create an owned linked list from values.
-    static fromIterator<R>(values: Iterator<T, R>): ^LinkedList<T> {
+    static fromIterator(values: Iterator<T>): ^LinkedList<T> {
         LinkedList.fromIterator(values)
     }
 }

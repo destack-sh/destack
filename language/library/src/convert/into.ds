@@ -18,14 +18,20 @@ export extension<T, U> of T implements Into<U> where U: From<T> {
 
 /// Fallible conversion into `T`.
 @languageItem("convert.TryInto")
-export newtype interface TryInto<T, E = Error> {
+export newtype interface TryInto<T> {
+    /// The error produced when the conversion fails.
+    type Error = Error;
+
     /// Convert this value, or return an error.
-    tryInto(): Result<T, E>;
+    tryInto(): Result<T, this.Error>;
 }
 
-export extension<T, U, E = Error> of T implements TryInto<U, E> where U: TryFrom<T, E> {
+export extension<T, U> of T implements TryInto<U> where U: TryFrom<T> {
+    /// The target conversion's error.
+    type Error = U.Error;
+
     /// Convert this value through `U.tryFrom`.
-    tryInto(): Result<U, E> {
+    tryInto(): Result<U, U.Error> {
         U.tryFrom(this)
     }
 }

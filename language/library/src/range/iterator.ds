@@ -13,9 +13,9 @@ export struct RangeIterator<T: Step<T>> {
     private end: Bound<T>;
 }
 
-export extension<T: Step<T>> of RangeIterator<T> implements Iterator<T, void> {
+export extension<T: Step<T>> of RangeIterator<T> implements Iterator<T> {
     /// Advance the iterator.
-    next(): IteratorResult<T, void> {
+    next(): IteratorResult<T> {
         todo("RangeIterator.next")
     }
 }

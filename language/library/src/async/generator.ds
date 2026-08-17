@@ -43,7 +43,10 @@ export local class Generator<Y, R = void, N = void> {
 }
 
 /// Generators iterate over their yielded values.
-export extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y, R> {
+export extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y> {
+    /// The generator's declared completion value.
+    type Return = R;
+
     /// Advance the generator and return the next yield or completion.
     next(): IteratorResult<Y, R> {
         this.next(undefined)
@@ -112,7 +115,10 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
 }
 
 /// Async generators iterate over their yielded values.
-export extension<Y: Copy, R: Copy, N> of AsyncGenerator<Y, R, N> implements AsyncIterator<Y, R> {
+export extension<Y: Copy, R: Copy, N> of AsyncGenerator<Y, R, N> implements AsyncIterator<Y> {
+    /// The generator's declared completion value.
+    type Return = R;
+
     /// Advance and return the next yield or completion.
     next(): Promise<IteratorResult<Y, R>> {
         this.next(undefined)
