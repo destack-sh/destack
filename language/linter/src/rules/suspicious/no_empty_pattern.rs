@@ -83,23 +83,36 @@ fn is_match_context(view: &dir::View<'_>, pattern: dir::LocalNodeId<dir::Pattern
         }
     }
 
-    // select the nearest expression that owns this declarator
+    // select the declarator that owns a conditional pattern
     let Some(declarator) = view.ancestor::<dir::Declarator>(pattern.into_any()) else {
         return false;
     };
-    let Some(owner) = view.ancestor::<dir::Expression>(declarator.into_any()) else {
+    let Some(parent) = view.get_parent_for(declarator) else {
         return false;
     };
 
     // recognize condition and let-else pattern positions
-    match view.get(owner) {
-        dir::Expression::If { condition, .. } | dir::Expression::While { condition, .. } => {
-            condition.binds(declarator)
+    match parent.ty {
+        dir::NodeType::Expression => {
+            let expression = view.get(dir::LocalNodeId::<dir::Expression>::new(parent.id));
+
+            matches!(
+                expression,
+                dir::Expression::LetElse { declarator: binding, .. }
+                    if *binding == declarator
+            ) || matches!(
+                expression,
+                dir::Expression::If { condition, .. }
+                    | dir::Expression::While { condition, .. }
+                    if condition.binds(declarator)
+            )
         }
-        dir::Expression::LetElse {
-            declarator: binding,
-            ..
-        } => *binding == declarator,
+        dir::NodeType::MatchArm => {
+            let arm = view.get(dir::LocalNodeId::<dir::MatchArm>::new(parent.id));
+
+            arm.guard()
+                .is_some_and(|condition| condition.binds(declarator))
+        }
         _ => false,
     }
 }
@@ -155,6 +168,24 @@ function waitUntilEmpty(values: int32[]): void {
     while (let [] = values) {
         return;
     }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an empty pattern used by a match guard condition.
+    #[test]
+    fn test_accepts_empty_match_guard_pattern() {
+        let session = TestSession::dir(
+            &NO_EMPTY_PATTERN,
+            r#"
+function isEmpty(value: () | null): boolean {
+    return match (value) {
+        tuple if (let () = tuple) => true
+        _ => false
+    };
 }
 "#,
         );

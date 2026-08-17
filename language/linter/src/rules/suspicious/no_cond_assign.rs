@@ -63,9 +63,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             _ => {}
         }
     }
+
+    // collect match guard expressions
     for (_, arm) in view.iter_nodes::<dir::MatchArm>() {
         if let Some(guard) = arm.guard() {
-            conditions.insert(guard.into_any());
+            for condition in guard.expressions() {
+                conditions.insert(condition.into_any());
+            }
         }
     }
 
@@ -233,6 +237,40 @@ warning[no-cond-assign]: assignment is evaluated as a condition
 3 │     return match (value) {
 4 │         _ if ((active = next)) => active
   │               ^^^^^^^^^^^^^^^
+5 │         _ => false
+6 │     };
+  │
+
+ = help: move the assignment before the condition or use a binding condition
+"#,
+        );
+    }
+
+    /// Report an assignment after a match-guard binding.
+    #[test]
+    fn test_reports_match_binding_guard_assignment() {
+        let session = TestSession::dir(
+            &NO_COND_ASSIGN,
+            r#"
+function select(value: (int32, boolean) | null, next: boolean): boolean {
+    let active = false;
+    return match (value) {
+        pair if (let (number, ready) = pair && (active = next)) => ready
+        _ => false
+    };
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-cond-assign]: assignment is evaluated as a condition
+ ──▶ main.ds:4:48
+  │
+2 │     let active = false;
+3 │     return match (value) {
+4 │         pair if (let (number, ready) = pair && (active = next)) => ready
+  │                                                ^^^^^^^^^^^^^^^
 5 │         _ => false
 6 │     };
   │

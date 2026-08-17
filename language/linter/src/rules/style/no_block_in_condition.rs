@@ -82,13 +82,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        report_block_input(
-            module,
-            lint,
-            guard,
-            dir::OperatorPrecedence::Lowest,
-            &mut output,
-        )?;
+        report_condition_blocks(module, lint, guard, false, &mut output)?;
     }
 
     Ok(output)
@@ -571,6 +565,55 @@ warning[no-block-in-condition]: control-flow input is a block expression
 function positive(value: int32): int32 {
     return match (value) {
         value if (value > 0) => value
+        _ => 0
+    };
+}
+"#,
+        );
+    }
+
+    /// Replace a trivial block after a match-guard binding.
+    #[test]
+    fn test_replaces_match_binding_guard_block() {
+        let session = TestSession::dir(
+            &NO_BLOCK_IN_CONDITION,
+            r#"
+function positive(value: (int32, boolean) | null): int32 {
+    return match (value) {
+        pair if (let (number, ready) = pair && do { ready }) => number
+        _ => 0
+    };
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-block-in-condition]: control-flow input is a block expression
+ ──▶ main.ds:3:48
+  │
+1 │ function positive(value: (int32, boolean) | null): int32 {
+2 │     return match (value) {
+3 │         pair if (let (number, ready) = pair && do { ready }) => number
+  │                                                ^^^^^^^^^^^^
+4 │         _ => 0
+5 │     };
+  │
+
+ = fix: use the expression directly
+--- a/main.ds
++++ b/main.ds
+
+    2│     return match (value) {
+-   3│         pair if (let (number, ready) = pair && do { ready }) => number
++   3│         pair if (let (number, ready) = pair && ready) => number
+"#,
+        );
+        session.assert_fixes(
+            r#"
+function positive(value: (int32, boolean) | null): int32 {
+    return match (value) {
+        pair if (let (number, ready) = pair && ready) => number
         _ => 0
     };
 }

@@ -44,11 +44,16 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect guarded arms with one direct binding pattern
+    // inspect expression-only guards
     for (arm, node) in view.iter_nodes::<dir::MatchArm>() {
-        let Some(guard) = node.guard() else {
+        let Some(condition) = node.guard() else {
             continue;
         };
+        let Some(guard) = condition.as_expression() else {
+            continue;
+        };
+
+        // require one direct binding pattern
         let pattern = node.pattern();
         let dir::PatternDecision::Bind(binding) = module.pattern_decision(pattern)? else {
             continue;
@@ -186,6 +191,24 @@ function equals(value: int32, expected: int32): boolean {
     return match (value) {
         matched if (matched == expected) => true
         _ => false
+    };
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a compound guard with a binding condition.
+    #[test]
+    fn test_accepts_binding_guard() {
+        let session = TestSession::dir(
+            &NO_REDUNDANT_MATCH_GUARD,
+            r#"
+function classify(value: (int32, boolean) | null): int32 {
+    return match (value) {
+        pair if (let (number, ready) = pair && ready) => number
+        _ => 0
     };
 }
 "#,
