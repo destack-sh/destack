@@ -93,6 +93,9 @@ impl Compiler {
                 *then_expression,
                 *else_expression,
             ),
+            dir::Expression::While {
+                condition, body, ..
+            } => self.bind_while_expression(state, tree, id, condition, *body),
             dir::Expression::ForEach {
                 binding,
                 iterator,
@@ -189,13 +192,13 @@ impl Compiler {
             state.bind_node_to_scope(id.into_any(), scope_id);
 
             state.push_scope(scope_id);
-            self.bind_if_condition_operands(state, tree, &condition.operands);
+            self.bind_condition_operands(state, tree, &condition.operands);
             self.visit_expression_by_id(state, tree, then_expression);
             state.pop_scope();
         }
         // otherwise visit operands and then branch in the current scope
         else {
-            self.bind_if_condition_operands(state, tree, &condition.operands);
+            self.bind_condition_operands(state, tree, &condition.operands);
             self.visit_expression_by_id(state, tree, then_expression);
         }
 
@@ -205,8 +208,37 @@ impl Compiler {
         }
     }
 
-    /// Bind one if condition chain.
-    fn bind_if_condition_operands(
+    /// Bind one while expression.
+    fn bind_while_expression(
+        &self,
+        state: &mut BindState<'_>,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+        condition: &dir::Condition,
+        body: dir::LocalNodeId<dir::Block>,
+    ) {
+        // bind the loop expression
+        state.bind_node(id.into_any());
+
+        // scope condition bindings through the loop body
+        if condition.has_binding() {
+            let scope_id = state.insert_child_scope(dir::ScopeKind::Block);
+            state.bind_node_to_scope(id.into_any(), scope_id);
+
+            state.push_scope(scope_id);
+            self.bind_condition_operands(state, tree, &condition.operands);
+            self.visit_block_by_id(state, tree, body);
+            state.pop_scope();
+        }
+        // visit binding-free loops in the current scope
+        else {
+            self.bind_condition_operands(state, tree, &condition.operands);
+            self.visit_block_by_id(state, tree, body);
+        }
+    }
+
+    /// Bind one condition chain.
+    fn bind_condition_operands(
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
