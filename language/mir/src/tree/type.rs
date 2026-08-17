@@ -916,6 +916,27 @@ impl Type {
         )
     }
 
+    /// Replace the lifetime of a reference-like value.
+    pub fn set_lifetime(&mut self, replacement: Lifetime) {
+        match self {
+            Type::Dynamic { lifetime, .. }
+            | Type::Reference { lifetime, .. }
+            | Type::Slice { lifetime, .. }
+            | Type::Tensor { lifetime, .. }
+            | Type::TensorView { lifetime, .. }
+            | Type::Function { lifetime, .. } => *lifetime = replacement,
+            _ => {}
+        }
+    }
+
+    /// Return this carrier with its proof-only lifetime erased.
+    pub fn erased_lifetime(&self) -> Type {
+        let mut erased = self.clone();
+        erased.set_lifetime(Lifetime::empty());
+
+        erased
+    }
+
     /// Return the reference kind for reference-like values.
     pub fn reference_kind(&self) -> Option<ReferenceKind> {
         match self {
@@ -1269,5 +1290,69 @@ impl Type {
             | Type::TypeDescriptor
             | Type::TypeId => {}
         }
+    }
+}
+
+/// One nullish constant a carrier can store.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Nullish {
+    /// The null constant.
+    Null,
+    /// The undefined constant.
+    Undefined,
+}
+
+/// One carrier position storing an absent nullish constant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NullishCase {
+    /// The variant case holding the void payload.
+    Case(u32),
+    /// The nullish niche of a reference-family carrier.
+    Niche,
+}
+
+impl Nullability {
+    /// Return whether this niche admits one nullish constant.
+    pub fn admits(self, nullish: Nullish) -> bool {
+        matches!(
+            (self, nullish),
+            (
+                Nullability::Null | Nullability::NullOrUndefined,
+                Nullish::Null
+            ) | (
+                Nullability::Undefined | Nullability::NullOrUndefined,
+                Nullish::Undefined
+            )
+        )
+    }
+}
+
+impl Tree {
+    /// Return where one carrier stores one nullish constant, when it does.
+    pub fn nullish_case(&self, ty: TypeId, nullish: Nullish) -> Option<NullishCase> {
+        match self.get(ty) {
+            // read through lifetime applications onto the wrapped base
+            Type::Application { base, .. } => self.nullish_case(*base, nullish),
+
+            // variants store undefined as their void case
+            Type::Variant { cases, .. } => match nullish {
+                Nullish::Undefined => cases
+                    .iter()
+                    .position(|case| matches!(self.get(case.ty), Type::Void))
+                    .map(|index| NullishCase::Case(index as u32)),
+                Nullish::Null => None,
+            },
+
+            // read the nullish niche of reference-family carriers
+            other => other
+                .nullability()
+                .filter(|nullability| nullability.admits(nullish))
+                .map(|_| NullishCase::Niche),
+        }
+    }
+
+    /// Return where one carrier stores undefined, when it does.
+    pub fn undefined_case(&self, ty: TypeId) -> Option<NullishCase> {
+        self.nullish_case(ty, Nullish::Undefined)
     }
 }

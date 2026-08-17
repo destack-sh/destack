@@ -62,6 +62,23 @@ impl<'a> FunctionBuilder<'a> {
         self.iconst(value as i128, 64, true)
     }
 
+    /// Insert a pointer-sized signed integer constant.
+    pub fn isize_const(&mut self, value: i128) -> Value {
+        let destination = self.allocate_value();
+        let ty = self.tree.intern_type(Type::Isize);
+        let width = self.pointer_bits;
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: Constant::Int {
+                value,
+                width,
+                is_signed: true,
+            },
+        });
+        self.define_value(destination, ty);
+        destination
+    }
+
     /// Insert a pointer-sized unsigned integer constant.
     pub fn usize_const(&mut self, value: u128) -> Value {
         let destination = self.allocate_value();
