@@ -168,7 +168,9 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             Opcode::SLICE_VIEW => self.format_slice(opcode),
 
             // dynamic values
-            Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_TYPE => self.format_dynamic(opcode),
+            Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_READ | Opcode::DYNAMIC_TYPE => {
+                self.format_dynamic(opcode)
+            }
 
             // allocation and destruction
             Opcode::FREE | Opcode::DROP | Opcode::DROP_INDIRECT => self.format_reference(opcode),

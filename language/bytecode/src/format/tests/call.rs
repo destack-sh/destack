@@ -13,13 +13,11 @@ move r4, r0
 return r3
 }
 function f2 {
-    dynamic.bind r5:r6, r4,d0
 call r7, f0(r0:r1)
 call r8, f0()
 call.indirect r7, r2:r3(r0:r1)
 call.virtual r7, r4:ref<managed,local>[0,0](r0:r1)
 call.dynamic r7, r5:r6[0](r0:r1)
-dynamic.type r8, r5:r6
 extract r9, r5:r6,0:8
 function.bind r10:r11, f1,r9
 extract r12, r10:r11,8:8
@@ -38,13 +36,11 @@ function f1 {
 }
 
 function f2 {
-    dynamic.bind r5:r6, r4, d0
     call r7, f0(r0:r1)
     call r8, f0()
     call.indirect r7, r2:r3(r0:r1)
     call.virtual r7, r4: ref<managed, local>[0, 0](r0:r1)
     call.dynamic r7, r5:r6[0](r0:r1)
-    dynamic.type r8, r5:r6
     extract r9, r5:r6, 0:8
     function.bind r10:r11, f1, r9
     extract r12, r10:r11, 8:8

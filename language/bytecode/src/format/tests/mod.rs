@@ -4,6 +4,7 @@ mod atomic;
 mod call;
 mod context;
 mod control;
+mod dynamic;
 mod fixture;
 mod function;
 mod instruction;

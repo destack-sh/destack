@@ -8,6 +8,7 @@ impl InstructionFormatter<'_, '_, '_> {
     pub(super) fn format_dynamic(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
             Opcode::DYNAMIC_BIND => self.format_dynamic_bind(),
+            Opcode::DYNAMIC_READ => self.format_dynamic_read(),
             Opcode::DYNAMIC_TYPE => self.format_dynamic_type(),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid dynamic opcode",
@@ -29,6 +30,25 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_register(value)?;
         self.write_comma()?;
         self.write_text(&table)
+    }
+
+    /// Format one dynamic field read.
+    fn format_dynamic_read(&mut self) -> FormatResult<()> {
+        let (result, result_word_count) = self.register_span_id()?;
+        let (dynamic, dynamic_word_count) = self.register_span_id()?;
+        let slot = self.u16()?;
+        let byte_len = self.u32()?;
+
+        // write the selected field and exact result width
+        self.write_opcode("dynamic.read")?;
+        self.write_span(RegisterSpan::new(result, result_word_count))?;
+        self.write_comma()?;
+        self.write_span(RegisterSpan::new(dynamic, dynamic_word_count))?;
+        self.write_text("[")?;
+        self.write_text(&slot.to_string())?;
+        self.write_text("]")?;
+        self.write_comma()?;
+        self.write_text(&byte_len.to_string())
     }
 
     /// Format one dynamic runtime type access.

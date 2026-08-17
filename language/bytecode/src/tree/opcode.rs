@@ -328,6 +328,11 @@ opcodes! {
         signature: "(payload: ref, table: DynamicTableId) => dynamic",
         operands: [ResultRange, Register, DynamicTable],
     }
+    DYNAMIC_READ = 0x0079 {
+        text: "dynamic.read",
+        signature: "(value: dynamic, slot: uint16, byteLength: uint32) => value",
+        operands: [ResultRange, RegisterSpan, Unsigned16, Unsigned32],
+    }
     DYNAMIC_TYPE = 0x007a {
         text: "dynamic.type",
         signature: "(value: dynamic) => typeId",
