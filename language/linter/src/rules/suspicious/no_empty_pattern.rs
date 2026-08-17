@@ -93,13 +93,9 @@ fn is_match_context(view: &dir::View<'_>, pattern: dir::LocalNodeId<dir::Pattern
 
     // recognize condition and let-else pattern positions
     match view.get(owner) {
-        dir::Expression::If { condition, .. } => condition.operands.iter().any(|operand| {
-            matches!(
-                operand,
-                dir::ConditionOperand::Binding { declarator: binding, .. }
-                    if *binding == declarator
-            )
-        }),
+        dir::Expression::If { condition, .. } | dir::Expression::While { condition, .. } => {
+            condition.binds(declarator)
+        }
         dir::Expression::LetElse {
             declarator: binding,
             ..
@@ -142,6 +138,23 @@ function isEmpty(values: int32[]): boolean {
         return true;
     }
     return false;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an empty sequence used as a while-loop value match.
+    #[test]
+    fn test_accepts_empty_while_condition_pattern() {
+        let session = TestSession::dir(
+            &NO_EMPTY_PATTERN,
+            r#"
+function waitUntilEmpty(values: int32[]): void {
+    while (let [] = values) {
+        return;
+    }
 }
 "#,
         );

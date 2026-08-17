@@ -40,22 +40,40 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
     // inspect direct conditions and selected values
     for (_, node) in view.iter_nodes::<dir::Expression>() {
-        let (input, is_ternary) = match node {
+        match node {
             dir::Expression::If {
                 form, condition, ..
-            } => (condition.as_expression(), *form == dir::IfForm::Ternary),
-            dir::Expression::While { condition, .. } => (Some(*condition), false),
-            dir::Expression::For { condition, .. } => (*condition, false),
-            dir::Expression::Match { value, .. } | dir::Expression::Switch { value, .. } => {
-                (Some(*value), false)
+            } => report_condition_blocks(
+                module,
+                lint,
+                condition,
+                *form == dir::IfForm::Ternary,
+                &mut output,
+            )?,
+            dir::Expression::While { condition, .. } => {
+                report_condition_blocks(module, lint, condition, false, &mut output)?;
             }
-            _ => (None, false),
-        };
-        let Some(input) = input else {
-            continue;
-        };
-
-        report_block_input(module, lint, input, is_ternary, &mut output)?;
+            dir::Expression::For {
+                condition: Some(condition),
+                ..
+            } => report_block_input(
+                module,
+                lint,
+                *condition,
+                dir::OperatorPrecedence::Lowest,
+                &mut output,
+            )?,
+            dir::Expression::Match { value, .. } | dir::Expression::Switch { value, .. } => {
+                report_block_input(
+                    module,
+                    lint,
+                    *value,
+                    dir::OperatorPrecedence::Lowest,
+                    &mut output,
+                )?;
+            }
+            _ => {}
+        }
     }
 
     // inspect match guards
@@ -64,10 +82,39 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        report_block_input(module, lint, guard, false, &mut output)?;
+        report_block_input(
+            module,
+            lint,
+            guard,
+            dir::OperatorPrecedence::Lowest,
+            &mut output,
+        )?;
     }
 
     Ok(output)
+}
+
+/// Report blocks used directly as operands of one condition.
+fn report_condition_blocks(
+    module: &DirModule<'_>,
+    lint: &Lint,
+    condition: &dir::Condition,
+    is_ternary: bool,
+    output: &mut LintOutput,
+) -> Result<(), ProviderError> {
+    let minimum_precedence = if condition.operands.len() > 1 {
+        dir::OperatorPrecedence::LogicalAnd
+    } else if is_ternary {
+        dir::OperatorPrecedence::TypeRelation
+    } else {
+        dir::OperatorPrecedence::Lowest
+    };
+
+    for input in condition.expressions() {
+        report_block_input(module, lint, input, minimum_precedence, output)?;
+    }
+
+    Ok(())
 }
 
 /// Report one block used directly as a control-flow input.
@@ -75,7 +122,7 @@ fn report_block_input(
     module: &DirModule<'_>,
     lint: &Lint,
     input: dir::LocalNodeId<dir::Expression>,
-    is_ternary: bool,
+    minimum_precedence: dir::OperatorPrecedence,
     output: &mut LintOutput,
 ) -> Result<(), ProviderError> {
     let view = module.view();
@@ -89,7 +136,7 @@ fn report_block_input(
     let span = module.source_extent(input.into_any())?;
     let mut diagnostic = lint.diagnostic("control-flow input is a block expression", span);
     if let Some(value) = view.get(*block).only_expression()
-        && let Some(suggestion) = suggestion(module, lint, span, value, is_ternary)?
+        && let Some(suggestion) = suggestion(module, lint, span, value, minimum_precedence)?
     {
         diagnostic = diagnostic.suggestion(suggestion);
     }
@@ -104,21 +151,15 @@ fn suggestion(
     lint: &Lint,
     extent: destack_source::Span,
     value: dir::LocalNodeId<dir::Expression>,
-    is_ternary: bool,
+    minimum_precedence: dir::OperatorPrecedence,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let value_span = module.source_extent(value.into_any())?;
     if module.has_unretained_comment(extent, &[value_span])? {
         return Ok(None);
     }
 
-    // retain the condition as one operand of the surrounding ternary
-    let replacement = if is_ternary {
-        module.expression_source(value, dir::OperatorPrecedence::TypeRelation)?
-    } else if let Some(parentheses) = module.source_parentheses(value.into_any()) {
-        module.source(parentheses)?.into()
-    } else {
-        module.source(value_span)?.into()
-    };
+    // retain authored grouping and meet the surrounding operator precedence
+    let replacement = module.expression_source(value, minimum_precedence)?;
 
     // replace the complete block expression
     let patch = Patch::replace(extent, replacement);
@@ -183,6 +224,47 @@ warning[no-block-in-condition]: control-flow input is a block expression
             r#"
 function wait(isReady: boolean): void {
     while (isReady) {}
+}
+"#,
+        );
+    }
+
+    /// Replace a trivial block after a while-loop condition binding.
+    #[test]
+    fn test_replaces_while_condition_binding_block() {
+        let session = TestSession::dir(
+            &NO_BLOCK_IN_CONDITION,
+            r#"
+function wait(value: { ready: boolean | undefined } | null): void {
+    while (let { ready } = value && do { ready ?? false }) {}
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-block-in-condition]: control-flow input is a block expression
+ ──▶ main.ds:2:37
+  │
+1 │ function wait(value: { ready: boolean | undefined } | null): void {
+2 │     while (let { ready } = value && do { ready ?? false }) {}
+  │                                     ^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+
+ = fix: use the expression directly
+--- a/main.ds
++++ b/main.ds
+
+    1│ function wait(value: { ready: boolean | undefined } | null): void {
+-   2│     while (let { ready } = value && do { ready ?? false }) {}
++   2│     while (let { ready } = value && (ready ?? false)) {}
+"#,
+        );
+        session.assert_fixes(
+            r#"
+function wait(value: { ready: boolean | undefined } | null): void {
+    while (let { ready } = value && (ready ?? false)) {}
 }
 "#,
         );

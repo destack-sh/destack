@@ -49,15 +49,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // collect every authored expression condition
     for (_, expression) in view.iter_nodes::<dir::Expression>() {
         match expression {
-            dir::Expression::If { condition, .. } => {
-                for operand in &condition.operands {
-                    if let dir::ConditionOperand::Expression { condition } = operand {
-                        conditions.insert(condition.into_any());
-                    }
+            dir::Expression::If { condition, .. } | dir::Expression::While { condition, .. } => {
+                for condition in condition.expressions() {
+                    conditions.insert(condition.into_any());
                 }
-            }
-            dir::Expression::While { condition, .. } => {
-                conditions.insert(condition.into_any());
             }
             dir::Expression::For {
                 condition: Some(condition),
@@ -145,6 +140,36 @@ warning[no-cond-assign]: assignment is evaluated as a condition
 2 │     let active = false;
 3 │     while ((active = next)) {}
   │            ^^^^^^^^^^^^^^^
+4 │ }
+  │
+
+ = help: move the assignment before the condition or use a binding condition
+"#,
+        );
+    }
+
+    /// Report an assignment after a while-loop condition binding.
+    #[test]
+    fn test_reports_while_condition_binding_assignment() {
+        let session = TestSession::dir(
+            &NO_COND_ASSIGN,
+            r#"
+function repeat(value: boolean | undefined): void {
+    let active = false;
+    while (let current! = value && (active = current)) {}
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-cond-assign]: assignment is evaluated as a condition
+ ──▶ main.ds:3:36
+  │
+1 │ function repeat(value: boolean | undefined): void {
+2 │     let active = false;
+3 │     while (let current! = value && (active = current)) {}
+  │                                    ^^^^^^^^^^^^^^^^^^
 4 │ }
   │
 
