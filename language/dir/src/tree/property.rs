@@ -265,6 +265,17 @@ impl Node for Member {
 }
 
 impl Member {
+    /// Return this member's declared visibility.
+    pub fn visibility(&self) -> Option<Visibility> {
+        match self {
+            Self::AssociatedType { visibility, .. }
+            | Self::AssociatedConst { visibility, .. }
+            | Self::Field { visibility, .. }
+            | Self::Method { visibility, .. } => *visibility,
+            Self::StaticBlock { .. } | Self::ConstBlock { .. } | Self::Error => None,
+        }
+    }
+
     /// Return the nominal slot occupied by this member.
     pub fn slot(&self) -> Option<MemberSlot> {
         match self {
