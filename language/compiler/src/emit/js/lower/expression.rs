@@ -328,6 +328,26 @@ impl ModuleLowerer<'_> {
             .insert_from_source(switch_case, self.module.id, case_id))
     }
 
+    /// Lower one expression-only condition.
+    fn lower_condition(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        condition: &dir::Condition,
+    ) -> Result<js::LocalNodeId<js::Expression>, EmitError> {
+        // reject binding conditions at the lowering boundary
+        let Some(condition_expression) = condition.as_expression() else {
+            return Err(self.unhandled(
+                expression.into_global_any(self.module.id),
+                Some("binding conditions are not supported by JavaScript lowering".to_string()),
+            ));
+        };
+
+        self.lower_expression_as_anchored::<js::Expression>(
+            condition_expression,
+            condition_expression.into_global_any(self.module.id),
+        )
+    }
+
     /// Lower an expression from DIR into JavaScript.
     pub(crate) fn lower_expression(
         &mut self,
@@ -831,17 +851,7 @@ impl ModuleLowerer<'_> {
                 else_expression,
             } => match form {
                 dir::IfForm::Ternary => {
-                    let Some(condition) = condition.as_expression() else {
-                        // TODO #Broken: lower condition chains to JS
-                        return Err(self.unhandled(
-                            expression_id.into_global_any(self.module.id),
-                            Some("condition chains are not lowered to JS yet".to_string()),
-                        ));
-                    };
-                    let condition = self.lower_expression_as_anchored::<js::Expression>(
-                        condition,
-                        condition.into_global_any(self.module.id),
-                    )?;
+                    let condition = self.lower_condition(expression_id, condition)?;
                     let then_expression =
                         self.lower_expression_as::<js::Expression>(*then_expression)?;
                     let Some(else_expression) = else_expression else {
@@ -862,17 +872,7 @@ impl ModuleLowerer<'_> {
                         .into_any()
                 }
                 dir::IfForm::If => {
-                    let Some(condition) = condition.as_expression() else {
-                        // TODO #Broken: lower condition chains to JS
-                        return Err(self.unhandled(
-                            expression_id.into_global_any(self.module.id),
-                            Some("condition chains are not lowered to JS yet".to_string()),
-                        ));
-                    };
-                    let condition = self.lower_expression_as_anchored::<js::Expression>(
-                        condition,
-                        condition.into_global_any(self.module.id),
-                    )?;
+                    let condition = self.lower_condition(expression_id, condition)?;
                     let then_block = self.lower_expression_as_block(*then_expression)?;
                     let else_block = else_expression
                         .map(|else_expression| self.lower_expression_as_block(else_expression))
@@ -894,7 +894,7 @@ impl ModuleLowerer<'_> {
                 body,
             } => {
                 let body = self.lower_block(*body)?;
-                let condition = self.lower_expression_as::<js::Expression>(*condition)?;
+                let condition = self.lower_condition(expression_id, condition)?;
                 let statement = match form {
                     dir::WhileForm::DoWhile => js::Statement::DoWhile { body, condition },
                     dir::WhileForm::While => js::Statement::While { condition, body },
