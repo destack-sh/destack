@@ -352,7 +352,7 @@ try {
 }
 ```
 
-Code can also opt out of managed allocation locally via [restrictions](./expressions.md#restrictions):
+Code can also restrict managed allocation locally:
 
 ```ds
 @noManaged
