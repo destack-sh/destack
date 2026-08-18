@@ -1,6 +1,86 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_reject_catch_binding_shadowing_type() {
+    let session = TestSession::single(
+        r#"
+import { Result } from "destack:error";
+
+struct Cancelled {
+    reason: int32;
+}
+
+function read(value: Result<int32, Cancelled>): int32 {
+    try {
+        value?
+    } catch (Cancelled) {
+        0
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Result } from "destack:error";
+
+struct Cancelled {
+    reason: int32;
+}
+
+function read(value: Result<int32, Cancelled>): int32 {
+    try {
+        value?
+    } catch (Cancelled) {
+        0
+    }
+}
+
+=== dir ===
+import { Result } from "destack:error";
+
+struct Cancelled {
+/// @type.symbol symbol=Cancelled type=Cancelled
+/// @definition.struct symbol=Cancelled
+/// @definition.field symbol=Cancelled.reason source="reason: int32" key=reason type=int32
+
+    reason: int32;
+    /// @type.symbol symbol=Cancelled.reason source="reason: int32" type=int32
+
+}
+
+function read(value: Result<int32, Cancelled>): int32 {
+/// @type.symbol symbol=read type=(error.result.Result<int32, Cancelled>) => int32
+/// @type.symbol symbol=read.value source="value: Result<int32, Cancelled>" type=error.result.Result<int32, Cancelled>
+/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Cancelled target=Cancelled
+
+    try {
+        value?
+        /// @resolution.name source=value target=read.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=read.value
+
+    } catch (Cancelled) {
+    /// @type.symbol symbol=read.Cancelled source=Cancelled type=TryResidual<error.result.Result<int32, Cancelled>>
+    /// @resolution.pattern source=Cancelled kind=binding target=read.Cancelled
+
+        0
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=pattern-shadows-type message="bare pattern 'Cancelled' binds a new variable that shadows a type"
+/// @diagnostic.label line=11 column=14 span="Cancelled" line_source="} catch (Cancelled) {"
+/// @diagnostic.help message="match values of the type with a nominal pattern like 'Cancelled { }'"
+"#,
+    );
+}
+
+#[test]
 fn test_catch_pattern_binds_error_fields() {
     let session = TestSession::single(
         r#"

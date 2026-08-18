@@ -240,7 +240,7 @@ impl BodyState<'_, '_> {
         // check the catch branch from the collected failure
         let catch_branch = if let Some(catch) = catch {
             self.check.restore_flow(before);
-            let catch_type = self.check_catch(module, catch, catch_failure)?;
+            let catch_type = self.check_catch(module, catch, site.node.local_id, catch_failure)?;
             let catch_body = self.module(module).view().get(catch).body;
             let catch_can_complete = self.check.expression_can_complete_normally(catch_body);
             let catch_flow = self.check.collect_flow_branch(before);
@@ -318,6 +318,7 @@ impl BodyState<'_, '_> {
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Catch>,
+        anchor: dir::LocalNodeIdAny,
         failure: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // walk decorators and skip absent handlers
@@ -354,6 +355,7 @@ impl BodyState<'_, '_> {
         if let Some(pattern) = pattern {
             if let Some(value) = expected.or(failure) {
                 let pattern_site = self.visit_site(pattern.into_global_any(module))?;
+                self.reject_type_shadowing_binding(module, anchor, pattern, pattern_site.origin())?;
                 let cause = self.check.intern_cause(Cause::root(
                     pattern_site.origin(),
                     CauseKind::Pattern {
@@ -524,16 +526,18 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Reject one bare arm binding whose name shadows a visible type.
+    /// Reject one bare pattern binding whose name shadows a visible type.
     ///
-    /// Example:
+    /// Examples:
     /// ```ds
     /// match (value) { Cancelled => 0 }
+    /// if (let Cancelled = value) {}
+    /// try { value? } catch (Cancelled) {}
     /// ```
-    fn reject_type_shadowing_arm(
+    pub(in crate::sema) fn reject_type_shadowing_binding(
         &mut self,
         module: ModuleId,
-        scrutinee: dir::LocalNodeId<dir::Expression>,
+        anchor: dir::LocalNodeIdAny,
         pattern: dir::LocalNodeId<dir::Pattern>,
         origin: Origin,
     ) -> CompilerResult<()> {
@@ -558,10 +562,10 @@ impl BodyState<'_, '_> {
             return Ok(());
         };
 
-        // look the name up outside the arm's own binding scope
+        // look the name up outside the pattern's own binding scope
         let lookup = self.check.binding_table(module).lookup_symbol_at(
             &view,
-            scrutinee.into_any(),
+            anchor,
             dir::StaticKey::Name(name),
         );
         let symbols: SmallVec<[dir::LocalSymbolId; 2]> = match lookup {
@@ -574,7 +578,7 @@ impl BodyState<'_, '_> {
         for symbol in symbols {
             let kind = self.check.binding_table(module).get_symbol(symbol).kind;
             if kind.is_type_definition() {
-                return self.report_type_shadowing_arm(name, origin);
+                return self.report_type_shadowing_binding(name, origin);
             } else if kind != dir::SymbolKind::Import {
                 continue;
             }
@@ -595,7 +599,7 @@ impl BodyState<'_, '_> {
                     self.check.import_external_module(target.module_id)?;
                 }
                 if self.symbol_kind(target)?.is_type_definition() {
-                    return self.report_type_shadowing_arm(name, origin);
+                    return self.report_type_shadowing_binding(name, origin);
                 }
             }
         }
@@ -603,8 +607,8 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Report one arm binding that shadows a visible type.
-    fn report_type_shadowing_arm(
+    /// Report one pattern binding that shadows a visible type.
+    fn report_type_shadowing_binding(
         &mut self,
         name: dir::StringId,
         origin: Origin,
@@ -649,7 +653,12 @@ impl BodyState<'_, '_> {
             let pattern = arm_node.pattern();
             let guard = arm_node.guard();
             let pattern_site = self.check.visit_site(pattern.into_global_any(module))?;
-            self.reject_type_shadowing_arm(module, value, pattern, pattern_site.origin())?;
+            self.reject_type_shadowing_binding(
+                module,
+                value.into_any(),
+                pattern,
+                pattern_site.origin(),
+            )?;
             self.check_pattern(
                 pattern.into_global(module),
                 pattern_site.flow,

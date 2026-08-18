@@ -1,6 +1,77 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_reject_condition_binding_shadowing_type() {
+    let session = TestSession::single(
+        r#"
+struct Cancelled {
+    reason: int32;
+}
+
+function read(value: Cancelled | int32): int32 {
+    if (let Cancelled = value) {
+        return 0;
+    }
+
+    1
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Cancelled {
+    reason: int32;
+}
+
+function read(value: Cancelled | int32): int32 {
+    if (let Cancelled: Cancelled | int32 = value) {
+        return 0;
+    }
+
+    1
+}
+
+=== dir ===
+struct Cancelled {
+/// @type.symbol symbol=Cancelled type=Cancelled
+/// @definition.struct symbol=Cancelled
+/// @definition.field symbol=Cancelled.reason source="reason: int32" key=reason type=int32
+
+    reason: int32;
+    /// @type.symbol symbol=Cancelled.reason source="reason: int32" type=int32
+
+}
+
+function read(value: Cancelled | int32): int32 {
+/// @type.symbol symbol=read type=(Cancelled | int32) => int32
+/// @type.symbol symbol=read.value source="value: Cancelled | int32" type=Cancelled | int32
+/// @resolution.name source=Cancelled target=Cancelled
+
+    if (let Cancelled = value) {
+    /// @type.symbol symbol=read.Cancelled source=Cancelled type=Cancelled | int32
+    /// @resolution.pattern source=Cancelled kind=binding target=read.Cancelled
+    /// @resolution.name source=value target=read.value
+    /// @resolution.access source=value root=read.value
+
+        return 0;
+    }
+
+    1
+}
+"#,
+        r#"
+/// @diagnostic.error id=pattern-shadows-type message="bare pattern 'Cancelled' binds a new variable that shadows a type"
+/// @diagnostic.label line=7 column=13 span="Cancelled" line_source="if (let Cancelled = value) {"
+/// @diagnostic.help message="match values of the type with a nominal pattern like 'Cancelled { }'"
+"#,
+    );
+}
+
+#[test]
 fn test_if_let_pattern_binds_then_branch() {
     let session = TestSession::single(
         r#"

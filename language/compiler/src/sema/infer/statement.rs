@@ -739,6 +739,19 @@ impl BodyState<'_, '_> {
                 dir::ConditionOperand::Binding {
                     kind, declarator, ..
                 } => {
+                    // reject a bare condition binding that shadows a visible type
+                    let (pattern, value) = {
+                        let node = self.module(module).view().get(*declarator);
+                        (node.pattern, node.value)
+                    };
+                    let Some(value) = value else {
+                        return Err(CompilerError::Internal {
+                            message: "a condition binding has no matched value".to_string(),
+                        });
+                    };
+                    let origin = self.visit_site(pattern.into_global_any(module))?.origin();
+                    self.reject_type_shadowing_binding(module, value.into_any(), pattern, origin)?;
+
                     self.check_declarator(module, *declarator, Some(*kind), false, false)?;
                 }
             }
