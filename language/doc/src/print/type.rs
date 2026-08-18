@@ -91,11 +91,6 @@ impl Printer<'_, '_, '_> {
 
                 format!("Dynamic<{constraint}>")
             }
-            dir::Type::Array(array) => {
-                let element = self.type_operand(array.element, TypeOperand::Postfix)?;
-
-                format!("{element}[]")
-            }
             dir::Type::FixedArray(array) => {
                 let element = self.global_type(array.element)?;
                 let count = self.global_type(array.count)?;
