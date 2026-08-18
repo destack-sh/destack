@@ -524,6 +524,96 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
+    /// Reject one bare arm binding whose name shadows a visible type.
+    ///
+    /// Example:
+    /// ```ds
+    /// match (value) { Cancelled => 0 }
+    /// ```
+    fn reject_type_shadowing_arm(
+        &mut self,
+        module: ModuleId,
+        scrutinee: dir::LocalNodeId<dir::Expression>,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+        origin: Origin,
+    ) -> CompilerResult<()> {
+        // unwrap marker and carrier patterns to the bare binding name
+        let view = self.module(module).view();
+        let mut inner = pattern;
+        while let dir::Pattern::Must(wrapped)
+        | dir::Pattern::Default {
+            pattern: wrapped, ..
+        }
+        | dir::Pattern::BorrowOf { right: wrapped, .. }
+        | dir::Pattern::MoveOf { right: wrapped, .. }
+        | dir::Pattern::DereferenceOf { right: wrapped } = view.get(inner)
+        {
+            inner = *wrapped;
+        }
+        let dir::Pattern::Binding {
+            name,
+            pattern: None,
+        } = *view.get(inner)
+        else {
+            return Ok(());
+        };
+
+        // look the name up outside the arm's own binding scope
+        let lookup = self.check.binding_table(module).lookup_symbol_at(
+            &view,
+            scrutinee.into_any(),
+            dir::StaticKey::Name(name),
+        );
+        let symbols: SmallVec<[dir::LocalSymbolId; 2]> = match lookup {
+            dir::SymbolLookup::Missing => return Ok(()),
+            dir::SymbolLookup::Found(symbol) => SmallVec::from_slice(&[symbol]),
+            dir::SymbolLookup::Ambiguous(symbols) => symbols.into_iter().collect(),
+        };
+
+        // resolve local declarations and imports to their declared kinds
+        for symbol in symbols {
+            let kind = self.check.binding_table(module).get_symbol(symbol).kind;
+            if kind.is_type_definition() {
+                return self.report_type_shadowing_arm(name, origin);
+            } else if kind != dir::SymbolKind::Import {
+                continue;
+            }
+            let Some(resolution) = self
+                .module(module)
+                .resolved
+                .imports
+                .symbol_resolution(symbol)
+                .cloned()
+            else {
+                continue;
+            };
+            for target in resolution.targets() {
+                let dir::ReferenceTarget::Symbol(target) = target else {
+                    continue;
+                };
+                if !self.check.is_own_module(target.module_id) {
+                    self.check.import_external_module(target.module_id)?;
+                }
+                if self.symbol_kind(target)?.is_type_definition() {
+                    return self.report_type_shadowing_arm(name, origin);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Report one arm binding that shadows a visible type.
+    fn report_type_shadowing_arm(
+        &mut self,
+        name: dir::StringId,
+        origin: Origin,
+    ) -> CompilerResult<()> {
+        let name = self.check.strings().get(name).to_string();
+
+        self.check.report_pattern_shadows_type(origin, name)
+    }
+
     /// Check present match arms with isolated branch flow.
     fn check_match_arms(
         &mut self,
@@ -559,6 +649,7 @@ impl BodyState<'_, '_> {
             let pattern = arm_node.pattern();
             let guard = arm_node.guard();
             let pattern_site = self.check.visit_site(pattern.into_global_any(module))?;
+            self.reject_type_shadowing_arm(module, value, pattern, pattern_site.origin())?;
             self.check_pattern(
                 pattern.into_global(module),
                 pattern_site.flow,

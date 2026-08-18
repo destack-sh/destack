@@ -1491,6 +1491,23 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one bare arm pattern that shadows a type.
+    pub(in crate::sema) fn report_pattern_shadows_type(
+        &mut self,
+        origin: Origin,
+        name: String,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::PatternShadowsType {
+            anchor,
+            module,
+            name,
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
     /// Report one missing pattern field.
     pub(in crate::sema) fn report_pattern_field_missing(
         &mut self,

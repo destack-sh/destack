@@ -1979,6 +1979,31 @@ pub enum CheckError {
         source: String,
     },
 
+    /// Bare match arm pattern binds a name that resolves to a type in scope.
+    ///
+    /// ```ds
+    /// struct Cancelled {}
+    ///
+    /// declare const value: Cancelled | int32;
+    /// const result = match (value) {
+    ///     Cancelled => 0
+    ///     _ => 1
+    /// };
+    /// ```
+    #[diagnostic(
+        id = "pattern-shadows-type",
+        message = "bare pattern '{name}' binds a new variable that shadows a type",
+        help = "match values of the type with a nominal pattern like '{name} {{ }}'"
+    )]
+    PatternShadowsType {
+        /// Report the shadowing arm pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The shadowed type name.
+        name: String,
+    },
+
     /// Pattern names a field that does not exist on the matched type.
     ///
     /// ```ds

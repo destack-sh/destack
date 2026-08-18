@@ -1,6 +1,259 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_reject_bare_arm_shadowing_local_struct() {
+    let session = TestSession::single(
+        r#"
+struct Cancelled {
+    reason: int32;
+}
+
+function read(value: Cancelled | int32): int32 {
+    match (value) {
+        Cancelled => 0
+        _ => 1
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Cancelled {
+    reason: int32;
+}
+
+function read(value: Cancelled | int32): int32 {
+    match (value) {
+        Cancelled => 0
+        _ => 1
+    }
+}
+
+=== dir ===
+struct Cancelled {
+/// @type.symbol symbol=Cancelled type=Cancelled
+/// @definition.struct symbol=Cancelled
+/// @definition.field symbol=Cancelled.reason source="reason: int32" key=reason type=int32
+
+    reason: int32;
+    /// @type.symbol symbol=Cancelled.reason source="reason: int32" type=int32
+
+}
+
+function read(value: Cancelled | int32): int32 {
+/// @type.symbol symbol=read type=(Cancelled | int32) => int32
+/// @type.symbol symbol=read.value source="value: Cancelled | int32" type=Cancelled | int32
+/// @resolution.name source=Cancelled target=Cancelled
+
+    match (value) {
+    /// @resolution.name source=value target=read.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=read.value
+
+        Cancelled => 0
+        /// @type.symbol symbol=read.Cancelled source=Cancelled type=Cancelled | int32
+        /// @resolution.pattern source=Cancelled kind=binding target=read.Cancelled
+
+        _ => 1
+        /// @resolution.pattern source=_ kind=wildcard
+
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=pattern-shadows-type message="bare pattern 'Cancelled' binds a new variable that shadows a type"
+/// @diagnostic.label line=8 column=9 span="Cancelled" line_source="Cancelled => 0"
+/// @diagnostic.help message="match values of the type with a nominal pattern like 'Cancelled { }'"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_bare_arm_shadowing_imported_struct() {
+    let session = TestSession::builder()
+        .module(
+            "library.ds",
+            r#"
+export struct Cancelled {
+    reason: int32;
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Cancelled } from "./library.ds";
+
+function read(value: Cancelled | int32): int32 {
+    match (value) {
+        Cancelled => 0
+        _ => 1
+    }
+}
+"#,
+        )
+        .build();
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Cancelled } from "./library.ds";
+
+function read(value: Cancelled | int32): int32 {
+    match (value) {
+        Cancelled => 0
+        _ => 1
+    }
+}
+
+=== dir ===
+import { Cancelled } from "./library.ds";
+
+function read(value: Cancelled | int32): int32 {
+/// @type.symbol symbol=read type=(library.Cancelled | int32) => int32
+/// @type.symbol symbol=read.value source="value: Cancelled | int32" type=library.Cancelled | int32
+/// @resolution.name source=Cancelled target=library.Cancelled
+
+    match (value) {
+    /// @resolution.name source=value target=read.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=read.value
+
+        Cancelled => 0
+        /// @type.symbol symbol=read.Cancelled source=Cancelled type=library.Cancelled | int32
+        /// @resolution.pattern source=Cancelled kind=binding target=read.Cancelled
+
+        _ => 1
+        /// @resolution.pattern source=_ kind=wildcard
+
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=pattern-shadows-type message="bare pattern 'Cancelled' binds a new variable that shadows a type"
+/// @diagnostic.label line=6 column=9 span="Cancelled" line_source="Cancelled => 0"
+/// @diagnostic.help message="match values of the type with a nominal pattern like 'Cancelled { }'"
+"#,
+    );
+}
+
+#[test]
+fn test_accept_bare_arm_binding_a_plain_name() {
+    let session = TestSession::single(
+        r#"
+function read(value: int32): int32 {
+    match (value) {
+        0 => 0
+        other => other
+    }
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function read(value: int32): int32 {
+    match (value) {
+        0 => 0
+        other => other
+    }
+}
+
+=== dir ===
+function read(value: int32): int32 {
+/// @type.symbol symbol=read type=(int32) => int32
+/// @type.symbol symbol=read.value source="value: int32" type=int32
+
+    match (value) {
+    /// @resolution.name source=value target=read.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=read.value
+
+        0 => 0
+        /// @resolution.pattern source=0 kind=literal value=0
+
+        other => other
+        /// @type.symbol symbol=read.other source=other type=int32
+        /// @resolution.pattern source=other kind=binding target=read.other
+        /// @resolution.name source=other target=read.other
+        /// @resolution.place source=other placement="local" lifetime="frame" access="readonly"
+        /// @resolution.access source=other root=read.other
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_accept_bare_arm_shadowing_a_value_name() {
+    let session = TestSession::single(
+        r#"
+const fallback = 1;
+
+function read(value: int32): int32 {
+    match (value) {
+        0 => 0
+        fallback => fallback
+    }
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const fallback: 1 = 1;
+
+function read(value: int32): int32 {
+    match (value) {
+        0 => 0
+        fallback => fallback
+    }
+}
+
+=== dir ===
+const fallback = 1;
+/// @type.symbol symbol=fallback source=fallback type=1
+/// @resolution.pattern source=fallback kind=binding target=fallback
+
+function read(value: int32): int32 {
+/// @type.symbol symbol=read type=(int32) => int32
+/// @type.symbol symbol=read.value source="value: int32" type=int32
+
+    match (value) {
+    /// @resolution.name source=value target=read.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=read.value
+
+        0 => 0
+        /// @resolution.pattern source=0 kind=literal value=0
+
+        fallback => fallback
+        /// @type.symbol symbol=read.fallback source=fallback type=int32
+        /// @resolution.pattern source=fallback kind=binding target=read.fallback
+        /// @resolution.name source=fallback target=read.fallback
+        /// @resolution.place source=fallback placement="local" lifetime="frame" access="readonly"
+        /// @resolution.access source=fallback root=read.fallback
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
 fn test_switch_numeric_literal_checks() {
     let session = TestSession::single(
         r#"
