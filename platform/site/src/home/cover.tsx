@@ -124,7 +124,7 @@ function Installation() {
 
             {/* Chapter copy */}
             <div {...stylex.attrs(installationStyles.copy)}>
-                <strong {...stylex.attrs(installationStyles.statement)}>Own your stack.</strong>
+                <strong {...stylex.attrs(installationStyles.statement)}>Own your stack. Just one.</strong>
 
                 <dl {...stylex.attrs(installationStyles.specifications)}>
                     <div {...stylex.attrs(installationStyles.specification)}>
