@@ -76,30 +76,25 @@ impl BodyState<'_, '_> {
             return Ok(readonly);
         }
 
-        // infer the array element type directly when spreads do not constrain it
-        let element = if spreads.is_empty() {
-            match values.as_slice() {
-                [] => self.intern_type(dir::Type::Never)?,
-                [(_, single)] => *single,
-                _ => self.normalized_union_type(values.iter().map(|(_, value)| *value))?,
-            }
+        // empty literals without spreads construct the never array
+        let element = if values.is_empty() && spreads.is_empty() {
+            self.intern_type(dir::Type::Never)?
         }
-        // use one element hole when spreads participate in array construction
+        // open one widening element variable and relate every element into it
         else {
             let origin = site.origin();
-            let variable = self.allocate_variable(origin, Widening::Never, VariableRole::Regular);
+            let variable = self.allocate_variable(origin, Widening::Always, VariableRole::Regular);
             let element = self.variable_type(variable)?;
 
             for (source, value) in &values {
-                let Some(source) = source else {
-                    continue;
+                // elided elements relate their undefined at the literal itself
+                let origin = match source {
+                    Some(source) => Origin::Node(*source, site.scope),
+                    None => origin,
                 };
-                let cause = self.intern_cause(Cause::root(
-                    Origin::Node(*source, site.scope),
-                    CauseKind::Expression,
-                ));
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 self.push_relation(RelationCheck::new(
-                    Origin::Node(*source, site.scope),
+                    origin,
                     Relation::Assignable,
                     *value,
                     element,
@@ -128,31 +123,17 @@ impl BodyState<'_, '_> {
             ))?;
         }
 
-        // widen the mutable contents this mode does not preserve
-        let ty = if mode.widens_aggregate() {
-            self.widen_type(array)?
-        } else {
-            array
-        };
-
-        // convert each authored value into the selected element type
-        let Some(element) = self.check.array_element(ty)? else {
-            return Ok(ty);
-        };
-
         // commit the pack constructor call over the literal elements
         let sources: Vec<_> = values.iter().filter_map(|(source, _)| *source).collect();
         if self.check.is_checking() && !has_spreads && sources.len() == values.len() {
             let origin = Origin::Node(node.into_any(), site.scope);
-            self.commit_array_construction(origin, node.into_any(), element, ty, sources)?;
+            self.commit_array_construction(origin, node.into_any(), element, array, sources)?;
         }
+        // convert each authored value into the selected element type
         for (source, source_type) in values {
             let Some(source) = source else {
                 continue;
             };
-            if source_type == element {
-                continue;
-            }
 
             let cause = self.intern_cause(Cause::root(
                 Origin::Node(source, site.scope),
@@ -163,7 +144,7 @@ impl BodyState<'_, '_> {
             self.check_value(source_site, source_type, expectation)?;
         }
 
-        Ok(ty)
+        Ok(array)
     }
 
     /// Infer one fixed array literal from its repeated value.
@@ -354,7 +335,7 @@ impl BodyState<'_, '_> {
                 dir::Type::Slice(slice) => Some((slice.element, None)),
                 dir::Type::FixedArray(array) => Some((array.element, Some(array.count))),
                 // erased iterable expectations type elements at the yielded value
-                dir::Type::Dynamic(_) => self
+                _ if self.is_erased_value(target_value)? => self
                     .iterable_value_argument(target_value)?
                     .map(|element| (element, None)),
                 _ => None,
@@ -623,7 +604,7 @@ impl BodyState<'_, '_> {
         let symbol = selection.symbol;
 
         // bind the elements against the constructor's slice parameter
-        let Some(callable) = self.check.canonical_symbol_type_maybe(symbol)? else {
+        let Some(callable) = self.check.adopt_symbol_type_maybe(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "the array pack constructor declares no type".to_string(),
             });

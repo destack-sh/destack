@@ -218,7 +218,9 @@ function length(values: ^int32[]): isize {
             r#"
 class Values {
     iterator(): Iterator<int32> {
-        return [1].iterator();
+        let values: int32[] = [1];
+
+        return values.iterator();
     }
 }
 
