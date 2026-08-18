@@ -51,6 +51,8 @@ pub enum AutoInterface {
     Serialize,
     /// Shared-storage safety marker.
     SharedSafe,
+    /// Builtin strict equality marker.
+    StrictEqual,
     /// Pin-move capability.
     Unpin,
     /// Zero-byte initialization capability.
@@ -92,6 +94,7 @@ impl AutoInterface {
             LanguageItem::PartialEqual => Some(Self::PartialEqual),
             LanguageItem::Serialize => Some(Self::Serialize),
             LanguageItem::SharedSafe => Some(Self::SharedSafe),
+            LanguageItem::StrictEqual => Some(Self::StrictEqual),
             LanguageItem::Unpin => Some(Self::Unpin),
             LanguageItem::Zeroable => Some(Self::Zeroable),
             _ => None,
@@ -122,6 +125,7 @@ impl AutoInterface {
             Self::PartialEqual => "PartialEqual",
             Self::Serialize => "Serialize",
             Self::SharedSafe => "SharedSafe",
+            Self::StrictEqual => "StrictEqual",
             Self::Unpin => "Unpin",
             Self::Zeroable => "Zeroable",
         }
@@ -136,6 +140,7 @@ impl AutoInterface {
             | Self::DynamicSafe
             | Self::OverwriteStable
             | Self::SharedSafe
+            | Self::StrictEqual
             | Self::Unpin
             | Self::Zeroable
             | Self::Integer
@@ -175,6 +180,7 @@ impl AutoInterface {
             | Self::DynamicSafe
             | Self::OverwriteStable
             | Self::SharedSafe
+            | Self::StrictEqual
             | Self::Unpin
             | Self::Zeroable
             | Self::Integer
@@ -220,7 +226,11 @@ impl AutoInterface {
     pub fn has_receiver_argument(self) -> bool {
         matches!(
             self,
-            Self::Equal | Self::PartialEqual | Self::Compare | Self::PartialCompare
+            Self::Equal
+                | Self::PartialEqual
+                | Self::Compare
+                | Self::PartialCompare
+                | Self::StrictEqual
         )
     }
 
@@ -262,6 +272,7 @@ impl From<AutoInterface> for LanguageItem {
             AutoInterface::PartialEqual => Self::PartialEqual,
             AutoInterface::Serialize => Self::Serialize,
             AutoInterface::SharedSafe => Self::SharedSafe,
+            AutoInterface::StrictEqual => Self::StrictEqual,
             AutoInterface::Unpin => Self::Unpin,
             AutoInterface::Zeroable => Self::Zeroable,
         }

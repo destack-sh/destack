@@ -212,6 +212,15 @@ macro_rules! define_language_items {
 }
 
 define_language_items! {
+    /// Assertion functions.
+    assert {
+        /// `destack:assert/assert`.
+        assert {
+            /// Require one condition to hold.
+            Assert => (Function, "assert/assert", "assert"),
+        }
+    }
+
     /// Async types.
     async {
         /// `destack:async/awaitable`.
@@ -1078,6 +1087,9 @@ define_language_items! {
 
             /// Partial equality protocol.
             PartialEqual => (NewtypeInterface, "ops/equality", "PartialEqual"),
+
+            /// Builtin strict equality marker.
+            StrictEqual => (NewtypeInterface, "ops/equality", "StrictEqual"),
         }
 
         /// `destack:ops/format`.
