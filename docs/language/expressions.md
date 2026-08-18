@@ -411,6 +411,7 @@ Compound assignment operators like `+=` are desugared into their component opera
 | `>>` | `a >> b` | `ShiftRight<T>` |
 | `>>>` | `a >>> b` | `ShiftRightUnsigned<T>` |
 | `==`, `!=` | `a == b` | `PartialEqual<T>` |
+| `===`, `!==` | `a === b` | `StrictEqual<T>` |
 | `<`, `<=`, `>`, `>=` | `a < b` | `Compare<T>` or `PartialCompare<T>` |
 | `[]` | `a[i]` | `Index<I>` |
 | `[] =` | `a[i] = v` | `IndexSet<I, V>` |
