@@ -17,35 +17,6 @@ pub(in crate::sema) enum OperatorOperands<'a> {
 }
 
 impl BodyState<'_, '_> {
-    /// Select one binary operator application.
-    pub(in crate::sema) fn select_binary_operator(
-        &mut self,
-        site: FlowSite,
-        operator: dir::BinaryOperator,
-        left_node: dir::LocalNodeId<dir::Expression>,
-        right_node: dir::LocalNodeId<dir::Expression>,
-        writeback: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<()> {
-        let module = site.node.module_id;
-        let origin = site.origin();
-        let left_site = self.visit_site(left_node.into_global_any(module))?;
-        let right_site = self.visit_site(right_node.into_global_any(module))?;
-        let left = self.operand_type(origin, left_site)?;
-        let right = self.operand_type(origin, right_site)?;
-        let left_source = left_node.into_global_any(module);
-        let right_source = right_node.into_global_any(module);
-
-        self.select_binary_operation(
-            site,
-            operator,
-            left,
-            right,
-            left_source,
-            right_source,
-            writeback,
-        )
-    }
-
     /// Select one binary operation from known operand types.
     pub(in crate::sema) fn select_binary_operation(
         &mut self,
@@ -1102,7 +1073,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Read one operand node's normalized input type, resolved through solutions.
-    fn operand_type(
+    pub(in crate::sema) fn operand_type(
         &mut self,
         origin: Origin,
         site: FlowSite,

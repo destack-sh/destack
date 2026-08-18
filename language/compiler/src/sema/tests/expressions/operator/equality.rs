@@ -1,6 +1,88 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_logical_and_narrows_its_right_operand() {
+    let session = TestSession::single(
+        r#"
+function positive(value: &readonly (int32 | undefined)): boolean {
+    value !== undefined && value > 0
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function positive<'a>(value: &'a readonly (int32 | undefined)): boolean {
+    value !== (undefined as int32 | undefined) && (value as int32) > 0
+}
+
+=== dir ===
+function positive(value: &readonly (int32 | undefined)): boolean {
+/// @generic.template symbol=positive parameters=('a)
+/// @type.symbol symbol=positive type=<positive.'a>(&positive.'a readonly int32 | undefined) => boolean
+/// @type.symbol symbol=positive.value source="value: &readonly (int32 | undefined)" type=&positive.'a readonly int32 | undefined
+
+    value !== undefined && value > 0
+    /// @resolution.name source=value target=positive.value
+    /// @resolution.operator source="value !== undefined && value > 0" type=boolean operator="&&" kind=builtin operands=[value !== undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
+    /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
+    /// @resolution.place source=value placement="local" lifetime=positive.'a access="readonly"
+    /// @resolution.access source=value root=positive.value
+    /// @resolution.name source=value target=positive.value
+    /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime=positive.'a access="readonly"
+    /// @resolution.access source=value root=positive.value
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_logical_or_narrows_its_right_operand() {
+    let session = TestSession::single(
+        r#"
+function positive(value: &readonly (int32 | undefined)): boolean {
+    value === undefined || value > 0
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function positive<'a>(value: &'a readonly (int32 | undefined)): boolean {
+    value === (undefined as int32 | undefined) || (value as int32) > 0
+}
+
+=== dir ===
+function positive(value: &readonly (int32 | undefined)): boolean {
+/// @generic.template symbol=positive parameters=('a)
+/// @type.symbol symbol=positive type=<positive.'a>(&positive.'a readonly int32 | undefined) => boolean
+/// @type.symbol symbol=positive.value source="value: &readonly (int32 | undefined)" type=&positive.'a readonly int32 | undefined
+
+    value === undefined || value > 0
+    /// @resolution.name source=value target=positive.value
+    /// @resolution.operator source="value === undefined || value > 0" type=boolean operator="||" kind=builtin operands=[value === undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
+    /// @resolution.operator source="value === undefined" type=boolean operator="===" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
+    /// @resolution.place source=value placement="local" lifetime=positive.'a access="readonly"
+    /// @resolution.access source=value root=positive.value
+    /// @resolution.name source=value target=positive.value
+    /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime=positive.'a access="readonly"
+    /// @resolution.access source=value root=positive.value
+
+}
+"#,
+    );
+}
+
+#[test]
 fn test_undefined_equality_selects_builtin_operator() {
     let session = TestSession::single(
         r#"
@@ -47,7 +129,7 @@ function use(onValue?: (value: unknown) => void): void {
 === annotated ===
 function use(onValue?: (arg0: unknown) => void): void {
     if (onValue !== (undefined as ((arg0: unknown) => void) | undefined)) {
-        onValue(1 as Dynamic<unknown>);
+        onValue(1 as unknown);
     } else {
     }
 }
@@ -56,7 +138,7 @@ function use(onValue?: (arg0: unknown) => void): void {
 function use(onValue?: (value: unknown) => void): void {
 /// @type.symbol symbol=use type=(Function<(unknown,), void> | undefined?) => void
 /// @type.symbol symbol=use.onValue source="onValue?: (value: unknown) => void" type=Function<(unknown,), void> | undefined
-/// @type.symbol symbol=use.value source="value: unknown" type=Dynamic<unknown>
+/// @type.symbol symbol=use.value source="value: unknown" type=unknown
 
     if (onValue !== undefined) {
     /// @type.node source="onValue !== undefined" type=boolean

@@ -22,6 +22,15 @@ impl ConditionBranch {
             Self::False => Self::True,
         }
     }
+
+    /// Return the branch entered by one short-circuit operator's right operand.
+    pub(in crate::sema) fn from_short_circuit(operator: dir::BinaryOperator) -> Option<Self> {
+        match operator {
+            dir::BinaryOperator::And => Some(Self::True),
+            dir::BinaryOperator::Or | dir::BinaryOperator::Coalesce => Some(Self::False),
+            _ => None,
+        }
+    }
 }
 
 impl CheckState<'_> {

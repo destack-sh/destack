@@ -249,7 +249,7 @@ impl BodyState<'_, '_> {
                 left,
                 operator,
                 right,
-            } => self.select_binary_operator(site, operator, left, right, None),
+            } => self.infer_binary_expression(site, left, operator, right),
             dir::Expression::Is { value, target_type } => {
                 self.walk_body_guard_type_expression(node.module_id, target_type)?;
 

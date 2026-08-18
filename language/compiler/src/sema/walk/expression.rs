@@ -655,27 +655,16 @@ impl WalkState<'_, '_> {
         self.walk_expression(left, self.tree.get(left))?;
 
         // short-circuit operators narrow their right operand
-        match operator {
-            dir::BinaryOperator::And => {
+        match ConditionBranch::from_short_circuit(operator) {
+            Some(branch) => {
                 let before = self.fork_flow();
-                self.narrow_expression(left, ConditionBranch::True)?;
+                self.narrow_expression(left, branch)?;
                 self.walk_expression(right, self.tree.get(right))?;
                 self.restore_flow(before);
             }
-            dir::BinaryOperator::Or | dir::BinaryOperator::Coalesce => {
-                let before = self.fork_flow();
-                self.narrow_expression(left, ConditionBranch::False)?;
-                self.walk_expression(right, self.tree.get(right))?;
-                self.restore_flow(before);
-            }
-            _ => {
+            None => {
                 self.walk_expression(right, self.tree.get(right))?;
             }
-        }
-
-        // `in` inference owns the predicate result
-        if operator == dir::BinaryOperator::In {
-            return Ok(());
         }
 
         Ok(())

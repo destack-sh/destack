@@ -4,11 +4,60 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::sema::{
-    BodyState, Cause, CauseKind, Expectation, FlowSite, Obligation, PlaceUse,
+    BodyState, Cause, CauseKind, ConditionBranch, Expectation, FlowSite, Obligation, PlaceUse,
     RangeElementObligation, Relation, RelationCheck, ValueUse, VariableRole, Widening,
 };
 
 impl BodyState<'_, '_> {
+    /// Infer one binary expression, narrowing short-circuited right operands.
+    ///
+    /// Example:
+    /// ```ds
+    /// value !== undefined && value > 0
+    /// ```
+    pub(in crate::sema) fn infer_binary_expression(
+        &mut self,
+        site: FlowSite,
+        left: dir::LocalNodeId<dir::Expression>,
+        operator: dir::BinaryOperator,
+        right: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        let module = site.node.module_id;
+        let origin = site.origin();
+        let left_source = left.into_global_any(module);
+        let right_source = right.into_global_any(module);
+        let left_site = self.visit_site(left_source)?;
+        let left_type = self.operand_type(origin, left_site)?;
+
+        // short-circuit operators narrow their right operand
+        let right_type = match ConditionBranch::from_short_circuit(operator) {
+            Some(branch) => {
+                let before = self.check.fork_flow();
+                self.check.narrow_expression(left, branch)?;
+                let right_site = self.visit_site(right_source)?;
+                let right_type = self.operand_type(origin, right_site)?;
+                self.check.restore_flow(before);
+
+                right_type
+            }
+            None => {
+                let right_site = self.visit_site(right_source)?;
+
+                self.operand_type(origin, right_site)?
+            }
+        };
+
+        self.select_binary_operation(
+            site,
+            operator,
+            left_type,
+            right_type,
+            left_source,
+            right_source,
+            None,
+        )
+    }
+
     /// Infer one `satisfies` expression from its value while checking the target.
     pub(in crate::sema) fn infer_satisfies_expression(
         &mut self,

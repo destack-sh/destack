@@ -1,6 +1,46 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_logical_and_narrows_after_is_guard() {
+    let session = TestSession::single(
+        r#"
+function positive(value: unknown): boolean {
+    value is int32 && value > 0
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function positive(value: unknown): boolean {
+    value is int32 && value > 0
+}
+
+=== dir ===
+function positive(value: unknown): boolean {
+/// @type.symbol symbol=positive type=(unknown) => boolean
+/// @type.symbol symbol=positive.value source="value: unknown" type=unknown
+
+    value is int32 && value > 0
+    /// @resolution.name source=value target=positive.value
+    /// @resolution.operator source="value is int32 && value > 0" type=boolean operator="&&" kind=builtin operands=[value is int32 as boolean families=(boolean), value > 0 as boolean families=(boolean)]
+    /// @resolution.guard source="value is int32" kind=is value=unknown target=int32 predicate="unknown is int32" narrowed=Narrow<unknown, int32> projection=dynamic.payload(int32)
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=positive.value
+    /// @resolution.name source=value target=positive.value
+    /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=positive.value
+
+}
+"#,
+    );
+}
+
+#[test]
 fn test_is_guard_narrows_unknown_to_string() {
     let session = TestSession::single(
         r#"
@@ -17,7 +57,7 @@ if (value is string) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare const value: Dynamic<unknown>;
+declare const value: unknown;
 
 if (value is string) {
     value satisfies string;
@@ -25,14 +65,14 @@ if (value is string) {
 
 === dir ===
 declare const value: unknown;
-/// @type.symbol symbol=value source=value type=Dynamic<unknown>
+/// @type.symbol symbol=value source=value type=unknown
 /// @resolution.pattern source=value kind=binding target=value
 
 if (value is string) {
 /// @type.node source="value is string" type=boolean
-/// @type.node source=value type=Dynamic<unknown>
+/// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value is string" kind=is value=Dynamic<unknown> target=string predicate="Dynamic<unknown> is string" narrowed=Narrow<Dynamic<unknown>, string> projection=dynamic.payload(string)
+/// @resolution.guard source="value is string" kind=is value=unknown target=string predicate="unknown is string" narrowed=Narrow<unknown, string> projection=dynamic.payload(string)
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 
@@ -220,7 +260,7 @@ struct Node {
     id: int32;
 }
 
-declare const value: Dynamic<unknown>;
+declare const value: unknown;
 
 if (value is &readonly Node) {
     value.id satisfies int32;
@@ -238,14 +278,14 @@ struct Node {
 }
 
 declare const value: unknown;
-/// @type.symbol symbol=value source=value type=Dynamic<unknown>
+/// @type.symbol symbol=value source=value type=unknown
 /// @resolution.pattern source=value kind=binding target=value
 
 if (value is &readonly Node) {
 /// @type.node source="value is &readonly Node" type=boolean
-/// @type.node source=value type=Dynamic<unknown>
+/// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value is &readonly Node" kind=is value=Dynamic<unknown> target=&'frame readonly Node predicate="dynamic.type(reflect.type.Type<unknown>) is type(&'frame readonly Node)" narrowed=Narrow<Dynamic<unknown>, &'frame readonly Node> projection="dynamic.payload(&'frame readonly Node)"
+/// @resolution.guard source="value is &readonly Node" kind=is value=unknown target=&'frame readonly Node predicate="dynamic.type(reflect.type.Type<unknown>) is type(&'frame readonly Node)" narrowed=Narrow<unknown, &'frame readonly Node> projection="dynamic.payload(&'frame readonly Node)"
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.name source=Node target=Node
@@ -255,7 +295,7 @@ if (value is &readonly Node) {
     /// @type.node source=value type=&'frame readonly Node
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.id receiver=Narrow<Dynamic<unknown>, &'frame readonly Node> type=int32 kind=field target_receiver=Narrow<Dynamic<unknown>, &'frame readonly Node> key=id target=Node.id target_type=int32
+    /// @resolution.member source=value.id receiver=Narrow<unknown, &'frame readonly Node> type=int32 kind=field target_receiver=Narrow<unknown, &'frame readonly Node> key=id target=Node.id target_type=int32
     /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
     /// @resolution.place source=value.id placement="local" lifetime="static" access="readonly"
@@ -282,7 +322,7 @@ function check<T>(value: unknown): void {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-function check<T>(value: Dynamic<unknown>): void {
+function check<T>(value: unknown): void {
     if (value is T) {
     }
 }
@@ -290,15 +330,15 @@ function check<T>(value: Dynamic<unknown>): void {
 === dir ===
 function check<T>(value: unknown): void {
 /// @generic.template symbol=check parameters=(T)
-/// @type.symbol symbol=check type=<T>(Dynamic<unknown>) => void
+/// @type.symbol symbol=check type=<T>(unknown) => void
 /// @type.symbol symbol=check.T source=T type=T
-/// @type.symbol symbol=check.value source="value: unknown" type=Dynamic<unknown>
+/// @type.symbol symbol=check.value source="value: unknown" type=unknown
 
     if (value is T) {
     /// @type.node source="value is T" type=boolean
-    /// @type.node source=value type=Dynamic<unknown>
+    /// @type.node source=value type=unknown
     /// @resolution.name source=value target=check.value
-    /// @resolution.guard source="value is T" kind=is value=Dynamic<unknown> target=T predicate="Dynamic<unknown> is never"
+    /// @resolution.guard source="value is T" kind=is value=unknown target=T predicate="unknown is never"
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=check.value
     /// @resolution.name source=T target=check.T
