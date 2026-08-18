@@ -490,7 +490,7 @@ function make<T, E>(value: T): AsyncResult<T, E> {
     /// @type.node source=Promise.resolve type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3>
     /// @type.node source=Promise.resolve(ok(value)) type=Promise<Result<T#8, E#5>>
     /// @resolution.name source=Promise target=Promise
-    /// @resolution.member source=Promise.resolve receiver=Promise type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3> kind=existential targets=[Promise.resolve#1, Promise.resolve#2]
+    /// @resolution.member source=Promise.resolve receiver=Promise type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3> kind=overload-set targets=[Promise.resolve#1, Promise.resolve#2]
     /// @resolution.call source=Promise.resolve(ok(value)) parameters=(Result<T#8, E#5>) arguments=(provided(ok(value)) as Result<T#8, E#5>) return=Promise<Result<T#8, E#5>> kind=symbol target=Promise.resolve#2 instance="Promise.resolve#2<Result<T#8, E#5>>"
     /// @generic.instantiation id="Promise.resolve#2<Result<T#8, E#5>>" template=Promise.resolve#2 arguments=(Result<T#8, E#5>) owner=make
     /// @type.node source=ok type=(T#8) => Result<T#8, E#5>

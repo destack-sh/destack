@@ -1010,7 +1010,7 @@ impl BodyState<'_, '_> {
                 let target = match targets.as_slice() {
                     [] => return Ok(None),
                     [target] => target.clone(),
-                    _ => dir::MemberTarget::Existential(targets),
+                    _ => dir::MemberTarget::OverloadSet(targets),
                 };
                 let ty = self.normalized_intersection_type(types)?;
                 let access = dir::MemberAccess::new(receiver.ty, target, ty);
@@ -2245,7 +2245,7 @@ fn selects_bound_method(target: &dir::MemberTarget) -> bool {
         dir::MemberTarget::Symbol(candidate) => {
             candidate.space == dir::MemberSpace::Instance && candidate.callable_type.is_some()
         }
-        dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
+        dir::MemberTarget::OverloadSet(targets) | dir::MemberTarget::Intersection(targets) => {
             targets.iter().any(selects_bound_method)
         }
         dir::MemberTarget::Call(_)

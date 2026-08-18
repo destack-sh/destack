@@ -91,7 +91,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn is_named_member(target: &dir::MemberTarget) -> bool {
     match target {
         dir::MemberTarget::Index(_) => false,
-        dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
+        dir::MemberTarget::OverloadSet(targets) | dir::MemberTarget::Intersection(targets) => {
             !targets.is_empty() && targets.iter().all(is_named_member)
         }
         dir::MemberTarget::Projection { .. }

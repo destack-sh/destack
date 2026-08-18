@@ -190,7 +190,7 @@ impl CheckState<'_> {
             }
             dir::MemberTarget::Projection { .. }
             | dir::MemberTarget::Symbol(_)
-            | dir::MemberTarget::Existential(_) => Err(CompilerError::Internal {
+            | dir::MemberTarget::OverloadSet(_) => Err(CompilerError::Internal {
                 message: format!("write selected non-writable member target {target:?}"),
             }),
         }

@@ -2172,7 +2172,7 @@ const filtered = mapped.filter((value) => value != undefined);
 /// @type.symbol symbol=filtered source=filtered type=Owned<int32 | undefined[]>
 /// @resolution.pattern source=filtered kind=binding target=filtered
 /// @resolution.name source=mapped target=mapped
-/// @resolution.member source=mapped.filter receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> & (this: Owned<int32 | undefined[]>, Function<(int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=existential targets=[collections.array.filter#1, collections.array.filter#2]
+/// @resolution.member source=mapped.filter receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> & (this: Owned<int32 | undefined[]>, Function<(int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=overload-set targets=[collections.array.filter#1, collections.array.filter#2]
 /// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=collections.array.filter#1 receiver=Owned<int32 | undefined[]> instance=Owned<collections.array.T#2[]>.<extension#2>.filter#1
 /// @resolution.place source=mapped placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=mapped root=mapped

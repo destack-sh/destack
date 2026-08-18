@@ -230,7 +230,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
         /// @type.node source=Pack.from type=(Iterable<T#2>) => Owned<Pack<T#2>> & (Iterable<T#3>) => Owned<Pack<T#3>>
         /// @type.node source=Pack.from(values) type=Owned<Pack<T#3>>
         /// @resolution.name source=Pack target=Pack
-        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => Owned<Pack<T#2>> & (Iterable<T#3>) => Owned<Pack<T#3>> kind=existential targets=[from#1, from#2]
+        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => Owned<Pack<T#2>> & (Iterable<T#3>) => Owned<Pack<T#3>> kind=overload-set targets=[from#1, from#2]
         /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @type.node source=values type=Iterable<T#3>

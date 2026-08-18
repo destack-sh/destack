@@ -298,7 +298,7 @@ impl BodyState<'_, '_> {
                     overloads: candidates,
                 }))
             }
-            dir::MemberTarget::Existential(targets) => {
+            dir::MemberTarget::OverloadSet(targets) => {
                 let mut candidates = SmallVec::new();
                 for target in targets {
                     let dir::MemberTarget::Symbol(candidate) = target else {

@@ -176,6 +176,6 @@ fn member_target_place_label(target: &dir::MemberTarget, context: &DumpContext<'
         dir::MemberTarget::Projection { .. }
         | dir::MemberTarget::Index(_)
         | dir::MemberTarget::Symbol(_)
-        | dir::MemberTarget::Existential(_) => "member".to_string(),
+        | dir::MemberTarget::OverloadSet(_) => "member".to_string(),
     }
 }

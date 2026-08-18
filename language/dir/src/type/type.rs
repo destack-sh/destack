@@ -856,9 +856,9 @@ pub enum Place {
 /// Normalized lifetime value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Lifetime {
-    /// Static lifetime.
+    /// Static lifetime ('static).
     Static,
-    /// The enclosing frame's lifetime.
+    /// The enclosing frame's lifetime ('frame).
     Frame,
 }
 

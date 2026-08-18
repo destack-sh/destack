@@ -351,7 +351,7 @@ pub enum MemberTarget {
     /// user.rename(name)   // `rename` has exactly one declaration
     /// ```
     Symbol(MemberCandidate),
-    /// Existential symbol-backed candidates deferred to call selection.
+    /// An overload set of symbol-backed candidates contributed by one member key.
     /// A call is valid when one candidate accepts it.
     ///
     /// Examples:
@@ -360,7 +360,7 @@ pub enum MemberTarget {
     /// // `push(value: T)` and `push(...values: T[])` stay candidates
     /// // until the call site selects one
     /// ```
-    Existential(Vec<MemberTarget>),
+    OverloadSet(Vec<MemberTarget>),
     /// Simultaneous member requirements contributed by an intersection receiver.
     ///
     /// Examples:
@@ -375,7 +375,7 @@ impl MemberTarget {
     /// Collect every declaration symbol selected by this target.
     pub fn collect_symbols(&self, symbols: &mut Vec<GlobalSymbolId>) {
         match self {
-            Self::Existential(targets) | Self::Intersection(targets) => {
+            Self::OverloadSet(targets) | Self::Intersection(targets) => {
                 for target in targets {
                     target.collect_symbols(symbols);
                 }
@@ -396,7 +396,7 @@ impl MemberTarget {
             Self::Projection { .. }
             | Self::Field(_)
             | Self::Index(_)
-            | Self::Existential(_)
+            | Self::OverloadSet(_)
             | Self::Intersection(_) => None,
         }
     }
@@ -408,7 +408,7 @@ impl MemberTarget {
             Self::Field(field) => Some(field.target.key()),
             Self::Call(_) => None,
             Self::Symbol(_) => None,
-            Self::Existential(targets) | Self::Intersection(targets) => {
+            Self::OverloadSet(targets) | Self::Intersection(targets) => {
                 let mut key = None;
                 for target in targets {
                     let candidate_key = target.stored_key()?;
@@ -430,7 +430,7 @@ impl MemberTarget {
             Self::Projection { .. } | Self::Field(_) | Self::Index(_) => true,
             Self::Call(_) => false,
             Self::Symbol(_) => false,
-            Self::Existential(targets) | Self::Intersection(targets) => {
+            Self::OverloadSet(targets) | Self::Intersection(targets) => {
                 !targets.is_empty() && targets.iter().all(Self::is_stored)
             }
         }

@@ -515,7 +515,7 @@ fn add_member_access_fields(
                     ),
                 )
         }
-        dir::MemberTarget::Existential(candidates) => row.field("kind", "existential").list_field(
+        dir::MemberTarget::OverloadSet(candidates) => row.field("kind", "overload-set").list_field(
             "targets",
             candidates
                 .iter()
@@ -1064,7 +1064,7 @@ fn member_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::MemberTar
             format!("index({})", builder.global_type_label(index.key_type))
         }
         dir::MemberTarget::Symbol(candidate) => builder.member_candidate_label(candidate),
-        dir::MemberTarget::Existential(candidates) => candidates
+        dir::MemberTarget::OverloadSet(candidates) => candidates
             .iter()
             .map(|target| member_target_label(builder, target))
             .collect::<Vec<_>>()
