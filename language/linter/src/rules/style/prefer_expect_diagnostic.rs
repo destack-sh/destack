@@ -1,14 +1,17 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
+use destack_source::Patch;
 
-declare_lint_stub! {
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
     /// Prefer diagnostic expectations for local suppressions.
     pub PREFER_EXPECT_DIAGNOSTIC {
         id: "prefer-expect-diagnostic",
         summary: "Prefer diagnostic expectations for local suppressions",
         explanation: r#"
-A local `@allow` remains silently valid after the suppressed diagnostic disappears. Use `@expect`
-when a specific construct intentionally produces a diagnostic so removal of the diagnostic also
-removes the stale suppression.
+A local `@allow` remains valid after the suppressed diagnostic disappears.
+Instead, you SHOULD use `@expect` for an intentional diagnostic so its disappearance is reported.
 "#,
         example: {
             reported: r#"
@@ -35,6 +38,114 @@ function ready(): boolean {
         category: Style,
         level: Warning,
         fixable: Suggestion,
-        check: DirModule,
+        check: DirModule(check),
+    }
+}
+
+/// Report canonical allow decorators whose diagnostics should be expected.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let mut output = LintOutput::default();
+
+    // inspect checked applications of the canonical allow decorator
+    for (_, application) in module.decorators.iter_applications() {
+        if application.resolution.target.language_item() != Some(dir::LanguageItem::Allow) {
+            continue;
+        }
+
+        // replace only the decorator function name
+        let span = module.main_span(application.expression.local_id.into_any())?;
+        let patch = Patch::replace(span, "expect");
+        let suggestion = lint.suggestion("expect the diagnostic", patch)?;
+        let diagnostic = lint
+            .diagnostic("diagnostic is suppressed without an expectation", span)
+            .suggestion(suggestion);
+        output.report(diagnostic);
+    }
+
+    Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Replace a local allow control with an expectation.
+    #[test]
+    fn test_replaces_allow_with_expect() {
+        let session = TestSession::dir(
+            &PREFER_EXPECT_DIAGNOSTIC,
+            PREFER_EXPECT_DIAGNOSTIC.example.reported(),
+        );
+
+        session.assert_suggestions(PREFER_EXPECT_DIAGNOSTIC.example.accepted());
+    }
+
+    /// Retain conditional diagnostic control options.
+    #[test]
+    fn test_retains_conditional_options() {
+        let session = TestSession::dir(
+            &PREFER_EXPECT_DIAGNOSTIC,
+            r#"
+@allow("constant-condition", {
+    reason: "required sentinel branch",
+    if: true,
+    otherwise: "deny",
+})
+function ready(): boolean {
+    if (true) {
+        return true;
+    }
+
+    return false;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+@expect("constant-condition", {
+    reason: "required sentinel branch",
+    if: true,
+    otherwise: "deny",
+})
+function ready(): boolean {
+    if (true) {
+        return true;
+    }
+
+    return false;
+}
+"#,
+        );
+    }
+
+    /// Accept an existing diagnostic expectation.
+    #[test]
+    fn test_accepts_expect() {
+        let session = TestSession::dir(
+            &PREFER_EXPECT_DIAGNOSTIC,
+            PREFER_EXPECT_DIAGNOSTIC.example.accepted(),
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a user-defined decorator named allow.
+    #[test]
+    fn test_accepts_user_decorator() {
+        let session = TestSession::dir(
+            &PREFER_EXPECT_DIAGNOSTIC,
+            r#"
+newtype allow = (string,);
+
+@allow("custom")
+function ready(): boolean {
+    return true;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 }
