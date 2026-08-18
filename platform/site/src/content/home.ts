@@ -47,13 +47,13 @@ export const homeExamples = [
         editors: [
             {
                 language: "destack",
-                title: "src/server.ds",
-                text: `import { serve } from "destack:http";
-import { spawn } from "destack:worker";
+                title: "src/main.ds",
+                text: `import { spawn } from "destack:worker";
 
 import { RelayDashboard } from "./dashboard";
 import { deliver } from "./delivery";
 import { receive } from "./event";
+import { serve } from "./server";
 import { subscriptions } from "./subscription";
 
 const deliveries = spawn(deliver, { name: "deliveries" });
@@ -208,12 +208,12 @@ error[not-assignable]: \`Attempts + 1\` may exceed \`1..=8\`
         editors: [
             {
                 language: "destack",
-                title: "src/server.ds",
-                text: `import { serve } from "destack:http";
-import { spawn } from "destack:worker";
+                title: "src/main.ds",
+                text: `import { spawn } from "destack:worker";
 
 import { deliver } from "./delivery";
 import { receive } from "./event";
+import { serve } from "./server";
 import { subscriptions } from "./subscription";
 
 const deliveries = spawn(deliver, { name: "deliveries" });
