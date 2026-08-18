@@ -4,6 +4,17 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return the only checked symbol declared within one node subtree.
+    pub(crate) fn sole_declared_symbol(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::GlobalSymbolId> {
+        let mut symbols = self.symbols_declared_within(node);
+        let symbol = symbols.next()?;
+
+        symbols.next().is_none().then_some(symbol)
+    }
+
     /// Iterate the checked symbols declared within one node subtree.
     pub(crate) fn symbols_declared_within(
         &self,

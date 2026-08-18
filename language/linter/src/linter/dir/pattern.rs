@@ -16,4 +16,33 @@ impl DirModule<'_> {
             ))
         })
     }
+
+    /// Return the canonical language item selected by one checked pattern.
+    pub(crate) fn pattern_language_item(
+        &self,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+    ) -> Result<Option<dir::LanguageItem>, ProviderError> {
+        let symbol = match self.pattern_decision(pattern)? {
+            // fieldless nominal variant
+            dir::PatternDecision::Variant(variant) => variant.case.variant,
+
+            // nominal destructuring
+            dir::PatternDecision::Destructure(destructure) => match destructure.as_ref() {
+                dir::PatternDestructureResolution::Nominal(nominal) => nominal.selection.symbol,
+                _ => return Ok(None),
+            },
+
+            // newtype payload projection
+            dir::PatternDecision::Project(project) => match &project.projection {
+                dir::OperationResolution::One(dir::Projection::NewtypePayload {
+                    selection,
+                    ..
+                }) => selection.symbol,
+                _ => return Ok(None),
+            },
+            _ => return Ok(None),
+        };
+
+        Ok(self.dir.environment.language.item(symbol))
+    }
 }

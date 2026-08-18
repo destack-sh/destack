@@ -14,16 +14,14 @@ pub(crate) struct MemberCall<'a> {
     pub(crate) generic_arguments: &'a [dir::LocalNodeId<dir::GenericArgument>],
     /// The authored call arguments.
     pub(crate) arguments: &'a [dir::LocalNodeId<dir::Argument>],
-    /// Whether the call itself is optional.
-    pub(crate) is_call_optional: bool,
-    /// Whether the selected member access is optional.
-    pub(crate) is_member_optional: bool,
+    /// Whether the call or its member access is optional.
+    is_optional: bool,
 }
 
 impl MemberCall<'_> {
     /// Return whether the call or its member access is optional.
     pub(crate) fn is_optional(self) -> bool {
-        self.is_call_optional || self.is_member_optional
+        self.is_optional
     }
 }
 
@@ -71,8 +69,7 @@ impl DirModule<'_> {
             receiver: *receiver,
             generic_arguments,
             arguments,
-            is_call_optional: *is_optional,
-            is_member_optional: *is_member_optional,
+            is_optional: *is_optional || *is_member_optional,
         })
     }
 
@@ -215,36 +212,8 @@ impl DirModule<'_> {
         let Some(decision) = self.call_decision(expression)? else {
             return Ok(None);
         };
-        if decision.arms().is_empty() {
-            return Err(ProviderError::internal(
-                "checked call resolution has no runtime alternatives",
-            ));
-        }
-        let mut receiver = None;
 
-        // require every runtime arm to select the same receiver type
-        for call in decision.arms() {
-            let selected = match &call.target {
-                // declaration backed method
-                dir::CallableTarget::Symbol { function, .. } => {
-                    function.receiver.as_ref().map(dir::AdjustedReceiver::ty)
-                }
-                // erased interface method
-                dir::CallableTarget::Dynamic { dispatch, .. } => Some(dispatch.receiver.ty()),
-                // receiverless callable value
-                dir::CallableTarget::Expression { .. } => None,
-            };
-            let Some(selected) = selected else {
-                return Ok(None);
-            };
-            if receiver.is_some_and(|receiver| receiver != selected) {
-                return Ok(None);
-            }
-
-            receiver = Some(selected);
-        }
-
-        Ok(receiver)
+        Ok(decision.agreed_receiver_type())
     }
 
     /// Return the declaration symbol selected by every arm of one checked call.
@@ -252,25 +221,12 @@ impl DirModule<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::GlobalSymbolId>, ProviderError> {
-        // require every runtime arm to select one common symbol
+        // read the checked runtime alternatives
         let Some(decision) = self.call_decision(expression)? else {
             return Ok(None);
         };
-        let symbols = decision.target_symbols();
-        let [symbol] = symbols.as_slice() else {
-            return Ok(None);
-        };
 
-        // reject callable expressions and mixed runtime targets
-        let is_declaration = decision
-            .arms()
-            .iter()
-            .all(|call| call.target.symbol() == Some(*symbol));
-        if !is_declaration {
-            return Ok(None);
-        }
-
-        Ok(Some(*symbol))
+        Ok(decision.agreed_target_symbol())
     }
 
     /// Iterate expressions with a checked call resolution.
@@ -417,8 +373,26 @@ impl DirModule<'_> {
                 node.id, self.id
             )));
         };
+        if resolution.arms().is_empty() {
+            return Err(ProviderError::internal(format!(
+                "checked call expression {global:?} has no runtime alternatives"
+            )));
+        }
 
         Ok(Some(resolution))
+    }
+
+    /// Return the generic argument bindings shared by every selected call target.
+    pub(crate) fn call_generic_bindings(
+        &self,
+        node: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<&[dir::GenericArgumentBinding]>, ProviderError> {
+        // read the checked runtime alternatives
+        let Some(decision) = self.call_decision(node)? else {
+            return Ok(None);
+        };
+
+        Ok(decision.agreed_generic_arguments())
     }
 
     /// Return the member decision selected for one checked expression.

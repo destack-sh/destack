@@ -69,11 +69,38 @@ impl<'a> Dir<'a> {
         Ok(type_id)
     }
 
-    /// Return the access carried by one checked borrowed type.
-    pub(crate) fn borrow_access(
+    /// Return the access represented by one checked memory type.
+    pub(super) fn memory_access(
         &self,
         type_id: dir::GlobalTypeId,
-    ) -> Result<Option<dir::Access>, ProviderError> {
+    ) -> Result<dir::Access, ProviderError> {
+        let ty = self.get_type(type_id)?;
+        let dir::Type::Memory(dir::MemoryLiteral::Access(access)) = ty else {
+            return Err(ProviderError::internal(format!(
+                "checked memory access {type_id:?} has non-access type {ty:?}"
+            )));
+        };
+
+        Ok(access)
+    }
+
+    /// Return whether one checked type is a nominal enum.
+    pub(crate) fn is_enum_type(&self, type_id: dir::GlobalTypeId) -> Result<bool, ProviderError> {
+        let type_id = self.strip_form(type_id)?;
+        let Some(symbol) = self.get_type(type_id)?.symbol() else {
+            return Ok(false);
+        };
+
+        self.read_declaration_tables(symbol.module_id, |_, definitions| {
+            Ok(definitions.enum_definition(symbol).is_some())
+        })
+    }
+
+    /// Return the payload carried by one checked borrowed type.
+    pub(super) fn borrow_form(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<Option<dir::BorrowForm>, ProviderError> {
         // select one borrowed memory form
         let dir::Type::Form(dir::FormType {
             form: dir::Form::Borrowed(borrow),
@@ -83,22 +110,28 @@ impl<'a> Dir<'a> {
             return Ok(None);
         };
 
-        // read the concrete access singleton from the borrow payload
+        // read the solved borrow payload
         self.read_types(type_id.module_id, |types| {
             let borrow = types.borrow_form_maybe(borrow).ok_or_else(|| {
                 ProviderError::internal(format!(
                     "checked borrowed type {type_id:?} has no borrow payload"
                 ))
             })?;
-            let access = self.get_type(borrow.access)?;
-            let dir::Type::Memory(dir::MemoryLiteral::Access(access)) = access else {
-                return Err(ProviderError::internal(format!(
-                    "checked borrowed type {type_id:?} has non-access payload {access:?}"
-                )));
-            };
 
-            Ok(Some(access))
+            Ok(Some(*borrow))
         })
+    }
+
+    /// Return the access carried by one checked borrowed type.
+    pub(crate) fn borrow_access(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<Option<dir::Access>, ProviderError> {
+        let Some(borrow) = self.borrow_form(type_id)? else {
+            return Ok(None);
+        };
+
+        self.memory_access(borrow.access).map(Some)
     }
 
     /// Return the function signature behind one callable type.

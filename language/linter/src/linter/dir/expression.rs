@@ -46,6 +46,80 @@ impl DirModule<'_> {
         }
     }
 
+    /// Return every terminal expression that can produce one expression's value.
+    pub(super) fn terminal_values(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<Vec<dir::LocalNodeId<dir::Expression>>> {
+        let mut values = Vec::new();
+        if !self.collect_terminal_values(expression, &mut values) {
+            return None;
+        }
+
+        Some(values)
+    }
+
+    /// Append every terminal expression that can produce one expression's value.
+    fn collect_terminal_values(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        values: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+    ) -> bool {
+        let view = self.view();
+
+        // follow block tail values
+        if let dir::Expression::Block(block) = view.get(expression) {
+            let Some(value) = view.get(*block).value_expression() else {
+                return true;
+            };
+
+            return self.collect_terminal_values(value, values);
+        }
+
+        // follow both conditional branches
+        if let dir::Expression::If {
+            then_expression,
+            else_expression,
+            ..
+        } = view.get(expression)
+        {
+            let Some(else_expression) = else_expression else {
+                return false;
+            };
+
+            return self.collect_terminal_values(*then_expression, values)
+                && self.collect_terminal_values(*else_expression, values);
+        }
+
+        // follow every match arm
+        if let dir::Expression::Match { arms, .. } = view.get(expression) {
+            if arms.is_empty() {
+                return false;
+            }
+            for arm in arms {
+                let value = match view.get(*arm) {
+                    dir::MatchArm::Expression { body, .. } => Some(*body),
+                    dir::MatchArm::Block { body, .. } => view.get(*body).value_expression(),
+                };
+                let Some(value) = value else {
+                    return false;
+                };
+                if !self.collect_terminal_values(value, values) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // retain one indivisible value from a normally completing path
+        if !self.flows.is_diverging(expression.into_any()) {
+            values.push(expression);
+        }
+
+        true
+    }
+
     /// Return the sole expression performed directly or within one block.
     pub(crate) fn sole_expression(
         &self,

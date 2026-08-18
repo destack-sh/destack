@@ -4,6 +4,61 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return the authored return type owned by one callable node.
+    pub(crate) fn callable_return_type(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::LocalNodeId<dir::TypeExpression>> {
+        let view = self.view();
+
+        match node.ty {
+            // function declaration
+            dir::NodeType::Declaration => {
+                let declaration = dir::LocalNodeId::<dir::Declaration>::new(node.id);
+                let dir::Declaration::Function(function) = view.get(declaration) else {
+                    return None;
+                };
+
+                function.signature.return_type
+            }
+            // class or interface method
+            dir::NodeType::Member => {
+                let member = dir::LocalNodeId::<dir::Member>::new(node.id);
+
+                view.get(member).signature()?.return_type
+            }
+            // object method
+            dir::NodeType::Property => {
+                let property = dir::LocalNodeId::<dir::Property>::new(node.id);
+
+                view.get(property).signature()?.return_type
+            }
+            // structural type callable
+            dir::NodeType::TypeMember => {
+                let member = dir::LocalNodeId::<dir::TypeMember>::new(node.id);
+
+                match view.get(member) {
+                    dir::TypeMember::Method { signature, .. } => signature.return_type,
+                    dir::TypeMember::CallSignature { signature } => signature.return_type,
+                    dir::TypeMember::ConstructSignature { signature } => signature.return_type,
+                    _ => None,
+                }
+            }
+            // function or constructor type expression
+            dir::NodeType::TypeExpression => {
+                let expression = dir::LocalNodeId::<dir::TypeExpression>::new(node.id);
+
+                match view.get(expression) {
+                    dir::TypeExpression::Function(function) => function.return_type,
+                    dir::TypeExpression::Constructor(constructor) => constructor.return_type,
+                    _ => None,
+                }
+            }
+            // non-callable node
+            _ => None,
+        }
+    }
+
     /// Return the body expression owned by one callable node.
     pub(crate) fn callable_body(
         &self,
@@ -71,6 +126,98 @@ impl DirModule<'_> {
         }
 
         None
+    }
+
+    /// Return every value returned by one callable body.
+    pub(crate) fn callable_return_values(
+        &self,
+        body: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<Vec<dir::LocalNodeId<dir::Expression>>> {
+        let view = self.view();
+        let mut values = self.terminal_values(body)?;
+
+        // collect explicit returns owned by this callable
+        for (expression, node) in view.iter_nodes::<dir::Expression>() {
+            if !view.is_inside(expression.into_any(), body.into_any())
+                || self.enclosing_callable_body(expression.into_any()) != Some(body)
+            {
+                continue;
+            }
+            let dir::Expression::Return { value: Some(value) } = node else {
+                continue;
+            };
+            let returned = self.terminal_values(*value)?;
+
+            values.extend(returned);
+        }
+
+        Some(values)
+    }
+
+    /// Return whether one callable return type borrows a parameter's value type.
+    pub(crate) fn return_type_borrows_parameter(
+        &self,
+        parameter: dir::LocalNodeId<dir::Parameter>,
+    ) -> Result<bool, ProviderError> {
+        let view = self.view();
+        let Some(borrowed_type) = view.get(parameter).declared_type() else {
+            return Ok(false);
+        };
+        let borrowed_type = self.node_type_id(borrowed_type.into_any())?;
+        let Some(borrow) = self.dir.borrow_form(borrowed_type)? else {
+            return Ok(false);
+        };
+        let Some(callable) = view.get_parent_for(parameter) else {
+            return Ok(false);
+        };
+        let Some(return_type) = self.callable_return_type(callable) else {
+            return Ok(false);
+        };
+        let target = self.dir.strip_form(borrowed_type)?;
+
+        // find an equal returned borrow tied to the solved parameter lifetime
+        for (node, _) in view.iter_nodes::<dir::TypeExpression>() {
+            if !view.is_inside(node.into_any(), return_type.into_any()) {
+                continue;
+            }
+            let returned_type = self.node_type_id(node.into_any())?;
+            let Some(returned_borrow) = self.dir.borrow_form(returned_type)? else {
+                continue;
+            };
+            let returned_target = self.dir.strip_form(returned_type)?;
+            if borrow.lifetime == returned_borrow.lifetime && target == returned_target {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Return whether one parameter lifetime occurs elsewhere in its callable.
+    pub(crate) fn parameter_lifetime_occurs_elsewhere(
+        &self,
+        parameter: dir::LocalNodeId<dir::Parameter>,
+        lifetime: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> Result<bool, ProviderError> {
+        let view = self.view();
+        let Some(callable) = view.get_parent_for(parameter) else {
+            return Ok(false);
+        };
+        let lifetime = self.node_type_id(lifetime.into_any())?;
+
+        // find the same authored lifetime outside the parameter declaration
+        for (node, _) in view.iter_nodes::<dir::TypeExpression>() {
+            if !view.is_inside(node.into_any(), callable)
+                || view.is_inside(node.into_any(), parameter.into_any())
+            {
+                continue;
+            }
+            if self.node_type_id(node.into_any())? == lifetime {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return the function declaration authored as one lambda expression.

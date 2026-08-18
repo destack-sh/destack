@@ -17,6 +17,59 @@ pub(crate) struct ForOf<'a> {
 }
 
 impl DirModule<'_> {
+    /// Return one unguarded match arm that contains exactly one expression.
+    pub(crate) fn match_arm_expression(
+        &self,
+        arm: dir::LocalNodeId<dir::MatchArm>,
+    ) -> Option<(
+        dir::LocalNodeId<dir::Pattern>,
+        dir::LocalNodeId<dir::Expression>,
+    )> {
+        let view = self.view();
+        let arm = view.get(arm);
+        if arm.guard().is_some() {
+            return None;
+        }
+
+        // select the direct body or the only expression in its block
+        let body = match arm {
+            dir::MatchArm::Expression { body, .. } => Some(*body),
+            dir::MatchArm::Block { body, .. } => view.get(*body).only_expression(),
+        }?;
+
+        Some((arm.pattern(), body))
+    }
+
+    /// Return one unguarded match arm that consists only of a value.
+    pub(crate) fn match_arm_value(
+        &self,
+        arm: dir::LocalNodeId<dir::MatchArm>,
+    ) -> Option<(
+        dir::LocalNodeId<dir::Pattern>,
+        dir::LocalNodeId<dir::Expression>,
+    )> {
+        let view = self.view();
+        let arm = view.get(arm);
+        if arm.guard().is_some() {
+            return None;
+        }
+
+        // select the direct body or an unpreceded block value
+        let body = match arm {
+            dir::MatchArm::Expression { body, .. } => Some(*body),
+            dir::MatchArm::Block { body, .. } => {
+                let body = view.get(*body);
+                if body.leading_expressions.is_empty() {
+                    body.value_expression()
+                } else {
+                    None
+                }
+            }
+        }?;
+
+        Some((arm.pattern(), body))
+    }
+
     /// Return one authored for-of expression.
     pub(crate) fn for_of(
         &self,
@@ -199,17 +252,17 @@ impl DirModule<'_> {
         Ok(false)
     }
 
-    /// Return whether one expression uses control from its enclosing context.
+    /// Return whether one subtree uses control from its enclosing context.
     pub(crate) fn uses_enclosing_control(
         &self,
-        expression: dir::LocalNodeId<dir::Expression>,
+        subtree: dir::LocalNodeIdAny,
     ) -> Result<bool, ProviderError> {
         let view = self.view();
-        let callable = self.enclosing_callable_body(expression.into_any());
+        let callable = self.enclosing_callable_body(subtree);
 
         // inspect control expressions owned by the same callable
         for (node, control) in view.iter_nodes::<dir::Expression>() {
-            if !view.is_inside(node.into_any(), expression.into_any())
+            if !view.is_inside(node.into_any(), subtree)
                 || self.enclosing_callable_body(node.into_any()) != callable
             {
                 continue;
@@ -230,10 +283,8 @@ impl DirModule<'_> {
             if matches!(
                 control,
                 dir::Expression::Break { .. } | dir::Expression::Continue { .. }
-            ) && !view.is_inside(
-                self.transfer_target(node)?.into_any(),
-                expression.into_any(),
-            ) {
+            ) && !view.is_inside(self.transfer_target(node)?.into_any(), subtree)
+            {
                 return Ok(true);
             }
         }
