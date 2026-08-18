@@ -189,7 +189,7 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     ) {
         match target {
             dir::MemberTarget::Call(call) => self.push_call(source, caller, span, call),
-            dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
+            dir::MemberTarget::OverloadSet(targets) | dir::MemberTarget::Intersection(targets) => {
                 for target in targets {
                     self.push_member_target(source, caller, span, target);
                 }

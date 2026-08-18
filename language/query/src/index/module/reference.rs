@@ -70,7 +70,10 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                     if targets.is_empty() {
                         continue;
                     }
-                    let sources = self.call_sources(source)?;
+                    // implicit constructions select a call without authored sources
+                    let Some(sources) = self.call_sources(source)? else {
+                        continue;
+                    };
                     self.record_selection(sources, targets)?;
                 }
                 // record nominal construction selections
@@ -825,7 +828,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             dir::MemberTarget::Symbol(candidate) => {
                 self.index_reference(candidate.selection.symbol, source)?
             }
-            dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
+            dir::MemberTarget::OverloadSet(targets) | dir::MemberTarget::Intersection(targets) => {
                 for target in targets {
                     self.index_member_target(source, target)?;
                 }
@@ -1043,7 +1046,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     fn call_sources(
         &self,
         source: dir::GlobalNodeIdAny,
-    ) -> ProviderResult<Vec<dir::GlobalNodeIdAny>> {
+    ) -> ProviderResult<Option<Vec<dir::GlobalNodeIdAny>>> {
         let expression_id = source
             .local_id
             .try_into_typed::<dir::Expression>()
@@ -1052,15 +1055,22 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                     "call resolution source is not an expression: {source:?}"
                 ))
             })?;
-        let dir::Expression::Call { left, .. } = self.module.view().get(expression_id) else {
-            return Err(ProviderError::internal(format!(
-                "call resolution source is not a call expression: {source:?}"
-            ))
-            .into());
+        let left = match self.module.view().get(expression_id) {
+            dir::Expression::Call { left, .. } => *left,
+            dir::Expression::ArrayExpression { .. }
+            | dir::Expression::FixedArrayExpression { .. } => {
+                return Ok(None);
+            }
+            _ => {
+                return Err(ProviderError::internal(format!(
+                    "call resolution source is not a call expression: {source:?}"
+                ))
+                .into());
+            }
         };
         let source = left.into_global_any(self.module.module_id());
 
-        self.expression_sources(source)
+        self.expression_sources(source).map(Some)
     }
 
     /// Return one expression and the generic wrappers leading to its authored name.
