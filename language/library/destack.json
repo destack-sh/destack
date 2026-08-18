@@ -48,12 +48,6 @@
     "./collections": {
       "path": "./src/collections/index.ds"
     },
-    "./compute": {
-      "path": "./src/compute/index.ds"
-    },
-    "./compute/binding": {
-      "path": "./src/compute/binding/index.ds"
-    },
     "./console": {
       "path": "./src/console/index.ds"
     },
@@ -239,9 +233,6 @@
     },
     "./telemetry/binding": {
       "path": "./src/telemetry/binding/index.ds"
-    },
-    "./tensor": {
-      "path": "./src/tensor/index.ds"
     },
     "./test": {
       "path": "./src/test/index.ds"
