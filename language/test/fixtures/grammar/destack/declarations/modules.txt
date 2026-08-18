@@ -1,7 +1,7 @@
 // SYNTAX TEST "source.ds"
 
 // declarations / modules / imports and exports
-import type { User as ImportedUser } from "./user.ds" with { mode: "static" };
+import { User as ImportedUser } from "./user.ds" with { mode: "static" };
 // <- keyword.declaration.import.ds
 
 export default function run(): void {}

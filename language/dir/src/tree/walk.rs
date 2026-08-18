@@ -768,7 +768,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Import {
-            form: _,
             target: _,
             items,
             attributes: _,
@@ -782,7 +781,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Export {
-            form: _,
             target: _,
             items,
             attributes: _,

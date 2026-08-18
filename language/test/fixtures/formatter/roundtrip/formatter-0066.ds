@@ -6,8 +6,8 @@
  * Each workspace can be created, used, and then cleared to free up resources.
  */
 
-import type { RuleDetails } from "../plugins/load.ts";
-import type { Options } from "../plugins/options.ts";
+import { RuleDetails } from "../plugins/load.ts";
+import { Options } from "../plugins/options.ts";
 import { debugAssert } from "../utils/asserts.ts";
 
 /// Settings for a workspace.

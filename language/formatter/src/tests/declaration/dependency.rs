@@ -23,17 +23,6 @@ fn test_format_import_with_items_from() {
     );
 }
 
-/// Type namespace imports should keep their explicit form.
-#[test]
-fn test_format_import_type_namespace() {
-    assert_format!(
-        r#"import type * as React from "react""#,
-        r#"import type * as React from "react""#,
-        parse_first_expression,
-        DestackFormatOptions::default()
-    );
-}
-
 /// Export attributes should stay stable.
 #[test]
 fn test_format_export_with_attributes() {

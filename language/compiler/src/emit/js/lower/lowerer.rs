@@ -278,40 +278,10 @@ impl<'a> ModuleLowerer<'a> {
                     _ => false,
                 }
             }
-            dir::Expression::Import { form, items, .. } => {
-                *form == dir::DependencyForm::Type
-                    || items.as_ref().is_some_and(|items| {
-                        !items.is_empty()
-                            && items
-                                .iter()
-                                .all(|item_id| self.dependency_item_is_erased(*form, *item_id))
-                    })
-            }
-            dir::Expression::Export { form, items, .. } => {
-                *form == dir::DependencyForm::Type
-                    || (!items.is_empty()
-                        && items
-                            .iter()
-                            .all(|item_id| self.dependency_item_is_erased(*form, *item_id)))
-            }
             dir::Expression::Let { is_ambient, .. } | dir::Expression::Using { is_ambient, .. } => {
                 *is_ambient
             }
             _ => false,
-        }
-    }
-
-    /// Return whether one dependency item has no JavaScript runtime form.
-    fn dependency_item_is_erased(
-        &self,
-        form: dir::DependencyForm,
-        item_id: dir::LocalNodeId<dir::DependencyItem>,
-    ) -> bool {
-        match self.dir_tree.get(item_id) {
-            dir::DependencyItem::Binding {
-                form: item_form, ..
-            } => item_form.unwrap_or(form) == dir::DependencyForm::Type,
-            dir::DependencyItem::Error => false,
         }
     }
 }

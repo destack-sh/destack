@@ -6,7 +6,7 @@ fn test_bind_module_scopes() {
         .module(
             "main.ds",
             r#"
-import { dep as local, type TypeDep } from "dep";
+import { dep as local, TypeDep } from "dep";
 
 global {
     let process: Process;
@@ -36,7 +36,7 @@ type Pick<T> = {
         "main.ds",
         DirRows::binding().with_summaries().with_bind_stats(),
         r#"
-import { dep as local, type TypeDep } from "dep";
+import { dep as local, TypeDep } from "dep";
 /// @binding.symbol symbol=local role=local kind=import scope=<module>@1
 /// @binding.symbol symbol=TypeDep role=local kind=import scope=<module>@2
 

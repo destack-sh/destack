@@ -26,15 +26,6 @@ pub enum ExportKind {
     Default,
 }
 
-/// The source form of one dependency declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum DependencyForm {
-    /// Plain dependency (`import { foo } from "foo"` or `export { foo }`).
-    Plain,
-    /// Type-marked dependency (`import type { Foo }` or `export type { Foo }`).
-    Type,
-}
-
 /// A dependency item imports or exports one binding from a target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum DependencyItem {
@@ -50,8 +41,6 @@ pub enum DependencyItem {
     Binding {
         /// How the item binds into the local module.
         binding: DependencyBinding,
-        /// The source form of the item, when specified.
-        form: Option<DependencyForm>,
         /// The name of the item (like `foo` in `foo as bar`, None if default).
         name: Option<Name>,
         /// The alias to use for the item (like `bar` in `foo as bar`).
@@ -84,15 +73,6 @@ impl DependencyItem {
         };
 
         Some(*binding)
-    }
-
-    /// Return the source form declared by this dependency item.
-    pub fn form(&self) -> Option<DependencyForm> {
-        let Self::Binding { form, .. } = self else {
-            return None;
-        };
-
-        *form
     }
 
     /// Return the local string key introduced by this dependency item.

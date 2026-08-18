@@ -156,56 +156,6 @@ import   "module"
 import "module";
 ```
 
-## Type Imports
-
-### type-only import
-
-Type-only imports use `import type`.
-
-```ds
-import type { Foo } from "module"
-```
-
-```ds expected
-import type { Foo } from "module";
-```
-
-### type-only namespace import
-
-Namespace imports can also be type-only.
-
-```ds
-import type * as Types from "module"
-```
-
-```ds expected
-import type * as Types from "module";
-```
-
-### mixed type and value imports
-
-Type and value imports can be mixed using `type` modifier on individual items.
-
-```ds
-import { type Foo, bar } from "module"
-```
-
-```ds expected
-import { type Foo, bar } from "module";
-```
-
-### multiple type imports
-
-Multiple types can be imported alongside values.
-
-```ds
-import { type Foo, type Bar, baz } from "module"
-```
-
-```ds expected
-import { type Bar, type Foo, baz } from "module";
-```
-
 ## Line Breaking
 
 ### long import breaks
@@ -310,18 +260,6 @@ export * as ns from "module"
 
 ```ds expected
 export * as ns from "module";
-```
-
-### type re-export
-
-Type-only re-exports use `export type` (parser issue).
-
-```ds
-export type { Foo, Bar } from "module"
-```
-
-```ds expected
-export type { Bar, Foo } from "module";
 ```
 
 ## Import Attributes

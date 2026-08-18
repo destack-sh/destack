@@ -1,4 +1,4 @@
-import type { Options, RuleOptionsSchema } from "./options.ts";
+import { Options, RuleOptionsSchema } from "./options.ts";
 
 /// Rule metadata. `meta` property of `Rule`.
 export interface RuleMeta {

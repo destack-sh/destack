@@ -258,44 +258,6 @@ export default (x) => x * 2
 export default (x) => x * 2;
 ```
 
-## Type Exports
-
-### type-only export
-
-Type-only exports use `export type`.
-
-```ds
-export type { Foo }
-```
-
-```ds expected
-export type { Foo };
-```
-
-### mixed type and value exports
-
-Type and value exports can be mixed using `type` modifier on individual items.
-
-```ds
-export { type Foo, bar }
-```
-
-```ds expected
-export { type Foo, bar };
-```
-
-### multiple type exports
-
-Multiple types can be exported together.
-
-```ds
-export { type Foo, type Bar, type Baz }
-```
-
-```ds expected
-export { type Bar, type Baz, type Foo };
-```
-
 ## Line Breaking
 
 ### long export breaks

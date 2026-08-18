@@ -33,21 +33,17 @@ impl Matcher<'_, '_> {
             }
             (
                 dir::Expression::Import {
-                    form: pattern_form,
                     target: pattern_target,
                     items: pattern_items,
                     attributes: pattern_attributes,
                 },
                 dir::Expression::Import {
-                    form: candidate_form,
                     target: candidate_target,
                     items: candidate_items,
                     attributes: candidate_attributes,
                 },
             ) => {
-                if pattern_form != candidate_form
-                    || pattern_target != candidate_target
-                    || pattern_attributes != candidate_attributes
+                if pattern_target != candidate_target || pattern_attributes != candidate_attributes
                 {
                     return Ok(false);
                 }
@@ -61,21 +57,17 @@ impl Matcher<'_, '_> {
             }
             (
                 dir::Expression::Export {
-                    form: pattern_form,
                     target: pattern_target,
                     items: pattern_items,
                     attributes: pattern_attributes,
                 },
                 dir::Expression::Export {
-                    form: candidate_form,
                     target: candidate_target,
                     items: candidate_items,
                     attributes: candidate_attributes,
                 },
             ) => {
-                if pattern_form != candidate_form
-                    || pattern_target != candidate_target
-                    || pattern_attributes != candidate_attributes
+                if pattern_target != candidate_target || pattern_attributes != candidate_attributes
                 {
                     return Ok(false);
                 }

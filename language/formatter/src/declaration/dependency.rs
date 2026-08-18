@@ -9,9 +9,9 @@ use crate::declaration::expression_needs_statement_terminator;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::{StringId, StringPool};
 use destack_dir::{
-    DecoratorPosition, DependencyBinding, DependencyForm, DependencyItem, Expression,
-    ImportAttribute, ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue,
-    Keyword, LocalNodeId, Name, ScalarLiteral, TokenSpan, TokenType, Tree,
+    DecoratorPosition, DependencyBinding, DependencyItem, Expression, ImportAttribute,
+    ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Keyword, LocalNodeId,
+    Name, ScalarLiteral, TokenSpan, TokenType, Tree,
 };
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
@@ -94,7 +94,6 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     ) -> FormatResult<()> {
         let DependencyItem::Binding {
             binding,
-            form: dependency_form,
             name,
             alias,
             value: _,
@@ -104,11 +103,6 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         };
 
         write!(f, [prefix_annotations(f.context(), node_id)])?;
-
-        // type
-        if *dependency_form == Some(DependencyForm::Type) {
-            write!(f, [Keyword::Type, space()])?;
-        }
 
         let is_default_binding = *binding == DependencyBinding::Default
             || (*binding == DependencyBinding::Named && name.is_none());
@@ -173,28 +167,19 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
 ) -> FormatResult<bool> {
     match expression {
         Expression::Import {
-            form,
             target,
             items,
             attributes,
         } => {
-            format_import_expression(
-                f,
-                node_id,
-                *form,
-                *target,
-                items.as_deref(),
-                attributes.as_ref(),
-            )?;
+            format_import_expression(f, node_id, *target, items.as_deref(), attributes.as_ref())?;
             Ok(true)
         }
         Expression::Export {
-            form,
             target,
             items,
             attributes,
         } => {
-            format_export_expression(f, node_id, *form, *target, items, attributes.as_ref())?;
+            format_export_expression(f, node_id, *target, items, attributes.as_ref())?;
             Ok(true)
         }
         _ => Ok(false),
@@ -287,15 +272,6 @@ pub(crate) fn sort_dependency_items(
         let left_item = tree.get(*left_id);
         let right_item = tree.get(*right_id);
 
-        // type imports come before value imports
-        let left_is_type = dependency_item_space(left_item) == Some(DependencyForm::Type);
-        let right_is_type = dependency_item_space(right_item) == Some(DependencyForm::Type);
-        match (left_is_type, right_is_type) {
-            (true, false) => return Ordering::Less,
-            (false, true) => return Ordering::Greater,
-            _ => {}
-        }
-
         // sort by declared item key
         let left_key = dependency_item_sort_key(left_item)
             .map(|string_id| strings.get(string_id))
@@ -356,14 +332,6 @@ pub(crate) fn should_insert_blank_between(
 /// Return true when one import path uses a known alias prefix.
 fn is_alias_specifier(specifier: &str) -> bool {
     specifier.starts_with("@/") || specifier.starts_with("~/") || specifier.starts_with('#')
-}
-
-/// Return one dependency item's dependency space when it is valid.
-fn dependency_item_space(item: &DependencyItem) -> Option<DependencyForm> {
-    match item {
-        DependencyItem::Binding { form: space, .. } => *space,
-        DependencyItem::Error => None,
-    }
 }
 
 /// Return one dependency item's sort key when present.
@@ -1496,7 +1464,6 @@ fn write_export_clause<'ast>(
 fn write_import_declaration_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    dependency_form: DependencyForm,
     target: StringId,
     items: &[LocalNodeId<DependencyItem>],
     has_item_clause: bool,
@@ -1507,10 +1474,6 @@ fn write_import_declaration_expression<'ast>(
     let sort_order = f.context().options.import_sort_order;
 
     write!(f, [Keyword::Import])?;
-
-    if dependency_form == DependencyForm::Type {
-        write!(f, [space(), Keyword::Type])?;
-    }
 
     write_import_clause(
         f,
@@ -1537,7 +1500,6 @@ fn write_import_declaration_expression<'ast>(
 pub(crate) fn format_import_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    dependency_form: DependencyForm,
     target: StringId,
     items: Option<&[LocalNodeId<DependencyItem>]>,
     attributes: Option<&ImportAttributeClause>,
@@ -1545,22 +1507,13 @@ pub(crate) fn format_import_expression<'ast>(
     let has_item_clause = items.is_some();
     let items = items.unwrap_or(&[]);
 
-    write_import_declaration_expression(
-        f,
-        node_id,
-        dependency_form,
-        target,
-        items,
-        has_item_clause,
-        attributes,
-    )
+    write_import_declaration_expression(f, node_id, target, items, has_item_clause, attributes)
 }
 
 /// Write one export declaration body.
 fn write_export_declaration_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    dependency_form: DependencyForm,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
     attributes: Option<&ImportAttributeClause>,
@@ -1570,10 +1523,6 @@ fn write_export_declaration_expression<'ast>(
     let sort_order = f.context().options.import_sort_order;
 
     write!(f, [Keyword::Export])?;
-
-    if dependency_form == DependencyForm::Type {
-        write!(f, [space(), Keyword::Type])?;
-    }
 
     let needs_trailing_semicolon = write_export_clause(
         f,
@@ -1602,10 +1551,9 @@ fn write_export_declaration_expression<'ast>(
 pub(crate) fn format_export_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    dependency_form: DependencyForm,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
     attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
-    write_export_declaration_expression(f, node_id, dependency_form, target, items, attributes)
+    write_export_declaration_expression(f, node_id, target, items, attributes)
 }

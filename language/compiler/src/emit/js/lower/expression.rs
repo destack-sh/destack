@@ -400,7 +400,6 @@ impl ModuleLowerer<'_> {
             }
 
             dir::Expression::Import {
-                form,
                 target,
                 items,
                 attributes,
@@ -408,7 +407,7 @@ impl ModuleLowerer<'_> {
                 let target = *target;
                 let items = items
                     .as_ref()
-                    .map(|items| self.lower_dependency_items(*form, items.as_slice()))
+                    .map(|items| self.lower_dependency_items(items.as_slice()))
                     .transpose()?;
                 let attributes = attributes
                     .as_ref()
@@ -428,12 +427,11 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::Export {
-                form,
                 target,
                 items,
                 attributes,
             } => {
-                let items = self.lower_dependency_items(*form, items.as_slice())?;
+                let items = self.lower_dependency_items(items.as_slice())?;
                 let attributes = attributes
                     .as_ref()
                     .map(|attributes| {

@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
-    Declarator, DependencyForm, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
-    InferForm, Keyword, LocalNodeId, MatchArm, Mutability, Node, NodeType, OperatorPrecedence,
-    Pattern, PlaceModifier, Property, RangeEnd, ScalarLiteral, StaticKey, SwitchCase,
-    TemplateLiteral, TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
+    Declarator, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause, InferForm,
+    Keyword, LocalNodeId, MatchArm, Mutability, Node, NodeType, OperatorPrecedence, Pattern,
+    PlaceModifier, Property, RangeEnd, ScalarLiteral, StaticKey, SwitchCase, TemplateLiteral,
+    TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
 };
 
 /// A catch branch.
@@ -42,12 +42,11 @@ pub enum Expression {
     /// import "foo.bar"
     /// import * as foo from "foo"
     /// import { bar, baz } from "foo"
-    /// import Default, { type Item } from "foo"
+    /// import Default, { Item } from "foo"
     /// import foo as baz with { bar: true }
     /// ```
     ///
     Import {
-        form: DependencyForm,
         target: StringId,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
         attributes: Option<ImportAttributeClause>,
@@ -68,7 +67,6 @@ pub enum Expression {
     /// export default foo
     /// ```
     Export {
-        form: DependencyForm,
         target: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
         attributes: Option<ImportAttributeClause>,

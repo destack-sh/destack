@@ -28,21 +28,18 @@ impl Matcher<'_, '_> {
             (
                 dir::DependencyItem::Binding {
                     binding: pattern_binding,
-                    form: pattern_form,
                     name: pattern_name,
                     alias: pattern_alias,
                     value: pattern_value,
                 },
                 dir::DependencyItem::Binding {
                     binding: candidate_binding,
-                    form: candidate_form,
                     name: candidate_name,
                     alias: candidate_alias,
                     value: candidate_value,
                 },
             ) => {
                 if pattern_binding != candidate_binding
-                    || pattern_form != candidate_form
                     || !self.match_optional_dependency_name(
                         nodes,
                         pattern_any,

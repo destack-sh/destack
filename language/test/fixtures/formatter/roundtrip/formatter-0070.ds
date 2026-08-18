@@ -3,9 +3,9 @@ import { join as pathJoin } from "node:path";
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { Program } from "../src-js/generated/types.d.ts";
+import { Program } from "../src-js/generated/types.d.ts";
 import { parse as parseRaw } from "../src-js/package/parse.ts";
-import type { ParseOptions } from "../src-js/package/parse.ts";
+import { ParseOptions } from "../src-js/package/parse.ts";
 import { resetFileContext, setupFileContext } from "../src-js/plugins/context.ts";
 import { buffers } from "../src-js/plugins/lint.ts";
 import {

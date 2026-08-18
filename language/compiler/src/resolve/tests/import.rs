@@ -344,12 +344,12 @@ import value from "./dep.ds";
 }
 
 #[test]
-fn test_resolve_records_type_only_import_target() {
+fn test_resolve_records_type_alias_import_target() {
     let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
-import type { Foo } from "./dep.ds";
+import { Foo } from "./dep.ds";
 "#,
         )
         .module(
@@ -364,7 +364,7 @@ export type Foo = string;
         "main.ds",
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
-import type { Foo } from "./dep.ds";
+import { Foo } from "./dep.ds";
 /// @import.resolved symbol=Foo declarations=[dep.Foo] targets=[dep.Foo]
 /// @reference.target source=Foo kind=bound targets=[dep.Foo]
 

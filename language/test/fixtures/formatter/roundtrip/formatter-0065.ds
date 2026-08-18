@@ -4,7 +4,7 @@
 
 import { debugAssertIsNonNull } from "../utils/asserts.ts";
 import { deepFreezeJsonValue } from "./json.ts";
-import type { JsonObject } from "./json.ts";
+import { JsonObject } from "./json.ts";
 
 /// Settings for the file being linted.
 ///

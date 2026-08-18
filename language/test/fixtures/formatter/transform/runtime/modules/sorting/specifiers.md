@@ -40,32 +40,6 @@ import { item10, item2, item1 } from "items"
 import { item1, item2, item10 } from "items";
 ```
 
-## type imports
-
-### type before value
-
-Type imports come before value imports.
-
-```ds
-import { value1, type Type1, value2, type Type2 } from "module"
-```
-
-```ds expected
-import { type Type1, type Type2, value1, value2 } from "module";
-```
-
-### mixed with default
-
-Type imports sorted, then value imports sorted.
-
-```ds
-import Default, { zebra, type Animal, apple, type Fruit } from "module"
-```
-
-```ds expected
-import Default, { type Animal, type Fruit, apple, zebra } from "module";
-```
-
 ## exports
 
 ### export specifier sorting
@@ -78,18 +52,6 @@ export { zebra, apple, mango } from "fruits"
 
 ```ds expected
 export { apple, mango, zebra } from "fruits";
-```
-
-### export with type specifiers
-
-Type exports come before value exports.
-
-```ds
-export { value1, type Type1, value2, type Type2 } from "module"
-```
-
-```ds expected
-export { type Type1, type Type2, value1, value2 } from "module";
 ```
 
 ## aliases

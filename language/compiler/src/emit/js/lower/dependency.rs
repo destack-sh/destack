@@ -34,7 +34,6 @@ impl ModuleLowerer<'_> {
     /// Lower dependency items from DIR into JavaScript.
     pub(crate) fn lower_dependency_items(
         &mut self,
-        form: dir::DependencyForm,
         item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
     ) -> Result<Vec<LocalNodeId<DependencyItem>>, EmitError> {
         let mut lowered_item_ids: Vec<LocalNodeId<DependencyItem>> = Vec::new();
@@ -49,16 +48,10 @@ impl ModuleLowerer<'_> {
                 }
                 dir::DependencyItem::Binding {
                     binding,
-                    form: item_form,
                     name,
                     alias,
                     value,
                 } => {
-                    let item_form = item_form.unwrap_or(form);
-                    if item_form == dir::DependencyForm::Type {
-                        continue;
-                    }
-
                     if value.is_some() {
                         return Err(self.unhandled(
                             item_id.into_global_any(self.module.id),

@@ -2,9 +2,9 @@ use crate::tests::{TestParser, block_expression_ids};
 use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, BinaryOperator, Block, BlockForm, ClassDeclaration,
-    CommentKind, Declaration, Declarator, Decorator, DependencyBinding, DependencyForm,
-    DependencyItem, ExportKind, Expression, FunctionDeclaration, ImportAttributeClauseKind, Name,
-    Parameter, Pattern, Property, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    CommentKind, Declaration, Declarator, Decorator, DependencyBinding, DependencyItem, ExportKind,
+    Expression, FunctionDeclaration, ImportAttributeClauseKind, Name, Parameter, Pattern, Property,
+    ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 
@@ -265,8 +265,7 @@ fn test_parse_export_expression_with_items_block() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // export { bar, baz } from foo
-    assert_node!(parser.tree, expression_id, Expression::Export { form, target: Some(target), items, .. } => {
-        assert_eq!(*form, DependencyForm::Plain);
+    assert_node!(parser.tree, expression_id, Expression::Export { target: Some(target), items, .. } => {
         assert_string!(parser, *target, "foo");
         assert_eq!(items.len(), 2);
         // bar
@@ -291,8 +290,7 @@ fn test_parse_export_expression_items_without_target() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Export { form, target: None, items, .. } => {
-        assert_eq!(*form, DependencyForm::Plain);
+    assert_node!(parser.tree, expression_id, Expression::Export { target: None, items, .. } => {
         assert_eq!(items.len(), 2);
         // bar
         assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: Some(name), alias, .. } => {
@@ -309,48 +307,6 @@ fn test_parse_export_expression_items_without_target() {
     });
 }
 
-/// Parse `export type { Foo, Bar } from "module"`.
-#[test]
-fn test_parse_export_expression_type_items_with_target() {
-    let test = TestParser::new("export type { Foo, Bar } from \"module\"");
-    let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Export { form, target: Some(target), items, .. } => {
-        assert_eq!(*form, DependencyForm::Type);
-        assert_string!(parser, *target, "module");
-        assert_eq!(items.len(), 2);
-        assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: Some(name), alias, .. } => {
-            assert_eq!(*binding, DependencyBinding::Named);
-            assert_string!(parser, name.string(), "Foo");
-            assert!(alias.is_none());
-        });
-        assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, name: Some(name), alias, .. } => {
-            assert_eq!(*binding, DependencyBinding::Named);
-            assert_string!(parser, name.string(), "Bar");
-            assert!(alias.is_none());
-        });
-    });
-}
-
-/// Parse `export type { Foo }`.
-#[test]
-fn test_parse_export_expression_type_items_without_target() {
-    let test = TestParser::new("export type { Foo }");
-    let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Export { form, target: None, items, .. } => {
-        assert_eq!(*form, DependencyForm::Type);
-        assert_eq!(items.len(), 1);
-        assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: Some(name), alias, .. } => {
-            assert_eq!(*binding, DependencyBinding::Named);
-            assert_string!(parser, name.string(), "Foo");
-            assert!(alias.is_none());
-        });
-    });
-}
-
 /// Parse `export * as baz from "foo"`.
 #[test]
 fn test_parse_export_expression_namespace_alias() {
@@ -359,8 +315,7 @@ fn test_parse_export_expression_namespace_alias() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // export * as baz from foo
-    assert_node!(parser.tree, expression_id, Expression::Export { form, target: Some(target), items, .. } => {
-        assert_eq!(*form, DependencyForm::Plain);
+    assert_node!(parser.tree, expression_id, Expression::Export { target: Some(target), items, .. } => {
         assert_string!(parser, *target, "foo");
         assert_eq!(items.len(), 1);
         // * as baz
@@ -616,8 +571,7 @@ fn test_parse_import_expression_with_items_block() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // import { bar, baz } from foo
-    assert_node!(parser.tree, expression_id, Expression::Import { form, target, items, .. } => {
-        assert_eq!(*form, DependencyForm::Plain);
+    assert_node!(parser.tree, expression_id, Expression::Import { target, items, .. } => {
         assert_string!(parser, *target, "foo");
         let items = items.as_deref().expect("expected import specifier shell");
         assert_eq!(items.len(), 2);
@@ -646,8 +600,7 @@ fn test_parse_import_expression_namespace_alias_with_arguments() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // import * as baz from foo with { bar: true }
-    assert_node!(parser.tree, expression_id, Expression::Import { form, target, items, attributes, .. } => {
-        assert_eq!(*form, DependencyForm::Plain);
+    assert_node!(parser.tree, expression_id, Expression::Import { target, items, attributes, .. } => {
         assert_string!(parser, *target, "foo");
         let items = items.as_deref().expect("expected import specifier shell");
         assert_eq!(items.len(), 1);

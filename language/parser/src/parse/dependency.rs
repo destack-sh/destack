@@ -3,7 +3,7 @@ use crate::{Parser, ParserError, ParserResult};
 
 use destack_core::StringId;
 use destack_dir::{
-    Argument, DependencyBinding, DependencyForm, DependencyItem, Expression, ImportAttribute,
+    Argument, DependencyBinding, DependencyItem, Expression, ImportAttribute,
     ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Keyword, LocalNodeId,
     Name, NodeType, Property, TokenLiteral, TokenType,
 };
@@ -29,7 +29,7 @@ impl Parser {
     /// import "foo.bar"
     /// import * as foo from "foo"
     /// import { bar, baz } from "foo"
-    /// import Default, { type Item } from "foo"
+    /// import Default, { Item } from "foo"
     /// import foo as baz with { bar: true }
     /// ```
     pub(crate) fn parse_import(
@@ -41,18 +41,14 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::Import)?;
 
-        // source form
-        let form = if self.peek_import_type_modifier() {
-            self.bump();
-            DependencyForm::Type
-        } else {
-            DependencyForm::Plain
-        };
+        // reject type-only imports
+        if self.peek_import_type_marker() {
+            return Err(ParserError::type_dependency(self.peek_token().range()));
+        }
 
         // binding
         let items = if self.peek_dependency_binding() {
-            let allow_type_modifier = form != DependencyForm::Type;
-            Some(self.parse_dependency_items(allow_type_modifier, false, function)?)
+            Some(self.parse_dependency_items(false, function)?)
         } else {
             None
         };
@@ -73,7 +69,6 @@ impl Parser {
         // import
         let import_id = self.insert_node(
             Expression::Import {
-                form,
                 target,
                 items,
                 attributes,
@@ -92,13 +87,13 @@ impl Parser {
         Ok(import_id)
     }
 
-    /// Decide whether `type` after `import` is a type-only modifier.
-    fn peek_import_type_modifier(&self) -> bool {
+    /// Decide whether `type` after `import` marks a type-only import.
+    fn peek_import_type_marker(&self) -> bool {
         if !self.peek_is_keyword(Keyword::Type) {
             return false;
         }
 
-        // binding forms like `import type { ... }` or `import type * as`
+        // clause forms like `import type { ... }` and `import type * as ns`
         if matches!(
             self.peek_token_type_at(1),
             TokenType::OpenBrace | TokenType::Multiply
@@ -106,17 +101,21 @@ impl Parser {
             return true;
         }
 
-        // identifier bindings like `import type A from "a"`
-        if self.peek_token_type_at(1) != TokenType::Identifier {
-            return false;
-        }
+        // identifier forms like `import type A from "a"` and `import type A, { B } from "a"`
+        self.peek_token_type_at(1) == TokenType::Identifier
+            && (self.peek_keyword_at(2) == Some(Keyword::From)
+                || self.peek_token_type_at(2) == TokenType::Comma)
+    }
 
-        if self.peek_keyword_at(1) == Some(Keyword::From) {
-            return self.peek_token_type_at(2) == TokenType::Assign
-                || self.peek_keyword_at(2) == Some(Keyword::From);
-        }
-
-        true
+    /// Decide whether `type` after `export` marks a type-only export.
+    ///
+    /// Only clause forms are markers, `export type Foo = ...` declares an alias.
+    fn peek_export_type_marker(&self) -> bool {
+        self.peek_is_keyword(Keyword::Type)
+            && matches!(
+                self.peek_token_type_at(1),
+                TokenType::OpenBrace | TokenType::Multiply
+            )
     }
 
     /// Parse an export declaration (including the `export` keyword and an optional body).
@@ -154,7 +153,6 @@ impl Parser {
             let item = self.insert_node(
                 DependencyItem::Binding {
                     binding: DependencyBinding::Default,
-                    form: Some(DependencyForm::Plain),
                     name: None,
                     alias: None,
                     value: Some(value),
@@ -163,7 +161,6 @@ impl Parser {
             );
             let export = self.insert_node(
                 Expression::Export {
-                    form: DependencyForm::Plain,
                     target: None,
                     items: vec![item],
                     attributes: None,
@@ -173,13 +170,10 @@ impl Parser {
             return Ok(export);
         }
 
-        // source form
-        let form = if self.peek_is_keyword(Keyword::Type) {
-            self.bump();
-            DependencyForm::Type
-        } else {
-            DependencyForm::Plain
-        };
+        // reject type-marked exports
+        if self.peek_export_type_marker() {
+            return Err(ParserError::type_dependency(self.peek_token().range()));
+        }
 
         // namespace export
         if self.peek_is(TokenType::Multiply) {
@@ -208,7 +202,6 @@ impl Parser {
                 .map(|import_clause| import_clause.clause.clone());
             let item = DependencyItem::Binding {
                 binding: DependencyBinding::Namespace,
-                form: None,
                 name: None,
                 alias,
                 value: None,
@@ -221,7 +214,6 @@ impl Parser {
             // export declaration
             let export = self.insert_node(
                 Expression::Export {
-                    form,
                     target: Some(target),
                     items: vec![item_id],
                     attributes,
@@ -240,14 +232,13 @@ impl Parser {
             return Ok(export);
         }
 
-        // require a binding after export and optional type modifier
+        // require a binding after export
         if !self.peek_dependency_binding() {
             return Err(ParserError::unexpected(self.peek_token_span()));
         }
 
         // binding
-        let allow_type_modifier = form != DependencyForm::Type;
-        let items = self.parse_dependency_items(allow_type_modifier, true, function)?;
+        let items = self.parse_dependency_items(true, function)?;
 
         // optional target for named exports
         let has_from_target = self.peek_is_keyword(Keyword::From);
@@ -292,7 +283,6 @@ impl Parser {
         // export
         let export_id = self.insert_node(
             Expression::Export {
-                form,
                 target,
                 items,
                 attributes,
@@ -504,7 +494,6 @@ impl Parser {
     /// ```
     fn parse_dependency_items(
         &mut self,
-        allow_type_modifier: bool,
         allow_literal_alias: bool,
         function: FunctionContext,
     ) -> ParserResult<Vec<LocalNodeId<DependencyItem>>> {
@@ -534,7 +523,6 @@ impl Parser {
             }
             let item = DependencyItem::Binding {
                 binding: DependencyBinding::Default,
-                form: None,
                 name: None,
                 alias: Some(alias),
                 value: None,
@@ -558,7 +546,6 @@ impl Parser {
             };
             let item = DependencyItem::Binding {
                 binding: DependencyBinding::Namespace,
-                form: None,
                 name: None,
                 alias: Some(alias),
                 value: None,
@@ -578,19 +565,18 @@ impl Parser {
                 let documentation = self.parse_documentation();
                 let decorators = self.parse_decorators(function);
 
-                let item =
-                    match self.parse_dependency_item(allow_type_modifier, allow_literal_alias) {
-                        Ok(item) => item,
-                        Err(error) => {
-                            self.recover_list_item(
-                                self.range_since(&item_start),
-                                TokenType::CloseBrace,
-                                error,
-                            );
+                let item = match self.parse_dependency_item(allow_literal_alias) {
+                    Ok(item) => item,
+                    Err(error) => {
+                        self.recover_list_item(
+                            self.range_since(&item_start),
+                            TokenType::CloseBrace,
+                            error,
+                        );
 
-                            self.insert_node(DependencyItem::Error, self.range_since(&item_start))
-                        }
-                    };
+                        self.insert_node(DependencyItem::Error, self.range_since(&item_start))
+                    }
+                };
                 if !matches!(self.tree.get(item), DependencyItem::Error) {
                     self.attach_documentation(item, documentation);
                 }
@@ -645,22 +631,14 @@ impl Parser {
     /// ```
     pub(crate) fn parse_dependency_item(
         &mut self,
-        allow_type_modifier: bool,
         allow_literal_alias: bool,
     ) -> ParserResult<LocalNodeId<DependencyItem>> {
         let start = self.mark_parse_start();
 
-        // source form
-        let form = if self.peek_dependency_type_modifier() {
-            if !allow_type_modifier {
-                let range = self.peek_token().range();
-                return Err(ParserError::unexpected(range));
-            }
-            self.bump();
-            Some(DependencyForm::Type)
-        } else {
-            None
-        };
+        // reject type-only dependency items
+        if self.peek_dependency_type_marker() {
+            return Err(ParserError::type_dependency(self.peek_token().range()));
+        }
 
         // default
         if self.peek_is_keyword(Keyword::Default) {
@@ -682,7 +660,6 @@ impl Parser {
             let item = self.insert_node(
                 DependencyItem::Binding {
                     binding: DependencyBinding::Default,
-                    form,
                     name: None,
                     alias,
                     value: None,
@@ -715,7 +692,6 @@ impl Parser {
             let item = self.insert_node(
                 DependencyItem::Binding {
                     binding: DependencyBinding::Named,
-                    form,
                     name: Some(name),
                     alias,
                     value: None,
@@ -730,35 +706,18 @@ impl Parser {
         }
     }
 
-    /// Decide whether `type` should be parsed as a dependency item modifier.
-    fn peek_dependency_type_modifier(&self) -> bool {
+    /// Decide whether `type` marks a type-only dependency item.
+    fn peek_dependency_type_marker(&self) -> bool {
         // require `type` keyword
         if !self.peek_is_keyword(Keyword::Type) {
             return false;
         }
 
-        // require a name after `type`
-        if !matches!(
+        // separate `{ type Foo }` from the `{ type as alias }` binding
+        matches!(
             self.peek_token_type_at(1),
             TokenType::Identifier | TokenType::Literal
-        ) {
-            return false;
-        }
-
-        // handle `type as` disambiguation
-        if self.peek_next_keyword() == Some(Keyword::As) {
-            if self.peek_token_type_at(2) != TokenType::Identifier {
-                return true;
-            }
-
-            if self.peek_keyword_at(2) == Some(Keyword::As) {
-                return self.peek_token_type_at(3) == TokenType::Identifier;
-            }
-
-            return false;
-        }
-
-        true
+        ) && self.peek_keyword_at(1) != Some(Keyword::As)
     }
 
     /// Eat a dependency item name and return its value and byte range.
