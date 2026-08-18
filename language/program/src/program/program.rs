@@ -2,7 +2,7 @@ use std::result;
 use std::sync::Arc;
 
 use destack_bytecode as bytecode;
-use destack_core::{Blob, EntryRange, SectionImage, SectionStorage, StringId};
+use destack_core::{Blob, SectionImage, SectionStorage, StringId};
 use destack_heap::{
     AllocationPlan, AllocationShape, DropId, HeapOptions, HeapResult, ReferenceRange, RootSlot,
     SharedHeapOptions, TraceTable, TraceView, visit_heap_root_slots,
@@ -19,11 +19,10 @@ use crate::{
     DropEntry, DropTable, DynamicEntry, DynamicTable, DynamicTableId, Error, FrameLayout,
     FrameLayoutId, FramePoint, FrameSlot, FrameState, FrameStateId, FrameTable, Function,
     FunctionId, FunctionTable, Global, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField,
-    LayoutId, LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
-    SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
-    StaticSpace, StringTable, Symbol, TensorDimension, TensorLayout, TensorViewLayout,
-    TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable,
-    VirtualTableId, Word, WordLayout,
+    LayoutId, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite, SampleValue,
+    ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace,
+    StringTable, Symbol, TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout,
+    VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout,
 };
 
 /// Linked program.
@@ -489,27 +488,18 @@ impl Program {
         &self,
         local: &HeapOptions,
         shared: &SharedHeapOptions,
-    ) -> Result<Vec<Option<AllocationPlan>>> {
+    ) -> Result<Vec<AllocationPlan>> {
         self.sites()
             .allocations(self.sections())
             .iter()
             .map(|site| {
-                let Some(layout) = self.layout_by_id(site.layout) else {
-                    return Err(Error::undefined_layout(site.layout));
-                };
-
-                // dynamically sized tensors derive their complete plan at execution
-                if matches!(layout.shape, LayoutShape::Tensor(_)) {
-                    return Ok(None);
-                }
-
                 let shape = self.allocation_shape(site.storage_type)?;
                 let plan = match site.space {
                     Space::Local => local.allocation_plan(&shape),
                     Space::Shared => shared.allocation_plan(&shape),
                 };
 
-                Ok(Some(plan))
+                Ok(plan)
             })
             .collect()
     }
@@ -555,31 +545,6 @@ impl Program {
     /// Return one runtime layout by id.
     pub fn layout_by_id(&self, layout: LayoutId) -> Option<&Layout> {
         self.layouts().get(self.sections(), layout)
-    }
-
-    /// Return the layout for one tensor type.
-    pub fn tensor_layout(&self, ty: TypeId) -> Option<TensorLayout> {
-        let layout = self.layout(ty)?;
-        let LayoutShape::Tensor(tensor) = layout.shape else {
-            return None;
-        };
-
-        Some(tensor)
-    }
-
-    /// Return the layout for one tensor view type.
-    pub fn tensor_view_layout(&self, ty: TypeId) -> Option<TensorViewLayout> {
-        let layout = self.layout(ty)?;
-        let LayoutShape::TensorView(view) = layout.shape else {
-            return None;
-        };
-
-        Some(view)
-    }
-
-    /// Return the dimensions for one tensor or tensor view layout.
-    pub fn tensor_dimensions(&self, dimensions: EntryRange<TensorDimension>) -> &[TensorDimension] {
-        self.layouts.tensor_dimensions(self.sections(), dimensions)
     }
 
     /// Return one field by logical source index.

@@ -188,7 +188,7 @@ impl ProgramHeader {
     /// Stable Program image marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
     /// Stable Program image format version.
-    const VERSION: u16 = 15;
+    const VERSION: u16 = 16;
 
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {

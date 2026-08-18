@@ -12,7 +12,7 @@ use crate::{AllocationSiteId, Global, GlobalAddress, GlobalLocation, StaticSpace
 /// Memory available to one program activation.
 pub struct Memory<'a> {
     /// Runtime allocation plans indexed by Program allocation site id.
-    pub allocation_plans: &'a [Option<AllocationPlan>],
+    pub allocation_plans: &'a [AllocationPlan],
     /// Worker heap.
     pub local_heap: &'a mut Heap,
     /// Runtime heap.
@@ -66,7 +66,7 @@ impl Memory<'_> {
 
     /// Return one runtime allocation plan by Program allocation site id.
     #[inline(always)]
-    pub fn allocation_plan(&self, site: AllocationSiteId) -> Option<AllocationPlan> {
+    pub fn allocation_plan(&self, site: AllocationSiteId) -> AllocationPlan {
         self.allocation_plans[site.index()]
     }
 
