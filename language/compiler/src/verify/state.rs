@@ -9,7 +9,7 @@ use destack_mir::{
 use destack_source::ModuleId;
 
 use crate::DiagnosticAnchor;
-use crate::verify::{BorrowChecker, MoveChecker, VerifyError};
+use crate::verify::{BorrowChecker, DropChecker, MoveChecker, VerifyError};
 
 /// State for one MIR verification.
 pub(crate) struct VerifyState<'a> {
@@ -82,6 +82,9 @@ impl<'a> VerifyState<'a> {
         }
 
         self.retention.sort();
+
+        // check drop hooks for forbidden effects
+        DropChecker::new(self).check();
     }
 
     /// Create a source anchor for one MIR node.

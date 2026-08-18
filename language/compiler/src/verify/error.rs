@@ -406,4 +406,31 @@ pub enum VerifyError {
         /// The active borrow.
         borrowed_at: DiagnosticAnchor,
     },
+
+    /// A drop hook carries effects a drop may not perform.
+    ///
+    /// ```mir
+    /// type Box {
+    ///     value: int32;
+    /// }
+    ///
+    /// external function effectful(): void
+    ///
+    /// function dropBox(v0: ref<Box, borrowed, exclusive>): void {
+    /// entry(v0: ref<Box, borrowed, exclusive>):
+    ///     call effectful(): () => void
+    ///     return
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "drop-effect",
+        message = "this drop may {effects}",
+        help = "move the effectful work to an explicit dispose"
+    )]
+    DropEffect {
+        /// The drop function.
+        anchor: DiagnosticAnchor,
+        /// The forbidden effects.
+        effects: String,
+    },
 }

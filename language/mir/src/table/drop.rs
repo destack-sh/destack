@@ -118,6 +118,15 @@ impl DropTable {
         self.hooks.keys().any(|(candidate, _)| *candidate == ty)
     }
 
+    /// Iterate user-authored drop hooks.
+    pub fn hooks(
+        &self,
+    ) -> impl Iterator<Item = (LocalNodeId<Type>, Storage, LocalNodeId<Function>)> + '_ {
+        self.hooks
+            .iter()
+            .map(|(&(ty, storage), &function)| (ty, storage, function))
+    }
+
     /// Record the user-authored drop hook for a type in one storage.
     pub fn set_hook(
         &mut self,

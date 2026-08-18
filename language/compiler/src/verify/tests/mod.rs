@@ -1,6 +1,7 @@
 mod access;
 mod alias;
 mod call;
+mod drop;
 mod initialization;
 mod lifetime;
 mod r#move;
