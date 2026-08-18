@@ -337,11 +337,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         let call = unsafe { Self::from_activation(activation) };
         let site = program::AllocationSiteId(allocation);
         let space = Self::space(space);
-        let Some(plan) = call.activation.memory.allocation_plan(site) else {
-            call.fail(RuntimeError::Internal {
-                message: format!("native allocation site {site:?} has no plan"),
-            });
-        };
+        let plan = call.activation.memory.allocation_plan(site);
         let payload = Self::payload(initialization);
         let allocation =
             call.activation
@@ -366,11 +362,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         let call = unsafe { Self::from_activation(activation) };
         let site = program::AllocationSiteId(allocation);
         let space = Self::space(space);
-        let Some(element) = call.activation.memory.allocation_plan(site) else {
-            call.fail(RuntimeError::Internal {
-                message: format!("native allocation site {site:?} has no plan"),
-            });
-        };
+        let element = call.activation.memory.allocation_plan(site);
 
         // derive the exact repeated allocation plan
         let trace = match element.trace_map(call.program.trace_view()) {

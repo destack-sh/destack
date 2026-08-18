@@ -60,7 +60,7 @@ pub struct Worker {
     /// Runtime-owned shared heap.
     pub(crate) shared_heap: Arc<heap::SharedHeap>,
     /// Allocation plans indexed by Program allocation site id.
-    pub(crate) allocation_plans: Arc<[Option<heap::AllocationPlan>]>,
+    pub(crate) allocation_plans: Arc<[heap::AllocationPlan]>,
     /// Shared mark worker queue handle.
     pub(crate) shared_mark_worker: heap::SharedMarkWorker,
     /// Worker-local shared allocation cache.
@@ -156,7 +156,7 @@ impl Worker {
         conditions: Arc<ConditionSet>,
         world: &mut WorldState,
         shared_heap: &Arc<heap::SharedHeap>,
-        allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
+        allocation_plans: &Arc<[heap::AllocationPlan]>,
         constants: &program::StaticSpace,
         immortals: &program::StaticSpace,
         shared_statics: &program::StaticSpace,
@@ -447,7 +447,7 @@ impl Worker {
         execution_mode: ExecutionMode,
         replay_payload: ReplayPayload,
         shared_heap: &Arc<heap::SharedHeap>,
-        allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
+        allocation_plans: &Arc<[heap::AllocationPlan]>,
         shared_mark_worker: heap::SharedMarkWorker,
     ) -> RuntimeResult<Option<Self>> {
         // diagnostics state
@@ -507,7 +507,7 @@ impl Worker {
     pub(crate) fn from_image(
         world: &mut WorldState,
         shared_heap: &Arc<heap::SharedHeap>,
-        allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
+        allocation_plans: &Arc<[heap::AllocationPlan]>,
         immortal_range: MemoryRange,
         runtime_id: RuntimeId,
         worker_id: WorkerId,

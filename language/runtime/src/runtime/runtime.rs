@@ -40,7 +40,7 @@ pub struct Runtime {
     /// Collection state for the runtime-owned shared heap.
     pub(crate) shared_collection: Arc<SharedCollectionState>,
     /// Allocation plans indexed by Program allocation site id.
-    pub(crate) allocation_plans: Arc<[Option<heap::AllocationPlan>]>,
+    pub(crate) allocation_plans: Arc<[heap::AllocationPlan]>,
     /// Immutable program constant space.
     pub(crate) constant_space: program::StaticSpace,
     /// Runtime-owned immortal object space.

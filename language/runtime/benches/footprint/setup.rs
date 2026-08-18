@@ -57,7 +57,7 @@ pub(crate) struct VmMachine {
     /// Machine under measurement.
     machine: Machine,
     /// Runtime allocation plans indexed by Program allocation site id.
-    allocation_plans: Arc<[Option<AllocationPlan>]>,
+    allocation_plans: Arc<[AllocationPlan]>,
     /// Runtime services used by direct VM execution.
     runtime: VmRuntime,
     /// Runtime constant byte space.
