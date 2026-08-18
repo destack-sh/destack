@@ -119,8 +119,7 @@ impl BodyState<'_, '_> {
         let builtin = match operator {
             // require overlapping values with one common representation
             dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
-                let supported =
-                    self.supports_builtin_strict_equality(origin, left_value, right_value)?;
+                let supported = self.supports_strict_equality(origin, left_value, right_value)?;
                 if !supported {
                     // report an owned operand, which carries no identity to compare
                     for operand in [left_value, right_value] {
@@ -375,7 +374,7 @@ impl BodyState<'_, '_> {
             let case_site = self.visit_site(*case)?;
             let selector_site = self.visit_site(*selector)?;
             let selector_value = self.strip_form(selector_site.origin(), *ty)?;
-            let supported = self.supports_builtin_strict_equality(
+            let supported = self.supports_strict_equality(
                 selector_site.origin(),
                 scrutinee_value,
                 selector_value,

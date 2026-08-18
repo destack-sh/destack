@@ -287,6 +287,369 @@ const same = left === right;
 }
 
 #[test]
+fn test_strict_equality_uses_generic_capability() {
+    let session = TestSession::single(
+        r#"
+import { StrictEqual } from "destack:ops";
+
+function same<R, L: StrictEqual<R>>(left: &readonly L, right: &readonly R): boolean {
+    *left === *right
+}
+
+function different<T: StrictEqual<T>>(left: &readonly T, right: &readonly T): boolean {
+    *left !== *right
+}
+
+class User {}
+
+declare const firstNumber: int32;
+declare const secondNumber: int32;
+declare const firstMaybe: int32 | undefined;
+declare const secondMaybe: int32 | undefined;
+declare const firstUser: User;
+declare const secondUser: User;
+
+const numbersMatch = same(firstNumber, secondNumber);
+const maybesMatch = same(firstMaybe, secondMaybe);
+const usersDiffer = different(firstUser, secondUser);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { StrictEqual } from "destack:ops";
+
+function same<R, L: StrictEqual<R>, 'a, 'b>(left: &'a readonly L, right: &'b readonly R): boolean {
+    *left === *right
+}
+
+function different<T: StrictEqual<T>, 'a, 'b>(
+    left: &'a readonly T,
+    right: &'b readonly T,
+): boolean {
+    *left !== *right
+}
+
+class User {}
+
+declare const firstNumber: int32;
+declare const secondNumber: int32;
+declare const firstMaybe: int32 | undefined;
+declare const secondMaybe: int32 | undefined;
+declare const firstUser: User;
+declare const secondUser: User;
+
+const numbersMatch: boolean = same<int32, int32>(
+    firstNumber as &'static readonly int32,
+    secondNumber as &'static readonly int32,
+);
+const maybesMatch: boolean = same<int32 | undefined, int32 | undefined>(
+    firstMaybe as &'static readonly (int32 | undefined),
+    secondMaybe as &'static readonly (int32 | undefined),
+);
+const usersDiffer: boolean = different<User>(
+    firstUser as &'static readonly User,
+    secondUser as &'static readonly User,
+);
+
+=== dir ===
+import { StrictEqual } from "destack:ops";
+
+function same<R, L: StrictEqual<R>>(left: &readonly L, right: &readonly R): boolean {
+/// @generic.template symbol=same parameters=(R, L: StrictEqual<R>, 'a, 'b)
+/// @type.symbol symbol=same type=<R, L: StrictEqual<R>, same.'a, same.'b>(&same.'a readonly L, &same.'b readonly R) => boolean
+/// @type.symbol symbol=same.R source=R type=R
+/// @type.symbol symbol=same.L source="L: StrictEqual<R>" type=L
+/// @resolution.name source=StrictEqual target=ops.equality.StrictEqual
+/// @resolution.name source=R target=same.R
+/// @type.symbol symbol=same.left source="left: &readonly L" type=&same.'a readonly L
+/// @resolution.name source=L target=same.L
+/// @type.symbol symbol=same.right source="right: &readonly R" type=&same.'b readonly R
+/// @resolution.name source=R target=same.R
+
+    *left === *right
+    /// @type.node source="*left === *right" type=boolean
+    /// @type.node source=*left type=L
+    /// @resolution.operator source="*left === *right" type=boolean operator="===" kind=builtin operands=[*left as L, *right as R]
+    /// @resolution.place source=*left placement="local" lifetime=same.'a access="readonly"
+    /// @resolution.operator source=*left type=L operator="*" kind=builtin operands=[left as &same.'a readonly L]
+    /// @type.node source=left type=&same.'a readonly L
+    /// @resolution.name source=left target=same.left
+    /// @resolution.place source=left placement="local" lifetime=same.'a access="readonly"
+    /// @resolution.access source=left root=same.left
+    /// @type.node source=*right type=R
+    /// @resolution.place source=*right placement="local" lifetime=same.'b access="readonly"
+    /// @resolution.operator source=*right type=R operator="*" kind=builtin operands=[right as &same.'b readonly R]
+    /// @type.node source=right type=&same.'b readonly R
+    /// @resolution.name source=right target=same.right
+    /// @resolution.place source=right placement="local" lifetime=same.'b access="readonly"
+    /// @resolution.access source=right root=same.right
+
+}
+
+function different<T: StrictEqual<T>>(left: &readonly T, right: &readonly T): boolean {
+/// @generic.template symbol=different parameters=(T: StrictEqual<T>, 'a, 'b)
+/// @type.symbol symbol=different type=<T: StrictEqual<T>, different.'a, different.'b>(&different.'a readonly T, &different.'b readonly T) => boolean
+/// @type.symbol symbol=different.T source="T: StrictEqual<T>" type=T
+/// @resolution.name source=StrictEqual target=ops.equality.StrictEqual
+/// @resolution.name source=T target=different.T
+/// @type.symbol symbol=different.left source="left: &readonly T" type=&different.'a readonly T
+/// @resolution.name source=T target=different.T
+/// @type.symbol symbol=different.right source="right: &readonly T" type=&different.'b readonly T
+/// @resolution.name source=T target=different.T
+
+    *left !== *right
+    /// @type.node source="*left !== *right" type=boolean
+    /// @type.node source=*left type=T
+    /// @resolution.operator source="*left !== *right" type=boolean operator="!==" kind=builtin operands=[*left as T, *right as T]
+    /// @resolution.place source=*left placement="local" lifetime=different.'a access="readonly"
+    /// @resolution.operator source=*left type=T operator="*" kind=builtin operands=[left as &different.'a readonly T]
+    /// @type.node source=left type=&different.'a readonly T
+    /// @resolution.name source=left target=different.left
+    /// @resolution.place source=left placement="local" lifetime=different.'a access="readonly"
+    /// @resolution.access source=left root=different.left
+    /// @type.node source=*right type=T
+    /// @resolution.place source=*right placement="local" lifetime=different.'b access="readonly"
+    /// @resolution.operator source=*right type=T operator="*" kind=builtin operands=[right as &different.'b readonly T]
+    /// @type.node source=right type=&different.'b readonly T
+    /// @resolution.name source=right target=different.right
+    /// @resolution.place source=right placement="local" lifetime=different.'b access="readonly"
+    /// @resolution.access source=right root=different.right
+
+}
+
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=User
+/// @definition.class symbol=User source="class User {}"
+
+declare const firstNumber: int32;
+/// @type.symbol symbol=firstNumber source=firstNumber type=int32
+/// @resolution.pattern source=firstNumber kind=binding target=firstNumber
+
+declare const secondNumber: int32;
+/// @type.symbol symbol=secondNumber source=secondNumber type=int32
+/// @resolution.pattern source=secondNumber kind=binding target=secondNumber
+
+declare const firstMaybe: int32 | undefined;
+/// @type.symbol symbol=firstMaybe source=firstMaybe type=int32 | undefined
+/// @resolution.pattern source=firstMaybe kind=binding target=firstMaybe
+
+declare const secondMaybe: int32 | undefined;
+/// @type.symbol symbol=secondMaybe source=secondMaybe type=int32 | undefined
+/// @resolution.pattern source=secondMaybe kind=binding target=secondMaybe
+
+declare const firstUser: User;
+/// @type.symbol symbol=firstUser source=firstUser type=User
+/// @resolution.pattern source=firstUser kind=binding target=firstUser
+/// @resolution.name source=User target=User
+
+declare const secondUser: User;
+/// @type.symbol symbol=secondUser source=secondUser type=User
+/// @resolution.pattern source=secondUser kind=binding target=secondUser
+/// @resolution.name source=User target=User
+
+const numbersMatch = same(firstNumber, secondNumber);
+/// @type.symbol symbol=numbersMatch source=numbersMatch type=boolean
+/// @resolution.pattern source=numbersMatch kind=binding target=numbersMatch
+/// @type.node source="same(firstNumber, secondNumber)" type=boolean
+/// @type.node source=same type=(&'static readonly int32, &'static readonly int32) => boolean
+/// @resolution.name source=same target=same
+/// @resolution.call source="same(firstNumber, secondNumber)" parameters=(&'static readonly int32, &'static readonly int32) arguments=(provided(firstNumber) as &'static readonly int32, provided(secondNumber) as &'static readonly int32) return=boolean kind=symbol target=same instance="same<int32, int32>"
+/// @generic.instantiation id="same<int32, int32>" template=same arguments=(int32, int32)
+/// @type.node source=firstNumber type=int32
+/// @resolution.name source=firstNumber target=firstNumber
+/// @resolution.place source=firstNumber placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=firstNumber root=firstNumber
+/// @type.node source=secondNumber type=int32
+/// @resolution.name source=secondNumber target=secondNumber
+/// @resolution.place source=secondNumber placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=secondNumber root=secondNumber
+
+const maybesMatch = same(firstMaybe, secondMaybe);
+/// @type.symbol symbol=maybesMatch source=maybesMatch type=boolean
+/// @resolution.pattern source=maybesMatch kind=binding target=maybesMatch
+/// @type.node source="same(firstMaybe, secondMaybe)" type=boolean
+/// @type.node source=same type=(&'static readonly int32 | undefined, &'static readonly int32 | undefined) => boolean
+/// @resolution.name source=same target=same
+/// @resolution.call source="same(firstMaybe, secondMaybe)" parameters=(&'static readonly int32 | undefined, &'static readonly int32 | undefined) arguments=(provided(firstMaybe) as &'static readonly int32 | undefined, provided(secondMaybe) as &'static readonly int32 | undefined) return=boolean kind=symbol target=same instance="same<int32 | undefined, int32 | undefined>"
+/// @generic.instantiation id="same<int32 | undefined, int32 | undefined>" template=same arguments=(int32 | undefined, int32 | undefined)
+/// @type.node source=firstMaybe type=int32 | undefined
+/// @resolution.name source=firstMaybe target=firstMaybe
+/// @resolution.place source=firstMaybe placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=firstMaybe root=firstMaybe
+/// @type.node source=secondMaybe type=int32 | undefined
+/// @resolution.name source=secondMaybe target=secondMaybe
+/// @resolution.place source=secondMaybe placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=secondMaybe root=secondMaybe
+
+const usersDiffer = different(firstUser, secondUser);
+/// @type.symbol symbol=usersDiffer source=usersDiffer type=boolean
+/// @resolution.pattern source=usersDiffer kind=binding target=usersDiffer
+/// @type.node source="different(firstUser, secondUser)" type=boolean
+/// @type.node source=different type=(&'static readonly User, &'static readonly User) => boolean
+/// @resolution.name source=different target=different
+/// @resolution.call source="different(firstUser, secondUser)" parameters=(&'static readonly User, &'static readonly User) arguments=(provided(firstUser) as &'static readonly User, provided(secondUser) as &'static readonly User) return=boolean kind=symbol target=different instance=different<User>
+/// @generic.instantiation id=different<User> template=different arguments=(User)
+/// @type.node source=firstUser type=User
+/// @resolution.name source=firstUser target=firstUser
+/// @resolution.place source=firstUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=firstUser root=firstUser
+/// @type.node source=secondUser type=User
+/// @resolution.name source=secondUser target=secondUser
+/// @resolution.place source=secondUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=secondUser root=secondUser
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_strict_equality_rejects_owned_and_disjoint_conformance() {
+    let session = TestSession::single(
+        r#"
+import { StrictEqual } from "destack:ops";
+
+declare function requireStrictEqual<T: StrictEqual<T>>(value: T): void;
+declare function requireStringStrictEqual<T: StrictEqual<string>>(value: T): void;
+
+struct Badge {
+    id: int32;
+}
+
+struct Token {
+    id: int32;
+}
+
+extension of Badge implements StrictEqual<Badge> {}
+
+declare const token: Token;
+declare const number: int32;
+requireStrictEqual(token);
+requireStringStrictEqual(number);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { StrictEqual } from "destack:ops";
+
+declare function requireStrictEqual<T: StrictEqual<T>>(value: T): void;
+declare function requireStringStrictEqual<T: StrictEqual<string>>(value: T): void;
+
+struct Badge {
+    id: int32;
+}
+
+struct Token {
+    id: int32;
+}
+
+extension of Badge implements StrictEqual<Badge> {}
+
+declare const token: Token;
+declare const number: int32;
+requireStrictEqual<Token>(token);
+requireStringStrictEqual(number);
+
+=== dir ===
+import { StrictEqual } from "destack:ops";
+
+declare function requireStrictEqual<T: StrictEqual<T>>(value: T): void;
+/// @generic.template symbol=requireStrictEqual parameters=(T#1: ops.equality.StrictEqual<T#1>)
+/// @type.symbol symbol=requireStrictEqual source="declare function requireStrictEqual<T: StrictEqual<T>>(value: T): void" type=<T#1: ops.equality.StrictEqual<T#1>>(T#1) => void
+/// @type.symbol symbol=requireStrictEqual.T source="T: StrictEqual<T>" type=T#1
+/// @resolution.name source=StrictEqual target=ops.equality.StrictEqual
+/// @resolution.name source=T target=requireStrictEqual.T
+/// @type.symbol symbol=requireStrictEqual.value source="value: T" type=T#1
+/// @resolution.name source=T target=requireStrictEqual.T
+
+declare function requireStringStrictEqual<T: StrictEqual<string>>(value: T): void;
+/// @generic.template symbol=requireStringStrictEqual parameters=(T#2: ops.equality.StrictEqual<string>)
+/// @type.symbol symbol=requireStringStrictEqual type=<T#2: ops.equality.StrictEqual<string>>(T#2) => void
+/// @type.symbol symbol=requireStringStrictEqual.T source="T: StrictEqual<string>" type=T#2
+/// @resolution.name source=StrictEqual target=ops.equality.StrictEqual
+/// @type.symbol symbol=requireStringStrictEqual.value source="value: T" type=T#2
+/// @resolution.name source=T target=requireStringStrictEqual.T
+
+struct Badge {
+/// @type.symbol symbol=Badge type=Badge
+/// @definition.struct symbol=Badge
+/// @definition.field symbol=Badge.id source="id: int32" key=id type=int32
+
+    id: int32;
+    /// @type.symbol symbol=Badge.id source="id: int32" type=int32
+
+}
+
+struct Token {
+/// @type.symbol symbol=Token type=Token
+/// @definition.struct symbol=Token
+/// @definition.field symbol=Token.id source="id: int32" key=id type=int32
+
+    id: int32;
+    /// @type.symbol symbol=Token.id source="id: int32" type=int32
+
+}
+
+extension of Badge implements StrictEqual<Badge> {}
+/// @definition.extension symbol=<module>#2 source="extension of Badge implements StrictEqual<Badge> {}" form=local target=Badge
+/// @definition.implements symbol=<module>#2 source=StrictEqual<Badge> target=ops.equality.StrictEqual<Badge>
+/// @resolution.name source=Badge target=Badge
+/// @resolution.name source=StrictEqual target=ops.equality.StrictEqual
+/// @resolution.name source=Badge target=Badge
+
+declare const token: Token;
+/// @type.symbol symbol=token source=token type=Token
+/// @resolution.pattern source=token kind=binding target=token
+/// @resolution.name source=Token target=Token
+
+declare const number: int32;
+/// @type.symbol symbol=number source=number type=int32
+/// @resolution.pattern source=number kind=binding target=number
+
+requireStrictEqual(token);
+/// @type.node source=requireStrictEqual type=(Token) => void
+/// @type.node source=requireStrictEqual(token) type=void
+/// @resolution.name source=requireStrictEqual target=requireStrictEqual
+/// @resolution.call source=requireStrictEqual(token) parameters=(Token) arguments=(provided(token) as Token) return=void kind=symbol target=requireStrictEqual instance=requireStrictEqual<Token>
+/// @generic.instantiation id=requireStrictEqual<Token> template=requireStrictEqual arguments=(Token)
+/// @type.node source=token type=Token
+/// @resolution.name source=token target=token
+/// @resolution.place source=token placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=token root=token
+
+requireStringStrictEqual(number);
+/// @type.node source=requireStringStrictEqual type=(<error>) => void
+/// @type.node source=requireStringStrictEqual(number) type=void
+/// @resolution.name source=requireStringStrictEqual target=requireStringStrictEqual
+/// @resolution.call source=requireStringStrictEqual(number) parameters=(<error>) arguments=(provided(number) as <error>) return=void kind=symbol target=requireStringStrictEqual instance=requireStringStrictEqual<<error>>
+/// @generic.instantiation id=requireStringStrictEqual<<error>> template=requireStringStrictEqual arguments=(<error>)
+/// @type.node source=number type=int32
+/// @resolution.name source=number target=number
+/// @resolution.place source=number placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=number root=number
+"#,
+        r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Token' does not satisfy 'StrictEqual<Token>'"
+/// @diagnostic.label line=19 column=1 span="requireStrictEqual(token)" line_source="requireStrictEqual(token);"
+/// @diagnostic.related line=4 column=37 span="T" line_source="declare function requireStrictEqual<T: StrictEqual<T>>(value: T): void;" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'StrictEqual<string>'"
+/// @diagnostic.label line=20 column=1 span="requireStringStrictEqual(number)" line_source="requireStringStrictEqual(number);"
+/// @diagnostic.related line=5 column=43 span="T" line_source="declare function requireStringStrictEqual<T: StrictEqual<string>>(value: T): void;" message="required by this bound on 'T'"
+/// @diagnostic.error id=interface-not-implemented message="type 'Badge' does not implement interface 'StrictEqual<Badge>'"
+/// @diagnostic.label line=15 column=31 span="StrictEqual" line_source="extension of Badge implements StrictEqual<Badge> {}"
+"#,
+    );
+}
+
+#[test]
 fn test_strict_equality_rejects_disjoint_literal_types() {
     let session = TestSession::single(
         r#"

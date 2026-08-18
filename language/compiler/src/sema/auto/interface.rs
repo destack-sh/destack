@@ -15,13 +15,14 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<Verdict> {
-        // require intrinsic binary protocols to use the receiver type on both sides
+        // read the compared type of each intrinsic binary interface
         if matches!(
             interface,
             dir::AutoInterface::Equal
                 | dir::AutoInterface::PartialEqual
                 | dir::AutoInterface::Compare
                 | dir::AutoInterface::PartialCompare
+                | dir::AutoInterface::StrictEqual
         ) {
             let (module, application) = self.nominal_application(target)?;
             let arguments = self.type_ids(module, application.arguments)?;
@@ -45,6 +46,13 @@ impl CheckState<'_> {
                 let other = self.shallow_resolve(other)?;
                 let substitution = TypeSubstitution::default().with_receiver(ty);
                 let other = self.substitute_type(other, &substitution)?;
+
+                // decide strict equality from both exact operands
+                if interface == dir::AutoInterface::StrictEqual {
+                    let satisfied = self.satisfies_strict_equal(origin, ty, other)?;
+
+                    return Ok(Verdict::decided(satisfied));
+                }
 
                 // allow numeric scalars to compare across their exact domains
                 let domains = (
@@ -157,6 +165,9 @@ impl CheckState<'_> {
             dir::AutoInterface::Concrete => {
                 self.satisfies_concrete(origin, ty).map(Verdict::decided)
             }
+            dir::AutoInterface::StrictEqual => self
+                .satisfies_strict_equal(origin, ty, ty)
+                .map(Verdict::decided),
             dir::AutoInterface::Equal
             | dir::AutoInterface::PartialEqual
             | dir::AutoInterface::Clone
@@ -232,6 +243,19 @@ impl CheckState<'_> {
         };
 
         Ok(decision)
+    }
+
+    /// Decide builtin `StrictEqual<R>` conformance for two operand types.
+    fn satisfies_strict_equal(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let supported = self.supports_builtin_strict_equality(origin, left, right)?;
+        let overlaps = self.types_may_overlap(origin, left, right)?;
+
+        Ok(supported && overlaps)
     }
 
     /// Decide whether one type has one builtin scalar representation.

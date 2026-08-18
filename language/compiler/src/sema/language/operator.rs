@@ -4,7 +4,7 @@ use destack_core::StringPool;
 use smallvec::{SmallVec, smallvec};
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, Origin, Protocol};
+use crate::sema::{CheckState, Origin, Protocol, Relation, Verdict};
 
 /// Result produced by one operator expression protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,7 +136,23 @@ impl OperatorProtocol {
 }
 
 impl CheckState<'_> {
-    /// Return whether builtin strict equality accepts two operand types.
+    /// Return whether every overlapping operand pair supports strict equality.
+    pub(in crate::sema) fn supports_strict_equality(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // prove the exact capability through the ordinary interface relation
+        let target = self.language_type(dir::LanguageItem::StrictEqual, &[right])?;
+        if self.evaluate_relation(origin, Relation::Satisfies, left, target)? != Verdict::Fails {
+            return Ok(true);
+        }
+
+        self.supports_builtin_strict_equality(origin, left, right)
+    }
+
+    /// Return whether every overlapping operand pair has builtin strict equality.
     pub(in crate::sema) fn supports_builtin_strict_equality(
         &mut self,
         origin: Origin,

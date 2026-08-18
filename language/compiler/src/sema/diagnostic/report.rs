@@ -2367,6 +2367,7 @@ impl CheckState<'_> {
             | dir::AutoInterface::Serialize
             | dir::AutoInterface::Deserialize
             | dir::AutoInterface::SharedSafe
+            | dir::AutoInterface::StrictEqual
             | dir::AutoInterface::Unpin
             | dir::AutoInterface::Zeroable => {
                 let error = CheckError::ConstraintNotSatisfied {
