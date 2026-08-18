@@ -187,10 +187,8 @@ impl ValueUse {
 pub(in crate::sema) enum WorkState {
     /// Queued to step.
     Ready,
-    /// Awaiting one of its watched variables.
-    Stalled,
-    /// Parked until the next settle stage.
-    Parked,
+    /// Awaiting one of its wake events.
+    Waiting,
     /// Completed or cancelled.
     Done,
 }

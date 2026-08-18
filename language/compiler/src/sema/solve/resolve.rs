@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     BoundSide, Cause, CauseId, CauseKind, CheckEvent, CheckState, InferenceScope, Origin, Relation,
-    RelationCheck, TypeBound, VariableBounds, VariableRole, VariableState, Verdict, Widening,
+    RelationCheck, TypeBound, VariableBounds, VariableRole, VariableState, Verdict, Wake, Widening,
     WorkState,
 };
 use crate::{CompilerError, CompilerResult};
@@ -510,13 +510,13 @@ impl CheckState<'_> {
         let Some(producers) = self.fulfill.producers.get(&variable) else {
             return Ok(false);
         };
-        let stalled = self.fulfill.watchers.get(&variable);
+        let waiters = self.fulfill.waiting.get(&Wake::Variable(variable));
 
-        // find one live producer standing outside the variable's own watchers
+        // find one live producer standing outside the variable's own waiters
         for id in producers {
             let is_live = self.fulfill.checks.state(*id) != WorkState::Done;
-            let is_stalled_on_self = stalled.is_some_and(|watchers| watchers.contains(id));
-            if is_live && !is_stalled_on_self {
+            let is_waiting_on_self = waiters.is_some_and(|waiters| waiters.contains(id));
+            if is_live && !is_waiting_on_self {
                 return Ok(true);
             }
         }
@@ -756,7 +756,7 @@ impl CheckState<'_> {
 
         // forward the aliased variable onto the root
         self.infer.variable_mut(aliased)?.state = VariableState::Alias(root);
-        self.fulfill.wake_variable(aliased);
+        self.fulfill.wake(Wake::Variable(aliased));
         self.fulfill.forward_producers(aliased, &[root]);
 
         // migrate the collected lower bounds onto the root
@@ -841,7 +841,7 @@ impl CheckState<'_> {
 
         // complete the variable and wake the work watching it
         self.infer.variable_mut(variable)?.state = state;
-        self.fulfill.wake_variable(variable);
+        self.fulfill.wake(Wake::Variable(variable));
 
         // forward the producers onto the solution's still-open variables
         let successors = self.type_variables(ty)?;

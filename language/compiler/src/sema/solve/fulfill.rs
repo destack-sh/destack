@@ -10,6 +10,19 @@ use crate::sema::{
 };
 use crate::{CompilerError, CompilerResult};
 
+/// The event one waiting check resumes on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) enum Wake {
+    /// One open inference variable closes.
+    Variable(dir::TypeVariableId),
+    /// One source node commits a type.
+    Node(dir::GlobalNodeIdAny),
+    /// Any settle stage begins.
+    Stage,
+    /// The final settle begins.
+    Final,
+}
+
 /// The fulfillment queue driving pending checks to verdicts.
 pub(in crate::sema) struct Fulfillment {
     /// Collected checks with their outcomes and scheduling state.
@@ -18,13 +31,11 @@ pub(in crate::sema) struct Fulfillment {
     pub(in crate::sema) failures: Vec<FailedCheck>,
     /// Checks queued to step.
     pub(in crate::sema) ready: Vec<CheckId>,
-    /// Checks parked until the next settle stage.
-    pub(in crate::sema) parked: Vec<CheckId>,
-    /// Stalled checks keyed by the open variable each watches.
-    pub(in crate::sema) watchers: FxIndexMap<dir::TypeVariableId, SmallVec<[CheckId; 2]>>,
+    /// Waiting checks keyed by the event each resumes on.
+    pub(in crate::sema) waiting: FxIndexMap<Wake, SmallVec<[CheckId; 2]>>,
     /// Producing checks keyed by the variable each can still bound.
     pub(in crate::sema) producers: FxIndexMap<dir::TypeVariableId, SmallVec<[CheckId; 2]>>,
-    /// The number of checks still queued, stalled, or parked.
+    /// The number of checks still queued or waiting.
     live: usize,
 }
 
@@ -35,8 +46,7 @@ impl Fulfillment {
             checks: CheckTable::new(),
             failures: Vec::new(),
             ready: Vec::new(),
-            parked: Vec::new(),
-            watchers: FxIndexMap::default(),
+            waiting: FxIndexMap::default(),
             producers: FxIndexMap::default(),
             live: 0,
         }
@@ -69,29 +79,53 @@ impl Fulfillment {
         self.live += 1;
     }
 
-    /// Stall one check on the variables it watches, parking it when it watches none.
+    /// Wait one check on one wake event.
+    pub(in crate::sema) fn wait(&mut self, id: CheckId, event: Wake) {
+        self.checks.entries[id.index()].state = WorkState::Waiting;
+        let waiters = self.waiting.entry(event).or_default();
+        if !waiters.contains(&id) {
+            waiters.push(id);
+        }
+    }
+
+    /// Wait one check on the variables it watches, or on the next settle stage.
     pub(in crate::sema) fn stall_work(&mut self, id: CheckId, watched: &[dir::TypeVariableId]) {
-        // park work without any watched variable
+        // wait for the next settle stage without any watched variable
         if watched.is_empty() {
-            return self.park_work(id);
+            return self.wait(id, Wake::Stage);
         }
 
-        // mark the check stalled
-        self.checks.entries[id.index()].state = WorkState::Stalled;
-
-        // watch every variable the check waits on
+        // wait on every variable the check watches
         for variable in watched {
-            let watchers = self.watchers.entry(*variable).or_default();
-            if !watchers.contains(&id) {
-                watchers.push(id);
+            self.wait(id, Wake::Variable(*variable));
+        }
+    }
+
+    /// Wake the checks waiting on one event.
+    pub(in crate::sema) fn wake(&mut self, event: Wake) {
+        let Some(waiters) = self.waiting.swap_remove(&event) else {
+            return;
+        };
+
+        // queue each waiter that is still waiting
+        for id in waiters {
+            if self.checks.entries[id.index()].state == WorkState::Waiting {
+                self.checks.entries[id.index()].state = WorkState::Ready;
+                self.ready.push(id);
             }
         }
     }
 
-    /// Park one check until the next settle stage.
-    pub(in crate::sema) fn park_work(&mut self, id: CheckId) {
-        self.checks.entries[id.index()].state = WorkState::Parked;
-        self.parked.push(id);
+    /// Wake every waiting check for the final settle.
+    pub(in crate::sema) fn wake_all(&mut self) {
+        for (_, waiters) in std::mem::take(&mut self.waiting) {
+            for id in waiters {
+                if self.checks.entries[id.index()].state == WorkState::Waiting {
+                    self.checks.entries[id.index()].state = WorkState::Ready;
+                    self.ready.push(id);
+                }
+            }
+        }
     }
 
     /// Complete one check's work.
@@ -107,53 +141,6 @@ impl Fulfillment {
                 }
             }
         }
-    }
-
-    /// Wake the checks watching one variable.
-    pub(in crate::sema) fn wake_variable(&mut self, variable: dir::TypeVariableId) {
-        let Some(watchers) = self.watchers.swap_remove(&variable) else {
-            return;
-        };
-
-        // queue each watcher that is still stalled
-        for id in watchers {
-            if self.checks.entries[id.index()].state == WorkState::Stalled {
-                self.checks.entries[id.index()].state = WorkState::Ready;
-                self.ready.push(id);
-            }
-        }
-    }
-
-    /// Re-queue every stalled check for one settle stage.
-    pub(in crate::sema) fn requeue_stalled(&mut self) -> bool {
-        // ready every check still waiting on a watched variable
-        let mut requeued = false;
-        for (_, watchers) in std::mem::take(&mut self.watchers) {
-            for id in watchers {
-                if self.checks.entries[id.index()].state == WorkState::Stalled {
-                    self.checks.entries[id.index()].state = WorkState::Ready;
-                    self.ready.push(id);
-                    requeued = true;
-                }
-            }
-        }
-
-        requeued
-    }
-
-    /// Re-queue every parked check for one settle stage.
-    pub(in crate::sema) fn requeue_parked(&mut self) -> bool {
-        // ready every check still parked
-        let mut requeued = false;
-        for id in std::mem::take(&mut self.parked) {
-            if self.checks.entries[id.index()].state == WorkState::Parked {
-                self.checks.entries[id.index()].state = WorkState::Ready;
-                self.ready.push(id);
-                requeued = true;
-            }
-        }
-
-        requeued
     }
 
     /// Forward one completed variable's producers onto its successor variables.
@@ -194,11 +181,10 @@ impl Fulfillment {
 
         // purge the dropped ids from the queues
         self.ready.retain(|id| id.index() < count);
-        self.parked.retain(|id| id.index() < count);
-        self.watchers.retain(|_, watchers| {
-            watchers.retain(|id| id.index() < count);
+        self.waiting.retain(|_, waiters| {
+            waiters.retain(|id| id.index() < count);
 
-            !watchers.is_empty()
+            !waiters.is_empty()
         });
         self.producers.retain(|_, producers| {
             producers.retain(|id| id.index() < count);
@@ -361,7 +347,7 @@ impl CheckState<'_> {
                 message: format!("relation work item {id:?} names a non-relation check"),
             });
         };
-        self.stall_or_park(id, [relation.source, relation.target])?;
+        self.stall_operands(id, [relation.source, relation.target])?;
 
         Ok(false)
     }
@@ -415,7 +401,7 @@ impl CheckState<'_> {
             self.infer.rollback(mark, poison, &mut self.fulfill)?;
 
             if verdict == Verdict::Ambiguous {
-                self.stall_or_park(id, [source.ty, expectation.target])?;
+                self.stall_operands(id, [source.ty, expectation.target])?;
 
                 return Ok(false);
             }
@@ -431,7 +417,7 @@ impl CheckState<'_> {
             .open_type_variables([source.ty, expectation.target])?
             .is_empty()
         {
-            self.stall_or_park(id, [source.ty, expectation.target])?;
+            self.stall_operands(id, [source.ty, expectation.target])?;
 
             return Ok(false);
         }
@@ -540,7 +526,7 @@ impl CheckState<'_> {
         // hold settle-phase obligations for the final settle
         let phase = entry.obligation.phase();
         if phase == ObligationPhase::Judge && settle != Settle::Final {
-            self.fulfill.park_work(id);
+            self.fulfill.wait(id, Wake::Final);
 
             return Ok(false);
         }
@@ -557,9 +543,9 @@ impl CheckState<'_> {
                         return Ok(false);
                     }
                 }
-                // park sources without a committed type
+                // wait until the source node commits a type
                 None => {
-                    self.fulfill.park_work(id);
+                    self.fulfill.wait(id, Wake::Node(entry.obligation.source()));
 
                     return Ok(false);
                 }
@@ -578,8 +564,8 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Stall one check on its open operand variables, or park it.
-    fn stall_or_park(
+    /// Wait one check on its operands' open variables, or on the next settle stage.
+    fn stall_operands(
         &mut self,
         id: CheckId,
         operands: [dir::GlobalTypeId; 2],

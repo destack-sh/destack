@@ -1,7 +1,7 @@
 use destack_repository::ArtifactAttemptRecorder;
 
 use crate::CompilerResult;
-use crate::sema::{Check, CheckState, FallbackStage, InferenceScope, Pass, WalkState};
+use crate::sema::{Check, CheckState, FallbackStage, InferenceScope, Pass, Wake, WalkState};
 
 /// How far one fulfillment settles the scope's owned variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,10 +75,12 @@ impl CheckState<'_> {
             Settle::Final => FallbackStage::Final,
         };
 
-        // give parked and stalled work its decisive chance at the final settle
+        // give stage-waiting work its chance at this settle stage
+        self.fulfill.wake(Wake::Stage);
+
+        // give every waiting check its decisive chance at the final settle
         if settle == Settle::Final {
-            self.fulfill.requeue_parked();
-            self.fulfill.requeue_stalled();
+            self.fulfill.wake_all();
 
             // drive every relation check still open
             let incomplete = self
@@ -96,19 +98,19 @@ impl CheckState<'_> {
         loop {
             // propagate constraints and step unblocked pending work
             if self.solve_where_possible(settle)? {
-                self.fulfill.requeue_parked();
+                self.fulfill.wake(Wake::Stage);
                 continue;
             }
 
             // resolve components the accumulated bounds already determine
             if self.resolve_scope(scope, stage)? {
-                self.fulfill.requeue_parked();
+                self.fulfill.wake(Wake::Stage);
                 continue;
             }
 
             // complete remaining roots from declared defaults and widening
             if settle != Settle::Bounded && self.default_scope(scope)? {
-                self.fulfill.requeue_parked();
+                self.fulfill.wake(Wake::Stage);
                 continue;
             }
 
