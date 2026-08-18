@@ -128,14 +128,9 @@ pub enum CoercionAdjustment {
         /// The selected conversion for each possible source type.
         cases: Vec<CoercionCase>,
     },
-    /// Box the value into or out of an existential carrier, like `Dynamic<T>`.
-    ///
-    /// FUGU #Architecture: reconsider this variant's shape: `lower_existential`
-    ///  only ever implements the erase (concrete-into-existential) direction;
-    ///  split it into an `Erase` case and a real `Narrow` case, or fold a
-    ///  same-constraint read into no adjustment at all.
-    Existential {
-        /// The existential type after this adjustment.
+    /// Erase the value behind its constraint carrier, like an interface or `unknown`.
+    Erase {
+        /// The erased carrier type after this adjustment.
         target: GlobalTypeId,
     },
     /// Convert between scalar carriers, like `int32` into `float64`.
@@ -224,7 +219,7 @@ impl CoercionAdjustment {
             Self::Borrow { target }
             | Self::Read { target }
             | Self::Union { target, .. }
-            | Self::Existential { target }
+            | Self::Erase { target }
             | Self::Scalar { target }
             | Self::Widen { target }
             | Self::Tuple { target }
@@ -239,7 +234,7 @@ impl CoercionAdjustment {
             Self::Borrow { .. } => "borrow",
             Self::Read { .. } => "read",
             Self::Union { .. } => "union",
-            Self::Existential { .. } => "existential",
+            Self::Erase { .. } => "erase",
             Self::Scalar { .. } => "scalar",
             Self::Widen { .. } => "widen",
             Self::Tuple { .. } => "tuple",
@@ -269,7 +264,7 @@ impl CoercionAdjustment {
         if matches!(source, Type::Object(shape) if !shape.declares_signatures())
             && matches!(target, Type::Object(shape) if shape.declares_signatures())
         {
-            return Some(Self::Existential { target: target_id });
+            return Some(Self::Erase { target: target_id });
         }
 
         // sized sequences and thin pointers convert into their fat carriers

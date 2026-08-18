@@ -569,8 +569,8 @@ impl ModuleLowerer<'_> {
         // walk the adjustment chain, collecting each erasing step
         let mut source = coercion.source;
         for adjustment in &coercion.adjustments {
-            if let dir::CoercionAdjustment::Existential { target } = adjustment {
-                self.collect_existential(source, *target, instance, reachable)?;
+            if let dir::CoercionAdjustment::Erase { target } = adjustment {
+                self.collect_erasure(source, *target, instance, reachable)?;
             }
             source = adjustment.target();
         }
@@ -604,7 +604,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect the methods one concrete source supplies for a constraint.
-    fn collect_existential(
+    fn collect_erasure(
         &self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,

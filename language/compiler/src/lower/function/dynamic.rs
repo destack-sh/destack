@@ -5,19 +5,21 @@ use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Erase one concrete value behind an interface constraint.
-    pub(in crate::lower) fn lower_existential(
+    /// Erase one concrete value behind its constraint's dynamic carrier.
+    pub(in crate::lower) fn lower_erasure(
         &mut self,
         value: mir::Value,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
-        // require the erased target's dynamic carrier
+        // narrowing back out of an erased carrier stays unbuilt
         let dynamic = self.lower_type(target)?;
         let mir::Type::Dynamic { .. } = *self.builder.tree().get(dynamic) else {
-            return Err(CompilerError::Internal {
-                message: "a value erased outside a dynamic target".to_string(),
-            });
+            return Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "narrowing an erased value to its payload".to_string(),
+            }
+            .into());
         };
 
         // bind object types behind their managed reference representation
@@ -39,7 +41,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let dir::Type::Application(_) = self.lowerer.ty(source)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: "a structural existential source".to_string(),
+                construct: "erasing a structural value".to_string(),
             }
             .into());
         };

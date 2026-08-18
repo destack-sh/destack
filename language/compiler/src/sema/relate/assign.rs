@@ -22,7 +22,7 @@ impl CheckState<'_> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // error types absorb everything
             (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
-            // box values into an existential target, which never widens
+            // box values into an erased top target, which never widens
             (_, dir::Type::Any) | (_, dir::Type::Unknown) => Verdict::decided(!widens),
             (dir::Type::Any, _) => Verdict::decided(!widens),
             (dir::Type::Never, _) => Verdict::Holds,
@@ -162,7 +162,7 @@ impl CheckState<'_> {
 
                 self.relate_union_membership(origin, cause, relation, decision, source, target)?
             }
-            // reject concrete writes into an existential erased target
+            // reject concrete writes into an erased parameter target
             (_, dir::Type::Erased(_)) => Verdict::Fails,
             // assign this through its enclosing interface hypotheses or a union target
             (dir::Type::This, _) => {
@@ -206,7 +206,7 @@ impl CheckState<'_> {
 
                 self.relate_all_targets(origin, cause, relation, source, &elements)?
             }
-            // relate two existentials through their constraints, which rebuild the fat pointer
+            // relate two erased carriers through their constraints, which rebuild the fat pointer
             (dir::Type::Dynamic(source_dynamic), dir::Type::Dynamic(target_dynamic)) => {
                 let constraint_relation = match widens {
                     true => Relation::Equal,

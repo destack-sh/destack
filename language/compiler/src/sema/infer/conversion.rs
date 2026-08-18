@@ -782,7 +782,7 @@ impl BodyState<'_, '_> {
 
             // erased carriers box their values on entry and exit
             if self.is_erased_value(source_base)? || self.is_erased_value(target_base)? {
-                Some(dir::CoercionAdjustment::Existential {
+                Some(dir::CoercionAdjustment::Erase {
                     target: recorded_target,
                 })
             }

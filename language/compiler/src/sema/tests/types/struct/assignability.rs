@@ -59,7 +59,7 @@ const value: HasX = Point { x: 1 };
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=HasX target=HasX
 /// @resolution.name source=Point target=Point
-/// @coercion.node source="Point { x: 1 }" from=Point adjustments=[{ kind: existential, target: HasX }] origin=implicit
+/// @coercion.node source="Point { x: 1 }" from=Point adjustments=[{ kind: erase, target: HasX }] origin=implicit
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 
 value satisfies HasX;

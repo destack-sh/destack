@@ -225,7 +225,7 @@ const wide: Holder<int32> = one;
 }
 
 #[test]
-fn test_argument_existential_erasure_is_rejected() {
+fn test_argument_erasure_is_rejected() {
     let session = TestSession::single(
         r#"
 class Circle {}

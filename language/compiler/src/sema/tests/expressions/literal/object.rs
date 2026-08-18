@@ -222,7 +222,7 @@ const counts: Counts = { apples: 1, oranges: 2 };
 /// @resolution.pattern source=counts kind=binding target=counts
 /// @resolution.name source=Counts target=Counts
 /// @type.node source={ apples: 1, oranges: 2 } type={ apples: int32; oranges: int32 }
-/// @coercion.node source={ apples: 1, oranges: 2 } from={ apples: int32; oranges: int32 } adjustments=[{ kind: existential, target: { [key: string]: int32 } }] origin=implicit
+/// @coercion.node source={ apples: 1, oranges: 2 } from={ apples: int32; oranges: int32 } adjustments=[{ kind: erase, target: { [key: string]: int32 } }] origin=implicit
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 /// @type.node source=2 type=2

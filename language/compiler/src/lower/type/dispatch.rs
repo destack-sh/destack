@@ -70,7 +70,7 @@ impl ModuleLowerer<'_> {
         let dir::Type::Application(instance) = self.ty(source)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.module.into(),
-                construct: "a structural existential source".to_string(),
+                construct: "erasing a structural value".to_string(),
             }
             .into());
         };
