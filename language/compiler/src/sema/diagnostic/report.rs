@@ -1819,6 +1819,17 @@ impl CheckState<'_> {
                     .note("inference cannot decide this relation")
                     .help("annotate the type explicitly")
             }
+            // report a source that cannot erase behind its erased target
+            CheckFailure::NotErasable => {
+                let error = CheckError::NotErasable {
+                    anchor: anchor.clone(),
+                    module,
+                    source,
+                    target,
+                };
+
+                DiagnosticBuilder::new(error)
+            }
             // report a value converting to several represented union cases
             CheckFailure::AmbiguousUnionCoercion => {
                 let error = CheckError::AmbiguousUnionCoercion {

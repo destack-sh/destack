@@ -304,9 +304,10 @@ declare const value: Dynamic<<T>(input: T) => T>;
 /// @resolution.name source=T target=T
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type '<T>(input: T) => T' does not satisfy 'DynamicSafe'"
+/// @diagnostic.error id=not-erasable message="type '<T>(input: T) => T' cannot be erased into 'DynamicSafe'"
 /// @diagnostic.label line=2 column=30 span="<T>(input: T) => T" line_source="declare const value: Dynamic<<T>(input: T) => T>;"
 /// @diagnostic.related file="dynamic.ds" line=11 column=24 span="T" line_source="export newtype Dynamic<T: DynamicSafe> = intrinsic;" message="required by this bound on 'T'"
+/// @diagnostic.help message="prove the source erasable with a DynamicSafe bound"
 "#,
     );
 }

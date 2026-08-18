@@ -1225,7 +1225,7 @@ impl BodyState<'_, '_> {
         let relation = Relation::Assignable;
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         let holds = self.constrain_type(origin, cause, relation, source, writeback)?;
-        let outcome = self.complete_constraint_check(relation, source, writeback, holds)?;
+        let outcome = self.complete_constraint_check(origin, relation, source, writeback, holds)?;
 
         // record the failure against the store site
         if let CheckOutcome::Fails(failure) = outcome {

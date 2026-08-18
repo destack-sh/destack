@@ -457,6 +457,8 @@ pub(in crate::sema) enum CheckFailure {
     Undecided,
     /// A value converts to more than one represented union case.
     AmbiguousUnionCoercion,
+    /// The source cannot erase behind an erased carrier target.
+    NotErasable,
     /// Direct property literal missed one required key.
     MissingRequiredProperty {
         /// The missing key.

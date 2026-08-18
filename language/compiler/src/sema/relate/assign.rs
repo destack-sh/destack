@@ -22,8 +22,11 @@ impl CheckState<'_> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // error types absorb everything
             (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
-            // box values into an erased top target, which never widens
-            (_, dir::Type::Any) | (_, dir::Type::Unknown) => Verdict::decided(!widens),
+            // box erasable values into an erased top target, which never widens
+            (_, dir::Type::Any) | (_, dir::Type::Unknown) => match widens {
+                true => Verdict::Fails,
+                false => self.erasable_source(origin, source)?,
+            },
             (dir::Type::Any, _) => Verdict::decided(!widens),
             (dir::Type::Never, _) => Verdict::Holds,
 
@@ -268,7 +271,7 @@ impl CheckState<'_> {
                     .symbol_kind_maybe(instance.symbol)?
                     .is_some_and(|kind| kind.is_interface()) =>
             {
-                self.relate_interface(origin, cause, Relation::Assignable, source, target)?
+                self.relate_erased_assignable(origin, cause, source, target)?
             }
 
             // literals and intervals widen by value
@@ -390,7 +393,7 @@ impl CheckState<'_> {
                 .symbol_kind_maybe(instance.symbol)?
                 .is_some_and(|kind| kind.is_interface()) =>
             {
-                self.relate_interface(origin, cause, Relation::Assignable, source, target)?
+                self.relate_erased_assignable(origin, cause, source, target)?
             }
             // relate callable applications to interface targets
             (dir::Type::Application(callable), dir::Type::Application(instance))
@@ -399,7 +402,7 @@ impl CheckState<'_> {
                     .is_some_and(|kind| kind.is_interface())
                     && self.is_function_language_item(callable.symbol)? =>
             {
-                self.relate_interface(origin, cause, Relation::Assignable, source, target)?
+                self.relate_erased_assignable(origin, cause, source, target)?
             }
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
@@ -424,6 +427,19 @@ impl CheckState<'_> {
                     &target_arguments,
                 )?
             }
+            (dir::Type::Application(_), dir::Type::Application(instance))
+                if self
+                    .symbol_kind_maybe(instance.symbol)?
+                    .is_some_and(|kind| kind.is_interface()) =>
+            {
+                // box erasable values only behind an erased interface target
+                match self.erasable_source(origin, source)? {
+                    Verdict::Holds => {
+                        self.relate_application_assignable(origin, cause, source, target)?
+                    }
+                    verdict @ (Verdict::Fails | Verdict::Ambiguous) => verdict,
+                }
+            }
             (dir::Type::Application(_), dir::Type::Application(_)) => {
                 self.relate_application_assignable(origin, cause, source, target)?
             }
@@ -446,6 +462,31 @@ impl CheckState<'_> {
         };
 
         Ok(decision)
+    }
+
+    /// Relate one erasable source value into an erased interface target.
+    pub(in crate::sema) fn relate_erased_assignable(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Verdict> {
+        match self.erasable_source(origin, source)? {
+            Verdict::Holds => {}
+            verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(verdict),
+        }
+
+        self.relate_interface(origin, cause, Relation::Assignable, source, target)
+    }
+
+    /// Judge whether one source value erases behind a dynamic payload.
+    pub(in crate::sema) fn erasable_source(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<Verdict> {
+        self.satisfies_auto_interface(origin, source, dir::AutoInterface::DynamicSafe)
     }
 
     /// Relate one source value erasing into `Dynamic<constraint>`.

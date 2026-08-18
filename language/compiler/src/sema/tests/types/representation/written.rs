@@ -1,6 +1,92 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_reject_unerasable_source_stored_at_unknown() {
+    let session = TestSession::single(
+        r#"
+function keep<T>(value: T): unknown {
+    value
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function keep<T>(value: T): unknown {
+    value
+}
+
+=== dir ===
+function keep<T>(value: T): unknown {
+/// @generic.template symbol=keep parameters=(T)
+/// @type.symbol symbol=keep type=<T>(T) => unknown
+/// @type.symbol symbol=keep.T source=T type=T
+/// @type.symbol symbol=keep.value source="value: T" type=T
+/// @resolution.name source=T target=keep.T
+
+    value
+    /// @resolution.name source=value target=keep.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=keep.value
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=not-erasable message="type 'T' cannot be erased into 'unknown'"
+/// @diagnostic.label line=2 column=37 span="{\n    value\n}" line_source="function keep<T>(value: T): unknown {"
+/// @diagnostic.help message="prove the source erasable with a DynamicSafe bound"
+"#,
+    );
+}
+
+#[test]
+fn test_erase_bounded_source_stored_at_unknown() {
+    let session = TestSession::single(
+        r#"
+import { DynamicSafe } from "destack:memory";
+
+function keep<T: DynamicSafe>(value: T): unknown {
+    value
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { DynamicSafe } from "destack:memory";
+
+function keep<T: DynamicSafe>(value: T): unknown {
+    value as unknown
+}
+
+=== dir ===
+import { DynamicSafe } from "destack:memory";
+
+function keep<T: DynamicSafe>(value: T): unknown {
+/// @generic.template symbol=keep parameters=(T: memory.capability.DynamicSafe)
+/// @type.symbol symbol=keep type=<T: memory.capability.DynamicSafe>(T) => unknown
+/// @type.symbol symbol=keep.T source="T: DynamicSafe" type=T
+/// @resolution.name source=DynamicSafe target=memory.capability.DynamicSafe
+/// @type.symbol symbol=keep.value source="value: T" type=T
+/// @resolution.name source=T target=keep.T
+
+    value
+    /// @resolution.name source=value target=keep.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=keep.value
+
+}
+"#,
+    );
+}
+
+#[test]
 fn test_type_alias_field_keeps_the_written_alias_face() {
     let session = TestSession::single(
         r#"

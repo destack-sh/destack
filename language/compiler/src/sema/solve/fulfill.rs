@@ -630,6 +630,7 @@ impl CheckState<'_> {
         let outcome = match verdict {
             Verdict::Ambiguous => CheckOutcome::Fails(CheckFailure::Undecided),
             verdict => self.complete_constraint_check(
+                relation.origin,
                 relation.relation,
                 relation.source,
                 relation.target,

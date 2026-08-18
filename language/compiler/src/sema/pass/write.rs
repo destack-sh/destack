@@ -192,7 +192,9 @@ impl CheckState<'_> {
         let origin = Origin::Node(site.node(), subject.scope);
         let declared = self.declared_member_subject(subject)?;
         self.settling = true;
-        let bindings = self.body().subject_member_bindings(origin, module, declared);
+        let bindings = self
+            .body()
+            .subject_member_bindings(origin, module, declared);
         self.settling = false;
         let mut bindings = bindings?;
 

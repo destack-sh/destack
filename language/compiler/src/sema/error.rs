@@ -205,6 +205,29 @@ pub enum CheckError {
         target: String,
     },
 
+    /// Source type cannot be erased behind an erased carrier target.
+    ///
+    /// ```ds
+    /// function keep<T>(value: T): unknown {
+    ///     value
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "not-erasable",
+        message = "type '{source}' cannot be erased into '{target}'",
+        help = "prove the source erasable with a DynamicSafe bound"
+    )]
+    NotErasable {
+        /// Report the unerasable value.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The source type.
+        source: String,
+        /// The erased target type.
+        target: String,
+    },
+
     /// Source type converts to more than one represented union case.
     ///
     /// ```ds

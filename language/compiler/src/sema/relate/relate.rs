@@ -64,6 +64,7 @@ impl CheckState<'_> {
     /// Return the completed check for one closed constraint.
     pub(in crate::sema) fn complete_constraint_check(
         &mut self,
+        origin: Origin,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -101,6 +102,12 @@ impl CheckState<'_> {
                     && let Some(signature) = self.first_writable_index_signature(target)?
                 {
                     CheckOutcome::Fails(CheckFailure::WritableIndexRequiresIndexSet { signature })
+                }
+                // blame a source that cannot erase behind an erased target
+                else if self.is_erased_value(target)?
+                    && self.erasable_source(origin, source)? == Verdict::Fails
+                {
+                    CheckOutcome::Fails(CheckFailure::NotErasable)
                 }
                 // fall back to the relation itself
                 else {

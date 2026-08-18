@@ -157,6 +157,7 @@ impl BodyState<'_, '_> {
         // complete a relation that participated in inference
         if let Some(holds) = inferred {
             let outcome = self.complete_constraint_check(
+                origin,
                 relation,
                 source.ty,
                 target,
@@ -179,7 +180,8 @@ impl BodyState<'_, '_> {
             && (relation != Relation::Assignable || !use_.requires_runtime_coercion())
         {
             let verdict = self.constrain_conversion(site, cause, relation, source, target, use_)?;
-            let outcome = self.complete_constraint_check(relation, source.ty, target, verdict)?;
+            let outcome =
+                self.complete_constraint_check(origin, relation, source.ty, target, verdict)?;
 
             return Ok(ValueConversion {
                 outcome,
@@ -698,7 +700,8 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Result<Option<Box<dir::Coercion>>, CheckFailure>> {
         let relation = Relation::Assignable;
         let verdict = self.constrain_conversion(site, cause, relation, source, target, use_)?;
-        let outcome = self.complete_constraint_check(relation, source.ty, target, verdict)?;
+        let outcome =
+            self.complete_constraint_check(origin, relation, source.ty, target, verdict)?;
         if let CheckOutcome::Fails(failure) = outcome {
             return Ok(Err(failure));
         }
