@@ -1,12 +1,15 @@
 import { panic } from "destack:error";
 import { Debug, PartialEqual } from "destack:ops";
 
+/// An assertion message or a function that computes one after failure.
+export type AssertionMessage = string | (() => string);
+
 /// Require `condition` to hold.
 @languageItem("assert.assert")
-export function assert(condition: boolean, message?: string): void {
+export function assert(condition: boolean, message?: AssertionMessage): void {
     // stop on the failed invariant
     if (!condition) {
-        panic(message ?? "assertion failed")
+        panic(evaluateMessage(message, "assertion failed"))
     }
 }
 
@@ -14,7 +17,7 @@ export function assert(condition: boolean, message?: string): void {
 export function assertEqual<T, U>(
     actual: &readonly T,
     expected: &readonly U,
-    message?: string,
+    message?: AssertionMessage,
 ): void where T: Debug, T: PartialEqual<U>, U: Debug {
     // return without formatting successful operands
     if (actual.equal(expected)) {
@@ -24,16 +27,16 @@ export function assertEqual<T, U>(
     // render both unequal operands
     const actual = actual.debug().intoOwned();
     const expected = expected.debug().intoOwned();
-    const message = message ?? "expected values to be equal";
+    const message = evaluateMessage(message, "expected values to be equal");
 
-    panic(`${message}\nactual: ${actual}\nexpected: ${expected}`)
+    panic(`${message}\nactual: ${actual}\nexpected: ${expected}`);
 }
 
 /// Require `actual` and `expected` to compare unequal.
 export function assertNotEqual<T, U>(
     actual: &readonly T,
     expected: &readonly U,
-    message?: string,
+    message?: AssertionMessage,
 ): void where T: Debug, T: PartialEqual<U>, U: Debug {
     // return without formatting successful operands
     if (!actual.equal(expected)) {
@@ -43,7 +46,17 @@ export function assertNotEqual<T, U>(
     // render both unexpectedly equal operands
     const actual = actual.debug().intoOwned();
     const expected = expected.debug().intoOwned();
-    const message = message ?? "expected values to be different";
+    const message = evaluateMessage(message, "expected values to be different");
 
-    panic(`${message}\nactual: ${actual}\nexpected: ${expected}`)
+    panic(`${message}\nactual: ${actual}\nexpected: ${expected}`);
+}
+
+/// Evaluate an assertion message after its assertion fails.
+function evaluateMessage(message: AssertionMessage | undefined, fallback: string): string {
+    // compute lazy messages only on the failure path
+    if (message is () => string) {
+        return message();
+    }
+
+    return message ?? fallback;
 }
