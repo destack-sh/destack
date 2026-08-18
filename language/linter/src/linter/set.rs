@@ -180,13 +180,13 @@ mod tests {
     use destack_repository::LintLevel;
 
     use super::*;
-    use crate::rules::{FOR_DIRECTION, PREFER_SLICE_PARAMETER};
+    use crate::rules::{FOR_DIRECTION, NEEDLESS_PASS_BY_VALUE};
 
     /// Expose implemented lints and omit stubs.
     #[test]
     fn test_iterates_implemented_lints() {
         let is_implemented_listed = Lint::all().any(|lint| lint.id == FOR_DIRECTION.id);
-        let is_stub_listed = Lint::all().any(|lint| lint.id == PREFER_SLICE_PARAMETER.id);
+        let is_stub_listed = Lint::all().any(|lint| lint.id == NEEDLESS_PASS_BY_VALUE.id);
 
         assert!(is_implemented_listed);
         assert!(!is_stub_listed);
@@ -197,7 +197,7 @@ mod tests {
     fn test_rejects_selected_stub() {
         let package = PackageId::new(0);
         let options = LinterOptions {
-            only: vec!["prefer-slice-parameter".to_string()],
+            only: vec!["needless-pass-by-value".to_string()],
             ..LinterOptions::default()
         };
         let registry = Lint::all().cloned().collect::<Vec<_>>().into();
@@ -208,7 +208,7 @@ mod tests {
             lints.errors(),
             [LinterError::UnknownConfiguredLint {
                 anchor: DiagnosticAnchor::Package(package),
-                lint: "prefer-slice-parameter".to_string(),
+                lint: "needless-pass-by-value".to_string(),
             }]
         );
     }
@@ -220,7 +220,7 @@ mod tests {
         let mut options = LinterOptions::default();
         options
             .rules
-            .insert("prefer-slice-parameter".to_string(), LintLevel::Error);
+            .insert("needless-pass-by-value".to_string(), LintLevel::Error);
         let registry = Lint::all().cloned().collect::<Vec<_>>().into();
         let lints = LintSet::resolve(package, &options, registry);
 
@@ -228,7 +228,7 @@ mod tests {
             lints.errors(),
             [LinterError::UnknownConfiguredLint {
                 anchor: DiagnosticAnchor::Package(package),
-                lint: "prefer-slice-parameter".to_string(),
+                lint: "needless-pass-by-value".to_string(),
             }]
         );
     }
