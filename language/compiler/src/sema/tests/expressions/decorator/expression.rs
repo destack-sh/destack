@@ -189,6 +189,50 @@ const value = 1;
     );
 }
 
+/// Flatten static object spreads into the checked decorator value.
+#[test]
+fn test_flatten_static_object_spread() {
+    let session = TestSession::single(
+        r#"
+newtype mark = ({ reason: string },);
+
+@mark({ reason: "direct reason", ...{ reason: "spread reason" } })
+const value = 1;
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_decorators(),
+        r#"
+=== annotated ===
+newtype mark = ({ reason: string },);
+
+@mark({ reason: "direct reason", ...{ reason: "spread reason" } })
+const value: 1 = 1;
+
+=== dir ===
+newtype mark = ({ reason: string },);
+/// @type.symbol symbol=mark source="newtype mark = ({ reason: string },)" type=mark
+/// @definition.newtype symbol=mark source="newtype mark = ({ reason: string },)" backing=({ reason: string },) constructors=[({ reason: string }) => mark]
+
+@mark({ reason: "direct reason", ...{ reason: "spread reason" } })
+/// @decorator.node source="@mark({ reason: \"direct reason\", ...{ reason: \"spread reason\" } })" owner="const value = 1" expression=mark target=mark type=mark kind=newtype parameters=({ reason: string }) arguments=(provided({ reason: "direct reason", ...{ reason: "spread reason" } }) as { reason: string }) newtype=mark backing=({ reason: string },) value="mark({ reason: \"direct reason\"; reason: \"spread reason\" })"
+/// @type.node source=mark type=mark
+/// @resolution.name source=mark target=mark
+/// @type.node source={ reason: "direct reason", ...{ reason: "spread reason" } } type={ reason: string }
+/// @type.node source="\"direct reason\"" type="direct reason"
+/// @type.node source={ reason: "spread reason" } type={ reason: string }
+/// @type.node source="\"spread reason\"" type="spread reason"
+
+const value = 1;
+/// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source=1 type=1
+"#,
+    );
+}
+
 #[test]
 fn test_apply_decorator_to_argument_inside_function_body() {
     let session = TestSession::single(

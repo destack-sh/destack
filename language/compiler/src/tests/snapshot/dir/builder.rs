@@ -1256,12 +1256,6 @@ impl<'a> DirSnapshotBuilder<'a> {
 
                 format!("{key}()")
             }
-            dir::StaticProperty::Spread { value } => {
-                // render a static spread operand
-                let value = self.static_term_label(value);
-
-                format!("...{value}")
-            }
         }
     }
 

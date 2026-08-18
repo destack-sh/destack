@@ -313,14 +313,14 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
-        properties: &[dir::LocalNodeId<dir::Property>],
+        source_properties: &[dir::LocalNodeId<dir::Property>],
     ) -> CompilerResult<Result<dir::StaticTerm, StaticError>> {
-        let mut values = Vec::with_capacity(properties.len());
+        let mut properties = Vec::with_capacity(source_properties.len());
 
-        // preserve authored object property order
-        for property in properties {
+        // evaluate fields and flatten spreads in source order
+        for property in source_properties {
             let property = self.module_view(module).get(*property).clone();
-            let value = match property {
+            match property {
                 dir::Property::Field { name, value, .. } => {
                     let key = name.into();
                     let value = match self.evaluate_static_expression(module, value)? {
@@ -328,24 +328,29 @@ impl CheckState<'_> {
                         Err(error) => return Ok(Err(error)),
                     };
 
-                    dir::StaticProperty::Field { key, value }
+                    properties.push(dir::StaticProperty::Field { key, value });
                 }
                 dir::Property::Spread { value } => {
                     let value = match self.evaluate_static_expression(module, value)? {
                         Ok(value) => value,
                         Err(error) => return Ok(Err(error)),
                     };
+                    let dir::StaticTerm::Object {
+                        properties: spread_properties,
+                    } = value
+                    else {
+                        return Ok(Err(StaticError::NotStatic(expression)));
+                    };
 
-                    dir::StaticProperty::Spread { value }
+                    properties.extend(spread_properties);
                 }
                 dir::Property::Method { .. } | dir::Property::Error => {
                     return Ok(Err(StaticError::NotStatic(expression)));
                 }
-            };
-            values.push(value);
+            }
         }
 
-        Ok(Ok(dir::StaticTerm::Object { properties: values }))
+        Ok(Ok(dir::StaticTerm::Object { properties }))
     }
 
     /// Evaluate one first-class type expression.

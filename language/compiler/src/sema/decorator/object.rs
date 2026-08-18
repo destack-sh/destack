@@ -11,48 +11,24 @@ pub(in crate::sema) struct DecoratorObject<'a> {
 impl<'a> TryFrom<&'a dir::StaticTerm> for DecoratorObject<'a> {
     type Error = CompilerError;
 
-    /// Flatten one decorator object.
+    /// Build one decorator object from an evaluated structural object.
     fn try_from(value: &'a dir::StaticTerm) -> CompilerResult<Self> {
         let Some(properties) = value.as_object() else {
             return Err(CompilerError::Internal {
                 message: "decorator value is not a structural object".to_string(),
             });
         };
-        let mut object = Self {
-            fields: Vec::with_capacity(properties.len()),
-        };
-        object.extend(properties)?;
+        let mut fields = Vec::with_capacity(properties.len());
 
-        Ok(object)
-    }
-}
-
-impl<'a> DecoratorObject<'a> {
-    /// Extend this object with evaluated fields and spreads.
-    fn extend(&mut self, properties: &'a [dir::StaticProperty]) -> CompilerResult<()> {
+        // retain evaluated name fields in source order
         for property in properties {
-            match property {
-                dir::StaticProperty::Field {
-                    key: dir::StaticKey::Name(key),
-                    value,
-                } => self.fields.push((*key, value)),
-                dir::StaticProperty::Spread { value } => {
-                    let Some(properties) = value.as_object() else {
-                        return Err(CompilerError::Internal {
-                            message: "decorator object spread is not an object".to_string(),
-                        });
-                    };
-
-                    self.extend(properties)?;
-                }
-                dir::StaticProperty::Field { .. } | dir::StaticProperty::Method { .. } => {
-                    return Err(CompilerError::Internal {
-                        message: "decorator object contains a non-name field".to_string(),
-                    });
-                }
-            }
+            let Some(field) = property.as_name_field() else {
+                return Err(CompilerError::Internal {
+                    message: "decorator object contains a non-name field".to_string(),
+                });
+            };
+            fields.push(field);
         }
-
-        Ok(())
+        Ok(Self { fields })
     }
 }
