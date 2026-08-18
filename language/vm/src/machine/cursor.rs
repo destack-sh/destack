@@ -1,5 +1,4 @@
 use std::ptr::{self, NonNull};
-use std::slice;
 
 use destack_bytecode::{CodeOffset, Instruction};
 use destack_program::Word;
@@ -146,13 +145,6 @@ impl Cursor {
         unsafe {
             ptr::write(self.registers.as_ptr().add(register as usize), value);
         }
-    }
-
-    /// Return the complete active register window.
-    #[inline(always)]
-    pub(crate) fn registers(&mut self, word_count: u16) -> &mut [Word] {
-        // SAFETY: the active frame owns this exact contiguous register window
-        unsafe { slice::from_raw_parts_mut(self.registers.as_ptr(), word_count as usize) }
     }
 
     /// Move one possibly overlapping active register range.

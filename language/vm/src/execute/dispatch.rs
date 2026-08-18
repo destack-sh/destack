@@ -502,22 +502,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         return Ok(outcome);
                     }
                 }
-                0x0f if opcode.tensor_operation().is_some() => {
-                    let Some(operation) = opcode.tensor_operation() else {
-                        unreachable!("linked tensor opcodes carry one exact operation");
-                    };
-                    let access = self.execute_tensor::<OBSERVE>(instruction, operation)?;
-                    if is_observing_memory && let Some((access, address)) = access {
-                        self.observe_memory(self.frame(), operation_pc, 0, access, Some(address))?;
-                    }
-                    if WATCH
-                        && let Some((access, address)) = access
-                        && let Some(outcome) =
-                            self.watch_after(self.frame(), operation_pc, 0, access, Some(address))?
-                    {
-                        return Ok(outcome);
-                    }
-                }
                 0x0f => {
                     let accesses = if WATCH || is_observing_memory {
                         self.byte_accesses(instruction)?

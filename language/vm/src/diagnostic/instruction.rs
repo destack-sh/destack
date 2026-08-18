@@ -14,8 +14,6 @@ pub enum InstructionError {
         /// The unsupported opcode value.
         opcode: u16,
     },
-    /// The direct CPU tensor engine cannot execute a sharded tensor layout.
-    UnsupportedTensorSharding,
     /// A destructor used an instruction forbidden during destruction.
     InvalidDestructor {
         /// The executing destructor.
@@ -31,7 +29,6 @@ impl fmt::Display for InstructionError {
             Self::UnsupportedOpcode { opcode } => {
                 write!(formatter, "unsupported opcode {opcode}")
             }
-            Self::UnsupportedTensorSharding => formatter.write_str("unsupported tensor sharding"),
             Self::InvalidDestructor { function } => {
                 write!(formatter, "invalid destructor {function:?}")
             }

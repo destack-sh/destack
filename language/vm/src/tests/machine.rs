@@ -30,7 +30,7 @@ pub(crate) struct TestMachine {
     /// The bytecode machine under test.
     machine: Machine,
     /// Runtime allocation plans indexed by Program allocation site id.
-    allocation_plans: Arc<[Option<AllocationPlan>]>,
+    allocation_plans: Arc<[AllocationPlan]>,
     /// Runtime operations observed by bytecode instructions.
     runtime: TestRuntime,
     /// Current dynamically scoped execution context.

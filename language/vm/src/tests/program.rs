@@ -2,17 +2,14 @@ use std::collections::HashMap;
 
 use destack_bytecode as bytecode;
 use destack_core::Optional;
-use destack_mir::{
-    Access, Nullability, ReferenceKind, Space, Storage, TensorFormat, TensorViewFormat, TraceMap,
-};
+use destack_mir::{Access, Nullability, ReferenceKind, Space, Storage, TraceMap};
 use destack_program as program;
 use destack_program::{
     AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
     DynamicEntry, DynamicTableBuilder, EdgeSite, FunctionId, LayoutId, LayoutShapeBuilder,
     MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint,
     ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SignatureId, SiteTableBuilder,
-    StopPoint, StopReason, TensorDimension, TensorLayoutBuilder, TensorViewLayoutBuilder, TypeId,
-    VirtualTableBuilder, WatchpointId, Word,
+    StopPoint, StopReason, TypeId, VirtualTableBuilder, WatchpointId, Word,
 };
 
 pub(super) const TEST_GLOBAL_BYTES: usize = Word::BYTE_LEN;
@@ -136,23 +133,6 @@ impl TestProgram {
             result_type: TypeId(element),
             storage_type: TypeId(element),
             layout: LayoutId::new(element + 1),
-            virtual_table: Optional::none(),
-        }
-    }
-
-    /// Create one dynamically sized tensor allocation site.
-    pub(crate) const fn tensor_allocation(
-        function: u32,
-        operation: u32,
-        space: Space,
-        result_type: u32,
-    ) -> AllocationSite {
-        AllocationSite {
-            point: Self::point(function, operation),
-            space,
-            result_type: TypeId(result_type),
-            storage_type: TypeId(result_type),
-            layout: LayoutId::new(result_type + 1),
             virtual_table: Optional::none(),
         }
     }
@@ -465,91 +445,6 @@ impl TestProgram {
             },
             _ => TraceMap::empty(),
         }
-    }
-
-    /// Set one dense managed tensor layout.
-    pub(crate) fn tensor(
-        mut self,
-        ty: u32,
-        element: u32,
-        scalar: ScalarFormat,
-        space: Space,
-        dimensions: impl IntoIterator<Item = u64>,
-    ) -> Self {
-        let scalar_byte_len = scalar.byte_len();
-        let dimensions = dimensions.into_iter().map(TensorDimension::fixed);
-        let reference = ReferenceLayout::new(
-            TypeId(element),
-            ReferenceKind::Managed,
-            Storage::Heap(space),
-            Access::Mutable,
-            Nullability::None,
-        );
-        let tensor =
-            TensorLayoutBuilder::new(reference, TensorFormat::dense_row_major(), dimensions);
-        self.insert_layout(TestLayout {
-            ty: TypeId(ty),
-            shape: LayoutShapeBuilder::Tensor(tensor),
-            byte_len: Word::BYTE_LEN as u32,
-            alignment: Word::BYTE_LEN as u32,
-            trace: Self::reference_trace(ReferenceKind::Managed, Storage::Heap(space)),
-        });
-        self.insert_layout(TestLayout {
-            ty: TypeId(element),
-            shape: LayoutShapeBuilder::Scalar(scalar),
-            byte_len: scalar_byte_len as u32,
-            alignment: scalar_byte_len as u32,
-            trace: TraceMap::empty(),
-        });
-
-        self
-    }
-
-    /// Set one dense borrowed tensor-view layout.
-    pub(crate) fn tensor_view(
-        mut self,
-        ty: u32,
-        element: u32,
-        scalar: ScalarFormat,
-        space: Space,
-        dimensions: impl IntoIterator<Item = u64>,
-    ) -> Self {
-        let scalar_byte_len = scalar.byte_len();
-        let dimensions = dimensions
-            .into_iter()
-            .map(TensorDimension::fixed)
-            .collect::<Vec<_>>();
-        let rank = dimensions.len() as u16;
-        let reference = ReferenceLayout::new(
-            TypeId(element),
-            ReferenceKind::Borrowed,
-            Storage::Heap(space),
-            Access::Mutable,
-            Nullability::None,
-        );
-        let tensor = TensorViewLayoutBuilder::new(
-            reference,
-            TensorViewFormat::dense_row_major(),
-            dimensions,
-        );
-        let word_count = bytecode::ValueType::tensor_view_word_count(rank)
-            .expect("test tensor view rank should fit one register range");
-        self.insert_layout(TestLayout {
-            ty: TypeId(ty),
-            shape: LayoutShapeBuilder::TensorView(tensor),
-            byte_len: u32::from(word_count) * Word::BYTE_LEN as u32,
-            alignment: Word::BYTE_LEN as u32,
-            trace: TraceMap::empty(),
-        });
-        self.insert_layout(TestLayout {
-            ty: TypeId(element),
-            shape: LayoutShapeBuilder::Scalar(scalar),
-            byte_len: scalar_byte_len as u32,
-            alignment: scalar_byte_len as u32,
-            trace: TraceMap::empty(),
-        });
-
-        self
     }
 
     /// Set one object layout with a virtual dispatch word.

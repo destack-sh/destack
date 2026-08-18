@@ -33,11 +33,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .allocation_by_id(self.machine.program.sections(), site_id)
             .copied()
             .ok_or_else(|| self.invalid_instruction())?;
-        let plan = self
-            .activation
-            .memory
-            .allocation_plan(site_id)
-            .ok_or_else(|| self.invalid_instruction())?;
+        let plan = self.activation.memory.allocation_plan(site_id);
         let length = if operation.kind == NewKind::Slice {
             let length = operands.register()?;
 

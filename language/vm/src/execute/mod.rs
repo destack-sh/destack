@@ -19,7 +19,6 @@ mod profile;
 mod reference;
 mod slice;
 mod stop;
-mod tensor;
 mod value;
 mod vector;
 mod watch;

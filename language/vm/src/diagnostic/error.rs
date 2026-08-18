@@ -86,13 +86,6 @@ impl Error {
         ))
     }
 
-    /// Create one unsupported tensor sharding error.
-    pub fn unsupported_tensor_sharding() -> Self {
-        Self::new(ErrorReason::Instruction(
-            InstructionError::UnsupportedTensorSharding,
-        ))
-    }
-
     /// Create one invalid machine image error.
     pub fn invalid_image() -> Self {
         Self::new(ErrorReason::Machine(MachineError::InvalidImage))

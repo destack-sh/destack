@@ -74,11 +74,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if site.space != mir::Space::Local {
             return Err(self.invalid_instruction().into());
         }
-        let plan = self
-            .activation
-            .memory
-            .allocation_plan(site_id)
-            .ok_or_else(|| self.invalid_instruction())?;
+        let plan = self.activation.memory.allocation_plan(site_id);
         let edge = self
             .activation
             .memory

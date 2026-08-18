@@ -2,22 +2,18 @@ use std::sync::Arc;
 
 use bytecode::{CodeBuilder, Parser, RelocationTag};
 use destack_bytecode as bytecode;
-use destack_core::{Optional, StringId, StringPool};
+use destack_core::{StringId, StringPool};
 use destack_heap::{
     AllocationCache, AllocationPlan, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits,
     SharedHeapOptions, SharedMarkWorker,
 };
 use destack_memory::{MemoryMap, MemoryRange};
-use destack_mir::{
-    Access, Nullability, ReferenceKind, Space, Storage, TensorFormat, TraceMap, TraceTable,
-};
+use destack_mir::{TraceMap, TraceTable};
 use destack_program as program;
 use destack_program::{
-    AllocationSite, FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder,
-    LayoutBuilder, LayoutId, LayoutShapeBuilder, ProgramBuilder, ProgramPoint, ReferenceLayout,
-    ScalarFormat, Signature, SignatureId, SiteTableBuilder, Symbol, TensorDimension,
-    TensorLayoutBuilder, TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, Value,
-    Word,
+    FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder, LayoutBuilder, LayoutId,
+    LayoutShapeBuilder, ProgramBuilder, ScalarFormat, Signature, SignatureId, SiteTableBuilder,
+    Symbol, TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, Value, Word,
 };
 use destack_source::FileId;
 use destack_vm::{Error, Machine, MachineLimits, Result};
@@ -36,7 +32,7 @@ pub(crate) struct Runtime {
     /// Bytecode machine under measurement.
     machine: Machine,
     /// Runtime allocation plans indexed by Program allocation site id.
-    allocation_plans: Arc<[Option<AllocationPlan>]>,
+    allocation_plans: Arc<[AllocationPlan]>,
     /// Program runtime operations.
     runtime: BenchmarkRuntime,
     /// Worker-local heap.
@@ -96,20 +92,10 @@ impl program::Runtime for BenchmarkRuntime {
 impl Runtime {
     /// Build one direct-bytecode benchmark runtime.
     pub(crate) fn parse(source: &str) -> Self {
-        Self::build(source, None)
-    }
-
-    /// Build one direct-bytecode tensor benchmark runtime.
-    pub(crate) fn tensor(source: &str, dimensions: &[u64]) -> Self {
-        Self::build(source, Some(dimensions))
-    }
-
-    /// Build one benchmark runtime with an optional tensor layout.
-    fn build(source: &str, tensor_dimensions: Option<&[u64]>) -> Self {
         let object = Parser::new(FileId::from_source_bytes(source.as_bytes()), source)
             .parse()
             .expect("benchmark bytecode should parse");
-        let program = Arc::new(Self::program(&object, tensor_dimensions));
+        let program = Arc::new(Self::program(&object));
         let memory = Arc::new(
             MemoryMap::reserve(MEMORY_BYTES, MEMORY_FRAME_BYTES)
                 .expect("benchmark memory should reserve"),
@@ -218,11 +204,10 @@ impl Runtime {
     }
 
     /// Build the immutable Program consumed by one benchmark machine.
-    fn program(object: &bytecode::Object, tensor_dimensions: Option<&[u64]>) -> program::Program {
-        let (strings, string_ids, functions) = Self::functions(object, tensor_dimensions.is_some());
+    fn program(object: &bytecode::Object) -> program::Program {
+        let (strings, string_ids, functions) = Self::functions(object);
         let code = Self::code(object);
-        let (types, layouts, traces) = Self::types(tensor_dimensions);
-        let sites = Self::sites(object, tensor_dimensions.is_some());
+        let (types, layouts, traces) = Self::types();
         let types = TypeTableBuilder::new().types(
             (0..types.len())
                 .map(|index| TypeFingerprint::from_raw(index as u128))
@@ -237,7 +222,7 @@ impl Runtime {
             .traces(traces)
             .functions(functions)
             .frames(FrameTableBuilder::new())
-            .sites(sites)
+            .sites(SiteTableBuilder::new())
             .build()
             .expect("bench program should build")
     }
@@ -276,54 +261,12 @@ impl Runtime {
             .code(code)
     }
 
-    /// Build the object-local, void, and signed 32-bit Program types used by benchmarks.
-    fn types(
-        tensor_dimensions: Option<&[u64]>,
-    ) -> (Vec<TypeDescriptorBuilder>, Vec<LayoutBuilder>, TraceTable) {
+    /// Build the void and signed 32-bit Program types used by benchmarks.
+    fn types() -> (Vec<TypeDescriptorBuilder>, Vec<LayoutBuilder>, TraceTable) {
         let mut traces = TraceTable::new();
         let trace = traces.insert(TraceMap::empty());
-        let object_type_count = usize::from(tensor_dimensions.is_some());
-        let mut types = Vec::with_capacity(object_type_count + 2);
-        let mut layouts = Vec::with_capacity(object_type_count + 2);
-        let int32_type = TypeId(object_type_count as u32 + 1);
-
-        // materialize object-local types before execution representations
-        for index in 0..object_type_count {
-            let layout = LayoutId::new(index as u32 + 1);
-            let (shape, layout_trace) = if index == 0
-                && let Some(dimensions) = tensor_dimensions
-            {
-                let dimensions = dimensions.iter().copied().map(TensorDimension::fixed);
-                let reference = ReferenceLayout::new(
-                    int32_type,
-                    ReferenceKind::Managed,
-                    Storage::Heap(Space::Local),
-                    Access::Mutable,
-                    Nullability::None,
-                );
-                let tensor = TensorLayoutBuilder::new(
-                    reference,
-                    TensorFormat::dense_row_major(),
-                    dimensions,
-                );
-                let tensor_trace = traces.insert(TraceMap::Fixed {
-                    local_offsets: Box::new([0]),
-                    shared_offsets: Box::new([]),
-                    frame_offsets: Box::new([]),
-                });
-
-                (LayoutShapeBuilder::Tensor(tensor), tensor_trace)
-            } else {
-                (LayoutShapeBuilder::Struct(Vec::new()), trace)
-            };
-            types.push(TypeDescriptorBuilder::new(layout));
-            layouts.push(LayoutBuilder::new(
-                shape,
-                Word::BYTE_LEN as u32,
-                Word::BYTE_LEN as u32,
-                layout_trace,
-            ));
-        }
+        let mut types = Vec::with_capacity(2);
+        let mut layouts = Vec::with_capacity(2);
 
         // append the representations used by the public machine call
         let void_layout = LayoutId::new(layouts.len() as u32 + 1);
@@ -342,12 +285,9 @@ impl Runtime {
     }
 
     /// Build one signed 32-bit benchmark function signature.
-    fn functions(
-        object: &bytecode::Object,
-        has_tensor: bool,
-    ) -> (StringPool, Vec<StringId>, FunctionTableBuilder) {
+    fn functions(object: &bytecode::Object) -> (StringPool, Vec<StringId>, FunctionTableBuilder) {
         let strings = StringPool::new();
-        let int32_type = TypeId(u32::from(has_tensor) + 1);
+        let int32_type = TypeId(1);
         let mut names = Vec::with_capacity(object.functions().len());
         let mut signatures = Vec::with_capacity(object.functions().len());
         let mut functions = Vec::with_capacity(object.functions().len());
@@ -372,38 +312,5 @@ impl Runtime {
             .functions(functions);
 
         (strings, names, table)
-    }
-
-    /// Build allocation sites for tensor-producing benchmark operations.
-    fn sites(object: &bytecode::Object, has_tensor: bool) -> SiteTableBuilder {
-        if !has_tensor {
-            return SiteTableBuilder::new();
-        }
-        let function = &object.functions()[0];
-        let operation_count = function.operations(object.operations()).len();
-        let allocations = (0..operation_count).filter_map(|operation| {
-            let instruction = object
-                .operation(bytecode::FunctionId(0), operation as u32)
-                .expect("benchmark instruction should decode")
-                .expect("benchmark operation should exist");
-            let tensor = instruction.opcode().tensor_operation()?;
-            if !matches!(
-                tensor,
-                bytecode::TensorOperation::Splat | bytecode::TensorOperation::Element
-            ) {
-                return None;
-            }
-
-            Some(AllocationSite {
-                point: ProgramPoint::new(FunctionId(0), operation as u32),
-                space: Space::Local,
-                result_type: TypeId(0),
-                storage_type: TypeId(0),
-                layout: LayoutId::new(1),
-                virtual_table: Optional::none(),
-            })
-        });
-
-        SiteTableBuilder::new().allocations(allocations)
     }
 }

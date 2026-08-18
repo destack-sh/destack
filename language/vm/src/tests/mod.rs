@@ -16,7 +16,6 @@ mod program;
 mod runtime;
 mod slice;
 mod stop;
-mod tensor;
 mod value;
 mod vector;
 
