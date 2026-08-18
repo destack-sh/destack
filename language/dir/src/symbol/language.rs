@@ -212,15 +212,6 @@ macro_rules! define_language_items {
 }
 
 define_language_items! {
-    /// Accessibility types.
-    accessibility {
-        /// `destack:accessibility/binding`.
-        binding {
-            /// Accessibility binding family.
-            AccessibilityBinding => (Interface, "accessibility/binding/accessibility", "AccessibilityBinding"),
-        }
-    }
-
     /// Async types.
     async {
         /// `destack:async/awaitable`.
@@ -326,15 +317,6 @@ define_language_items! {
 
             /// Queue one microtask.
             QueueMicrotask => (Function, "async/task", "queueMicrotask"),
-        }
-    }
-
-    /// Audio types.
-    audio {
-        /// `destack:audio/binding`.
-        binding {
-            /// Audio binding family.
-            AudioBinding => (Interface, "audio/binding/audio", "AudioBinding"),
         }
     }
 
@@ -455,15 +437,6 @@ define_language_items! {
 
             /// Fallible target conversion protocol.
             TryInto => (NewtypeInterface, "convert/into", "TryInto"),
-        }
-    }
-
-    /// Crypto types.
-    crypto {
-        /// `destack:crypto/binding`.
-        binding {
-            /// Crypto binding family.
-            CryptoBinding => (Interface, "crypto/binding/crypto", "CryptoBinding"),
         }
     }
 
@@ -614,24 +587,6 @@ define_language_items! {
         }
     }
 
-    /// Device types.
-    device {
-        /// `destack:device/binding`.
-        binding {
-            /// Device binding family.
-            DeviceBinding => (Interface, "device/binding/device", "DeviceBinding"),
-        }
-    }
-
-    /// Display types.
-    display {
-        /// `destack:display/binding`.
-        binding {
-            /// Display binding family.
-            DisplayBinding => (Interface, "display/binding/display", "DisplayBinding"),
-        }
-    }
-
     /// Error types.
     error {
         /// `destack:error/error`.
@@ -684,42 +639,6 @@ define_language_items! {
         binding {
             /// Filesystem binding family.
             FsBinding => (Interface, "fs/binding/fs", "FsBinding"),
-        }
-    }
-
-    /// GPU types.
-    gpu {
-        /// `destack:gpu/binding`.
-        binding {
-            /// GPU binding family.
-            GpuBinding => (Interface, "gpu/binding/gpu", "GpuBinding"),
-        }
-    }
-
-    /// Input types.
-    input {
-        /// `destack:input/binding`.
-        binding {
-            /// Input binding family.
-            InputBinding => (Interface, "input/binding/input", "InputBinding"),
-        }
-    }
-
-    /// IO types.
-    io {
-        /// `destack:io/binding`.
-        binding {
-            /// IO binding family.
-            IoBinding => (Interface, "io/binding/io", "IoBinding"),
-        }
-    }
-
-    /// IPC types.
-    ipc {
-        /// `destack:ipc/binding`.
-        binding {
-            /// IPC binding family.
-            IpcBinding => (Interface, "ipc/binding/ipc", "IpcBinding"),
         }
     }
 
@@ -1252,24 +1171,6 @@ define_language_items! {
         }
     }
 
-    /// Operating system types.
-    os {
-        /// `destack:os/binding`.
-        binding {
-            /// Operating system binding family.
-            OsBinding => (Interface, "os/binding/os", "OsBinding"),
-        }
-    }
-
-    /// Process types.
-    process {
-        /// `destack:process/binding`.
-        binding {
-            /// Process binding family.
-            ProcessBinding => (Interface, "process/binding/process", "ProcessBinding"),
-        }
-    }
-
     /// Random types.
     random {
         /// `destack:random/binding`.
@@ -1462,30 +1363,12 @@ define_language_items! {
         }
     }
 
-    /// TLS types.
-    tls {
-        /// `destack:tls/binding`.
-        binding {
-            /// TLS binding family.
-            TlsBinding => (Interface, "tls/binding/tls", "TlsBinding"),
-        }
-    }
-
     /// Tree literal types.
     tree {
         /// `destack:tree/builder`.
         builder {
             /// Contextual builder for tree literals.
             TreeBuilder => (NewtypeInterface, "tree/builder", "TreeBuilder", "tree.Builder"),
-        }
-    }
-
-    /// TTY types.
-    tty {
-        /// `destack:tty/binding`.
-        binding {
-            /// TTY binding family.
-            TtyBinding => (Interface, "tty/binding/tty", "TtyBinding"),
         }
     }
 
