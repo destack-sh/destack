@@ -260,9 +260,17 @@ impl BodyState<'_, '_> {
                     _ => subject,
                 };
 
-                let lookup = self.lookup_apparent_instance_member(
+                let mut lookup = self.lookup_apparent_instance_member(
                     origin, module, receiver, subject, space, key, extensions,
                 )?;
+
+                // dispatch erased value receivers through their dynamic payload
+                if space == dir::MemberSpace::Instance
+                    && self.is_erased_value(subject)?
+                    && self.receiver_carries_subject(origin, receiver, subject)?
+                {
+                    lookup.select_dynamic(subject)?;
+                }
 
                 // newtypes dereference to their backing for missing members
                 if matches!(lookup, MemberLookup::Missing)
@@ -626,6 +634,19 @@ impl BodyState<'_, '_> {
         Ok(lookup)
     }
 
+    /// Return whether one receiver's own base value is the settled subject.
+    fn receiver_carries_subject(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let receiver_base = self.form_chain(origin, receiver)?.base();
+        let receiver_base = self.normalize(origin, receiver_base)?;
+
+        Ok(receiver_base == self.normalize(origin, subject)?)
+    }
+
     /// Join member lookups across union elements.
     fn lookup_union_member(
         &mut self,
@@ -642,9 +663,7 @@ impl BodyState<'_, '_> {
         let mut lookups = Vec::with_capacity(elements.len());
 
         // runtime receiver unions settle each member under its enclosing forms
-        let receiver_base = self.form_chain(origin, receiver)?.base();
-        let is_receiver_union =
-            self.shallow_resolve(receiver_base)? == self.shallow_resolve(subject)?;
+        let is_receiver_union = self.receiver_carries_subject(origin, receiver, subject)?;
 
         // require every element to expose the member
         for element in elements {

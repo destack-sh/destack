@@ -313,7 +313,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         let this_parameter = if let Some(parameter) = declaration.this_parameter {
-            self.walk_parameter_type(parameter, false)?
+            self.walk_parameter_type(parameter)?
         } else {
             None
         };
@@ -659,7 +659,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         );
         let is_optional = parameter.is_optional();
         let name = parameter.name();
-        let Some(ty) = self.walk_parameter_type(id, false)? else {
+        let Some(ty) = self.walk_parameter_type(id)? else {
             return Ok(None);
         };
 
@@ -683,7 +683,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     pub(in crate::sema) fn walk_parameter_type(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
-        represents_open_type: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let declared_type = match self.tree.get(id) {
             dir::Parameter::Error => return Ok(None),
@@ -692,16 +691,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let ty = if let Some(declared_type) = declared_type {
             let is_optional = self.tree.get(id).is_optional();
             let ty = self.walk_type_expression(declared_type)?;
-            let ty = if represents_open_type {
-                let origin = Origin::Node(
-                    declared_type.into_global_any(self.module),
-                    self.flow().template_scope(),
-                );
-
-                self.check.storage_type(origin, ty)?
-            } else {
-                ty
-            };
 
             // optional parameters accept explicit undefined at call sites
             if is_optional {

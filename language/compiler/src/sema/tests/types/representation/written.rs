@@ -170,8 +170,7 @@ const rectangle = Rectangle {
 }
 
 #[test]
-fn test_interface_fields_erase_to_dynamic_storage() {
-    // interface-typed fields erase to Dynamic storage: only lifetimes induce generics
+fn test_interface_fields_keep_their_written_types() {
     let session = TestSession::single(
         r#"
 interface PointLike {
@@ -215,8 +214,8 @@ interface PointLike {
 }
 
 struct Rectangle {
-    start: Dynamic<PointLike>;
-    end: Dynamic<PointLike>;
+    start: PointLike;
+    end: PointLike;
 }
 
 struct Point implements PointLike {
@@ -230,8 +229,8 @@ struct Offset implements PointLike {
 }
 
 const rectangle: Rectangle = Rectangle {
-    start: Point { x: 0, y: 0 } as Dynamic<PointLike>,
-    end: Offset { x: 1, y: 1 } as Dynamic<PointLike>,
+    start: Point { x: 0, y: 0 } as PointLike,
+    end: Offset { x: 1, y: 1 } as PointLike,
 };
 
 rectangle.start satisfies PointLike;
@@ -255,15 +254,15 @@ interface PointLike {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.field symbol=Rectangle.end source="end: PointLike" key=end type=Dynamic<PointLike>
-/// @definition.field symbol=Rectangle.start source="start: PointLike" key=start type=Dynamic<PointLike>
+/// @definition.field symbol=Rectangle.end source="end: PointLike" key=end type=PointLike
+/// @definition.field symbol=Rectangle.start source="start: PointLike" key=start type=PointLike
 
     start: PointLike;
-    /// @type.symbol symbol=Rectangle.start source="start: PointLike" type=Dynamic<PointLike>
+    /// @type.symbol symbol=Rectangle.start source="start: PointLike" type=PointLike
     /// @resolution.name source=PointLike target=PointLike
 
     end: PointLike;
-    /// @type.symbol symbol=Rectangle.end source="end: PointLike" type=Dynamic<PointLike>
+    /// @type.symbol symbol=Rectangle.end source="end: PointLike" type=PointLike
     /// @resolution.name source=PointLike target=PointLike
 
 }
@@ -321,7 +320,7 @@ const rectangle = Rectangle {
 
 rectangle.start satisfies PointLike;
 /// @resolution.name source=rectangle target=rectangle
-/// @resolution.member source=rectangle.start receiver=Rectangle type=Dynamic<PointLike> kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=Dynamic<PointLike>
+/// @resolution.member source=rectangle.start receiver=Rectangle type=PointLike kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=PointLike
 /// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
 /// @resolution.place source=rectangle.start placement="local" lifetime="static" access="readonly"
@@ -330,7 +329,7 @@ rectangle.start satisfies PointLike;
 
 rectangle.end satisfies PointLike;
 /// @resolution.name source=rectangle target=rectangle
-/// @resolution.member source=rectangle.end receiver=Rectangle type=Dynamic<PointLike> kind=field target_receiver=Rectangle key=end target=Rectangle.end target_type=Dynamic<PointLike>
+/// @resolution.member source=rectangle.end receiver=Rectangle type=PointLike kind=field target_receiver=Rectangle key=end target=Rectangle.end target_type=PointLike
 /// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
 /// @resolution.place source=rectangle.end placement="local" lifetime="static" access="readonly"
@@ -341,7 +340,7 @@ rectangle.end satisfies PointLike;
 }
 
 #[test]
-fn test_array_element_type_reifies_alias_storage() {
+fn test_array_element_type_keeps_the_written_alias() {
     let session = TestSession::single(
         r#"
 struct Circle {
@@ -382,8 +381,8 @@ struct Rectangle {
 type Shape = Circle | Rectangle;
 
 const shapes: Shape[] = [
-    Circle { radius: 1.0 } as Circle | Rectangle,
-    Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle,
+    Circle { radius: 1.0 } as Shape,
+    Rectangle { width: 1.0, height: 1.0 } as Shape,
 ];
 
 const first: Shape = shapes[0];
@@ -467,7 +466,7 @@ first satisfies Shape;
 }
 
 #[test]
-fn test_literal_union_field_reifies_storage() {
+fn test_literal_union_field_keeps_the_written_alias() {
     let session = TestSession::single(
         r#"
 type Mode = "active" | "paused";
@@ -492,11 +491,11 @@ player.mode satisfies Mode;
 type Mode = "active" | "paused";
 
 struct Player {
-    mode: "active" | "paused";
+    mode: Mode;
 }
 
 const player: Player = Player {
-    mode: "active" as "active" | "paused",
+    mode: "active" as Mode,
 };
 
 player.mode satisfies Mode;
@@ -509,10 +508,10 @@ type Mode = "active" | "paused";
 struct Player {
 /// @type.symbol symbol=Player type=Player
 /// @definition.struct symbol=Player
-/// @definition.field symbol=Player.mode source="mode: Mode" key=mode type="active" | "paused"
+/// @definition.field symbol=Player.mode source="mode: Mode" key=mode type=Mode
 
     mode: Mode;
-    /// @type.symbol symbol=Player.mode source="mode: Mode" type="active" | "paused"
+    /// @type.symbol symbol=Player.mode source="mode: Mode" type=Mode
     /// @resolution.name source=Mode target=Mode
 
 }

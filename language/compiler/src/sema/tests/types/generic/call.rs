@@ -3159,7 +3159,7 @@ newtype interface It<out T, out R = void> {
     }
 }
 
-function length(values: Dynamic<It<int32, void>>): isize {
+function length(values: It<int32, void>): isize {
     return values.count<int32, void>();
 }
 
@@ -3200,17 +3200,17 @@ newtype interface It<T, R = void> {
 }
 
 function length(values: It<int32>): isize {
-/// @type.symbol symbol=length type=(Dynamic<It<int32, void>>) => isize
+/// @type.symbol symbol=length type=(It<int32, void>) => isize
 /// @generic.instance id="It<int32, void>" template=It arguments=(int32, void)
-/// @type.symbol symbol=length.values source="values: It<int32>" type=Dynamic<It<int32, void>>
+/// @type.symbol symbol=length.values source="values: It<int32>" type=It<int32, void>
 /// @resolution.name source=It target=It
 
     return values.count();
     /// @type.node source=values.count type=(this: It<int32, void>) => isize
     /// @type.node source=values.count() type=isize
     /// @resolution.name source=values target=length.values
-    /// @resolution.member source=values.count receiver=Dynamic<It<int32, void>> type=(this: It<int32, void>) => isize kind=symbol target_receiver=Dynamic<It<int32, void>> dispatch=dynamic constraint=It<int32, void> target=It.count
-    /// @resolution.call source=values.count() parameters=() return=isize kind=dynamic target=It.count receiver=Dynamic<It<int32, void>> constraint=It<int32, void> generic_arguments=(int32, void)
+    /// @resolution.member source=values.count receiver=It<int32, void> type=(this: It<int32, void>) => isize kind=symbol target_receiver=It<int32, void> dispatch=dynamic constraint=It<int32, void> target=It.count
+    /// @resolution.call source=values.count() parameters=() return=isize kind=dynamic target=It.count receiver=It<int32, void> constraint=It<int32, void> generic_arguments=(int32, void)
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=length.values
     /// @generic.instantiation id="It.count<int32, void>" template=It.count arguments=(int32, void)

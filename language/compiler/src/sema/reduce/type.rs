@@ -3,203 +3,56 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::sema::{CheckState, Origin};
-use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Return the storage representation of one checked type.
-    pub(in crate::sema) fn storage_type(
+    /// Return whether one value type is carried by the erased dynamic payload.
+    pub(in crate::sema) fn is_erased_value(
         &mut self,
-        origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // keep written types while declaring, checking selects storage
-        if self.is_declaration() {
-            return Ok(ty);
-        }
-
-        // track the aliases expanded along this chain
-        let mut aliases = FxIndexSet::default();
-
-        self.normalize_storage_type(origin, ty, &mut aliases)
+    ) -> CompilerResult<bool> {
+        Ok(self.erased_constraint(ty)?.is_some())
     }
 
-    /// Return the canonical checked form of one foreign written type.
-    pub(in crate::sema) fn canonical_foreign_type(
+    /// Return the runtime constraint carried by one erased value type.
+    pub(in crate::sema) fn erased_constraint(
         &mut self,
-        symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // keep written types while declaring, checking selects storage
-        if self.is_declaration() {
-            return Ok(ty);
-        }
-
-        // canonicalize signatures per parameter and other values whole
-        let origin = Origin::Symbol(symbol);
-        match self.ty(ty)? {
-            dir::Type::Function(function) => {
-                let signature = self.canonical_foreign_signature(origin, function.signature)?;
-                if signature == function.signature {
-                    return Ok(ty);
-                }
-
-                self.intern_type(dir::Type::Function(dir::FunctionType {
-                    signature,
-                    multiplicity: function.multiplicity,
-                }))
-            }
-            dir::Type::FunctionPointer(function) => {
-                let signature = self.canonical_foreign_signature(origin, function.signature)?;
-                if signature == function.signature {
-                    return Ok(ty);
-                }
-
-                self.intern_type(dir::Type::FunctionPointer(dir::FunctionPointerType {
-                    signature,
-                }))
-            }
-            dir::Type::FunctionSignature(_) => self.canonical_foreign_signature(origin, ty),
-            _ => self.storage_type(origin, ty),
-        }
-    }
-
-    /// Store one foreign written signature's parameters like walked parameters.
-    fn canonical_foreign_signature(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let dir::Type::FunctionSignature(id) = self.ty(ty)? else {
-            return Ok(ty);
-        };
-        let signature = self.type_signature(ty.module_id, id)?;
-        let parameters: SmallVec<[_; 4]> = self
-            .signature_parameters(ty.module_id, signature.parameters)?
-            .into();
-
-        // store each written parameter like a walked parameter declaration
-        let mut stored = Vec::with_capacity(parameters.len());
-        let mut changed = false;
-        for parameter in parameters {
-            let ty = self.storage_type(origin, parameter.ty)?;
-            changed |= ty != parameter.ty;
-            stored.push(dir::FunctionParameterType { ty, ..parameter });
-        }
-        if !changed {
-            return Ok(ty);
-        }
-
-        let parameters = self.intern_parameters(&stored)?;
-
-        self.intern_signature(dir::FunctionSignatureType {
-            parameters,
-            ..signature
-        })
-    }
-
-    /// Normalize storage while expanding transparent aliases once per active chain.
-    fn normalize_storage_type(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-        aliases: &mut FxIndexSet<dir::GlobalTypeId>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.shallow_resolve(ty)?;
-
-        // expand aliases only when their bodies require storage adaptation
-        if self.is_alias_instance(ty)? {
-            if !aliases.insert(ty) {
-                self.report_circular_type(origin)?;
-
-                return self.intern_type(dir::Type::Error);
-            }
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // settle solved variables and transparent aliases first
+        let mut ty = self.shallow_resolve(ty)?;
+        let mut seen = FxIndexSet::default();
+        while seen.insert(ty) {
             let dir::Type::Application(instance) = self.ty(ty)? else {
-                return Err(CompilerError::Internal {
-                    message: format!("transparent storage alias {ty:?} is not an application"),
-                });
+                break;
             };
-            let body = match self.type_alias_body(origin, ty.module_id, &instance)? {
-                Some(body) => body,
-                None => {
-                    return Err(CompilerError::Internal {
-                        message: format!("storage alias {ty:?} has no transparent body"),
-                    });
-                }
-            };
-            let storage = self.normalize_storage_type(origin, body, aliases)?;
-            aliases.swap_remove(&ty);
-
-            return Ok(if storage == body { ty } else { storage });
-        }
-
-        // erase constraint-only types behind a dynamic handle
-        if self.is_dynamic_storage_constraint(ty)? {
-            let dynamic =
-                self.intern_type(dir::Type::Dynamic(dir::DynamicType { constraint: ty }))?;
-
-            // preserve non-default nominal placement across erased storage
-            let symbol = match self.ty(ty)? {
-                dir::Type::Application(instance) => Some(instance.symbol),
-                _ => None,
-            };
-            if let Some(symbol) = symbol
-                && self.nominal_space(symbol)? == Some(dir::Space::Shared)
-            {
-                let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
-                    dir::Place::Space(dir::Space::Shared),
-                )))?;
-
-                return self.placed_type(Origin::Symbol(symbol), dynamic, place);
+            if self.language_item(instance.symbol)?.is_some() {
+                break;
             }
-
-            return Ok(dynamic);
+            let Some(dir::Definition::TypeAlias(alias)) = self.definition(instance.symbol)? else {
+                break;
+            };
+            let body = alias.value;
+            ty = self.shallow_resolve(body)?;
         }
 
-        // normalize composite storage through its elements
         match self.ty(ty)? {
-            dir::Type::Union(union) => {
-                let elements: SmallVec<[_; 8]> =
-                    self.type_ids(ty.module_id, union.elements)?.into();
-                let mut normalized = Vec::with_capacity(elements.len());
-                for element in elements {
-                    normalized.push(self.normalize_storage_type(origin, element, aliases)?);
-                }
+            // explicit erasure names its constraint
+            dir::Type::Dynamic(dynamic) => Ok(Some(dynamic.constraint)),
 
-                self.normalized_union_type(normalized)
-            }
-            dir::Type::Form(form) => {
-                let value = self.normalize_storage_type(origin, form.value, aliases)?;
-                if value == form.value {
-                    return Ok(ty);
-                }
+            // top types carry the dynamic payload at themselves
+            dir::Type::Any | dir::Type::Unknown => Ok(Some(ty)),
 
-                // adopt module-local borrow entries across the rebuild
-                let adopted = self.adopt_form(ty.module_id, form.form)?;
-
-                self.intern_type(dir::Type::Form(dir::FormType {
-                    form: adopted,
-                    value,
-                }))
-            }
-            _ => Ok(ty),
-        }
-    }
-
-    /// Return whether one type has no direct storage representation.
-    fn is_dynamic_storage_constraint(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        match self.ty(ty)? {
-            // top types have no direct layout in storage
-            dir::Type::Any | dir::Type::Unknown => Ok(true),
-
-            // treat interface instances as constraints
+            // interface-typed values erase behind their constraint
             dir::Type::Application(instance) => Ok(matches!(
                 self.symbol_kind(instance.symbol)?,
                 dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
-            )),
+            )
+            .then_some(ty)),
 
-            // accept every other source-built type, it already has a representation
-            _ => Ok(false),
+            // every other value type carries its own representation
+            _ => Ok(None),
         }
     }
 
@@ -853,21 +706,6 @@ impl CheckState<'_> {
         memo.insert(original, rebuilt);
 
         Ok(rebuilt)
-    }
-
-    /// Return whether one type is a transparent alias application.
-    fn is_alias_instance(&mut self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let dir::Type::Application(instance) = self.ty(id)? else {
-            return Ok(false);
-        };
-        if !matches!(
-            self.definition(instance.symbol)?,
-            Some(dir::Definition::TypeAlias(_))
-        ) {
-            return Ok(false);
-        }
-
-        Ok(self.language_item(instance.symbol)?.is_none())
     }
 
     /// Complete one under-applied application with its elided arguments.

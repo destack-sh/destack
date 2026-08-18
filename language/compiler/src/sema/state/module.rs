@@ -1091,7 +1091,7 @@ impl CheckState<'_> {
             self.import_external_module(symbol.module_id)?;
         }
 
-        if let Some(ty) = self.canonical_symbol_type_maybe(symbol)? {
+        if let Some(ty) = self.adopt_symbol_type_maybe(symbol)? {
             return Ok(ty);
         }
 
@@ -1130,8 +1130,8 @@ impl CheckState<'_> {
         variable
     }
 
-    /// Return one symbol's type, canonicalizing written types on read.
-    pub(in crate::sema) fn canonical_symbol_type_maybe(
+    /// Adopt one symbol's declared-stage value as its binding, returning the written type.
+    pub(in crate::sema) fn adopt_symbol_type_maybe(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -1139,30 +1139,13 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // canonicalize foreign written types once per module
-        if !self.is_own_module(symbol.module_id) {
-            // read written types uncanonicalized in declare mode
-            if self.is_declaration() {
-                return Ok(Some(ty));
-            }
-            if let Some(canonical) = self.imported_types.get(&symbol) {
-                return Ok(Some(*canonical));
-            }
-            let canonical = self.canonical_foreign_type(symbol, ty)?;
-            self.imported_types.insert(symbol, canonical);
-
-            return Ok(Some(canonical));
-        }
-
-        // canonicalize own declared-stage values once, types stay written
-        if self.binding_type_maybe(symbol).is_none()
+        // bind own declared-stage values once, types stay written
+        if self.is_own_module(symbol.module_id)
+            && self.binding_type_maybe(symbol).is_none()
             && self.declaration_type_maybe(symbol).is_none()
             && !self.symbol_kind(symbol)?.is_type_definition()
         {
-            let canonical = self.canonical_foreign_type(symbol, ty)?;
-            self.bind_symbol_type(symbol, canonical)?;
-
-            return Ok(Some(canonical));
+            self.bind_symbol_type(symbol, ty)?;
         }
 
         Ok(Some(ty))

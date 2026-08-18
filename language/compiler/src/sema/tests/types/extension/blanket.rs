@@ -1051,7 +1051,7 @@ function parse(value: string): Result<Token, Token.Error> {
     return Token.tryFrom(value);
 }
 
-declare const failure: Dynamic<Error>;
+declare const failure: Error;
 failure satisfies Error;
 
 === dir ===
@@ -1116,7 +1116,7 @@ function parse(value: string): Result<Token, Token.Error> {
 }
 
 declare const failure: Token.Error;
-/// @type.symbol symbol=failure source=failure type=Dynamic<error.error.Error>
+/// @type.symbol symbol=failure source=failure type=error.error.Error
 /// @resolution.pattern source=failure kind=binding target=failure
 /// @resolution.name source=Token.Error target=Token
 /// @resolution.path source=Token.Error index=1 target=convert.from.TryFrom.Error

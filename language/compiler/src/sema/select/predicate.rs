@@ -331,10 +331,12 @@ impl BodyState<'_, '_> {
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Predicate>> {
-        match self.ty(value)? {
-            // reject erased values, they have no testable type
-            dir::Type::Dynamic(_) => Ok(None),
+        // reject erased values, they have no testable static type
+        if self.is_erased_value(value)? {
+            return Ok(None);
+        }
 
+        match self.ty(value)? {
             // unions can still test their known runtime arms
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 8]> =
@@ -485,7 +487,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<dir::PredicateOperand> {
         let input = match condition {
             dir::PredicateCondition::Type(_) | dir::PredicateCondition::Subtype(_)
-                if matches!(self.ty(value)?, dir::Type::Dynamic(_)) =>
+                if self.is_erased_value(value)? =>
             {
                 dir::PredicateOperand::projected(dir::Projection::DynamicType {
                     ty: self.type_descriptor_type(origin)?,
@@ -499,11 +501,11 @@ impl BodyState<'_, '_> {
 
     /// Select the projected value exposed by one predicate.
     fn predicate_projection(
-        &self,
+        &mut self,
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Projection>> {
-        let projection = if matches!(self.ty(value)?, dir::Type::Dynamic(_)) {
+        let projection = if self.is_erased_value(value)? {
             Some(dir::Projection::DynamicPayload { ty: target })
         } else {
             None

@@ -170,7 +170,6 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Parameter>,
         parameter: &dir::Parameter,
         is_annotation_required: bool,
-        represents_open_type: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         if !self.walk_decorators(id.into_any())? {
             return Ok(None);
@@ -192,7 +191,7 @@ impl WalkState<'_, '_> {
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
+                let parameter_type = self.walk_parameter_type(id)?;
 
                 // validate defaults while checking, declaring transcribes them
                 if let Some(default) = default.filter(|_| !self.check.is_declaration()) {
@@ -229,7 +228,7 @@ impl WalkState<'_, '_> {
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
+                let parameter_type = self.walk_parameter_type(id)?;
 
                 result = parameter_type;
             }
@@ -242,9 +241,8 @@ impl WalkState<'_, '_> {
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                // build the declared parameter type only, the body pass
-                //  destructures the pattern against it later
-                result = self.walk_parameter_type(id, represents_open_type)?;
+                // build the declared parameter type only
+                result = self.walk_parameter_type(id)?;
             }
             // ignore damaged nodes
             dir::Parameter::Error => {}

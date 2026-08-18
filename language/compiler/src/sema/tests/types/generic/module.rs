@@ -502,7 +502,7 @@ interface Iter<out T, in out R = unknown> {
     next(): T;
 }
 
-declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
+declare function probe(values: Iter<int32, unknown>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === dir ===
@@ -522,15 +522,15 @@ interface Iter<T, in out R = unknown> {
 }
 
 declare function probe(values: Iter<int32>): boolean;
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<Iter<int32, unknown>>) => boolean
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<Iter<int32, unknown>>
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Iter<int32, unknown>) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Iter<int32, unknown>
 /// @resolution.name source=Iter target=Iter
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<Iter<int32, unknown>>) arguments=(provided(todo("iter")) as Dynamic<Iter<int32, unknown>>) return=boolean kind=symbol target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Iter<int32, unknown>) arguments=(provided(todo("iter")) as Iter<int32, unknown>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 "#,
@@ -606,23 +606,23 @@ export { Iter } from "./inner.ds";
 === annotated ===
 import { Iter } from "./lib.ds";
 
-declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
+declare function probe(values: Iter<int32, unknown>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === dir ===
 import { Iter } from "./lib.ds";
 
 declare function probe(values: Iter<int32>): boolean;
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<inner.Iter<int32>>) => boolean
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(inner.Iter<int32>) => boolean
 /// @generic.instance id="inner.Iter<int32, unknown>" template=inner.Iter arguments=(int32, unknown)
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<inner.Iter<int32, unknown>>
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=inner.Iter<int32, unknown>
 /// @resolution.name source=Iter target=inner.Iter
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<inner.Iter<int32>>) arguments=(provided(todo("iter")) as Dynamic<inner.Iter<int32>>) return=boolean kind=symbol target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(inner.Iter<int32>) arguments=(provided(todo("iter")) as inner.Iter<int32>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 "#,
@@ -671,7 +671,7 @@ export interface Marker {
     marked: boolean;
 }
 
-declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
+declare function probe(values: Iter<int32, unknown>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === dir ===
@@ -688,16 +688,16 @@ export interface Marker {
 }
 
 declare function probe(values: Iter<int32>): boolean;
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<b.Iter<int32>>) => boolean
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(b.Iter<int32>) => boolean
 /// @generic.instance id="b.Iter<int32, unknown>" template=b.Iter arguments=(int32, unknown)
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<b.Iter<int32, unknown>>
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=b.Iter<int32, unknown>
 /// @resolution.name source=Iter target=b.Iter
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<b.Iter<int32>>) arguments=(provided(todo("iter")) as Dynamic<b.Iter<int32>>) return=boolean kind=symbol target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(b.Iter<int32>) arguments=(provided(todo("iter")) as b.Iter<int32>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 

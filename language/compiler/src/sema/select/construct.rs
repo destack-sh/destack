@@ -300,14 +300,14 @@ impl BodyState<'_, '_> {
         // select the constructed target
         let target = self.select_construct_target(site, ty, expected_value)?;
 
-        // construct erased interface values through their apparent signatures
-        if let dir::Type::Dynamic(dynamic) = self.ty(target)? {
+        // construct erased values through their apparent constraint signatures
+        if let Some(constraint) = self.erased_constraint(target)? {
             return self.select_dynamic_construct(
                 site,
                 node,
                 origin,
                 target,
-                dynamic.constraint,
+                constraint,
                 argument_nodes,
                 &arguments,
                 &forms,

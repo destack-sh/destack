@@ -1433,15 +1433,10 @@ impl WalkState<'_, '_> {
             });
         }
 
-        // declared callable parameters need value representation
+        // declared callable parameters need annotations
         let is_annotation_required = signature.form != dir::FunctionForm::Lambda;
         let this_parameter = if let Some(parameter) = signature.this_parameter {
-            self.walk_parameter(
-                parameter,
-                self.tree.get(parameter),
-                is_annotation_required,
-                is_annotation_required,
-            )?
+            self.walk_parameter(parameter, self.tree.get(parameter), is_annotation_required)?
         } else {
             None
         };
@@ -1451,7 +1446,6 @@ impl WalkState<'_, '_> {
             let Some(ty) = self.walk_parameter(
                 *parameter,
                 self.tree.get(*parameter),
-                is_annotation_required,
                 is_annotation_required,
             )?
             else {

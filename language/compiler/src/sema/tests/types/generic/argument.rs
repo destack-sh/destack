@@ -214,7 +214,7 @@ struct Rectangle {
 }
 
 function makeCircle(): Shape {
-    return Circle { radius: 1.0 } as Circle | Rectangle;
+    return Circle { radius: 1.0 } as Shape;
 }
 
 === dir ===

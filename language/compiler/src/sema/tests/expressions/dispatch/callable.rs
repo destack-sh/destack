@@ -206,7 +206,7 @@ interface Adder {
     (left: int32, right: int32): int32;
 }
 
-declare const add: Dynamic<Adder>;
+declare const add: Adder;
 const sum: int32 = add(1, 2);
 
 === dir ===
@@ -222,7 +222,7 @@ interface Adder {
 }
 
 declare const add: Adder;
-/// @type.symbol symbol=add source=add type=Dynamic<Adder>
+/// @type.symbol symbol=add source=add type=Adder
 /// @resolution.pattern source=add kind=binding target=add
 /// @resolution.name source=Adder target=Adder
 
@@ -230,7 +230,7 @@ const sum = add(1, 2);
 /// @type.symbol symbol=sum source=sum type=int32
 /// @resolution.pattern source=sum kind=binding target=sum
 /// @resolution.name source=add target=add
-/// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=dynamic target="call((left: int32, right: int32): int32)" receiver=Dynamic<Adder> constraint=Adder
+/// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=dynamic target="call((left: int32, right: int32): int32)" receiver=Adder constraint=Adder
 /// @resolution.place source=add placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=add root=add
 "#,
@@ -267,7 +267,7 @@ interface Factory {
     new (value: int32): Counter;
 }
 
-declare const factory: Dynamic<Factory>;
+declare const factory: Factory;
 const counter: Counter = new factory(1);
 
 === dir ===
@@ -293,14 +293,14 @@ interface Factory {
 }
 
 declare const factory: Factory;
-/// @type.symbol symbol=factory source=factory type=Dynamic<Factory>
+/// @type.symbol symbol=factory source=factory type=Factory
 /// @resolution.pattern source=factory kind=binding target=factory
 /// @resolution.name source=Factory target=Factory
 
 const counter = new factory(1);
 /// @type.symbol symbol=counter source=counter type=Counter
 /// @resolution.pattern source=counter kind=binding target=counter
-/// @resolution.construct source="new factory(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=dynamic target="construct(new (value: int32): Counter)" receiver=Dynamic<Factory> constraint=Factory
+/// @resolution.construct source="new factory(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=dynamic target="construct(new (value: int32): Counter)" receiver=Factory constraint=Factory
 /// @resolution.name source=factory target=factory
 "#,
     );
@@ -327,7 +327,7 @@ interface Adder {
     (left: int32, right: int32): int32;
 }
 
-const add: Dynamic<Adder> = ((left: int32, right: int32): int32 => left + right) as Dynamic<Adder>;
+const add: Adder = ((left: int32, right: int32): int32 => left + right) as Adder;
 
 === dir ===
 interface Adder {
@@ -342,7 +342,7 @@ interface Adder {
 }
 
 const add: Adder = (left: int32, right: int32): int32 => left + right;
-/// @type.symbol symbol=add source=add type=Dynamic<Adder>
+/// @type.symbol symbol=add source=add type=Adder
 /// @resolution.pattern source=add kind=binding target=add
 /// @resolution.name source=Adder target=Adder
 /// @type.symbol symbol=symbol5 source="(left: int32, right: int32): int32 => left + right" type=Function<(int32, int32), int32>

@@ -641,7 +641,7 @@ struct Ready {
 
 type State = Pending | Ready;
 
-declare const state: &'static readonly (Pending | Ready);
+declare const state: &'static readonly State;
 
 const result: int32 = match (state) {
     { kind: "pending", waiting } => waiting
@@ -684,7 +684,7 @@ type State = Pending | Ready;
 /// @resolution.name source=Ready target=Ready
 
 declare const state: &readonly State;
-/// @type.symbol symbol=state source=state type=&'static readonly Pending | Ready
+/// @type.symbol symbol=state source=state type=&'static readonly State
 /// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
@@ -692,7 +692,7 @@ const result = match (state) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
-/// @type.node source=state type=&'static readonly Pending | Ready
+/// @type.node source=state type=&'static readonly State
 /// @resolution.name source=state target=state
 /// @resolution.place source=state placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state

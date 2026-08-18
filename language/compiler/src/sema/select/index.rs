@@ -462,13 +462,13 @@ impl BodyState<'_, '_> {
             return Ok(Some(selection));
         }
 
-        // erased interfaces dispatch through their applied index declarations
-        if let dir::Type::Dynamic(dynamic) = self.ty(receiver_type)?
+        // erased receivers dispatch through their applied index declarations
+        if let Some(constraint) = self.erased_constraint(receiver_type)?
             && let Some(selection) = self.select_dynamic_subscript(
                 origin,
                 use_,
                 receiver.ty,
-                dynamic.constraint,
+                constraint,
                 index_node,
                 index,
             )?

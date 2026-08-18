@@ -470,13 +470,9 @@ impl BodyState<'_, '_> {
             });
         }
 
-        // stored positions convert into the target's storage representation
+        // stored positions convert into the settled written target
         let target = match use_.requires_storage() {
-            true => {
-                let target = self.deeply_resolve(origin, target)?;
-
-                self.storage_type(origin, target)?
-            }
+            true => self.deeply_resolve(origin, target)?,
             false => target,
         };
 
@@ -784,8 +780,14 @@ impl BodyState<'_, '_> {
             let source_head = self.ty(source_base)?;
             let target_head = self.ty(target_base)?;
 
+            // erased carriers box their values on entry and exit
+            if self.is_erased_value(source_base)? || self.is_erased_value(target_base)? {
+                Some(dir::CoercionAdjustment::Existential {
+                    target: recorded_target,
+                })
+            }
             // base types select their explicit value operation
-            if let Some(adjustment) =
+            else if let Some(adjustment) =
                 dir::CoercionAdjustment::classify(&source_head, &target_head, recorded_target)
             {
                 Some(adjustment)

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    CheckState, ExpectedType, FlowPredicate, Obligation, Origin, PatternCoverage,
+    CheckState, ExpectedType, FlowPredicate, Obligation, PatternCoverage,
     PatternCoverageObligation, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
@@ -158,16 +158,10 @@ impl WalkState<'_, '_> {
         // walk the declared pattern type
         let matched = match declarator.ty {
             Some(_) if declared_row && !self.check.is_declaration() => None,
-            Some(annotation) => {
-                let ty = match is_ambient {
-                    true => self.walk_static_type_expression(annotation)?,
-                    false => self.walk_type_expression(annotation)?,
-                };
-                let source = annotation.into_global_any(self.module);
-                let origin = Origin::Node(source, self.flow().template_scope());
-
-                Some(self.check.storage_type(origin, ty)?)
-            }
+            Some(annotation) => Some(match is_ambient {
+                true => self.walk_static_type_expression(annotation)?,
+                false => self.walk_type_expression(annotation)?,
+            }),
             None => None,
         };
 

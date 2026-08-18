@@ -483,42 +483,16 @@ impl BodyState<'_, '_> {
             return Ok(overloads);
         }
 
-        // call erased interface values through their apparent signatures
-        if let dir::Type::Dynamic(dynamic) = self.ty(ty)? {
-            let signatures = self.apparent_signatures(dynamic.constraint, SignatureFamily::Call)?;
+        // call erased values through their apparent constraint signatures
+        if let Some(constraint) = self.erased_constraint(ty)? {
+            let signatures = self.apparent_signatures(constraint, SignatureFamily::Call)?;
             let mut overloads = SmallVec::with_capacity(signatures.len());
             for signature in signatures {
                 overloads.push(CallableCandidate {
                     target: CallableTarget::CallSignature {
                         source: signature.source,
                         receiver: ty,
-                        constraint: dynamic.constraint,
-                    },
-                    generic_scope: None,
-                    receiver: None,
-                    member_space: None,
-                    ty: signature.ty,
-                    generic_arguments: Vec::new(),
-                });
-            }
-
-            return Ok(overloads);
-        }
-
-        // call interface-typed values through their apparent signatures
-        if let dir::Type::Application(instance) = self.ty(ty)?
-            && self
-                .symbol_kind_maybe(instance.symbol)?
-                .is_some_and(|kind| kind.is_interface())
-        {
-            let signatures = self.apparent_signatures(ty, SignatureFamily::Call)?;
-            let mut overloads = SmallVec::with_capacity(signatures.len());
-            for signature in signatures {
-                overloads.push(CallableCandidate {
-                    target: CallableTarget::CallSignature {
-                        source: signature.source,
-                        receiver: ty,
-                        constraint: ty,
+                        constraint,
                     },
                     generic_scope: None,
                     receiver: None,

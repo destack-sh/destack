@@ -62,7 +62,7 @@ interface Counter {
     set current(next: int32);
 }
 
-declare let counter: Dynamic<Counter>;
+declare let counter: Counter;
 counter.current = 2;
 counter.current++;
 
@@ -83,7 +83,7 @@ interface Counter {
 }
 
 declare let counter: Counter;
-/// @type.symbol symbol=counter source=counter type=Dynamic<Counter>
+/// @type.symbol symbol=counter source=counter type=Counter
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=Counter target=Counter
 
@@ -92,13 +92,13 @@ counter.current = 2;
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
 /// @resolution.pattern.assign source=counter.current kind=place
-/// @resolution.assignment source=counter.current write="receiver=Dynamic<Counter>, target=dynamic(Dynamic<Counter> as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=counter.current write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
 
 counter.current++;
 /// @resolution.name source=counter target=counter
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
-/// @resolution.assignment source=counter.current read="receiver=Dynamic<Counter>, target=dynamic(Dynamic<Counter> as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32" write="receiver=Dynamic<Counter>, target=dynamic(Dynamic<Counter> as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=counter.current read="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32" write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
 /// @resolution.operator source=counter.current++ type=int32 operator="++" kind=builtin operands=[counter.current as int32 families=(integer)]
 "#,
     );
@@ -129,7 +129,7 @@ interface Counter {
     set current(next: int32);
 }
 
-declare let counter: Dynamic<Counter>;
+declare let counter: Counter;
 counter["current"] = 2;
 counter["current"]++;
 
@@ -150,20 +150,20 @@ interface Counter {
 }
 
 declare let counter: Counter;
-/// @type.symbol symbol=counter source=counter type=Dynamic<Counter>
+/// @type.symbol symbol=counter source=counter type=Counter
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=Counter target=Counter
 
 counter["current"] = 2;
 /// @resolution.name source=counter target=counter
 /// @resolution.pattern.assign source="counter[\"current\"]" kind=place
-/// @resolution.assignment source="counter[\"current\"]" write="member(receiver=Dynamic<Counter>, target=dynamic(Dynamic<Counter> as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32)" type=int32
+/// @resolution.assignment source="counter[\"current\"]" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32)" type=int32
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
 
 counter["current"]++;
 /// @resolution.name source=counter target=counter
-/// @resolution.assignment source="counter[\"current\"]" read="member(receiver=Dynamic<Counter>, target=dynamic(Dynamic<Counter> as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32)" write="member(receiver=Dynamic<Counter>, target=dynamic(Dynamic<Counter> as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32)" type=int32
+/// @resolution.assignment source="counter[\"current\"]" read="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32)" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32)" type=int32
 /// @resolution.operator source="counter[\"current\"]++" type=int32 operator="++" kind=builtin operands=[counter["current"] as int32 families=(integer)]
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
@@ -193,7 +193,7 @@ interface Counter {
     get current(): int32;
 }
 
-declare const counter: Dynamic<Counter>;
+declare const counter: Counter;
 const current: int32 = counter.current;
 
 === dir ===
@@ -208,7 +208,7 @@ interface Counter {
 }
 
 declare const counter: Counter;
-/// @type.symbol symbol=counter source=counter type=Dynamic<Counter>
+/// @type.symbol symbol=counter source=counter type=Counter
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=Counter target=Counter
 
@@ -216,7 +216,7 @@ const current = counter.current;
 /// @type.symbol symbol=current source=current type=int32
 /// @resolution.pattern source=current kind=binding target=current
 /// @resolution.name source=counter target=counter
-/// @resolution.member source=counter.current receiver=Dynamic<Counter> type=int32 kind=call target="dynamic(Dynamic<Counter> as Counter, Counter.current)(parameters=(), arguments=(), return=int32)"
+/// @resolution.member source=counter.current receiver=Counter type=int32 kind=call target="dynamic(Counter as Counter, Counter.current)(parameters=(), arguments=(), return=int32)"
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
 "#,
@@ -245,7 +245,7 @@ interface Sink {
     set value(next: int32);
 }
 
-declare let sink: Dynamic<Sink>;
+declare let sink: Sink;
 sink.value = 1;
 
 === dir ===
@@ -261,7 +261,7 @@ interface Sink {
 }
 
 declare let sink: Sink;
-/// @type.symbol symbol=sink source=sink type=Dynamic<Sink>
+/// @type.symbol symbol=sink source=sink type=Sink
 /// @resolution.pattern source=sink kind=binding target=sink
 /// @resolution.name source=Sink target=Sink
 
@@ -270,7 +270,7 @@ sink.value = 1;
 /// @resolution.place source=sink placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=sink root=sink
 /// @resolution.pattern.assign source=sink.value kind=place
-/// @resolution.assignment source=sink.value write="receiver=Dynamic<Sink>, target=dynamic(Dynamic<Sink> as Sink, Sink.value)(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=sink.value write="receiver=Sink, target=dynamic(Sink as Sink, Sink.value)(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
 "#,
     );
 }
@@ -297,7 +297,7 @@ interface Counter {
     get current(): int32;
 }
 
-declare let counter: Dynamic<Counter>;
+declare let counter: Counter;
 counter.current = 1;
 
 === dir ===
@@ -312,7 +312,7 @@ interface Counter {
 }
 
 declare let counter: Counter;
-/// @type.symbol symbol=counter source=counter type=Dynamic<Counter>
+/// @type.symbol symbol=counter source=counter type=Counter
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=Counter target=Counter
 
@@ -351,7 +351,7 @@ interface Sink {
     set value(next: int32);
 }
 
-declare const sink: Dynamic<Sink>;
+declare const sink: Sink;
 const value = sink.value;
 
 === dir ===
@@ -367,7 +367,7 @@ interface Sink {
 }
 
 declare const sink: Sink;
-/// @type.symbol symbol=sink source=sink type=Dynamic<Sink>
+/// @type.symbol symbol=sink source=sink type=Sink
 /// @resolution.pattern source=sink kind=binding target=sink
 /// @resolution.name source=Sink target=Sink
 

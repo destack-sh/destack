@@ -48,7 +48,7 @@ struct Box implements Sized {
 }
 
 declare const box: Box;
-const sized: Dynamic<Sized> = box as Dynamic<Sized>;
+const sized: Sized = box as Sized;
 
 === dir ===
 import { Sized } from "./reexport.ds";

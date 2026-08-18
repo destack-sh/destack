@@ -265,13 +265,6 @@ impl CoercionAdjustment {
             return Some(Self::Tuple { target: target_id });
         }
 
-        // existential carriers box their values on entry and exit
-        if matches!(source, Type::Any | Type::Unknown | Type::Dynamic(_))
-            || matches!(target, Type::Any | Type::Unknown | Type::Dynamic(_))
-        {
-            return Some(Self::Existential { target: target_id });
-        }
-
         // concrete objects erase into the object types they satisfy
         if matches!(source, Type::Object(shape) if !shape.declares_signatures())
             && matches!(target, Type::Object(shape) if shape.declares_signatures())

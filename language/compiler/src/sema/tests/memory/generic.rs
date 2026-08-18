@@ -822,8 +822,8 @@ extension<T> of Box<T> {
 
 class User {}
 
-declare const localBox: local Dynamic<Box<User>>;
-declare const mixedBox: local Dynamic<Box<shared User>>;
+declare const localBox: local Box<User>;
+declare const mixedBox: local Box<shared User>;
 
 localBox.borrow<User>() satisfies local &readonly User;
 mixedBox.borrow<shared User>() satisfies shared &readonly User;
@@ -867,8 +867,8 @@ extension<T> of Box<T> {
     /// @resolution.name source=T target=T
 
         this.borrow()
-        /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> type=<borrow.'a>(this: &borrow.'a readonly &forward.'a readonly Box<T#2>) => &borrow.'a readonly T#2 kind=symbol target_receiver=&forward.'a readonly Box<T#2> target=borrow
-        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=symbol target=borrow receiver=&forward.'a readonly Box<T#2> adjustments=(&forward.'a readonly Box<T#2> => direct -> Box<T#2>, borrow(&forward.'a readonly Box<T#2>)) instance=Box<T#2>.<extension#1>.borrow
+        /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> type=<borrow.'a>(this: &borrow.'a readonly &forward.'a readonly Box<T#2>) => &borrow.'a readonly T#2 kind=symbol target_receiver=&forward.'a readonly Box<T#2> dispatch=dynamic constraint=Box<T#2> target=borrow
+        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=dynamic target=borrow receiver=&forward.'a readonly Box<T#2> constraint=Box<T#2> adjustments=(&forward.'a readonly Box<T#2> => direct -> Box<T#2>, borrow(&forward.'a readonly Box<T#2>)) generic_arguments=(T#2)
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'a readonly Box<T#2>
         /// @resolution.place source=this placement="local" lifetime=forward.'a access="readonly"
         /// @resolution.access source=this root=this
@@ -882,14 +882,14 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare const localBox: local Box<User>;
-/// @type.symbol symbol=localBox source=localBox type=Placed<Dynamic<Box<User>>, "local">
+/// @type.symbol symbol=localBox source=localBox type=Placed<Box<User>, "local">
 /// @resolution.pattern source=localBox kind=binding target=localBox
 /// @generic.instance id=Box<User> template=Box arguments=(User)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 
 declare const mixedBox: local Box<shared User>;
-/// @type.symbol symbol=mixedBox source=mixedBox type=Placed<Dynamic<Box<Placed<User, "shared">>>, "local">
+/// @type.symbol symbol=mixedBox source=mixedBox type=Placed<Box<Placed<User, "shared">>, "local">
 /// @resolution.pattern source=mixedBox kind=binding target=mixedBox
 /// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
 /// @resolution.name source=Box target=Box
@@ -897,8 +897,8 @@ declare const mixedBox: local Box<shared User>;
 
 localBox.borrow() satisfies local &readonly User;
 /// @resolution.name source=localBox target=localBox
-/// @resolution.member source=localBox.borrow receiver=Placed<Dynamic<Box<User>>, "local"> type=<borrow.'a>(this: Placed<&borrow.'a readonly Dynamic<Box<User>>, "local">) => &borrow.'a readonly User kind=symbol target_receiver=Placed<Dynamic<Box<User>>, "local"> target=borrow
-/// @resolution.call source=localBox.borrow() parameters=() return=&'static readonly User kind=symbol target=borrow receiver=Placed<Dynamic<Box<User>>, "local"> adjustments=(Placed<Dynamic<Box<User>>, "local"> => direct -> Dynamic<Box<User>>, borrow(&'static readonly Dynamic<Box<User>>)) instance=Box<User>.<extension#1>.borrow
+/// @resolution.member source=localBox.borrow receiver=Placed<Box<User>, "local"> type=<borrow.'a>(this: Placed<&borrow.'a readonly Box<User>, "local">) => &borrow.'a readonly User kind=symbol target_receiver=Placed<Box<User>, "local"> dispatch=dynamic constraint=Box<User> target=borrow
+/// @resolution.call source=localBox.borrow() parameters=() return=&'static readonly User kind=dynamic target=borrow receiver=Placed<Box<User>, "local"> constraint=Box<User> adjustments=(Placed<Box<User>, "local"> => direct -> Box<User>, borrow(&'static readonly Box<User>)) generic_arguments=(User)
 /// @resolution.place source=localBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localBox root=localBox
 /// @generic.instantiation id=borrow<User> template=borrow arguments=(User)
@@ -907,8 +907,8 @@ localBox.borrow() satisfies local &readonly User;
 
 mixedBox.borrow() satisfies shared &readonly User;
 /// @resolution.name source=mixedBox target=mixedBox
-/// @resolution.member source=mixedBox.borrow receiver=Placed<Dynamic<Box<Placed<User, "shared">>>, "local"> type=<borrow.'a>(this: Placed<&borrow.'a readonly Dynamic<Box<Placed<User, "shared">>>, "local">) => Placed<&borrow.'a readonly User, "shared"> kind=symbol target_receiver=Placed<Dynamic<Box<Placed<User, "shared">>>, "local"> target=borrow
-/// @resolution.call source=mixedBox.borrow() parameters=() return=Placed<&'static readonly User, "shared"> kind=symbol target=borrow receiver=Placed<Dynamic<Box<Placed<User, "shared">>>, "local"> adjustments=(Placed<Dynamic<Box<Placed<User, "shared">>>, "local"> => direct -> Dynamic<Box<Placed<User, "shared">>>, borrow(&'static readonly Dynamic<Box<Placed<User, "shared">>>)) instance="Box<Placed<User, \"shared\">>.<extension#1>.borrow"
+/// @resolution.member source=mixedBox.borrow receiver=Placed<Box<Placed<User, "shared">>, "local"> type=<borrow.'a>(this: Placed<&borrow.'a readonly Box<Placed<User, "shared">>, "local">) => Placed<&borrow.'a readonly User, "shared"> kind=symbol target_receiver=Placed<Box<Placed<User, "shared">>, "local"> dispatch=dynamic constraint=Box<Placed<User, "shared">> target=borrow
+/// @resolution.call source=mixedBox.borrow() parameters=() return=Placed<&'static readonly User, "shared"> kind=dynamic target=borrow receiver=Placed<Box<Placed<User, "shared">>, "local"> constraint=Box<Placed<User, "shared">> adjustments=(Placed<Box<Placed<User, "shared">>, "local"> => direct -> Box<Placed<User, "shared">>, borrow(&'static readonly Box<Placed<User, "shared">>)) generic_arguments=(Placed<User, "shared">)
 /// @resolution.place source=mixedBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=mixedBox root=mixedBox
 /// @generic.instantiation id="borrow<Placed<User, \"shared\">>" template=borrow arguments=(Placed<User, "shared">)

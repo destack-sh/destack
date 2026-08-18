@@ -113,7 +113,7 @@ interface Done<in out T> {
 type State<T> = Pending<T> | Done<T>;
 
 function pending<T>(): State<T> {
-    return { kind: "pending", reactions: [] } as Dynamic<Pending<T>> | Dynamic<Done<T>>;
+    return { kind: "pending", reactions: [] } as State<T>;
 }
 
 === dir ===

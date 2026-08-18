@@ -130,13 +130,13 @@ newtype interface Sink {
     write(value: string): void;
 }
 
-function consume(sink: Dynamic<Sink>): void {}
-function inspect(sink: readonly Dynamic<Sink>): void {}
+function consume(sink: Sink): void {}
+function inspect(sink: readonly Sink): void {}
 
 local class Meter {
-    private sink: Dynamic<Sink>;
+    private sink: Sink;
 
-    constructor(sink: Dynamic<Sink>): this {
+    constructor(sink: Sink): this {
         this.sink = sink;
     }
 
@@ -162,30 +162,30 @@ newtype interface Sink {
 }
 
 function consume(sink: Sink): void {}
-/// @type.symbol symbol=consume source="function consume(sink: Sink): void {}" type=(Dynamic<Sink>) => void
-/// @type.symbol symbol=consume.sink source="sink: Sink" type=Dynamic<Sink>
+/// @type.symbol symbol=consume source="function consume(sink: Sink): void {}" type=(Sink) => void
+/// @type.symbol symbol=consume.sink source="sink: Sink" type=Sink
 /// @resolution.name source=Sink target=Sink
 
 function inspect(sink: readonly Sink): void {}
-/// @type.symbol symbol=inspect source="function inspect(sink: readonly Sink): void {}" type=(Readonly<Dynamic<Sink>>) => void
-/// @type.symbol symbol=inspect.sink source="sink: readonly Sink" type=Readonly<Dynamic<Sink>>
+/// @type.symbol symbol=inspect source="function inspect(sink: readonly Sink): void {}" type=(Readonly<Sink>) => void
+/// @type.symbol symbol=inspect.sink source="sink: readonly Sink" type=Readonly<Sink>
 /// @resolution.name source=Sink target=Sink
 
 local class Meter {
 /// @type.symbol symbol=Meter type=Meter
 /// @definition.class symbol=Meter
-/// @definition.field symbol=Meter.sink source="private sink: Sink" key=sink type=Dynamic<Sink>
-/// @definition.method symbol=Meter.constructor slot=constructor role=constructor type=(Dynamic<Sink>) => this
+/// @definition.field symbol=Meter.sink source="private sink: Sink" key=sink type=Sink
+/// @definition.method symbol=Meter.constructor slot=constructor role=constructor type=(Sink) => this
 /// @definition.method symbol=Meter.forward slot=forward type=<Meter.forward.'a>(this: &Meter.forward.'a readonly this) => void
 /// @definition.method symbol=Meter.leak slot=leak type=<Meter.leak.'a>(this: &Meter.leak.'a readonly this) => void
 
     private sink: Sink;
-    /// @type.symbol symbol=Meter.sink source="private sink: Sink" type=Dynamic<Sink>
+    /// @type.symbol symbol=Meter.sink source="private sink: Sink" type=Sink
     /// @resolution.name source=Sink target=Sink
 
     constructor(sink: Sink) {
-    /// @type.symbol symbol=Meter.constructor type=(Dynamic<Sink>) => this
-    /// @type.symbol symbol=Meter.constructor.sink source="sink: Sink" type=Dynamic<Sink>
+    /// @type.symbol symbol=Meter.constructor type=(Sink) => this
+    /// @type.symbol symbol=Meter.constructor.sink source="sink: Sink" type=Sink
     /// @resolution.name source=Sink target=Sink
 
         this.sink = sink;
@@ -194,7 +194,7 @@ local class Meter {
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.sink kind=place
         /// @resolution.access source=this.sink root=this keys=[sink]
-        /// @resolution.assignment source=this.sink write="receiver=Meter, target=field(receiver=Meter, target=Meter.sink, type=Dynamic<Sink>), type=Dynamic<Sink>" type=Dynamic<Sink>
+        /// @resolution.assignment source=this.sink write="receiver=Meter, target=field(receiver=Meter, target=Meter.sink, type=Sink), type=Sink" type=Sink
         /// @resolution.name source=sink target=Meter.constructor.sink
         /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=sink root=Meter.constructor.sink
@@ -208,8 +208,8 @@ local class Meter {
 
         consume(this.sink)
         /// @resolution.name source=consume target=consume
-        /// @resolution.call source=consume(this.sink) parameters=(Dynamic<Sink>) arguments=(provided(this.sink) as Dynamic<Sink>) return=void kind=symbol target=consume
-        /// @resolution.member source=this.sink receiver=&Meter.leak.'a readonly Meter type=Readonly<Dynamic<Sink>> kind=field target_receiver=&Meter.leak.'a readonly Meter key=sink target=Meter.sink target_type=Readonly<Dynamic<Sink>>
+        /// @resolution.call source=consume(this.sink) parameters=(Sink) arguments=(provided(this.sink) as Sink) return=void kind=symbol target=consume
+        /// @resolution.member source=this.sink receiver=&Meter.leak.'a readonly Meter type=Readonly<Sink> kind=field target_receiver=&Meter.leak.'a readonly Meter key=sink target=Meter.sink target_type=Readonly<Sink>
         /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.leak.'a readonly Meter
         /// @resolution.place source=this placement="local" lifetime=Meter.leak.'a access="readonly"
         /// @resolution.access source=this root=this
@@ -225,8 +225,8 @@ local class Meter {
 
         inspect(this.sink)
         /// @resolution.name source=inspect target=inspect
-        /// @resolution.call source=inspect(this.sink) parameters=(Readonly<Dynamic<Sink>>) arguments=(provided(this.sink) as Readonly<Dynamic<Sink>>) return=void kind=symbol target=inspect
-        /// @resolution.member source=this.sink receiver=&Meter.forward.'a readonly Meter type=Readonly<Dynamic<Sink>> kind=field target_receiver=&Meter.forward.'a readonly Meter key=sink target=Meter.sink target_type=Readonly<Dynamic<Sink>>
+        /// @resolution.call source=inspect(this.sink) parameters=(Readonly<Sink>) arguments=(provided(this.sink) as Readonly<Sink>) return=void kind=symbol target=inspect
+        /// @resolution.member source=this.sink receiver=&Meter.forward.'a readonly Meter type=Readonly<Sink> kind=field target_receiver=&Meter.forward.'a readonly Meter key=sink target=Meter.sink target_type=Readonly<Sink>
         /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.forward.'a readonly Meter
         /// @resolution.place source=this placement="local" lifetime=Meter.forward.'a access="readonly"
         /// @resolution.access source=this root=this
@@ -237,7 +237,7 @@ local class Meter {
 }
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'readonly Dynamic<Sink>' is not assignable to parameter of type 'Dynamic<Sink>'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'readonly Sink' is not assignable to parameter of type 'Sink'"
 /// @diagnostic.label line=17 column=22 span="sink" line_source="consume(this.sink)"
 /// @diagnostic.related line=17 column=9 span="consume(this.sink)" line_source="consume(this.sink)" message="in this call"
 "#,
@@ -412,7 +412,7 @@ person.profile.count = 5;
 }
 
 #[test]
-fn test_interface_alias_uses_dynamic_storage() {
+fn test_interface_alias_keeps_dynamic_dispatch() {
     let session = TestSession::single(
         r#"
 interface Sink {
@@ -437,8 +437,8 @@ interface Sink {
 
 type SinkAlias = Sink;
 
-declare const sink: Dynamic<Sink>;
-function consume(value: Dynamic<Sink>): void {}
+declare const sink: Sink;
+function consume(value: Sink): void {}
 
 === dir ===
 interface Sink {
@@ -458,13 +458,13 @@ type SinkAlias = Sink;
 /// @resolution.name source=Sink target=Sink
 
 declare const sink: SinkAlias;
-/// @type.symbol symbol=sink source=sink type=Dynamic<Sink>
+/// @type.symbol symbol=sink source=sink type=Sink
 /// @resolution.pattern source=sink kind=binding target=sink
 /// @resolution.name source=SinkAlias target=SinkAlias
 
 function consume(value: SinkAlias): void {}
-/// @type.symbol symbol=consume source="function consume(value: SinkAlias): void {}" type=(Dynamic<Sink>) => void
-/// @type.symbol symbol=consume.value source="value: SinkAlias" type=Dynamic<Sink>
+/// @type.symbol symbol=consume source="function consume(value: SinkAlias): void {}" type=(SinkAlias) => void
+/// @type.symbol symbol=consume.value source="value: SinkAlias" type=Sink
 /// @resolution.name source=SinkAlias target=SinkAlias
 "#,
     );

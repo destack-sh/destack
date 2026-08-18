@@ -1914,7 +1914,7 @@ class Robot {
 extension of Robot implements Greeter {}
 
 declare const robot: Robot;
-const greeter: Dynamic<Greeter> = robot as Dynamic<Greeter>;
+const greeter: Greeter = robot as Greeter;
 
 === dir ===
 interface Greeter {
@@ -1952,7 +1952,7 @@ declare const robot: Robot;
 /// @resolution.name source=Robot target=Robot
 
 const greeter: Greeter = robot;
-/// @type.symbol symbol=greeter source=greeter type=Dynamic<Greeter>
+/// @type.symbol symbol=greeter source=greeter type=Greeter
 /// @resolution.pattern source=greeter kind=binding target=greeter
 /// @resolution.name source=Greeter target=Greeter
 /// @resolution.name source=robot target=robot

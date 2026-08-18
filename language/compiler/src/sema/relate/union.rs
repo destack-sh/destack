@@ -11,8 +11,9 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
+        // normalize the base so aliases expose their stored union
         let chain = self.form_chain(origin, target)?;
-        let base = chain.base();
+        let base = self.normalize(origin, chain.base())?;
         let dir::Type::Union(union) = self.ty(base)? else {
             return Ok(None);
         };

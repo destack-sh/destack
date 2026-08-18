@@ -806,12 +806,12 @@ interface Store {
     get value(): string;
     set value(next: string | int32);
 }
-const store: Dynamic<Store> = {
+const store: Store = {
     get value(): string {
         return "ready";
     },
     set value(next: string | int32): void {},
-} as Dynamic<Store>;
+} as Store;
 
 === dir ===
 interface Store {
@@ -829,7 +829,7 @@ interface Store {
 
 }
 const store: Store = {
-/// @type.symbol symbol=store source=store type=Dynamic<Store>
+/// @type.symbol symbol=store source=store type=Store
 /// @resolution.pattern source=store kind=binding target=store
 /// @resolution.name source=Store target=Store
 /// @type.node type={ get value(): string; set value(value: string | int32) }
@@ -866,7 +866,7 @@ const store: Store = {
     session.assert_dir_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ readonly value: int32 }' is not assignable to type 'Dynamic<Store>'"
+/// @diagnostic.error id=not-assignable message="type '{ readonly value: int32 }' is not assignable to type 'Store'"
 /// @diagnostic.label line=5 column=22 span="{\n    get value(): int32 { return 1; },\n}" line_source="const store: Store = {"
 /// @diagnostic.related line=5 column=14 span="Store" line_source="const store: Store = {" message="expected due to this annotation"
 "#,
@@ -890,7 +890,7 @@ const store: Store = {
     session.assert_dir_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ set value(value: int32) }' is not assignable to type 'Dynamic<Store>'"
+/// @diagnostic.error id=not-assignable message="type '{ set value(value: int32) }' is not assignable to type 'Store'"
 /// @diagnostic.label line=5 column=22 span="{\n    set value(next: int32): void {},\n}" line_source="const store: Store = {"
 /// @diagnostic.related line=5 column=14 span="Store" line_source="const store: Store = {" message="expected due to this annotation"
 "#,
@@ -921,10 +921,10 @@ const writable: Writable = {
     session.assert_dir_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ set value(value: string) }' is not assignable to type 'Dynamic<Readable>'"
+/// @diagnostic.error id=not-assignable message="type '{ set value(value: string) }' is not assignable to type 'Readable'"
 /// @diagnostic.label line=9 column=28 span="{\n    set value(next: string): void {},\n}" line_source="const readable: Readable = {"
 /// @diagnostic.related line=9 column=17 span="Readable" line_source="const readable: Readable = {" message="expected due to this annotation"
-/// @diagnostic.error id=not-assignable message="type '{ readonly value: string }' is not assignable to type 'Dynamic<Writable>'"
+/// @diagnostic.error id=not-assignable message="type '{ readonly value: string }' is not assignable to type 'Writable'"
 /// @diagnostic.label line=12 column=28 span="{\n    get value(): string { return \"ready\"; },\n}" line_source="const writable: Writable = {"
 /// @diagnostic.related line=12 column=17 span="Writable" line_source="const writable: Writable = {" message="expected due to this annotation"
 "#,

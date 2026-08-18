@@ -206,9 +206,8 @@ impl CheckState<'_> {
         expected: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // erased expectations carry the applied interface as their constraint
-        let constraint = match self.ty(expected)? {
-            dir::Type::Dynamic(dynamic) => dynamic.constraint,
-            _ => return Ok(None),
+        let Some(constraint) = self.erased_constraint(expected)? else {
+            return Ok(None);
         };
         let dir::Type::Application(instance) = self.ty(constraint)? else {
             return Ok(None);

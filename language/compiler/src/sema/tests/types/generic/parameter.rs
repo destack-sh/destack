@@ -2196,12 +2196,12 @@ extension<T, R, I: Iterator<T, R>> of I {
 interface Iterator<out T, out R = void> {}
 
 interface FromIterator<in T> {
-    static fromIterator<R>(values: Dynamic<Iterator<T, R>>): this;
+    static fromIterator<R>(values: Iterator<T, R>): this;
 }
 
 extension<T, R, I: Iterator<T, R>> of I {
     collect<C>(): C where C: FromIterator<T> {
-        C.fromIterator<T, R>(this as Dynamic<Iterator<T, R>>)
+        C.fromIterator<T, R>(this as Iterator<T, R>)
     }
 }
 
@@ -2219,14 +2219,14 @@ interface FromIterator<T> {
 /// @type.symbol symbol=FromIterator type=FromIterator
 /// @definition.interface symbol=FromIterator template=(in T#2)
 /// @definition.where symbol=FromIterator relation=satisfies left=this right=FromIterator<T#2>
-/// @definition.method symbol=FromIterator.fromIterator source="static fromIterator<R>(values: Iterator<T, R>): this" slot=fromIterator static=true type=<R#2>(Dynamic<Iterator<T#2, R#2>>) => this
+/// @definition.method symbol=FromIterator.fromIterator source="static fromIterator<R>(values: Iterator<T, R>): this" slot=fromIterator static=true type=<R#2>(Iterator<T#2, R#2>) => this
 /// @type.symbol symbol=FromIterator.T source=T type=T#2
 
     static fromIterator<R>(values: Iterator<T, R>): this;
     /// @generic.template symbol=FromIterator.fromIterator parent=template#1 parameters=(R#2)
-    /// @type.symbol symbol=FromIterator.fromIterator source="static fromIterator<R>(values: Iterator<T, R>): this" type=<R#2>(Dynamic<Iterator<T#2, R#2>>) => this
+    /// @type.symbol symbol=FromIterator.fromIterator source="static fromIterator<R>(values: Iterator<T, R>): this" type=<R#2>(Iterator<T#2, R#2>) => this
     /// @type.symbol symbol=FromIterator.fromIterator.R source=R type=R#2
-    /// @type.symbol symbol=FromIterator.fromIterator.values source="values: Iterator<T, R>" type=Dynamic<Iterator<T#2, R#2>>
+    /// @type.symbol symbol=FromIterator.fromIterator.values source="values: Iterator<T, R>" type=Iterator<T#2, R#2>
     /// @resolution.name source=Iterator target=Iterator
     /// @resolution.name source=T target=FromIterator.T
     /// @resolution.name source=R target=FromIterator.fromIterator.R
@@ -2256,8 +2256,8 @@ extension<T, R, I: Iterator<T, R>> of I {
 
         C.fromIterator(this)
         /// @resolution.name source=C target=collect.C
-        /// @resolution.member source=C.fromIterator receiver=C type=<R#2>(Dynamic<Iterator<T#3, R#2>>) => C kind=symbol target_receiver=C target=FromIterator.fromIterator
-        /// @resolution.call source=C.fromIterator(this) parameters=(Dynamic<Iterator<T#3, R#3>>) arguments=(provided(this) as Dynamic<Iterator<T#3, R#3>>) return=C kind=symbol target=FromIterator.fromIterator instance=FromIterator.fromIterator<R#3>
+        /// @resolution.member source=C.fromIterator receiver=C type=<R#2>(Iterator<T#3, R#2>) => C kind=symbol target_receiver=C target=FromIterator.fromIterator
+        /// @resolution.call source=C.fromIterator(this) parameters=(Iterator<T#3, R#3>) arguments=(provided(this) as Iterator<T#3, R#3>) return=C kind=symbol target=FromIterator.fromIterator instance=FromIterator.fromIterator<R#3>
         /// @generic.instantiation id="FromIterator.fromIterator<T#3, R#3>" template=FromIterator.fromIterator arguments=(T#3, R#3) owner=collect
         /// @generic.instantiation id=FromIterator.fromIterator<T#3> template=FromIterator.fromIterator arguments=(T#3) owner=collect
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I

@@ -202,8 +202,8 @@ declare const localPoint: LocalPoint;
 declare const sharedPoint: SharedPoint;
 declare const localStatus: LocalStatus;
 declare const sharedStatus: SharedStatus;
-declare const localReadable: Dynamic<LocalReadable>;
-declare const sharedReadable: shared Dynamic<SharedReadable>;
+declare const localReadable: LocalReadable;
+declare const sharedReadable: SharedReadable;
 
 localUser satisfies local LocalUser;
 sharedUser satisfies shared SharedUser;
@@ -290,12 +290,12 @@ declare const sharedStatus: SharedStatus;
 /// @resolution.name source=SharedStatus target=SharedStatus
 
 declare const localReadable: LocalReadable;
-/// @type.symbol symbol=localReadable source=localReadable type=Dynamic<LocalReadable>
+/// @type.symbol symbol=localReadable source=localReadable type=LocalReadable
 /// @resolution.pattern source=localReadable kind=binding target=localReadable
 /// @resolution.name source=LocalReadable target=LocalReadable
 
 declare const sharedReadable: SharedReadable;
-/// @type.symbol symbol=sharedReadable source=sharedReadable type=Placed<Dynamic<SharedReadable>, "shared">
+/// @type.symbol symbol=sharedReadable source=sharedReadable type=SharedReadable
 /// @resolution.pattern source=sharedReadable kind=binding target=sharedReadable
 /// @resolution.name source=SharedReadable target=SharedReadable
 
@@ -760,8 +760,8 @@ interface Readable {
     read(): int32;
 }
 
-declare const localReadable: local Dynamic<Readable>;
-declare const sharedReadable: shared Dynamic<Readable>;
+declare const localReadable: local Readable;
+declare const sharedReadable: shared Readable;
 
 === dir ===
 interface Readable { read(): int32; }
@@ -771,12 +771,12 @@ interface Readable { read(): int32; }
 /// @type.symbol symbol=Readable.read source="read(): int32" type=(this: this) => int32
 
 declare const localReadable: local Readable;
-/// @type.symbol symbol=localReadable source=localReadable type=Placed<Dynamic<Readable>, "local">
+/// @type.symbol symbol=localReadable source=localReadable type=Placed<Readable, "local">
 /// @resolution.pattern source=localReadable kind=binding target=localReadable
 /// @resolution.name source=Readable target=Readable
 
 declare const sharedReadable: shared Readable;
-/// @type.symbol symbol=sharedReadable source=sharedReadable type=Placed<Dynamic<Readable>, "shared">
+/// @type.symbol symbol=sharedReadable source=sharedReadable type=Placed<Readable, "shared">
 /// @resolution.pattern source=sharedReadable kind=binding target=sharedReadable
 /// @resolution.name source=Readable target=Readable
 "#,

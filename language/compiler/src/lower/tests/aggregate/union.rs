@@ -264,7 +264,7 @@ entry(v0: int32):
     v1: void = undefined
     v2: { kind: void, value: int32 } = aggregate (v1, v0)
     v3: ref<{ kind: void, value: int32 }, managed, mutable> = new.complete v2
-    v4: variant<uint1> { 0uint1 = ref<{ kind: void, value: int32 }, managed, mutable>; 1uint1 = ref<{ kind: void, flag: boolean }, managed, mutable>; } = variant.new 0, v3
+    v4: Selector = variant.new 0, v3
     return v4
 }
 
@@ -278,10 +278,6 @@ entry(v0: int32):
 /// @layout.struct name=type@9 size=1 align=1
 /// @layout.field owner=type@9 index=0 name=kind offset=0 size=0 align=1
 /// @layout.field owner=type@9 index=1 name=flag offset=0 size=1 align=1
-/// @layout.variant name=type@12 size=16 align=8
-/// @layout.discriminant owner=type@12 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@12 index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=type@12 index=1 discriminant=1 payload_offset=8
 "#);
 }
 
@@ -310,12 +306,12 @@ type destack.string.string.String {
     bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
 }
 
+type Label = ref<destack.string.string.String, managed, mutable, undefined>;
+
 @copy
 type Meter {
-    label: ref<destack.string.string.String, managed, mutable, undefined>;
+    label: Label;
 }
-
-type Label = ref<destack.string.string.String, managed, mutable, undefined>;
 
 function test.main.read<'a>(v0: ref<Meter, borrowed, 'a, readonly>): Label {
 entry(v0: ref<Meter, borrowed, 'a, readonly>):

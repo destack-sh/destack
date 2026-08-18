@@ -324,9 +324,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 });
             }
             let target_member = first.target;
-            let Some(target_index) = target_members
-                .iter()
-                .position(|member| *member == target_member)
+            let Some(target_index) = self.union_member_index(&target_members, target_member)?
             else {
                 return Err(CompilerError::Internal {
                     message: "a union conversion selecting an absent target member".to_string(),
@@ -344,10 +342,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let target_member = case.target;
-        let Some(target_index) = target_members
-            .iter()
-            .position(|member| *member == target_member)
-        else {
+        let Some(target_index) = self.union_member_index(&target_members, target_member)? else {
             return Err(CompilerError::Internal {
                 message: "a union injection selecting an absent target member".to_string(),
             });
@@ -500,12 +495,48 @@ impl FunctionLowerer<'_, '_, '_> {
         self.materialize_coercion_value(value, target)
     }
 
-    /// Return the logical members of one union type.
+    /// Return the position of one recorded member among target union members.
+    ///
+    /// The checker records normalized members while written rows keep aliases,
+    /// so distinct member ids meet at their lowered representation.
+    ///
+    /// FUGU #Architecture: record the selected case index in the coercion so
+    /// lower stops re-deriving a decision the checker already made.
+    fn union_member_index(
+        &mut self,
+        members: &[dir::GlobalTypeId],
+        member: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<usize>> {
+        if let Some(index) = members.iter().position(|candidate| *candidate == member) {
+            return Ok(Some(index));
+        }
+
+        let lowered = self.lower_type(member)?;
+        for (index, candidate) in members.iter().enumerate() {
+            if self.lower_type(*candidate)? == lowered {
+                return Ok(Some(index));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Return the logical members of one union type behind forms and aliases.
     pub(in crate::lower) fn union_members(
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let dir::Type::Union(union) = self.lowerer.ty(ty)? else {
+        // resolve the union behind owned forms and transparent aliases
+        let mut stored = self.lowerer.peel_owned(ty)?;
+        while let dir::Type::Application(instance) = self.lowerer.ty(stored)? {
+            let defined = match self.lowerer.definition(instance.symbol)? {
+                Some(dir::Definition::TypeAlias(alias)) => alias.value,
+                _ => break,
+            };
+            stored = self.lowerer.peel_owned(defined)?;
+        }
+
+        let dir::Type::Union(union) = self.lowerer.ty(stored)? else {
             return Err(CompilerError::Internal {
                 message: "union members requested from a non-union type".to_string(),
             });
@@ -513,7 +544,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         Ok(self
             .lowerer
-            .types(ty.module_id)?
+            .types(stored.module_id)?
             .type_ids(union.elements)
             .to_vec())
     }

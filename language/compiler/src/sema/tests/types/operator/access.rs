@@ -611,7 +611,7 @@ type User = {
 };
 
 function get<K: keyof User>(user: { readonly name: string; readonly age: int32 }, key: K): User[K] {
-    return user[key];
+    return user[key as keyof { readonly name: string; readonly age: int32 }];
 }
 
 declare const user: { readonly name: string; readonly age: int32 };

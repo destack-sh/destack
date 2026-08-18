@@ -604,21 +604,11 @@ impl BodyState<'_, '_> {
             self.walk_body_type_expression(module, ty)?;
         }
 
-        // read the written annotation as the binding's storage type
+        // read the written annotation as the binding type
         let annotation = declarator.ty.map(|ty| ty.into_global_any(module));
-        let written = match annotation {
-            Some(annotation) => {
-                let ty = self.require_node_type(annotation)?;
-                // fall back to the pattern's origin for declared-stage annotations
-                let origin = match self.check.node_origin_maybe(annotation) {
-                    Some(origin) => origin,
-                    None => self.visit_site(pattern.into_global_any(module))?.origin(),
-                };
-
-                Some(self.storage_type(origin, ty)?)
-            }
-            None => None,
-        };
+        let written = annotation
+            .map(|annotation| self.require_node_type(annotation))
+            .transpose()?;
 
         // derive the type the pattern destructures from
         let target = match (declarator.value, written) {

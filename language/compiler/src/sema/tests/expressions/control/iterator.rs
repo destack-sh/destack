@@ -361,7 +361,7 @@ for (const key in target) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare const target: Dynamic<unknown>;
+declare const target: unknown;
 
 for (const key in target) {
     key;
@@ -369,13 +369,13 @@ for (const key in target) {
 
 === dir ===
 declare const target: unknown;
-/// @type.symbol symbol=target source=target type=Dynamic<unknown>
+/// @type.symbol symbol=target source=target type=unknown
 /// @resolution.pattern source=target kind=binding target=target
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=target type=Dynamic<unknown>
+/// @type.node source=target type=unknown
 /// @resolution.name source=target target=target
 /// @resolution.access source=target root=target
 
@@ -731,9 +731,9 @@ function total(values: int32[]): int32 {
     /// @resolution.pattern source=value kind=binding target=total.value
     /// @resolution.name source=values target=total.values
     /// @resolution.member source=values.iterator receiver=int32[] type=(this: int32[]) => iter.iterator.Iterator<int32> kind=symbol target_receiver=int32[] target=collections.array.iterator#2
-    /// @resolution.member source=values.iterator().enumerate receiver=iter.iterator.Iterator<int32> type=(this: iter.iterator.Iterator<int32>) => iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32>, int32> kind=symbol target_receiver=iter.iterator.Iterator<int32> target=iter.iterator.Iterator.enumerate
+    /// @resolution.member source=values.iterator().enumerate receiver=iter.iterator.Iterator<int32> type=(this: iter.iterator.Iterator<int32>) => iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32>, int32> kind=symbol target_receiver=iter.iterator.Iterator<int32> dispatch=dynamic constraint=iter.iterator.Iterator<int32> target=iter.iterator.Iterator.enumerate
     /// @resolution.call source=values.iterator() parameters=() return=iter.iterator.Iterator<int32> kind=symbol target=collections.array.iterator#2 receiver=int32[] instance=Array<int32>.<extension#3>.iterator#2
-    /// @resolution.call source=values.iterator().enumerate() parameters=() return=iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32>, int32> kind=symbol target=iter.iterator.Iterator.enumerate receiver=iter.iterator.Iterator<int32> instance=iter.iterator.Iterator<int32>.enumerate
+    /// @resolution.call source=values.iterator().enumerate() parameters=() return=iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32>, int32> kind=dynamic target=iter.iterator.Iterator.enumerate receiver=iter.iterator.Iterator<int32> constraint=iter.iterator.Iterator<int32> generic_arguments=(int32)
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=total.values
     /// @generic.instantiation id=collections.array.iterator#2<int32> template=collections.array.iterator#2 arguments=(int32)

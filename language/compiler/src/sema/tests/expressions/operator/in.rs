@@ -458,26 +458,26 @@ declare const value: unknown;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare const value: Dynamic<unknown>;
+declare const value: unknown;
 
 "name" in value;
 
 === dir ===
 declare const value: unknown;
-/// @type.symbol symbol=value source=value type=Dynamic<unknown>
+/// @type.symbol symbol=value source=value type=unknown
 /// @resolution.pattern source=value kind=binding target=value
 
 "name" in value;
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Dynamic<unknown> predicate="membership(Dynamic<unknown>, name)" narrowed={ readonly name: unknown }
-/// @type.node source=value type=Dynamic<unknown>
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=unknown predicate="membership(unknown, name)" narrowed={ readonly name: unknown }
+/// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 "#,
         r#"
-/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for '\"name\"' and 'Dynamic<unknown>'"
+/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for '\"name\"' and 'unknown'"
 /// @diagnostic.label line=4 column=8 span="in" line_source="\"name\" in value;"
 "#,
     );

@@ -221,8 +221,23 @@ impl CheckState<'_> {
                     target_dynamic.constraint,
                 )?
             }
-            // box values into an existential target, which never widens
-            (_, dir::Type::Dynamic(_)) | (dir::Type::Dynamic(_), _) if widens => Verdict::Fails,
+            // widen between erased values only through equal constraints
+            _ if widens
+                && let Some(source_constraint) = self.erased_constraint(source)?
+                && let Some(target_constraint) = self.erased_constraint(target)? =>
+            {
+                self.constrain_type(
+                    origin,
+                    cause,
+                    Relation::Equal,
+                    source_constraint,
+                    target_constraint,
+                )?
+            }
+            // erased carriers refuse widening, the literal materializes first
+            _ if widens && (self.is_erased_value(source)? || self.is_erased_value(target)?) => {
+                Verdict::Fails
+            }
             // erase compatible values into dynamic targets
             (_, dir::Type::Dynamic(dynamic)) => {
                 self.relate_dynamic_assignable(origin, cause, source, dynamic.constraint)?

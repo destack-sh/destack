@@ -147,8 +147,6 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) external_modules: ExternalModuleTable,
     /// Resolved import targets of external modules read for alias hops.
     pub(in crate::sema) external_resolved: FxIndexMap<ModuleId, Arc<DirResolved>>,
-    /// Canonical own-module forms of imported symbol types.
-    pub(in crate::sema) imported_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
 
     // decisions
     /// Decided relations between closed type pairs.
@@ -332,7 +330,6 @@ impl<'a> CheckState<'a> {
             storable: FxIndexSet::default(),
             selections: FxIndexMap::default(),
             variances: FxIndexMap::default(),
-            imported_types: FxIndexMap::default(),
             infer: InferContext::new(),
             fulfill: Fulfillment::new(),
             decorators: Vec::new(),
@@ -1169,7 +1166,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            self.canonical_symbol_type_maybe(symbol)?;
+            self.adopt_symbol_type_maybe(symbol)?;
         }
 
         Ok(())

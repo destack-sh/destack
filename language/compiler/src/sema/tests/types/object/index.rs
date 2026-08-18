@@ -762,7 +762,7 @@ interface Bag<in out T> {
     [key: string]: T;
 }
 
-declare const bag: Dynamic<Bag<int32>>;
+declare const bag: Bag<int32>;
 const value: int32 | undefined = bag["name"];
 
 === dir ===
@@ -780,7 +780,7 @@ interface Bag<T> {
 }
 
 declare const bag: Bag<int32>;
-/// @type.symbol symbol=bag source=bag type=Dynamic<Bag<int32>>
+/// @type.symbol symbol=bag source=bag type=Bag<int32>
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
@@ -788,9 +788,9 @@ const value = bag["name"];
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="bag[\"name\"]" type=int32 | undefined
-/// @type.node source=bag type=Dynamic<Bag<int32>>
+/// @type.node source=bag type=Bag<int32>
 /// @resolution.name source=bag target=bag
-/// @resolution.subscript source="bag[\"name\"]" type=int32 | undefined kind=call target="dynamic(Dynamic<Bag<int32>> as Bag<int32>, index.read([key: string]: T))(parameters=(string), arguments=(provided(\"name\") as string), return=int32 | undefined)"
+/// @resolution.subscript source="bag[\"name\"]" type=int32 | undefined kind=call target="dynamic(Bag<int32> as Bag<int32>, index.read([key: string]: T))(parameters=(string), arguments=(provided(\"name\") as string), return=int32 | undefined)"
 /// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bag root=bag
 /// @type.node source="\"name\"" type="name"

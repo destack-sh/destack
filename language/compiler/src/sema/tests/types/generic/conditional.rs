@@ -47,8 +47,8 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     sink.write(value);
 }
 
-declare const text: Dynamic<TextSink>;
-declare const number: Dynamic<NumberSink>;
+declare const text: TextSink;
+declare const number: NumberSink;
 
 write<string>("message", text);
 write<float64>(1, number);
@@ -106,12 +106,12 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 }
 
 declare const text: TextSink;
-/// @type.symbol symbol=text source=text type=Dynamic<TextSink>
+/// @type.symbol symbol=text source=text type=TextSink
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=TextSink target=TextSink
 
 declare const number: NumberSink;
-/// @type.symbol symbol=number source=number type=Dynamic<NumberSink>
+/// @type.symbol symbol=number source=number type=NumberSink
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=NumberSink target=NumberSink
 
@@ -180,7 +180,7 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     sink.write(value);
 }
 
-declare const number: Dynamic<NumberSink>;
+declare const number: NumberSink;
 write<string>("message", number);
 
 === dir ===
@@ -239,7 +239,7 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 }
 
 declare const number: NumberSink;
-/// @type.symbol symbol=number source=number type=Dynamic<NumberSink>
+/// @type.symbol symbol=number source=number type=NumberSink
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=NumberSink target=NumberSink
 
@@ -250,7 +250,7 @@ write("message", number);
 /// @resolution.call source="write(\"message\", number)" parameters=(string, TextSink) arguments=(provided("message") as string, provided(number) as TextSink) return=void kind=symbol target=write instance=write<string>
 /// @generic.instantiation id=write<string> template=write arguments=(string)
 /// @type.node source="\"message\"" type="message"
-/// @type.node source=number type=Dynamic<NumberSink>
+/// @type.node source=number type=NumberSink
 /// @resolution.name source=number target=number
 /// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=number root=number
@@ -258,7 +258,7 @@ write("message", number);
         r#"
 /// @diagnostic.error id=missing-member message="member 'write' does not exist on type 'SinkFor<T>'"
 /// @diagnostic.label line=13 column=10 span="write" line_source="sink.write(value);"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'Dynamic<NumberSink>' is not assignable to parameter of type 'SinkFor<string>'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'NumberSink' is not assignable to parameter of type 'SinkFor<string>'"
 /// @diagnostic.label line=17 column=18 span="number" line_source="write(\"message\", number);"
 /// @diagnostic.related line=17 column=1 span="write(\"message\", number)" line_source="write(\"message\", number);" message="in this call"
 /// @diagnostic.note message="'SinkFor<string>' reduces to 'TextSink'"

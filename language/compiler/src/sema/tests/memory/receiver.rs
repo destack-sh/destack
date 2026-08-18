@@ -207,8 +207,8 @@ newtype interface Sink {
     write(&readonly this, value: Message): Message;
 }
 
-declare const localSink: local Dynamic<Sink>;
-declare const sharedSink: shared Dynamic<Sink>;
+declare const localSink: local Sink;
+declare const sharedSink: shared Sink;
 declare const localMessage: local Message;
 declare const sharedMessage: shared Message;
 
@@ -236,12 +236,12 @@ newtype interface Sink {
 }
 
 declare const localSink: local Sink;
-/// @type.symbol symbol=localSink source=localSink type=Placed<Dynamic<Sink>, "local">
+/// @type.symbol symbol=localSink source=localSink type=Placed<Sink, "local">
 /// @resolution.pattern source=localSink kind=binding target=localSink
 /// @resolution.name source=Sink target=Sink
 
 declare const sharedSink: shared Sink;
-/// @type.symbol symbol=sharedSink source=sharedSink type=Placed<Dynamic<Sink>, "shared">
+/// @type.symbol symbol=sharedSink source=sharedSink type=Placed<Sink, "shared">
 /// @resolution.pattern source=sharedSink kind=binding target=sharedSink
 /// @resolution.name source=Sink target=Sink
 
@@ -257,8 +257,8 @@ declare const sharedMessage: shared Message;
 
 localSink.write(localMessage) satisfies local Message;
 /// @resolution.name source=localSink target=localSink
-/// @resolution.member source=localSink.write receiver=Placed<Dynamic<Sink>, "local"> type=<Sink.write.'a>(this: &Sink.write.'a readonly Sink, Message) => Message kind=symbol target_receiver=Placed<Dynamic<Sink>, "local"> dispatch=dynamic constraint=Sink target=Sink.write
-/// @resolution.call source=localSink.write(localMessage) parameters=(Message) arguments=(provided(localMessage) as Message) return=Message kind=dynamic target=Sink.write receiver=Placed<Dynamic<Sink>, "local"> constraint=Sink adjustments=(Placed<Dynamic<Sink>, "local"> => direct -> Dynamic<Sink>, borrow(&'static readonly Dynamic<Sink>))
+/// @resolution.member source=localSink.write receiver=Placed<Sink, "local"> type=<Sink.write.'a>(this: &Sink.write.'a readonly Sink, Message) => Message kind=symbol target_receiver=Placed<Sink, "local"> dispatch=dynamic constraint=Sink target=Sink.write
+/// @resolution.call source=localSink.write(localMessage) parameters=(Message) arguments=(provided(localMessage) as Message) return=Message kind=dynamic target=Sink.write receiver=Placed<Sink, "local"> constraint=Sink adjustments=(Placed<Sink, "local"> => direct -> Sink, borrow(&'static readonly Sink))
 /// @resolution.place source=localSink placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localSink root=localSink
 /// @resolution.name source=localMessage target=localMessage
@@ -268,8 +268,8 @@ localSink.write(localMessage) satisfies local Message;
 
 sharedSink.write(sharedMessage) satisfies shared Message;
 /// @resolution.name source=sharedSink target=sharedSink
-/// @resolution.member source=sharedSink.write receiver=Placed<Dynamic<Sink>, "shared"> type=<Sink.write.'a>(this: &Sink.write.'a readonly Sink, Message) => Message kind=symbol target_receiver=Placed<Dynamic<Sink>, "shared"> dispatch=dynamic constraint=Sink target=Sink.write
-/// @resolution.call source=sharedSink.write(sharedMessage) parameters=(Placed<Message, "shared">) arguments=(provided(sharedMessage) as Placed<Message, "shared">) return=Placed<Message, "shared"> kind=dynamic target=Sink.write receiver=Placed<Dynamic<Sink>, "shared"> constraint=Sink adjustments=(Placed<Dynamic<Sink>, "shared"> => direct -> Dynamic<Sink>, borrow(&'static readonly Dynamic<Sink>))
+/// @resolution.member source=sharedSink.write receiver=Placed<Sink, "shared"> type=<Sink.write.'a>(this: &Sink.write.'a readonly Sink, Message) => Message kind=symbol target_receiver=Placed<Sink, "shared"> dispatch=dynamic constraint=Sink target=Sink.write
+/// @resolution.call source=sharedSink.write(sharedMessage) parameters=(Placed<Message, "shared">) arguments=(provided(sharedMessage) as Placed<Message, "shared">) return=Placed<Message, "shared"> kind=dynamic target=Sink.write receiver=Placed<Sink, "shared"> constraint=Sink adjustments=(Placed<Sink, "shared"> => direct -> Sink, borrow(&'static readonly Sink))
 /// @resolution.place source=sharedSink placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedSink root=sharedSink
 /// @resolution.name source=sharedMessage target=sharedMessage

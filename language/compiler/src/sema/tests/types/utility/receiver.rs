@@ -62,7 +62,7 @@ const ok: Receiver = { anything: true };
 === annotated ===
 type Receiver = ThisParameterType<(value: float64) => void>;
 
-const ok: Dynamic<unknown> = { anything: true } as Dynamic<unknown>;
+const ok: unknown = { anything: true } as unknown;
 
 === dir ===
 type Receiver = ThisParameterType<(value: number) => void>;
@@ -72,7 +72,7 @@ type Receiver = ThisParameterType<(value: number) => void>;
 /// @type.symbol symbol=Receiver.value source="value: number" type=float64
 
 const ok: Receiver = { anything: true };
-/// @type.symbol symbol=ok source=ok type=Dynamic<unknown>
+/// @type.symbol symbol=ok source=ok type=unknown
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Receiver target=Receiver
 "#,

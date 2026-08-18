@@ -42,14 +42,10 @@ type Options = Base & {
 type Argument = (() => void) | Options;
 
 function skipAll(): void {
-    run({ skip: true } as | (() => void)
-    | { only?: boolean; skip?: boolean; samples?: uint64 }
-    | undefined);
+    run({ skip: true } as Argument | undefined);
 }
 
-function run(
-    argument?: (() => void) | { only?: boolean; skip?: boolean; samples?: uint64 },
-): void {}
+function run(argument?: Argument): void {}
 
 === dir ===
 type Base = {
@@ -79,15 +75,15 @@ function skipAll(): void {
     run({ skip: true })
     /// @type.node source="run({ skip: true })" type=void
     /// @resolution.name source=run target=run
-    /// @resolution.call source="run({ skip: true })" parameters=(Function<(), void> | { only?: boolean; skip?: boolean; samples?: uint64 } | undefined) arguments=(provided({ skip: true }) as Function<(), void> | { only?: boolean; skip?: boolean; samples?: uint64 } | undefined) return=void kind=symbol target=run
+    /// @resolution.call source="run({ skip: true })" parameters=(Argument | undefined) arguments=(provided({ skip: true }) as Argument | undefined) return=void kind=symbol target=run
     /// @type.node source={ skip: true } type={ only?: boolean; skip?: boolean; samples?: uint64 }
     /// @type.node source=true type=true
 
 }
 
 function run(argument?: Argument): void {}
-/// @type.symbol symbol=run source="function run(argument?: Argument): void {}" type=(Function<(), void> | { only?: boolean; skip?: boolean; samples?: uint64 } | undefined?) => void
-/// @type.symbol symbol=run.argument source="argument?: Argument" type=Function<(), void> | { only?: boolean; skip?: boolean; samples?: uint64 } | undefined
+/// @type.symbol symbol=run source="function run(argument?: Argument): void {}" type=(Argument | undefined?) => void
+/// @type.symbol symbol=run.argument source="argument?: Argument" type=Argument | undefined
 /// @resolution.name source=Argument target=Argument
 "#,
     );

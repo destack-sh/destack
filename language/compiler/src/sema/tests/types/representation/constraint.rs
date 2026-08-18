@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_interface_parameter_erases_to_dynamic_storage() {
+fn test_interface_parameter_dispatches_dynamically() {
     let session = TestSession::single(
         r#"
 interface Drawable {
@@ -23,7 +23,7 @@ interface Drawable {
     draw(): void;
 }
 
-function paint(item: Dynamic<Drawable>): void {
+function paint(item: Drawable): void {
     item.draw();
 }
 
@@ -39,14 +39,14 @@ interface Drawable {
 }
 
 function paint(item: Drawable): void {
-/// @type.symbol symbol=paint type=(Dynamic<Drawable>) => void
-/// @type.symbol symbol=paint.item source="item: Drawable" type=Dynamic<Drawable>
+/// @type.symbol symbol=paint type=(Drawable) => void
+/// @type.symbol symbol=paint.item source="item: Drawable" type=Drawable
 /// @resolution.name source=Drawable target=Drawable
 
     item.draw();
     /// @resolution.name source=item target=paint.item
-    /// @resolution.member source=item.draw receiver=Dynamic<Drawable> type=(this: Drawable) => void kind=symbol target_receiver=Dynamic<Drawable> dispatch=dynamic constraint=Drawable target=Drawable.draw
-    /// @resolution.call source=item.draw() parameters=() return=void kind=dynamic target=Drawable.draw receiver=Dynamic<Drawable> constraint=Drawable
+    /// @resolution.member source=item.draw receiver=Drawable type=(this: Drawable) => void kind=symbol target_receiver=Drawable dispatch=dynamic constraint=Drawable target=Drawable.draw
+    /// @resolution.call source=item.draw() parameters=() return=void kind=dynamic target=Drawable.draw receiver=Drawable constraint=Drawable
     /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=item root=paint.item
 
@@ -56,7 +56,7 @@ function paint(item: Drawable): void {
 }
 
 #[test]
-fn test_closed_alias_parameter_stays_direct_storage() {
+fn test_closed_alias_parameter_keeps_direct_dispatch() {
     let session = TestSession::single(
         r#"
 type Drawable = {

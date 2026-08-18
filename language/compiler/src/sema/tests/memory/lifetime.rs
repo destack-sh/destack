@@ -485,8 +485,8 @@ type Options<'a> = {
 
 function log<'a>(options?: Options<'a>): void {}
 
-function warn(count?: int32, cause?: Dynamic<unknown>): void {
-    log({ count, error: cause as Dynamic<unknown> } as Options<"frame"> | undefined);
+function warn(count?: int32, cause?: unknown): void {
+    log({ count, error: cause as unknown } as Options<"frame"> | undefined);
 }
 
 === dir ===
@@ -510,9 +510,9 @@ function log(options?: Options): void {}
 /// @resolution.name source=Options target=Options
 
 function warn(count?: int32, cause?: unknown): void {
-/// @type.symbol symbol=warn type=(int32 | undefined?, Dynamic<unknown> | undefined?) => void
+/// @type.symbol symbol=warn type=(int32 | undefined?, unknown | undefined?) => void
 /// @type.symbol symbol=warn.count source="count?: int32" type=int32 | undefined
-/// @type.symbol symbol=warn.cause source="cause?: unknown" type=Dynamic<unknown> | undefined
+/// @type.symbol symbol=warn.cause source="cause?: unknown" type=unknown | undefined
 
     log({ count, error: cause });
     /// @resolution.name source=log target=log

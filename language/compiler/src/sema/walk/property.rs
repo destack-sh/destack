@@ -346,17 +346,8 @@ impl WalkState<'_, '_> {
 
                 // derive the field type
                 let field_type = match declared_type {
-                    // take the written annotation as storage
-                    Some(declared_type) => {
-                        let written = self.walk_type_expression(declared_type)?;
-                        let origin = Origin::Node(
-                            declared_type.into_global_any(self.module),
-                            self.flow().template_scope(),
-                        );
-                        let written = self.check.storage_type(origin, written)?;
-
-                        Some(written)
-                    }
+                    // take the written annotation
+                    Some(declared_type) => Some(self.walk_type_expression(declared_type)?),
                     // settle the reported field on the error type
                     None if is_uninferable => Some(self.intern_type(dir::Type::Error)?),
                     // infer the field from its default through the binding slot
@@ -561,7 +552,7 @@ impl WalkState<'_, '_> {
         else {
             return Ok(None);
         };
-        let Some(method) = self.check.canonical_symbol_type_maybe(symbol)? else {
+        let Some(method) = self.check.adopt_symbol_type_maybe(symbol)? else {
             return Ok(None);
         };
         let Some(head) = self.check.signature_head(method)? else {

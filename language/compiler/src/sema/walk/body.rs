@@ -277,8 +277,7 @@ impl WalkState<'_, '_> {
                     .module(self.module)
                     .declaration_symbol(member.into_any());
                 if let Some(field_symbol) = field_symbol
-                    && let Some(field_type) =
-                        self.check.canonical_symbol_type_maybe(field_symbol)?
+                    && let Some(field_type) = self.check.adopt_symbol_type_maybe(field_symbol)?
                 {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
@@ -343,7 +342,7 @@ impl WalkState<'_, '_> {
         };
 
         // read the declared signature the body checks against
-        let Some(function) = self.check.canonical_symbol_type_maybe(symbol)? else {
+        let Some(function) = self.check.adopt_symbol_type_maybe(symbol)? else {
             return Ok(false);
         };
         // function values wrap their signature

@@ -205,7 +205,7 @@ impl CheckState<'_> {
             dir::Type::Slice(slice) => slice.element,
             dir::Type::FixedArray(array) => array.element,
             // erased sequences carry their element on the iterable constraint
-            dir::Type::Dynamic(_) => self.iterable_value_argument(value)?.unwrap_or(ty),
+            _ if self.is_erased_value(value)? => self.iterable_value_argument(value)?.unwrap_or(ty),
             _ => ty,
         };
 

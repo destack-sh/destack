@@ -549,7 +549,7 @@ extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {
     }
 }
 
-function firstDefined(values: Dynamic<It<int32, void>>): int32 | undefined {
+function firstDefined(values: It<int32, void>): int32 | undefined {
     return values.map<int32, void, int32>((value: int32): int32 => value).find<
         It<int32, void>,
         int32,
@@ -663,9 +663,9 @@ extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {
 }
 
 function firstDefined(values: It<int32>): int32 | undefined {
-/// @type.symbol symbol=firstDefined type=(Dynamic<It<int32, void>>) => int32 | undefined
+/// @type.symbol symbol=firstDefined type=(It<int32, void>) => int32 | undefined
 /// @generic.instance id="It<int32, void>" template=It arguments=(int32, void)
-/// @type.symbol symbol=firstDefined.values source="values: It<int32>" type=Dynamic<It<int32, void>>
+/// @type.symbol symbol=firstDefined.values source="values: It<int32>" type=It<int32, void>
 /// @resolution.name source=It target=It
 
     return values.map((value) => value).find();
@@ -675,8 +675,8 @@ function firstDefined(values: It<int32>): int32 | undefined {
     /// @type.node source=values.map type=<U#1>(this: It<int32, void>, Function<(int32,), U#1>) => Wrap<It<int32, void>, int32, U#1>
     /// @resolution.name source=values target=firstDefined.values
     /// @resolution.member source="values.map((value) => value).find" receiver=Wrap<It<int32, void>, int32, int32> type=(this: Wrap<It<int32, void>, int32, int32>) => int32 | undefined kind=symbol target_receiver=Wrap<It<int32, void>, int32, int32> target=It.find
-    /// @resolution.member source=values.map receiver=Dynamic<It<int32, void>> type=<U#1>(this: It<int32, void>, Function<(int32,), U#1>) => Wrap<It<int32, void>, int32, U#1> kind=symbol target_receiver=Dynamic<It<int32, void>> dispatch=dynamic constraint=It<int32, void> target=It.map
-    /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Wrap<It<int32, void>, int32, int32> kind=dynamic target=It.map receiver=Dynamic<It<int32, void>> constraint=It<int32, void> generic_arguments=(int32, void, int32)
+    /// @resolution.member source=values.map receiver=It<int32, void> type=<U#1>(this: It<int32, void>, Function<(int32,), U#1>) => Wrap<It<int32, void>, int32, U#1> kind=symbol target_receiver=It<int32, void> dispatch=dynamic constraint=It<int32, void> target=It.map
+    /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Wrap<It<int32, void>, int32, int32> kind=dynamic target=It.map receiver=It<int32, void> constraint=It<int32, void> generic_arguments=(int32, void, int32)
     /// @resolution.call source="values.map((value) => value).find()" parameters=() return=int32 | undefined kind=symbol target=It.find receiver=Wrap<It<int32, void>, int32, int32> instance="Wrap<It<int32, void>, int32, int32>.<extension#1>.find"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=firstDefined.values

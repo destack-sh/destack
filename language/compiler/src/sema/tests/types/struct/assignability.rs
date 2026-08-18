@@ -19,7 +19,7 @@ value satisfies HasX;
 
     session.assert_dir(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_coercion(),
         r#"
 === annotated ===
 interface HasX {
@@ -30,7 +30,7 @@ struct Point {
     x: int32;
 }
 
-const value: Dynamic<HasX> = Point { x: 1 } as Dynamic<HasX>;
+const value: HasX = Point { x: 1 } as HasX;
 value satisfies HasX;
 
 === dir ===
@@ -55,10 +55,12 @@ struct Point {
 }
 
 const value: HasX = Point { x: 1 };
-/// @type.symbol symbol=value source=value type=Dynamic<HasX>
+/// @type.symbol symbol=value source=value type=HasX
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=HasX target=HasX
 /// @resolution.name source=Point target=Point
+/// @coercion.node source="Point { x: 1 }" from=Point adjustments=[{ kind: existential, target: HasX }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 
 value satisfies HasX;
 /// @resolution.name source=value target=value
@@ -360,7 +362,7 @@ struct Counter {
     count: int32;
 }
 
-const counter: Dynamic<HasCount> = Counter { count: 1 } as Dynamic<HasCount>;
+const counter: HasCount = Counter { count: 1 } as HasCount;
 counter satisfies HasCount;
 
 === dir ===
@@ -385,7 +387,7 @@ struct Counter {
 }
 
 const counter: HasCount = Counter { count: 1 };
-/// @type.symbol symbol=counter source=counter type=Dynamic<HasCount>
+/// @type.symbol symbol=counter source=counter type=HasCount
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=HasCount target=HasCount
 /// @resolution.name source=Counter target=Counter

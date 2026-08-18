@@ -751,10 +751,10 @@ class Holder {
         r#"
 === annotated ===
 class State {
-    value: Dynamic<unknown> | undefined;
+    value: unknown | undefined;
 
     constructor(): this {
-        this.value = undefined as Dynamic<unknown> | undefined;
+        this.value = undefined as unknown | undefined;
     }
 }
 
@@ -770,11 +770,11 @@ class Holder {
 class State {
 /// @type.symbol symbol=State type=State
 /// @definition.class symbol=State
-/// @definition.field symbol=State.value source="value: unknown | undefined" key=value type=Dynamic<unknown> | undefined
+/// @definition.field symbol=State.value source="value: unknown | undefined" key=value type=unknown | undefined
 /// @definition.method symbol=State.constructor slot=constructor role=constructor type=() => State
 
     value: unknown | undefined;
-    /// @type.symbol symbol=State.value source="value: unknown | undefined" type=Dynamic<unknown> | undefined
+    /// @type.symbol symbol=State.value source="value: unknown | undefined" type=unknown | undefined
 
     constructor() {
     /// @type.symbol symbol=State.constructor type=() => State
@@ -782,13 +782,13 @@ class State {
         this.value = undefined;
         /// @type.node source="this.value = undefined" type=undefined
         /// @type.node source=this type=State
-        /// @type.node source=this.value type=Dynamic<unknown> | undefined
+        /// @type.node source=this.value type=unknown | undefined
         /// @resolution.receiver source=this kind=this declaration=State type=State
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @resolution.assignment source=this.value write="receiver=State, target=field(receiver=State, target=State.value, type=Dynamic<unknown> | undefined), type=Dynamic<unknown> | undefined" type=Dynamic<unknown> | undefined
+        /// @resolution.assignment source=this.value write="receiver=State, target=field(receiver=State, target=State.value, type=unknown | undefined), type=unknown | undefined" type=unknown | undefined
         /// @type.node source=undefined type=undefined
 
     }

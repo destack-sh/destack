@@ -351,7 +351,7 @@ struct Rectangle {
 type Shape = Circle | Rectangle;
 
 function makeCircle(): Shape {
-    return Circle { radius: 1.0 } as Circle | Rectangle;
+    return Circle { radius: 1.0 } as Shape;
 }
 
 makeCircle() satisfies Shape;
@@ -590,10 +590,10 @@ type Shape = Circle | Rectangle;
 
 function makeShape(flag: boolean): Shape {
     if (flag) {
-        return Circle { radius: 1.0 } as Circle | Rectangle;
+        return Circle { radius: 1.0 } as Shape;
     }
 
-    return Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle;
+    return Rectangle { width: 1.0, height: 1.0 } as Shape;
 }
 
 makeShape(true) satisfies Shape;
