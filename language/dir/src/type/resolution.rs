@@ -520,6 +520,36 @@ impl OperationResolution<Call> {
             .then_some(first)
     }
 
+    /// Return the receiver type every selected arm agrees on.
+    pub fn agreed_receiver_type(&self) -> Option<GlobalTypeId> {
+        let selected = self.arms().first()?.target.receiver_type()?;
+
+        self.arms()
+            .iter()
+            .all(|call| call.target.receiver_type() == Some(selected))
+            .then_some(selected)
+    }
+
+    /// Return the declaration symbol every selected arm agrees on.
+    pub fn agreed_target_symbol(&self) -> Option<GlobalSymbolId> {
+        let selected = self.arms().first()?.target.symbol()?;
+
+        self.arms()
+            .iter()
+            .all(|call| call.target.symbol() == Some(selected))
+            .then_some(selected)
+    }
+
+    /// Return the generic argument bindings every selected arm agrees on.
+    pub fn agreed_generic_arguments(&self) -> Option<&[GenericArgumentBinding]> {
+        let selected = self.arms().first()?.target.generic_arguments();
+
+        self.arms()
+            .iter()
+            .all(|call| call.target.generic_arguments() == selected)
+            .then_some(selected)
+    }
+
     /// Return the call result type.
     pub fn return_type(&self) -> GlobalTypeId {
         match self {
@@ -569,6 +599,26 @@ pub enum CallableTarget {
 }
 
 impl CallableTarget {
+    /// Return the selected generic argument bindings.
+    pub fn generic_arguments(&self) -> &[GenericArgumentBinding] {
+        match self {
+            Self::Expression { generic_arguments }
+            | Self::Dynamic {
+                generic_arguments, ..
+            } => generic_arguments,
+            Self::Symbol { function, .. } => &function.selection.arguments,
+        }
+    }
+
+    /// Return the selected receiver type when this target has one.
+    pub fn receiver_type(&self) -> Option<GlobalTypeId> {
+        match self {
+            Self::Symbol { function, .. } => function.receiver.as_ref().map(AdjustedReceiver::ty),
+            Self::Dynamic { dispatch, .. } => Some(dispatch.receiver.ty()),
+            Self::Expression { .. } => None,
+        }
+    }
+
     /// Return the selected declaration symbol, when this target has one.
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
