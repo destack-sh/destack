@@ -46,6 +46,17 @@ impl DirModule<'_> {
         }
     }
 
+    /// Return the sole expression performed directly or within one block.
+    pub(crate) fn sole_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        match self.view().get(expression) {
+            dir::Expression::Block(block) => self.view().get(*block).only_expression(),
+            _ => Some(expression),
+        }
+    }
+
     /// Return the value expression when its block performs no preceding work.
     pub(crate) fn sole_value_expression(
         &self,

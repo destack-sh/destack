@@ -147,14 +147,16 @@ impl DirModule<'_> {
             .map(|member| member == Some(language_member))
     }
 
-    /// Return the canonical language item selected directly by one expression.
+    /// Return the canonical language item targeted by one checked expression.
     pub fn language_item(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::LanguageItem>, ProviderError> {
-        let item = self
-            .selected_symbol(expression)?
-            .and_then(|symbol| self.dir.environment.language.item(symbol));
+        let symbol = match self.view().get(expression) {
+            dir::Expression::Call { .. } => self.call_symbol(expression)?,
+            _ => self.selected_symbol(expression)?,
+        };
+        let item = symbol.and_then(|symbol| self.dir.environment.language.item(symbol));
 
         Ok(item)
     }
