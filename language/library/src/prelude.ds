@@ -160,6 +160,7 @@ global {
         ShiftLeft,
         ShiftRight,
         ShiftRightUnsigned,
+        StrictEqual,
         Subtract,
         Try,
         Xor,

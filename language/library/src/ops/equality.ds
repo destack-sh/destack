@@ -12,3 +12,7 @@ export newtype interface PartialEqual<T = this> {
 /// Marker interface for total equality.
 @languageItem("ops.Equal")
 export newtype interface Equal<T = this> extends PartialEqual<T> {}
+
+/// Marker interface for builtin `===` and `!==`.
+@languageItem("ops.StrictEqual")
+export newtype interface StrictEqual<in T = this> {}
