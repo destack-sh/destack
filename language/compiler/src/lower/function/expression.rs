@@ -178,9 +178,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
-            dir::CoercionAdjustment::Existential { target } => {
+            dir::CoercionAdjustment::Erase { target } => {
                 let value = self.materialize_coercion_value(value, source)?;
-                let value = self.lower_existential(value, source, *target)?;
+                let value = self.lower_erasure(value, source, *target)?;
 
                 Ok(CoercionValue::Runtime(value))
             }
@@ -275,7 +275,33 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_union_exit(value, source, target, carrier, cases);
         }
 
-        self.materialize_coercion_value(value, target)
+        // nullish sentinels materialize directly at the union's carrier
+        if matches!(value, CoercionValue::Null | CoercionValue::Undefined) {
+            return self.materialize_coercion_value(value, target);
+        }
+
+        // convert the singular source through its selected case first
+        let (value, source) = match cases {
+            [] => (value, source),
+            [case] => {
+                let value = self.lower_adjustments(value, source, &case.adjustments)?;
+
+                (value, case.target)
+            }
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "a singular union injection carries several cases".to_string(),
+                });
+            }
+        };
+
+        // inject the converted source at the union's shared reference carrier
+        let value = self.materialize_coercion_value(value, source)?;
+        if self.builder.tree().get(carrier).is_reference_carrier() {
+            return self.adapt_to_carrier(value, carrier);
+        }
+
+        Ok(value)
     }
 
     /// Inject one complete source value into an indexed variant case.

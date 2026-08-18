@@ -51,7 +51,8 @@ entry:
 function destack.collections.array.arrayFromSlice<int32, 'a>(v0: slice<int32, borrowed, 'a, readonly>): destack.collections.array.Array<int32> {
 entry(v0: slice<int32, borrowed, 'a, readonly>):
     v1: ref<destack.string.string.String, managed, mutable> = global.address string.3441301661858404811
-    panic v1
+    v2: ref<destack.string.string.String, managed, mutable, undefined> = cast.bit v1 -> ref<destack.string.string.String, managed, mutable, undefined>
+    panic v2
 
 b1:
     return

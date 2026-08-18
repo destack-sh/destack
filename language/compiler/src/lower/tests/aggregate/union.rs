@@ -282,6 +282,319 @@ entry(v0: int32):
 }
 
 #[test]
+fn test_inject_a_reference_into_its_nullish_union_store() {
+    let session = TestSession::single(
+        r#"
+class Listener {
+    value: int32 = 0;
+}
+
+function keep(listener: Listener): Listener | undefined {
+    let head: Listener | undefined = listener;
+
+    head
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"
+type Listener {
+    value: int32;
+}
+
+function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
+entry(v0: ref<Listener, borrowed, exclusive>):
+    v1: int32 = 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
+function test.main.keep(v0: ref<Listener, managed, mutable>): ref<Listener, managed, mutable, undefined> {
+    local l0: ref<Listener, managed, mutable, undefined>
+
+entry(v0: ref<Listener, managed, mutable>):
+    v1: ref<Listener, managed, mutable, undefined> = cast.bit v0 -> ref<Listener, managed, mutable, undefined>
+    local.set l0, v1
+    v2: ref<Listener, managed, mutable, undefined> = local.get l0
+    return v2
+}
+
+/// @layout.struct name=Listener size=4 align=4
+/// @layout.field owner=Listener index=0 name=value offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_inject_a_reference_argument_into_a_nullish_parameter() {
+    let session = TestSession::single(
+        r#"
+class Listener {
+    value: int32 = 0;
+}
+
+function accept(head: Listener | undefined): boolean {
+    head !== undefined
+}
+
+function forward(listener: Listener): boolean {
+    accept(listener)
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"
+type Listener {
+    value: int32;
+}
+
+function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
+entry(v0: ref<Listener, borrowed, exclusive>):
+    v1: int32 = 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
+function test.main.accept(v0: ref<Listener, managed, mutable, undefined>): boolean {
+entry(v0: ref<Listener, managed, mutable, undefined>):
+    v1: ref<Listener, managed, mutable, undefined> = undefined
+    v2: boolean = eq v0, v1
+    v3: boolean = not v2
+    return v3
+}
+
+function test.main.forward(v0: ref<Listener, managed, mutable>): boolean {
+entry(v0: ref<Listener, managed, mutable>):
+    v1: ref<Listener, managed, mutable, undefined> = cast.bit v0 -> ref<Listener, managed, mutable, undefined>
+    v2: boolean = call test.main.accept(v1): (ref<Listener, managed, mutable, undefined>) => boolean
+    return v2
+}
+
+/// @layout.struct name=Listener size=4 align=4
+/// @layout.field owner=Listener index=0 name=value offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_inject_a_returned_reference_into_a_nullish_result() {
+    let session = TestSession::single(
+        r#"
+class Listener {
+    value: int32 = 0;
+}
+
+function keep(listener: Listener): Listener | undefined {
+    listener
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"
+type Listener {
+    value: int32;
+}
+
+function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
+entry(v0: ref<Listener, borrowed, exclusive>):
+    v1: int32 = 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
+function test.main.keep(v0: ref<Listener, managed, mutable>): ref<Listener, managed, mutable, undefined> {
+entry(v0: ref<Listener, managed, mutable>):
+    v1: ref<Listener, managed, mutable, undefined> = cast.bit v0 -> ref<Listener, managed, mutable, undefined>
+    return v1
+}
+
+/// @layout.struct name=Listener size=4 align=4
+/// @layout.field owner=Listener index=0 name=value offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_read_a_narrowed_reference_out_of_its_nullish_union() {
+    let session = TestSession::single(
+        r#"
+class Listener {
+    value: int32 = 0;
+}
+
+function read(head: Listener | undefined): int32 {
+    if (head !== undefined) {
+        return head.value;
+    }
+
+    0
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+type Listener {
+    value: int32;
+}
+
+function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
+entry(v0: ref<Listener, borrowed, exclusive>):
+    v1: int32 = 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
+function test.main.read(v0: ref<Listener, managed, mutable, undefined>): int32 {
+entry(v0: ref<Listener, managed, mutable, undefined>):
+    v1: ref<Listener, managed, mutable, undefined> = undefined
+    v2: boolean = eq v0, v1
+    v3: boolean = not v2
+    branch v3 => b1 | b2
+
+b1:
+    v4: ref<int32, borrowed, mutable> = field.address v0, 0
+    v5: int32 = load v4
+    return v5
+
+b2:
+    v6: int32 = 0
+    return v6
+}
+
+/// @layout.struct name=Listener size=4 align=4
+/// @layout.field owner=Listener index=0 name=value offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_inject_a_boolean_into_its_nullish_union_store() {
+    let session = TestSession::single(
+        r#"
+function keep(flag: boolean): boolean | undefined {
+    let stored: boolean | undefined = flag;
+
+    stored
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"
+function test.main.keep(v0: boolean): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
+    local l0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
+
+entry(v0: boolean):
+    v1: variant<uint1> { 0uint1 = boolean; 1uint1 = void; } = variant.new 0, v0
+    local.set l0, v1
+    v2: variant<uint1> { 0uint1 = boolean; 1uint1 = void; } = local.get l0
+    return v2
+}
+
+/// @layout.variant name=type@3 size=1 align=1
+/// @layout.discriminant owner=type@3 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
+/// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=0
+"#,
+    );
+}
+
+#[test]
+fn test_inject_an_erased_value_into_a_nullish_interface_union() {
+    let session = TestSession::single(
+        r#"
+interface Drawable {
+    draw(): void;
+}
+
+class Circle {
+    draw(): void {}
+}
+
+function keep(circle: Circle): Drawable | undefined {
+    let held: Drawable | undefined = circle;
+
+    held
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"
+type Circle { }
+
+type Drawable { }
+
+function test.main.Circle.draw(v0: ref<Circle, managed, mutable>): void {
+entry(v0: ref<Circle, managed, mutable>):
+    return
+}
+
+function test.main.keep(v0: ref<Circle, managed, mutable>): dynamic<Drawable, managed, mutable, undefined> {
+    local l0: dynamic<Drawable, managed, mutable, undefined>
+
+entry(v0: ref<Circle, managed, mutable>):
+    v1: dynamic<Drawable, managed, mutable> = dynamic.bind v0, Circle
+    v2: dynamic<Drawable, managed, mutable, undefined> = cast.bit v1 -> dynamic<Drawable, managed, mutable, undefined>
+    local.set l0, v2
+    v3: dynamic<Drawable, managed, mutable, undefined> = local.get l0
+    return v3
+}
+
+/// @layout.struct name=Circle size=0 align=1
+/// @layout.struct name=Drawable size=0 align=1
+
+/// @dispatch.shape constraint=type@5 function=draw
+"#,
+    );
+}
+
+#[test]
+fn test_widen_identity_comparison_over_a_nullish_reference() {
+    let session = TestSession::single(
+        r#"
+class Listener {
+    value: int32 = 0;
+}
+
+function isHead(head: Listener | undefined, listener: Listener): boolean {
+    head !== listener
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"
+type Listener {
+    value: int32;
+}
+
+function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
+entry(v0: ref<Listener, borrowed, exclusive>):
+    v1: int32 = 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
+function test.main.isHead(v0: ref<Listener, managed, mutable, undefined>, v1: ref<Listener, managed, mutable>): boolean {
+entry(v0: ref<Listener, managed, mutable, undefined>, v1: ref<Listener, managed, mutable>):
+    v2: ref<Listener, managed, mutable, undefined> = cast.bit v1 -> ref<Listener, managed, mutable, undefined>
+    v3: boolean = eq v0, v2
+    v4: boolean = not v3
+    return v4
+}
+
+/// @layout.struct name=Listener size=4 align=4
+/// @layout.field owner=Listener index=0 name=value offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
 fn test_lower_a_nullish_union_alias_field_read() {
     let session = TestSession::single(
         r#"

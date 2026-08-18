@@ -245,7 +245,8 @@ b1:
     return v5
 
 b2:
-    return v0
+    v6: ref<Counter, managed, mutable, nullable> = cast.bit v0 -> ref<Counter, managed, mutable, nullable>
+    return v6
 }
 
 /// @layout.struct name=Counter size=4 align=4
