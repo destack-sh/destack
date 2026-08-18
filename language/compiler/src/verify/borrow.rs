@@ -321,11 +321,6 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                 let arguments = self.tree.get_values(call.arguments);
                 self.check_call_outlives(&call.signature, arguments, anchor);
             }
-            Instruction::TensorView {
-                destination, view, ..
-            } => {
-                self.check_projection_loan(*destination, *view, anchor);
-            }
             _ => {}
         }
 
@@ -579,12 +574,9 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     fn written_reference(instruction: &Instruction) -> Option<Value> {
         match instruction {
             Instruction::Store { pointer, .. }
-            | Instruction::TensorStore { view: pointer, .. }
-            | Instruction::TensorFill { view: pointer, .. }
             | Instruction::AtomicStore { pointer, .. }
             | Instruction::AtomicCompareExchange { pointer, .. }
             | Instruction::AtomicRmw { pointer, .. } => Some(*pointer),
-            Instruction::TensorCopy { target, .. } => Some(*target),
             _ => None,
         }
     }

@@ -876,7 +876,6 @@ fn emit_memset(
     // materialize the fill constant
     let element_type = match tree.get(element_addr_type) {
         mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => Some(*pointee),
-        mir::Type::TensorView { element, .. } => Some(*element),
         _ => None,
     };
     let Some(element_type) = element_type else {

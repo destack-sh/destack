@@ -975,7 +975,6 @@ impl<'a> GlobalLinker<'a> {
                 | mir::Type::Reference { .. }
                 | mir::Type::Pointer { .. }
                 | mir::Type::FunctionPointer { .. }
-                | mir::Type::Tensor { .. }
         )
     }
 

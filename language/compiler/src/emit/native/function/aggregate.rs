@@ -351,11 +351,9 @@ impl<'a> FunctionEmitter<'a> {
             }
 
             // indexed references and fat pointers carry stable reference offsets
-            mir::Type::Reference { .. }
-            | mir::Type::Pointer { .. }
-            | mir::Type::Slice { .. }
-            | mir::Type::Tensor { .. }
-            | mir::Type::TensorView { .. } => self.reference(base, builder)?,
+            mir::Type::Reference { .. } | mir::Type::Pointer { .. } | mir::Type::Slice { .. } => {
+                self.reference(base, builder)?
+            }
             _ => return Err(self.invalid("native element address base is not indexed")),
         };
         let stride = self.types.element_stride(base_type)?;

@@ -7,9 +7,8 @@ use destack_mir as mir;
 use destack_program::{
     DropEntry, DynamicLayout, ElementLayout, FunctionId, FunctionLayout, LayoutField,
     LayoutShapeBuilder, NewtypeLayout, Object, ObjectLayoutBuilder, PointerLayout, ReferenceLayout,
-    ScalarFormat, SignatureId, SliceLayout, TensorDimension, TensorLayoutBuilder,
-    TensorShardingAxis, TensorShardingBuilder, TensorViewLayoutBuilder, TypeDescriptorBuilder,
-    TypeFingerprint, TypeId, TypeTableBuilder, VariantCaseLayout, VariantLayoutBuilder,
+    ScalarFormat, SignatureId, SliceLayout, TypeDescriptorBuilder, TypeFingerprint, TypeId,
+    TypeTableBuilder, VariantCaseLayout, VariantLayoutBuilder,
 };
 use destack_source::{ModuleId, PackageId};
 
@@ -171,38 +170,6 @@ impl<'a> ObjectTypes<'a> {
             }
             mir::LayoutShape::Vector(layout) => {
                 LayoutShapeBuilder::Vector(self.element_layout(layout))
-            }
-            mir::LayoutShape::Tensor(layout) => {
-                let mir::Type::Tensor {
-                    kind,
-                    storage,
-                    access,
-                    element,
-                    shape,
-                    nullability,
-                    ..
-                } = type_shape
-                else {
-                    return None;
-                };
-                let reference = ReferenceLayout::new(
-                    self.type_id(*element),
-                    *kind,
-                    *storage,
-                    *access,
-                    *nullability,
-                );
-                LayoutShapeBuilder::Tensor(
-                    TensorLayoutBuilder::new(
-                        reference,
-                        layout.format,
-                        shape.iter().map(Self::tensor_dimension),
-                    )
-                    .sharding(self.tensor_sharding(&layout.sharding)),
-                )
-            }
-            mir::LayoutShape::TensorView(layout) => {
-                self.tensor_view_layout_shape(type_shape, layout)?
             }
             mir::LayoutShape::Variant(layout) => {
                 let cases = layout.cases.iter().map(|variant| VariantCaseLayout {
@@ -393,51 +360,6 @@ impl<'a> ObjectTypes<'a> {
         Some(LayoutShapeBuilder::Slice(SliceLayout { reference }))
     }
 
-    /// Project one MIR tensor view into its executable descriptor layout.
-    fn tensor_view_layout_shape(
-        &self,
-        type_shape: &mir::Type,
-        layout: &mir::TensorViewLayout,
-    ) -> Option<LayoutShapeBuilder> {
-        let mir::Type::TensorView {
-            kind,
-            storage,
-            access,
-            element,
-            shape,
-            nullability,
-            ..
-        } = type_shape
-        else {
-            return None;
-        };
-        let reference = ReferenceLayout::new(
-            self.type_id(*element),
-            *kind,
-            *storage,
-            *access,
-            *nullability,
-        );
-        let layout = TensorViewLayoutBuilder::new(
-            reference,
-            layout.format,
-            shape.iter().map(Self::tensor_dimension),
-        )
-        .sharding(self.tensor_sharding(&layout.sharding));
-
-        Some(LayoutShapeBuilder::TensorView(layout))
-    }
-
-    /// Project one MIR tensor dimension into executable shape metadata.
-    fn tensor_dimension(dimension: &mir::TensorDimension) -> TensorDimension {
-        match dimension {
-            mir::TensorDimension::Static(size) => TensorDimension::fixed(*size),
-            mir::TensorDimension::Symbol(_) | mir::TensorDimension::Dynamic => {
-                TensorDimension::dynamic()
-            }
-        }
-    }
-
     /// Project one MIR function type into a program layout shape.
     fn function_layout_shape(&self, type_shape: &mir::Type) -> Option<LayoutShapeBuilder> {
         let mir::Type::Function {
@@ -482,30 +404,6 @@ impl<'a> ObjectTypes<'a> {
         fields.sort_by_key(|(source_index, _)| *source_index);
 
         fields.into_iter().map(|(_, field)| field).collect()
-    }
-
-    /// Project one MIR tensor sharding descriptor.
-    fn tensor_sharding(&self, sharding: &mir::TensorSharding) -> TensorShardingBuilder {
-        match sharding {
-            mir::TensorSharding::Unsharded => TensorShardingBuilder::Unsharded,
-            mir::TensorSharding::Sharding { axes } => TensorShardingBuilder::Sharded {
-                axes: axes
-                    .iter()
-                    .map(|axis| self.tensor_sharding_axis(axis))
-                    .collect(),
-            },
-        }
-    }
-
-    /// Project one MIR tensor sharding axis.
-    fn tensor_sharding_axis(&self, axis: &mir::TensorShardingAxis) -> TensorShardingAxis {
-        match axis {
-            mir::TensorShardingAxis::Shard { axis } => TensorShardingAxis::Shard { axis: *axis },
-            mir::TensorShardingAxis::Replicate => TensorShardingAxis::Replicate,
-            mir::TensorShardingAxis::Partial { reduction } => TensorShardingAxis::Partial {
-                reduction: *reduction,
-            },
-        }
     }
 
     /// Return one program function signature.

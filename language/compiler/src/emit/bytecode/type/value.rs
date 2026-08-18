@@ -56,34 +56,6 @@ impl TypeEmitter<'_> {
 
                 bytecode::ValueType::vector(bytecode::VectorType::new(scalar, lane_count))
             }
-            mir::Type::Tensor {
-                kind,
-                element,
-                storage,
-                ..
-            } => bytecode::ValueType::tensor(
-                self.scalar(*element)?,
-                self.type_id(representation)?,
-                bytecode::ReferenceType::new(self.reference_kind(*kind), self.storage(*storage)),
-            ),
-            mir::Type::TensorView {
-                kind,
-                element,
-                storage,
-                ..
-            } => {
-                let word_count = self.word_count(representation)?;
-
-                bytecode::ValueType::tensor_view(
-                    self.scalar(*element)?,
-                    self.type_id(representation)?,
-                    bytecode::ReferenceType::new(
-                        self.reference_kind(*kind),
-                        self.storage(*storage),
-                    ),
-                    word_count,
-                )
-            }
             mir::Type::Function { kind, storage, .. } => bytecode::ValueType::function(
                 bytecode::ReferenceType::new(self.reference_kind(*kind), self.storage(*storage)),
             ),

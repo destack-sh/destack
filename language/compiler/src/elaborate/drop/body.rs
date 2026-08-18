@@ -269,11 +269,6 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
                 self.builder.drop_value(value);
                 self.builder.free(value);
             }
-            // tensor<int32, unique, mutable, (4)> and other owning numeric views
-            _ if self.builder.tree().get(ty).is_unique_storage() => {
-                let value = self.builder.load(pointer, ty);
-                self.builder.free(value);
-            }
             // Pair and other inline values
             _ => self.drop_inline(ty, pointer, storage),
         }

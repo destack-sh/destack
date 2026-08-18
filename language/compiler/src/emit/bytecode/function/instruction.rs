@@ -1,7 +1,7 @@
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 
-use crate::{EmitError, TensorEmitter};
+use crate::EmitError;
 
 use super::FunctionEmitter;
 
@@ -243,41 +243,6 @@ impl<'a> FunctionEmitter<'a> {
                 mode,
                 vector,
             } => self.emit_vector_convert(*destination, *mode, *vector),
-            instruction @ (mir::Instruction::TensorSplat { .. }
-            | mir::Instruction::TensorLoad { .. }
-            | mir::Instruction::TensorExtract { .. }
-            | mir::Instruction::TensorStore { .. }
-            | mir::Instruction::TensorFill { .. }
-            | mir::Instruction::TensorCopy { .. }
-            | mir::Instruction::TensorReshape { .. }
-            | mir::Instruction::TensorBroadcast { .. }
-            | mir::Instruction::TensorTranspose { .. }
-            | mir::Instruction::TensorCast { .. }
-            | mir::Instruction::TensorView { .. }
-            | mir::Instruction::TensorSlice { .. }
-            | mir::Instruction::TensorPad { .. }
-            | mir::Instruction::TensorConcat { .. }
-            | mir::Instruction::TensorCompare { .. }
-            | mir::Instruction::TensorSelect { .. }
-            | mir::Instruction::TensorReduce { .. }
-            | mir::Instruction::TensorIndexReduce { .. }
-            | mir::Instruction::TensorDot { .. }
-            | mir::Instruction::TensorConvolution { .. }
-            | mir::Instruction::TensorGather { .. }
-            | mir::Instruction::TensorScatter { .. }
-            | mir::Instruction::TensorConvert { .. }) => {
-                let command = TensorEmitter::new(
-                    self.module,
-                    self.optimized,
-                    self.object,
-                    self.function,
-                    &self.values,
-                )
-                .emit(instruction_id, instruction)?;
-                let destinations = command.destination.into_iter().collect::<Vec<_>>();
-
-                self.encode(command.instruction, &destinations)
-            }
             mir::Instruction::Call { destination, call } => self.emit_call(*destination, call),
             mir::Instruction::Drop { value } => self.emit_drop(*value),
             mir::Instruction::NewZeroed { destination, .. } => self.emit_new(

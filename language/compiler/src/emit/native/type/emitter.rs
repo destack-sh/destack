@@ -75,9 +75,7 @@ impl<'a> TypeEmitter<'a> {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
                 self.element_stride(*pointee)?
             }
-            mir::Type::Slice { element, .. }
-            | mir::Type::Tensor { element, .. }
-            | mir::Type::TensorView { element, .. } => {
+            mir::Type::Slice { element, .. } => {
                 let stride = self
                     .optimized
                     .layouts

@@ -358,38 +358,3 @@ for more information about an error, run `destack explain write-through-readonly
 "#,
     );
 }
-
-#[test]
-fn test_reject_tensor_read_during_exclusive_borrow() {
-    let mut program = TestProgram::mir(
-        r#"
-function test(v0: tensor<int32, managed, mutable, ()>): int32 {
-entry(v0: tensor<int32, managed, mutable, ()>):
-    v1: tensorView<int32, borrowed, exclusive, ()> = tensor.view v0, offsets(), sizes(), strides()
-    v2: int32 = tensor.extract v0, []
-    v3: int32 = tensor.load v1, []
-    v4: int32 = add v2, v3
-    return v4
-}
-"#,
-    );
-
-    program.assert_verify_errors(
-        r#"
-error[use-of-exclusively-borrowed-place]: cannot use exclusively borrowed place
- ──▶ <test.dsm>:5:5
-  │
-2 │ function test(v0: tensor<int32, managed, mutable, ()>): int32 {
-3 │ entry(v0: tensor<int32, managed, mutable, ()>):
-4 │     v1: tensorView<int32, borrowed, exclusive, ()> = tensor.view v0, offsets(), sizes(), strides()
-  │     ---------------------------------------------------------------------------------------------- borrow starts here
-5 │     v2: int32 = tensor.extract v0, []
-  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-6 │     v3: int32 = tensor.load v1, []
-7 │     v4: int32 = add v2, v3
-  │
-
-for more information about an error, run `destack explain use-of-exclusively-borrowed-place`
-"#,
-    );
-}

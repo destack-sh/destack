@@ -474,32 +474,6 @@ impl<'a> FunctionEmitter<'a> {
                 mode,
                 vector,
             } => self.emit_vector_convert(*destination, *mode, *vector, builder)?,
-            // TODO #Incomplete: lower tensor instructions through the target tensor backend
-            mir::Instruction::TensorSplat { .. }
-            | mir::Instruction::TensorLoad { .. }
-            | mir::Instruction::TensorExtract { .. }
-            | mir::Instruction::TensorStore { .. }
-            | mir::Instruction::TensorFill { .. }
-            | mir::Instruction::TensorCopy { .. }
-            | mir::Instruction::TensorReshape { .. }
-            | mir::Instruction::TensorBroadcast { .. }
-            | mir::Instruction::TensorTranspose { .. }
-            | mir::Instruction::TensorCast { .. }
-            | mir::Instruction::TensorView { .. }
-            | mir::Instruction::TensorSlice { .. }
-            | mir::Instruction::TensorPad { .. }
-            | mir::Instruction::TensorConcat { .. }
-            | mir::Instruction::TensorCompare { .. }
-            | mir::Instruction::TensorSelect { .. }
-            | mir::Instruction::TensorReduce { .. }
-            | mir::Instruction::TensorIndexReduce { .. }
-            | mir::Instruction::TensorDot { .. }
-            | mir::Instruction::TensorConvolution { .. }
-            | mir::Instruction::TensorGather { .. }
-            | mir::Instruction::TensorScatter { .. }
-            | mir::Instruction::TensorConvert { .. } => {
-                return Err(self.invalid("native tensor legalization is unavailable"));
-            }
             mir::Instruction::Call { destination, call } => {
                 let point = self.object.instruction_point(instruction_id);
                 let frame = self.stack_map(FramePoint::operation(point), builder)?;

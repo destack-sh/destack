@@ -334,14 +334,12 @@ impl ModuleLowerer<'_> {
 
     /// Return whether one value has an intrinsic reference carrier.
     fn is_reference_carrier(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
-        Ok(match self.ty(id)? {
-            dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_) => true,
-            dir::Type::Application(instance) => matches!(
-                self.language_item(instance.symbol)?,
-                Some(dir::LanguageItem::Tensor | dir::LanguageItem::TensorView)
-            ),
-            _ => false,
-        })
+        let ty = self.ty(id)?;
+
+        Ok(matches!(
+            ty,
+            dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_)
+        ))
     }
 
     /// Return the default ownership of one base type family declared in one module.

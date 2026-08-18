@@ -10,9 +10,7 @@ impl TypeEmitter<'_> {
         let ty = self.optimized.tree.storage_type(ty);
         let pointee = match self.optimized.tree.get(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
-            mir::Type::Slice { element, .. }
-            | mir::Type::Tensor { element, .. }
-            | mir::Type::TensorView { element, .. } => *element,
+            mir::Type::Slice { element, .. } => *element,
             _ => return Err(self.missing("reference pointee")),
         };
 
@@ -26,9 +24,7 @@ impl TypeEmitter<'_> {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
                 self.element_stride(*pointee)?
             }
-            mir::Type::Slice { element, .. }
-            | mir::Type::Tensor { element, .. }
-            | mir::Type::TensorView { element, .. } => self.layout(*element)?.stride() as u32,
+            mir::Type::Slice { element, .. } => self.layout(*element)?.stride() as u32,
             mir::Type::FixedArray { .. } => {
                 self.layout(ty)?
                     .element()

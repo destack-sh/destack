@@ -115,34 +115,6 @@ impl SiteEmitter {
                 *element,
                 *result_type,
             )?),
-            mir::Instruction::TensorSplat { destination, .. }
-            | mir::Instruction::TensorReshape { destination, .. }
-            | mir::Instruction::TensorBroadcast { destination, .. }
-            | mir::Instruction::TensorTranspose { destination, .. }
-            | mir::Instruction::TensorCast { destination, .. }
-            | mir::Instruction::TensorSlice { destination, .. }
-            | mir::Instruction::TensorPad { destination, .. }
-            | mir::Instruction::TensorConcat { destination, .. }
-            | mir::Instruction::TensorCompare { destination, .. }
-            | mir::Instruction::TensorSelect { destination, .. }
-            | mir::Instruction::TensorReduce { destination, .. }
-            | mir::Instruction::TensorIndexReduce { destination, .. }
-            | mir::Instruction::TensorDot { destination, .. }
-            | mir::Instruction::TensorConvolution { destination, .. }
-            | mir::Instruction::TensorGather { destination, .. }
-            | mir::Instruction::TensorScatter { destination, .. }
-            | mir::Instruction::TensorConvert { destination, .. } => {
-                let result_type = function
-                    .value_type(*destination)
-                    .ok_or_else(|| ObjectEmitter::internal(module, "missing tensor result type"))?;
-                self.allocations.push(Self::allocation(
-                    module,
-                    optimized,
-                    point,
-                    result_type,
-                    result_type,
-                )?);
-            }
             _ => {}
         }
 
@@ -473,8 +445,6 @@ impl SiteEmitter {
         match optimized.tree.get(optimized.tree.storage_type(ty)) {
             mir::Type::Reference { storage, .. }
             | mir::Type::Slice { storage, .. }
-            | mir::Type::Tensor { storage, .. }
-            | mir::Type::TensorView { storage, .. }
             | mir::Type::Dynamic { storage, .. }
             | mir::Type::Function { storage, .. } => Some(*storage),
             _ => None,
@@ -487,9 +457,7 @@ impl SiteEmitter {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
                 Some(optimized.tree.storage_type(*pointee))
             }
-            mir::Type::Slice { element, .. }
-            | mir::Type::Tensor { element, .. }
-            | mir::Type::TensorView { element, .. } => Some(optimized.tree.storage_type(*element)),
+            mir::Type::Slice { element, .. } => Some(optimized.tree.storage_type(*element)),
             _ => None,
         }
     }

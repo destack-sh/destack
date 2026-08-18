@@ -67,9 +67,7 @@ impl<'a> FunctionEmitter<'a> {
             mir::Type::Reference { .. } | mir::Type::Pointer { .. } => self.word(value)?,
 
             // indexed fat pointers keep their backing reference in one carrier word
-            mir::Type::Slice { .. } | mir::Type::Tensor { .. } | mir::Type::TensorView { .. } => {
-                self.carrier_register(self.register(value)?, value)?
-            }
+            mir::Type::Slice { .. } => self.carrier_register(self.register(value)?, value)?,
 
             // inline aggregates occupy stable bytecode frame registers
             mir::Type::FixedArray { .. }
@@ -487,7 +485,6 @@ impl<'a> FunctionEmitter<'a> {
             .or_else(|| ty.slice_reference())
             .or_else(|| ty.dynamic_reference())
             .or_else(|| ty.function_reference())
-            .or_else(|| ty.tensor_reference())
             .ok_or_else(|| self.internal("ownership operation requires a reference carrier"))
     }
 
