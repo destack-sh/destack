@@ -141,32 +141,32 @@ impl CheckState<'_> {
         Ok(subject)
     }
 
-    /// Store the member bindings each subject this pass recorded selects.
+    /// Store the member bindings each settled subject selects, projected once per subject.
     fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // resolve each settled subject once, at the first site that selected it
+        // project each settled subject once, at the first site that selected it
         let mut first_recorded: FxIndexMap<dir::MemberSubject, dir::MemberSubject> =
             FxIndexMap::default();
         for (site, recorded) in self.recorded_member_sites(module) {
             // re-key the site, since inference solved its subject after selection
             let subject = self.settle_member_site(module, site, recorded)?;
 
-            // store what this subject selects the first time it settles
+            // project what this subject selects the first time it settles
             if self
                 .module(module)
                 .member_subject_bindings(&subject)
                 .is_none()
             {
-                let bindings = self.settled_member_bindings(module, site, subject)?;
+                let bindings = self.settled_subject_bindings(site, module, subject)?;
                 self.module_mut(module)
                     .members_tail
-                    .set_bindings(subject, bindings);
+                    .set_subject_bindings(subject, bindings);
                 first_recorded.insert(subject, recorded);
             }
-            // require a second recorded form settling on this subject to select the same members
+            // require a second recorded form settling on this subject to project the same members
             else if let Some(first) = first_recorded.get(&subject).copied()
                 && first != recorded
             {
-                let bindings = self.settled_member_bindings(module, site, subject)?;
+                let bindings = self.settled_subject_bindings(site, module, subject)?;
                 let stored = self.module(module).member_subject_bindings(&subject);
                 if stored != Some(bindings.as_slice()) {
                     return Err(CompilerError::Internal {
@@ -181,29 +181,29 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Resolve the member bindings one subject selects, over the types inference settled on.
-    fn settled_member_bindings(
+    /// Project one settled subject and settle the types its bindings carry.
+    fn settled_subject_bindings(
         &mut self,
-        module: ModuleId,
         site: dir::MemberSite,
+        module: ModuleId,
         subject: dir::MemberSubject,
     ) -> CompilerResult<Vec<dir::MemberBinding>> {
-        // resolve the subject in its declared form through throwaway variables
         let origin = Origin::Node(site.node(), subject.scope);
-        let declared = self.declared_member_subject(subject)?;
         self.settling = true;
-        let bindings = self
-            .body()
-            .subject_member_bindings(origin, module, declared);
+        let bindings = self.project_subject_bindings(origin, module, subject);
         self.settling = false;
         let mut bindings = bindings?;
 
-        // settle the access and callable types each selected binding carries,
-        //  folding instantiation variables to erased parameter holes
+        // settle the open types a projected binding still carries,
+        //  folding throwaway instantiation variables to erased parameter holes
         let intact = FxIndexSet::default();
         for binding in &mut bindings {
             binding.map_types(&mut |ty| {
+                if !self.type_flags(ty)?.has_variable() {
+                    return Ok(ty);
+                }
                 let ty = self.erase_instantiations(module, ty)?;
+
                 self.fully_resolve(ty, &intact)
             })?;
         }
@@ -228,6 +228,101 @@ impl CheckState<'_> {
         }
 
         Ok(id)
+    }
+
+    /// Project the member bindings one settled subject selects.
+    ///
+    /// NOTE #Incomplete: the flattened arm binds This and substitutes arguments but
+    /// does not re-run place projection or readonly widening, and members reachable
+    /// only through a uniquely declaring interface stay unprojected.
+    fn project_subject_bindings(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        subject: dir::MemberSubject,
+    ) -> CompilerResult<Vec<dir::MemberBinding>> {
+        // reduce projection heads to their identities first
+        let subject = match self.ty(subject.key_type)? {
+            dir::Type::Member(_) | dir::Type::Operation(_) => {
+                let reduced = self.normalize_computation(origin, subject.key_type)?;
+
+                subject.with_key_type(reduced)
+            }
+            _ => subject,
+        };
+
+        // substitute declaration-backed subjects over their owner's flattened bindings,
+        //  leaving newtypes to keyed lookups so their backing members project too
+        let instance = self.apparent_instance(subject.key_type)?;
+        let is_newtype = match &instance {
+            Some(instance) => matches!(
+                self.definition(instance.symbol)?,
+                Some(dir::Definition::Newtype(_))
+            ),
+            None => false,
+        };
+        if let Some(instance) = instance
+            && !is_newtype
+            && let Some(flattened) = self
+                .body()
+                .member_bindings(instance.symbol, subject.space)?
+        {
+            let mut bindings = flattened.as_ref().clone();
+
+            // apply the instance arguments and the stripped receiver across every binding
+            let receiver = self.strip_form(origin, subject.receiver)?;
+            let substitution = instance.substitution(self)?.with_receiver(receiver);
+            for binding in &mut bindings {
+                binding.map_types(&mut |ty| {
+                    let flags = self.type_flags(ty)?;
+                    if !flags.has_parameter() && !flags.has_this() {
+                        return Ok(ty);
+                    }
+
+                    self.substitute_type(ty, &substitution)
+                })?;
+            }
+
+            // append the decided extension members for keys the declaration leaves open
+            self.body().project_extension_bindings(
+                origin,
+                module,
+                subject,
+                instance.symbol,
+                &mut bindings,
+            )?;
+
+            Ok(bindings)
+        }
+        // merge generic parameter subjects over their bounds' projections
+        else if let dir::Type::Parameter(parameter) = self.ty(subject.key_type)? {
+            let bounds = self.body().parameter_bounds(origin, parameter)?;
+            let mut bindings: Vec<dir::MemberBinding> = Vec::new();
+            for bound in bounds {
+                let projected =
+                    self.project_subject_bindings(origin, module, subject.with_key_type(bound))?;
+                for binding in projected {
+                    if bindings.iter().all(|existing| existing.key != binding.key) {
+                        bindings.push(binding);
+                    }
+                }
+            }
+
+            Ok(bindings)
+        }
+        // fall back to keyed lookups for the remaining subject heads
+        else {
+            let keys = self.body().subject_member_keys(origin, module, &subject)?;
+            let mut bindings = Vec::with_capacity(keys.len());
+            for key in keys {
+                let lookup = self.body().lookup_member(origin, module, subject, key)?;
+                if let Some(binding) = self.body().member_binding(key, &lookup)? {
+                    bindings.push(binding);
+                }
+            }
+
+            Ok(bindings)
+        }
     }
 
     /// Write the declaration selected for each source path segment.
@@ -393,43 +488,6 @@ impl CheckState<'_> {
             key_type,
             ..subject
         })
-    }
-
-    /// Bind bare generic subject references through their declared applications.
-    fn declared_member_subject(
-        &mut self,
-        subject: dir::MemberSubject,
-    ) -> CompilerResult<dir::MemberSubject> {
-        let receiver = self.declared_subject_type(subject.receiver)?;
-        let target = self.declared_subject_type(subject.target)?;
-        let key_type = self.declared_subject_type(subject.key_type)?;
-
-        Ok(dir::MemberSubject {
-            receiver,
-            target,
-            key_type,
-            ..subject
-        })
-    }
-
-    /// Return one bare generic reference as its own declared application.
-    fn declared_subject_type(
-        &mut self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let dir::Type::Reference(reference) = self.ty(ty)? else {
-            return Ok(ty);
-        };
-
-        // name an application for generic declarations only
-        let symbol = self.resolve_symbol_alias(reference.symbol)?;
-        if self.symbol_template(symbol)?.is_none() {
-            return Ok(ty);
-        }
-
-        let instance = self.declaration_instance(symbol)?;
-
-        self.intern_type(dir::Type::Application(instance))
     }
 
     /// Resolve one module's literal symbol values.

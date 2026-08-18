@@ -89,18 +89,12 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<Verdict> {
-        // decide conformance once over variable-free types, since a hole stands still
+        // decide conformance once over variable-free types
         let flags = self.type_flags(ty)?;
-        let key = if flags.has_variable() {
+        let key = if flags.has_variable() || flags.has_parameter() || flags.has_this() {
             None
         } else {
-            let scope = if flags.has_parameter() || flags.has_this() {
-                self.assuming_scope(origin)?
-            } else {
-                None
-            };
-
-            Some((ty, interface, scope))
+            Some((ty, interface))
         };
 
         // serve the memoized verdict

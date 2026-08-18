@@ -291,15 +291,11 @@ impl CheckState<'_> {
         let id = self.shallow_resolve(id)?;
         let flags = self.type_flags(id)?;
 
-        // key parameter reductions by their assuming scope
-        let scope = if flags.has_parameter() {
-            self.assuming_scope(origin)?
-        } else {
-            None
-        };
+        // parameter and This heads reduce under their context and never memo
+        let decides = !flags.has_parameter() && !flags.has_this();
 
-        // replay decided reductions of closed types
-        if let Some(reduced) = self.normalizations.get(&(id, scope)) {
+        // replay decided reductions
+        if decides && let Some(reduced) = self.normalizations.get(&id) {
             return Ok(*reduced);
         }
 
@@ -317,8 +313,8 @@ impl CheckState<'_> {
                 | dir::Type::Tuple(_)
         ) {
             // record the fixed point of a settled head, skipping the declaring pass
-            if !flags.has_variable() && !self.is_declaration() {
-                self.normalizations.insert((id, scope), id);
+            if decides && !flags.has_variable() && !self.is_declaration() {
+                self.normalizations.insert(id, id);
             }
 
             return Ok(id);
@@ -329,11 +325,12 @@ impl CheckState<'_> {
         let reduced = self.normalize_chain(origin, id, &mut expanding)?;
 
         // decide variable-free reductions once, keeping variable heads open
-        if !flags.has_variable()
+        if decides
+            && !flags.has_variable()
             && !self.type_flags(reduced)?.has_variable()
             && !self.is_declaration()
         {
-            self.normalizations.insert((id, scope), reduced);
+            self.normalizations.insert(id, reduced);
         }
 
         Ok(reduced)

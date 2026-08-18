@@ -1433,12 +1433,12 @@ impl BodyState<'_, '_> {
 
         self.check.counters.binding_builds += 1;
 
-        // read settled owners from their module's stored bindings
-        let stored = self.stored_member_bindings(symbol, space).map(Arc::new);
+        // read owners their module's elaborate pass already flattened
+        let stored = self.stored_member_bindings(symbol, space);
 
-        // build the canonical bindings for unsettled owners
+        // build the canonical bindings for unflattened owners
         let bindings = match stored {
-            Some(bindings) => Some(bindings),
+            Some(bindings) => Some(Arc::new(bindings)),
             None => {
                 let application = self.declaration_instance(symbol)?;
                 let module = self.module_id;
@@ -1462,42 +1462,31 @@ impl BodyState<'_, '_> {
         Ok(bindings)
     }
 
-    /// Return the stored member bindings of one owner's canonical type.
+    /// Return the member bindings one owner's elaborate pass flattened.
     fn stored_member_bindings(
         &self,
         symbol: dir::GlobalSymbolId,
         space: dir::MemberSpace,
     ) -> Option<Vec<dir::MemberBinding>> {
-        let canonical = self.canonical_owner_type(symbol)?;
-        let subject = dir::MemberSubject::new(canonical, canonical, space);
-
-        // read foreign owners from their module's stored bindings
-        if !self.check.is_own_module(symbol.module_id) {
-            let external = self.check.external_modules.get(&symbol.module_id)?;
-            let bindings = external.members.subject_bindings(&subject)?;
-
-            return Some(bindings.to_vec());
-        }
-
-        let bindings = self.check.module.member_subject_bindings(&subject)?;
-
-        Some(bindings.to_vec())
-    }
-
-    /// Return one owner's declared canonical self type, which keys the stored member bindings.
-    fn canonical_owner_type(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
+        // read own owners from the pass tail over the committed base
         if self.check.is_own_module(symbol.module_id) {
             let module = &self.check.module;
+            if let Some(bindings) = module.members_tail.bindings(symbol, space) {
+                return Some(bindings.to_vec());
+            }
 
-            module
-                .types
-                .get_symbol_type_id(symbol)
-                .or_else(|| module.types_tail.get_symbol_type_id(symbol))
-        } else {
-            let external = self.check.external_modules.get(&symbol.module_id)?;
-
-            external.types.get_symbol_type_id(symbol)
+            return module
+                .members
+                .as_ref()
+                .and_then(|base| base.bindings(symbol, space))
+                .map(<[dir::MemberBinding]>::to_vec);
         }
+
+        // read foreign owners from their module's elaborated bindings
+        let external = self.check.external_modules.get(&symbol.module_id)?;
+        let bindings = external.members.bindings(symbol, space)?;
+
+        Some(bindings.to_vec())
     }
 
     /// Derive one stored member binding's candidates for a lookup instance.
@@ -1912,16 +1901,14 @@ impl BodyState<'_, '_> {
         let inherent = self.inherent_member_table(origin, subject, &instance, space)?;
         keys.extend(inherent.keys().copied());
 
-        // enumerate the visible extension keys from the extension table
-        let extensions = self.subject_extension_members(
-            origin,
-            module,
-            subject,
-            subject,
-            instance.symbol,
-            space,
-        )?;
-        keys.extend(extensions.keys().copied());
+        // enumerate the visible extension keys from the decided candidates
+        let extensions =
+            self.reachable_extensions(origin, module, subject, subject, instance.symbol)?;
+        for extension in extensions {
+            let matched = self
+                .decided_extension_candidates(origin, module, subject, subject, extension, space)?;
+            keys.extend(matched.iter().map(|(key, _)| *key));
+        }
 
         Ok(())
     }

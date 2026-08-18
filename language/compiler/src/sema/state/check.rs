@@ -13,10 +13,10 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace, DecoratorApplication,
-    ExternalModuleTable, FlowBranch, FlowState, Fulfillment, FunctionBody, GenericParameterId,
-    HeritageReach, InducedParameterSite, InferContext, MemberSubject, MemberTable, Origin,
-    OriginId, Relation, RelationKey, Scope, Selection, SelectionKey, VarianceForm, VarianceState,
-    Verdict, should_stream_check_events,
+    ExtensionCandidateKey, ExtensionCandidates, ExternalModuleTable, FlowBranch, FlowState,
+    Fulfillment, FunctionBody, GenericParameterId, HeritageReach, InducedParameterSite,
+    InferContext, Origin, OriginId, Relation, RelationKey, Selection, SelectionKey, VarianceForm,
+    VarianceState, Verdict, should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -149,36 +149,40 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) external_resolved: FxIndexMap<ModuleId, Arc<DirResolved>>,
 
     // decisions
-    /// Decided relations between closed type pairs.
+    /// Decided relations between settled type pairs.
     pub(in crate::sema) relates: FxIndexMap<RelationKey, bool>,
     /// Canonical member bindings per owner and space.
     pub(in crate::sema) bindings:
         FxIndexMap<(dir::GlobalSymbolId, dir::MemberSpace), Option<Arc<Vec<dir::MemberBinding>>>>,
     /// Extension selections of settled goals, replaying the winning implementation on later hits.
     pub(in crate::sema) extensions: FxIndexMap<
-        (Relation, dir::GlobalTypeId, dir::GlobalTypeId, Scope),
+        (Relation, dir::GlobalTypeId, dir::GlobalTypeId),
         (Verdict, Option<dir::GlobalSymbolId>),
     >,
     /// Work counters for the stats sidecar.
     pub(in crate::sema) counters: CheckCounters,
-    /// Normalized heads of closed types.
-    pub(in crate::sema) normalizations: FxIndexMap<(dir::GlobalTypeId, Scope), dir::GlobalTypeId>,
+    /// Normalized heads of settled types.
+    pub(in crate::sema) normalizations: FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     /// Barrier-erased forms of closed contextual targets.
     pub(in crate::sema) erasures: FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
-    /// Extension member tables of closed subjects, grouped by key.
-    pub(in crate::sema) members: FxIndexMap<MemberSubject, MemberTable>,
+    /// Extension symbols visible per looking module and target declaration.
+    pub(in crate::sema) extension_sets:
+        FxIndexMap<(ModuleId, dir::GlobalSymbolId), SmallVec<[dir::GlobalSymbolId; 4]>>,
+    /// Extension member candidates decided once per extension and subject identity.
+    pub(in crate::sema) extension_candidates:
+        FxIndexMap<ExtensionCandidateKey, ExtensionCandidates>,
     /// Whether writeback is settling declared-form member bindings.
     pub(in crate::sema) settling: bool,
-    /// Decided auto interface conformances of closed types.
-    pub(in crate::sema) conforms: FxIndexMap<(dir::GlobalTypeId, dir::AutoInterface, Scope), bool>,
+    /// Decided auto interface conformances of settled types.
+    pub(in crate::sema) conforms: FxIndexMap<(dir::GlobalTypeId, dir::AutoInterface), bool>,
     /// Declarations reached by each declaration's heritage.
     pub(in crate::sema) heritages: FxIndexMap<dir::GlobalSymbolId, HeritageReach>,
     /// Active derivability goals closed coinductively on re-entry.
     pub(in crate::sema) deriving: FxIndexSet<(dir::GlobalTypeId, dir::AutoInterface)>,
     /// Active extension member lookups closed coinductively on re-entry.
     pub(in crate::sema) extending: FxIndexSet<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
-    /// Storable representations proved this pass, keyed by assuming scope.
-    pub(in crate::sema) storable: FxIndexSet<(dir::GlobalTypeId, Scope)>,
+    /// Storable representations proved this pass.
+    pub(in crate::sema) storable: FxIndexSet<dir::GlobalTypeId>,
     /// Selected and instantiated callables keyed by callee and operand types.
     pub(in crate::sema) selections: FxIndexMap<SelectionKey, Selection>,
     /// Derived parameter variances per handle form, with in-flight marks.
@@ -318,10 +322,11 @@ impl<'a> CheckState<'a> {
             relates: FxIndexMap::default(),
             bindings: FxIndexMap::default(),
             extensions: FxIndexMap::default(),
+            extension_sets: FxIndexMap::default(),
+            extension_candidates: FxIndexMap::default(),
             counters: CheckCounters::default(),
             normalizations: FxIndexMap::default(),
             erasures: FxIndexMap::default(),
-            members: FxIndexMap::default(),
             settling: false,
             conforms: FxIndexMap::default(),
             heritages: FxIndexMap::default(),

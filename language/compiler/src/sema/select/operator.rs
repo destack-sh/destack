@@ -57,7 +57,7 @@ impl BodyState<'_, '_> {
 
         // closed operand pairs select once; later uses replay the selection
         let selection_key =
-            self.derive_selection_key(origin, Callee::Operator(operator), None, &[left, right])?;
+            self.derive_selection_key(Callee::Operator(operator), None, &[left, right])?;
         if let Some(key) = &selection_key
             && let Some(selected) = self.check.selections.get(key).cloned()
         {

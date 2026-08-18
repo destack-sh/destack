@@ -101,7 +101,6 @@ impl BodyState<'_, '_> {
                 operands.extend(argument_types);
 
                 self.derive_selection_key(
-                    origin,
                     Callee::Newtype(symbol, overload),
                     expectation,
                     &operands,

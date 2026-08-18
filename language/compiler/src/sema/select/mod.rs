@@ -28,7 +28,9 @@ mod tree;
 mod tuple;
 mod variant;
 
-pub(in crate::sema) use extension::UnboundParameters;
+pub(in crate::sema) use extension::{
+    ExtensionCandidateKey, ExtensionCandidates, UnboundParameters,
+};
 pub(in crate::sema) use instantiation::TypeArgumentInference;
 pub(in crate::sema) use member::*;
 pub(in crate::sema) use newtype::{

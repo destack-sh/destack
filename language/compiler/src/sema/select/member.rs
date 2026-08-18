@@ -1,7 +1,5 @@
 use std::slice;
-use std::sync::Arc;
 
-use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -530,24 +528,6 @@ impl DeclaredMember {
     }
 }
 
-/// One closed subject whose extension member table is decided.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::sema) struct MemberSubject {
-    /// The module whose scope selects the visible extensions.
-    pub(in crate::sema) module: ModuleId,
-    /// The receiver type carrying its memory form.
-    pub(in crate::sema) receiver: dir::GlobalTypeId,
-    /// The canonical extension subject.
-    pub(in crate::sema) subject: dir::GlobalTypeId,
-    /// The subject's declaration symbol.
-    pub(in crate::sema) symbol: dir::GlobalSymbolId,
-    /// The member space looked up.
-    pub(in crate::sema) space: dir::MemberSpace,
-}
-
-/// Extension members of one subject, grouped by static key.
-pub(in crate::sema) type MemberTable = Arc<FxIndexMap<dir::StaticKey, Vec<MemberCandidate>>>;
-
 /// One declaration-backed member candidate.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct MemberCandidate {
@@ -897,26 +877,6 @@ impl BodyState<'_, '_> {
             lookup.is_optional(),
             declarations,
         )))
-    }
-
-    /// Resolve every member binding exposed by one subject.
-    pub(in crate::sema) fn subject_member_bindings(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        subject: dir::MemberSubject,
-    ) -> CompilerResult<Vec<dir::MemberBinding>> {
-        // resolve each reachable key through the same lookup used at source sites
-        let keys = self.subject_member_keys(origin, module, &subject)?;
-        let mut bindings = Vec::with_capacity(keys.len());
-        for key in keys {
-            let lookup = self.lookup_member(origin, module, subject, key)?;
-            if let Some(binding) = self.member_binding(key, &lookup)? {
-                bindings.push(binding);
-            }
-        }
-
-        Ok(bindings)
     }
 
     /// Return the lookup member represented by one definition member.

@@ -270,21 +270,16 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // classify the pair by the variables it still holds open
-        let flags = self.type_flags(source)? | self.type_flags(target)?;
-        let durable = !flags.has_variable();
-
         // decide open pairs outside the memo, since their heads still move
-        if !durable {
+        let flags = self.type_flags(source)? | self.type_flags(target)?;
+        if flags.has_variable() {
             return self.relate_matrix(origin, cause, relation, source, target);
         }
 
-        // key parameter and this queries by their assuming scope
-        let scope = if flags.has_parameter() || flags.has_this() {
-            self.assuming_scope(origin)?
-        } else {
-            None
-        };
+        // parameter and This pairs decide under their context and never memo
+        if flags.has_parameter() || flags.has_this() {
+            return self.relate_matrix(origin, cause, relation, source, target);
+        }
 
         // reuse decided relations, treating in-flight pairs as recursive cycles
         //
@@ -294,7 +289,7 @@ impl CheckState<'_> {
         // own goal through another blanket inherits that Holds, so mutually
         // recursive blanket bounds prove each other; conformance needs its own
         // inductive query kind so deciding_extensions decides such cycles.
-        let key = (relation, source, target, scope);
+        let key = (relation, source, target);
         if let Some(holds) = self.relates.get(&key) {
             self.counters.judge_hits += 1;
 
@@ -315,9 +310,9 @@ impl CheckState<'_> {
         // memoize settled decisions, forget failed and undecided attempts
         match &decision {
             Ok(verdict) if *verdict != Verdict::Ambiguous => {
-                // decided closed pairs are durable for the whole module
+                // decided settled pairs are durable for the whole module
                 let holds = verdict.holds();
-                if let Some((key, holds)) = self.infer.relations.finish(attempt, holds, durable) {
+                if let Some((key, holds)) = self.infer.relations.finish(attempt, holds) {
                     self.relates.insert(key, holds);
                 }
             }

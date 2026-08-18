@@ -55,17 +55,6 @@ impl<'a> MemberTable<'a> {
         }
     }
 
-    /// Return the member bindings stored for one subject.
-    pub fn subject_bindings(&self, subject: &MemberSubject) -> Option<&[MemberBinding]> {
-        for segment in self.segments.iter().rev() {
-            if let Some(bindings) = segment.subject_bindings(subject) {
-                return Some(bindings);
-            }
-        }
-
-        None
-    }
-
     /// Create a member table by appending a borrowed tail segment.
     pub fn with_tail<'b>(&'b self, tail: &'b MemberSegment) -> MemberTable<'b> {
         MemberTable::from_view(self.segments.with_tail(tail))
@@ -79,17 +68,25 @@ impl<'a> MemberTable<'a> {
             .find_map(|segment| segment.subject(site))
     }
 
-    /// Return the member bindings available at one source site.
+    /// Return the member bindings flattened for one declared owner.
+    pub fn bindings(&self, owner: GlobalSymbolId, space: MemberSpace) -> Option<&[MemberBinding]> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.bindings(owner, space))
+    }
+
+    /// Return the member bindings projected at one source site.
     pub fn members(&self, site: MemberSite) -> Option<&[MemberBinding]> {
         let subject = self.subject(site)?;
 
         self.segments
             .iter()
             .rev()
-            .find_map(|segment| segment.members(subject))
+            .find_map(|segment| segment.subject_bindings(&subject))
     }
 
-    /// Return one member binding available at a source site.
+    /// Return one member binding projected at a source site.
     pub fn binding(&self, site: MemberSite, key: StaticKey) -> Option<&MemberBinding> {
         self.members(site)?
             .iter()
@@ -109,8 +106,10 @@ pub struct MemberSegment {
     pub module_id: ModuleId,
     /// Lookup subjects selected at source sites.
     subjects: IndexMap<MemberSite, MemberSubject>,
-    /// Member bindings stored once per lookup subject.
-    bindings: IndexMap<MemberSubject, Vec<MemberBinding>>,
+    /// Member bindings flattened once per declared owner and space.
+    bindings: IndexMap<(GlobalSymbolId, MemberSpace), Vec<MemberBinding>>,
+    /// Member bindings projected once per settled site subject.
+    subject_bindings: IndexMap<MemberSubject, Vec<MemberBinding>>,
 }
 
 /// One rollback position in a member segment.
@@ -127,6 +126,7 @@ impl MemberSegment {
             module_id,
             subjects: IndexMap::default(),
             bindings: IndexMap::default(),
+            subject_bindings: IndexMap::default(),
         }
     }
 
@@ -135,14 +135,47 @@ impl MemberSegment {
         self.subjects.insert(site, subject);
     }
 
-    /// Return the member bindings stored for one subject.
-    pub fn subject_bindings(&self, subject: &MemberSubject) -> Option<&[MemberBinding]> {
-        self.bindings.get(subject).map(Vec::as_slice)
+    /// Set the member bindings flattened for one declared owner.
+    pub fn set_bindings(
+        &mut self,
+        owner: GlobalSymbolId,
+        space: MemberSpace,
+        bindings: Vec<MemberBinding>,
+    ) {
+        self.bindings.insert((owner, space), bindings);
     }
 
-    /// Set the member bindings stored for one lookup subject.
-    pub fn set_bindings(&mut self, subject: MemberSubject, bindings: Vec<MemberBinding>) {
-        self.bindings.insert(subject, bindings);
+    /// Return the member bindings flattened for one declared owner.
+    pub fn bindings(&self, owner: GlobalSymbolId, space: MemberSpace) -> Option<&[MemberBinding]> {
+        self.bindings.get(&(owner, space)).map(Vec::as_slice)
+    }
+
+    /// Iterate the member bindings flattened per declared owner.
+    pub fn iter_bindings(
+        &self,
+    ) -> impl Iterator<Item = (GlobalSymbolId, MemberSpace, &[MemberBinding])> + '_ {
+        self.bindings
+            .iter()
+            .map(|((owner, space), bindings)| (*owner, *space, bindings.as_slice()))
+    }
+
+    /// Set the member bindings projected for one settled site subject.
+    pub fn set_subject_bindings(&mut self, subject: MemberSubject, bindings: Vec<MemberBinding>) {
+        self.subject_bindings.insert(subject, bindings);
+    }
+
+    /// Return the member bindings projected for one settled site subject.
+    pub fn subject_bindings(&self, subject: &MemberSubject) -> Option<&[MemberBinding]> {
+        self.subject_bindings.get(subject).map(Vec::as_slice)
+    }
+
+    /// Iterate the member bindings projected per settled site subject.
+    pub fn iter_subject_bindings(
+        &self,
+    ) -> impl Iterator<Item = (&MemberSubject, &[MemberBinding])> + '_ {
+        self.subject_bindings
+            .iter()
+            .map(|(subject, bindings)| (subject, bindings.as_slice()))
     }
 
     /// Iterate the member lookup subjects stored at source sites.
@@ -150,13 +183,6 @@ impl MemberSegment {
         self.subjects
             .iter()
             .map(|(site, subject)| (*site, *subject))
-    }
-
-    /// Iterate the member bindings stored per lookup subject.
-    pub fn iter_bindings(&self) -> impl Iterator<Item = (&MemberSubject, &[MemberBinding])> + '_ {
-        self.bindings
-            .iter()
-            .map(|(subject, bindings)| (subject, bindings.as_slice()))
     }
 
     /// Return a rollback position for this segment.
@@ -176,23 +202,9 @@ impl MemberSegment {
         self.subjects.get(&site).copied()
     }
 
-    /// Return the bindings stored for one lookup subject.
-    pub fn members(&self, subject: MemberSubject) -> Option<&[MemberBinding]> {
-        self.bindings.get(&subject).map(Vec::as_slice)
-    }
-
-    /// Return one member binding available at a source site.
-    pub fn binding(&self, site: MemberSite, key: StaticKey) -> Option<&MemberBinding> {
-        let subject = self.subject(site)?;
-
-        self.members(subject)?
-            .iter()
-            .find(|binding| binding.key == key)
-    }
-
     /// Return whether this segment has no member bindings.
     pub fn is_empty(&self) -> bool {
-        self.subjects.is_empty() && self.bindings.is_empty()
+        self.subjects.is_empty() && self.bindings.is_empty() && self.subject_bindings.is_empty()
     }
 }
 

@@ -14,7 +14,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, FlowPoint, FlowPointId,
-    FlowSite, Origin, Relation, RelationCheck, StaticPresence, VariableRole, Widening,
+    FlowSite, Origin, Relation, RelationCheck, StaticPresence, VariableRole, Wake, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -568,18 +568,22 @@ impl CheckModuleState {
                 merged.record_subject(site, subject);
             }
         }
-        for (subject, bindings) in base.iter_bindings() {
-            if tail.subject_bindings(subject).is_none() {
-                merged.set_bindings(*subject, bindings.to_vec());
-            }
+        for (owner, space, bindings) in base.iter_bindings() {
+            merged.set_bindings(owner, space, bindings.to_vec());
+        }
+        for (subject, bindings) in base.iter_subject_bindings() {
+            merged.set_subject_bindings(*subject, bindings.to_vec());
         }
 
         // layer the pass entries over them
         for (site, subject) in tail.iter_subjects() {
             merged.record_subject(site, subject);
         }
-        for (subject, bindings) in tail.iter_bindings() {
-            merged.set_bindings(*subject, bindings.to_vec());
+        for (owner, space, bindings) in tail.iter_bindings() {
+            merged.set_bindings(owner, space, bindings.to_vec());
+        }
+        for (subject, bindings) in tail.iter_subject_bindings() {
+            merged.set_subject_bindings(*subject, bindings.to_vec());
         }
 
         merged
@@ -836,6 +840,7 @@ impl CheckState<'_> {
         }
 
         self.node_types.insert(node, ty);
+        self.fulfill.wake(Wake::Node(node));
 
         Ok(())
     }
@@ -1380,7 +1385,7 @@ impl CheckState<'_> {
             }
         }
 
-        // encode each owner's memoized bindings in both member spaces
+        // flatten each owner's bindings once in both member spaces
         for symbol in owners {
             // derive each declared parameter's variance at its own context
             if let Some(template) = self.symbol_template(symbol)? {
@@ -1389,24 +1394,15 @@ impl CheckState<'_> {
                     let _ = self.parameter_variance(parameter, form)?;
                 }
             }
-            let Some(canonical) = self
-                .module(module)
-                .types
-                .get_symbol_type_id(symbol)
-                .or_else(|| self.module(module).types_tail.get_symbol_type_id(symbol))
-            else {
-                continue;
-            };
 
             for space in [dir::MemberSpace::Instance, dir::MemberSpace::Static] {
                 let bindings = self.body().member_bindings(symbol, space)?;
                 let Some(bindings) = bindings else {
                     continue;
                 };
-                let subject = dir::MemberSubject::new(canonical, canonical, space);
                 self.module_mut(module)
                     .members_tail
-                    .set_bindings(subject, bindings.to_vec());
+                    .set_bindings(symbol, space, bindings.to_vec());
             }
         }
 

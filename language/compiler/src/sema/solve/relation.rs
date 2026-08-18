@@ -1,8 +1,6 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 
-use crate::sema::Scope;
-
 /// One type relation kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) enum Relation {
@@ -75,8 +73,8 @@ impl Relation {
     }
 }
 
-/// One relation pair identity closed under its assuming scope.
-pub(in crate::sema) type RelationKey = (Relation, dir::GlobalTypeId, dir::GlobalTypeId, Scope);
+/// One relation pair identity.
+pub(in crate::sema) type RelationKey = (Relation, dir::GlobalTypeId, dir::GlobalTypeId);
 
 /// One in-flight relation decision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -159,16 +157,15 @@ impl RelationStack {
         RelationAttempt { key, index }
     }
 
-    /// Finish one attempt, returning the decision when it became durable.
+    /// Finish one attempt, returning the decision it settled.
     ///
-    /// Durable attempts decide closed pairs: the caller records the returned
+    /// Settled attempts decide durable pairs: the caller records the returned
     /// decision as a relation fact. Cycle-provisional holds stay in flight
     /// and open answers are not retained at all.
     pub(in crate::sema) fn finish(
         &mut self,
         attempt: RelationAttempt,
         holds: bool,
-        durable: bool,
     ) -> Option<(RelationKey, bool)> {
         let entry = self.pop(attempt);
 
@@ -178,7 +175,7 @@ impl RelationStack {
             self.resolve_dependents(attempt.index, None);
             self.decisions.swap_remove(&attempt.key);
 
-            return durable.then_some((attempt.key, false));
+            return Some((attempt.key, false));
         }
 
         // pass provisional holds through the outer cycle
@@ -198,7 +195,7 @@ impl RelationStack {
         self.resolve_dependents(attempt.index, Some(attempt.index));
         self.decisions.swap_remove(&attempt.key);
 
-        durable.then_some((attempt.key, true))
+        Some((attempt.key, true))
     }
 
     /// Cancel one attempt without an answer, forgetting its dependents.

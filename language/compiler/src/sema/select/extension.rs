@@ -7,9 +7,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     BodyState, CandidateOutcome, Cause, CauseKind, CheckOutcome, DeclaredMember,
-    GenericParameterId, GenericTemplateId, LookupReceiver, MemberCandidate, MemberLookup,
-    MemberSubject, MemberTable, Origin, ReceiverSteps, Relation, Settle, TypeArgumentInference,
-    TypeSubstitution, Verdict,
+    GenericParameterId, GenericTemplateId, LookupReceiver, MemberCandidate, MemberLookup, Origin,
+    ReceiverSteps, Relation, Settle, TypeArgumentInference, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -21,6 +20,18 @@ pub(in crate::sema) enum UnboundParameters {
     /// Reject the match while any parameter stays unbound.
     Reject,
 }
+
+/// One decided extension member question: extension over a subject pair in one module.
+pub(in crate::sema) type ExtensionCandidateKey = (
+    dir::GlobalSymbolId,
+    ModuleId,
+    dir::GlobalTypeId,
+    dir::GlobalTypeId,
+    dir::MemberSpace,
+);
+
+/// The member candidates one decided extension exposes, shared per ask.
+pub(in crate::sema) type ExtensionCandidates = Arc<Vec<(dir::StaticKey, MemberCandidate)>>;
 
 impl BodyState<'_, '_> {
     /// Look up one extension member on a declaration reference.
@@ -34,41 +45,39 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
-        // read the grouped table, built once per closed subject
-        let members =
-            self.subject_extension_members(origin, module, receiver, subject, symbol, space)?;
-        let candidates = members.get(&key).cloned().unwrap_or_default();
+        let extensions = self.reachable_extensions(origin, module, receiver, subject, symbol)?;
+
+        // decide each extension once per subject identity, first declaration per symbol wins
+        let mut candidates = Vec::new();
+        let mut seen = FxIndexSet::default();
+        for extension in extensions {
+            let matched = self.decided_extension_candidates(
+                origin, module, receiver, subject, extension, space,
+            )?;
+            for (candidate_key, candidate) in matched.iter() {
+                if *candidate_key != key {
+                    continue;
+                }
+                if !seen.insert(candidate.symbol) {
+                    continue;
+                }
+
+                candidates.push(candidate.clone());
+            }
+        }
 
         Ok(MemberLookup::from_candidates(candidates))
     }
 
-    /// Return every extension member of one subject, grouped by key.
-    pub(in crate::sema) fn subject_extension_members(
+    /// Collect the extension declarations one subject pair can reach from one module.
+    pub(in crate::sema) fn reachable_extensions(
         &mut self,
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
         subject: dir::GlobalTypeId,
         symbol: dir::GlobalSymbolId,
-        space: dir::MemberSpace,
-    ) -> CompilerResult<MemberTable> {
-        // decide the table once per closed subject: candidates are pure
-        //  functions of the interned subject and the module's scope
-        let flags = self.check.type_flags(receiver)? | self.check.type_flags(subject)?;
-        let mut is_closed = !flags.has_variable();
-        let key = MemberSubject {
-            module,
-            receiver,
-            subject,
-            symbol,
-            space,
-        };
-
-        // serve the memo
-        if is_closed && let Some(members) = self.check.members.get(&key) {
-            return Ok(members.clone());
-        }
-
+    ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
         // collect the extension declarations this module can see
         let mut extensions = self.visible_extensions(module, symbol)?;
 
@@ -86,40 +95,101 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // match each extension once, collecting first declarations per symbol
-        let mut members = FxIndexMap::<dir::StaticKey, Vec<MemberCandidate>>::default();
+        Ok(extensions)
+    }
+
+    /// Append the decided extension members one subject exposes at its open keys.
+    pub(in crate::sema) fn project_extension_bindings(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        subject: dir::MemberSubject,
+        symbol: dir::GlobalSymbolId,
+        bindings: &mut Vec<dir::MemberBinding>,
+    ) -> CompilerResult<()> {
+        // decide the candidates over the site's receiver and the stripped identity
+        let core = self.strip_form(origin, subject.key_type)?;
+        let extensions =
+            self.reachable_extensions(origin, module, subject.receiver, core, symbol)?;
+
+        // group the decided candidates per open key, first declaration per symbol wins
+        let mut keyed: FxIndexMap<dir::StaticKey, Vec<MemberCandidate>> = FxIndexMap::default();
         let mut seen = FxIndexSet::default();
-        for extension_symbol in extensions {
-            let candidates = self.extension_subject_candidates(
+        for extension in extensions {
+            let matched = self.decided_extension_candidates(
                 origin,
                 module,
-                receiver,
-                subject,
-                extension_symbol,
-                space,
+                subject.receiver,
+                core,
+                extension,
+                subject.space,
             )?;
-            for (key, candidate) in candidates {
+            for (key, candidate) in matched.iter() {
+                if bindings.iter().any(|binding| binding.key == *key) {
+                    continue;
+                }
                 if !seen.insert(candidate.symbol) {
                     continue;
                 }
 
-                // candidates opened over site variables stay per-site
-                is_closed &= self.candidate_is_closed(&candidate)?;
-                members.entry(key).or_default().push(candidate);
+                keyed.entry(*key).or_default().push(candidate.clone());
             }
         }
 
-        let members = Arc::new(members);
-
-        // decide the closed table
-        if is_closed {
-            self.check.members.insert(key, members.clone());
+        // compose one binding per open extension key
+        for (key, candidates) in keyed {
+            let lookup = MemberLookup::from_candidates(candidates);
+            if let Some(binding) = self.member_binding(key, &lookup)? {
+                bindings.push(binding);
+            }
         }
 
-        Ok(members)
+        Ok(())
     }
 
-    /// Return whether one candidate row carries no open inference variables.
+    /// Return one extension's member candidates over one subject, decided once per identity.
+    pub(in crate::sema) fn decided_extension_candidates(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
+        extension: dir::GlobalSymbolId,
+        space: dir::MemberSpace,
+    ) -> CompilerResult<ExtensionCandidates> {
+        // settled pairs decide once: candidates are pure functions of
+        //  the extension, the subject pair, and the asking module's visibility
+        let flags = self.check.type_flags(receiver)? | self.check.type_flags(subject)?;
+        let mut decides = !flags.has_variable() && !flags.has_parameter() && !flags.has_this();
+        let key = (extension, module, receiver, subject, space);
+
+        // serve the memo
+        if decides && let Some(candidates) = self.check.extension_candidates.get(&key) {
+            return Ok(candidates.clone());
+        }
+
+        // match the extension against the subject pair, keeping cyclic asks undecided
+        let Some(matched) =
+            self.extension_subject_candidates(origin, module, receiver, subject, extension, space)?
+        else {
+            return Ok(Arc::new(Vec::new()));
+        };
+
+        // candidates opened over site variables stay per-site
+        for (_, candidate) in &matched {
+            decides &= self.candidate_is_closed(candidate)?;
+        }
+
+        // decide the settled table
+        let matched = Arc::new(matched);
+        if decides {
+            self.check.extension_candidates.insert(key, matched.clone());
+        }
+
+        Ok(matched)
+    }
+
+    /// Return whether one candidate carries no open inference variables.
     fn candidate_is_closed(&self, candidate: &MemberCandidate) -> CompilerResult<bool> {
         let mut flags = self.check.type_flags(candidate.access_type)?;
         if let Some(callable) = candidate.callable {
@@ -204,11 +274,19 @@ impl BodyState<'_, '_> {
     }
 
     /// Collect extension symbols visible from one module for one target.
+    ///
+    /// NOTE #Robustness: the memoized set reads lazily imported modules and the
+    /// definitions tail, so every pass must import its externals before the first ask.
     pub(in crate::sema) fn visible_extensions(
         &mut self,
         module: ModuleId,
         target: dir::GlobalSymbolId,
     ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
+        // serve the memo
+        if let Some(symbols) = self.check.extension_sets.get(&(module, target)) {
+            return Ok(symbols.clone());
+        }
+
         let mut symbols = SmallVec::new();
 
         // collect extensions declared beside the looking module
@@ -265,6 +343,11 @@ impl BodyState<'_, '_> {
                 symbols.push(symbol);
             }
         }
+
+        // decide the visible set once per target
+        self.check
+            .extension_sets
+            .insert((module, target), symbols.clone());
 
         Ok(symbols)
     }
@@ -327,14 +410,8 @@ impl BodyState<'_, '_> {
         // serve repeated goals from the selection memo, replaying the
         //  winning implementation so its inference binds this goal's variables
         let flags = self.type_flags(receiver)? | self.type_flags(interface_type)?;
-        let scope = if flags.has_parameter() || flags.has_this() {
-            self.assuming_scope(origin)?
-        } else {
-            None
-        };
-
-        let is_settled = !flags.has_variable();
-        let key = (relation, receiver, interface_type, scope);
+        let is_settled = !flags.has_variable() && !flags.has_parameter() && !flags.has_this();
+        let key = (relation, receiver, interface_type);
         if excluded.is_none()
             && is_settled
             && let Some((verdict, winner)) = self.check.extensions.get(&key).copied()
@@ -852,9 +929,8 @@ impl BodyState<'_, '_> {
                 let bounds = self.parameter_bounds(origin, parameter)?;
                 parameters.push(parameter);
                 for bound in bounds {
-                    let collected = self.collect_receiver_extensions(
-                        origin, module, bound, parameters, symbols,
-                    );
+                    let collected = self
+                        .collect_receiver_extensions(origin, module, bound, parameters, symbols);
                     match collected {
                         Ok(()) => {}
                         other => {
@@ -876,9 +952,7 @@ impl BodyState<'_, '_> {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(receiver.module_id, elements)?.into();
                 for element in elements {
-                    self.collect_receiver_extensions(
-                        origin, module, element, parameters, symbols,
-                    )?;
+                    self.collect_receiver_extensions(origin, module, element, parameters, symbols)?;
                 }
 
                 Ok(())
@@ -975,10 +1049,10 @@ impl BodyState<'_, '_> {
         subject: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         space: dir::MemberSpace,
-    ) -> CompilerResult<Vec<(dir::StaticKey, MemberCandidate)>> {
+    ) -> CompilerResult<Option<Vec<(dir::StaticKey, MemberCandidate)>>> {
         // skip extensions removed by statically false gates
         if self.is_absent_symbol(extension_symbol) {
-            return Ok(Vec::new());
+            return Ok(Some(Vec::new()));
         }
 
         // require a declaration this module can see
@@ -991,16 +1065,16 @@ impl BodyState<'_, '_> {
                     ),
                 });
             }
-            None => return Ok(Vec::new()),
+            None => return Ok(Some(Vec::new())),
         };
 
         if !extension.is_visible_from(module) {
-            return Ok(Vec::new());
+            return Ok(Some(Vec::new()));
         }
 
-        // close recursive lookups of this extension coinductively
+        // close recursive lookups of this extension coinductively, leaving them undecided
         if !self.check.extending.insert((extension_symbol, subject)) {
-            return Ok(Vec::new());
+            return Ok(None);
         }
 
         // collect the candidates, then release the re-entry mark
@@ -1010,7 +1084,7 @@ impl BodyState<'_, '_> {
             .extending
             .swap_remove(&(extension_symbol, subject));
 
-        result
+        result.map(Some)
     }
 
     /// Collect one extension's declared and conformance member candidates.

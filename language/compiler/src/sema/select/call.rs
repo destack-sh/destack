@@ -1054,7 +1054,7 @@ impl BodyState<'_, '_> {
                 ));
                 operands.extend(argument_types.iter().copied());
 
-                self.derive_selection_key(origin, Callee::Symbol(symbol), expectation, &operands)?
+                self.derive_selection_key(Callee::Symbol(symbol), expectation, &operands)?
             }
             _ => None,
         };

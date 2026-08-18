@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{
-    BodyState, Expectation, NewtypeInstance, NewtypeOverload, OperatorExpressionResult, Origin,
-    ProtocolCall, Scope, SignatureInstance,
+    BodyState, Expectation, NewtypeInstance, NewtypeOverload, OperatorExpressionResult,
+    ProtocolCall, SignatureInstance,
 };
 
 /// The callable identity one selection decides for.
@@ -17,33 +17,28 @@ pub(in crate::sema) enum Callee {
     Newtype(dir::GlobalSymbolId, NewtypeOverload),
 }
 
-/// The decided question one callee answers for closed operands in one scope.
-pub(in crate::sema) type SelectionKey = (Callee, Option<dir::GlobalTypeId>, dir::TypeListId, Scope);
+/// The decided question one callee answers for closed operands.
+pub(in crate::sema) type SelectionKey = (Callee, Option<dir::GlobalTypeId>, dir::TypeListId);
 
 impl BodyState<'_, '_> {
     /// Derive the key one selection decides under, unless an operand is open.
     pub(in crate::sema) fn derive_selection_key(
         &mut self,
-        origin: Origin,
         callee: Callee,
         expectation: Option<Expectation>,
         operands: &[dir::GlobalTypeId],
     ) -> CompilerResult<Option<SelectionKey>> {
-        // an open operand leaves the question undecidable
+        // open, parameter, and This operands leave the question undecidable
         let expected = expectation.map(|expectation| expectation.target);
         for operand in expected.iter().chain(operands) {
-            if self.type_flags(*operand)?.has_variable() {
+            let flags = self.type_flags(*operand)?;
+            if flags.has_variable() || flags.has_parameter() || flags.has_this() {
                 return Ok(None);
             }
         }
         let operands = self.intern_type_ids(operands)?;
 
-        Ok(Some((
-            callee,
-            expected,
-            operands,
-            self.assuming_scope(origin)?,
-        )))
+        Ok(Some((callee, expected, operands)))
     }
 }
 

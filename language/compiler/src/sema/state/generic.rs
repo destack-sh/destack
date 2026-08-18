@@ -11,9 +11,6 @@ pub(in crate::sema) type GenericParameterId = dir::GlobalGenericParameterId;
 /// Stable id for one generic binding site.
 pub(in crate::sema) type GenericTemplateId = dir::GlobalGenericTemplateId;
 
-/// The generic template whose parameters one question assumes rigid.
-pub(in crate::sema) type Scope = Option<dir::GlobalGenericTemplateId>;
-
 /// One declaration type scanned for induced memory variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) struct InducedParameterSite {
