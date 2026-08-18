@@ -15,10 +15,8 @@ use crate::{
     FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
     LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeIndexEntry, NodeType,
     Nullability, Origin, OriginTable, Path, Projection, ReferenceKind, Space, Static, StaticId,
-    Storage, SwitchCase, SwitchCaseSlice, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorImmediate, TensorImmediateId, TensorScatterDimensionNumbers, Terminator, Type,
-    TypeDeclaration, TypeDeclarationSpans, TypeId, TypedValueSpan, Value, ValueSlice,
+    Storage, SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans,
+    TypeId, TypedValueSpan, Value, ValueSlice,
 };
 
 /// MIR tree for a single unit.
@@ -95,8 +93,6 @@ pub struct Tree {
     pub(crate) flags: Vec<u8>,
     /// Flat buffer of switch cases.
     pub(crate) switch_cases: Vec<SwitchCase>,
-    /// Structured tensor immediates.
-    pub(crate) tensor_immediates: Vec<TensorImmediate>,
 }
 
 impl Debug for Tree {
@@ -170,7 +166,6 @@ impl Tree {
             extents: Vec::new(),
             flags: Vec::new(),
             switch_cases: Vec::new(),
-            tensor_immediates: Vec::new(),
         }
     }
 
@@ -307,18 +302,6 @@ impl Tree {
                 lifetime,
                 element,
                 ..
-            }
-            | Type::Tensor {
-                kind,
-                lifetime,
-                element,
-                ..
-            }
-            | Type::TensorView {
-                kind,
-                lifetime,
-                element,
-                ..
             } => {
                 let own = (*kind == ReferenceKind::Borrowed)
                     .then(|| self.substitute_lifetime(lifetime, lifetime_args));
@@ -437,8 +420,6 @@ impl Tree {
             | Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
             | Type::Vector { element, .. }
-            | Type::Tensor { element, .. }
-            | Type::TensorView { element, .. }
             | Type::Atomic { value: element } => {
                 self.type_contains_borrowed_refs_inner(*element, visited)
             }
@@ -506,18 +487,6 @@ impl Tree {
                 ..
             }
             | Type::Slice {
-                kind: ReferenceKind::Borrowed,
-                lifetime,
-                access,
-                ..
-            }
-            | Type::Tensor {
-                kind: ReferenceKind::Borrowed,
-                lifetime,
-                access,
-                ..
-            }
-            | Type::TensorView {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 access,
@@ -602,9 +571,7 @@ impl Tree {
             // summarize repeated element lifetimes at the container path
             Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
-            | Type::Vector { element, .. }
-            | Type::Tensor { element, .. }
-            | Type::TensorView { element, .. } => {
+            | Type::Vector { element, .. } => {
                 let mut element_paths = Vec::new();
                 self.collect_type_borrowed_paths(
                     *element,
@@ -1491,120 +1458,6 @@ impl Tree {
         let start = slice.start as usize;
         let end = start + slice.count as usize;
         &self.switch_cases[start..end]
-    }
-
-    /// Add one tensor immediate and return its id.
-    #[inline]
-    pub fn add_tensor_immediate(&mut self, immediate: TensorImmediate) -> TensorImmediateId {
-        let id = self.tensor_immediates.len() as u32;
-        self.tensor_immediates.push(immediate);
-        TensorImmediateId::new(id)
-    }
-
-    /// Get one tensor immediate by id.
-    #[inline]
-    pub fn get_tensor_immediate(&self, id: TensorImmediateId) -> &TensorImmediate {
-        &self.tensor_immediates[id.id() as usize]
-    }
-
-    /// Store tensor dot dimension numbers as a tensor immediate.
-    pub fn add_tensor_dot_immediate(
-        &mut self,
-        dimensions: TensorDotDimensionNumbers,
-    ) -> TensorImmediateId {
-        let lhs_batch = self.add_indices(&dimensions.lhs_batch);
-        let rhs_batch = self.add_indices(&dimensions.rhs_batch);
-        let lhs_contracting = self.add_indices(&dimensions.lhs_contracting);
-        let rhs_contracting = self.add_indices(&dimensions.rhs_contracting);
-
-        self.add_tensor_immediate(TensorImmediate::Dot {
-            lhs_batch,
-            rhs_batch,
-            lhs_contracting,
-            rhs_contracting,
-        })
-    }
-
-    /// Store tensor convolution dimensions and window parameters as a tensor immediate.
-    pub fn add_tensor_convolution_immediate(
-        &mut self,
-        dimensions: TensorConvolutionDimensionNumbers,
-        window: TensorConvolutionWindow,
-        feature_group_count: u32,
-        batch_group_count: u32,
-    ) -> TensorImmediateId {
-        let input_spatial = self.add_indices(&dimensions.input_spatial);
-        let kernel_spatial = self.add_indices(&dimensions.kernel_spatial);
-        let output_spatial = self.add_indices(&dimensions.output_spatial);
-        let strides = self.add_extents(&window.strides);
-        let padding_low = self.add_extents(&window.padding_low);
-        let padding_high = self.add_extents(&window.padding_high);
-        let lhs_dilation = self.add_extents(&window.lhs_dilation);
-        let rhs_dilation = self.add_extents(&window.rhs_dilation);
-        let window_reversal = window
-            .window_reversal
-            .into_iter()
-            .map(u8::from)
-            .collect::<Vec<_>>();
-        let window_reversal = self.add_flags(&window_reversal);
-
-        self.add_tensor_immediate(TensorImmediate::Convolution {
-            input_batch: dimensions.input_batch,
-            input_feature: dimensions.input_feature,
-            input_spatial,
-            kernel_input_feature: dimensions.kernel_input_feature,
-            kernel_output_feature: dimensions.kernel_output_feature,
-            kernel_spatial,
-            output_batch: dimensions.output_batch,
-            output_feature: dimensions.output_feature,
-            output_spatial,
-            strides,
-            padding_low,
-            padding_high,
-            lhs_dilation,
-            rhs_dilation,
-            window_reversal,
-            feature_group_count,
-            batch_group_count,
-        })
-    }
-
-    /// Store tensor gather dimension numbers as a tensor immediate.
-    pub fn add_tensor_gather_immediate(
-        &mut self,
-        dimensions: TensorGatherDimensionNumbers,
-        slice_sizes: &[u32],
-    ) -> TensorImmediateId {
-        let offset_dims = self.add_indices(&dimensions.offset_dims);
-        let collapsed_slice_dims = self.add_indices(&dimensions.collapsed_slice_dims);
-        let start_index_map = self.add_indices(&dimensions.start_index_map);
-        let slice_sizes = self.add_indices(slice_sizes);
-
-        self.add_tensor_immediate(TensorImmediate::Gather {
-            offset_dims,
-            collapsed_slice_dims,
-            start_index_map,
-            index_vector_dim: dimensions.index_vector_dim,
-            slice_sizes,
-        })
-    }
-
-    /// Store tensor scatter dimension numbers as a tensor immediate.
-    pub fn add_tensor_scatter_immediate(
-        &mut self,
-        dimensions: TensorScatterDimensionNumbers,
-    ) -> TensorImmediateId {
-        let update_window_dims = self.add_indices(&dimensions.update_window_dims);
-        let inserted_window_dims = self.add_indices(&dimensions.inserted_window_dims);
-        let scatter_dims_to_operand_dims =
-            self.add_indices(&dimensions.scatter_dims_to_operand_dims);
-
-        self.add_tensor_immediate(TensorImmediate::Scatter {
-            update_window_dims,
-            inserted_window_dims,
-            scatter_dims_to_operand_dims,
-            index_vector_dim: dimensions.index_vector_dim,
-        })
     }
 
     /// Set a node in-place, preserving its source and origin.

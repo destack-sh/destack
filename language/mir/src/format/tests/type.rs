@@ -57,7 +57,6 @@ entry(v0: ref<int32, managed, mutable, nullable>, v1: ref<int32, unique, readonl
     v2: ref<int32, managed, mutable, nullable> = null
     v3: ref<int32, managed, mutable, undefined> = undefined
     v4: slice<int32, managed, mutable, nullish> = undefined
-    v5: tensorView<int32, managed, mutable, nullish, (2, 2)> = null
     return v2
 }
 "#,
@@ -177,26 +176,13 @@ entry(v0: ref<int32, borrowed, 'LA, mutable>):
     );
 }
 
-/// Formats borrowed shaped views canonically.
+/// Formats borrowed slices canonically.
 #[test]
-fn test_format_borrowed_shaped_views() {
+fn test_format_borrowed_slices() {
     assert_format(
         r#"
-function views<'a>(v0: slice<int32, borrowed, 'a, readonly>, v1: tensorView<int32, borrowed, 'a, mutable, (4, 4)>): void {
-entry(v0: slice<int32, borrowed, 'a, readonly>, v1: tensorView<int32, borrowed, 'a, mutable, (4, 4)>):
-    return
-}
-"#,
-    );
-}
-
-/// Formats tensor shapes and formats canonically.
-#[test]
-fn test_format_tensor_shapes_and_formats() {
-    assert_format(
-        r#"
-function tensors<'a>(v0: tensor<float32, managed, mutable, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'a, readonly, (batch, dynamic, 64), format(strided)>): void {
-entry(v0: tensor<float32, managed, mutable, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'a, readonly, (batch, dynamic, 64), format(strided)>):
+function views<'a>(v0: slice<int32, borrowed, 'a, readonly>): void {
+entry(v0: slice<int32, borrowed, 'a, readonly>):
     return
 }
 "#,

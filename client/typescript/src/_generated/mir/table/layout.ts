@@ -5,16 +5,10 @@ import type { StringId } from "../../core/string.js";
 import type { TraceMap } from "./trace.js";
 import type { LocalNodeId } from "../tree/node.js";
 import type { FloatType } from "../tree/type.js";
-import type { TensorFormat } from "../tree/type.js";
-import type { TensorSharding } from "../tree/type.js";
-import type { TensorViewFormat } from "../tree/type.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeTraceMap, encodeTraceMap, fromJsonTraceMap, toJsonTraceMap } from "./trace.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "../tree/node.js";
 import { decodeFloatType, encodeFloatType, fromJsonFloatType, toJsonFloatType } from "../tree/type.js";
-import { decodeTensorFormat, encodeTensorFormat, fromJsonTensorFormat, toJsonTensorFormat } from "../tree/type.js";
-import { decodeTensorSharding, encodeTensorSharding, fromJsonTensorSharding, toJsonTensorSharding } from "../tree/type.js";
-import { decodeTensorViewFormat, encodeTensorViewFormat, fromJsonTensorViewFormat, toJsonTensorViewFormat } from "../tree/type.js";
 
 /** Target-independent logical variant discriminant bits. */
 export type Discriminant = {
@@ -501,16 +495,6 @@ export type LayoutShape =
           readonly kind: "vector";
           readonly vector: ElementLayout;
       }
-    /** Tensor handle storage. */
-    | {
-          readonly kind: "tensor";
-          readonly tensor: TensorLayout;
-      }
-    /** Tensor view descriptor storage. */
-    | {
-          readonly kind: "tensorView";
-          readonly tensor_view: TensorViewLayout;
-      }
     /** Variant value storage. */
     | {
           readonly kind: "variant";
@@ -570,16 +554,6 @@ export const LayoutShape = {
     /** Vector value storage. */
     vector(vector: ElementLayout): LayoutShape {
         return { kind: "vector", vector };
-    },
-
-    /** Tensor handle storage. */
-    tensor(tensor: TensorLayout): LayoutShape {
-        return { kind: "tensor", tensor };
-    },
-
-    /** Tensor view descriptor storage. */
-    tensorView(tensor_view: TensorViewLayout): LayoutShape {
-        return { kind: "tensorView", tensor_view };
     },
 
     /** Variant value storage. */
@@ -656,30 +630,22 @@ export function encodeLayoutShape(writer: BinaryWriter, value: LayoutShape): voi
             writer.writeUnsigned(6);
             encodeElementLayout(writer, value.vector);
             return;
-        case "tensor":
-            writer.writeUnsigned(7);
-            encodeTensorLayout(writer, value.tensor);
-            return;
-        case "tensorView":
-            writer.writeUnsigned(8);
-            encodeTensorViewLayout(writer, value.tensor_view);
-            return;
         case "variant":
-            writer.writeUnsigned(9);
+            writer.writeUnsigned(7);
             encodeVariantLayout(writer, value.variant);
             return;
         case "object":
-            writer.writeUnsigned(10);
+            writer.writeUnsigned(8);
             encodeObjectLayout(writer, value.object);
             return;
         case "dynamic":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(9);
             return;
         case "function":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(10);
             return;
         case "newtype":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(11);
             encodeNewtypeLayout(writer, value.newtype);
             return;
     }
@@ -722,32 +688,22 @@ export function decodeLayoutShape(reader: BinaryReader): LayoutShape {
             return { kind: "vector", vector };
         }
         case 7: {
-            const tensor = decodeTensorLayout(reader);
-
-            return { kind: "tensor", tensor };
-        }
-        case 8: {
-            const tensor_view = decodeTensorViewLayout(reader);
-
-            return { kind: "tensorView", tensor_view };
-        }
-        case 9: {
             const variant = decodeVariantLayout(reader);
 
             return { kind: "variant", variant };
         }
-        case 10: {
+        case 8: {
             const object_ = decodeObjectLayout(reader);
 
             return { kind: "object", object: object_ };
         }
-        case 11: {
+        case 9: {
             return { kind: "dynamic" };
         }
-        case 12: {
+        case 10: {
             return { kind: "function" };
         }
-        case 13: {
+        case 11: {
             const newtype = decodeNewtypeLayout(reader);
 
             return { kind: "newtype", newtype };
@@ -791,16 +747,6 @@ export function toJsonLayoutShape(value: LayoutShape): Json {
             return {
                 kind: "vector",
                 vector: toJsonElementLayout(value.vector),
-            };
-        case "tensor":
-            return {
-                kind: "tensor",
-                tensor: toJsonTensorLayout(value.tensor),
-            };
-        case "tensorView":
-            return {
-                kind: "tensorView",
-                tensor_view: toJsonTensorViewLayout(value.tensor_view),
             };
         case "variant":
             return {
@@ -867,16 +813,6 @@ export function fromJsonLayoutShape(value: Json): LayoutShape {
             return {
                 kind,
                 vector: fromJsonElementLayout(jsonField(object, "vector")),
-            };
-        case "tensor":
-            return {
-                kind,
-                tensor: fromJsonTensorLayout(jsonField(object, "tensor")),
-            };
-        case "tensorView":
-            return {
-                kind,
-                tensor_view: fromJsonTensorViewLayout(jsonField(object, "tensor_view")),
             };
         case "variant":
             return {
@@ -1639,164 +1575,6 @@ export function fromJsonStructLayout(value: Json): StructLayout {
 
     return {
         fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonLayoutField(item0)),
-    };
-}
-
-/** Concrete layout for a tensor handle. */
-export type TensorLayout = {
-    /** The tensor element type. */
-    readonly element: LocalNodeId;
-    /** The tensor storage format. */
-    readonly format: TensorFormat;
-    /** The tensor placement. */
-    readonly sharding: TensorSharding;
-    /** The tensor rank. */
-    readonly rank: number;
-};
-
-export const TensorLayout = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TensorLayout): void {
-        encodeTensorLayout(writer, value);
-    },
-
-    /** Decode one TensorLayout. */
-    decode(reader: BinaryReader): TensorLayout {
-        return decodeTensorLayout(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TensorLayout): Json {
-        return toJsonTensorLayout(value);
-    },
-
-    /** Return one TensorLayout from one JSON value. */
-    fromJson(value: Json): TensorLayout {
-        return fromJsonTensorLayout(value);
-    },
-};
-
-/** Encode one TensorLayout. */
-export function encodeTensorLayout(writer: BinaryWriter, value: TensorLayout): void {
-    encodeLocalNodeId(writer, value.element);
-    encodeTensorFormat(writer, value.format);
-    encodeTensorSharding(writer, value.sharding);
-    writer.writeUnsigned(value.rank);
-}
-
-/** Decode one TensorLayout. */
-export function decodeTensorLayout(reader: BinaryReader): TensorLayout {
-    const element = decodeLocalNodeId(reader);
-    const format = decodeTensorFormat(reader);
-    const sharding = decodeTensorSharding(reader);
-    const rank = reader.readNumber();
-
-    return {
-        element,
-        format,
-        sharding,
-        rank,
-    };
-}
-
-/** Return one JSON value for one TensorLayout. */
-export function toJsonTensorLayout(value: TensorLayout): Json {
-    return {
-        element: toJsonLocalNodeId(value.element),
-        format: toJsonTensorFormat(value.format),
-        sharding: toJsonTensorSharding(value.sharding),
-        rank: value.rank,
-    };
-}
-
-/** Return one TensorLayout from one JSON value. */
-export function fromJsonTensorLayout(value: Json): TensorLayout {
-    const object = jsonObject(value);
-
-    return {
-        element: fromJsonLocalNodeId(jsonField(object, "element")),
-        format: fromJsonTensorFormat(jsonField(object, "format")),
-        sharding: fromJsonTensorSharding(jsonField(object, "sharding")),
-        rank: jsonInteger(jsonField(object, "rank")),
-    };
-}
-
-/** Concrete layout for a tensor view descriptor. */
-export type TensorViewLayout = {
-    /** The viewed element type. */
-    readonly element: LocalNodeId;
-    /** The tensor view format. */
-    readonly format: TensorViewFormat;
-    /** The tensor placement. */
-    readonly sharding: TensorSharding;
-    /** The tensor rank. */
-    readonly rank: number;
-};
-
-export const TensorViewLayout = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TensorViewLayout): void {
-        encodeTensorViewLayout(writer, value);
-    },
-
-    /** Decode one TensorViewLayout. */
-    decode(reader: BinaryReader): TensorViewLayout {
-        return decodeTensorViewLayout(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TensorViewLayout): Json {
-        return toJsonTensorViewLayout(value);
-    },
-
-    /** Return one TensorViewLayout from one JSON value. */
-    fromJson(value: Json): TensorViewLayout {
-        return fromJsonTensorViewLayout(value);
-    },
-};
-
-/** Encode one TensorViewLayout. */
-export function encodeTensorViewLayout(writer: BinaryWriter, value: TensorViewLayout): void {
-    encodeLocalNodeId(writer, value.element);
-    encodeTensorViewFormat(writer, value.format);
-    encodeTensorSharding(writer, value.sharding);
-    writer.writeUnsigned(value.rank);
-}
-
-/** Decode one TensorViewLayout. */
-export function decodeTensorViewLayout(reader: BinaryReader): TensorViewLayout {
-    const element = decodeLocalNodeId(reader);
-    const format = decodeTensorViewFormat(reader);
-    const sharding = decodeTensorSharding(reader);
-    const rank = reader.readNumber();
-
-    return {
-        element,
-        format,
-        sharding,
-        rank,
-    };
-}
-
-/** Return one JSON value for one TensorViewLayout. */
-export function toJsonTensorViewLayout(value: TensorViewLayout): Json {
-    return {
-        element: toJsonLocalNodeId(value.element),
-        format: toJsonTensorViewFormat(value.format),
-        sharding: toJsonTensorSharding(value.sharding),
-        rank: value.rank,
-    };
-}
-
-/** Return one TensorViewLayout from one JSON value. */
-export function fromJsonTensorViewLayout(value: Json): TensorViewLayout {
-    const object = jsonObject(value);
-
-    return {
-        element: fromJsonLocalNodeId(jsonField(object, "element")),
-        format: fromJsonTensorViewFormat(jsonField(object, "format")),
-        sharding: fromJsonTensorSharding(jsonField(object, "sharding")),
-        rank: jsonInteger(jsonField(object, "rank")),
     };
 }
 

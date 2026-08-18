@@ -214,29 +214,6 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::VectorReduce { .. }
         | Instruction::VectorCompare { .. }
         | Instruction::VectorConvert { .. }
-        | Instruction::TensorSplat { .. }
-        | Instruction::TensorLoad { .. }
-        | Instruction::TensorExtract { .. }
-        | Instruction::TensorStore { .. }
-        | Instruction::TensorFill { .. }
-        | Instruction::TensorCopy { .. }
-        | Instruction::TensorReshape { .. }
-        | Instruction::TensorBroadcast { .. }
-        | Instruction::TensorTranspose { .. }
-        | Instruction::TensorCast { .. }
-        | Instruction::TensorView { .. }
-        | Instruction::TensorSlice { .. }
-        | Instruction::TensorPad { .. }
-        | Instruction::TensorConcat { .. }
-        | Instruction::TensorCompare { .. }
-        | Instruction::TensorSelect { .. }
-        | Instruction::TensorReduce { .. }
-        | Instruction::TensorIndexReduce { .. }
-        | Instruction::TensorDot { .. }
-        | Instruction::TensorConvolution { .. }
-        | Instruction::TensorGather { .. }
-        | Instruction::TensorScatter { .. }
-        | Instruction::TensorConvert { .. }
         | Instruction::Drop { .. }
         | Instruction::Free { .. }
         | Instruction::Unpin { .. }
@@ -366,12 +343,6 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             }
         }
         Type::Vector { element, .. } => {
-            walk_type_id(visitor, tree, element);
-        }
-        Type::Tensor { element, .. } => {
-            walk_type_id(visitor, tree, element);
-        }
-        Type::TensorView { element, .. } => {
             walk_type_id(visitor, tree, element);
         }
         Type::FunctionSignature {

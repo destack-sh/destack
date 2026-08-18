@@ -288,9 +288,6 @@ impl ProvenanceTable {
                 places.get(*destination).clone(),
                 Some(*source),
             ),
-            Instruction::TensorView {
-                destination, view, ..
-            } => (*destination, places.get(*destination).clone(), Some(*view)),
             Instruction::LocalAddr {
                 destination, local, ..
             } => (*destination, Place::local(*local), None),
@@ -1303,10 +1300,6 @@ impl ProvenanceState {
                 destination,
                 dynamic: argument,
                 ..
-            }
-            | Instruction::TensorCast {
-                destination,
-                tensor: argument,
             } => {
                 self.copy(*argument, *destination, function, tree, places);
             }

@@ -108,13 +108,6 @@ export global @COUNTER: ref<raw const int64>
 //                          ^^^ keyword.other.memory.dsm
 //                              ^^^^^ keyword.other.memory.dsm
 
-type @Tensor = tensorView<float32, raw, readonly, (4, 4)>
-// <- keyword.declaration.dsm
-//             ^^^^^^^^^^ support.type.dsm
-//                        ^^^^^^^ support.type.dsm
-//                                 ^^^ keyword.other.memory.dsm
-//                                      ^^^^^^^^ keyword.other.memory.dsm
-
 function @tokens(v0: ref<int64, raw>, v1: ref<dynamic<@Iface>, owned>) -> void {
 entry0(v0: ref<int64, raw>):
     jump block1

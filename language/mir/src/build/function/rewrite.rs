@@ -116,30 +116,6 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::VectorConvert {
                     vector: argument, ..
                 }
-                | Instruction::TensorSplat {
-                    value: argument, ..
-                }
-                | Instruction::TensorExtract {
-                    tensor: argument, ..
-                }
-                | Instruction::TensorReshape {
-                    tensor: argument, ..
-                }
-                | Instruction::TensorBroadcast {
-                    tensor: argument, ..
-                }
-                | Instruction::TensorTranspose {
-                    tensor: argument, ..
-                }
-                | Instruction::TensorCast {
-                    tensor: argument, ..
-                }
-                | Instruction::TensorSlice {
-                    tensor: argument, ..
-                }
-                | Instruction::TensorConvert {
-                    tensor: argument, ..
-                }
                 | Instruction::SliceLength {
                     slice: argument, ..
                 }
@@ -214,75 +190,6 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::VectorCompare { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);
-                }
-                Instruction::TensorLoad { view, .. } => {
-                    Self::replace_value_in_slot(view, from, to);
-                }
-                Instruction::TensorView { view, .. } => {
-                    Self::replace_value_in_slot(view, from, to);
-                }
-                Instruction::TensorStore { view, value, .. } => {
-                    Self::replace_value_in_slot(view, from, to);
-                    Self::replace_value_in_slot(value, from, to);
-                }
-                Instruction::TensorFill { view, value } => {
-                    Self::replace_value_in_slot(view, from, to);
-                    Self::replace_value_in_slot(value, from, to);
-                }
-                Instruction::TensorCopy { target, source } => {
-                    Self::replace_value_in_slot(target, from, to);
-                    Self::replace_value_in_slot(source, from, to);
-                }
-                Instruction::TensorPad { tensor, value, .. } => {
-                    Self::replace_value_in_slot(tensor, from, to);
-                    Self::replace_value_in_slot(value, from, to);
-                }
-                Instruction::TensorReduce {
-                    tensor, initial, ..
-                } => {
-                    Self::replace_value_in_slot(tensor, from, to);
-                    Self::replace_value_in_slot(initial, from, to);
-                }
-                Instruction::TensorIndexReduce { tensor, .. } => {
-                    Self::replace_value_in_slot(tensor, from, to);
-                }
-                Instruction::TensorDot { left, right, .. } => {
-                    Self::replace_value_in_slot(left, from, to);
-                    Self::replace_value_in_slot(right, from, to);
-                }
-                Instruction::TensorConvolution { input, kernel, .. } => {
-                    Self::replace_value_in_slot(input, from, to);
-                    Self::replace_value_in_slot(kernel, from, to);
-                }
-                Instruction::TensorGather {
-                    operand, indices, ..
-                } => {
-                    Self::replace_value_in_slot(operand, from, to);
-                    Self::replace_value_in_slot(indices, from, to);
-                }
-                Instruction::TensorScatter {
-                    operand,
-                    indices,
-                    updates,
-                    ..
-                } => {
-                    Self::replace_value_in_slot(operand, from, to);
-                    Self::replace_value_in_slot(indices, from, to);
-                    Self::replace_value_in_slot(updates, from, to);
-                }
-                Instruction::TensorCompare { left, right, .. } => {
-                    Self::replace_value_in_slot(left, from, to);
-                    Self::replace_value_in_slot(right, from, to);
-                }
-                Instruction::TensorSelect {
-                    mask,
-                    then_value,
-                    else_value,
-                    ..
-                } => {
-                    Self::replace_value_in_slot(mask, from, to);
-                    Self::replace_value_in_slot(then_value, from, to);
-                    Self::replace_value_in_slot(else_value, from, to);
                 }
                 Instruction::Select {
                     condition,
@@ -382,9 +289,7 @@ impl<'a> FunctionBuilder<'a> {
                 }
 
                 // arguments stored externally
-                Instruction::Aggregate { .. }
-                | Instruction::TensorConcat { .. }
-                | Instruction::Intrinsic { .. } => {}
+                Instruction::Aggregate { .. } | Instruction::Intrinsic { .. } => {}
             }
             argument_slice
         };

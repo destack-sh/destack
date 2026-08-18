@@ -5,8 +5,8 @@ use destack_core::FxIndexSet;
 use crate::{
     ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
     NewtypeLayout, NodeVisitor, NodeVisitorOptions, Nullability, Primitive, Representation, Scalar,
-    ScalarField, StructLayout, TargetLayout, TensorLayout, TensorViewLayout, TraceMap, Tree,
-    TupleLayout, Type, TypeDeclaration, Validity, Vector, walk_type,
+    ScalarField, StructLayout, TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeDeclaration,
+    Validity, Vector, walk_type,
 };
 
 use super::aggregate::Aggregate;
@@ -178,8 +178,6 @@ impl<'tree> LayoutBuilder<'tree> {
             | Type::Newtype { .. }
             | Type::Variant { .. }
             | Type::Vector { .. }
-            | Type::Tensor { .. }
-            | Type::TensorView { .. }
             | Type::Function { .. }
             | Type::FunctionPointer { .. } => {
                 self.layout_type(ty)?;
@@ -467,73 +465,6 @@ impl<'tree> LayoutBuilder<'tree> {
                     size,
                     alignment,
                     trace_map: TraceMap::Empty,
-                })
-            }
-
-            // tensors carry one storage reference
-            Type::Tensor {
-                kind,
-                storage,
-                element,
-                shape,
-                format,
-                sharding,
-                nullability,
-                ..
-            } => {
-                let rank = u32::try_from(shape.len()).map_err(|_| self.unsupported("tensor"))?;
-                let reference = self.pointer_scalar(nullability);
-
-                Ok(Layout {
-                    shape: LayoutShape::Tensor(TensorLayout {
-                        element,
-                        format,
-                        sharding,
-                        rank,
-                    }),
-                    representation: Representation::Scalar(reference),
-                    niche: reference.niche(0),
-                    size: self.pointer_bytes(),
-                    alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(kind, storage),
-                })
-            }
-
-            // tensor views store a base, offset, dimensions, and strides
-            Type::TensorView {
-                kind,
-                storage,
-                element,
-                shape,
-                format,
-                sharding,
-                nullability,
-                ..
-            } => {
-                let rank =
-                    u32::try_from(shape.len()).map_err(|_| self.unsupported("tensor view"))?;
-                let words = rank
-                    .checked_mul(2)
-                    .and_then(|dimensions| dimensions.checked_add(2))
-                    .ok_or_else(|| self.unsupported("tensor view"))?;
-                let size = self
-                    .pointer_bytes()
-                    .checked_mul(words)
-                    .ok_or_else(|| self.unsupported("tensor view"))?;
-                let reference = self.pointer_scalar(nullability);
-
-                Ok(Layout {
-                    shape: LayoutShape::TensorView(TensorViewLayout {
-                        element,
-                        format,
-                        sharding,
-                        rank,
-                    }),
-                    representation: Representation::Memory,
-                    niche: reference.niche(0),
-                    size,
-                    alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(kind, storage),
                 })
             }
 

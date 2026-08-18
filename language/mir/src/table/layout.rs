@@ -6,10 +6,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::{SectionEntry, StringId};
 use destack_serde::Reflect;
 
-use crate::{
-    FloatType, LocalNodeId, Nullability, TensorFormat, TensorSharding, TensorViewFormat, TraceMap,
-    Type,
-};
+use crate::{FloatType, LocalNodeId, Nullability, TraceMap, Type};
 
 /// Canonical layout table for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
@@ -408,10 +405,6 @@ pub enum LayoutShape<T = LocalNodeId<Type>, L = LayoutId> {
     Array(ElementLayout<T>),
     /// Vector value storage.
     Vector(ElementLayout<T>),
-    /// Tensor handle storage.
-    Tensor(TensorLayout<T>),
-    /// Tensor view descriptor storage.
-    TensorView(TensorViewLayout<T>),
     /// Variant value storage.
     Variant(VariantLayout<T>),
     /// Object field storage with optional virtual dispatch.
@@ -444,8 +437,6 @@ impl<T, L> LayoutShape<T, L> {
             | Self::Slice
             | Self::Array(_)
             | Self::Vector(_)
-            | Self::Tensor(_)
-            | Self::TensorView(_)
             | Self::Variant(_)
             | Self::Dynamic
             | Self::Function
@@ -467,8 +458,6 @@ impl<T, L> LayoutShape<T, L> {
             | Self::Slice
             | Self::Array(_)
             | Self::Vector(_)
-            | Self::Tensor(_)
-            | Self::TensorView(_)
             | Self::Variant(_)
             | Self::Dynamic
             | Self::Function
@@ -500,32 +489,6 @@ pub struct ElementLayout<T = LocalNodeId<Type>> {
     pub stride: u32,
     /// The fixed element count.
     pub count: u32,
-}
-
-/// Concrete layout for a tensor handle.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct TensorLayout<T = LocalNodeId<Type>> {
-    /// The tensor element type.
-    pub element: T,
-    /// The tensor storage format.
-    pub format: TensorFormat,
-    /// The tensor placement.
-    pub sharding: TensorSharding,
-    /// The tensor rank.
-    pub rank: u32,
-}
-
-/// Concrete layout for a tensor view descriptor.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct TensorViewLayout<T = LocalNodeId<Type>> {
-    /// The viewed element type.
-    pub element: T,
-    /// The tensor view format.
-    pub format: TensorViewFormat,
-    /// The tensor placement.
-    pub sharding: TensorSharding,
-    /// The tensor rank.
-    pub rank: u32,
 }
 
 /// Concrete layout for a variant value.

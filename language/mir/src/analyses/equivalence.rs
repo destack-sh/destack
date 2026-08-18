@@ -111,16 +111,6 @@ impl PureExpression {
                 then_value: *then_value,
                 else_value: *else_value,
             }),
-            mir::Instruction::TensorSelect {
-                mask,
-                then_value,
-                else_value,
-                ..
-            } => Some(Self::Select {
-                condition: *mask,
-                then_value: *then_value,
-                else_value: *else_value,
-            }),
 
             // pure field access
             mir::Instruction::FieldGet {
@@ -174,28 +164,6 @@ impl PureExpression {
             | mir::Instruction::VectorReduce { .. }
             | mir::Instruction::VectorCompare { .. }
             | mir::Instruction::VectorConvert { .. }
-            | mir::Instruction::TensorSplat { .. }
-            | mir::Instruction::TensorExtract { .. }
-            | mir::Instruction::TensorLoad { .. }
-            | mir::Instruction::TensorStore { .. }
-            | mir::Instruction::TensorFill { .. }
-            | mir::Instruction::TensorCopy { .. }
-            | mir::Instruction::TensorReshape { .. }
-            | mir::Instruction::TensorBroadcast { .. }
-            | mir::Instruction::TensorTranspose { .. }
-            | mir::Instruction::TensorCast { .. }
-            | mir::Instruction::TensorView { .. }
-            | mir::Instruction::TensorSlice { .. }
-            | mir::Instruction::TensorPad { .. }
-            | mir::Instruction::TensorConcat { .. }
-            | mir::Instruction::TensorReduce { .. }
-            | mir::Instruction::TensorIndexReduce { .. }
-            | mir::Instruction::TensorDot { .. }
-            | mir::Instruction::TensorConvolution { .. }
-            | mir::Instruction::TensorGather { .. }
-            | mir::Instruction::TensorScatter { .. }
-            | mir::Instruction::TensorCompare { .. }
-            | mir::Instruction::TensorConvert { .. }
             | mir::Instruction::AtomicLoad { .. }
             | mir::Instruction::AtomicStore { .. }
             | mir::Instruction::AtomicCompareExchange { .. }

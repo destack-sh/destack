@@ -720,10 +720,7 @@ impl<'a> MemoryRegionBuilder<'a> {
     fn expect_element_size(&self, array: mir::Value) -> u64 {
         let ty_id = self.value_type(array);
         let element_id = match self.tree.get(ty_id) {
-            mir::Type::FixedArray { element, .. }
-            | mir::Type::Slice { element, .. }
-            | mir::Type::Tensor { element, .. }
-            | mir::Type::TensorView { element, .. } => *element,
+            mir::Type::FixedArray { element, .. } | mir::Type::Slice { element, .. } => *element,
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
                 self.expect_pointee_element(*pointee)
             }
@@ -743,10 +740,7 @@ impl<'a> MemoryRegionBuilder<'a> {
     /// Return the element type for an indexed pointee.
     fn expect_pointee_element(&self, pointee: mir::TypeId) -> mir::TypeId {
         match self.tree.get(pointee) {
-            mir::Type::FixedArray { element, .. }
-            | mir::Type::Slice { element, .. }
-            | mir::Type::Tensor { element, .. }
-            | mir::Type::TensorView { element, .. } => *element,
+            mir::Type::FixedArray { element, .. } | mir::Type::Slice { element, .. } => *element,
             _ => panic!("element.address requires an indexed pointee, got {pointee:?}"),
         }
     }

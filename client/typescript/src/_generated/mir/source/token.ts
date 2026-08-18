@@ -70,7 +70,7 @@ export function fromJsonToken(value: Json): Token {
 }
 
 /** MIR token type. */
-export type TokenType = "identifier" | "integer" | "float" | "string" | "character" | "regex" | "lifetime" | "whitespace" | "newline" | "comment" | "end" | "unknown" | "at" | "hash" | "openParenthesis" | "closeParenthesis" | "openBrace" | "closeBrace" | "openBracket" | "closeBracket" | "lessThan" | "greaterThan" | "colon" | "semicolon" | "comma" | "pipe" | "question" | "star" | "equal" | "arrow" | "fatArrow" | "external" | "export" | "function" | "global" | "shared" | "constant" | "type" | "block" | "local" | "return" | "jump" | "branch" | "check" | "switch" | "panic" | "unwindResume" | "abort" | "unreachable" | "tailCall" | "call" | "callIndirect" | "tailCallIndirect" | "callVirtual" | "tailCallVirtual" | "callDynamic" | "tailCallDynamic" | "invoke" | "invokeIndirect" | "invokeVirtual" | "invokeDynamic" | "void" | "boolean" | "ref" | "vector" | "tensor" | "tensorView" | "struct" | "newtype" | "booleanLiteral" | "typeName" | "ownership" | "readonly" | "const";
+export type TokenType = "identifier" | "integer" | "float" | "string" | "character" | "regex" | "lifetime" | "whitespace" | "newline" | "comment" | "end" | "unknown" | "at" | "hash" | "openParenthesis" | "closeParenthesis" | "openBrace" | "closeBrace" | "openBracket" | "closeBracket" | "lessThan" | "greaterThan" | "colon" | "semicolon" | "comma" | "pipe" | "question" | "star" | "equal" | "arrow" | "fatArrow" | "external" | "export" | "function" | "global" | "shared" | "constant" | "type" | "block" | "local" | "return" | "jump" | "branch" | "check" | "switch" | "panic" | "unwindResume" | "abort" | "unreachable" | "tailCall" | "call" | "callIndirect" | "tailCallIndirect" | "callVirtual" | "tailCallVirtual" | "callDynamic" | "tailCallDynamic" | "invoke" | "invokeIndirect" | "invokeVirtual" | "invokeDynamic" | "void" | "boolean" | "ref" | "vector" | "struct" | "newtype" | "booleanLiteral" | "typeName" | "ownership" | "readonly" | "const";
 
 export const TokenType = {
     /** Encode this value. */
@@ -292,32 +292,26 @@ export function encodeTokenType(writer: BinaryWriter, value: TokenType): void {
         case "vector":
             writer.writeUnsigned(64);
             return;
-        case "tensor":
+        case "struct":
             writer.writeUnsigned(65);
             return;
-        case "tensorView":
+        case "newtype":
             writer.writeUnsigned(66);
             return;
-        case "struct":
+        case "booleanLiteral":
             writer.writeUnsigned(67);
             return;
-        case "newtype":
+        case "typeName":
             writer.writeUnsigned(68);
             return;
-        case "booleanLiteral":
+        case "ownership":
             writer.writeUnsigned(69);
             return;
-        case "typeName":
+        case "readonly":
             writer.writeUnsigned(70);
             return;
-        case "ownership":
-            writer.writeUnsigned(71);
-            return;
-        case "readonly":
-            writer.writeUnsigned(72);
-            return;
         case "const":
-            writer.writeUnsigned(73);
+            writer.writeUnsigned(71);
             return;
     }
 
@@ -460,22 +454,18 @@ export function decodeTokenType(reader: BinaryReader): TokenType {
         case 64:
             return "vector";
         case 65:
-            return "tensor";
-        case 66:
-            return "tensorView";
-        case 67:
             return "struct";
-        case 68:
+        case 66:
             return "newtype";
-        case 69:
+        case 67:
             return "booleanLiteral";
-        case 70:
+        case 68:
             return "typeName";
-        case 71:
+        case 69:
             return "ownership";
-        case 72:
+        case 70:
             return "readonly";
-        case 73:
+        case 71:
             return "const";
     }
 
@@ -622,10 +612,6 @@ export function fromJsonTokenType(value: Json): TokenType {
             return "ref";
         case "vector":
             return "vector";
-        case "tensor":
-            return "tensor";
-        case "tensorView":
-            return "tensorView";
         case "struct":
             return "struct";
         case "newtype":

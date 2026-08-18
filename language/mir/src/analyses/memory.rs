@@ -1097,66 +1097,11 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::VectorReduce { .. }
             | mir::Instruction::VectorCompare { .. }
             | mir::Instruction::VectorConvert { .. }
-            | mir::Instruction::TensorSplat { .. }
-            | mir::Instruction::TensorView { .. }
             | mir::Instruction::NewComplete { .. }
             | mir::Instruction::Assume { .. }
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Breakpoint => SmallVec::new(),
-            mir::Instruction::TensorExtract { tensor, .. }
-            | mir::Instruction::TensorReshape { tensor, .. }
-            | mir::Instruction::TensorBroadcast { tensor, .. }
-            | mir::Instruction::TensorTranspose { tensor, .. }
-            | mir::Instruction::TensorCast { tensor, .. }
-            | mir::Instruction::TensorSlice { tensor, .. }
-            | mir::Instruction::TensorPad { tensor, .. }
-            | mir::Instruction::TensorReduce { tensor, .. }
-            | mir::Instruction::TensorIndexReduce { tensor, .. }
-            | mir::Instruction::TensorConvert { tensor, .. } => self.tensor_effects([*tensor]),
-            mir::Instruction::TensorConcat { tensors, .. } => {
-                self.tensor_effects(self.tree.get_values(*tensors).iter().copied())
-            }
-            mir::Instruction::TensorCompare { left, right, .. }
-            | mir::Instruction::TensorDot { left, right, .. } => {
-                self.tensor_effects([*left, *right])
-            }
-            mir::Instruction::TensorConvolution { input, kernel, .. } => {
-                self.tensor_effects([*input, *kernel])
-            }
-            mir::Instruction::TensorGather {
-                operand, indices, ..
-            } => self.tensor_effects([*operand, *indices]),
-            mir::Instruction::TensorScatter {
-                operand,
-                indices,
-                updates,
-                ..
-            } => self.tensor_effects([*operand, *indices, *updates]),
-            mir::Instruction::TensorSelect {
-                mask,
-                then_value,
-                else_value,
-                ..
-            } => self.tensor_effects([*mask, *then_value, *else_value]),
-            mir::Instruction::TensorLoad { view, .. } => {
-                let effect = self.address_effect(*view, mir::MemoryOperation::Read, false);
-
-                Self::single_effect(effect)
-            }
-            mir::Instruction::TensorStore { view, .. }
-            | mir::Instruction::TensorFill { view, .. } => {
-                let effect = self.address_effect(*view, mir::MemoryOperation::Write, false);
-
-                Self::single_effect(effect)
-            }
-            mir::Instruction::TensorCopy { target, source } => {
-                let mut effects = SmallVec::new();
-                effects.push(self.address_effect(*target, mir::MemoryOperation::Write, false));
-                effects.push(self.address_effect(*source, mir::MemoryOperation::Read, false));
-
-                effects
-            }
             mir::Instruction::Load { pointer, .. }
             | mir::Instruction::VariantTagLoad {
                 variant: pointer, ..
@@ -1382,22 +1327,6 @@ impl<'a> MemoryAccessCollector<'a> {
     fn apply_address_region(&self, effect: &mut MemoryAccessEffect, address: mir::Value) {
         let spaces = self.address_storage_set(address);
         effect.region.set_spaces(spaces);
-    }
-
-    /// Build read effects for reference-backed tensor operands.
-    fn tensor_effects(
-        &self,
-        tensors: impl IntoIterator<Item = mir::Value>,
-    ) -> SmallVec<[MemoryAccessEffect; 2]> {
-        let mut effects = SmallVec::new();
-
-        // retain each operand as an independently aliasable memory read
-        for tensor in tensors {
-            let effect = self.address_effect(tensor, mir::MemoryOperation::Read, false);
-            effects.push(effect);
-        }
-
-        effects
     }
 
     /// Apply local region tables to an effect.
@@ -1781,8 +1710,6 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::SpaceCast
             | mir::Intrinsic::PointerByteOffsetFrom
             | mir::Intrinsic::RawEq => SmallVec::new(),
-
-            // tensor operations
 
             // float math
             mir::Intrinsic::Sqrt

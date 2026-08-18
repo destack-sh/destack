@@ -599,9 +599,7 @@ impl Function {
 
         match tree.get(ty) {
             Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => Some(*pointee),
-            Type::Slice { element, .. }
-            | Type::Tensor { element, .. }
-            | Type::TensorView { element, .. } => Some(*element),
+            Type::Slice { element, .. } => Some(*element),
             _ => None,
         }
     }

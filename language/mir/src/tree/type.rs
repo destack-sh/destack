@@ -339,138 +339,6 @@ impl Copy {
     }
 }
 
-/// Dimension order for dense tensor storage.
-#[repr(u32)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub enum TensorDimensionOrder {
-    /// Last dimension is contiguous.
-    RowMajor,
-    /// First dimension is contiguous.
-    ColumnMajor,
-}
-
-/// Format for a tensor value.
-#[repr(C, u32)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub enum TensorFormat {
-    /// Dense contiguous format.
-    Dense {
-        /// The dimension order.
-        order: TensorDimensionOrder,
-    },
-}
-
-impl TensorFormat {
-    /// Return the default dense row-major tensor format.
-    pub fn dense_row_major() -> Self {
-        TensorFormat::Dense {
-            order: TensorDimensionOrder::RowMajor,
-        }
-    }
-}
-
-/// Format descriptor for a tensor view.
-#[repr(C, u32)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub enum TensorViewFormat {
-    /// Dense contiguous view.
-    Dense {
-        /// The dimension order.
-        order: TensorDimensionOrder,
-    },
-    /// Explicit strided view.
-    Strided,
-}
-
-impl TensorViewFormat {
-    /// Return the default dense row-major tensor view format.
-    pub fn dense_row_major() -> Self {
-        TensorViewFormat::Dense {
-            order: TensorDimensionOrder::RowMajor,
-        }
-    }
-}
-
-/// Placement descriptor for tensor storage.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum TensorSharding {
-    /// Tensor storage is not partitioned across a mesh.
-    Unsharded,
-    /// Tensor storage is mapped across a mesh axis by axis.
-    Sharding {
-        /// The per-axis placement descriptors.
-        axes: Vec<TensorShardingAxis>,
-    },
-}
-
-impl TensorSharding {
-    /// Return the default unsharded tensor placement.
-    pub fn unsharded() -> Self {
-        Self::Unsharded
-    }
-}
-
-/// Per-axis placement descriptor for a sharded tensor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum TensorShardingAxis {
-    /// Split one tensor axis across one mesh axis.
-    Shard {
-        /// The tensor axis being split.
-        axis: i32,
-    },
-    /// Replicate values across one mesh axis.
-    Replicate,
-    /// Store partial results across one mesh axis.
-    Partial {
-        /// The reduction used to combine partial values.
-        reduction: TensorReduction,
-    },
-}
-
-/// Reduction used when partial tensor shards are combined.
-#[repr(u32)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub enum TensorReduction {
-    /// Add partial values.
-    Add,
-    /// Multiply partial values.
-    Multiply,
-    /// Keep the minimum partial value.
-    Minimum,
-    /// Keep the maximum partial value.
-    Maximum,
-    /// Combine partial boolean values with AND.
-    And,
-    /// Combine partial boolean values with OR.
-    Or,
-}
-
-/// Dimension size for tensor shapes and formats.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum TensorDimension {
-    /// Compile time static dimension size.
-    Static(u64),
-    /// Symbolic runtime dimension shared across tensors.
-    Symbol(String),
-    /// Runtime dynamic dimension size.
-    Dynamic,
-}
-
-impl TensorDimension {
-    /// Check whether this dimension is dynamic.
-    pub fn is_dynamic(&self) -> bool {
-        matches!(self, TensorDimension::Dynamic)
-    }
-}
-
 /// Stable canonical fingerprint of one MIR type.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
@@ -634,49 +502,6 @@ pub enum Type {
         /// Copy of this vector type.
         copy: Copy,
     },
-    /// Reference-backed tensor value with static or dynamic shape.
-    Tensor {
-        /// The reference kind of the tensor storage.
-        kind: ReferenceKind,
-        /// Lifetime roots for borrowed tensor storage.
-        lifetime: Lifetime,
-        /// The backing tensor storage.
-        storage: Storage,
-        /// The access exposed through the tensor storage.
-        access: Access,
-        /// The element type.
-        element: TypeId,
-        /// The static shape.
-        shape: Vec<TensorDimension>,
-        /// The tensor format.
-        format: TensorFormat,
-        /// The tensor placement.
-        sharding: TensorSharding,
-        /// The nullish values allowed by this tensor handle.
-        nullability: Nullability,
-    },
-    /// Reference-like view into tensor-shaped memory.
-    TensorView {
-        /// The reference kind.
-        kind: ReferenceKind,
-        /// Lifetime roots for borrowed tensor views.
-        lifetime: Lifetime,
-        /// The backing storage for this view.
-        storage: Storage,
-        /// The access exposed through this view.
-        access: Access,
-        /// The element type.
-        element: TypeId,
-        /// The static shape.
-        shape: Vec<TensorDimension>,
-        /// The tensor view format.
-        format: TensorViewFormat,
-        /// The tensor placement.
-        sharding: TensorSharding,
-        /// The nullish values allowed by this view descriptor.
-        nullability: Nullability,
-    },
-
     /// Bare function signature.
     FunctionSignature {
         /// Lifetime parameters in signature-local slot order.
@@ -955,8 +780,6 @@ impl Type {
             Type::Dynamic { .. }
                 | Type::Reference { .. }
                 | Type::Slice { .. }
-                | Type::Tensor { .. }
-                | Type::TensorView { .. }
                 | Type::Function { .. }
         )
     }
@@ -967,8 +790,6 @@ impl Type {
             Type::Dynamic { lifetime, .. }
             | Type::Reference { lifetime, .. }
             | Type::Slice { lifetime, .. }
-            | Type::Tensor { lifetime, .. }
-            | Type::TensorView { lifetime, .. }
             | Type::Function { lifetime, .. } => *lifetime = replacement,
             _ => {}
         }
@@ -988,8 +809,6 @@ impl Type {
             Type::Dynamic { kind, .. }
             | Type::Reference { kind, .. }
             | Type::Slice { kind, .. }
-            | Type::Tensor { kind, .. }
-            | Type::TensorView { kind, .. }
             | Type::Function { kind, .. } => Some(*kind),
             _ => None,
         }
@@ -1001,8 +820,6 @@ impl Type {
             Type::Dynamic { lifetime, .. }
             | Type::Reference { lifetime, .. }
             | Type::Slice { lifetime, .. }
-            | Type::Tensor { lifetime, .. }
-            | Type::TensorView { lifetime, .. }
             | Type::Function { lifetime, .. } => Some(lifetime),
             _ => None,
         }
@@ -1014,8 +831,6 @@ impl Type {
             Type::Dynamic { access, .. }
             | Type::Reference { access, .. }
             | Type::Slice { access, .. }
-            | Type::Tensor { access, .. }
-            | Type::TensorView { access, .. }
             | Type::Function { access, .. } => Some(*access),
             _ => None,
         }
@@ -1027,8 +842,6 @@ impl Type {
             Type::Dynamic { storage, .. }
             | Type::Reference { storage, .. }
             | Type::Slice { storage, .. }
-            | Type::Tensor { storage, .. }
-            | Type::TensorView { storage, .. }
             | Type::Function { storage, .. } => Some(*storage),
             _ => None,
         }
@@ -1040,8 +853,6 @@ impl Type {
             Type::Dynamic { nullability, .. }
             | Type::Reference { nullability, .. }
             | Type::Slice { nullability, .. }
-            | Type::Tensor { nullability, .. }
-            | Type::TensorView { nullability, .. }
             | Type::Function { nullability, .. }
             | Type::Pointer { nullability, .. } => Some(*nullability),
             _ => None,
@@ -1054,8 +865,6 @@ impl Type {
             Type::Dynamic { nullability, .. }
             | Type::Reference { nullability, .. }
             | Type::Slice { nullability, .. }
-            | Type::Tensor { nullability, .. }
-            | Type::TensorView { nullability, .. }
             | Type::Function { nullability, .. }
             | Type::Pointer { nullability, .. } => nullability,
             _ => return false,
@@ -1146,8 +955,6 @@ impl Type {
             Type::Dynamic { kind, .. }
             | Type::Reference { kind, .. }
             | Type::Slice { kind, .. }
-            | Type::Tensor { kind, .. }
-            | Type::TensorView { kind, .. }
             | Type::Function { kind, .. } => match kind {
                 ReferenceKind::Unique => Copy::No,
                 ReferenceKind::Managed | ReferenceKind::Borrowed => Copy::Yes,
@@ -1285,9 +1092,7 @@ impl Type {
             }
             Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
-            | Type::Vector { element, .. }
-            | Type::Tensor { element, .. }
-            | Type::TensorView { element, .. } => {
+            | Type::Vector { element, .. } => {
                 *element = map(*element);
             }
             Type::Tuple { elements, copy: _ } => {

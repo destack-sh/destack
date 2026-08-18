@@ -6,9 +6,7 @@ use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
     FloatType, GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Multiplicity,
     Nullability, ReferenceKind, SignatureParameter, Space, Static, StaticField, StaticId,
-    StaticKey, Storage, Symbol, TensorDimension, TensorDimensionOrder, TensorFormat,
-    TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Tree, Type,
-    TypeFingerprint, TypeId,
+    StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint, TypeId,
 };
 
 impl Tree {
@@ -311,50 +309,6 @@ impl TypeHasher {
                 self.hash_type(*element, tree);
                 self.hasher.write_u32(*lanes);
                 self.hash_copy(*copy);
-            }
-            Type::Tensor {
-                kind,
-                lifetime,
-                storage,
-                access,
-                element,
-                shape,
-                format,
-                sharding,
-                nullability,
-            } => {
-                self.hasher.write_u8(23);
-                self.hash_reference_kind(*kind);
-                self.hash_lifetime(lifetime);
-                self.hash_storage(*storage);
-                self.hash_access(*access);
-                self.hash_type(*element, tree);
-                self.hash_tensor_shape(shape);
-                self.hash_tensor_format(*format);
-                self.hash_tensor_sharding(sharding);
-                self.hash_nullability(*nullability);
-            }
-            Type::TensorView {
-                kind,
-                lifetime,
-                storage,
-                access,
-                element,
-                shape,
-                format,
-                sharding,
-                nullability,
-            } => {
-                self.hasher.write_u8(24);
-                self.hash_reference_kind(*kind);
-                self.hash_lifetime(lifetime);
-                self.hash_storage(*storage);
-                self.hash_access(*access);
-                self.hash_type(*element, tree);
-                self.hash_tensor_shape(shape);
-                self.hash_tensor_view_format(*format);
-                self.hash_tensor_sharding(sharding);
-                self.hash_nullability(*nullability);
             }
             Type::FunctionSignature {
                 lifetimes,
@@ -674,96 +628,6 @@ impl TypeHasher {
             Constant::Uninit => self.hasher.write_u8(7),
             Constant::Zeroed => self.hasher.write_u8(8),
         }
-    }
-
-    /// Hash one tensor shape.
-    fn hash_tensor_shape(&mut self, shape: &[TensorDimension]) {
-        self.hash_length(shape.len());
-        for dimension in shape {
-            match dimension {
-                TensorDimension::Static(size) => {
-                    self.hasher.write_u8(0);
-                    self.hasher.write_u64(*size);
-                }
-                TensorDimension::Symbol(name) => {
-                    self.hasher.write_u8(1);
-                    self.hasher.update_len_prefixed(name.as_bytes());
-                }
-                TensorDimension::Dynamic => self.hasher.write_u8(2),
-            }
-        }
-    }
-
-    /// Hash one tensor dimension order.
-    fn hash_tensor_order(&mut self, order: TensorDimensionOrder) {
-        let tag = match order {
-            TensorDimensionOrder::RowMajor => 0,
-            TensorDimensionOrder::ColumnMajor => 1,
-        };
-        self.hasher.write_u8(tag);
-    }
-
-    /// Hash one tensor format.
-    fn hash_tensor_format(&mut self, format: TensorFormat) {
-        match format {
-            TensorFormat::Dense { order } => {
-                self.hasher.write_u8(0);
-                self.hash_tensor_order(order);
-            }
-        }
-    }
-
-    /// Hash one tensor view format.
-    fn hash_tensor_view_format(&mut self, format: TensorViewFormat) {
-        match format {
-            TensorViewFormat::Dense { order } => {
-                self.hasher.write_u8(0);
-                self.hash_tensor_order(order);
-            }
-            TensorViewFormat::Strided => self.hasher.write_u8(1),
-        }
-    }
-
-    /// Hash one tensor placement.
-    fn hash_tensor_sharding(&mut self, sharding: &TensorSharding) {
-        match sharding {
-            TensorSharding::Unsharded => self.hasher.write_u8(0),
-            TensorSharding::Sharding { axes } => {
-                self.hasher.write_u8(1);
-                self.hash_length(axes.len());
-                for axis in axes {
-                    self.hash_tensor_axis(*axis);
-                }
-            }
-        }
-    }
-
-    /// Hash one tensor placement axis.
-    fn hash_tensor_axis(&mut self, axis: TensorShardingAxis) {
-        match axis {
-            TensorShardingAxis::Shard { axis } => {
-                self.hasher.write_u8(0);
-                self.hasher.write_i32(axis);
-            }
-            TensorShardingAxis::Replicate => self.hasher.write_u8(1),
-            TensorShardingAxis::Partial { reduction } => {
-                self.hasher.write_u8(2);
-                self.hash_tensor_reduction(reduction);
-            }
-        }
-    }
-
-    /// Hash one tensor reduction.
-    fn hash_tensor_reduction(&mut self, reduction: TensorReduction) {
-        let tag = match reduction {
-            TensorReduction::Add => 0,
-            TensorReduction::Multiply => 1,
-            TensorReduction::Minimum => 2,
-            TensorReduction::Maximum => 3,
-            TensorReduction::And => 4,
-            TensorReduction::Or => 5,
-        };
-        self.hasher.write_u8(tag);
     }
 
     /// Hash one parsed attribute identifier.

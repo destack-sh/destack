@@ -9,9 +9,8 @@ use super::value::format_type_id;
 use crate::{
     Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
     GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability,
-    ReferenceKind, SignatureParameter, StaticId, Storage, TensorDimension, TensorDimensionOrder,
-    TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type,
-    TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId, Writer, write_comments_before,
+    ReferenceKind, SignatureParameter, StaticId, Storage, Type, TypeDeclaration,
+    TypeDeclarationSpans, TypeHeritage, TypeId, Writer, write_comments_before,
 };
 
 impl FormatNode for Type {
@@ -490,60 +489,6 @@ fn format_type_inner<'a>(
                 ]
             )
         }
-        Type::Tensor {
-            kind,
-            lifetime,
-            storage,
-            access,
-            element,
-            shape,
-            format,
-            sharding,
-            nullability,
-        } => {
-            write!(f, [token("tensor"), token("<")])?;
-            format_view_header(*kind, lifetime, *storage, *access, *nullability, element, f)?;
-            write!(f, [token(","), space()])?;
-            format_shape(shape, f)?;
-            if *format != TensorFormat::dense_row_major() {
-                write!(f, [token(","), space(), token("format"), token("(")])?;
-                format_tensor_format(format, f)?;
-                write!(f, [token(")")])?;
-            }
-            if sharding != &TensorSharding::unsharded() {
-                write!(f, [token(","), space(), token("sharding"), token("(")])?;
-                format_tensor_sharding(sharding, f)?;
-                write!(f, [token(")")])?;
-            }
-            write!(f, [token(">")])
-        }
-        Type::TensorView {
-            kind,
-            lifetime,
-            storage,
-            access,
-            element,
-            shape,
-            format,
-            sharding,
-            nullability,
-        } => {
-            write!(f, [token("tensorView"), token("<")])?;
-            format_view_header(*kind, lifetime, *storage, *access, *nullability, element, f)?;
-            write!(f, [token(","), space()])?;
-            format_shape(shape, f)?;
-            if *format != TensorViewFormat::dense_row_major() {
-                write!(f, [token(","), space(), token("format"), token("(")])?;
-                format_tensor_view_format(format, f)?;
-                write!(f, [token(")")])?;
-            }
-            if sharding != &TensorSharding::unsharded() {
-                write!(f, [token(","), space(), token("sharding"), token("(")])?;
-                format_tensor_sharding(sharding, f)?;
-                write!(f, [token(")")])?;
-            }
-            write!(f, [token(">")])
-        }
         Type::FunctionSignature {
             lifetimes,
             parameters,
@@ -582,121 +527,6 @@ fn format_type_inner<'a>(
         }
         Type::Application { base, lifetimes } => format_type_application(*base, lifetimes, f),
     }
-}
-
-fn format_shape<'a>(shape: &[TensorDimension], f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    write!(f, [token("(")])?;
-    for (i, dim) in shape.iter().enumerate() {
-        if i > 0 {
-            write!(f, [token(","), space()])?;
-        }
-        match dim {
-            TensorDimension::Static(value) => {
-                write!(f, [copied_text(&value.to_string())])?;
-            }
-            TensorDimension::Symbol(name) => write!(f, [copied_text(name)])?,
-            TensorDimension::Dynamic => write!(f, [token("dynamic")])?,
-        }
-    }
-    write!(f, [token(")")])
-}
-
-fn format_tensor_format<'a>(format: &TensorFormat, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    match format {
-        TensorFormat::Dense {
-            order: TensorDimensionOrder::RowMajor,
-        } => write!(
-            f,
-            [token("dense"), token("("), token("rowMajor"), token(")")]
-        ),
-        TensorFormat::Dense {
-            order: TensorDimensionOrder::ColumnMajor,
-        } => write!(
-            f,
-            [token("dense"), token("("), token("columnMajor"), token(")")]
-        ),
-    }
-}
-
-fn format_tensor_view_format<'a>(
-    format: &TensorViewFormat,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    match format {
-        TensorViewFormat::Dense {
-            order: TensorDimensionOrder::RowMajor,
-        } => write!(
-            f,
-            [token("dense"), token("("), token("rowMajor"), token(")")]
-        ),
-        TensorViewFormat::Dense {
-            order: TensorDimensionOrder::ColumnMajor,
-        } => write!(
-            f,
-            [token("dense"), token("("), token("columnMajor"), token(")")]
-        ),
-        TensorViewFormat::Strided => write!(f, [token("strided")]),
-    }
-}
-
-fn format_tensor_sharding<'a>(
-    sharding: &TensorSharding,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    match sharding {
-        TensorSharding::Unsharded => write!(f, [token("unsharded")]),
-        TensorSharding::Sharding { axes } => {
-            for (index, axis) in axes.iter().enumerate() {
-                if index > 0 {
-                    write!(f, [token(","), space()])?;
-                }
-                format_tensor_sharding_axis(axis, f)?;
-            }
-
-            Ok(())
-        }
-    }
-}
-
-fn format_tensor_sharding_axis<'a>(
-    axis: &TensorShardingAxis,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    match axis {
-        TensorShardingAxis::Shard { axis } => {
-            write!(
-                f,
-                [
-                    token("shard"),
-                    token("("),
-                    copied_text(&axis.to_string()),
-                    token(")")
-                ]
-            )
-        }
-        TensorShardingAxis::Replicate => write!(f, [token("replicate")]),
-        TensorShardingAxis::Partial { reduction } => {
-            write!(f, [token("partial"), token("(")])?;
-            format_tensor_reduction(*reduction, f)?;
-            write!(f, [token(")")])
-        }
-    }
-}
-
-fn format_tensor_reduction<'a>(
-    reduction: TensorReduction,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    let name = match reduction {
-        TensorReduction::Add => "add",
-        TensorReduction::Multiply => "multiply",
-        TensorReduction::Minimum => "minimum",
-        TensorReduction::Maximum => "maximum",
-        TensorReduction::And => "and",
-        TensorReduction::Or => "or",
-    };
-
-    write!(f, [token(name)])
 }
 
 fn format_view_header<'a>(

@@ -285,14 +285,6 @@
             },
             {
               "type": "STRING",
-              "value": "tensor"
-            },
-            {
-              "type": "STRING",
-              "value": "tensorView"
-            },
-            {
-              "type": "STRING",
               "value": "space"
             },
             {

@@ -737,9 +737,7 @@ impl Parser {
         let expected_type = expected_type?;
 
         match self.tree.get(expected_type) {
-            Type::FixedArray { element, .. }
-            | Type::Vector { element, .. }
-            | Type::Tensor { element, .. } => Some(*element),
+            Type::FixedArray { element, .. } | Type::Vector { element, .. } => Some(*element),
             Type::Tuple { elements, .. } => elements.get(index).copied(),
             Type::Struct { fields, .. } => fields.get(index).map(|field| self.tree.get(*field).ty),
             Type::Newtype { inner, .. } => self.data_init_element_type(Some(*inner), index),

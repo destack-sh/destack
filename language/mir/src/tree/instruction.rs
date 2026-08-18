@@ -8,9 +8,8 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
     Constant, ConvertMode, CounterId, DispatchSlot, FenceAccess, FunctionId, GlobalId, IndexSlice,
-    Intrinsic, LocalId, Node, NodeType, SamplerId, TensorImmediateId, TensorIndexReduceOperator,
-    TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode, Tree, TypeId, UnaryOperator,
-    Value, ValueSlice, VectorReduceOperator,
+    Intrinsic, LocalId, Node, NodeType, SamplerId, Tree, TypeId, UnaryOperator, Value, ValueSlice,
+    VectorReduceOperator,
 };
 
 /// One MIR instruction.
@@ -481,255 +480,6 @@ pub enum Instruction {
         vector: Value,
     },
 
-    // tensor operations (tensor.*)
-    /// Broadcast a scalar to all tensor elements.
-    TensorSplat {
-        /// The SSA value to define with the tensor result.
-        destination: Value,
-        /// The scalar value to broadcast.
-        value: Value,
-    },
-    /// Load a tensor element from a tensor reference.
-    TensorLoad {
-        /// The SSA value to define with the loaded element.
-        destination: Value,
-        /// The tensor reference to load from.
-        view: Value,
-        /// The index values (stored in Tree's argument buffer).
-        indices: ValueSlice,
-    },
-    /// Extract a tensor element from a tensor value.
-    TensorExtract {
-        /// The SSA value to define with the extracted element.
-        destination: Value,
-        /// The tensor value to extract from.
-        tensor: Value,
-        /// The index values (stored in Tree's argument buffer).
-        indices: ValueSlice,
-    },
-    /// Store a tensor element into a tensor reference.
-    TensorStore {
-        /// The tensor reference to store into.
-        view: Value,
-        /// The index values (stored in Tree's argument buffer).
-        indices: ValueSlice,
-        /// The value to store.
-        value: Value,
-    },
-    /// Fill a tensor reference with a scalar value.
-    TensorFill {
-        /// The tensor reference to fill.
-        view: Value,
-        /// The scalar value to write.
-        value: Value,
-    },
-    /// Copy elements from a source tensor reference into a destination tensor reference.
-    TensorCopy {
-        /// The destination tensor reference.
-        target: Value,
-        /// The source tensor reference.
-        source: Value,
-    },
-    /// Reshape a tensor value into a new shape.
-    TensorReshape {
-        /// The SSA value to define with the reshaped tensor.
-        destination: Value,
-        /// The tensor value to reshape.
-        tensor: Value,
-        /// The shape values (stored in Tree's argument buffer).
-        shape: ValueSlice,
-    },
-    /// Broadcast a tensor into a larger shape.
-    TensorBroadcast {
-        /// The SSA value to define with the broadcasted tensor.
-        destination: Value,
-        /// The tensor value to broadcast.
-        tensor: Value,
-        /// The operand dimensions mapped into the result.
-        dimensions: IndexSlice,
-    },
-    /// Permute tensor dimensions.
-    TensorTranspose {
-        /// The SSA value to define with the transposed tensor.
-        destination: Value,
-        /// The tensor value to transpose.
-        tensor: Value,
-        /// The permutation of dimensions.
-        permutation: IndexSlice,
-    },
-    /// Refine a tensor type without changing its contents.
-    TensorCast {
-        /// The SSA value to define with the cast tensor.
-        destination: Value,
-        /// The tensor value to cast.
-        tensor: Value,
-    },
-    /// Create a view into a tensor reference.
-    TensorView {
-        /// The SSA value to define with the view result.
-        destination: Value,
-        /// The tensor reference to view.
-        view: Value,
-        /// The view arguments (offsets, sizes, strides) stored in Tree's argument buffer.
-        arguments: ValueSlice,
-        /// The number of offset values.
-        offsets_count: u16,
-        /// The number of size values.
-        sizes_count: u16,
-        /// The number of stride values.
-        strides_count: u16,
-    },
-    /// Slice a tensor by offsets, sizes, and strides.
-    TensorSlice {
-        /// The SSA value to define with the sliced tensor.
-        destination: Value,
-        /// The tensor value to slice.
-        tensor: Value,
-        /// The slice arguments (offsets, sizes, strides) stored in Tree's argument buffer.
-        arguments: ValueSlice,
-        /// The number of offset values.
-        offsets_count: u16,
-        /// The number of size values.
-        sizes_count: u16,
-        /// The number of stride values.
-        strides_count: u16,
-    },
-    /// Pad a tensor with low, high, and interior padding.
-    TensorPad {
-        /// The SSA value to define with the padded tensor.
-        destination: Value,
-        /// The tensor value to pad.
-        tensor: Value,
-        /// The padding arguments (low, high, interior) stored in Tree's argument buffer.
-        arguments: ValueSlice,
-        /// The number of low padding values.
-        low_count: u16,
-        /// The number of high padding values.
-        high_count: u16,
-        /// The number of interior padding values.
-        interior_count: u16,
-        /// The scalar padding value.
-        value: Value,
-    },
-    /// Concatenate tensors along a dimension.
-    TensorConcat {
-        /// The SSA value to define with the concatenated tensor.
-        destination: Value,
-        /// The tensor operands stored in Tree's argument buffer.
-        tensors: ValueSlice,
-        /// The concatenation axis.
-        axis: u32,
-    },
-    /// Compare two tensors elementwise.
-    ///
-    /// The result is a tensor with boolean element type and matching shape.
-    TensorCompare {
-        /// The SSA value to define with the comparison result.
-        destination: Value,
-        /// The comparison operator to apply.
-        operator: BinaryOperator,
-        /// The left tensor operand.
-        left: Value,
-        /// The right tensor operand.
-        right: Value,
-    },
-    /// Select tensor elements based on a boolean mask.
-    TensorSelect {
-        /// The SSA value to define with the selected tensor.
-        destination: Value,
-        /// The boolean mask tensor.
-        mask: Value,
-        /// The tensor returned if the mask element is true.
-        then_value: Value,
-        /// The tensor returned if the mask element is false.
-        else_value: Value,
-    },
-    /// Reduce a tensor along axes with a fixed operator.
-    TensorReduce {
-        /// The SSA value to define with the reduced tensor.
-        destination: Value,
-        /// The reduction operator to apply.
-        operator: TensorReduceOperator,
-        /// The tensor value to reduce.
-        tensor: Value,
-        /// The initial value for the reduction.
-        initial: Value,
-        /// The axes to reduce.
-        axes: IndexSlice,
-    },
-    /// Reduce a tensor along one axis and return selected source indices.
-    TensorIndexReduce {
-        /// The SSA value to define with the index tensor.
-        destination: Value,
-        /// The index reduction operator to apply.
-        operator: TensorIndexReduceOperator,
-        /// The tensor value to reduce.
-        tensor: Value,
-        /// The axis to reduce.
-        axis: u32,
-        /// The behavior for equal selected values.
-        tie_break: TensorIndexTieBreak,
-    },
-    /// Dot product of two tensors.
-    TensorDot {
-        /// The SSA value to define with the dot result.
-        destination: Value,
-        /// The left operand.
-        left: Value,
-        /// The right operand.
-        right: Value,
-        /// The dot dimension numbers.
-        immediate: TensorImmediateId,
-    },
-    /// Convolution between an input tensor and a kernel tensor.
-    TensorConvolution {
-        /// The SSA value to define with the convolution result.
-        destination: Value,
-        /// The input tensor.
-        input: Value,
-        /// The kernel tensor.
-        kernel: Value,
-        /// The convolution dimension numbers.
-        immediate: TensorImmediateId,
-    },
-    /// Gather slices from a tensor based on indices.
-    TensorGather {
-        /// The SSA value to define with the gathered tensor.
-        destination: Value,
-        /// The operand tensor.
-        operand: Value,
-        /// The indices tensor.
-        indices: Value,
-        /// The gather dimension numbers.
-        immediate: TensorImmediateId,
-    },
-    /// Scatter updates into a tensor based on indices.
-    TensorScatter {
-        /// The SSA value to define with the scatter result.
-        destination: Value,
-        /// The operand tensor.
-        operand: Value,
-        /// The indices tensor.
-        indices: Value,
-        /// The updates tensor.
-        updates: Value,
-        /// The scatter dimension numbers.
-        immediate: TensorImmediateId,
-        /// The scatter update mode.
-        mode: TensorScatterMode,
-    },
-    /// Convert a tensor element type.
-    ///
-    /// The result must have the same shape as the input.
-    TensorConvert {
-        /// The SSA value to define with the converted tensor.
-        destination: Value,
-        /// The conversion mode to apply.
-        mode: ConvertMode,
-        /// The tensor value to convert.
-        tensor: Value,
-    },
-
     // function calls
     /// Call one callable target without a local unwind continuation.
     Call {
@@ -989,29 +739,6 @@ impl Instruction {
             Instruction::VectorReduce { destination, .. } => Some(*destination),
             Instruction::VectorCompare { destination, .. } => Some(*destination),
             Instruction::VectorConvert { destination, .. } => Some(*destination),
-            Instruction::TensorSplat { destination, .. } => Some(*destination),
-            Instruction::TensorLoad { destination, .. } => Some(*destination),
-            Instruction::TensorExtract { destination, .. } => Some(*destination),
-            Instruction::TensorStore { .. } => None,
-            Instruction::TensorFill { .. } => None,
-            Instruction::TensorCopy { .. } => None,
-            Instruction::TensorReshape { destination, .. } => Some(*destination),
-            Instruction::TensorBroadcast { destination, .. } => Some(*destination),
-            Instruction::TensorTranspose { destination, .. } => Some(*destination),
-            Instruction::TensorCast { destination, .. } => Some(*destination),
-            Instruction::TensorView { destination, .. } => Some(*destination),
-            Instruction::TensorSlice { destination, .. } => Some(*destination),
-            Instruction::TensorPad { destination, .. } => Some(*destination),
-            Instruction::TensorConcat { destination, .. } => Some(*destination),
-            Instruction::TensorCompare { destination, .. } => Some(*destination),
-            Instruction::TensorSelect { destination, .. } => Some(*destination),
-            Instruction::TensorReduce { destination, .. } => Some(*destination),
-            Instruction::TensorIndexReduce { destination, .. } => Some(*destination),
-            Instruction::TensorDot { destination, .. } => Some(*destination),
-            Instruction::TensorConvolution { destination, .. } => Some(*destination),
-            Instruction::TensorGather { destination, .. } => Some(*destination),
-            Instruction::TensorScatter { destination, .. } => Some(*destination),
-            Instruction::TensorConvert { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
             Instruction::Drop { .. } => None,
             Instruction::NewZeroed { destination, .. }
@@ -1125,47 +852,6 @@ impl Instruction {
             Instruction::VectorReduce { vector, .. } => smallvec![*vector],
             Instruction::VectorCompare { left, right, .. } => smallvec![*left, *right],
             Instruction::VectorConvert { vector, .. } => smallvec![*vector],
-            Instruction::TensorSplat { value, .. } => smallvec![*value],
-            Instruction::TensorLoad { view, .. } => smallvec![*view],
-            Instruction::TensorExtract { tensor, .. } => smallvec![*tensor],
-            Instruction::TensorStore { view, value, .. } => smallvec![*view, *value],
-            Instruction::TensorFill { view, value } => smallvec![*view, *value],
-            Instruction::TensorCopy { target, source } => smallvec![*target, *source],
-            Instruction::TensorReshape { tensor, .. } => smallvec![*tensor],
-            Instruction::TensorBroadcast { tensor, .. } => smallvec![*tensor],
-            Instruction::TensorTranspose { tensor, .. } => smallvec![*tensor],
-            Instruction::TensorCast { tensor, .. } => smallvec![*tensor],
-            Instruction::TensorView { view, .. } => smallvec![*view],
-            Instruction::TensorSlice { tensor, .. } => smallvec![*tensor],
-            Instruction::TensorPad { tensor, value, .. } => smallvec![*tensor, *value],
-            Instruction::TensorConcat { .. } => smallvec![],
-            Instruction::TensorCompare { left, right, .. } => smallvec![*left, *right],
-            Instruction::TensorSelect {
-                mask,
-                then_value,
-                else_value,
-                ..
-            } => smallvec![*mask, *then_value, *else_value],
-            Instruction::TensorReduce {
-                tensor, initial, ..
-            } => smallvec![*tensor, *initial],
-            Instruction::TensorIndexReduce { tensor, .. } => smallvec![*tensor],
-            Instruction::TensorDot { left, right, .. } => smallvec![*left, *right],
-            Instruction::TensorConvolution { input, kernel, .. } => {
-                smallvec![*input, *kernel]
-            }
-            Instruction::TensorGather {
-                operand, indices, ..
-            } => {
-                smallvec![*operand, *indices]
-            }
-            Instruction::TensorScatter {
-                operand,
-                indices,
-                updates,
-                ..
-            } => smallvec![*operand, *indices, *updates],
-            Instruction::TensorConvert { tensor, .. } => smallvec![*tensor],
             Instruction::Call { call, .. } => call.callee.uses().into_iter().collect(),
             Instruction::Drop { value } => smallvec![*value],
             Instruction::NewZeroed { .. } | Instruction::NewUninit { .. } => smallvec![],
@@ -1215,8 +901,6 @@ impl Instruction {
             Instruction::LocalSet { value, .. }
             | Instruction::Store { value, .. }
             | Instruction::NewComplete { value, .. }
-            | Instruction::TensorStore { value, .. }
-            | Instruction::TensorFill { value, .. }
             | Instruction::Free { value } => smallvec![*value],
             Instruction::AtomicStore { value, .. } | Instruction::AtomicRmw { value, .. } => {
                 smallvec![*value]
@@ -1238,44 +922,11 @@ impl Instruction {
             Instruction::FunctionBind { environment, .. }
             | Instruction::VectorSplat {
                 value: environment, ..
-            }
-            | Instruction::TensorSplat {
-                value: environment, ..
             } => smallvec![*environment],
             Instruction::FunctionEnvironment { .. }
             | Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
-            Instruction::VectorInsert { vector, value, .. }
-            | Instruction::TensorPad {
-                tensor: vector,
-                value,
-                ..
-            } => smallvec![*vector, *value],
-            Instruction::TensorExtract { tensor, .. }
-            | Instruction::TensorReshape { tensor, .. }
-            | Instruction::TensorBroadcast { tensor, .. }
-            | Instruction::TensorTranspose { tensor, .. }
-            | Instruction::TensorCast { tensor, .. }
-            | Instruction::TensorSlice { tensor, .. }
-            | Instruction::TensorReduce { tensor, .. }
-            | Instruction::TensorIndexReduce { tensor, .. }
-            | Instruction::TensorConvert { tensor, .. } => smallvec![*tensor],
-            Instruction::TensorDot { left, right, .. }
-            | Instruction::TensorCompare { left, right, .. } => smallvec![*left, *right],
-            Instruction::TensorConvolution { input, kernel, .. } => {
-                smallvec![*input, *kernel]
-            }
-            Instruction::TensorGather {
-                operand, indices, ..
-            } => smallvec![*operand, *indices],
-            Instruction::TensorScatter {
-                operand,
-                indices,
-                updates,
-                ..
-            } => smallvec![*operand, *indices, *updates],
-            Instruction::Aggregate { .. } | Instruction::TensorConcat { .. } => {
-                self.argument_slice_values(tree)
-            }
+            Instruction::VectorInsert { vector, value, .. } => smallvec![*vector, *value],
+            Instruction::Aggregate { .. } => self.argument_slice_values(tree),
             Instruction::Call { call, .. } => {
                 let mut values = call
                     .callee
@@ -1325,14 +976,6 @@ impl Instruction {
     pub fn argument_slice(&self) -> Option<ValueSlice> {
         match self {
             Instruction::Aggregate { values, .. } => Some(*values),
-            Instruction::TensorLoad { indices, .. } => Some(*indices),
-            Instruction::TensorExtract { indices, .. } => Some(*indices),
-            Instruction::TensorStore { indices, .. } => Some(*indices),
-            Instruction::TensorReshape { shape, .. } => Some(*shape),
-            Instruction::TensorView { arguments, .. } => Some(*arguments),
-            Instruction::TensorSlice { arguments, .. } => Some(*arguments),
-            Instruction::TensorPad { arguments, .. } => Some(*arguments),
-            Instruction::TensorConcat { tensors, .. } => Some(*tensors),
             Instruction::Call { call, .. } => Some(call.arguments),
             Instruction::Intrinsic { arguments, .. } => Some(*arguments),
             _ => None,

@@ -4,8 +4,7 @@ use destack_source::Span;
 use crate::{
     Access, Copy, Field, FieldSpan, GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm,
     LocalNodeId, Multiplicity, Nullability, ReferenceKind, SignatureParameter, Space, StaticId,
-    Storage, TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding,
-    TensorShardingAxis, TensorViewFormat, Type, TypeDeclarationSpans, TypeId, VariantCase,
+    Storage, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -232,8 +231,6 @@ impl Parser {
                 | TokenType::Identifier
                 | TokenType::TypeName
                 | TokenType::Ref
-                | TokenType::TensorView
-                | TokenType::Tensor
                 | TokenType::Vector
                 | TokenType::Newtype
                 | TokenType::LessThan
@@ -374,8 +371,6 @@ impl Parser {
             }
             TokenType::Function => self.parse_function_type()?,
             TokenType::Ref => self.parse_reference_type()?,
-            TokenType::TensorView => self.parse_tensor_view_type()?,
-            TokenType::Tensor => self.parse_tensor_type()?,
             TokenType::Vector => self.parse_vector_type()?,
             TokenType::Newtype => self.parse_newtype_type()?,
             TokenType::LessThan => {
@@ -870,35 +865,6 @@ impl Parser {
         })
     }
 
-    /// Parse a tensor view type.
-    fn parse_tensor_view_type(&mut self) -> ParseResult<Type> {
-        self.bump();
-        self.eat_token(TokenType::LessThan)?;
-
-        let (element, _) = self.parse_type_use_part()?;
-        self.eat_token(TokenType::Comma)?;
-        let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
-
-        self.eat_token(TokenType::Comma)?;
-        let shape = self.parse_tensor_shape()?;
-        let mut format = TensorViewFormat::dense_row_major();
-        let mut sharding = TensorSharding::unsharded();
-        self.parse_optional_tensor_groups(None, Some(&mut format), &mut sharding)?;
-        self.eat_token(TokenType::GreaterThan)?;
-
-        Ok(Type::TensorView {
-            kind: qualifiers.kind,
-            lifetime: qualifiers.lifetime,
-            storage: qualifiers.storage,
-            access: qualifiers.access,
-            element,
-            shape,
-            format,
-            sharding,
-            nullability: qualifiers.nullability,
-        })
-    }
-
     /// Parse a physical variant type.
     fn parse_variant_type(&mut self) -> ParseResult<Type> {
         self.bump();
@@ -931,33 +897,6 @@ impl Parser {
             discriminant,
             cases,
             copy: Copy::No,
-        })
-    }
-
-    /// Parse a tensor type.
-    fn parse_tensor_type(&mut self) -> ParseResult<Type> {
-        self.bump();
-        self.eat_token(TokenType::LessThan)?;
-        let (element, _) = self.parse_type_use_part()?;
-        self.eat_token(TokenType::Comma)?;
-        let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
-        self.eat_token(TokenType::Comma)?;
-        let shape = self.parse_tensor_shape()?;
-        let mut format = TensorFormat::dense_row_major();
-        let mut sharding = TensorSharding::unsharded();
-        self.parse_optional_tensor_groups(Some(&mut format), None, &mut sharding)?;
-        self.eat_token(TokenType::GreaterThan)?;
-
-        Ok(Type::Tensor {
-            kind: qualifiers.kind,
-            lifetime: qualifiers.lifetime,
-            storage: qualifiers.storage,
-            access: qualifiers.access,
-            element,
-            shape,
-            format,
-            sharding,
-            nullability: qualifiers.nullability,
         })
     }
 
@@ -1157,186 +1096,6 @@ impl Parser {
         };
 
         Ok(LifetimeTerm::Slot(slot))
-    }
-
-    /// Parse a tensor shape list.
-    fn parse_tensor_shape(&mut self) -> ParseResult<Vec<TensorDimension>> {
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let mut shape = Vec::new();
-        while !self.peek_is(TokenType::CloseParenthesis) {
-            let token = self
-                .peek()
-                .ok_or_else(|| ParseError::unexpected_end("tensor shape", self.pos()))?;
-            match self.token_type(token) {
-                TokenType::Integer => {
-                    let dim = self.parse_int_literal()?;
-                    let dim = u64::try_from(dim)
-                        .map_err(|_| ParseError::invalid("tensor shape dimension", self.pos()))?;
-                    shape.push(TensorDimension::Static(dim));
-                }
-                TokenType::Identifier => {
-                    let ident = self.eat_token(TokenType::Identifier)?;
-                    let text = self.tree.source_text(ident.span);
-                    if text == "dynamic" {
-                        shape.push(TensorDimension::Dynamic);
-                    } else {
-                        shape.push(TensorDimension::Symbol(text.to_string()));
-                    }
-                }
-                _ => {
-                    return Err(ParseError::unexpected(
-                        "tensor shape dimension",
-                        self.token_type(token),
-                        token.start(),
-                    ));
-                }
-            }
-            if !self.eat_token_if(TokenType::Comma) {
-                break;
-            }
-        }
-        self.eat_token(TokenType::CloseParenthesis)?;
-        Ok(shape)
-    }
-
-    /// Parse optional tensor format and sharding groups.
-    fn parse_optional_tensor_groups(
-        &mut self,
-        mut format: Option<&mut TensorFormat>,
-        mut view_format: Option<&mut TensorViewFormat>,
-        sharding: &mut TensorSharding,
-    ) -> ParseResult<()> {
-        while self.eat_token_if(TokenType::Comma) {
-            let token = self.eat_token(TokenType::Identifier)?;
-            match self.tree.source_text(token.span) {
-                "format" => {
-                    self.eat_token(TokenType::OpenParenthesis)?;
-                    if let Some(format) = format.as_deref_mut() {
-                        *format = self.parse_tensor_format()?;
-                    } else if let Some(view_format) = view_format.as_deref_mut() {
-                        *view_format = self.parse_tensor_view_format()?;
-                    } else {
-                        return Err(ParseError::invalid("tensor format group", token.start()));
-                    }
-                    self.eat_token(TokenType::CloseParenthesis)?;
-                }
-                "sharding" => {
-                    self.eat_token(TokenType::OpenParenthesis)?;
-                    *sharding = self.parse_tensor_sharding()?;
-                    self.eat_token(TokenType::CloseParenthesis)?;
-                }
-                _ => return Err(ParseError::invalid("tensor group", token.start())),
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Parse a tensor format specifier.
-    fn parse_tensor_format(&mut self) -> ParseResult<TensorFormat> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        match self.tree.source_text(token.span) {
-            "dense" => {
-                self.eat_token(TokenType::OpenParenthesis)?;
-                let order = self.parse_tensor_dimension_order()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-                Ok(TensorFormat::Dense { order })
-            }
-            _ => Err(ParseError::invalid("tensor format", token.start())),
-        }
-    }
-
-    /// Parse a tensor view format specifier.
-    fn parse_tensor_view_format(&mut self) -> ParseResult<TensorViewFormat> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        match self.tree.source_text(token.span) {
-            "dense" => {
-                self.eat_token(TokenType::OpenParenthesis)?;
-                let order = self.parse_tensor_dimension_order()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-                Ok(TensorViewFormat::Dense { order })
-            }
-            "strided" => Ok(TensorViewFormat::Strided),
-            _ => Err(ParseError::invalid("tensor view format", token.start())),
-        }
-    }
-
-    /// Parse a tensor sharding specifier.
-    fn parse_tensor_sharding(&mut self) -> ParseResult<TensorSharding> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        match self.tree.source_text(token.span) {
-            "unsharded" => Ok(TensorSharding::Unsharded),
-            _ => {
-                let mut axes = vec![self.parse_tensor_sharding_axis_after(token)?];
-                while self.eat_token_if(TokenType::Comma) {
-                    axes.push(self.parse_tensor_sharding_axis()?);
-                }
-
-                Ok(TensorSharding::Sharding { axes })
-            }
-        }
-    }
-
-    /// Parse one tensor sharding axis.
-    fn parse_tensor_sharding_axis(&mut self) -> ParseResult<TensorShardingAxis> {
-        let token = self.eat_token(TokenType::Identifier)?;
-
-        self.parse_tensor_sharding_axis_after(token)
-    }
-
-    /// Parse one tensor sharding axis after its leading token has been consumed.
-    fn parse_tensor_sharding_axis_after(
-        &mut self,
-        token: Token,
-    ) -> ParseResult<TensorShardingAxis> {
-        match self.tree.source_text(token.span) {
-            "shard" => {
-                self.eat_token(TokenType::OpenParenthesis)?;
-                let axis = self.parse_int_literal()?;
-                let axis = i32::try_from(axis)
-                    .map_err(|_| ParseError::invalid("tensor shard axis", self.pos()))?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-
-                Ok(TensorShardingAxis::Shard { axis })
-            }
-            "replicate" => Ok(TensorShardingAxis::Replicate),
-            "partial" => {
-                self.eat_token(TokenType::OpenParenthesis)?;
-                let reduction = self.parse_tensor_reduction()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-
-                Ok(TensorShardingAxis::Partial { reduction })
-            }
-            _ => Err(ParseError::invalid("tensor sharding axis", token.start())),
-        }
-    }
-
-    /// Parse one partial tensor reduction.
-    fn parse_tensor_reduction(&mut self) -> ParseResult<TensorReduction> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        let reduction = match self.tree.source_text(token.span) {
-            "add" => TensorReduction::Add,
-            "multiply" => TensorReduction::Multiply,
-            "minimum" => TensorReduction::Minimum,
-            "maximum" => TensorReduction::Maximum,
-            "and" => TensorReduction::And,
-            "or" => TensorReduction::Or,
-            _ => return Err(ParseError::invalid("tensor reduction", token.start())),
-        };
-
-        Ok(reduction)
-    }
-
-    /// Parse one dense tensor dimension order.
-    fn parse_tensor_dimension_order(&mut self) -> ParseResult<TensorDimensionOrder> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        let order = match self.tree.source_text(token.span) {
-            "rowMajor" => TensorDimensionOrder::RowMajor,
-            "columnMajor" => TensorDimensionOrder::ColumnMajor,
-            _ => return Err(ParseError::invalid("tensor dimension order", token.start())),
-        };
-
-        Ok(order)
     }
 
     /// Return a canonical type id for the provided type shape.

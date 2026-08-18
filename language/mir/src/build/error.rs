@@ -73,16 +73,6 @@ pub enum BuildError {
         /// The type being accessed.
         ty: LocalNodeId<Type>,
     },
-    /// A tensor operation was applied to a non-tensor type.
-    InvalidTensorOwner {
-        /// The type being accessed.
-        ty: LocalNodeId<Type>,
-    },
-    /// A tensor view operation was applied to a non-view type.
-    InvalidTensorViewOwner {
-        /// The type being accessed.
-        ty: LocalNodeId<Type>,
-    },
     /// A count is too large for MIR instruction tables.
     CountTooLarge {
         /// The count that could not fit.
@@ -210,15 +200,6 @@ impl std::fmt::Display for BuildError {
             }
             Self::InvalidVectorOwner { ty } => {
                 write!(formatter, "vector access expects a vector type, got {ty:?}")
-            }
-            Self::InvalidTensorOwner { ty } => {
-                write!(formatter, "tensor access expects a tensor type, got {ty:?}")
-            }
-            Self::InvalidTensorViewOwner { ty } => {
-                write!(
-                    formatter,
-                    "tensor access expects a tensor view type, got {ty:?}"
-                )
             }
             Self::CountTooLarge { count, context } => {
                 write!(formatter, "{context} is too large for MIR tables: {count}")

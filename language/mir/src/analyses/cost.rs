@@ -25,7 +25,7 @@ pub struct OperationCost {
     pub terminators: usize,
     /// Arithmetic, conversion, selection, and scalar descriptor operations.
     pub arithmetic: usize,
-    /// Aggregate construction, projection, vector, and tensor value operations.
+    /// Aggregate construction, projection, and vector value operations.
     pub aggregate: usize,
     /// Address operations.
     pub address: usize,
@@ -343,26 +343,7 @@ impl CostTable {
             | mir::Instruction::VectorSelect { .. }
             | mir::Instruction::VectorReduce { .. }
             | mir::Instruction::VectorCompare { .. }
-            | mir::Instruction::VectorConvert { .. }
-            | mir::Instruction::TensorSplat { .. }
-            | mir::Instruction::TensorExtract { .. }
-            | mir::Instruction::TensorReshape { .. }
-            | mir::Instruction::TensorBroadcast { .. }
-            | mir::Instruction::TensorTranspose { .. }
-            | mir::Instruction::TensorCast { .. }
-            | mir::Instruction::TensorView { .. }
-            | mir::Instruction::TensorSlice { .. }
-            | mir::Instruction::TensorPad { .. }
-            | mir::Instruction::TensorConcat { .. }
-            | mir::Instruction::TensorCompare { .. }
-            | mir::Instruction::TensorSelect { .. }
-            | mir::Instruction::TensorReduce { .. }
-            | mir::Instruction::TensorIndexReduce { .. }
-            | mir::Instruction::TensorDot { .. }
-            | mir::Instruction::TensorConvolution { .. }
-            | mir::Instruction::TensorGather { .. }
-            | mir::Instruction::TensorScatter { .. }
-            | mir::Instruction::TensorConvert { .. } => cost.aggregate += 1,
+            | mir::Instruction::VectorConvert { .. } => cost.aggregate += 1,
             mir::Instruction::LocalAddr { .. }
             | mir::Instruction::GlobalAddr { .. }
             | mir::Instruction::FunctionAddr { .. }
@@ -373,13 +354,8 @@ impl CostTable {
             mir::Instruction::LocalGet { .. }
             | mir::Instruction::Load { .. }
             | mir::Instruction::VariantTagLoad { .. }
-            | mir::Instruction::ContextCurrent { .. }
-            | mir::Instruction::TensorLoad { .. } => cost.load += 1,
-            mir::Instruction::LocalSet { .. }
-            | mir::Instruction::Store { .. }
-            | mir::Instruction::TensorStore { .. }
-            | mir::Instruction::TensorFill { .. }
-            | mir::Instruction::TensorCopy { .. } => cost.store += 1,
+            | mir::Instruction::ContextCurrent { .. } => cost.load += 1,
+            mir::Instruction::LocalSet { .. } | mir::Instruction::Store { .. } => cost.store += 1,
             mir::Instruction::AtomicLoad { .. }
             | mir::Instruction::AtomicStore { .. }
             | mir::Instruction::AtomicCompareExchange { .. }

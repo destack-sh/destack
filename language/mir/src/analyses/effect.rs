@@ -226,59 +226,6 @@ impl<'a> FunctionEffectBuilder<'a> {
             mir::Instruction::LocalSet { .. } => {
                 mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::StorageSet::FRAME))
             }
-            mir::Instruction::TensorLoad { view, .. }
-            | mir::Instruction::TensorExtract { tensor: view, .. } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect::read_only(self.value_storage(*view)))
-            }
-            mir::Instruction::TensorStore { view, .. }
-            | mir::Instruction::TensorFill { view, .. } => mir::FunctionEffect::memory(
-                mir::MemoryEffect::write_only(self.value_storage(*view)),
-            ),
-            mir::Instruction::TensorCopy { target, source } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect {
-                    read: self.value_storage(*source),
-                    write: self.value_storage(*target),
-                })
-            }
-            mir::Instruction::TensorSplat { .. } => mir::FunctionEffect {
-                memory: mir::MemoryEffect::none(),
-                behavior: mir::FunctionBehavior::none().with_allocates(),
-            },
-            mir::Instruction::TensorReshape { tensor, .. }
-            | mir::Instruction::TensorBroadcast { tensor, .. }
-            | mir::Instruction::TensorTranspose { tensor, .. }
-            | mir::Instruction::TensorCast { tensor, .. }
-            | mir::Instruction::TensorSlice { tensor, .. }
-            | mir::Instruction::TensorPad { tensor, .. }
-            | mir::Instruction::TensorReduce { tensor, .. }
-            | mir::Instruction::TensorIndexReduce { tensor, .. }
-            | mir::Instruction::TensorConvert { tensor, .. } => self.tensor_effect([*tensor]),
-            mir::Instruction::TensorConcat { tensors, .. } => {
-                self.tensor_effect(self.tree.get_values(*tensors).iter().copied())
-            }
-            mir::Instruction::TensorCompare { left, right, .. }
-            | mir::Instruction::TensorDot { left, right, .. } => {
-                self.tensor_effect([*left, *right])
-            }
-            mir::Instruction::TensorConvolution { input, kernel, .. } => {
-                self.tensor_effect([*input, *kernel])
-            }
-            mir::Instruction::TensorGather {
-                operand, indices, ..
-            } => self.tensor_effect([*operand, *indices]),
-            mir::Instruction::TensorScatter {
-                operand,
-                indices,
-                updates,
-                ..
-            } => self.tensor_effect([*operand, *indices, *updates]),
-            mir::Instruction::TensorSelect {
-                mask,
-                then_value,
-                else_value,
-                ..
-            } => self.tensor_effect([*mask, *then_value, *else_value]),
-            mir::Instruction::TensorView { .. } => mir::FunctionEffect::none(),
             mir::Instruction::NewZeroed { result_type, .. }
             | mir::Instruction::NewUninit { result_type, .. }
             | mir::Instruction::NewSliceZeroed { result_type, .. }
@@ -390,21 +337,6 @@ impl<'a> FunctionEffectBuilder<'a> {
             ty => ty
                 .reference_storage()
                 .map_or(mir::StorageSet::ANY, mir::Storage::storage_set),
-        }
-    }
-
-    /// Build effects for one materialized tensor result.
-    fn tensor_effect(&self, tensors: impl IntoIterator<Item = mir::Value>) -> mir::FunctionEffect {
-        let mut storage = mir::StorageSet::NONE;
-
-        // merge storage read by every tensor operand
-        for tensor in tensors {
-            storage.insert(self.value_storage(tensor));
-        }
-
-        mir::FunctionEffect {
-            memory: mir::MemoryEffect::read_only(storage),
-            behavior: mir::FunctionBehavior::none().with_allocates(),
         }
     }
 
@@ -639,36 +571,6 @@ entry:
 
         assert!(effect.behavior.allocates);
         assert!(effect.behavior.frees);
-    }
-
-    /// Materialized tensor results read their operands and allocate backing storage.
-    #[test]
-    fn test_function_effects_capture_tensor_execution() {
-        let program = TestProgram::new(
-            r#"
-function transform(v0: tensor<int32, managed, readonly, ()>): tensor<int32, managed, readonly, ()> {
-entry(v0: tensor<int32, managed, readonly, ()>):
-    v1: tensor<int32, managed, readonly, ()> = tensor.cast v0
-    return v1
-}
-"#,
-        );
-
-        let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
-        let function = program.function_id_by_name("transform");
-        let effect = effects.function(function).expect("missing function effect");
-
-        assert_eq!(
-            effect.memory,
-            mir::MemoryEffect::read_only(mir::StorageSet::LOCAL)
-        );
-        assert!(effect.behavior.allocates);
     }
 
     /// Spin-loop hints require their containing function call to execute.

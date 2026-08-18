@@ -186,11 +186,7 @@ impl PlaceTable {
                 },
                 resolutions,
             ),
-            Instruction::TensorCast {
-                tensor: argument, ..
-            }
-            | Instruction::TensorView { view: argument, .. }
-            | Instruction::Pin {
+            Instruction::Pin {
                 value: argument, ..
             } => Self::copy(*argument, resolutions),
             _ => Resolution::Known(Place::value(destination)),

@@ -69,8 +69,6 @@ module.exports = grammar({
         "boolean",
         "ref",
         "vector",
-        "tensor",
-        "tensorView",
         "space",
         "struct",
         "newtype",

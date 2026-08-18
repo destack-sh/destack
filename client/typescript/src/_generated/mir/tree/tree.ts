@@ -6,7 +6,6 @@ import type { Attribute } from "./attribute.js";
 import type { Block } from "./block.js";
 import type { Function } from "./function.js";
 import type { Global } from "./global.js";
-import type { TensorImmediate } from "./immediate.js";
 import type { Instruction } from "./instruction.js";
 import type { TypeEntry } from "./intern.js";
 import type { TypeIndexKey } from "./intern.js";
@@ -33,7 +32,6 @@ import { decodeAttribute, encodeAttribute, fromJsonAttribute, toJsonAttribute } 
 import { decodeBlock, encodeBlock, fromJsonBlock, toJsonBlock } from "./block.js";
 import { decodeFunction, encodeFunction, fromJsonFunction, toJsonFunction } from "./function.js";
 import { decodeGlobal, encodeGlobal, fromJsonGlobal, toJsonGlobal } from "./global.js";
-import { decodeTensorImmediate, encodeTensorImmediate, fromJsonTensorImmediate, toJsonTensorImmediate } from "./immediate.js";
 import { decodeInstruction, encodeInstruction, fromJsonInstruction, toJsonInstruction } from "./instruction.js";
 import { decodeTypeEntry, encodeTypeEntry, fromJsonTypeEntry, toJsonTypeEntry } from "./intern.js";
 import { decodeTypeIndexKey, encodeTypeIndexKey, fromJsonTypeIndexKey, toJsonTypeIndexKey } from "./intern.js";
@@ -121,8 +119,6 @@ export type Tree = {
     readonly flags: Uint8Array | readonly number[];
     /** Flat buffer of switch cases. */
     readonly switchCases: ReadonlyArray<SwitchCase>;
-    /** Structured tensor immediates. */
-    readonly tensorImmediates: ReadonlyArray<TensorImmediate>;
 };
 
 export const Tree = {
@@ -401,10 +397,6 @@ export function encodeTree(writer: BinaryWriter, value: Tree): void {
     for (const item35 of value.switchCases) {
         encodeSwitchCase(writer, item35);
     }
-    writer.writeUnsigned(value.tensorImmediates.length);
-    for (const item36 of value.tensorImmediates) {
-        encodeTensorImmediate(writer, item36);
-    }
 }
 
 /** Decode one Tree. */
@@ -445,7 +437,6 @@ export function decodeTree(reader: BinaryReader): Tree {
     const extents = (() => { const length33 = reader.readNumber(); const items33: Array<bigint> = []; for (let index = 0; index < length33; index += 1) { items33.push(reader.readUnsigned()); } return items33; })();
     const flags = reader.readByteSlice();
     const switchCases = (() => { const length35 = reader.readNumber(); const items35: Array<SwitchCase> = []; for (let index = 0; index < length35; index += 1) { items35.push(decodeSwitchCase(reader)); } return items35; })();
-    const tensorImmediates = (() => { const length36 = reader.readNumber(); const items36: Array<TensorImmediate> = []; for (let index = 0; index < length36; index += 1) { items36.push(decodeTensorImmediate(reader)); } return items36; })();
 
     return {
         firstGlobalId,
@@ -484,7 +475,6 @@ export function decodeTree(reader: BinaryReader): Tree {
         extents,
         flags,
         switchCases,
-        tensorImmediates,
     };
 }
 
@@ -527,7 +517,6 @@ export function toJsonTree(value: Tree): Json {
         extents: value.extents.map((item0) => item0.toString()),
         flags: bytesToJson(value.flags),
         switchCases: value.switchCases.map((item0) => toJsonSwitchCase(item0)),
-        tensorImmediates: value.tensorImmediates.map((item0) => toJsonTensorImmediate(item0)),
     };
 }
 
@@ -572,6 +561,5 @@ export function fromJsonTree(value: Json): Tree {
         extents: jsonArray(jsonField(object, "extents")).map((item0) => jsonBigint(item0)),
         flags: bytesFromJson(jsonField(object, "flags")),
         switchCases: jsonArray(jsonField(object, "switchCases")).map((item0) => fromJsonSwitchCase(item0)),
-        tensorImmediates: jsonArray(jsonField(object, "tensorImmediates")).map((item0) => fromJsonTensorImmediate(item0)),
     };
 }

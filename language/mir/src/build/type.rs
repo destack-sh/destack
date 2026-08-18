@@ -3,8 +3,7 @@ use destack_core::StringId;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Multiplicity, Nullability,
-    ReferenceKind, Storage, TensorDimension, TensorFormat, TensorSharding, TensorViewFormat, Type,
-    TypeId, VariantCase,
+    ReferenceKind, Storage, Type, TypeId, VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -122,58 +121,6 @@ impl ModuleBuilder {
             element,
             lanes,
             copy,
-        })
-    }
-
-    /// Create a tensor type.
-    pub fn type_tensor(
-        &mut self,
-        kind: ReferenceKind,
-        lifetime: Lifetime,
-        element: LocalNodeId<Type>,
-        access: Access,
-        storage: Storage,
-        shape: Vec<TensorDimension>,
-        format: TensorFormat,
-        sharding: TensorSharding,
-        nullability: Nullability,
-    ) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::Tensor {
-            kind,
-            lifetime,
-            storage,
-            access,
-            element,
-            shape,
-            format,
-            sharding,
-            nullability,
-        })
-    }
-
-    /// Create a tensor view type.
-    pub fn type_tensor_view(
-        &mut self,
-        kind: ReferenceKind,
-        lifetime: Lifetime,
-        element: LocalNodeId<Type>,
-        access: Access,
-        storage: Storage,
-        shape: Vec<TensorDimension>,
-        format: TensorViewFormat,
-        sharding: TensorSharding,
-        nullability: Nullability,
-    ) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::TensorView {
-            kind,
-            lifetime,
-            storage,
-            access,
-            element,
-            shape,
-            format,
-            sharding,
-            nullability,
         })
     }
 

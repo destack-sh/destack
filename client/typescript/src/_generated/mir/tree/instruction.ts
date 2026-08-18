@@ -8,7 +8,6 @@ import type { Call } from "./call.js";
 import type { Constant } from "./constant.js";
 import type { ConvertMode } from "./convert.js";
 import type { IndexSlice } from "./immediate.js";
-import type { TensorImmediateId } from "./immediate.js";
 import type { Intrinsic } from "./intrinsic.js";
 import type { AtomicAccess } from "./memory.js";
 import type { AtomicRmwOperator } from "./memory.js";
@@ -17,10 +16,6 @@ import type { FenceAccess } from "./memory.js";
 import type { LocalNodeId } from "./node.js";
 import type { BinaryOperator } from "./operator.js";
 import type { UnaryOperator } from "./operator.js";
-import type { TensorIndexReduceOperator } from "./tensor.js";
-import type { TensorIndexTieBreak } from "./tensor.js";
-import type { TensorReduceOperator } from "./tensor.js";
-import type { TensorScatterMode } from "./tensor.js";
 import type { Value } from "./value.js";
 import type { ValueSlice } from "./value.js";
 import type { VectorReduceOperator } from "./vector.js";
@@ -31,7 +26,6 @@ import { decodeCall, encodeCall, fromJsonCall, toJsonCall } from "./call.js";
 import { decodeConstant, encodeConstant, fromJsonConstant, toJsonConstant } from "./constant.js";
 import { decodeConvertMode, encodeConvertMode, fromJsonConvertMode, toJsonConvertMode } from "./convert.js";
 import { decodeIndexSlice, encodeIndexSlice, fromJsonIndexSlice, toJsonIndexSlice } from "./immediate.js";
-import { decodeTensorImmediateId, encodeTensorImmediateId, fromJsonTensorImmediateId, toJsonTensorImmediateId } from "./immediate.js";
 import { decodeIntrinsic, encodeIntrinsic, fromJsonIntrinsic, toJsonIntrinsic } from "./intrinsic.js";
 import { decodeAtomicAccess, encodeAtomicAccess, fromJsonAtomicAccess, toJsonAtomicAccess } from "./memory.js";
 import { decodeAtomicRmwOperator, encodeAtomicRmwOperator, fromJsonAtomicRmwOperator, toJsonAtomicRmwOperator } from "./memory.js";
@@ -40,10 +34,6 @@ import { decodeFenceAccess, encodeFenceAccess, fromJsonFenceAccess, toJsonFenceA
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodeBinaryOperator, encodeBinaryOperator, fromJsonBinaryOperator, toJsonBinaryOperator } from "./operator.js";
 import { decodeUnaryOperator, encodeUnaryOperator, fromJsonUnaryOperator, toJsonUnaryOperator } from "./operator.js";
-import { decodeTensorIndexReduceOperator, encodeTensorIndexReduceOperator, fromJsonTensorIndexReduceOperator, toJsonTensorIndexReduceOperator } from "./tensor.js";
-import { decodeTensorIndexTieBreak, encodeTensorIndexTieBreak, fromJsonTensorIndexTieBreak, toJsonTensorIndexTieBreak } from "./tensor.js";
-import { decodeTensorReduceOperator, encodeTensorReduceOperator, fromJsonTensorReduceOperator, toJsonTensorReduceOperator } from "./tensor.js";
-import { decodeTensorScatterMode, encodeTensorScatterMode, fromJsonTensorScatterMode, toJsonTensorScatterMode } from "./tensor.js";
 import { decodeValue, encodeValue, fromJsonValue, toJsonValue } from "./value.js";
 import { decodeValueSlice, encodeValueSlice, fromJsonValueSlice, toJsonValueSlice } from "./value.js";
 import { decodeVectorReduceOperator, encodeVectorReduceOperator, fromJsonVectorReduceOperator, toJsonVectorReduceOperator } from "./vector.js";
@@ -696,272 +686,6 @@ export type Instruction =
           /** The vector value to convert. */
           readonly vector: Value;
       }
-    /** Broadcast a scalar to all tensor elements. */
-    | {
-          readonly kind: "tensorSplat";
-          /** The SSA value to define with the tensor result. */
-          readonly destination: Value;
-          /** The scalar value to broadcast. */
-          readonly value: Value;
-      }
-    /** Load a tensor element from a tensor reference. */
-    | {
-          readonly kind: "tensorLoad";
-          /** The SSA value to define with the loaded element. */
-          readonly destination: Value;
-          /** The tensor reference to load from. */
-          readonly view: Value;
-          /** The index values (stored in Tree's argument buffer). */
-          readonly indices: ValueSlice;
-      }
-    /** Extract a tensor element from a tensor value. */
-    | {
-          readonly kind: "tensorExtract";
-          /** The SSA value to define with the extracted element. */
-          readonly destination: Value;
-          /** The tensor value to extract from. */
-          readonly tensor: Value;
-          /** The index values (stored in Tree's argument buffer). */
-          readonly indices: ValueSlice;
-      }
-    /** Store a tensor element into a tensor reference. */
-    | {
-          readonly kind: "tensorStore";
-          /** The tensor reference to store into. */
-          readonly view: Value;
-          /** The index values (stored in Tree's argument buffer). */
-          readonly indices: ValueSlice;
-          /** The value to store. */
-          readonly value: Value;
-      }
-    /** Fill a tensor reference with a scalar value. */
-    | {
-          readonly kind: "tensorFill";
-          /** The tensor reference to fill. */
-          readonly view: Value;
-          /** The scalar value to write. */
-          readonly value: Value;
-      }
-    /** Copy elements from a source tensor reference into a destination tensor reference. */
-    | {
-          readonly kind: "tensorCopy";
-          /** The destination tensor reference. */
-          readonly target: Value;
-          /** The source tensor reference. */
-          readonly source: Value;
-      }
-    /** Reshape a tensor value into a new shape. */
-    | {
-          readonly kind: "tensorReshape";
-          /** The SSA value to define with the reshaped tensor. */
-          readonly destination: Value;
-          /** The tensor value to reshape. */
-          readonly tensor: Value;
-          /** The shape values (stored in Tree's argument buffer). */
-          readonly shape: ValueSlice;
-      }
-    /** Broadcast a tensor into a larger shape. */
-    | {
-          readonly kind: "tensorBroadcast";
-          /** The SSA value to define with the broadcasted tensor. */
-          readonly destination: Value;
-          /** The tensor value to broadcast. */
-          readonly tensor: Value;
-          /** The operand dimensions mapped into the result. */
-          readonly dimensions: IndexSlice;
-      }
-    /** Permute tensor dimensions. */
-    | {
-          readonly kind: "tensorTranspose";
-          /** The SSA value to define with the transposed tensor. */
-          readonly destination: Value;
-          /** The tensor value to transpose. */
-          readonly tensor: Value;
-          /** The permutation of dimensions. */
-          readonly permutation: IndexSlice;
-      }
-    /** Refine a tensor type without changing its contents. */
-    | {
-          readonly kind: "tensorCast";
-          /** The SSA value to define with the cast tensor. */
-          readonly destination: Value;
-          /** The tensor value to cast. */
-          readonly tensor: Value;
-      }
-    /** Create a view into a tensor reference. */
-    | {
-          readonly kind: "tensorView";
-          /** The SSA value to define with the view result. */
-          readonly destination: Value;
-          /** The tensor reference to view. */
-          readonly view: Value;
-          /** The view arguments (offsets, sizes, strides) stored in Tree's argument buffer. */
-          readonly arguments: ValueSlice;
-          /** The number of offset values. */
-          readonly offsetsCount: number;
-          /** The number of size values. */
-          readonly sizesCount: number;
-          /** The number of stride values. */
-          readonly stridesCount: number;
-      }
-    /** Slice a tensor by offsets, sizes, and strides. */
-    | {
-          readonly kind: "tensorSlice";
-          /** The SSA value to define with the sliced tensor. */
-          readonly destination: Value;
-          /** The tensor value to slice. */
-          readonly tensor: Value;
-          /** The slice arguments (offsets, sizes, strides) stored in Tree's argument buffer. */
-          readonly arguments: ValueSlice;
-          /** The number of offset values. */
-          readonly offsetsCount: number;
-          /** The number of size values. */
-          readonly sizesCount: number;
-          /** The number of stride values. */
-          readonly stridesCount: number;
-      }
-    /** Pad a tensor with low, high, and interior padding. */
-    | {
-          readonly kind: "tensorPad";
-          /** The SSA value to define with the padded tensor. */
-          readonly destination: Value;
-          /** The tensor value to pad. */
-          readonly tensor: Value;
-          /** The padding arguments (low, high, interior) stored in Tree's argument buffer. */
-          readonly arguments: ValueSlice;
-          /** The number of low padding values. */
-          readonly lowCount: number;
-          /** The number of high padding values. */
-          readonly highCount: number;
-          /** The number of interior padding values. */
-          readonly interiorCount: number;
-          /** The scalar padding value. */
-          readonly value: Value;
-      }
-    /** Concatenate tensors along a dimension. */
-    | {
-          readonly kind: "tensorConcat";
-          /** The SSA value to define with the concatenated tensor. */
-          readonly destination: Value;
-          /** The tensor operands stored in Tree's argument buffer. */
-          readonly tensors: ValueSlice;
-          /** The concatenation axis. */
-          readonly axis: number;
-      }
-    /** Compare two tensors elementwise. */
-    | {
-          readonly kind: "tensorCompare";
-          /** The SSA value to define with the comparison result. */
-          readonly destination: Value;
-          /** The comparison operator to apply. */
-          readonly operator: BinaryOperator;
-          /** The left tensor operand. */
-          readonly left: Value;
-          /** The right tensor operand. */
-          readonly right: Value;
-      }
-    /** Select tensor elements based on a boolean mask. */
-    | {
-          readonly kind: "tensorSelect";
-          /** The SSA value to define with the selected tensor. */
-          readonly destination: Value;
-          /** The boolean mask tensor. */
-          readonly mask: Value;
-          /** The tensor returned if the mask element is true. */
-          readonly thenValue: Value;
-          /** The tensor returned if the mask element is false. */
-          readonly elseValue: Value;
-      }
-    /** Reduce a tensor along axes with a fixed operator. */
-    | {
-          readonly kind: "tensorReduce";
-          /** The SSA value to define with the reduced tensor. */
-          readonly destination: Value;
-          /** The reduction operator to apply. */
-          readonly operator: TensorReduceOperator;
-          /** The tensor value to reduce. */
-          readonly tensor: Value;
-          /** The initial value for the reduction. */
-          readonly initial: Value;
-          /** The axes to reduce. */
-          readonly axes: IndexSlice;
-      }
-    /** Reduce a tensor along one axis and return selected source indices. */
-    | {
-          readonly kind: "tensorIndexReduce";
-          /** The SSA value to define with the index tensor. */
-          readonly destination: Value;
-          /** The index reduction operator to apply. */
-          readonly operator: TensorIndexReduceOperator;
-          /** The tensor value to reduce. */
-          readonly tensor: Value;
-          /** The axis to reduce. */
-          readonly axis: number;
-          /** The behavior for equal selected values. */
-          readonly tieBreak: TensorIndexTieBreak;
-      }
-    /** Dot product of two tensors. */
-    | {
-          readonly kind: "tensorDot";
-          /** The SSA value to define with the dot result. */
-          readonly destination: Value;
-          /** The left operand. */
-          readonly left: Value;
-          /** The right operand. */
-          readonly right: Value;
-          /** The dot dimension numbers. */
-          readonly immediate: TensorImmediateId;
-      }
-    /** Convolution between an input tensor and a kernel tensor. */
-    | {
-          readonly kind: "tensorConvolution";
-          /** The SSA value to define with the convolution result. */
-          readonly destination: Value;
-          /** The input tensor. */
-          readonly input: Value;
-          /** The kernel tensor. */
-          readonly kernel: Value;
-          /** The convolution dimension numbers. */
-          readonly immediate: TensorImmediateId;
-      }
-    /** Gather slices from a tensor based on indices. */
-    | {
-          readonly kind: "tensorGather";
-          /** The SSA value to define with the gathered tensor. */
-          readonly destination: Value;
-          /** The operand tensor. */
-          readonly operand: Value;
-          /** The indices tensor. */
-          readonly indices: Value;
-          /** The gather dimension numbers. */
-          readonly immediate: TensorImmediateId;
-      }
-    /** Scatter updates into a tensor based on indices. */
-    | {
-          readonly kind: "tensorScatter";
-          /** The SSA value to define with the scatter result. */
-          readonly destination: Value;
-          /** The operand tensor. */
-          readonly operand: Value;
-          /** The indices tensor. */
-          readonly indices: Value;
-          /** The updates tensor. */
-          readonly updates: Value;
-          /** The scatter dimension numbers. */
-          readonly immediate: TensorImmediateId;
-          /** The scatter update mode. */
-          readonly mode: TensorScatterMode;
-      }
-    /** Convert a tensor element type. */
-    | {
-          readonly kind: "tensorConvert";
-          /** The SSA value to define with the converted tensor. */
-          readonly destination: Value;
-          /** The conversion mode to apply. */
-          readonly mode: ConvertMode;
-          /** The tensor value to convert. */
-          readonly tensor: Value;
-      }
     /** Call one callable target without a local unwind continuation. */
     | {
           readonly kind: "call";
@@ -1396,121 +1120,6 @@ export const Instruction = {
         return { kind: "vectorConvert", destination, mode, vector };
     },
 
-    /** Broadcast a scalar to all tensor elements. */
-    tensorSplat(destination: Value, value: Value): Instruction {
-        return { kind: "tensorSplat", destination, value };
-    },
-
-    /** Load a tensor element from a tensor reference. */
-    tensorLoad(destination: Value, view: Value, indices: ValueSlice): Instruction {
-        return { kind: "tensorLoad", destination, view, indices };
-    },
-
-    /** Extract a tensor element from a tensor value. */
-    tensorExtract(destination: Value, tensor: Value, indices: ValueSlice): Instruction {
-        return { kind: "tensorExtract", destination, tensor, indices };
-    },
-
-    /** Store a tensor element into a tensor reference. */
-    tensorStore(view: Value, indices: ValueSlice, value: Value): Instruction {
-        return { kind: "tensorStore", view, indices, value };
-    },
-
-    /** Fill a tensor reference with a scalar value. */
-    tensorFill(view: Value, value: Value): Instruction {
-        return { kind: "tensorFill", view, value };
-    },
-
-    /** Copy elements from a source tensor reference into a destination tensor reference. */
-    tensorCopy(target: Value, source: Value): Instruction {
-        return { kind: "tensorCopy", target, source };
-    },
-
-    /** Reshape a tensor value into a new shape. */
-    tensorReshape(destination: Value, tensor: Value, shape: ValueSlice): Instruction {
-        return { kind: "tensorReshape", destination, tensor, shape };
-    },
-
-    /** Broadcast a tensor into a larger shape. */
-    tensorBroadcast(destination: Value, tensor: Value, dimensions: IndexSlice): Instruction {
-        return { kind: "tensorBroadcast", destination, tensor, dimensions };
-    },
-
-    /** Permute tensor dimensions. */
-    tensorTranspose(destination: Value, tensor: Value, permutation: IndexSlice): Instruction {
-        return { kind: "tensorTranspose", destination, tensor, permutation };
-    },
-
-    /** Refine a tensor type without changing its contents. */
-    tensorCast(destination: Value, tensor: Value): Instruction {
-        return { kind: "tensorCast", destination, tensor };
-    },
-
-    /** Create a view into a tensor reference. */
-    tensorView(destination: Value, view: Value, arguments_: ValueSlice, offsetsCount: number, sizesCount: number, stridesCount: number): Instruction {
-        return { kind: "tensorView", destination, view, arguments: arguments_, offsetsCount, sizesCount, stridesCount };
-    },
-
-    /** Slice a tensor by offsets, sizes, and strides. */
-    tensorSlice(destination: Value, tensor: Value, arguments_: ValueSlice, offsetsCount: number, sizesCount: number, stridesCount: number): Instruction {
-        return { kind: "tensorSlice", destination, tensor, arguments: arguments_, offsetsCount, sizesCount, stridesCount };
-    },
-
-    /** Pad a tensor with low, high, and interior padding. */
-    tensorPad(destination: Value, tensor: Value, arguments_: ValueSlice, lowCount: number, highCount: number, interiorCount: number, value: Value): Instruction {
-        return { kind: "tensorPad", destination, tensor, arguments: arguments_, lowCount, highCount, interiorCount, value };
-    },
-
-    /** Concatenate tensors along a dimension. */
-    tensorConcat(destination: Value, tensors: ValueSlice, axis: number): Instruction {
-        return { kind: "tensorConcat", destination, tensors, axis };
-    },
-
-    /** Compare two tensors elementwise. */
-    tensorCompare(destination: Value, operator: BinaryOperator, left: Value, right: Value): Instruction {
-        return { kind: "tensorCompare", destination, operator, left, right };
-    },
-
-    /** Select tensor elements based on a boolean mask. */
-    tensorSelect(destination: Value, mask: Value, thenValue: Value, elseValue: Value): Instruction {
-        return { kind: "tensorSelect", destination, mask, thenValue, elseValue };
-    },
-
-    /** Reduce a tensor along axes with a fixed operator. */
-    tensorReduce(destination: Value, operator: TensorReduceOperator, tensor: Value, initial: Value, axes: IndexSlice): Instruction {
-        return { kind: "tensorReduce", destination, operator, tensor, initial, axes };
-    },
-
-    /** Reduce a tensor along one axis and return selected source indices. */
-    tensorIndexReduce(destination: Value, operator: TensorIndexReduceOperator, tensor: Value, axis: number, tieBreak: TensorIndexTieBreak): Instruction {
-        return { kind: "tensorIndexReduce", destination, operator, tensor, axis, tieBreak };
-    },
-
-    /** Dot product of two tensors. */
-    tensorDot(destination: Value, left: Value, right: Value, immediate: TensorImmediateId): Instruction {
-        return { kind: "tensorDot", destination, left, right, immediate };
-    },
-
-    /** Convolution between an input tensor and a kernel tensor. */
-    tensorConvolution(destination: Value, input: Value, kernel: Value, immediate: TensorImmediateId): Instruction {
-        return { kind: "tensorConvolution", destination, input, kernel, immediate };
-    },
-
-    /** Gather slices from a tensor based on indices. */
-    tensorGather(destination: Value, operand: Value, indices: Value, immediate: TensorImmediateId): Instruction {
-        return { kind: "tensorGather", destination, operand, indices, immediate };
-    },
-
-    /** Scatter updates into a tensor based on indices. */
-    tensorScatter(destination: Value, operand: Value, indices: Value, updates: Value, immediate: TensorImmediateId, mode: TensorScatterMode): Instruction {
-        return { kind: "tensorScatter", destination, operand, indices, updates, immediate, mode };
-    },
-
-    /** Convert a tensor element type. */
-    tensorConvert(destination: Value, mode: ConvertMode, tensor: Value): Instruction {
-        return { kind: "tensorConvert", destination, mode, tensor };
-    },
-
     /** Call one callable target without a local unwind continuation. */
     call(destination: Value | undefined, call: Call): Instruction {
         return { kind: "call", destination, call };
@@ -1932,240 +1541,84 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeConvertMode(writer, value.mode);
             encodeValue(writer, value.vector);
             return;
-        case "tensorSplat":
-            writer.writeUnsigned(47);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.value);
-            return;
-        case "tensorLoad":
-            writer.writeUnsigned(48);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.view);
-            encodeValueSlice(writer, value.indices);
-            return;
-        case "tensorExtract":
-            writer.writeUnsigned(49);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.tensor);
-            encodeValueSlice(writer, value.indices);
-            return;
-        case "tensorStore":
-            writer.writeUnsigned(50);
-            encodeValue(writer, value.view);
-            encodeValueSlice(writer, value.indices);
-            encodeValue(writer, value.value);
-            return;
-        case "tensorFill":
-            writer.writeUnsigned(51);
-            encodeValue(writer, value.view);
-            encodeValue(writer, value.value);
-            return;
-        case "tensorCopy":
-            writer.writeUnsigned(52);
-            encodeValue(writer, value.target);
-            encodeValue(writer, value.source);
-            return;
-        case "tensorReshape":
-            writer.writeUnsigned(53);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.tensor);
-            encodeValueSlice(writer, value.shape);
-            return;
-        case "tensorBroadcast":
-            writer.writeUnsigned(54);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.tensor);
-            encodeIndexSlice(writer, value.dimensions);
-            return;
-        case "tensorTranspose":
-            writer.writeUnsigned(55);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.tensor);
-            encodeIndexSlice(writer, value.permutation);
-            return;
-        case "tensorCast":
-            writer.writeUnsigned(56);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.tensor);
-            return;
-        case "tensorView":
-            writer.writeUnsigned(57);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.view);
-            encodeValueSlice(writer, value.arguments);
-            writer.writeUnsigned(value.offsetsCount);
-            writer.writeUnsigned(value.sizesCount);
-            writer.writeUnsigned(value.stridesCount);
-            return;
-        case "tensorSlice":
-            writer.writeUnsigned(58);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.tensor);
-            encodeValueSlice(writer, value.arguments);
-            writer.writeUnsigned(value.offsetsCount);
-            writer.writeUnsigned(value.sizesCount);
-            writer.writeUnsigned(value.stridesCount);
-            return;
-        case "tensorPad":
-            writer.writeUnsigned(59);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.tensor);
-            encodeValueSlice(writer, value.arguments);
-            writer.writeUnsigned(value.lowCount);
-            writer.writeUnsigned(value.highCount);
-            writer.writeUnsigned(value.interiorCount);
-            encodeValue(writer, value.value);
-            return;
-        case "tensorConcat":
-            writer.writeUnsigned(60);
-            encodeValue(writer, value.destination);
-            encodeValueSlice(writer, value.tensors);
-            writer.writeUnsigned(value.axis);
-            return;
-        case "tensorCompare":
-            writer.writeUnsigned(61);
-            encodeValue(writer, value.destination);
-            encodeBinaryOperator(writer, value.operator);
-            encodeValue(writer, value.left);
-            encodeValue(writer, value.right);
-            return;
-        case "tensorSelect":
-            writer.writeUnsigned(62);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.mask);
-            encodeValue(writer, value.thenValue);
-            encodeValue(writer, value.elseValue);
-            return;
-        case "tensorReduce":
-            writer.writeUnsigned(63);
-            encodeValue(writer, value.destination);
-            encodeTensorReduceOperator(writer, value.operator);
-            encodeValue(writer, value.tensor);
-            encodeValue(writer, value.initial);
-            encodeIndexSlice(writer, value.axes);
-            return;
-        case "tensorIndexReduce":
-            writer.writeUnsigned(64);
-            encodeValue(writer, value.destination);
-            encodeTensorIndexReduceOperator(writer, value.operator);
-            encodeValue(writer, value.tensor);
-            writer.writeUnsigned(value.axis);
-            encodeTensorIndexTieBreak(writer, value.tieBreak);
-            return;
-        case "tensorDot":
-            writer.writeUnsigned(65);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.left);
-            encodeValue(writer, value.right);
-            encodeTensorImmediateId(writer, value.immediate);
-            return;
-        case "tensorConvolution":
-            writer.writeUnsigned(66);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.input);
-            encodeValue(writer, value.kernel);
-            encodeTensorImmediateId(writer, value.immediate);
-            return;
-        case "tensorGather":
-            writer.writeUnsigned(67);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.operand);
-            encodeValue(writer, value.indices);
-            encodeTensorImmediateId(writer, value.immediate);
-            return;
-        case "tensorScatter":
-            writer.writeUnsigned(68);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.operand);
-            encodeValue(writer, value.indices);
-            encodeValue(writer, value.updates);
-            encodeTensorImmediateId(writer, value.immediate);
-            encodeTensorScatterMode(writer, value.mode);
-            return;
-        case "tensorConvert":
-            writer.writeUnsigned(69);
-            encodeValue(writer, value.destination);
-            encodeConvertMode(writer, value.mode);
-            encodeValue(writer, value.tensor);
-            return;
         case "call":
-            writer.writeUnsigned(70);
+            writer.writeUnsigned(47);
             writer.writeOption(value.destination, (value0) => {
                 encodeValue(writer, value0);
             });
             encodeCall(writer, value.call);
             return;
         case "drop":
-            writer.writeUnsigned(71);
+            writer.writeUnsigned(48);
             encodeValue(writer, value.value);
             return;
         case "newZeroed":
-            writer.writeUnsigned(72);
+            writer.writeUnsigned(49);
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.storageType);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "newUninit":
-            writer.writeUnsigned(73);
+            writer.writeUnsigned(50);
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.storageType);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "newComplete":
-            writer.writeUnsigned(74);
+            writer.writeUnsigned(51);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.value);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "newSliceZeroed":
-            writer.writeUnsigned(75);
+            writer.writeUnsigned(52);
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.element);
             encodeValue(writer, value.length);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "newSliceUninit":
-            writer.writeUnsigned(76);
+            writer.writeUnsigned(53);
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.element);
             encodeValue(writer, value.length);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "free":
-            writer.writeUnsigned(77);
+            writer.writeUnsigned(54);
             encodeValue(writer, value.value);
             return;
         case "pin":
-            writer.writeUnsigned(78);
+            writer.writeUnsigned(55);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.value);
             encodeLocalNodeId(writer, value.resultType);
             return;
         case "unpin":
-            writer.writeUnsigned(79);
+            writer.writeUnsigned(56);
             encodeValue(writer, value.value);
             return;
         case "barrierWrite":
-            writer.writeUnsigned(80);
+            writer.writeUnsigned(57);
             encodeValue(writer, value.object);
             encodeValue(writer, value.offset);
             encodeValue(writer, value.byteLen);
             return;
         case "atomicLoad":
-            writer.writeUnsigned(81);
+            writer.writeUnsigned(58);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.pointer);
             encodeLocalNodeId(writer, value.resultType);
             encodeAtomicAccess(writer, value.access);
             return;
         case "atomicStore":
-            writer.writeUnsigned(82);
+            writer.writeUnsigned(59);
             encodeValue(writer, value.pointer);
             encodeValue(writer, value.value);
             encodeAtomicAccess(writer, value.access);
             return;
         case "atomicCompareExchange":
-            writer.writeUnsigned(83);
+            writer.writeUnsigned(60);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.pointer);
             encodeValue(writer, value.expected);
@@ -2174,7 +1627,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeCompareExchangeAccess(writer, value.access);
             return;
         case "atomicRmw":
-            writer.writeUnsigned(84);
+            writer.writeUnsigned(61);
             encodeValue(writer, value.destination);
             encodeAtomicRmwOperator(writer, value.operator);
             encodeValue(writer, value.pointer);
@@ -2182,30 +1635,30 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeAtomicAccess(writer, value.access);
             return;
         case "atomicFence":
-            writer.writeUnsigned(85);
+            writer.writeUnsigned(62);
             encodeFenceAccess(writer, value.access);
             return;
         case "assume":
-            writer.writeUnsigned(86);
+            writer.writeUnsigned(63);
             encodeValue(writer, value.condition);
             return;
         case "profileIncrement":
-            writer.writeUnsigned(87);
+            writer.writeUnsigned(64);
             encodeCounterId(writer, value.counter);
             return;
         case "profileSample":
-            writer.writeUnsigned(88);
+            writer.writeUnsigned(65);
             encodeSamplerId(writer, value.sampler);
             encodeValue(writer, value.value);
             return;
         case "poll":
-            writer.writeUnsigned(89);
+            writer.writeUnsigned(66);
             return;
         case "breakpoint":
-            writer.writeUnsigned(90);
+            writer.writeUnsigned(67);
             return;
         case "intrinsic":
-            writer.writeUnsigned(91);
+            writer.writeUnsigned(68);
             writer.writeOption(value.destination, (value0) => {
                 encodeValue(writer, value0);
             });
@@ -2790,318 +2243,6 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
             };
         }
         case 47: {
-            const destination = decodeValue(reader);
-            const value = decodeValue(reader);
-
-            return {
-                kind: "tensorSplat",
-                destination,
-                value,
-            };
-        }
-        case 48: {
-            const destination = decodeValue(reader);
-            const view = decodeValue(reader);
-            const indices = decodeValueSlice(reader);
-
-            return {
-                kind: "tensorLoad",
-                destination,
-                view,
-                indices,
-            };
-        }
-        case 49: {
-            const destination = decodeValue(reader);
-            const tensor = decodeValue(reader);
-            const indices = decodeValueSlice(reader);
-
-            return {
-                kind: "tensorExtract",
-                destination,
-                tensor,
-                indices,
-            };
-        }
-        case 50: {
-            const view = decodeValue(reader);
-            const indices = decodeValueSlice(reader);
-            const value = decodeValue(reader);
-
-            return {
-                kind: "tensorStore",
-                view,
-                indices,
-                value,
-            };
-        }
-        case 51: {
-            const view = decodeValue(reader);
-            const value = decodeValue(reader);
-
-            return {
-                kind: "tensorFill",
-                view,
-                value,
-            };
-        }
-        case 52: {
-            const target = decodeValue(reader);
-            const source = decodeValue(reader);
-
-            return {
-                kind: "tensorCopy",
-                target,
-                source,
-            };
-        }
-        case 53: {
-            const destination = decodeValue(reader);
-            const tensor = decodeValue(reader);
-            const shape = decodeValueSlice(reader);
-
-            return {
-                kind: "tensorReshape",
-                destination,
-                tensor,
-                shape,
-            };
-        }
-        case 54: {
-            const destination = decodeValue(reader);
-            const tensor = decodeValue(reader);
-            const dimensions = decodeIndexSlice(reader);
-
-            return {
-                kind: "tensorBroadcast",
-                destination,
-                tensor,
-                dimensions,
-            };
-        }
-        case 55: {
-            const destination = decodeValue(reader);
-            const tensor = decodeValue(reader);
-            const permutation = decodeIndexSlice(reader);
-
-            return {
-                kind: "tensorTranspose",
-                destination,
-                tensor,
-                permutation,
-            };
-        }
-        case 56: {
-            const destination = decodeValue(reader);
-            const tensor = decodeValue(reader);
-
-            return {
-                kind: "tensorCast",
-                destination,
-                tensor,
-            };
-        }
-        case 57: {
-            const destination = decodeValue(reader);
-            const view = decodeValue(reader);
-            const arguments_ = decodeValueSlice(reader);
-            const offsetsCount = reader.readNumber();
-            const sizesCount = reader.readNumber();
-            const stridesCount = reader.readNumber();
-
-            return {
-                kind: "tensorView",
-                destination,
-                view,
-                arguments: arguments_,
-                offsetsCount,
-                sizesCount,
-                stridesCount,
-            };
-        }
-        case 58: {
-            const destination = decodeValue(reader);
-            const tensor = decodeValue(reader);
-            const arguments_ = decodeValueSlice(reader);
-            const offsetsCount = reader.readNumber();
-            const sizesCount = reader.readNumber();
-            const stridesCount = reader.readNumber();
-
-            return {
-                kind: "tensorSlice",
-                destination,
-                tensor,
-                arguments: arguments_,
-                offsetsCount,
-                sizesCount,
-                stridesCount,
-            };
-        }
-        case 59: {
-            const destination = decodeValue(reader);
-            const tensor = decodeValue(reader);
-            const arguments_ = decodeValueSlice(reader);
-            const lowCount = reader.readNumber();
-            const highCount = reader.readNumber();
-            const interiorCount = reader.readNumber();
-            const value = decodeValue(reader);
-
-            return {
-                kind: "tensorPad",
-                destination,
-                tensor,
-                arguments: arguments_,
-                lowCount,
-                highCount,
-                interiorCount,
-                value,
-            };
-        }
-        case 60: {
-            const destination = decodeValue(reader);
-            const tensors = decodeValueSlice(reader);
-            const axis = reader.readNumber();
-
-            return {
-                kind: "tensorConcat",
-                destination,
-                tensors,
-                axis,
-            };
-        }
-        case 61: {
-            const destination = decodeValue(reader);
-            const operator = decodeBinaryOperator(reader);
-            const left = decodeValue(reader);
-            const right = decodeValue(reader);
-
-            return {
-                kind: "tensorCompare",
-                destination,
-                operator,
-                left,
-                right,
-            };
-        }
-        case 62: {
-            const destination = decodeValue(reader);
-            const mask = decodeValue(reader);
-            const thenValue = decodeValue(reader);
-            const elseValue = decodeValue(reader);
-
-            return {
-                kind: "tensorSelect",
-                destination,
-                mask,
-                thenValue,
-                elseValue,
-            };
-        }
-        case 63: {
-            const destination = decodeValue(reader);
-            const operator = decodeTensorReduceOperator(reader);
-            const tensor = decodeValue(reader);
-            const initial = decodeValue(reader);
-            const axes = decodeIndexSlice(reader);
-
-            return {
-                kind: "tensorReduce",
-                destination,
-                operator,
-                tensor,
-                initial,
-                axes,
-            };
-        }
-        case 64: {
-            const destination = decodeValue(reader);
-            const operator = decodeTensorIndexReduceOperator(reader);
-            const tensor = decodeValue(reader);
-            const axis = reader.readNumber();
-            const tieBreak = decodeTensorIndexTieBreak(reader);
-
-            return {
-                kind: "tensorIndexReduce",
-                destination,
-                operator,
-                tensor,
-                axis,
-                tieBreak,
-            };
-        }
-        case 65: {
-            const destination = decodeValue(reader);
-            const left = decodeValue(reader);
-            const right = decodeValue(reader);
-            const immediate = decodeTensorImmediateId(reader);
-
-            return {
-                kind: "tensorDot",
-                destination,
-                left,
-                right,
-                immediate,
-            };
-        }
-        case 66: {
-            const destination = decodeValue(reader);
-            const input = decodeValue(reader);
-            const kernel = decodeValue(reader);
-            const immediate = decodeTensorImmediateId(reader);
-
-            return {
-                kind: "tensorConvolution",
-                destination,
-                input,
-                kernel,
-                immediate,
-            };
-        }
-        case 67: {
-            const destination = decodeValue(reader);
-            const operand = decodeValue(reader);
-            const indices = decodeValue(reader);
-            const immediate = decodeTensorImmediateId(reader);
-
-            return {
-                kind: "tensorGather",
-                destination,
-                operand,
-                indices,
-                immediate,
-            };
-        }
-        case 68: {
-            const destination = decodeValue(reader);
-            const operand = decodeValue(reader);
-            const indices = decodeValue(reader);
-            const updates = decodeValue(reader);
-            const immediate = decodeTensorImmediateId(reader);
-            const mode = decodeTensorScatterMode(reader);
-
-            return {
-                kind: "tensorScatter",
-                destination,
-                operand,
-                indices,
-                updates,
-                immediate,
-                mode,
-            };
-        }
-        case 69: {
-            const destination = decodeValue(reader);
-            const mode = decodeConvertMode(reader);
-            const tensor = decodeValue(reader);
-
-            return {
-                kind: "tensorConvert",
-                destination,
-                mode,
-                tensor,
-            };
-        }
-        case 70: {
             const destination = reader.readOption(() => decodeValue(reader));
             const call = decodeCall(reader);
 
@@ -3111,7 +2252,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 call,
             };
         }
-        case 71: {
+        case 48: {
             const value = decodeValue(reader);
 
             return {
@@ -3119,7 +2260,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 72: {
+        case 49: {
             const destination = decodeValue(reader);
             const storageType = decodeLocalNodeId(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3131,7 +2272,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 73: {
+        case 50: {
             const destination = decodeValue(reader);
             const storageType = decodeLocalNodeId(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3143,7 +2284,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 74: {
+        case 51: {
             const destination = decodeValue(reader);
             const value = decodeValue(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3155,7 +2296,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 75: {
+        case 52: {
             const destination = decodeValue(reader);
             const element = decodeLocalNodeId(reader);
             const length = decodeValue(reader);
@@ -3169,7 +2310,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 76: {
+        case 53: {
             const destination = decodeValue(reader);
             const element = decodeLocalNodeId(reader);
             const length = decodeValue(reader);
@@ -3183,7 +2324,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 77: {
+        case 54: {
             const value = decodeValue(reader);
 
             return {
@@ -3191,7 +2332,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 78: {
+        case 55: {
             const destination = decodeValue(reader);
             const value = decodeValue(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3203,7 +2344,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 resultType,
             };
         }
-        case 79: {
+        case 56: {
             const value = decodeValue(reader);
 
             return {
@@ -3211,7 +2352,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 80: {
+        case 57: {
             const object_ = decodeValue(reader);
             const offset = decodeValue(reader);
             const byteLen = decodeValue(reader);
@@ -3223,7 +2364,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 byteLen,
             };
         }
-        case 81: {
+        case 58: {
             const destination = decodeValue(reader);
             const pointer = decodeValue(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -3237,7 +2378,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 82: {
+        case 59: {
             const pointer = decodeValue(reader);
             const value = decodeValue(reader);
             const access = decodeAtomicAccess(reader);
@@ -3249,7 +2390,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 83: {
+        case 60: {
             const destination = decodeValue(reader);
             const pointer = decodeValue(reader);
             const expected = decodeValue(reader);
@@ -3267,7 +2408,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 84: {
+        case 61: {
             const destination = decodeValue(reader);
             const operator = decodeAtomicRmwOperator(reader);
             const pointer = decodeValue(reader);
@@ -3283,7 +2424,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 85: {
+        case 62: {
             const access = decodeFenceAccess(reader);
 
             return {
@@ -3291,7 +2432,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 86: {
+        case 63: {
             const condition = decodeValue(reader);
 
             return {
@@ -3299,7 +2440,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 condition,
             };
         }
-        case 87: {
+        case 64: {
             const counter = decodeCounterId(reader);
 
             return {
@@ -3307,7 +2448,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 counter,
             };
         }
-        case 88: {
+        case 65: {
             const sampler = decodeSamplerId(reader);
             const value = decodeValue(reader);
 
@@ -3317,13 +2458,13 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 89: {
+        case 66: {
             return { kind: "poll" };
         }
-        case 90: {
+        case 67: {
             return { kind: "breakpoint" };
         }
-        case 91: {
+        case 68: {
             const destination = reader.readOption(() => decodeValue(reader));
             const intrinsic = decodeIntrinsic(reader);
             const arguments_ = decodeValueSlice(reader);
@@ -3674,185 +2815,6 @@ export function toJsonInstruction(value: Instruction): Json {
                 destination: toJsonValue(value.destination),
                 mode: toJsonConvertMode(value.mode),
                 vector: toJsonValue(value.vector),
-            };
-        case "tensorSplat":
-            return {
-                kind: "tensorSplat",
-                destination: toJsonValue(value.destination),
-                value: toJsonValue(value.value),
-            };
-        case "tensorLoad":
-            return {
-                kind: "tensorLoad",
-                destination: toJsonValue(value.destination),
-                view: toJsonValue(value.view),
-                indices: toJsonValueSlice(value.indices),
-            };
-        case "tensorExtract":
-            return {
-                kind: "tensorExtract",
-                destination: toJsonValue(value.destination),
-                tensor: toJsonValue(value.tensor),
-                indices: toJsonValueSlice(value.indices),
-            };
-        case "tensorStore":
-            return {
-                kind: "tensorStore",
-                view: toJsonValue(value.view),
-                indices: toJsonValueSlice(value.indices),
-                value: toJsonValue(value.value),
-            };
-        case "tensorFill":
-            return {
-                kind: "tensorFill",
-                view: toJsonValue(value.view),
-                value: toJsonValue(value.value),
-            };
-        case "tensorCopy":
-            return {
-                kind: "tensorCopy",
-                target: toJsonValue(value.target),
-                source: toJsonValue(value.source),
-            };
-        case "tensorReshape":
-            return {
-                kind: "tensorReshape",
-                destination: toJsonValue(value.destination),
-                tensor: toJsonValue(value.tensor),
-                shape: toJsonValueSlice(value.shape),
-            };
-        case "tensorBroadcast":
-            return {
-                kind: "tensorBroadcast",
-                destination: toJsonValue(value.destination),
-                tensor: toJsonValue(value.tensor),
-                dimensions: toJsonIndexSlice(value.dimensions),
-            };
-        case "tensorTranspose":
-            return {
-                kind: "tensorTranspose",
-                destination: toJsonValue(value.destination),
-                tensor: toJsonValue(value.tensor),
-                permutation: toJsonIndexSlice(value.permutation),
-            };
-        case "tensorCast":
-            return {
-                kind: "tensorCast",
-                destination: toJsonValue(value.destination),
-                tensor: toJsonValue(value.tensor),
-            };
-        case "tensorView":
-            return {
-                kind: "tensorView",
-                destination: toJsonValue(value.destination),
-                view: toJsonValue(value.view),
-                arguments: toJsonValueSlice(value.arguments),
-                offsetsCount: value.offsetsCount,
-                sizesCount: value.sizesCount,
-                stridesCount: value.stridesCount,
-            };
-        case "tensorSlice":
-            return {
-                kind: "tensorSlice",
-                destination: toJsonValue(value.destination),
-                tensor: toJsonValue(value.tensor),
-                arguments: toJsonValueSlice(value.arguments),
-                offsetsCount: value.offsetsCount,
-                sizesCount: value.sizesCount,
-                stridesCount: value.stridesCount,
-            };
-        case "tensorPad":
-            return {
-                kind: "tensorPad",
-                destination: toJsonValue(value.destination),
-                tensor: toJsonValue(value.tensor),
-                arguments: toJsonValueSlice(value.arguments),
-                lowCount: value.lowCount,
-                highCount: value.highCount,
-                interiorCount: value.interiorCount,
-                value: toJsonValue(value.value),
-            };
-        case "tensorConcat":
-            return {
-                kind: "tensorConcat",
-                destination: toJsonValue(value.destination),
-                tensors: toJsonValueSlice(value.tensors),
-                axis: value.axis,
-            };
-        case "tensorCompare":
-            return {
-                kind: "tensorCompare",
-                destination: toJsonValue(value.destination),
-                operator: toJsonBinaryOperator(value.operator),
-                left: toJsonValue(value.left),
-                right: toJsonValue(value.right),
-            };
-        case "tensorSelect":
-            return {
-                kind: "tensorSelect",
-                destination: toJsonValue(value.destination),
-                mask: toJsonValue(value.mask),
-                thenValue: toJsonValue(value.thenValue),
-                elseValue: toJsonValue(value.elseValue),
-            };
-        case "tensorReduce":
-            return {
-                kind: "tensorReduce",
-                destination: toJsonValue(value.destination),
-                operator: toJsonTensorReduceOperator(value.operator),
-                tensor: toJsonValue(value.tensor),
-                initial: toJsonValue(value.initial),
-                axes: toJsonIndexSlice(value.axes),
-            };
-        case "tensorIndexReduce":
-            return {
-                kind: "tensorIndexReduce",
-                destination: toJsonValue(value.destination),
-                operator: toJsonTensorIndexReduceOperator(value.operator),
-                tensor: toJsonValue(value.tensor),
-                axis: value.axis,
-                tieBreak: toJsonTensorIndexTieBreak(value.tieBreak),
-            };
-        case "tensorDot":
-            return {
-                kind: "tensorDot",
-                destination: toJsonValue(value.destination),
-                left: toJsonValue(value.left),
-                right: toJsonValue(value.right),
-                immediate: toJsonTensorImmediateId(value.immediate),
-            };
-        case "tensorConvolution":
-            return {
-                kind: "tensorConvolution",
-                destination: toJsonValue(value.destination),
-                input: toJsonValue(value.input),
-                kernel: toJsonValue(value.kernel),
-                immediate: toJsonTensorImmediateId(value.immediate),
-            };
-        case "tensorGather":
-            return {
-                kind: "tensorGather",
-                destination: toJsonValue(value.destination),
-                operand: toJsonValue(value.operand),
-                indices: toJsonValue(value.indices),
-                immediate: toJsonTensorImmediateId(value.immediate),
-            };
-        case "tensorScatter":
-            return {
-                kind: "tensorScatter",
-                destination: toJsonValue(value.destination),
-                operand: toJsonValue(value.operand),
-                indices: toJsonValue(value.indices),
-                updates: toJsonValue(value.updates),
-                immediate: toJsonTensorImmediateId(value.immediate),
-                mode: toJsonTensorScatterMode(value.mode),
-            };
-        case "tensorConvert":
-            return {
-                kind: "tensorConvert",
-                destination: toJsonValue(value.destination),
-                mode: toJsonConvertMode(value.mode),
-                tensor: toJsonValue(value.tensor),
             };
         case "call":
             return {
@@ -4338,185 +3300,6 @@ export function fromJsonInstruction(value: Json): Instruction {
                 destination: fromJsonValue(jsonField(object, "destination")),
                 mode: fromJsonConvertMode(jsonField(object, "mode")),
                 vector: fromJsonValue(jsonField(object, "vector")),
-            };
-        case "tensorSplat":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                value: fromJsonValue(jsonField(object, "value")),
-            };
-        case "tensorLoad":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                view: fromJsonValue(jsonField(object, "view")),
-                indices: fromJsonValueSlice(jsonField(object, "indices")),
-            };
-        case "tensorExtract":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
-                indices: fromJsonValueSlice(jsonField(object, "indices")),
-            };
-        case "tensorStore":
-            return {
-                kind,
-                view: fromJsonValue(jsonField(object, "view")),
-                indices: fromJsonValueSlice(jsonField(object, "indices")),
-                value: fromJsonValue(jsonField(object, "value")),
-            };
-        case "tensorFill":
-            return {
-                kind,
-                view: fromJsonValue(jsonField(object, "view")),
-                value: fromJsonValue(jsonField(object, "value")),
-            };
-        case "tensorCopy":
-            return {
-                kind,
-                target: fromJsonValue(jsonField(object, "target")),
-                source: fromJsonValue(jsonField(object, "source")),
-            };
-        case "tensorReshape":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
-                shape: fromJsonValueSlice(jsonField(object, "shape")),
-            };
-        case "tensorBroadcast":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
-                dimensions: fromJsonIndexSlice(jsonField(object, "dimensions")),
-            };
-        case "tensorTranspose":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
-                permutation: fromJsonIndexSlice(jsonField(object, "permutation")),
-            };
-        case "tensorCast":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
-            };
-        case "tensorView":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                view: fromJsonValue(jsonField(object, "view")),
-                arguments: fromJsonValueSlice(jsonField(object, "arguments")),
-                offsetsCount: jsonInteger(jsonField(object, "offsetsCount")),
-                sizesCount: jsonInteger(jsonField(object, "sizesCount")),
-                stridesCount: jsonInteger(jsonField(object, "stridesCount")),
-            };
-        case "tensorSlice":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
-                arguments: fromJsonValueSlice(jsonField(object, "arguments")),
-                offsetsCount: jsonInteger(jsonField(object, "offsetsCount")),
-                sizesCount: jsonInteger(jsonField(object, "sizesCount")),
-                stridesCount: jsonInteger(jsonField(object, "stridesCount")),
-            };
-        case "tensorPad":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
-                arguments: fromJsonValueSlice(jsonField(object, "arguments")),
-                lowCount: jsonInteger(jsonField(object, "lowCount")),
-                highCount: jsonInteger(jsonField(object, "highCount")),
-                interiorCount: jsonInteger(jsonField(object, "interiorCount")),
-                value: fromJsonValue(jsonField(object, "value")),
-            };
-        case "tensorConcat":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                tensors: fromJsonValueSlice(jsonField(object, "tensors")),
-                axis: jsonInteger(jsonField(object, "axis")),
-            };
-        case "tensorCompare":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                operator: fromJsonBinaryOperator(jsonField(object, "operator")),
-                left: fromJsonValue(jsonField(object, "left")),
-                right: fromJsonValue(jsonField(object, "right")),
-            };
-        case "tensorSelect":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                mask: fromJsonValue(jsonField(object, "mask")),
-                thenValue: fromJsonValue(jsonField(object, "thenValue")),
-                elseValue: fromJsonValue(jsonField(object, "elseValue")),
-            };
-        case "tensorReduce":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                operator: fromJsonTensorReduceOperator(jsonField(object, "operator")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
-                initial: fromJsonValue(jsonField(object, "initial")),
-                axes: fromJsonIndexSlice(jsonField(object, "axes")),
-            };
-        case "tensorIndexReduce":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                operator: fromJsonTensorIndexReduceOperator(jsonField(object, "operator")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
-                axis: jsonInteger(jsonField(object, "axis")),
-                tieBreak: fromJsonTensorIndexTieBreak(jsonField(object, "tieBreak")),
-            };
-        case "tensorDot":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                left: fromJsonValue(jsonField(object, "left")),
-                right: fromJsonValue(jsonField(object, "right")),
-                immediate: fromJsonTensorImmediateId(jsonField(object, "immediate")),
-            };
-        case "tensorConvolution":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                input: fromJsonValue(jsonField(object, "input")),
-                kernel: fromJsonValue(jsonField(object, "kernel")),
-                immediate: fromJsonTensorImmediateId(jsonField(object, "immediate")),
-            };
-        case "tensorGather":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                operand: fromJsonValue(jsonField(object, "operand")),
-                indices: fromJsonValue(jsonField(object, "indices")),
-                immediate: fromJsonTensorImmediateId(jsonField(object, "immediate")),
-            };
-        case "tensorScatter":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                operand: fromJsonValue(jsonField(object, "operand")),
-                indices: fromJsonValue(jsonField(object, "indices")),
-                updates: fromJsonValue(jsonField(object, "updates")),
-                immediate: fromJsonTensorImmediateId(jsonField(object, "immediate")),
-                mode: fromJsonTensorScatterMode(jsonField(object, "mode")),
-            };
-        case "tensorConvert":
-            return {
-                kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                mode: fromJsonConvertMode(jsonField(object, "mode")),
-                tensor: fromJsonValue(jsonField(object, "tensor")),
             };
         case "call":
             return {

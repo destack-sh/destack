@@ -167,10 +167,6 @@ pub enum TokenType {
     Ref,
     /// `vector`
     Vector,
-    /// `tensor`
-    Tensor,
-    /// `tensorView`
-    TensorView,
     /// `struct`
     Struct,
     /// `newtype`
@@ -258,8 +254,6 @@ impl TokenType {
             "boolean" => Self::Boolean,
             "ref" => Self::Ref,
             "vector" => Self::Vector,
-            "tensor" => Self::Tensor,
-            "tensorView" => Self::TensorView,
             "struct" => Self::Struct,
             "newtype" => Self::Newtype,
             "true" | "false" => Self::BooleanLiteral,
