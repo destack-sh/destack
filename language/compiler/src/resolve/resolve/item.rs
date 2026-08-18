@@ -189,6 +189,10 @@ impl ResolveState<'_> {
             dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual => {
                 dir::LanguageItem::PartialEqual
             }
+            // builtin strict equality capability
+            dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
+                dir::LanguageItem::StrictEqual
+            }
             // ordered comparisons
             dir::BinaryOperator::LessThan
             | dir::BinaryOperator::LessThanOrEqual
@@ -207,11 +211,9 @@ impl ResolveState<'_> {
                 return;
             }
             // builtin binary operators
-            dir::BinaryOperator::EqualStrict
-            | dir::BinaryOperator::NotEqualStrict
-            | dir::BinaryOperator::And
-            | dir::BinaryOperator::Or
-            | dir::BinaryOperator::Coalesce => return,
+            dir::BinaryOperator::And | dir::BinaryOperator::Or | dir::BinaryOperator::Coalesce => {
+                return;
+            }
         };
 
         self.use_language_item(item);

@@ -455,6 +455,43 @@ const value = left + right;
 }
 
 #[test]
+fn test_resolve_records_strict_equality_language_item() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+declare const left: int32;
+declare const right: int32;
+const same = left === right;
+const different = left !== right;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+declare const left: int32;
+declare const right: int32;
+const same = left === right;
+/// @reference.target source=left kind=bound targets=[left]
+/// @reference.target source=right kind=bound targets=[right]
+
+const different = left !== right;
+/// @reference.target source=left kind=bound targets=[left]
+/// @reference.target source=right kind=bound targets=[right]
+
+/// @import.language item=ops.StrictEqual symbol=ops.equality.StrictEqual
+
+/// @import.summary language=1
+/// @resolve.stats roots=4 expressions=10 types=2 language=uses:1
+/// @reference.summary references=4
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_does_not_import_shadowed_profile_globals() {
     let compiler = TestSession::builder()
         .data(
