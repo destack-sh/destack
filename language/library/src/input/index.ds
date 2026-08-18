@@ -1,2 +1,0 @@
-export { InputBinding, input } from "./binding/input.ds";
-export * as binding from "./binding";

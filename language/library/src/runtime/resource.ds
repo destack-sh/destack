@@ -11,6 +11,9 @@ export struct ResourceId {
     localId: uint64;
 }
 
+/// Handle transferred between runtime owners.
+export newtype TransferredHandle = ResourceId;
+
 /// Runtime resource kind.
 export newtype ResourceKind = string;
 

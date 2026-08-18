@@ -1,6 +1,5 @@
 import { HostError } from "destack:error/host";
-import { TransferredHandle } from "destack:ipc/binding";
-import { ResourceId } from "destack:runtime/resource";
+import { ResourceId, TransferredHandle } from "destack:runtime/resource";
 
 import { SocketAddress, SocketFamily } from "./address.ds";
 

@@ -1,8 +1,0 @@
-import { HostError } from "destack:error/host";
-
-import { process } from "./binding/process.ds";
-
-/// Return the process arguments.
-export function args(): Result<^Array<^string>, HostError> {
-    process.get().argument.listArguments()
-}

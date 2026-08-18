@@ -15,23 +15,11 @@
     ".": {
       "path": "./src/index.ds"
     },
-    "./accessibility": {
-      "path": "./src/accessibility/index.ds"
-    },
-    "./accessibility/binding": {
-      "path": "./src/accessibility/binding/index.ds"
-    },
     "./assert": {
       "path": "./src/assert/index.ds"
     },
     "./async": {
       "path": "./src/async/index.ds"
-    },
-    "./audio": {
-      "path": "./src/audio/index.ds"
-    },
-    "./audio/binding": {
-      "path": "./src/audio/binding/index.ds"
     },
     "./bench": {
       "path": "./src/bench/index.ds"
@@ -57,32 +45,11 @@
     "./convert": {
       "path": "./src/convert/index.ds"
     },
-    "./crypto": {
-      "path": "./src/crypto/index.ds"
-    },
-    "./crypto/binding": {
-      "path": "./src/crypto/binding/index.ds"
-    },
     "./debug": {
       "path": "./src/debug/index.ds"
     },
     "./decorator": {
       "path": "./src/decorator/index.ds"
-    },
-    "./device": {
-      "path": "./src/device/index.ds"
-    },
-    "./device/binding": {
-      "path": "./src/device/binding/index.ds"
-    },
-    "./display": {
-      "path": "./src/display/index.ds"
-    },
-    "./display/binding": {
-      "path": "./src/display/binding/index.ds"
-    },
-    "./dns": {
-      "path": "./src/dns/index.ds"
     },
     "./error": {
       "path": "./src/error/index.ds"
@@ -98,36 +65,6 @@
     },
     "./hint": {
       "path": "./src/hint/index.ds"
-    },
-    "./gpu": {
-      "path": "./src/gpu/index.ds"
-    },
-    "./gpu/binding": {
-      "path": "./src/gpu/binding/index.ds"
-    },
-    "./http": {
-      "path": "./src/http/index.ds"
-    },
-    "./https": {
-      "path": "./src/https/index.ds"
-    },
-    "./input": {
-      "path": "./src/input/index.ds"
-    },
-    "./input/binding": {
-      "path": "./src/input/binding/index.ds"
-    },
-    "./io": {
-      "path": "./src/io/index.ds"
-    },
-    "./io/binding": {
-      "path": "./src/io/binding/index.ds"
-    },
-    "./ipc": {
-      "path": "./src/ipc/index.ds"
-    },
-    "./ipc/binding": {
-      "path": "./src/ipc/binding/index.ds"
     },
     "./iter": {
       "path": "./src/iter/index.ds"
@@ -156,26 +93,11 @@
     "./ops": {
       "path": "./src/ops/index.ds"
     },
-    "./os": {
-      "path": "./src/os/index.ds"
-    },
-    "./os/binding": {
-      "path": "./src/os/binding/index.ds"
-    },
-    "./path": {
-      "path": "./src/path/index.ds"
-    },
     "./profile": {
       "path": "./src/profile/index.ds"
     },
     "./prelude": {
       "path": "./src/prelude.ds"
-    },
-    "./process": {
-      "path": "./src/process/index.ds"
-    },
-    "./process/binding": {
-      "path": "./src/process/binding/index.ds"
     },
     "./random": {
       "path": "./src/random/index.ds"
@@ -225,9 +147,6 @@
     "./sync": {
       "path": "./src/sync/index.ds"
     },
-    "./sys": {
-      "path": "./src/sys/index.ds"
-    },
     "./telemetry": {
       "path": "./src/telemetry/index.ds"
     },
@@ -249,32 +168,14 @@
     "./topology/binding": {
       "path": "./src/topology/binding/index.ds"
     },
-    "./tls": {
-      "path": "./src/tls/index.ds"
-    },
-    "./tls/binding": {
-      "path": "./src/tls/binding/index.ds"
-    },
     "./tree": {
       "path": "./src/tree/index.ds"
-    },
-    "./tty": {
-      "path": "./src/tty/index.ds"
-    },
-    "./tty/binding": {
-      "path": "./src/tty/binding/index.ds"
     },
     "./types": {
       "path": "./src/types/index.ds"
     },
-    "./url": {
-      "path": "./src/url/index.ds"
-    },
     "./worker": {
       "path": "./src/worker/index.ds"
-    },
-    "./zlib": {
-      "path": "./src/zlib/index.ds"
     }
   }
 }

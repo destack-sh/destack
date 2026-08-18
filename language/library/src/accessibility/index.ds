@@ -1,2 +1,0 @@
-export { AccessibilityBinding, accessibility } from "./binding/accessibility.ds";
-export * as binding from "./binding";
