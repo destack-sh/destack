@@ -11,16 +11,16 @@ fn test_record_filters_by_level() {
 
     diagnostics.record(
         RuntimeDiagnosticLevel::Info,
-        "display",
-        "destack.display.window.open",
+        "fs",
+        "destack.fs.file.open",
         "ignored diagnostic",
         None,
     );
 
     diagnostics.record(
         RuntimeDiagnosticLevel::Warn,
-        "display",
-        "destack.display.window.open",
+        "fs",
+        "destack.fs.file.open",
         "recorded diagnostic",
         Some(5),
     );
@@ -32,7 +32,7 @@ fn test_record_filters_by_level() {
 
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].level, RuntimeDiagnosticLevel::Warn);
-    assert_eq!(entries[0].module, "display");
+    assert_eq!(entries[0].module, "fs");
     assert_eq!(entries[0].os_code, Some(5));
 }
 
@@ -46,7 +46,7 @@ fn test_record_enforces_capacity_and_drops_oldest() {
 
     diagnostics.record(
         RuntimeDiagnosticLevel::Error,
-        "display",
+        "fs",
         "op1",
         "message1",
         None,
@@ -54,7 +54,7 @@ fn test_record_enforces_capacity_and_drops_oldest() {
 
     diagnostics.record(
         RuntimeDiagnosticLevel::Warn,
-        "display",
+        "fs",
         "op2",
         "message2",
         None,
@@ -62,7 +62,7 @@ fn test_record_enforces_capacity_and_drops_oldest() {
 
     diagnostics.record(
         RuntimeDiagnosticLevel::Info,
-        "display",
+        "fs",
         "op3",
         "message3",
         None,
