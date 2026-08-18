@@ -172,11 +172,6 @@ export newtype interface Iterator<T> {
         todo("Iterator.findIndex")
     }
 
-    /// Count the remaining yielded values.
-    count(this): isize {
-        todo("Iterator.count")
-    }
-
     /// Return the first yielded value.
     first(this): T | undefined {
         todo("Iterator.first")
