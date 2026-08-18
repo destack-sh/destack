@@ -57,32 +57,6 @@ impl Parser<'_> {
 
                 Ok(ValueType::dynamic(constraint, reference))
             }
-            "tensor" => {
-                let (ty, scalar, reference) = self.parse_tensor_type()?;
-
-                Ok(ValueType::tensor(scalar, ty, reference))
-            }
-            "tensorView" => {
-                self.eat_token(TokenType::LessThan)?;
-                let ty = self.parse_type_id()?;
-                self.eat_token(TokenType::Comma)?;
-                let scalar = self.parse_scalar_name()?;
-                self.eat_token(TokenType::Comma)?;
-                let kind = self.parse_reference_kind()?;
-                self.eat_token(TokenType::Comma)?;
-                let storage = self.parse_storage()?;
-                self.eat_token(TokenType::Comma)?;
-                let word_count = self.parse_u16()?;
-                self.eat_token(TokenType::GreaterThan)?;
-
-                let reference = ReferenceType::new(kind, storage);
-                let ty = ValueType::tensor_view(scalar, ty, reference, word_count);
-                if !ty.is_defined() {
-                    return Err(ParseError::new("invalid tensor view type", token.span));
-                }
-
-                Ok(ty)
-            }
             "vector" => self.parse_vector(token.span),
             _ => Err(ParseError::new("expected bytecode value type", token.span)),
         }
@@ -126,21 +100,6 @@ impl Parser<'_> {
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok((element, kind, storage))
-    }
-
-    /// Parse one tensor element representation and runtime type.
-    fn parse_tensor_type(&mut self) -> ParseResult<(TypeId, Scalar, ReferenceType)> {
-        self.eat_token(TokenType::LessThan)?;
-        let ty = self.parse_type_id()?;
-        self.eat_token(TokenType::Comma)?;
-        let scalar = self.parse_scalar_name()?;
-        self.eat_token(TokenType::Comma)?;
-        let kind = self.parse_reference_kind()?;
-        self.eat_token(TokenType::Comma)?;
-        let storage = self.parse_storage()?;
-        self.eat_token(TokenType::GreaterThan)?;
-
-        Ok((ty, scalar, ReferenceType::new(kind, storage)))
     }
 
     /// Parse one reference ownership and storage argument list.

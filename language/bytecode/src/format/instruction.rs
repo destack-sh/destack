@@ -111,8 +111,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             self.format_branch(comparison, scalar)
         } else if let Some(operation) = opcode.vector_operation() {
             self.format_vector(operation)
-        } else if opcode.tensor_operation().is_some() {
-            self.format_tensor()
         } else {
             Err(FormatError::SyntaxError {
                 message: "unsupported bytecode opcode",
@@ -253,18 +251,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
     /// Write one function-local branch label.
     pub(super) fn write_label(&mut self, label: Label) -> FormatResult<()> {
         self.write_text(&label.to_string())
-    }
-
-    /// Write one comma-separated register sequence.
-    pub(super) fn write_registers(&mut self, registers: &[RegisterId]) -> FormatResult<()> {
-        for (index, register) in registers.iter().copied().enumerate() {
-            if index > 0 {
-                write!(self.formatter, [token(","), space()])?;
-            }
-            self.write_register(register)?;
-        }
-
-        Ok(())
     }
 
     /// Write one breakable comma separator.

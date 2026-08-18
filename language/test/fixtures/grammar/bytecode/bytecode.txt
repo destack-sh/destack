@@ -17,12 +17,6 @@ function dispatch {
 //                   ^^ entity.name.function.dsa
 //                                                  ^^ variable.other.register.dsa
 //                                                     ^^ variable.other.register.dsa
-    tensor.contract r6, [(r0, l0), (r1, l0)], axes([], [], [1], [0]), a0
-//  ^^^^^^^^^^^^^^^ keyword.operator.instruction.dsa
-//                  ^^ variable.other.register.dsa
-//                        ^^ variable.other.register.dsa
-//                            ^^ constant.other.identity.dsa
-//                                                                    ^^ constant.other.identity.dsa
     switch r0 { 0 => b0, default => b1 }
 //  ^^^^^^ keyword.control.flow.dsa
 //         ^^ variable.other.register.dsa

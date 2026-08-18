@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Address, AtomicOperation, BooleanOperation, CastOperation, Comparison, FloatOperation,
     InstructionLayout, IntegerOperation, MemoryOperation, New, NewKind, Operand, Prefetch, Scalar,
-    ScalarCheck, TensorOperation, Transfer, ValueType, VectorOperation,
+    ScalarCheck, Transfer, ValueType, VectorOperation,
 };
 
 /// One stable exact bytecode operation code.
@@ -611,10 +611,6 @@ opcodes! {
     VECTOR in 0x0e00..0x0f00 {
         layout: vector_layout,
     }
-    /// Tensor operations.
-    TENSOR in 0x0f00..0x0f40 {
-        layout: tensor_layout,
-    }
     /// Byte range transfers.
     TRANSFER in 0x0f40..0x0f68 {
         layout: transfer_layout,
@@ -920,11 +916,6 @@ impl Opcode {
     /// Create one vector opcode.
     pub const fn vector(operation: VectorOperation) -> Self {
         Self(OpcodeRange::VECTOR.start() + operation as u16)
-    }
-
-    /// Create one tensor opcode.
-    pub const fn tensor(operation: TensorOperation) -> Self {
-        Self(OpcodeRange::TENSOR.start() + operation as u16)
     }
 
     /// Create one opcode from its exact stable code.
@@ -1277,15 +1268,6 @@ impl Opcode {
     pub const fn vector_operation(self) -> Option<VectorOperation> {
         if OpcodeRange::VECTOR.contains(self.0) {
             VectorOperation::from_code((self.0 - OpcodeRange::VECTOR.start()) as u8)
-        } else {
-            None
-        }
-    }
-
-    /// Decode one tensor opcode.
-    pub const fn tensor_operation(self) -> Option<TensorOperation> {
-        if OpcodeRange::TENSOR.contains(self.0) {
-            TensorOperation::from_code((self.0 - OpcodeRange::TENSOR.start()) as u8)
         } else {
             None
         }
@@ -1779,160 +1761,6 @@ impl Opcode {
                 Operand::Register,
                 Operand::RegisterSpan,
                 Operand::VectorType,
-            ],
-            _ => return None,
-        };
-
-        Some(InstructionLayout::new(layout))
-    }
-
-    /// Return the operand layout for one tensor opcode.
-    fn tensor_layout(code: u16) -> Option<InstructionLayout> {
-        let operation = code - OpcodeRange::TENSOR.start();
-        let layout = match operation {
-            operation if operation == TensorOperation::Element as u16 => &[
-                Operand::Result,
-                Operand::TensorList,
-                Operand::Operator,
-                Operand::Allocation,
-            ][..],
-            operation if operation == TensorOperation::Compare as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Tensor,
-                Operand::Operator,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Select as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Tensor,
-                Operand::Tensor,
-                Operand::Allocation,
-            ],
-            operation
-                if operation == TensorOperation::Transpose as u16
-                    || operation == TensorOperation::Broadcast as u16 =>
-            {
-                &[
-                    Operand::Result,
-                    Operand::Tensor,
-                    Operand::Unsigned16List,
-                    Operand::Allocation,
-                ]
-            }
-            operation if operation == TensorOperation::Reshape as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::RegisterList,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Slice as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::RegisterList,
-                Operand::RegisterList,
-                Operand::RegisterList,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Pad as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Register,
-                Operand::RegisterList,
-                Operand::RegisterList,
-                Operand::RegisterList,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Concat as u16 => &[
-                Operand::Result,
-                Operand::TensorList,
-                Operand::Unsigned16,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Splat as u16 => {
-                &[Operand::Result, Operand::Register, Operand::Allocation]
-            }
-            operation if operation == TensorOperation::Convert as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Operator,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Bitcast as u16 => {
-                &[Operand::Result, Operand::Tensor, Operand::Allocation]
-            }
-            operation if operation == TensorOperation::Reduce as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Register,
-                Operand::Operator,
-                Operand::Unsigned16List,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::IndexReduce as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Operator,
-                Operand::Unsigned16,
-                Operand::Unsigned16,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Contract as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Tensor,
-                Operand::ContractionAxes,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Gather as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Tensor,
-                Operand::GatherAxes,
-                Operand::Bits64List,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Scatter as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Tensor,
-                Operand::Tensor,
-                Operand::ScatterAxes,
-                Operand::Operator,
-                Operand::Allocation,
-            ],
-            operation if operation == TensorOperation::Load as u16 => {
-                &[Operand::Result, Operand::Tensor, Operand::RegisterList]
-            }
-            operation if operation == TensorOperation::Extract as u16 => {
-                &[Operand::Result, Operand::Tensor, Operand::RegisterList]
-            }
-            operation if operation == TensorOperation::Store as u16 => {
-                &[Operand::Tensor, Operand::RegisterList, Operand::Register]
-            }
-            operation if operation == TensorOperation::Fill as u16 => {
-                &[Operand::Tensor, Operand::Register]
-            }
-            operation if operation == TensorOperation::Copy as u16 => {
-                &[Operand::Tensor, Operand::Tensor]
-            }
-            operation if operation == TensorOperation::View as u16 => &[
-                Operand::ResultRange,
-                Operand::Tensor,
-                Operand::RegisterList,
-                Operand::RegisterList,
-                Operand::RegisterList,
-                Operand::Layout,
-            ],
-            operation if operation == TensorOperation::Convolution as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Tensor,
-                Operand::ConvolutionAxes,
-                Operand::Window,
-                Operand::ConvolutionGroups,
-                Operand::Allocation,
             ],
             _ => return None,
         };

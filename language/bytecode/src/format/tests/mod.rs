@@ -13,7 +13,6 @@ mod new;
 mod reference;
 mod scalar;
 mod slice;
-mod tensor;
 mod value;
 mod vector;
 

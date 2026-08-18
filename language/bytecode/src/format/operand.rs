@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 
 use crate::{
     CodeOffset, CounterId, Error, Label, ReferenceType, RegisterId, Relocation, SamplerId,
-    TensorOperand, VectorType,
+    VectorType,
 };
 
 use super::instruction::InstructionFormatter;
@@ -37,28 +37,9 @@ impl<'code> InstructionFormatter<'code, '_, '_> {
         self.operands.reference().map_err(FormatError::from)
     }
 
-    /// Read one tensor register span and runtime type.
-    pub(super) fn tensor(&mut self) -> FormatResult<TensorOperand> {
-        self.operands.tensor().map_err(FormatError::from)
-    }
-
-    /// Read one counted tensor operand list.
-    pub(super) fn tensors(&mut self) -> FormatResult<Vec<TensorOperand>> {
-        let tensors = self.operands.tensors().map_err(FormatError::from)?;
-
-        Ok(tensors.collect())
-    }
-
     /// Read one counted unsigned 16-bit list.
     pub(super) fn u16_list(&mut self) -> FormatResult<Vec<u16>> {
         let values = self.operands.u16s().map_err(FormatError::from)?;
-
-        Ok(values.collect())
-    }
-
-    /// Read one counted unsigned 64-bit list.
-    pub(super) fn u64_list(&mut self) -> FormatResult<Vec<u64>> {
-        let values = self.operands.u64s().map_err(FormatError::from)?;
 
         Ok(values.collect())
     }

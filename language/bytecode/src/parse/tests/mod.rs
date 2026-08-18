@@ -15,7 +15,6 @@ mod reference;
 mod scalar;
 mod slice;
 mod source;
-mod tensor;
 mod trivia;
 mod value;
 mod vector;

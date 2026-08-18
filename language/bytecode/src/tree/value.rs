@@ -293,10 +293,6 @@ impl ValueTag {
     pub const UNINIT_SLICE: Self = Self(10);
     /// One erased payload and dynamic dispatch table.
     pub const DYNAMIC: Self = Self(11);
-    /// One tensor handle.
-    pub const TENSOR: Self = Self(12);
-    /// One inline tensor view descriptor.
-    pub const TENSOR_VIEW: Self = Self(13);
     /// One inline fixed-width vector.
     pub const VECTOR: Self = Self(14);
     /// One indexed type spanning contiguous register words.
@@ -306,7 +302,7 @@ impl ValueTag {
 
     /// Return whether this value category is defined by the bytecode ISA.
     pub const fn is_defined(self) -> bool {
-        self.0 <= Self::VOID.0
+        matches!(self.0, 0..=11 | 14..=16)
     }
 }
 
@@ -395,45 +391,6 @@ impl ValueType {
         }
     }
 
-    /// Create one tensor handle value type.
-    pub const fn tensor(scalar: Scalar, ty: TypeId, reference: ReferenceType) -> Self {
-        Self {
-            tag: ValueTag::TENSOR,
-            scalar: scalar.code(),
-            reference,
-            word_count: 1,
-            lane_count: 0,
-            type_id: ty.0,
-        }
-    }
-
-    /// Create one inline tensor view descriptor value type.
-    pub const fn tensor_view(
-        scalar: Scalar,
-        ty: TypeId,
-        reference: ReferenceType,
-        word_count: u16,
-    ) -> Self {
-        Self {
-            tag: ValueTag::TENSOR_VIEW,
-            scalar: scalar.code(),
-            reference,
-            word_count,
-            lane_count: 0,
-            type_id: ty.0,
-        }
-    }
-
-    /// Return the register word count for one tensor view rank.
-    pub const fn tensor_view_word_count(rank: u16) -> Option<u16> {
-        let dimensions = rank.checked_mul(2);
-        let Some(dimensions) = dimensions else {
-            return None;
-        };
-
-        dimensions.checked_add(2)
-    }
-
     /// Create one inline fixed-width vector value type.
     pub const fn vector(ty: VectorType) -> Self {
         Self::new(
@@ -474,7 +431,6 @@ impl ValueType {
                 | ValueTag::REFERENCE
                 | ValueTag::POINTER
                 | ValueTag::FUNCTION_POINTER
-                | ValueTag::TENSOR
         )
     }
 
@@ -632,33 +588,6 @@ impl ValueType {
         self.tag.0 == ValueTag::DYNAMIC.0
     }
 
-    /// Return the runtime type for a tensor handle or tensor view.
-    pub const fn tensor_type(self) -> Option<TypeId> {
-        if self.tag.0 == ValueTag::TENSOR.0 || self.tag.0 == ValueTag::TENSOR_VIEW.0 {
-            Some(TypeId(self.type_id))
-        } else {
-            None
-        }
-    }
-
-    /// Return the element representation for a tensor handle or tensor view.
-    pub const fn tensor_scalar(self) -> Option<Scalar> {
-        if self.tag.0 == ValueTag::TENSOR.0 || self.tag.0 == ValueTag::TENSOR_VIEW.0 {
-            Scalar::from_code(self.scalar)
-        } else {
-            None
-        }
-    }
-
-    /// Return the backing reference carried by a tensor handle or view.
-    pub const fn tensor_reference(self) -> Option<ReferenceType> {
-        if self.tag.0 == ValueTag::TENSOR.0 || self.tag.0 == ValueTag::TENSOR_VIEW.0 {
-            Some(self.reference)
-        } else {
-            None
-        }
-    }
-
     /// Return the indexed runtime type.
     pub const fn indexed_type(self) -> Option<TypeId> {
         if self.tag.0 == ValueTag::INDEXED.0 {
@@ -678,28 +607,13 @@ impl ValueType {
         self,
         map_type: impl FnOnce(TypeId) -> Result<TypeId, E>,
     ) -> Result<Self, E> {
-        let type_id = if self.is_slice()
-            || self.is_dynamic()
-            || self.is_tensor()
-            || self.is_tensor_view()
-            || self.is_indexed()
-        {
+        let type_id = if self.is_slice() || self.is_dynamic() || self.is_indexed() {
             map_type(TypeId(self.type_id))?.0
         } else {
             self.type_id
         };
 
         Ok(Self { type_id, ..self })
-    }
-
-    /// Return whether this is a tensor handle.
-    pub const fn is_tensor(self) -> bool {
-        self.tag.0 == ValueTag::TENSOR.0
-    }
-
-    /// Return whether this is an inline tensor view descriptor.
-    pub const fn is_tensor_view(self) -> bool {
-        self.tag.0 == ValueTag::TENSOR_VIEW.0
     }
 
     /// Return whether every encoded field is canonical and defined by the ISA.
@@ -746,18 +660,6 @@ impl ValueType {
             ValueTag::SLICE | ValueTag::UNINIT_SLICE => {
                 self.scalar == 0
                     && self.word_count == 2
-                    && self.reference.is_defined()
-                    && self.lane_count == 0
-            }
-            ValueTag::TENSOR => {
-                self.tensor_scalar().is_some()
-                    && self.word_count == 1
-                    && self.reference.is_defined()
-                    && self.lane_count == 0
-            }
-            ValueTag::TENSOR_VIEW => {
-                self.tensor_scalar().is_some()
-                    && self.word_count >= 2
                     && self.reference.is_defined()
                     && self.lane_count == 0
             }

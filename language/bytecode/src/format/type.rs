@@ -67,7 +67,6 @@ impl<'a> BytecodeFormatContext<'a> {
 
                 Ok(format!("dynamic<{name}, {kind}, {storage}>"))
             }
-            ValueTag::TENSOR | ValueTag::TENSOR_VIEW => self.tensor_type_text(ty),
             ValueTag::VECTOR => ty
                 .vector_type()
                 .map(|vector| format!("vector<{}, {}>", vector.scalar.name(), vector.lane_count))
@@ -154,44 +153,6 @@ impl<'a> BytecodeFormatContext<'a> {
             Ok(format!("uninit<{value}>"))
         } else {
             Ok(value)
-        }
-    }
-
-    /// Return one tensor value type text.
-    fn tensor_type_text(&self, ty: ValueType) -> FormatResult<String> {
-        let scalar = ty.tensor_scalar().ok_or(FormatError::SyntaxError {
-            message: "tensor value has no scalar representation",
-        })?;
-        let tensor = ty.tensor_type().ok_or(FormatError::SyntaxError {
-            message: "tensor value has no runtime type",
-        })?;
-        let name = self.type_text(tensor);
-        let constructor = if ty.tag() == ValueTag::TENSOR {
-            "tensor"
-        } else {
-            "tensorView"
-        };
-
-        let reference = ty.tensor_reference().ok_or(FormatError::SyntaxError {
-            message: "tensor value has no backing reference",
-        })?;
-        let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
-            message: "tensor value has invalid reference ownership",
-        })?;
-        let storage = reference.storage().name().ok_or(FormatError::SyntaxError {
-            message: "tensor value has invalid storage",
-        })?;
-        if ty.tag() == ValueTag::TENSOR_VIEW {
-            Ok(format!(
-                "{constructor}<{name}, {}, {kind}, {storage}, {}>",
-                scalar.name(),
-                ty.word_count()
-            ))
-        } else {
-            Ok(format!(
-                "{constructor}<{name}, {}, {kind}, {storage}>",
-                scalar.name()
-            ))
         }
     }
 }

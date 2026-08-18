@@ -2,9 +2,8 @@
 Structured instruction operands
 ==================================
 
-function tensorProgram {
+function dispatch {
     call.virtual r5, f0, ref<managed, local>, 0, 0, r0:r2
-    tensor.contract r6, [(r0, l0), (r1, l0)], axes([], [], [1], [0]), a0
     switch r0 { 0 => b0, default => b1 }
 b0:
     continuation.resume r7:r8, r9, r10:r11, r6, r5 => b2 | b3 | b4
@@ -39,41 +38,6 @@ b0:
           (register_identifier)
           (colon)
           (register_identifier))))
-    (instruction
-      (opcode)
-      (operands
-        (register_identifier)
-        (comma)
-        (list
-          (operands
-            (tuple
-              (operands
-                (register_identifier)
-                (comma)
-                (layout_identifier)))
-            (comma)
-            (tuple
-              (operands
-                (register_identifier)
-                (comma)
-                (layout_identifier)))))
-        (comma)
-        (identifier)
-        (tuple
-          (operands
-            (list)
-            (comma)
-            (list)
-            (comma)
-            (list
-              (operands
-                (integer_literal)))
-            (comma)
-            (list
-              (operands
-                (integer_literal)))))
-        (comma)
-        (allocation_identifier)))
     (instruction
       (opcode)
       (operands

@@ -55,9 +55,8 @@ impl Parser<'_> {
             // constants
             "constant" => self.parse_constant_operation(name, token, function),
 
-            // vector, tensor, and register values
+            // vector and register values
             "vector" => self.parse_vector_operation(name, token, function),
-            "tensor" => self.parse_tensor_operation(name, token, function),
             "select" | "equal" => self.parse_value_operation(name, token, function),
             "move" if name == "move" => self.parse_value_operation(name, token, function),
 

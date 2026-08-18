@@ -1,7 +1,6 @@
 use crate::{
     CounterId, Error, Label, Opcode, Placement, ReferenceKind, RegisterId, RegisterSpan,
-    Relocation, RelocationTag, Result, SamplerId, Scalar, Storage, TensorOperand, ValueType,
-    VectorType,
+    Relocation, RelocationTag, Result, SamplerId, Scalar, Storage, ValueType, VectorType,
 };
 
 /// Encoded operands for one instruction under construction.
@@ -187,22 +186,6 @@ impl InstructionBuilder {
     pub fn reference(&mut self, kind: ReferenceKind, storage: Storage) {
         self.bytes.push(kind.code());
         self.bytes.push(storage.code());
-    }
-
-    /// Append one tensor operand.
-    pub fn tensor(&mut self, tensor: TensorOperand) {
-        self.span(tensor.registers);
-        self.relocation(RelocationTag::LAYOUT, tensor.layout.0);
-    }
-
-    /// Append one counted tensor operand list.
-    pub fn tensors(&mut self, tensors: &[TensorOperand]) -> Result<()> {
-        self.encode_count(tensors.len())?;
-        for tensor in tensors {
-            self.tensor(*tensor);
-        }
-
-        Ok(())
     }
 
     /// Append one complete value type operand.

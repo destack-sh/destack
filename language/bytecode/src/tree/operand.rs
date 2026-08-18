@@ -1,4 +1,4 @@
-use crate::{Error, Placement, ReferenceType, Result, TensorOperand, ValueType};
+use crate::{Error, Placement, ReferenceType, Result, ValueType};
 
 /// One encoded instruction operand.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -52,10 +52,6 @@ pub enum Operand {
     VectorType,
     /// One complete fixed-width bytecode value type.
     ValueType,
-    /// One tensor register range and runtime layout symbol.
-    Tensor,
-    /// A 16-bit count followed by tensor register ranges and runtime layout symbols.
-    TensorList,
 
     // execution controls
     /// One operation code interpreted by the containing opcode, encoded as 16 bits.
@@ -66,20 +62,6 @@ pub enum Operand {
     CompareExchangeAccess,
     /// One fence ordering, execution scope, and storage set encoded as 32 bits.
     FenceAccess,
-
-    // tensor geometry
-    /// Four counted 16-bit axis lists for one tensor contraction.
-    ContractionAxes,
-    /// Three input, kernel, and output dimension mappings for one tensor convolution.
-    ConvolutionAxes,
-    /// Five counted 64-bit dimension lists and one 16-bit reversal list.
-    Window,
-    /// Feature and batch group counts encoded as two unsigned 32-bit values.
-    ConvolutionGroups,
-    /// Three counted 16-bit axis lists and one 16-bit index-vector axis for gather.
-    GatherAxes,
-    /// Three counted 16-bit axis lists and one 16-bit index-vector axis for scatter.
-    ScatterAxes,
 
     // immediates
     /// One unsigned 16-bit immediate.
@@ -127,19 +109,11 @@ impl Operand {
             | Self::VectorType
             | Self::Unsigned32
             | Self::Signed32 => Some(size_of::<u32>()),
-            Self::ConvolutionGroups => Some(size_of::<[u32; 2]>()),
-            Self::Tensor => Some(TensorOperand::BYTE_LEN),
             Self::Bits64 => Some(size_of::<u64>()),
             Self::Bits128 => Some(size_of::<u128>()),
             Self::RegisterList
             | Self::Aggregate
             | Self::Switch
-            | Self::TensorList
-            | Self::ContractionAxes
-            | Self::ConvolutionAxes
-            | Self::Window
-            | Self::GatherAxes
-            | Self::ScatterAxes
             | Self::Unsigned16List
             | Self::Unsigned32List
             | Self::Bits64List => None,
@@ -161,34 +135,10 @@ impl Operand {
         match self {
             Self::RegisterList | Self::Unsigned16List => cursor.take_list::<u16>()?,
             Self::Aggregate => cursor.take_list_bytes(Placement::BYTE_LEN)?,
-            Self::TensorList => cursor.take_list_bytes(TensorOperand::BYTE_LEN)?,
             Self::Unsigned32List => cursor.take_list::<u32>()?,
             Self::Bits64List => cursor.take_list::<u64>()?,
             Self::Switch => {
                 cursor.take_list_bytes(size_of::<u64>() + size_of::<i32>())?;
-            }
-            Self::ContractionAxes => {
-                for _ in 0..4 {
-                    cursor.take_list::<u16>()?;
-                }
-            }
-            Self::ConvolutionAxes => {
-                for _ in 0..3 {
-                    cursor.take::<[u16; 2]>()?;
-                    cursor.take_list::<u16>()?;
-                }
-            }
-            Self::Window => {
-                for _ in 0..5 {
-                    cursor.take_list::<u64>()?;
-                }
-                cursor.take_list::<u16>()?;
-            }
-            Self::GatherAxes | Self::ScatterAxes => {
-                for _ in 0..3 {
-                    cursor.take_list::<u16>()?;
-                }
-                cursor.take::<u16>()?;
             }
             _ => unreachable!("fixed-width operand handled above"),
         }
@@ -236,11 +186,6 @@ impl<'a> OperandCursor<'a> {
     /// Return the consumed operand byte length.
     const fn byte_len(&self) -> usize {
         self.byte_offset
-    }
-
-    /// Consume one fixed-width value.
-    fn take<T>(&mut self) -> Result<()> {
-        self.take_bytes(size_of::<T>())
     }
 
     /// Consume one counted list of fixed-width values.

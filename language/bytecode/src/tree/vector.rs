@@ -100,7 +100,7 @@ impl VectorOperation {
     }
 }
 
-/// One vector or tensor reduction operation.
+/// One vector reduction operation.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ReduceOperation {
@@ -163,7 +163,7 @@ impl ReduceOperation {
     }
 }
 
-/// One vector or tensor element conversion mode.
+/// One vector element conversion mode.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ConvertMode {

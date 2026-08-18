@@ -2,9 +2,8 @@ use std::marker::PhantomData;
 use std::ptr;
 
 use crate::{
-    CodeOffset, CounterId, Error, InstructionLayout, LayoutId, Opcode, Operand, Placement,
-    ReferenceType, RegisterId, RegisterSpan, Result, SamplerId, Scalar, TensorOperand, ValueType,
-    VectorType,
+    CodeOffset, CounterId, Error, InstructionLayout, Opcode, Operand, Placement, ReferenceType,
+    RegisterId, RegisterSpan, Result, SamplerId, Scalar, ValueType, VectorType,
 };
 
 /// One borrowed instruction in a bytecode stream.
@@ -39,13 +38,6 @@ pub struct Immediates<'a, T> {
     bytes: &'a [u8],
     /// The decoded immediate type.
     marker: PhantomData<T>,
-}
-
-/// Tensor operands decoded directly from one counted operand list.
-#[derive(Clone, Copy, Debug)]
-pub struct Tensors<'a> {
-    /// The unread tensor operand bytes.
-    bytes: &'a [u8],
 }
 
 /// One encoded instruction header.
@@ -477,22 +469,6 @@ impl<'a, const CHECKED: bool> Operands<'a, CHECKED> {
         ValueType::from_bytes(bytes).ok_or(Error::InvalidOperand)
     }
 
-    /// Read one tensor operand.
-    #[inline(always)]
-    pub fn tensor(&mut self) -> Result<TensorOperand> {
-        let registers = self.span()?;
-        let layout = LayoutId(self.u32()?);
-
-        Ok(TensorOperand::new(registers, layout))
-    }
-
-    /// Read one counted list of tensor operands.
-    pub fn tensors(&mut self) -> Result<Tensors<'a>> {
-        let bytes = self.list(TensorOperand::BYTE_LEN)?;
-
-        Ok(Tensors { bytes })
-    }
-
     /// Read one fixed-width vector type.
     #[inline(always)]
     pub fn vector_type(&mut self) -> Result<VectorType> {
@@ -694,43 +670,6 @@ impl Iterator for Placements<'_> {
 }
 
 impl ExactSizeIterator for Placements<'_> {}
-
-impl Tensors<'_> {
-    /// Return the number of unread tensor operands.
-    pub const fn len(&self) -> usize {
-        self.bytes.len() / TensorOperand::BYTE_LEN
-    }
-
-    /// Return whether no tensor operands remain.
-    pub const fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
-    }
-}
-
-impl Iterator for Tensors<'_> {
-    type Item = TensorOperand;
-
-    /// Decode the next tensor operand.
-    fn next(&mut self) -> Option<Self::Item> {
-        let bytes = self.bytes.get(..TensorOperand::BYTE_LEN)?;
-        self.bytes = &self.bytes[TensorOperand::BYTE_LEN..];
-        let start = u16::from_le_bytes([bytes[0], bytes[1]]);
-        let word_count = u16::from_le_bytes([bytes[2], bytes[3]]);
-        let layout = LayoutId(u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]));
-        let registers = RegisterSpan::new(RegisterId(start), word_count);
-
-        Some(TensorOperand::new(registers, layout))
-    }
-
-    /// Return the exact remaining tensor operand count.
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.len();
-
-        (len, Some(len))
-    }
-}
-
-impl ExactSizeIterator for Tensors<'_> {}
 
 impl<'a, T> Immediates<'a, T> {
     /// Create one immediate iterator over exact encoded bytes.
