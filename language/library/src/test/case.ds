@@ -1,4 +1,3 @@
-import { todo } from "destack:error";
 import { Duration } from "destack:time";
 
 import { CaseId } from "./id.ds";
@@ -23,49 +22,50 @@ export struct Case {
     options?: Options;
 }
 
-/// Register one test case.
-export function registerCase(name: string, argument?: CaseArgument, body?: Body): void {
-    todo("test.registerCase");
-}
-
 /// Register one test.
-export function test(name: string, argument?: CaseArgument, body?: Body): void {
-    registerCase(name, argument, body);
-}
-
-/// Register one test.
-export function it(name: string, argument?: CaseArgument, body?: Body): void {
-    registerCase(name, argument, body);
-}
+@binding("destack.test.case.register", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+declare function registerCase(name: string, argument?: CaseArgument, body?: Body): void;
 
 /// Register one skipped test.
-export function caseSkip(name: string, body?: Body): void {
-    registerCase(name, { skip: true }, body);
-}
+@binding("destack.test.case.skip", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+declare function registerSkippedCase(name: string, argument?: CaseArgument, body?: Body): void;
 
 /// Register one focused test.
-export function caseOnly(name: string, body?: Body): void {
-    registerCase(name, { only: true }, body);
-}
+@binding("destack.test.case.only", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+declare function registerFocusedCase(name: string, argument?: CaseArgument, body?: Body): void;
 
-/// Register one skipped test.
-export function testSkip(name: string, body?: Body): void {
-    caseSkip(name, body);
-}
+/// Register one pending test.
+@binding("destack.test.case.todo", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+declare function registerPendingCase(name: string): void;
 
-/// Register one focused test.
-export function testOnly(name: string, body?: Body): void {
-    caseOnly(name, body);
-}
-
-/// Register one skipped test.
-export function itSkip(name: string, body?: Body): void {
-    caseSkip(name, body);
-}
-
-/// Register one focused test.
-export function itOnly(name: string, body?: Body): void {
-    caseOnly(name, body);
-}
-
-export { registerCase as case };
+export {
+    registerCase,
+    registerCase as case,
+    registerCase as it,
+    registerCase as test,
+    registerFocusedCase as caseOnly,
+    registerFocusedCase as itOnly,
+    registerFocusedCase as testOnly,
+    registerPendingCase as caseTodo,
+    registerPendingCase as itTodo,
+    registerPendingCase as testTodo,
+    registerSkippedCase as caseSkip,
+    registerSkippedCase as itSkip,
+    registerSkippedCase as testSkip,
+};

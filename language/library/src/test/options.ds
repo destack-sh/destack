@@ -53,6 +53,9 @@ export type Options = {
     /// Skip this test.
     skip?: boolean;
 
+    /// Record this test without running it.
+    todo?: boolean;
+
     /// Expected maximum duration.
     timeout?: Duration;
 

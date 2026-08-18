@@ -1,5 +1,5 @@
-import { Details } from "destack:assert";
 import { SourceLocation } from "destack:error";
+import { Json } from "destack:json";
 
 import { ArtifactId } from "./artifact.ds";
 
@@ -36,8 +36,8 @@ export struct Issue {
     /// Source location when available.
     location?: SourceLocation;
 
-    /// Structured issue details.
-    details?: Details;
+    /// Structured fields attached to this issue.
+    fields?: { readonly [key: string]: Json };
 
     /// Related artifact identifiers.
     artifacts?: [ArtifactId];

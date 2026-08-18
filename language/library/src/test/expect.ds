@@ -1,125 +1,207 @@
-import * as assert from "destack:assert";
 import { Iterable } from "destack:iter";
-import { Numeric } from "destack:math";
-import { PartialEqual } from "destack:ops";
+import { Ordering, PartialCompare, PartialEqual, StrictEqual } from "destack:ops";
 
-/// A value assertion chain.
-export struct Expect<T> {
-    /// The value under assertion.
-    private value: T;
+import { Issue, IssueKind } from "./issue.ds";
 
-    /// Whether this chain negates the next assertion.
+/// One expectation over an observed value.
+export struct Expectation<'a, T> {
+    /// The observed value.
+    private value: &'a readonly T;
+
+    /// Whether the next matcher is negated.
     private isNegated: boolean = false;
 
-    /// Negated assertions.
-    get not(this): Expect<T> {
-        Expect {
+    /// Whether a failed matcher permits the test to continue.
+    private isSoft: boolean = false;
+
+    /// Negate the next matcher.
+    get not(this): Expectation<'a, T> {
+        Expectation {
             value: this.value,
             isNegated: !this.isNegated,
+            isSoft: this.isSoft,
         }
     }
 
-    /// Check one assertion result.
-    check(&readonly this, condition: boolean, message: string, negatedMessage?: string): void {
-        assert.assert(
-            this.isNegated ? !condition : condition,
-            this.isNegated ? (negatedMessage ?? message) : message,
+    /// Record one matcher result.
+    private check(this, condition: boolean, message: string, negatedMessage: string): void {
+        // apply the chain polarity
+        const passed = this.isNegated ? !condition : condition;
+        if (passed) {
+            return;
+        }
+
+        // describe the failed expectation
+        const issue = Issue {
+            kind: IssueKind.Assertion,
+            message: this.isNegated ? negatedMessage : message,
+        };
+
+        // continue after soft failures
+        if (this.isSoft) {
+            report(&readonly issue);
+        }
+        // stop on hard failures
+        else {
+            fail(&readonly issue);
+        }
+    }
+
+    /// Require the value to compare equal to `expected`.
+    toEqual<U>(this, expected: &readonly U): void where T: PartialEqual<U> {
+        this.check(
+            this.value.equal(expected),
+            "expected values to be equal",
+            "expected values to be different",
         );
     }
 
-    /// Assert that the value equals `expected`.
-    toEqual(&readonly this, expected: T): void {
-        if (this.isNegated) {
-            assert.notDeepEqual(this.value, expected)
-        } else {
-            assert.deepEqual(this.value, expected)
-        }
-    }
-
-    /// Assert that the value strictly equals `expected`.
-    toBe(&readonly this, expected: T): void {
-        if (this.isNegated) {
-            assert.notSame(this.value, expected)
-        } else {
-            assert.same(this.value, expected)
-        }
-    }
-
-    /// Assert that the value deeply equals `expected`.
-    toStrictEqual(&readonly this, expected: T): void {
-        if (this.isNegated) {
-            assert.notDeepEqual(this.value, expected)
-        } else {
-            assert.deepEqual(this.value, expected)
-        }
-    }
-
-    /// Assert that the value contains `expected`.
-    toContain<U>(this: &readonly Expect<Iterable<U>>, expected: U): void where U: PartialEqual<U> {
-        if (this.isNegated) {
-            assert.notContains(this.value, expected)
-        } else {
-            assert.contains(this.value, expected)
-        }
-    }
-
-    /// Assert that the value is true.
-    toBeTruthy(&readonly this): void {
-        this.check(!!this.value, "expected value to be truthy", "expected value to be falsy");
-    }
-
-    /// Assert that the value is false.
-    toBeFalsy(&readonly this): void {
-        this.check(!this.value, "expected value to be falsy", "expected value to be truthy");
-    }
-
-    /// Assert that the value is null.
-    toBeNull(&readonly this): void {
+    /// Require the value to have the same strict identity as `expected`.
+    toBe(this, expected: &readonly T): void where T: StrictEqual<T> {
         this.check(
-            this.value === null,
+            *this.value === *expected,
+            "expected values to have the same identity",
+            "expected values to have different identities",
+        );
+    }
+
+    /// Require the string value to contain `expected`.
+    toContain(this: Expectation<'a, string>, expected: &readonly string): void {
+        const contains = this.value.includes(*expected);
+
+        this.check(
+            contains,
+            "expected string to contain the substring",
+            "expected string not to contain the substring",
+        );
+    }
+
+    /// Require the iterable value to contain `expected`.
+    toContain<U>(this, expected: &readonly U): void
+        where T: Iterable<U>, U: PartialEqual<U> {
+        const contains = this.value.iterator().some((value) => value.equal(expected));
+
+        this.check(
+            contains,
+            "expected iterable to contain the value",
+            "expected iterable not to contain the value",
+        );
+    }
+
+    /// Require the value to be truthy.
+    toBeTruthy(this): void {
+        this.check(
+            !!*this.value,
+            "expected value to be truthy",
+            "expected value to be falsy",
+        );
+    }
+
+    /// Require the value to be falsy.
+    toBeFalsy(this): void {
+        this.check(
+            !*this.value,
+            "expected value to be falsy",
+            "expected value to be truthy",
+        );
+    }
+
+    /// Require the value to be null.
+    toBeNull(this): void {
+        this.check(
+            *this.value === null,
             "expected value to be null",
             "expected value not to be null",
         );
     }
 
-    /// Assert that the value is undefined.
-    toBeUndefined(&readonly this): void {
+    /// Require the value to be undefined.
+    toBeUndefined(this): void {
         this.check(
-            this.value === undefined,
+            *this.value === undefined,
             "expected value to be undefined",
             "expected value to be defined",
         );
     }
 
-    /// Assert that the value is defined.
-    toBeDefined(&readonly this): void {
+    /// Require the value to be defined.
+    toBeDefined(this): void {
         this.check(
-            this.value !== undefined,
+            *this.value !== undefined,
             "expected value to be defined",
             "expected value to be undefined",
         );
     }
 
-    /// Assert that the value is greater than `expected`.
-    toBeGreaterThan<N: Numeric>(this: &readonly Expect<N>, expected: number): void {
+    /// Require the value to compare greater than `expected`.
+    toBeGreaterThan<U>(this, expected: &readonly U): void where T: PartialCompare<U> {
+        const ordering = this.value.partialCompare(expected);
+
         this.check(
-            (this.value as number) > expected,
+            ordering === Ordering.Greater,
             "expected value to be greater",
             "expected value not to be greater",
         );
     }
 
-    /// Assert that the value is less than `expected`.
-    toBeLessThan<N: Numeric>(this: &readonly Expect<N>, expected: number): void {
+    /// Require the value to compare greater than or equal to `expected`.
+    toBeGreaterThanOrEqual<U>(this, expected: &readonly U): void
+        where T: PartialCompare<U> {
+        const ordering = this.value.partialCompare(expected);
+
         this.check(
-            (this.value as number) < expected,
+            ordering === Ordering.Greater || ordering === Ordering.Equal,
+            "expected value to be greater than or equal to the expected value",
+            "expected value to be less than the expected value",
+        );
+    }
+
+    /// Require the value to compare less than `expected`.
+    toBeLessThan<U>(this, expected: &readonly U): void where T: PartialCompare<U> {
+        const ordering = this.value.partialCompare(expected);
+
+        this.check(
+            ordering === Ordering.Less,
             "expected value to be less",
             "expected value not to be less",
         );
     }
+
+    /// Require the value to compare less than or equal to `expected`.
+    toBeLessThanOrEqual<U>(this, expected: &readonly U): void
+        where T: PartialCompare<U> {
+        const ordering = this.value.partialCompare(expected);
+
+        this.check(
+            ordering === Ordering.Less || ordering === Ordering.Equal,
+            "expected value to be less than or equal to the expected value",
+            "expected value to be greater than the expected value",
+        );
+    }
 }
 
-/// Create an assertion chain for `value`.
-export function expect<T>(value: T): Expect<T> {
-    Expect { value, isNegated: false }
+/// Create an expectation over `value`.
+export function expect<T, 'a>(value: &'a readonly T): Expectation<'a, T> {
+    Expectation { value, isNegated: false, isSoft: false }
 }
+
+/// Create a soft expectation over `value`.
+export function expectSoft<T, 'a>(value: &'a readonly T): Expectation<'a, T> {
+    Expectation { value, isNegated: false, isSoft: true }
+}
+
+/// Record one issue and stop the current test.
+@binding("destack.test.issue.fail", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+declare function fail(issue: &readonly Issue): never;
+
+/// Record one issue without stopping the current test.
+@binding("destack.test.issue.report", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+declare function report(issue: &readonly Issue): void;

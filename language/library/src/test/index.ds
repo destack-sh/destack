@@ -5,7 +5,6 @@ export * from "./hook.ds";
 export * from "./id.ds";
 export * from "./issue.ds";
 export * from "./options.ds";
-export * from "./registry.ds";
 export * from "./replay.ds";
 export * from "./result.ds";
 export * from "./run.ds";

@@ -60,3 +60,6 @@ export type Body = (ctx: CaseContext) => BodyResult;
 
 /// Test hook callback.
 export type HookBody = (ctx: Context) => BodyResult;
+
+/// Test suite registration callback.
+export type SuiteBody = () => void;

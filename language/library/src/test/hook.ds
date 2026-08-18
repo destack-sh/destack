@@ -1,24 +1,35 @@
-import { todo } from "destack:error";
 import { Duration } from "destack:time";
 
 import { HookBody } from "./result.ds";
 
 /// Register setup before all tests in the current suite.
-export function beforeAll(body: HookBody, timeout?: Duration): void {
-    todo("beforeAll");
-}
+@binding("destack.test.hook.beforeAll", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+export declare function beforeAll(body: HookBody, timeout?: Duration): void;
 
 /// Register cleanup after all tests in the current suite.
-export function afterAll(body: HookBody, timeout?: Duration): void {
-    todo("afterAll");
-}
+@binding("destack.test.hook.afterAll", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+export declare function afterAll(body: HookBody, timeout?: Duration): void;
 
 /// Register setup before each test in the current suite.
-export function beforeEach(body: HookBody, timeout?: Duration): void {
-    todo("beforeEach");
-}
+@binding("destack.test.hook.beforeEach", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+export declare function beforeEach(body: HookBody, timeout?: Duration): void;
 
 /// Register cleanup after each test in the current suite.
-export function afterEach(body: HookBody, timeout?: Duration): void {
-    todo("afterEach");
-}
+@binding("destack.test.hook.afterEach", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+export declare function afterEach(body: HookBody, timeout?: Duration): void;
