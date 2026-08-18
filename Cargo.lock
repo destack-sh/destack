@@ -933,7 +933,6 @@ dependencies = [
  "destack_native",
  "destack_parser",
  "destack_program",
- "destack_query",
  "destack_repository",
  "destack_serde",
  "destack_session",
