@@ -132,11 +132,6 @@ pub enum StaticProperty {
         /// The method body.
         body: StaticTerm,
     },
-    /// Static spread.
-    Spread {
-        /// The spread value.
-        value: StaticTerm,
-    },
 }
 
 impl StaticProperty {
@@ -144,7 +139,15 @@ impl StaticProperty {
     pub fn as_field(&self) -> Option<(StaticKey, &StaticTerm)> {
         match self {
             Self::Field { key, value } => Some((*key, value)),
-            Self::Method { .. } | Self::Spread { .. } => None,
+            Self::Method { .. } => None,
+        }
+    }
+
+    /// Return this property's name key and field value.
+    pub fn as_name_field(&self) -> Option<(StringId, &StaticTerm)> {
+        match self.as_field()? {
+            (StaticKey::Name(name), value) => Some((name, value)),
+            (StaticKey::Index(_), _) => None,
         }
     }
 }
