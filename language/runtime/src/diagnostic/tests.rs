@@ -44,29 +44,11 @@ fn test_record_enforces_capacity_and_drops_oldest() {
         capacity: Some(2),
     });
 
-    diagnostics.record(
-        RuntimeDiagnosticLevel::Error,
-        "fs",
-        "op1",
-        "message1",
-        None,
-    );
+    diagnostics.record(RuntimeDiagnosticLevel::Error, "fs", "op1", "message1", None);
 
-    diagnostics.record(
-        RuntimeDiagnosticLevel::Warn,
-        "fs",
-        "op2",
-        "message2",
-        None,
-    );
+    diagnostics.record(RuntimeDiagnosticLevel::Warn, "fs", "op2", "message2", None);
 
-    diagnostics.record(
-        RuntimeDiagnosticLevel::Info,
-        "fs",
-        "op3",
-        "message3",
-        None,
-    );
+    diagnostics.record(RuntimeDiagnosticLevel::Info, "fs", "op3", "message3", None);
 
     // inspect the stored entries directly
     let state = diagnostics.state.lock();
