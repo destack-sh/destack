@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     DefinitionMember, FunctionRole, GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId,
-    GlobalTypeId, NameResolution, PropertyAccess, SegmentView, StaticKey, TypeFold,
+    GlobalTypeId, NameResolution, PropertyAccess, SegmentView, StaticKey, TypeFold, TypeListId,
 };
 
 /// Cumulative member bindings for one DIR module.
@@ -76,27 +76,63 @@ impl<'a> MemberTable<'a> {
             .find_map(|segment| segment.bindings(owner, space))
     }
 
-    /// Return the member bindings projected at one source site.
-    pub fn members(&self, site: MemberSite) -> Option<&[MemberBinding]> {
+    /// Return the membership projected at one source site.
+    pub fn membership(&self, site: MemberSite) -> Option<&Membership> {
         let subject = self.subject(site)?;
 
         self.segments
             .iter()
             .rev()
-            .find_map(|segment| segment.subject_bindings(&subject))
+            .find_map(|segment| segment.membership(&subject))
     }
 
     /// Return one member binding projected at a source site.
     pub fn binding(&self, site: MemberSite, key: StaticKey) -> Option<&MemberBinding> {
-        self.members(site)?
+        // read the membership the site's subject selects
+        let subject = self.subject(site)?;
+        let membership = self.membership(site)?;
+
+        // answer from the structural bindings the subject projected
+        if let Some(binding) = membership
+            .structural
             .iter()
             .find(|binding| binding.key == key)
+        {
+            return Some(binding);
+        }
+
+        // answer from the first source owner declaring the key
+        membership.sources.iter().find_map(|source| {
+            self.bindings(source.owner, subject.space)?
+                .iter()
+                .find(|binding| binding.key == key)
+        })
     }
 
     /// Return whether this table has no member bindings.
     pub fn is_empty(&self) -> bool {
         self.segments.iter().all(MemberSegment::is_empty)
     }
+}
+
+/// One source contributing declared members to a projected subject membership.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct MemberSource {
+    /// The declaring owner whose flattened bindings contribute.
+    pub owner: GlobalSymbolId,
+    /// The type arguments reopening the owner's parameters, in declaration order.
+    pub arguments: TypeListId,
+}
+
+/// The membership one settled subject selects.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct Membership {
+    /// The receiver the sources' `this` types reopen at.
+    pub receiver: GlobalTypeId,
+    /// The contributing sources, the nominal owner first.
+    pub sources: Vec<MemberSource>,
+    /// Structural bindings whose types are already concrete.
+    pub structural: Vec<MemberBinding>,
 }
 
 /// Member bindings added by one DIR phase.
@@ -108,12 +144,12 @@ pub struct MemberSegment {
     subjects: IndexMap<MemberSite, MemberSubject>,
     /// Member bindings flattened once per declared owner and space.
     bindings: IndexMap<(GlobalSymbolId, MemberSpace), Vec<MemberBinding>>,
-    /// Member bindings projected once per settled site subject.
-    subject_bindings: IndexMap<MemberSubject, Vec<MemberBinding>>,
+    /// The membership each settled subject selects.
+    memberships: IndexMap<MemberSubject, Membership>,
 }
 
 /// One rollback position in a member segment.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemberMark {
     /// The recorded site count.
     subjects: usize,
@@ -126,7 +162,7 @@ impl MemberSegment {
             module_id,
             subjects: IndexMap::default(),
             bindings: IndexMap::default(),
-            subject_bindings: IndexMap::default(),
+            memberships: IndexMap::default(),
         }
     }
 
@@ -159,23 +195,19 @@ impl MemberSegment {
             .map(|((owner, space), bindings)| (*owner, *space, bindings.as_slice()))
     }
 
-    /// Set the member bindings projected for one settled site subject.
-    pub fn set_subject_bindings(&mut self, subject: MemberSubject, bindings: Vec<MemberBinding>) {
-        self.subject_bindings.insert(subject, bindings);
+    /// Set the membership projected for one settled site subject.
+    pub fn set_membership(&mut self, subject: MemberSubject, membership: Membership) {
+        self.memberships.insert(subject, membership);
     }
 
-    /// Return the member bindings projected for one settled site subject.
-    pub fn subject_bindings(&self, subject: &MemberSubject) -> Option<&[MemberBinding]> {
-        self.subject_bindings.get(subject).map(Vec::as_slice)
+    /// Return the membership projected for one settled site subject.
+    pub fn membership(&self, subject: &MemberSubject) -> Option<&Membership> {
+        self.memberships.get(subject)
     }
 
-    /// Iterate the member bindings projected per settled site subject.
-    pub fn iter_subject_bindings(
-        &self,
-    ) -> impl Iterator<Item = (&MemberSubject, &[MemberBinding])> + '_ {
-        self.subject_bindings
-            .iter()
-            .map(|(subject, bindings)| (subject, bindings.as_slice()))
+    /// Iterate the memberships projected per settled site subject.
+    pub fn iter_memberships(&self) -> impl Iterator<Item = (&MemberSubject, &Membership)> + '_ {
+        self.memberships.iter()
     }
 
     /// Iterate the member lookup subjects stored at source sites.
@@ -204,7 +236,7 @@ impl MemberSegment {
 
     /// Return whether this segment has no member bindings.
     pub fn is_empty(&self) -> bool {
-        self.subjects.is_empty() && self.bindings.is_empty() && self.subject_bindings.is_empty()
+        self.subjects.is_empty() && self.bindings.is_empty() && self.memberships.is_empty()
     }
 }
 

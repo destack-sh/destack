@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
@@ -398,6 +399,8 @@ pub struct AutoSegment {
     implementations: Vec<AutoDerivedImplementation>,
     /// Checked marker conformances in emission order.
     conformances: Vec<AutoConformance>,
+    /// The selected implementation per concrete declared owner and interface root.
+    selected: IndexMap<(GlobalSymbolId, GlobalSymbolId), Option<GlobalSymbolId>>,
 }
 
 impl AutoSegment {
@@ -407,7 +410,27 @@ impl AutoSegment {
             module_id,
             implementations: Vec::new(),
             conformances: Vec::new(),
+            selected: IndexMap::default(),
         }
+    }
+
+    /// Record the selected implementation of one declared owner at one interface root.
+    pub fn set_selected(
+        &mut self,
+        owner: GlobalSymbolId,
+        root: GlobalSymbolId,
+        implementation: Option<GlobalSymbolId>,
+    ) {
+        self.selected.insert((owner, root), implementation);
+    }
+
+    /// Return the selected implementation of one declared owner at one interface root.
+    pub fn selected(
+        &self,
+        owner: GlobalSymbolId,
+        root: GlobalSymbolId,
+    ) -> Option<Option<GlobalSymbolId>> {
+        self.selected.get(&(owner, root)).copied()
     }
 
     /// Record one checked marker conformance.
@@ -437,9 +460,9 @@ impl AutoSegment {
         self.implementations.iter()
     }
 
-    /// Return whether this segment has no implementations or conformances.
+    /// Return whether this segment carries no entries.
     pub fn is_empty(&self) -> bool {
-        self.implementations.is_empty() && self.conformances.is_empty()
+        self.implementations.is_empty() && self.conformances.is_empty() && self.selected.is_empty()
     }
 }
 

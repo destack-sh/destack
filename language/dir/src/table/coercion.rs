@@ -169,6 +169,8 @@ pub struct CoercionCase {
     pub source: GlobalTypeId,
     /// The selected target type.
     pub target: GlobalTypeId,
+    /// The selected arm position in the declared target union.
+    pub index: u32,
     /// The ordered adjustments converting the source to the target.
     pub adjustments: Vec<CoercionAdjustment>,
 }
@@ -270,8 +272,7 @@ impl CoercionAdjustment {
         // sized sequences and thin pointers convert into their fat carriers
         if matches!(
             (source, target),
-            (Type::FixedArray(_), Type::Slice(_))
-                | (Type::FunctionPointer(_), Type::Function(_))
+            (Type::FixedArray(_), Type::Slice(_)) | (Type::FunctionPointer(_), Type::Function(_))
         ) {
             return Some(Self::Carrier { target: target_id });
         }
