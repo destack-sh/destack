@@ -350,37 +350,26 @@ impl FunctionLowerer<'_, '_, '_> {
                 });
             }
             let target_member = first.target;
-            let Some(target_index) = self.union_member_index(&target_members, target_member)?
-            else {
-                return Err(CompilerError::Internal {
-                    message: "a union conversion selecting an absent target member".to_string(),
-                });
-            };
+            require_union_case(&target_members, first.index, target_member)?;
             let payload = self.union_payload(CoercionValue::Runtime(value), target_member)?;
 
-            return Ok(self
-                .builder
-                .variant_new(carrier, target_index as u32, payload));
+            return Ok(self.builder.variant_new(carrier, first.index, payload));
         }
+
+        // enter the single declared case of a plain injection
         let [case] = cases else {
             return Err(CompilerError::Internal {
                 message: "a union injection requiring exactly one source case".to_string(),
             });
         };
         let target_member = case.target;
-        let Some(target_index) = self.union_member_index(&target_members, target_member)? else {
-            return Err(CompilerError::Internal {
-                message: "a union injection selecting an absent target member".to_string(),
-            });
-        };
+        require_union_case(&target_members, case.index, target_member)?;
 
         // convert the source value before inserting its target case
         let value = self.lower_adjustments(value, source, &case.adjustments)?;
         let payload = self.union_payload(value, target_member)?;
 
-        Ok(self
-            .builder
-            .variant_new(carrier, target_index as u32, payload))
+        Ok(self.builder.variant_new(carrier, case.index, payload))
     }
 
     /// Convert one indexed union value into another ordered case set.
@@ -398,7 +387,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         }
 
-        // dispatch once and rebuild the value under the target discriminant
+        // dispatch once over the source discriminant
         let result = self.builder.local(carrier, mir::Mutability::Immutable);
         let exit = self.builder.block();
         let mut cases = Vec::with_capacity(mappings.len());
@@ -406,6 +395,8 @@ impl FunctionLowerer<'_, '_, '_> {
             cases.push((index as u32, self.builder.block()));
         }
         self.builder.variant_switch(value, None, cases.clone());
+
+        // rebuild every source case under its target discriminant
         for (source_index, block) in cases {
             self.builder.switch_to_block(block);
             let source_member = source_members[source_index as usize];
@@ -414,21 +405,14 @@ impl FunctionLowerer<'_, '_, '_> {
             let source_value =
                 self.lower_adjustments(source_value, source_member, &mapping.adjustments)?;
             let target_member = mapping.target;
-            let Some(target_index) = target_members
-                .iter()
-                .position(|member| *member == target_member)
-            else {
-                return Err(CompilerError::Internal {
-                    message: "a union conversion selecting an absent target member".to_string(),
-                });
-            };
+            require_union_case(&target_members, mapping.index, target_member)?;
             let payload = self.union_payload(source_value, target_member)?;
-            let converted = self
-                .builder
-                .variant_new(carrier, target_index as u32, payload);
+            let converted = self.builder.variant_new(carrier, mapping.index, payload);
             self.builder.local_set(result, converted);
             self.builder.jump(exit);
         }
+
+        // resume after the dispatch with the rebuilt value
         self.builder.switch_to_block(exit);
 
         Ok(self.builder.local_get(result))
@@ -519,32 +503,6 @@ impl FunctionLowerer<'_, '_, '_> {
         )?;
 
         self.materialize_coercion_value(value, target)
-    }
-
-    /// Return the position of one recorded member among target union members.
-    ///
-    /// The checker records normalized members while written rows keep aliases,
-    /// so distinct member ids meet at their lowered representation.
-    ///
-    /// FUGU #Architecture: record the selected case index in the coercion so
-    /// lower stops re-deriving a decision the checker already made.
-    fn union_member_index(
-        &mut self,
-        members: &[dir::GlobalTypeId],
-        member: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<usize>> {
-        if let Some(index) = members.iter().position(|candidate| *candidate == member) {
-            return Ok(Some(index));
-        }
-
-        let lowered = self.lower_type(member)?;
-        for (index, candidate) in members.iter().enumerate() {
-            if self.lower_type(*candidate)? == lowered {
-                return Ok(Some(index));
-            }
-        }
-
-        Ok(None)
     }
 
     /// Return the logical members of one union type behind forms and aliases.
@@ -966,4 +924,19 @@ impl FunctionLowerer<'_, '_, '_> {
             message: format!("missing a declared global behind the constant '{path}'"),
         })
     }
+}
+
+/// Require one selected union case to name its declared member at its index.
+fn require_union_case(
+    members: &[dir::GlobalTypeId],
+    index: u32,
+    member: dir::GlobalTypeId,
+) -> CompilerResult<()> {
+    if members.get(index as usize) != Some(&member) {
+        return Err(CompilerError::Internal {
+            message: "a union conversion selecting an absent target member".to_string(),
+        });
+    }
+
+    Ok(())
 }

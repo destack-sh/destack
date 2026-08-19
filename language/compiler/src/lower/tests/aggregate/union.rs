@@ -302,10 +302,10 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
-entry(v0: ref<Listener, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
     v1: int32 = 0
-    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
     store v2, v1
     return
 }
@@ -349,10 +349,10 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
-entry(v0: ref<Listener, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
     v1: int32 = 0
-    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
     store v2, v1
     return
 }
@@ -397,10 +397,10 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
-entry(v0: ref<Listener, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
     v1: int32 = 0
-    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
     store v2, v1
     return
 }
@@ -442,10 +442,10 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
-entry(v0: ref<Listener, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
     v1: int32 = 0
-    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
     store v2, v1
     return
 }
@@ -572,10 +572,10 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<Listener, borrowed, exclusive>): void {
-entry(v0: ref<Listener, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
     v1: int32 = 0
-    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
     store v2, v1
     return
 }

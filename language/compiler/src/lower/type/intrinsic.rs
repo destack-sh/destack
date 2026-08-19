@@ -106,6 +106,78 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(())
             }
+            // carry callable values at their declared signature and multiplicity
+            Some(dir::LanguageItem::Function) => {
+                // read the parameter tuple the instantiation carries
+                let [parameters, result, multiplicity] = arguments else {
+                    return Err(CompilerError::Internal {
+                        message: "Function instantiated without its signature".to_string(),
+                    });
+                };
+                let dir::Type::Tuple(tuple) = self.lowerer.ty(*parameters)? else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a function value without a parameter tuple".to_string(),
+                    }
+                    .into());
+                };
+
+                // lower every tuple element into a signature parameter
+                let elements = self
+                    .lowerer
+                    .tuple_element_types(parameters.module_id, &tuple)?;
+                let mut lowered = Vec::with_capacity(elements.len());
+                for element in elements {
+                    lowered.push(mir::SignatureParameter::new(mir::TypeId::from(
+                        self.lower(element)?,
+                    )));
+                }
+
+                // intern the signature the callable answers at
+                let result = mir::TypeId::from(self.lower(*result)?);
+                let signature = self.tree.intern_type(mir::Type::FunctionSignature {
+                    lifetimes: Vec::new(),
+                    parameters: lowered,
+                    result,
+                });
+
+                // read the multiplicity off its literal name
+                let multiplicity = match self.lowerer.ty(*multiplicity)? {
+                    dir::Type::Literal(dir::ScalarLiteral::String(name))
+                        if self.lowerer.strings.get(name) == "once" =>
+                    {
+                        mir::Multiplicity::Once
+                    }
+                    dir::Type::Literal(dir::ScalarLiteral::String(name))
+                        if self.lowerer.strings.get(name) == "repeatable" =>
+                    {
+                        mir::Multiplicity::Repeatable
+                    }
+                    multiplicity => {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "function multiplicity {multiplicity:?} names an unknown literal"
+                            ),
+                        });
+                    }
+                };
+
+                // define the callable as a managed function reference
+                self.tree.define_type(
+                    ty,
+                    mir::Type::Function {
+                        multiplicity,
+                        kind: mir::ReferenceKind::Managed,
+                        lifetime: mir::Lifetime::empty(),
+                        signature: mir::TypeId::from(signature),
+                        storage: mir::Storage::Heap(mir::Space::Local),
+                        access: mir::Access::Mutable,
+                        nullability: mir::Nullability::None,
+                    },
+                );
+
+                Ok(())
+            }
             // define markers as void, like every other zero-sized singleton
             Some(dir::LanguageItem::Phantom) => {
                 self.tree.define_type(ty, mir::Type::Void);

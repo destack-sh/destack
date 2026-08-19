@@ -68,12 +68,26 @@ impl ModuleLowerer<'_> {
 
         // register the declaring class's constraint entries
         let dir::Type::Application(instance) = self.ty(source)? else {
+            // read the dispatch shape the constraint registered
+            let Some(shape) = self.dynamic_shapes.get(&constraint) else {
+                return Err(CompilerError::Internal {
+                    message: "an erasure reached an unregistered constraint shape".to_string(),
+                });
+            };
+
+            // erase directly when the shape has empty slots, since dispatch stays inert
+            if shape.slots.is_empty() {
+                return Ok(());
+            }
+
             return Err(LowerError::Unsupported {
                 anchor: self.module.into(),
                 construct: "erasing a structural value".to_string(),
             }
             .into());
         };
+
+        // lower the applied class at its concrete arguments
         let arguments = self
             .types(source.module_id)?
             .type_ids(instance.arguments)

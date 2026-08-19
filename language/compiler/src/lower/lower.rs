@@ -265,6 +265,7 @@ impl<'a> ModuleLowerer<'a> {
             return Ok(ty);
         };
 
+        // overlay the moved types sparsely, keeping the written type on a miss
         match self.state(module)?.generics.instance_type(instance, ty) {
             Some(resolved) => Ok(resolved),
             None => Ok(ty),

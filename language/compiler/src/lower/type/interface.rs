@@ -150,7 +150,10 @@ impl TypeLowerer<'_, '_> {
             let dir::DefinitionMember::Method(method) = member else {
                 continue;
             };
+
+            // resolve the declared signature through the materialized instance
             let declared = self.lowerer.symbol_type(method.symbol)?;
+            let declared = self.lowerer.instance_type(self.instance, declared)?;
             let dir::Type::FunctionSignature(signature) = self.lowerer.ty(declared)? else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -159,7 +162,7 @@ impl TypeLowerer<'_, '_> {
                 .into());
             };
 
-            // skip methods with their own type parameters, which have no single slot
+            // skip methods with their own type parameters, since each instantiation needs a slot
             let signature = *self.lowerer.types(declared.module_id)?.signature(signature);
             if let Some(template) = signature.template {
                 let generics = &self.lowerer.state(template.module_id)?.generics;

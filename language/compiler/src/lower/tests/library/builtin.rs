@@ -65,3 +65,40 @@ fn test_report_library_lowering_inventory() {
         }
     }
 }
+
+/// Time one library module's checked artifact on a cold repository.
+///
+/// Run with `--ignored`; `DESTACK_TEST_TRACE_SLOW_MS=1` prints the run
+/// breakdown with the module's own span.
+#[test]
+#[ignore = "timing probe for library modules"]
+fn test_report_module_check_timing() {
+    let session = TestSession::builder().cold().build();
+    let repository = session.repository();
+    let package = repository.embedded_builtin();
+    let package_id = package.package_id();
+    let target = TargetId::new(package_id, "default");
+    let profile = repository
+        .profile_for_target(session.revision(), target)
+        .expect("builtin library target profile should resolve")
+        .id();
+
+    let iterations = std::env::var("DESTACK_TIMING_ITERATIONS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(1);
+    for _ in 0..iterations {
+        let session = TestSession::builder().cold().build();
+        let keys = package
+            .files()
+            .iter()
+            .map(|file| ArtifactKey::dir_checked(file.module_id(package_id), profile))
+            .collect::<Vec<_>>();
+        let started = std::time::Instant::now();
+        session
+            .require_all(keys)
+            .expect("library modules should check");
+        println!("cold library check {:?}", started.elapsed());
+        session.print_trace("library-check", 400);
+    }
+}

@@ -199,13 +199,13 @@ function test.main.open(): int32 {
 entry:
     v0: int32 = 7
     v1: ref<test.box.Box, managed, mutable> = new.zeroed test.box.Box
-    v2: ref<test.box.Box, borrowed, exclusive> = cast.bit v1 -> ref<test.box.Box, borrowed, exclusive>
-    call test.box.Box.constructor(v2, v0): (ref<test.box.Box, borrowed, exclusive>, int32) => void
+    v2: ref<uninit<test.box.Box>, borrowed, exclusive> = cast.bit v1 -> ref<uninit<test.box.Box>, borrowed, exclusive>
+    call test.box.Box.constructor(v2, v0): (ref<uninit<test.box.Box>, borrowed, exclusive>, int32) => void
     v3: int32 = call test.box.Box.weigh(v1): (ref<test.box.Box, managed, mutable>) => int32
     return v3
 }
 
-external function test.box.Box.constructor(ref<test.box.Box, borrowed, exclusive>, int32): void
+external function test.box.Box.constructor(ref<uninit<test.box.Box>, borrowed, exclusive>, int32): void
 
 external function test.box.Box.weigh(ref<test.box.Box, managed, mutable>): int32
 

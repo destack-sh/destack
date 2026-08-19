@@ -143,10 +143,10 @@ type User {
     id: int32;
 }
 
-function test.main.User.constructor(v0: ref<User, borrowed, exclusive>): void {
-entry(v0: ref<User, borrowed, exclusive>):
+function test.main.User.constructor(v0: ref<uninit<User>, borrowed, exclusive>): void {
+entry(v0: ref<uninit<User>, borrowed, exclusive>):
     v1: int32 = 0
-    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
     store v2, v1
     return
 }
@@ -251,12 +251,12 @@ type Box {
     weight: int32;
 }
 
-function test.main.Box.constructor(v0: ref<Box, borrowed, exclusive>, v1: int32): void {
-entry(v0: ref<Box, borrowed, exclusive>, v1: int32):
+function test.main.Box.constructor(v0: ref<uninit<Box>, borrowed, exclusive>, v1: int32): void {
+entry(v0: ref<uninit<Box>, borrowed, exclusive>, v1: int32):
     v2: int32 = 0
-    v3: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v3: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
     store v3, v2
-    v4: ref<int32, borrowed, mutable> = field.address v0, 0
+    v4: ref<uninit<int32>, borrowed, mutable> = field.address v0, 0
     store v4, v1
     return
 }
@@ -277,10 +277,11 @@ function test.main.open(): int32 {
 entry:
     v0: int32 = 7
     v1: ref<Box, borrowed, exclusive> = local.address l0
-    call test.main.Box.constructor(v1, v0): (ref<Box, borrowed, exclusive>, int32) => void
-    v2: Box = local.get l0
-    v3: int32 = call test.main.Box.unwrap(v2): (Box) => int32
-    return v3
+    v2: ref<uninit<Box>, borrowed, exclusive> = cast.bit v1 -> ref<uninit<Box>, borrowed, exclusive>
+    call test.main.Box.constructor(v2, v0): (ref<uninit<Box>, borrowed, exclusive>, int32) => void
+    v3: Box = local.get l0
+    v4: int32 = call test.main.Box.unwrap(v3): (Box) => int32
+    return v4
 }
 
 /// @layout.struct name=Box size=4 align=4

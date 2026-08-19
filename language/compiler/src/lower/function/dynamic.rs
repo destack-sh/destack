@@ -37,15 +37,12 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(self.builder.dynamic_bind(dynamic, value, concrete));
         }
 
-        // bind classes at their declared nominal storage
-        let dir::Type::Application(_) = self.lowerer.ty(source)? else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: "erasing a structural value".to_string(),
-            }
-            .into());
+        let concrete = match self.lowerer.ty(source)? {
+            // bind classes at their declared nominal storage
+            dir::Type::Application(_) => self.lower_nominal(source)?.storage,
+            // bind every other value at its lowered representation
+            _ => self.lower_type(source)?,
         };
-        let concrete = self.lower_nominal(source)?.storage;
 
         Ok(self.builder.dynamic_bind(dynamic, value, concrete))
     }
