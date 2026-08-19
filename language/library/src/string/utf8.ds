@@ -3,7 +3,10 @@ import { Error, Result, todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 
 /// Byte decoding failure.
-export struct DecodeError {
+export struct Utf8DecodeError {
+    /// The error discriminator.
+    kind: "invalidUtf8" = "invalidUtf8";
+
     /// The byte offset where decoding failed.
     offset: usize;
 
@@ -11,7 +14,7 @@ export struct DecodeError {
     message: string;
 }
 
-export extension of DecodeError implements Error {
+export extension of Utf8DecodeError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
         MaybeOwned.borrowed(this.message)
@@ -24,6 +27,6 @@ export function encodeUtf8(text: string): Bytes {
 }
 
 /// Decode UTF-8 bytes as text.
-export function decodeUtf8(bytes: &readonly [uint8]): Result<string, DecodeError> {
+export function decodeUtf8(bytes: &readonly [uint8]): Result<^string, Utf8DecodeError> {
     todo("string.decodeUtf8")
 }

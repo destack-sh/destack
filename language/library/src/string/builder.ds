@@ -1,25 +1,45 @@
 import { Borrow, From } from "destack:convert";
-import { todo } from "destack:error";
-import { Default, MaybeUninit, Unique } from "destack:memory";
+import { Result, todo } from "destack:error";
+import { AllocationError, Default, MaybeUninit, Unique } from "destack:memory";
 
 import { StringSlice } from "./slice.ds";
 
-/// Mutable UTF-8 string builder with growable backing storage.
+/// Mutable string builder with growable backing storage.
 export class StringBuilder {
-    /// The owned UTF-8 bytes.
-    bytes: Unique<[MaybeUninit<uint8>]> = Unique.empty();
+    /// The owned UTF-16 code units.
+    private codeUnits: Unique<[MaybeUninit<uint16>]> = Unique.empty();
 
-    /// The initialized byte count.
-    initializedLength: usize = 0;
+    /// The initialized code-unit count.
+    private initializedLength: usize = 0;
 
-    /// The allocated byte capacity.
-    capacity: usize = 0;
+    /// The allocated code-unit capacity.
+    private allocatedCapacity: usize = 0;
 }
 
 export extension of StringBuilder implements Default {
+    /// Return the number of UTF-16 code units.
+    get length(): isize {
+        todo("StringBuilder.length")
+    }
+
+    /// Return the allocated UTF-16 code-unit count.
+    get capacity(): usize {
+        todo("StringBuilder.capacity")
+    }
+
+    /// Return whether the builder is empty.
+    get isEmpty(): boolean {
+        todo("StringBuilder.isEmpty")
+    }
+
     /// Create an empty string builder.
     static new(): ^StringBuilder {
         todo("StringBuilder.new")
+    }
+
+    /// Create a string builder with at least `capacity` UTF-16 code units.
+    static withCapacity(capacity: usize): ^StringBuilder {
+        todo("StringBuilder.withCapacity")
     }
 
     /// Create the default string builder.
@@ -37,29 +57,29 @@ export extension of StringBuilder implements Default {
         todo("StringBuilder.from")
     }
 
-    /// Get the initialized byte length.
-    get byteLength(): usize {
-        todo("StringBuilder.byteLength")
-    }
-
-    /// Return whether the builder is empty.
-    get isEmpty(): boolean {
-        todo("StringBuilder.isEmpty")
-    }
-
     /// Remove all text.
     clear(&exclusive this): void {
         todo("StringBuilder.clear");
     }
 
-    /// Reserve at least `additional` more bytes.
+    /// Reserve at least `additional` more UTF-16 code units.
     reserve(&exclusive this, additional: usize): void {
         todo("StringBuilder.reserve");
     }
 
-    /// Reserve exactly `additional` more bytes.
+    /// Reserve exactly `additional` more UTF-16 code units.
     reserveExact(&exclusive this, additional: usize): void {
         todo("StringBuilder.reserveExact");
+    }
+
+    /// Try to reserve at least `additional` more UTF-16 code units.
+    tryReserve(&exclusive this, additional: usize): Result<void, AllocationError> {
+        todo("StringBuilder.tryReserve")
+    }
+
+    /// Release capacity beyond the initialized UTF-16 code units.
+    shrinkToFit(&exclusive this): void {
+        todo("StringBuilder.shrinkToFit");
     }
 
     /// Append text.

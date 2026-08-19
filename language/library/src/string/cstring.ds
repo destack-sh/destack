@@ -1,0 +1,302 @@
+import { As, Borrow, ToOwned } from "destack:convert";
+import { Error, Result, todo } from "destack:error";
+import { Iterator } from "destack:iter";
+import { Clone, Default, MaybeOwned, Unique } from "destack:memory";
+import { Compare, Equal, Hash, Hasher, Ordering } from "destack:ops";
+
+import { Utf8DecodeError } from "./utf8.ds";
+
+/// Borrowed bytes terminated by exactly one zero byte with no interior zero bytes.
+@repr("transparent")
+export struct CStringSlice {
+    /// The validated bytes including their final zero byte.
+    private bytes: [uint8];
+}
+
+/// Owned bytes terminated by exactly one zero byte with no interior zero bytes.
+export class CString {
+    /// The bytes including the final zero byte.
+    private bytes: Unique<[uint8]> = Unique.empty();
+}
+
+/// An interior zero byte in a C string source.
+export struct InteriorNulError {
+    /// The error discriminator.
+    kind: "interiorNul" = "interiorNul";
+
+    /// The zero byte offset.
+    offset: usize;
+}
+
+/// A byte sequence without its required final zero byte.
+export struct MissingNulError {
+    /// The error discriminator.
+    kind: "missingNul" = "missingNul";
+
+    /// The source byte length.
+    length: usize;
+}
+
+/// Failure to construct a valid C string.
+export newtype CStringError = InteriorNulError | MissingNulError;
+
+/// Failure to consume a C string as UTF-8 text.
+export struct CStringIntoStringError {
+    /// The error discriminator.
+    kind: "invalidUtf8" = "invalidUtf8";
+
+    /// The original C string.
+    value: ^CString;
+
+    /// The UTF-8 decoding failure.
+    error: Utf8DecodeError;
+}
+
+export extension of CStringSlice implements ToOwned, As<[uint8], "readonly">, Hash {
+    /// The owned value type.
+    type Owned = ^CString;
+
+    /// Borrow bytes through the first zero byte.
+    static fromBytesUntilNul(
+        value: &readonly [uint8],
+    ): Result<&readonly CStringSlice, MissingNulError> {
+        todo("CStringSlice.fromBytesUntilNul")
+    }
+
+    /// Borrow bytes that end with exactly one zero byte.
+    static fromBytesWithNul(
+        value: &readonly [uint8],
+    ): Result<&readonly CStringSlice, CStringError> {
+        todo("CStringSlice.fromBytesWithNul")
+    }
+
+    /// Borrow bytes without validating the C string invariant.
+    @unsafe
+    static fromBytesWithNulUnchecked(value: &readonly [uint8]): &readonly CStringSlice {
+        todo("CStringSlice.fromBytesWithNulUnchecked")
+    }
+
+    /// Borrow a zero-terminated C string from `pointer`.
+    @unsafe
+    static fromPointer<'a>(pointer: *uint8): &'a readonly CStringSlice {
+        todo("CStringSlice.fromPointer")
+    }
+
+    /// Borrow the bytes before the final zero byte.
+    as(&readonly this): &readonly [uint8] {
+        todo("CStringSlice.as")
+    }
+
+    /// Copy this C string into owned storage.
+    toOwned(&readonly this): ^CString {
+        todo("CStringSlice.toOwned")
+    }
+
+    /// Add this C string to `state` without its final zero byte.
+    hash(&readonly this, state: &Hasher): void {
+        todo("CStringSlice.hash");
+    }
+}
+
+export extension of CString
+    implements
+        Clone,
+        Default,
+        As<CStringSlice>,
+        Borrow<CStringSlice>,
+        Hash {
+    /// Create an empty C string.
+    static new(): ^CString {
+        todo("CString.new")
+    }
+
+    /// Create the default C string.
+    static default(): ^CString {
+        CString.new()
+    }
+
+    /// Encode text as a C string.
+    static fromString(value: string): Result<^CString, InteriorNulError> {
+        todo("CString.fromString")
+    }
+
+    /// Copy bytes and append their final zero byte.
+    static fromBytes(value: &readonly [uint8]): Result<^CString, InteriorNulError> {
+        todo("CString.fromBytes")
+    }
+
+    /// Consume bytes and append their final zero byte.
+    static fromBytes(value: Unique<[uint8]>): Result<^CString, InteriorNulError> {
+        todo("CString.fromBytes")
+    }
+
+    /// Copy bytes and append their final zero byte without checking for interior zeros.
+    @unsafe
+    static fromBytesUnchecked(value: &readonly [uint8]): ^CString {
+        todo("CString.fromBytesUnchecked")
+    }
+
+    /// Consume bytes and append their final zero byte without checking for interior zeros.
+    @unsafe
+    static fromBytesUnchecked(value: Unique<[uint8]>): ^CString {
+        todo("CString.fromBytesUnchecked")
+    }
+
+    /// Copy bytes that already include their final zero byte.
+    static fromBytesWithNul(value: &readonly [uint8]): Result<^CString, CStringError> {
+        todo("CString.fromBytesWithNul")
+    }
+
+    /// Consume bytes that already include their final zero byte.
+    static fromBytesWithNul(value: Unique<[uint8]>): Result<^CString, CStringError> {
+        todo("CString.fromBytesWithNul")
+    }
+
+    /// Copy terminated bytes without validating the C string invariant.
+    @unsafe
+    static fromBytesWithNulUnchecked(value: &readonly [uint8]): ^CString {
+        todo("CString.fromBytesWithNulUnchecked")
+    }
+
+    /// Consume terminated bytes without validating the C string invariant.
+    @unsafe
+    static fromBytesWithNulUnchecked(value: Unique<[uint8]>): ^CString {
+        todo("CString.fromBytesWithNulUnchecked")
+    }
+
+    /// Reclaim a C string previously released by `intoRaw`.
+    @unsafe
+    static fromRaw(pointer: *uint8): ^CString {
+        todo("CString.fromRaw")
+    }
+
+    /// Borrow this owned C string as a C string slice.
+    as(&readonly this): &readonly CStringSlice {
+        todo("CString.as")
+    }
+
+    /// Borrow this owned C string as a C string slice.
+    borrow(&readonly this): &readonly CStringSlice {
+        this.as()
+    }
+
+    /// Clone this C string.
+    clone(&readonly this): ^CString {
+        this.as().toOwned()
+    }
+
+    /// Add this C string to `state` without its final zero byte.
+    hash(&readonly this, state: &Hasher): void {
+        this.as().hash(state);
+    }
+
+    /// Decode and consume this C string as UTF-8 text.
+    intoString(^this): Result<^string, CStringIntoStringError> {
+        todo("CString.intoString")
+    }
+
+    /// Move the bytes before the final zero byte out of this string.
+    intoBytes(^this): Unique<[uint8]> {
+        todo("CString.intoBytes")
+    }
+
+    /// Move all bytes including the final zero byte out of this string.
+    intoBytesWithNul(^this): Unique<[uint8]> {
+        todo("CString.intoBytesWithNul")
+    }
+
+    /// Release this C string as a raw pointer for later reclamation by `fromRaw`.
+    intoRaw(^this): *uint8 {
+        todo("CString.intoRaw")
+    }
+}
+
+export extension<S: Borrow<CStringSlice>> of S {
+    /// Return the byte length before the final zero byte.
+    get byteLength(): usize {
+        todo("CString.byteLength")
+    }
+
+    /// Return whether this C string contains no bytes before its final zero byte.
+    get isEmpty(): boolean {
+        todo("CString.isEmpty")
+    }
+
+    /// Borrow the bytes before the final zero byte.
+    asBytes(&readonly this): &readonly [uint8] {
+        this.borrow().as()
+    }
+
+    /// Borrow all bytes including the final zero byte.
+    asBytesWithNul(&readonly this): &readonly [uint8] {
+        todo("CString.asBytesWithNul")
+    }
+
+    /// Return a raw pointer to the first byte.
+    asPointer(&readonly this): *uint8 {
+        todo("CString.asPointer")
+    }
+
+    /// Iterate over the bytes before the final zero byte.
+    bytes(&readonly this): Iterator<uint8> {
+        todo("CString.bytes")
+    }
+
+    /// Decode this C string as UTF-8 text.
+    decode(&readonly this): Result<^string, Utf8DecodeError> {
+        todo("CString.decode")
+    }
+
+    /// Decode this C string as UTF-8 and replace invalid sequences.
+    decodeLossy(&readonly this): ^string {
+        todo("CString.decodeLossy")
+    }
+}
+
+export extension<S: Borrow<CStringSlice>, Q: Borrow<CStringSlice>> of S
+    implements
+        Equal<Q>,
+        Compare<Q> {
+    /// Return whether this C string equals `other` byte for byte.
+    equal(&readonly this, other: &readonly Q): boolean {
+        todo("CString.equal")
+    }
+
+    /// Compare this C string with `other` byte for byte.
+    compare(&readonly this, other: &readonly Q): Ordering {
+        todo("CString.compare")
+    }
+
+    /// Partially compare this C string with `other` byte for byte.
+    partialCompare(&readonly this, other: &readonly Q): Ordering | null {
+        this.compare(other)
+    }
+}
+
+export extension of InteriorNulError implements Error {
+    /// Format this error for users.
+    display(): MaybeOwned<string> {
+        todo("InteriorNulError.display")
+    }
+}
+
+export extension of MissingNulError implements Error {
+    /// Format this error for users.
+    display(): MaybeOwned<string> {
+        todo("MissingNulError.display")
+    }
+}
+
+export extension of CStringError implements Error {
+    /// Format this error for users.
+    display(): MaybeOwned<string> {
+        todo("CStringError.display")
+    }
+}
+
+export extension of CStringIntoStringError implements Error {
+    /// Format this error for users.
+    display(): MaybeOwned<string> {
+        todo("CStringIntoStringError.display")
+    }
+}

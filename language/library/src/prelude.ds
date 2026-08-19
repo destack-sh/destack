@@ -162,6 +162,7 @@ global {
         ShiftRightUnsigned,
         StrictEqual,
         Subtract,
+        ToString,
         Try,
         Xor,
     } from "destack:ops";
@@ -335,6 +336,9 @@ global {
         Vector4i,
         Wrapping,
     } from "destack:math";
+
+    // destack:string
+    export { Character } from "destack:string";
 
     // destack:decorator
     export {

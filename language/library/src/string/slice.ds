@@ -1,34 +1,43 @@
-import { Slice } from "destack:collections";
-import { As, Borrow, ToOwned } from "destack:convert";
+import { Borrow, ToOwned } from "destack:convert";
 import { todo } from "destack:error";
 import { Equal, Hash, Hasher } from "destack:ops";
 
-/// Borrowed UTF-8 string slice.
+/// Borrowed sequence of ECMAScript UTF-16 code units.
 @languageItem("string.StringSlice")
-export newtype StringSlice = [uint8];
+export newtype StringSlice = [uint16];
 
-export extension of StringSlice
-    implements
-        ToOwned,
-        As<[uint8], "readonly">,
-        Equal<StringSlice>,
-        Hash {
+export extension of StringSlice implements ToOwned, Equal<StringSlice>, Hash {
     /// The owned value type.
     type Owned = ^string;
+
+    /// Return the number of UTF-16 code units.
+    get length(): isize {
+        todo("StringSlice.length")
+    }
+
+    /// Return whether this slice is empty.
+    get isEmpty(): boolean {
+        todo("StringSlice.isEmpty")
+    }
+
+    /// Get the UTF-16 code unit at `index`.
+    charCodeAt(&readonly this, index: isize): uint16 | undefined {
+        todo("StringSlice.charCodeAt")
+    }
+
+    /// Get the Unicode code point at `index`.
+    codePointAt(&readonly this, index: isize): uint32 | undefined {
+        todo("StringSlice.codePointAt")
+    }
+
+    /// Borrow a range of this slice.
+    slice(&readonly this, start?: isize, end?: isize): &readonly StringSlice {
+        todo("StringSlice.slice")
+    }
 
     /// Copy this slice into an owned string.
     toOwned(&readonly this): ^string {
         todo("StringSlice.toOwned")
-    }
-
-    /// Borrow this string slice as readonly bytes.
-    as(&readonly this): &readonly [uint8] {
-        todo("StringSlice.as")
-    }
-
-    /// Borrow this string slice as readonly bytes.
-    asBytes(&readonly this): &readonly [uint8] {
-        this.as()
     }
 
     /// Return whether this string slice equals `other`.
@@ -43,12 +52,57 @@ export extension of StringSlice
 }
 
 export extension<S: Borrow<StringSlice>> of S {
+    /// Return whether this text contains `search`.
+    includes<Q: Borrow<StringSlice>>(
+        &readonly this,
+        search: &readonly Q,
+        position?: isize,
+    ): boolean {
+        todo("StringSlice.includes")
+    }
+
+    /// Find the first index of `search`.
+    indexOf<Q: Borrow<StringSlice>>(
+        &readonly this,
+        search: &readonly Q,
+        position?: isize,
+    ): isize | undefined {
+        todo("StringSlice.indexOf")
+    }
+
+    /// Find the last index of `search`.
+    lastIndexOf<Q: Borrow<StringSlice>>(
+        &readonly this,
+        search: &readonly Q,
+        position?: isize,
+    ): isize | undefined {
+        todo("StringSlice.lastIndexOf")
+    }
+
     /// Split this text once around the first exact separator.
     splitOnce<Q: Borrow<StringSlice>>(
         &readonly this,
         separator: &readonly Q,
     ): (&readonly StringSlice, &readonly StringSlice) | undefined {
         todo("StringSlice.splitOnce")
+    }
+
+    /// Return whether this text starts with `prefix`.
+    startsWith<Q: Borrow<StringSlice>>(
+        &readonly this,
+        prefix: &readonly Q,
+        position?: isize,
+    ): boolean {
+        todo("StringSlice.startsWith")
+    }
+
+    /// Return whether this text ends with `suffix`.
+    endsWith<Q: Borrow<StringSlice>>(
+        &readonly this,
+        suffix: &readonly Q,
+        endPosition?: isize,
+    ): boolean {
+        todo("StringSlice.endsWith")
     }
 
     /// Borrow the text after an exact prefix.

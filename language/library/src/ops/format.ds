@@ -2,11 +2,6 @@ import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 
 /// Interface for user-facing string representation.
-///
-/// Template interpolation dispatches through this interface: `${value}`
-/// requires the value's type to implement it.
-/// Conformance is deliberate, so a type without a meaningful textual representation
-/// never prints implicitly.
 @languageItem("ops.Display")
 export newtype interface Display {
     /// Return a user-facing string representation.
@@ -14,18 +9,21 @@ export newtype interface Display {
 }
 
 /// Interface for developer-facing string representation.
-///
-/// Diagnostics and structural dumps dispatch through this interface.
-/// Template interpolation never reaches it implicitly.
 @languageItem("ops.Debug")
 export newtype interface Debug {
     /// Return a developer-facing string representation.
     debug(&readonly this): MaybeOwned<string>;
 }
 
-export extension<T: Display> of T {
+/// Interface for infallible conversion to owned text.
+export newtype interface ToString {
+    /// Return the owned string representation.
+    toString(&readonly this): ^string;
+}
+
+export extension<T: Display> of T implements ToString {
     /// Return the owned user-facing string representation.
     toString(&readonly this): ^string {
-        return todo("Display.toString");
+        todo("ToString.toString")
     }
 }
