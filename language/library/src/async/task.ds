@@ -110,21 +110,21 @@ local class TaskState<T> {
             kind: "pending",
             producer: undefined,
             waiter: undefined,
-            is_cancelled: false,
+            isCancelled: false,
         });
     }
 
     /// Attach the current producer fiber.
     attach(&readonly this, producer: Fiber): void {
         match (this.phase.replace(TaskTaken { kind: "taken" })) {
-            TaskPending { waiter, is_cancelled } => {
+            TaskPending { waiter, isCancelled } => {
                 this.phase.set(TaskPending {
                     kind: "pending",
                     producer,
                     waiter,
-                    is_cancelled,
+                    isCancelled,
                 });
-                if (is_cancelled) {
+                if (isCancelled) {
                     producer.cancel();
                 }
             }
@@ -138,12 +138,12 @@ local class TaskState<T> {
     /// Register one consumer or queue its completed continuation.
     wait(&readonly this, waiter: Fiber): void {
         match (this.phase.replace(TaskTaken { kind: "taken" })) {
-            TaskPending { producer, waiter: undefined, is_cancelled } => {
+            TaskPending { producer, waiter: undefined, isCancelled } => {
                 this.phase.set(TaskPending {
                     kind: "pending",
                     producer,
                     waiter,
-                    is_cancelled,
+                    isCancelled,
                 });
             }
             TaskDone { value } => {
@@ -171,7 +171,7 @@ local class TaskState<T> {
                     kind: "pending",
                     producer,
                     waiter,
-                    is_cancelled: true,
+                    isCancelled: true,
                 });
                 if (producer != undefined) {
                     producer.cancel();
@@ -243,7 +243,7 @@ local struct TaskPending {
     waiter: Fiber | undefined;
 
     /// Whether cancellation was requested.
-    is_cancelled: boolean;
+    isCancelled: boolean;
 }
 
 /// Task holding an unconsumed result.

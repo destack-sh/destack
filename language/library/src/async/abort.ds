@@ -52,10 +52,10 @@ export local struct AbortSubscription implements Drop {
 /// Mutable state retained by one controller and its signal.
 local class AbortState implements AbortSignal {
     /// Whether cancellation was requested.
-    private is_aborted: boolean;
+    private isAborted: boolean;
 
     /// The first cancellation reason.
-    private abort_reason: unknown | undefined;
+    private abortReason: unknown | undefined;
 
     /// First registered listener.
     private head: AbortListener | undefined;
@@ -65,20 +65,20 @@ local class AbortState implements AbortSignal {
 
     /// Create one active state.
     constructor() {
-        this.is_aborted = false;
-        this.abort_reason = undefined;
+        this.isAborted = false;
+        this.abortReason = undefined;
         this.head = undefined;
         this.tail = undefined;
     }
 
     /// Return whether cancellation was requested.
     get aborted(): boolean {
-        return this.is_aborted;
+        return this.isAborted;
     }
 
     /// Return the first cancellation reason.
     get reason(): unknown | undefined {
-        return this.abort_reason;
+        return this.abortReason;
     }
 
     /// Run one function when this state aborts.
@@ -86,8 +86,8 @@ local class AbortState implements AbortSignal {
         let listener = new AbortListener(run);
 
         // dispatch immediately after prior cancellation
-        if (this.is_aborted) {
-            run(this.abort_reason);
+        if (this.isAborted) {
+            run(this.abortReason);
 
             return AbortSubscription {
                 state: undefined,
@@ -114,11 +114,11 @@ local class AbortState implements AbortSignal {
     /// Abort this state and synchronously notify its listeners.
     abort(reason: unknown | undefined): void {
         // preserve the first cancellation request
-        if (this.is_aborted) {
+        if (this.isAborted) {
             return;
         }
-        this.is_aborted = true;
-        this.abort_reason = reason;
+        this.isAborted = true;
+        this.abortReason = reason;
 
         // detach the list before invoking user code
         let listener = this.head;
