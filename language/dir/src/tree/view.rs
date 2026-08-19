@@ -229,6 +229,36 @@ impl<'a> View<'a> {
         None
     }
 
+    /// Return the nearest visible node of one type containing both inputs.
+    pub fn common_ancestor<T: Node>(
+        &self,
+        left: LocalNodeIdAny,
+        right: LocalNodeIdAny,
+    ) -> Option<LocalNodeId<T>> {
+        let mut left_ancestors = IndexSet::default();
+        let mut current = Some(left);
+
+        // collect the left lineage including the node itself
+        while let Some(node) = current {
+            left_ancestors.insert(node);
+            current = self.get_parent_any(node);
+        }
+
+        // select the first shared typed node in the right lineage
+        let mut current = Some(right);
+        while let Some(node) = current {
+            if left_ancestors.contains(&node)
+                && let Ok(ancestor) = node.try_into_typed()
+            {
+                return Some(ancestor);
+            }
+
+            current = self.get_parent_any(node);
+        }
+
+        None
+    }
+
     /// Get the visible parent id for one local node id.
     pub fn get_parent_id(&self, node_id: u32) -> Option<u32> {
         let node_id = self.node_id_any(node_id);
