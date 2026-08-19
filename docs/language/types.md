@@ -91,7 +91,7 @@ For the three main ways of looking at a string, the standard library provides ex
 | `text.chars()` | iterator of `char` | Unicode scalar values |
 | `text.bytes()` | `[uint8]`-shaped view | UTF-8 bytes |
 
-On native targets, `string` is immutable owned UTF-8 (the library's `String` literally holds `bytes: Unique<[uint8]>`); on JS/TS targets, strings are the host engine's strings.
+On native targets, `string` is the library's `String` with owned UTF-16 code units; on JS/TS targets, strings use the host engine's representation.
 
 ## Intervals
 

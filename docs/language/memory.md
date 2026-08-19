@@ -300,7 +300,7 @@ The same `Drop` also works for managed references, where it is run before they a
 
 ```ds
 class Image {
-    pixels: Unique<[uint8]>;
+    pixels: ^[uint8];
 }
 
 let image: Image = new Image();
@@ -338,7 +338,7 @@ let a: User = new User();   // managed
 let b: ^User = new User();  // owned
 ```
 
-In some situations it is useful to handle allocation errors directly, and for that Destack supports fallible allocation accessors both via higher level `try*` methods in standard library types (like `Array.tryReserve`) and the low level intrinsics (`MaybeUninit<T>`, `Unique<T>`, etc.) that they are built on.
+In some situations it is useful to handle allocation errors directly, and for that Destack supports fallible allocation accessors such as `Array.tryReserve`, `Box.tryNew`, and `Box.tryNewUninit`.
 
 ```ds
 try {
