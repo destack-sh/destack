@@ -161,12 +161,8 @@ struct Buffer {
     values: int32[];
     /// @type.symbol symbol=Buffer.values source="values: int32[]" type=int32[]
     /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
     /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-    /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
-    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
-    /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
-    /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 
 }
 
@@ -415,7 +411,7 @@ user.profile.name = "Grace";
 }
 
 #[test]
-fn test_copy_owned_values_through_their_stored_fields() {
+fn test_copy_owned_inline_storage() {
     let session = TestSession::single(
         r#"
 import { Copy } from "destack:memory";
@@ -444,11 +440,32 @@ witness(point);
 declare const pair: ^Pair;
 witness(pair);
 
-declare const values: ^Array<int32>;
-witness(values);
+declare const object: ^{ value: int32 };
+witness(object);
 
 declare const named: ^Named;
 witness(named);
+
+declare const values: ^Array<int32>;
+witness(values);
+
+declare const slice: ^[int32];
+witness(slice);
+
+declare const callable: ^(() => void);
+witness(callable);
+
+declare const dynamic: ^Dynamic<unknown>;
+witness(dynamic);
+
+declare const buffer: ^{ items: ^[int32] };
+witness(buffer);
+
+declare const text: ^string;
+witness(text);
+
+declare const big: ^bigint;
+witness(big);
 "#,
     );
 
@@ -483,11 +500,32 @@ witness<Point>(point);
 declare const pair: ^Pair;
 witness<^Pair>(pair);
 
-declare const values: ^int32[];
-witness(values);
+declare const object: ^{ value: int32 };
+witness<^{ value: int32 }>(object);
 
 declare const named: ^Named;
 witness<^Named>(named);
+
+declare const values: ^int32[];
+witness(values);
+
+declare const slice: ^[int32];
+witness(slice);
+
+declare const callable: ^(() => void);
+witness(callable);
+
+declare const dynamic: ^Dynamic<unknown>;
+witness(dynamic);
+
+declare const buffer: ^{ items: ^[int32] };
+witness(buffer);
+
+declare const text: ^string;
+witness(text);
+
+declare const big: ^bigint;
+witness(big);
 
 === dir ===
 import { Copy } from "destack:memory";
@@ -572,18 +610,17 @@ witness(pair);
 /// @resolution.place source=pair placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
 
-declare const values: ^Array<int32>;
-/// @type.symbol symbol=values source=values type=Owned<Array<int32>>
-/// @resolution.pattern source=values kind=binding target=values
-/// @resolution.name source=Array target=collections.array.Array
+declare const object: ^{ value: int32 };
+/// @type.symbol symbol=object source=object type=Owned<{ value: int32 }>
+/// @resolution.pattern source=object kind=binding target=object
 
-witness(values);
+witness(object);
 /// @resolution.name source=witness target=witness
-/// @resolution.call source=witness(values) parameters=(<error>) arguments=(provided(values) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
-/// @generic.instantiation id=witness<<error>> template=witness arguments=(<error>)
-/// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
-/// @resolution.access source=values root=values
+/// @resolution.call source=witness(object) parameters=(Owned<{ value: int32 }>) arguments=(provided(object) as Owned<{ value: int32 }>) return=Owned<{ value: int32 }> kind=symbol target=witness instance="witness<Owned<{ value: int32 }>>"
+/// @generic.instantiation id="witness<Owned<{ value: int32 }>>" template=witness arguments=(Owned<{ value: int32 }>)
+/// @resolution.name source=object target=object
+/// @resolution.place source=object placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=object root=object
 
 declare const named: ^Named;
 /// @type.symbol symbol=named source=named type=Owned<Named>
@@ -597,10 +634,108 @@ witness(named);
 /// @resolution.name source=named target=named
 /// @resolution.place source=named placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=named root=named
+
+declare const values: ^Array<int32>;
+/// @type.symbol symbol=values source=values type=Owned<Array<int32>>
+/// @resolution.pattern source=values kind=binding target=values
+/// @resolution.name source=Array target=collections.array.Array
+
+witness(values);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(values) parameters=(<error>) arguments=(provided(values) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @generic.instantiation id=witness<<error>> template=witness arguments=(<error>)
+/// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=values root=values
+
+declare const slice: ^[int32];
+/// @type.symbol symbol=slice source=slice type=Owned<Slice<int32>>
+/// @resolution.pattern source=slice kind=binding target=slice
+
+witness(slice);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(slice) parameters=(<error>) arguments=(provided(slice) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @resolution.name source=slice target=slice
+/// @resolution.place source=slice placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=slice root=slice
+
+declare const callable: ^(() => void);
+/// @type.symbol symbol=callable source=callable type=Owned<Function<(), void>>
+/// @resolution.pattern source=callable kind=binding target=callable
+
+witness(callable);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(callable) parameters=(<error>) arguments=(provided(callable) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @resolution.name source=callable target=callable
+/// @resolution.place source=callable placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=callable root=callable
+
+declare const dynamic: ^Dynamic<unknown>;
+/// @type.symbol symbol=dynamic source=dynamic type=Owned<Dynamic<unknown>>
+/// @resolution.pattern source=dynamic kind=binding target=dynamic
+/// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
+
+witness(dynamic);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(dynamic) parameters=(<error>) arguments=(provided(dynamic) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @resolution.name source=dynamic target=dynamic
+/// @resolution.place source=dynamic placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=dynamic root=dynamic
+
+declare const buffer: ^{ items: ^[int32] };
+/// @type.symbol symbol=buffer source=buffer type=Owned<{ items: Owned<Slice<int32>> }>
+/// @resolution.pattern source=buffer kind=binding target=buffer
+
+witness(buffer);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(buffer) parameters=(<error>) arguments=(provided(buffer) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @resolution.name source=buffer target=buffer
+/// @resolution.place source=buffer placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=buffer root=buffer
+
+declare const text: ^string;
+/// @type.symbol symbol=text source=text type=Owned<string>
+/// @resolution.pattern source=text kind=binding target=text
+
+witness(text);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(text) parameters=(<error>) arguments=(provided(text) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @resolution.name source=text target=text
+/// @resolution.place source=text placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=text root=text
+
+declare const big: ^bigint;
+/// @type.symbol symbol=big source=big type=Owned<bigint>
+/// @resolution.pattern source=big kind=binding target=big
+
+witness(big);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(big) parameters=(<error>) arguments=(provided(big) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @resolution.name source=big target=big
+/// @resolution.place source=big placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=big root=big
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '^int32[]' does not satisfy 'Copy'"
-/// @diagnostic.label line=29 column=1 span="witness(values)" line_source="witness(values);"
+/// @diagnostic.label line=35 column=1 span="witness(values)" line_source="witness(values);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^Slice<int32>' does not satisfy 'Copy'"
+/// @diagnostic.label line=38 column=1 span="witness(slice)" line_source="witness(slice);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^() => void' does not satisfy 'Copy'"
+/// @diagnostic.label line=41 column=1 span="witness(callable)" line_source="witness(callable);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^Dynamic<unknown>' does not satisfy 'Copy'"
+/// @diagnostic.label line=44 column=1 span="witness(dynamic)" line_source="witness(dynamic);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^{ items: ^Slice<…> }' does not satisfy 'Copy'"
+/// @diagnostic.label line=47 column=1 span="witness(buffer)" line_source="witness(buffer);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^string' does not satisfy 'Copy'"
+/// @diagnostic.label line=50 column=1 span="witness(text)" line_source="witness(text);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^bigint' does not satisfy 'Copy'"
+/// @diagnostic.label line=53 column=1 span="witness(big)" line_source="witness(big);"
 /// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
 "#,
     );
@@ -884,12 +1019,8 @@ const values = Deque.from([1, 2, 3]);
 /// @type.symbol symbol=values source=values type=Owned<collections.deque.Deque<float64>>
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=collections.deque.Deque<float64> template=collections.deque.Deque arguments=(float64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 /// @resolution.name source=Deque target=collections.deque.Deque
 /// @resolution.member source=Deque.from receiver=collections.deque.Deque type=(iter.iterator.Iterable<collections.deque.T#4>) => Owned<collections.deque.Deque<collections.deque.T#4>> & (iter.iterator.Iterable<collections.deque.T#5>) => collections.deque.Deque<collections.deque.T#5> & (iter.iterator.Iterable<collections.deque.T#6>) => Owned<collections.deque.Deque<collections.deque.T#6>> kind=overload-set targets=[collections.deque.from#1, collections.deque.from#2, collections.deque.from#3]
 /// @resolution.call source="Deque.from([1, 2, 3])" parameters=(iter.iterator.Iterable<float64>) arguments=(provided([1, 2, 3]) as iter.iterator.Iterable<float64>) return=Owned<collections.deque.Deque<float64>> kind=symbol target=collections.deque.from#1 instance=collections.deque.Deque<float64>.<extension#4>.from#1

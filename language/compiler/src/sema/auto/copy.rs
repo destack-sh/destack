@@ -62,7 +62,17 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // decide the remaining structural forms
+        self.satisfies_structural_copy(origin, ty, kind, active)
+    }
+
+    /// Decide copyability for one type stored directly in a value.
+    fn satisfies_structural_copy(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        kind: dir::Type,
+        active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
+    ) -> CompilerResult<Verdict> {
         match kind {
             // leave an open variable undecided
             dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
@@ -86,7 +96,9 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Range(_) => Ok(Verdict::Holds),
+            // judge variants through their owning enum
             dir::Type::Variant(member) => self.satisfies_copy(origin, member.owner, active),
+            // reject opaque and callable storage
             dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Intrinsic
@@ -96,19 +108,25 @@ impl CheckState<'_> {
             | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
             | dir::Type::Reference(_) => Ok(Verdict::Fails),
+            // fail loudly on generic forms that survived substitution
             dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
                 Err(crate::CompilerError::Internal {
                     message: format!("generic type {ty:?} reached structural copy"),
                 })
             }
+            // explicit memory forms decide before structural storage
             dir::Type::Form(_) => unreachable!("memory forms return before structural copy"),
+            // judge nominal storage through its declaration
             dir::Type::Application(instance) => {
                 self.satisfies_copy_instance(origin, ty.module_id, instance, active)
             }
-            dir::Type::Slice(_) | dir::Type::Object(_) => {
-                unreachable!("managed defaults return before structural copy")
+            // bare slices return through their managed default
+            dir::Type::Slice(_) => {
+                unreachable!("managed slices return before structural copy")
             }
+            // judge fixed arrays through their element
             dir::Type::FixedArray(array) => self.satisfies_copy(origin, array.element, active),
+            // judge tuples through every element
             dir::Type::Tuple(tuple) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .tuple_elements(ty.module_id, tuple.elements)?
@@ -118,12 +136,24 @@ impl CheckState<'_> {
 
                 self.all_copy(origin, ids, active)
             }
+            // judge anonymous objects through their stored properties
+            dir::Type::Object(shape) => {
+                let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
+                    .shape_properties(ty.module_id, shape.properties)?
+                    .iter()
+                    .map(|property| property.access.store())
+                    .collect();
+
+                self.all_copy(origin, ids, active)
+            }
+            // judge unions through every alternative
             dir::Type::Union(union) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(self.type_ids(ty.module_id, union.elements)?);
 
                 self.all_copy(origin, ids, active)
             }
+            // judge intersections through every constituent
             dir::Type::Intersection(intersection) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(self.type_ids(ty.module_id, intersection.elements)?);
@@ -156,8 +186,25 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // judge the stored representation past the managed handle default
-        match self.ty(ty)? {
+        let kind = self.ty(ty)?;
+
+        // judge indirect scalar representations through their library storage
+        if let Some(item) = kind
+            .scalar_domain()
+            .and_then(dir::ScalarDomain::representation_item)
+        {
+            let representation = self.language_type(item, &[])?;
+
+            return self.satisfies_owned_copy(origin, representation, active);
+        }
+
+        // decide owned payloads by their stored representation
+        match kind {
+            // reject carriers whose descriptor uniquely owns indirect storage
+            dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_) => {
+                Ok(Verdict::Fails)
+            }
+            // judge inline nominal storage past its managed handle default
             dir::Type::Application(instance) => {
                 active.push(ty);
                 let result = self.satisfies_copy_instance(origin, ty.module_id, instance, active);
@@ -165,7 +212,8 @@ impl CheckState<'_> {
 
                 result
             }
-            _ => self.satisfies_copy(origin, ty, active),
+            // preserve structural copy for owned inline values
+            _ => self.satisfies_structural_copy(origin, ty, kind, active),
         }
     }
 
