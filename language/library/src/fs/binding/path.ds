@@ -1,89 +1,41 @@
-/// Raw byte path on byte-oriented hosts.
-export newtype PathBytes = [uint8];
-
-/// UTF-16 path on UTF-16-oriented hosts.
-export newtype PathUtf16 = [uint16];
-
-/// Raw byte path output buffer.
-export newtype PathByteBuffer = [uint8];
-
-/// UTF-16 path output buffer.
-export newtype PathUtf16Buffer = [uint16];
-
-/// Byte-oriented host path.
-export struct BytePath {
-    /// Path representation tag.
-    kind: "bytes";
-    /// Raw path bytes.
-    bytes: PathBytes;
-}
-
-/// UTF-16-oriented host path.
-export struct Utf16Path {
-    /// Path representation tag.
-    kind: "utf16";
-    /// UTF-16 code units.
-    units: PathUtf16;
-}
-
-/// Host path payload.
-export newtype Path = BytePath | Utf16Path;
+/// Shared host output buffer containing one or more paths.
+export newtype PathBuffer = PathByteBuffer | PathUtf16Buffer;
 
 /// Byte-oriented host path output buffer.
-export struct BytePathBuffer {
-    /// Path representation tag.
-    kind: "bytes";
-    /// Raw path byte buffer.
-    bytes: PathByteBuffer;
+export struct PathByteBuffer {
+    /// The native encoding discriminator.
+    kind: "bytes" = "bytes";
+
+    /// The raw path bytes.
+    bytes: [uint8];
 }
 
 /// UTF-16-oriented host path output buffer.
-export struct Utf16PathBuffer {
-    /// Path representation tag.
-    kind: "utf16";
-    /// UTF-16 unit buffer.
-    units: PathUtf16Buffer;
+export struct PathUtf16Buffer {
+    /// The native encoding discriminator.
+    kind: "utf16" = "utf16";
+
+    /// The raw path code units.
+    units: [uint16];
 }
 
-/// Host path output buffer.
-export newtype PathBuffer = BytePathBuffer | Utf16PathBuffer;
-
-/// Path buffer span in bytes or UTF-16 units.
+/// One path range in a shared host output buffer.
 export struct PathSpan {
-    /// Offset into the path buffer.
+    /// The native code-unit offset.
     offset: uint64;
-    /// Length in bytes or UTF-16 units.
+
+    /// The native code-unit length.
     length: uint64;
 }
 
-/// Build a byte-oriented host path.
-export function pathBytes(bytes: PathBytes): Path {
-    Path(BytePath {
-        kind: "bytes",
-        bytes,
-    })
-}
+export extension of PathBuffer {
+    /// Wrap a byte-oriented output buffer.
+    static bytes(bytes: [uint8]): PathBuffer {
+        PathBuffer(PathByteBuffer { bytes })
+    }
 
-/// Build a UTF-16-oriented host path.
-export function pathUtf16(units: PathUtf16): Path {
-    Path(Utf16Path {
-        kind: "utf16",
-        units,
-    })
-}
-
-/// Build a byte-oriented host path output buffer.
-export function pathByteBuffer(bytes: PathByteBuffer): PathBuffer {
-    PathBuffer(BytePathBuffer {
-        kind: "bytes",
-        bytes,
-    })
-}
-
-/// Build a UTF-16-oriented host path output buffer.
-export function pathUtf16Buffer(units: PathUtf16Buffer): PathBuffer {
-    PathBuffer(Utf16PathBuffer {
-        kind: "utf16",
-        units,
-    })
+    /// Wrap a UTF-16-oriented output buffer.
+    static utf16(units: [uint16]): PathBuffer {
+        PathBuffer(PathUtf16Buffer { units })
+    }
 }
