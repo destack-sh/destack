@@ -1,7 +1,8 @@
+import { Slice } from "destack:collections";
 import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator } from "destack:iter";
-import { AllocationError, Clone, Default, MaybeOwned, MaybeUninit, Unique } from "destack:memory";
+import { AllocationError, Clone, Default, MaybeOwned, MaybeUninit } from "destack:memory";
 import { Compare, Equal, Hash, Hasher, Ordering } from "destack:ops";
 
 /// Borrowed platform-native string in its opaque encoded representation.
@@ -14,13 +15,13 @@ export struct OsStringSlice {
 /// Immutable owned platform-native string.
 export class OsString {
     /// The opaque encoded bytes.
-    private bytes: Unique<[uint8]> = Unique.empty();
+    private bytes: ^[uint8] = Slice.new();
 }
 
 /// Mutable platform-native string builder.
 export class OsStringBuilder {
     /// The opaque encoded byte storage.
-    private storage: Unique<[MaybeUninit<uint8>]> = Unique.empty();
+    private storage: ^[MaybeUninit<uint8>] = Slice.new();
 
     /// The initialized encoded byte count.
     private initializedLength: usize = 0;
@@ -129,7 +130,7 @@ export extension of OsString
 
     /// Consume bytes previously obtained from `intoEncodedBytes`.
     @unsafe
-    static fromEncodedBytesUnchecked(value: Unique<[uint8]>): ^OsString {
+    static fromEncodedBytesUnchecked(value: ^[uint8]): ^OsString {
         todo("OsString.fromEncodedBytesUnchecked")
     }
 
@@ -141,7 +142,7 @@ export extension of OsString
 
     /// Consume arbitrary native bytes on Unix targets.
     @if(import.meta.target.family == "unix")
-    static fromBytes(value: Unique<[uint8]>): ^OsString {
+    static fromBytes(value: ^[uint8]): ^OsString {
         todo("OsString.fromBytes")
     }
 
@@ -153,7 +154,7 @@ export extension of OsString
 
     /// Consume native UTF-16 code units on Windows targets.
     @if(import.meta.target.family == "windows")
-    static fromUtf16(value: Unique<[uint16]>): ^OsString {
+    static fromUtf16(value: ^[uint16]): ^OsString {
         todo("OsString.fromUtf16")
     }
 
@@ -183,19 +184,19 @@ export extension of OsString
     }
 
     /// Move out the opaque encoded bytes.
-    intoEncodedBytes(^this): Unique<[uint8]> {
+    intoEncodedBytes(^this): ^[uint8] {
         todo("OsString.intoEncodedBytes")
     }
 
     /// Move out arbitrary native bytes on Unix targets.
     @if(import.meta.target.family == "unix")
-    intoBytes(^this): Unique<[uint8]> {
+    intoBytes(^this): ^[uint8] {
         todo("OsString.intoBytes")
     }
 
     /// Encode and consume this native string as UTF-16 code units on Windows targets.
     @if(import.meta.target.family == "windows")
-    intoUtf16(^this): Unique<[uint16]> {
+    intoUtf16(^this): ^[uint16] {
         todo("OsString.intoUtf16")
     }
 }

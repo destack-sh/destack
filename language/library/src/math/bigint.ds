@@ -1,5 +1,6 @@
+import { Slice } from "destack:collections";
 import { todo } from "destack:error";
-import { MaybeOwned, MaybeUninit, Unique } from "destack:memory";
+import { MaybeOwned, MaybeUninit } from "destack:memory";
 import {
     Add,
     And,
@@ -29,7 +30,7 @@ export class BigInt {
     private sign: int8 = 0;
 
     /// The little-endian magnitude limb storage, whose slice length is the capacity.
-    private limbs: Unique<[MaybeUninit<uint64>]> = Unique.empty();
+    private limbs: ^[MaybeUninit<uint64>] = Slice.new();
 
     /// The significant limb count, with no trailing zero limbs.
     private length: usize = 0;

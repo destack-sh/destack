@@ -1,10 +1,11 @@
 import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Borrowed, Copy, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, WithAccess } from "destack:memory";
 import { Equal, Hash, Index, IndexSet } from "destack:ops";
 
 import { Array } from "./array.ds";
+import { Slice } from "./slice.ds";
 
 /// One map entry.
 export struct MapEntry<K, V> {
@@ -37,10 +38,10 @@ struct MapSlot<K, V> {
 @languageItem("collections.Map")
 export class Map<K, V> {
     /// The entry storage.
-    private entries: Unique<[MaybeUninit<MapSlot<K, V>>]> = Unique.empty();
+    private entries: ^[MaybeUninit<MapSlot<K, V>>] = Slice.new();
 
     /// The hash index.
-    private index: Unique<[uint32]> = Unique.empty();
+    private index: ^[uint32] = Slice.new();
 
     /// The number of live entries.
     private count: usize = 0;

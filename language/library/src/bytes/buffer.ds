@@ -1,12 +1,13 @@
+import { Slice } from "destack:collections";
 import { todo } from "destack:error";
-import { Access, MaybeUninit, Unique, WithAccess } from "destack:memory";
+import { Access, MaybeUninit, WithAccess } from "destack:memory";
 
 import { Bytes } from "./bytes.ds";
 
 /// Growable byte buffer.
 export class ByteBuffer {
     /// The owned byte storage.
-    storage: Unique<[MaybeUninit<uint8>]> = Unique.empty();
+    storage: ^[MaybeUninit<uint8>] = Slice.new();
 
     /// The initialized byte count.
     initializedLength: isize = 0;

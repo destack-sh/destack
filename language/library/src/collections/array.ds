@@ -9,13 +9,13 @@ import {
     Copy,
     Default,
     MaybeUninit,
-    Unique,
     WithAccess,
 } from "destack:memory";
 import { Compare, Display, Index, IndexSet, Ordering, PartialEqual } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
 import { Sequence } from "./sequence.ds";
+import { Slice } from "./slice.ds";
 
 /// Readonly view of a dynamic array.
 @languageItem("collections.ReadonlyArray")
@@ -34,7 +34,7 @@ export type FlattenedElement<T, Depth: usize> = usize extends Depth
 @languageItem("collections.Array")
 export class Array<T> {
     /// The contiguous storage.
-    private storage: Unique<[MaybeUninit<T>]> = Unique.empty();
+    private storage: ^[MaybeUninit<T>] = Slice.new();
 
     /// The number of initialized elements.
     private count: isize = 0;

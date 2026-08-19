@@ -2,7 +2,7 @@ import { Array, Slice } from "destack:collections";
 import { As, Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Iterator } from "destack:iter";
-import { Default, Unique } from "destack:memory";
+import { Default } from "destack:memory";
 import { Add, Equal, Hash, Hasher, Ordering } from "destack:ops";
 import { RegExp, RegExpMatch } from "destack:regexp";
 
@@ -13,7 +13,7 @@ import { StringSlice } from "./slice.ds";
 @languageItem("string.String")
 export class String {
     /// The owned UTF-16 code units.
-    private codeUnits: Unique<[uint16]> = Unique.empty();
+    private codeUnits: ^[uint16] = Slice.new();
 }
 
 /// Raw template string parts.

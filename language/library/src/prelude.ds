@@ -118,7 +118,6 @@ global {
         SpaceOf,
         SpaceOr,
         StaticLifetime,
-        Unique,
         Unpin,
         WithAccess,
         WithBase,

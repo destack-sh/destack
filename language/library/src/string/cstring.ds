@@ -1,7 +1,8 @@
+import { Slice } from "destack:collections";
 import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator } from "destack:iter";
-import { Clone, Default, MaybeOwned, Unique } from "destack:memory";
+import { Clone, Default, MaybeOwned } from "destack:memory";
 import { Compare, Equal, Hash, Hasher, Ordering } from "destack:ops";
 
 import { Utf8DecodeError } from "./utf8.ds";
@@ -16,7 +17,7 @@ export struct CStringSlice {
 /// Owned bytes terminated by exactly one zero byte with no interior zero bytes.
 export class CString {
     /// The bytes including the final zero byte.
-    private bytes: Unique<[uint8]> = Unique.empty();
+    private bytes: ^[uint8] = Slice.new();
 }
 
 /// An interior zero byte in a C string source.
@@ -126,7 +127,7 @@ export extension of CString
     }
 
     /// Consume bytes and append their final zero byte.
-    static fromBytes(value: Unique<[uint8]>): Result<^CString, InteriorNulError> {
+    static fromBytes(value: ^[uint8]): Result<^CString, InteriorNulError> {
         todo("CString.fromBytes")
     }
 
@@ -138,7 +139,7 @@ export extension of CString
 
     /// Consume bytes and append their final zero byte without checking for interior zeros.
     @unsafe
-    static fromBytesUnchecked(value: Unique<[uint8]>): ^CString {
+    static fromBytesUnchecked(value: ^[uint8]): ^CString {
         todo("CString.fromBytesUnchecked")
     }
 
@@ -148,7 +149,7 @@ export extension of CString
     }
 
     /// Consume bytes that already include their final zero byte.
-    static fromBytesWithNul(value: Unique<[uint8]>): Result<^CString, CStringError> {
+    static fromBytesWithNul(value: ^[uint8]): Result<^CString, CStringError> {
         todo("CString.fromBytesWithNul")
     }
 
@@ -160,7 +161,7 @@ export extension of CString
 
     /// Consume terminated bytes without validating the C string invariant.
     @unsafe
-    static fromBytesWithNulUnchecked(value: Unique<[uint8]>): ^CString {
+    static fromBytesWithNulUnchecked(value: ^[uint8]): ^CString {
         todo("CString.fromBytesWithNulUnchecked")
     }
 
@@ -196,12 +197,12 @@ export extension of CString
     }
 
     /// Move the bytes before the final zero byte out of this string.
-    intoBytes(^this): Unique<[uint8]> {
+    intoBytes(^this): ^[uint8] {
         todo("CString.intoBytes")
     }
 
     /// Move all bytes including the final zero byte out of this string.
-    intoBytesWithNul(^this): Unique<[uint8]> {
+    intoBytesWithNul(^this): ^[uint8] {
         todo("CString.intoBytesWithNul")
     }
 

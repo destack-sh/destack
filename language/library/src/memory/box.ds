@@ -10,11 +10,21 @@ import { MaybeUninit } from "./init.ds";
 import { Owned } from "./owned.ds";
 import { Pin } from "./pin.ds";
 import { WithAccess } from "./type.ds";
-import { Unique } from "./unique.ds";
 
 /// A uniquely owned heap allocation for an owned `T`.
 @languageItem("memory.Box")
 export newtype Box<T> = Unique<Owned<T>>;
+
+/// Internal thin unique heap reference.
+@languageItem("memory.Unique")
+newtype Unique<out T> = intrinsic;
+
+extension<T> of Unique<Owned<T>> {
+    /// Leak this allocation and borrow it for static lifetime.
+    leak(this): Borrowed<T, 'static> {
+        leakUnique<T>(this)
+    }
+}
 
 export extension<T, const A: Access = "readonly"> of Box<T>
     implements
@@ -54,11 +64,6 @@ export extension<T, const A: Access = "readonly"> of Box<T>
         todo("Box.tryNewZeroed")
     }
 
-    /// Create a box from its unique heap handle.
-    static fromUnique(unique: Unique<Owned<T>>): Box<T> {
-        todo("Box.fromUnique")
-    }
-
     /// Allocate and pin `value` on the heap.
     static pin(value: ^T): Pin<Box<T>> {
         todo("Box.pin")
@@ -76,12 +81,7 @@ export extension<T, const A: Access = "readonly"> of Box<T>
 
     /// Leak this box and borrow its allocation for static lifetime.
     leak(this): Borrowed<T, 'static> {
-        this.intoUnique().leak()
-    }
-
-    /// Move this box into its unique heap handle.
-    intoUnique(this): Unique<Owned<T>> {
-        todo("Box.intoUnique")
+        (this as Unique<Owned<T>>).leak()
     }
 
     /// Return the raw pointer to the boxed value.
@@ -136,3 +136,7 @@ export extension<T> of Box<T> implements Default where T: Default {
         Box.new(T.default())
     }
 }
+
+/// Leak one unique allocation and borrow it for static lifetime.
+@intrinsic("memory.unique.leak")
+declare function leakUnique<T>(unique: Unique<Owned<T>>): Borrowed<T, 'static>;

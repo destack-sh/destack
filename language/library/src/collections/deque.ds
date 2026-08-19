@@ -1,15 +1,16 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Borrowed, Copy, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 
 import { Sequence } from "./sequence.ds";
+import { Slice } from "./slice.ds";
 
 /// A compact double-ended queue.
 export class Deque<T> {
     /// The ring storage.
-    private storage: Unique<[MaybeUninit<T>]> = Unique.empty();
+    private storage: ^[MaybeUninit<T>] = Slice.new();
 
     /// The first initialized slot.
     private start: usize = 0;
