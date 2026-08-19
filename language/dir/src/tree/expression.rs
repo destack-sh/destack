@@ -1271,7 +1271,7 @@ pub enum YieldCardinality {
 }
 
 /// A where-clause relation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum WhereRelation {
     /// The left type must satisfy the right type.
     Satisfies,

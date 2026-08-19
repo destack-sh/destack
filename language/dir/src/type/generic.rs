@@ -125,7 +125,7 @@ pub enum GenericParameterOrigin {
 }
 
 /// Representation used to solve one generic parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum GenericParameterKind {
     /// A regular type parameter.
     Type,
@@ -134,7 +134,7 @@ pub enum GenericParameterKind {
 }
 
 /// Well-known memory kind quantified by a const parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemoryParameter {
     /// Borrow access.
     Access,
