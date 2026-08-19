@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use destack_core::BitSet;
 use destack_mir::{
-    Access, AliasTable, Block, CallSite, Function, FunctionBehavior, FunctionCache, Instruction,
-    Lifetime, LiveSet, LivenessTable, Loan, LoanId, LocalId, LocalNodeId, LocalNodeIdAny,
-    MemoryAccessEffect, MemoryLocation, MemoryRegion, MemoryTable, MovePathId, MoveTable, Path,
-    Place, PlaceOrigin, PlaceTable, Projection, Provenance, ProvenanceState, ProvenanceTable,
-    ReferenceKind, RetentionTable, Storage, Terminator, Tree, Type, TypeId, Value,
+    Access, AliasTable, Block, CallSite, EscapeTable, Function, FunctionBehavior, FunctionCache,
+    Instruction, Lifetime, LiveSet, LivenessTable, Loan, LoanId, LocalId, LocalNodeId,
+    LocalNodeIdAny, MemoryAccessEffect, MemoryLocation, MemoryRegion, MemoryTable, MovePathId,
+    MoveTable, Path, Place, PlaceOrigin, PlaceTable, Projection, Provenance, ProvenanceState,
+    ProvenanceTable, ReferenceKind, RetentionTable, Storage, Terminator, Tree, Type, TypeId, Value,
 };
 
 use crate::verify::{VerifyError, VerifyState};
@@ -31,6 +31,8 @@ pub(in crate::verify) struct BorrowChecker<'a, 'b> {
     moves: Arc<MoveTable>,
     /// Solved borrow provenance.
     provenance: Arc<ProvenanceTable>,
+    /// Whole-function escape decisions.
+    escape: Arc<EscapeTable>,
     /// Provenance at the current operation.
     state: ProvenanceState,
     /// Loans live at the current operation.
@@ -55,6 +57,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         let alias = analyses.alias(function, tree);
         let memory = analyses.memory(function, tree, verification.accesses, &verification.effects);
         let provenance = analyses.provenance(function, tree, &verification.resolution);
+        let escape = analyses.escape(function, tree);
         let loan_count = provenance.loans().len();
 
         Self {
@@ -67,6 +70,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             places,
             moves,
             provenance,
+            escape,
             state: ProvenanceState::new(),
             active_loans: Vec::new(),
             rejected_loans: BitSet::new(loan_count),
@@ -523,6 +527,13 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                     continue;
                 }
 
+                // skip opaque effects over loans confined to this frame
+                if matches!(effect.region, MemoryRegion::Any { .. })
+                    && !self.loan_reaches_outside(loan)
+                {
+                    continue;
+                }
+
                 if !self.effect_may_touch_loan(effect, loan) {
                     continue;
                 }
@@ -548,6 +559,19 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                 }
             }
         }
+    }
+
+    /// Return whether one loan's referent is reachable outside this frame.
+    fn loan_reaches_outside(&self, loan: &Loan) -> bool {
+        // global-rooted referents stay reachable ambiently
+        if loan
+            .place()
+            .is_some_and(|place| matches!(place.origin, PlaceOrigin::Global(_)))
+        {
+            return true;
+        }
+
+        self.escape.escapes(loan.carrier)
     }
 
     /// Return whether one memory effect may touch an active loan.
