@@ -185,8 +185,12 @@ fn try_reduction(
         return Ok(None);
     };
     let carrier_type = module.adjusted_type_id(propagated.into_any())?;
-    if carrier_type != module.adjusted_type_id(initial_result.into_any())?
-        || carrier_type != module.adjusted_type_id(result.into_any())?
+    if !module.dir.types_match(
+        carrier_type,
+        module.adjusted_type_id(initial_result.into_any())?,
+    )? || !module
+        .dir
+        .types_match(carrier_type, module.adjusted_type_id(result.into_any())?)?
     {
         return Ok(None);
     }

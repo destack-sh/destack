@@ -10,6 +10,9 @@ use destack_source::ModuleId;
 
 use super::{DirModule, DirModuleStorage};
 
+/// The recursion bound cyclic type graphs compare under.
+const TYPE_MATCH_DEPTH: usize = 64;
+
 /// Checked DIR available to one lint run.
 #[derive(Debug)]
 pub struct Dir<'a> {
@@ -54,6 +57,128 @@ impl<'a> Dir<'a> {
                     message: format!("DIR type {type_id:?} is not present in its owning module"),
                 })
         })
+    }
+
+    /// Return whether two checked types share one content.
+    ///
+    /// The walk looks through interning identity on the nominal, scalar, union, tuple,
+    /// and form heads, leaving every other pair unequal.
+    pub fn types_match(
+        &self,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> Result<bool, ProviderError> {
+        self.types_match_bounded(left, right, TYPE_MATCH_DEPTH)
+    }
+
+    /// Return whether two checked types share one content, up to a depth.
+    fn types_match_bounded(
+        &self,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+        depth: usize,
+    ) -> Result<bool, ProviderError> {
+        // answer interned identity directly
+        if left == right {
+            return Ok(true);
+        }
+
+        // bound the recursion so cyclic graphs settle
+        let Some(depth) = depth.checked_sub(1) else {
+            return Ok(false);
+        };
+
+        match (self.get_type(left)?, self.get_type(right)?) {
+            // match a nominal application by symbol and arguments
+            (dir::Type::Application(left_instance), dir::Type::Application(right_instance)) => {
+                if left_instance.symbol != right_instance.symbol {
+                    return Ok(false);
+                }
+
+                self.type_lists_match(
+                    left,
+                    left_instance.arguments,
+                    right,
+                    right_instance.arguments,
+                    depth,
+                )
+            }
+            // match a union element by element
+            (dir::Type::Union(left_union), dir::Type::Union(right_union)) => self.type_lists_match(
+                left,
+                left_union.elements,
+                right,
+                right_union.elements,
+                depth,
+            ),
+            // match a tuple by form and elements
+            (dir::Type::Tuple(left_tuple), dir::Type::Tuple(right_tuple)) => {
+                if left_tuple.form != right_tuple.form {
+                    return Ok(false);
+                }
+
+                self.type_lists_match(
+                    left,
+                    left_tuple.elements,
+                    right,
+                    right_tuple.elements,
+                    depth,
+                )
+            }
+            // match a memory form by kind and value
+            (dir::Type::Form(left_form), dir::Type::Form(right_form)) => Ok(left_form.form
+                == right_form.form
+                && self.types_match_bounded(left_form.value, right_form.value, depth)?),
+            // module-local payload ids compare only within one interner
+            (left_kind, right_kind) if left.module_id == right.module_id => {
+                Ok(left_kind == right_kind)
+            }
+            // scalar heads carry their whole content and compare across modules
+            (
+                left_kind @ (dir::Type::Primitive(_)
+                | dir::Type::Literal(_)
+                | dir::Type::Null
+                | dir::Type::Undefined
+                | dir::Type::Void
+                | dir::Type::Never
+                | dir::Type::Any
+                | dir::Type::Unknown),
+                right_kind,
+            ) => Ok(left_kind == right_kind),
+            // NOTE #Incomplete: cross-module structural heads compare unequal
+            //  until their payload ids canonicalize
+            _ => Ok(false),
+        }
+    }
+
+    /// Return whether two interned type lists match element by element.
+    fn type_lists_match(
+        &self,
+        left: dir::GlobalTypeId,
+        left_list: dir::TypeListId,
+        right: dir::GlobalTypeId,
+        right_list: dir::TypeListId,
+        depth: usize,
+    ) -> Result<bool, ProviderError> {
+        // read both element lists out of their owning interners
+        let left_elements = self.read_types(left.module_id, |types| {
+            Ok(types.type_ids(left_list).to_vec())
+        })?;
+        let right_elements = self.read_types(right.module_id, |types| {
+            Ok(types.type_ids(right_list).to_vec())
+        })?;
+        if left_elements.len() != right_elements.len() {
+            return Ok(false);
+        }
+
+        // require every element pair to match
+        for (left, right) in left_elements.into_iter().zip(right_elements) {
+            if !self.types_match_bounded(left, right, depth)? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     /// Strip placement forms from one checked type id.

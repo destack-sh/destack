@@ -48,8 +48,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
         if arms.len() < 2
-            || module.adjusted_type_id(expression.into_any())?
-                != module.adjusted_type_id(value.into_any())?
+            || !module.dir.types_match(
+                module.adjusted_type_id(expression.into_any())?,
+                module.adjusted_type_id(value.into_any())?,
+            )?
         {
             continue;
         }
