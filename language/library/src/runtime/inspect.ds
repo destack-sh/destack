@@ -11,8 +11,7 @@ import {
     EntityPage,
     LabelSelector,
 } from "./entity.ds";
-import { Image } from "./lineage.ds";
-import { Revision } from "./lineage.ds";
+import { Image, Revision } from "./lineage.ds";
 import { Resource, ResourceId, ResourceKind, ResourcePage } from "./resource.ds";
 import { Trace } from "./trace.ds";
 import {

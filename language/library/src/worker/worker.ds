@@ -1,6 +1,5 @@
 import { Promise, Task } from "destack:async";
-import { todo } from "destack:error";
-import { Panic } from "destack:error";
+import { Panic, todo } from "destack:error";
 import { SharedSafe } from "destack:memory";
 import { WorkerHandle, WorkerId } from "destack:runtime/world";
 

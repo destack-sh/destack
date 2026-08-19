@@ -1,5 +1,4 @@
-import { Result } from "destack:error";
-import { todo } from "destack:error";
+import { Result, todo } from "destack:error";
 import { HostError } from "destack:error/host";
 import { Writer } from "destack:sync";
 
