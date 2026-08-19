@@ -6,7 +6,7 @@ fn test_lower_string_literal_to_immortal_object_read() {
     let session = TestSession::single(
         r#"
 function greet(): string {
-    return "hello";
+    return "hello 😀";
 }
 "#,
     );
@@ -14,24 +14,22 @@ function greet(): string {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
-
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+    codeUnits: slice<uint16, unique, exclusive>;
 }
 
-immortal constant string.10557148580892020714.bytes: [uint8; 5] = b"hello"
+immortal constant string.16797803945865438315.codeUnits: [uint16; 8] = b"h\x00e\x00l\x00l\x00o\x00 \x00=\xd8\x00\xde"
 
-immortal constant string.10557148580892020714: destack.string.string.String = {{globalAddress string.10557148580892020714.bytes, 5uint64}}
+immortal constant string.16797803945865438315: destack.string.string.String = {{globalAddress string.16797803945865438315.codeUnits, 8uint64}}
 
 function test.main.greet(): ref<destack.string.string.String, managed, mutable> {
 entry:
-    v0: ref<destack.string.string.String, managed, mutable> = global.address string.10557148580892020714
+    v0: ref<destack.string.string.String, managed, mutable> = global.address string.16797803945865438315
     return v0
 }
 
 /// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
 "#,
     );
 }
@@ -51,15 +49,13 @@ function pair(): string {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
-
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+    codeUnits: slice<uint16, unique, exclusive>;
 }
 
-immortal constant string.13143504461344146821.bytes: [uint8; 2] = b"hi"
+immortal constant string.13143504461344146821.codeUnits: [uint16; 2] = b"h\x00i\x00"
 
-immortal constant string.13143504461344146821: destack.string.string.String = {{globalAddress string.13143504461344146821.bytes, 2uint64}}
+immortal constant string.13143504461344146821: destack.string.string.String = {{globalAddress string.13143504461344146821.codeUnits, 2uint64}}
 
 function test.main.pair(): ref<destack.string.string.String, managed, mutable> {
     local l0: ref<destack.string.string.String, managed, mutable>
@@ -72,7 +68,7 @@ entry:
 }
 
 /// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
 "#,
     );
 }

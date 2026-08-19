@@ -131,7 +131,7 @@ impl TypeLowerer<'_, '_> {
             }));
         }
 
-        // fuse unsized pointees with the layer into one fat descriptor
+        // fuse slice values with the layer into one fat descriptor
         if let Some(slice) = self.lowerer.slice_pointee(payload)? {
             let element = self.lower(slice.element)?;
 

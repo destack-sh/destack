@@ -613,10 +613,8 @@ function read(meter: &readonly Meter): Label {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
-
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+    codeUnits: slice<uint16, unique, exclusive>;
 }
 
 type Label = ref<destack.string.string.String, managed, mutable, undefined>;
@@ -634,7 +632,7 @@ entry(v0: ref<Meter, borrowed, 'a, readonly>):
 }
 
 /// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.struct name=Meter size=8 align=8
 /// @layout.field owner=Meter index=0 name=label offset=0 size=8 align=8
 "#,
@@ -703,19 +701,17 @@ type Square {
 @copy
 type Shape = newtype<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }>;
 
-type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
-
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+    codeUnits: slice<uint16, unique, exclusive>;
 }
 
-immortal constant string.13298159783162365089.bytes: [uint8; 6] = b"circle"
+immortal constant string.13298159783162365089.codeUnits: [uint16; 6] = b"c\x00i\x00r\x00c\x00l\x00e\x00"
 
-immortal constant string.13298159783162365089: destack.string.string.String = {{globalAddress string.13298159783162365089.bytes, 6uint64}}
+immortal constant string.13298159783162365089: destack.string.string.String = {{globalAddress string.13298159783162365089.codeUnits, 6uint64}}
 
-immortal constant string.11637857817615016681.bytes: [uint8; 6] = b"square"
+immortal constant string.11637857817615016681.codeUnits: [uint16; 6] = b"s\x00q\x00u\x00a\x00r\x00e\x00"
 
-immortal constant string.11637857817615016681: destack.string.string.String = {{globalAddress string.11637857817615016681.bytes, 6uint64}}
+immortal constant string.11637857817615016681: destack.string.string.String = {{globalAddress string.11637857817615016681.codeUnits, 6uint64}}
 
 function test.main.circle(): void {
 entry:
@@ -855,7 +851,7 @@ entry(v0: Shape):
 /// @layout.field owner=Square index=0 name=kind offset=8 size=0 align=1
 /// @layout.field owner=Square index=1 name=side offset=0 size=8 align=8
 /// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.variant name=type@11 size=16 align=8
 /// @layout.discriminant owner=type@11 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@11 index=0 discriminant=0 payload_offset=8
@@ -909,15 +905,13 @@ type Square {
 @copy
 type Shape = newtype<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }>;
 
-type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
-
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+    codeUnits: slice<uint16, unique, exclusive>;
 }
 
-immortal constant string.13298159783162365089.bytes: [uint8; 6] = b"circle"
+immortal constant string.13298159783162365089.codeUnits: [uint16; 6] = b"c\x00i\x00r\x00c\x00l\x00e\x00"
 
-immortal constant string.13298159783162365089: destack.string.string.String = {{globalAddress string.13298159783162365089.bytes, 6uint64}}
+immortal constant string.13298159783162365089: destack.string.string.String = {{globalAddress string.13298159783162365089.codeUnits, 6uint64}}
 
 function test.main.radius<'a>(v0: ref<Shape, borrowed, 'a, readonly>): float64 {
 entry(v0: ref<Shape, borrowed, 'a, readonly>):
@@ -946,15 +940,15 @@ b2:
 /// @layout.field owner=Square index=0 name=kind offset=8 size=0 align=1
 /// @layout.field owner=Square index=1 name=side offset=0 size=8 align=8
 /// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.variant name=type@11 size=16 align=8
 /// @layout.discriminant owner=type@11 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@11 index=0 discriminant=0 payload_offset=8
 /// @layout.case owner=type@11 index=1 discriminant=1 payload_offset=8
-/// @layout.variant name=type@35 size=1 align=1
-/// @layout.discriminant owner=type@35 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@35 index=0 discriminant=0 payload_offset=1
-/// @layout.case owner=type@35 index=1 discriminant=1 payload_offset=1
-/// @layout.case owner=type@35 index=2 discriminant=2 payload_offset=1
+/// @layout.variant name=type@33 size=1 align=1
+/// @layout.discriminant owner=type@33 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@33 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@33 index=1 discriminant=1 payload_offset=1
+/// @layout.case owner=type@33 index=2 discriminant=2 payload_offset=1
 "#);
 }

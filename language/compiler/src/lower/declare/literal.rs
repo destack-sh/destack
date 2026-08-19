@@ -64,7 +64,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Declare one literal's constant bytes and pre-built immortal String object.
+    /// Declare one literal's constant code units and pre-built immortal String object.
     fn declare_string_literal(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -73,24 +73,25 @@ impl ModuleLowerer<'_> {
         // lower the String representation named by its language item
         let nominal = self.lower_literal_nominal(builder, dir::LanguageItem::String)?;
 
-        // intern the constant UTF-8 bytes as an immortal byte array
-        let bytes = self.strings.get(string).as_bytes().to_vec();
-        let length = bytes.len() as u64;
-        let array = Self::intern_element_array(builder, 8, length);
-        let bytes_global = builder.immortal(
-            &format!("string.{}.bytes", string.0),
+        // encode the constant UTF-16 code units into an immortal array
+        let code_units = self.strings.get(string).encode_utf16();
+        let length = code_units.clone().count() as u64;
+        let bytes = code_units.flat_map(u16::to_le_bytes).collect();
+        let array = Self::intern_element_array(builder, 16, length);
+        let code_units_global = builder.immortal(
+            &format!("string.{}.codeUnits", string.0),
             array,
             mir::GlobalInitializer::Bytes(bytes),
         );
 
-        // pre-build the immortal String object over its constant bytes
+        // pre-build the immortal String object over its constant code units
         let initializer = builder
             .constant_object(
                 nominal.storage,
                 &[(
-                    "bytes",
+                    "codeUnits",
                     mir::ConstantValue::Slice {
-                        elements: bytes_global,
+                        elements: code_units_global,
                         length,
                     },
                 )],

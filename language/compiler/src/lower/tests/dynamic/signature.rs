@@ -18,10 +18,8 @@ export function pick(counts: Counts, key: string): int32 | undefined {
         r#"
 type Counts = dynamic<{  }, managed, mutable>;
 
-type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
-
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+    codeUnits: slice<uint16, unique, exclusive>;
 }
 
 function test.main.pick(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
@@ -31,12 +29,12 @@ entry(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>):
 }
 
 /// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.struct name=type@1 size=0 align=1
-/// @layout.variant name=type@15 size=8 align=4
-/// @layout.discriminant owner=type@15 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@15 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@15 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@13 size=8 align=4
+/// @layout.discriminant owner=type@13 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=4
 
 /// @dispatch.shape constraint=type@1
 "#,
@@ -61,10 +59,8 @@ export function pick(counts: Counts, key: string): int32 | undefined {
         r#"
 type Counts = dynamic<{  }, managed, mutable>;
 
-type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
-
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+    codeUnits: slice<uint16, unique, exclusive>;
 }
 
 function test.main.pick(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
@@ -74,12 +70,12 @@ entry(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>):
 }
 
 /// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.struct name=type@1 size=0 align=1
-/// @layout.variant name=type@15 size=8 align=4
-/// @layout.discriminant owner=type@15 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@15 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@15 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@13 size=8 align=4
+/// @layout.discriminant owner=type@13 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=4
 
 /// @dispatch.shape constraint=type@1
 "#,

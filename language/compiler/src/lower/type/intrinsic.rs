@@ -21,33 +21,14 @@ impl TypeLowerer<'_, '_> {
                         message: "Unique instantiated without its payload".to_string(),
                     });
                 };
-                let payload = *payload;
-                let representation = match self.lowerer.ty(payload)? {
-                    // carry slice payloads in a fat unique descriptor
-                    dir::Type::Slice(slice) => {
-                        let element = self.lower(slice.element)?;
-
-                        mir::Type::Slice {
-                            kind: mir::ReferenceKind::Unique,
-                            lifetime: mir::Lifetime::empty(),
-                            element,
-                            storage: mir::Storage::Heap(mir::Space::Local),
-                            access: mir::Access::Exclusive,
-                            nullability: mir::Nullability::None,
-                        }
-                    }
-                    _ => {
-                        let pointee = self.lower_pointee(payload)?;
-
-                        mir::Type::Reference {
-                            kind: mir::ReferenceKind::Unique,
-                            lifetime: mir::Lifetime::empty(),
-                            storage: mir::Storage::Heap(mir::Space::Local),
-                            access: mir::Access::Exclusive,
-                            pointee,
-                            nullability: mir::Nullability::None,
-                        }
-                    }
+                let pointee = self.lower_pointee(*payload)?;
+                let representation = mir::Type::Reference {
+                    kind: mir::ReferenceKind::Unique,
+                    lifetime: mir::Lifetime::empty(),
+                    storage: mir::Storage::Heap(mir::Space::Local),
+                    access: mir::Access::Exclusive,
+                    pointee,
+                    nullability: mir::Nullability::None,
                 };
                 self.tree.define_type(ty, representation);
 

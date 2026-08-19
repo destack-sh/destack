@@ -177,23 +177,19 @@ function main(): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.memory.unique.Unique<slice<uninit<int32>, managed, mutable>> = slice<uninit<int32>, unique, exclusive>;
-
 type destack.collections.array.Array<int32> {
-    storage: destack.memory.unique.Unique<slice<uninit<int32>, managed, mutable>>;
+    storage: slice<uninit<int32>, unique, exclusive>;
     count: isize;
     allocated: usize;
 }
 
-type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
-
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+    codeUnits: slice<uint16, unique, exclusive>;
 }
 
-immortal constant string.3441301661858404811.bytes: [uint8; 14] = b"arrayFromSlice"
+immortal constant string.3441301661858404811.codeUnits: [uint16; 14] = b"a\x00r\x00r\x00a\x00y\x00F\x00r\x00o\x00m\x00S\x00l\x00i\x00c\x00e\x00"
 
-immortal constant string.3441301661858404811: destack.string.string.String = {{globalAddress string.3441301661858404811.bytes, 14uint64}}
+immortal constant string.3441301661858404811: destack.string.string.String = {{globalAddress string.3441301661858404811.codeUnits, 14uint64}}
 
 function test.main.total(v0: ref<destack.collections.array.Array<int32>, managed, mutable>): int32 {
 entry(v0: ref<destack.collections.array.Array<int32>, managed, mutable>):
@@ -243,7 +239,7 @@ b1:
 /// @layout.field owner=destack.collections.array.Array<int32> index=1 name=count offset=16 size=8 align=8
 /// @layout.field owner=destack.collections.array.Array<int32> index=2 name=allocated offset=24 size=8 align=8
 /// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
 "#,
     );
 }

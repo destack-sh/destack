@@ -14,11 +14,9 @@ function big(): bigint {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.memory.unique.Unique<slice<uninit<uint64>, managed, mutable>> = slice<uninit<uint64>, unique, exclusive>;
-
 type destack.math.bigint.BigInt {
     sign: int8;
-    limbs: destack.memory.unique.Unique<slice<uninit<uint64>, managed, mutable>>;
+    limbs: slice<uninit<uint64>, unique, exclusive>;
     length: usize;
 }
 

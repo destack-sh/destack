@@ -35,10 +35,8 @@ function keep(name: string): string {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
-
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
+    codeUnits: slice<uint16, unique, exclusive>;
 }
 
 function test.main.keep(v0: ref<destack.string.string.String, managed, mutable>): ref<destack.string.string.String, managed, mutable> {
@@ -47,7 +45,7 @@ entry(v0: ref<destack.string.string.String, managed, mutable>):
 }
 
 /// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=bytes offset=0 size=16 align=8
+/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
 "#,
     );
 }
