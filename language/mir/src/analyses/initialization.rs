@@ -142,6 +142,7 @@ impl InitializationTable {
                 self.collect_projection(*variant, projection, state, &mut unavailable);
             }
             Instruction::SliceView {
+                destination,
                 source,
                 start,
                 length,
@@ -151,7 +152,17 @@ impl InitializationTable {
                     start: *start,
                     length: *length,
                 };
-                self.collect_projection(*source, projection, state, &mut unavailable);
+                let place = self.places.project(*source, projection);
+
+                // require the source value where the projected place names the
+                //  view this instruction defines over an untracked base
+                if self.paths.place(&place) == self.paths.value(*destination) {
+                    self.collect_value(*source, state, &mut unavailable);
+                }
+                // otherwise require the projected place
+                else {
+                    self.collect_place(&place, state, &mut unavailable);
+                }
                 self.collect_value(*start, state, &mut unavailable);
                 self.collect_value(*length, state, &mut unavailable);
             }
