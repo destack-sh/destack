@@ -647,7 +647,7 @@ define_language_items! {
         /// `destack:fs/binding`.
         binding {
             /// Filesystem binding family.
-            FsBinding => (Interface, "fs/binding/fs", "FsBinding"),
+            FsBinding => (Interface, "fs/binding/fs", "Binding", "fs.Binding"),
         }
     }
 
@@ -1325,7 +1325,7 @@ define_language_items! {
     string {
         /// `destack:string/slice`.
         slice {
-            /// Borrowed UTF-8 string slice.
+            /// Borrowed sequence of ECMAScript UTF-16 code units.
             StringSlice => (Newtype, "string/slice", "StringSlice"),
         }
 
