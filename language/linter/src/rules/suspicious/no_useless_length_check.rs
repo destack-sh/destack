@@ -1,13 +1,342 @@
-use crate::rules::declare_lint_stub;
+use destack_dir as dir;
+use destack_repository::ProviderError;
+use destack_source::{DiagnosticSuggestion, Patch};
 
-declare_lint_stub! {
-    /// Disallow length checks duplicated by the guarded operation.
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
+
+declare_lint! {
+    /// Disallow length checks duplicated by the guarded array operation.
     pub NO_USELESS_LENGTH_CHECK {
         id: "no-useless-length-check",
-        summary: "Disallow length checks duplicated by the guarded operation",
+        summary: "Disallow length checks duplicated by the guarded array operation",
+        explanation: r#"
+An empty-array guard around `every` or a nonempty-array guard around `some` repeats a result already defined by that operation.
+Instead, you SHOULD use the array operation directly.
+"#,
+        example: {
+            reported: r#"
+function allPositive(values: int32[]): boolean {
+    return values.length === 0 || values.every((value) => value > 0);
+}
+"#,
+            accepted: r#"
+function allPositive(values: int32[]): boolean {
+    return values.every((value) => value > 0);
+}
+"#,
+        },
         category: Suspicious,
         level: Warning,
-        fixable: None,
-        check: DirModule,
+        fixable: Automatic,
+        check: DirModule(check),
+    }
+}
+
+/// One array predicate whose result determines an empty or nonempty guard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ArrayPredicate {
+    /// Whether at least one element is accepted.
+    Some,
+    /// Whether every element is accepted.
+    Every,
+}
+
+/// Report redundant length guards around canonical Array predicates.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let mut output = LintOutput::default();
+
+    // inspect builtin conjunctions and disjunctions
+    for expression in module.operator_expressions() {
+        let expression = expression?;
+        let Some((logical, [left, right])) = module.builtin_binary(expression)? else {
+            continue;
+        };
+        if !matches!(logical, dir::BinaryOperator::And | dir::BinaryOperator::Or) {
+            continue;
+        }
+
+        // align one length guard with one canonical array predicate
+        let mut redundant = None;
+        for (guard, predicate) in [
+            (left.source.local_id, right.source.local_id),
+            (right.source.local_id, left.source.local_id),
+        ] {
+            let Some((guarded, is_empty)) = length_guard(module, guard)? else {
+                continue;
+            };
+            let Some((receiver, predicate_kind)) = array_predicate(module, predicate)? else {
+                continue;
+            };
+            let is_redundant = matches!(
+                (logical, is_empty, predicate_kind),
+                (dir::BinaryOperator::Or, true, ArrayPredicate::Every)
+                    | (dir::BinaryOperator::And, false, ArrayPredicate::Some)
+            );
+            if !is_redundant
+                || !module.is_same_computation(guarded, receiver)?
+                || !module.is_repeatable_expression(receiver)?
+            {
+                continue;
+            }
+
+            redundant = Some(predicate);
+            break;
+        }
+        let Some(predicate) = redundant else {
+            continue;
+        };
+
+        // replace the guarded expression with the retained predicate call
+        let extent = module.source_extent(expression.into_any())?;
+        let mut diagnostic = lint.diagnostic("length guard repeats the array result", extent);
+        if let Some(fix) = fix(module, lint, extent, predicate)? {
+            diagnostic = diagnostic.suggestion(fix);
+        }
+        output.report(diagnostic);
+    }
+
+    Ok(output)
+}
+
+/// Return the array and empty state tested by one canonical length comparison.
+fn length_guard(
+    module: &DirModule<'_>,
+    expression: dir::LocalNodeId<dir::Expression>,
+) -> Result<Option<(dir::LocalNodeId<dir::Expression>, bool)>, ProviderError> {
+    let Some((operator, [left, right])) = module.builtin_binary(expression)? else {
+        return Ok(None);
+    };
+
+    // normalize the canonical length access to the left operand
+    let Some(swapped_operator) = operator.swapped() else {
+        return Ok(None);
+    };
+    for (length, bound, operator) in [
+        (left.source.local_id, right.source.local_id, operator),
+        (
+            right.source.local_id,
+            left.source.local_id,
+            swapped_operator,
+        ),
+    ] {
+        let Some(dir::ScalarLiteral::Integer(bound)) = module.scalar_constant(bound)? else {
+            continue;
+        };
+        let is_empty = match (operator, bound) {
+            (dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict, 0)
+            | (dir::BinaryOperator::LessThanOrEqual, 0)
+            | (dir::BinaryOperator::LessThan, 1) => true,
+            (
+                dir::BinaryOperator::NotEqual
+                | dir::BinaryOperator::NotEqualStrict
+                | dir::BinaryOperator::GreaterThan,
+                0,
+            )
+            | (dir::BinaryOperator::GreaterThanOrEqual, 1) => false,
+            _ => continue,
+        };
+        let Some(receiver) = module.length_receiver(length)? else {
+            continue;
+        };
+
+        return Ok(Some((receiver, is_empty)));
+    }
+
+    Ok(None)
+}
+
+/// Return the receiver and kind of one canonical Array predicate call.
+fn array_predicate(
+    module: &DirModule<'_>,
+    expression: dir::LocalNodeId<dir::Expression>,
+) -> Result<Option<(dir::LocalNodeId<dir::Expression>, ArrayPredicate)>, ProviderError> {
+    let Some(call) = module.member_call(expression) else {
+        return Ok(None);
+    };
+    if call.is_optional() || call.arguments.len() != 1 {
+        return Ok(None);
+    }
+
+    // select the canonical Array method
+    let predicate = match module.language_member(expression)? {
+        Some(member) if member == dir::LanguageItem::Array.member("some") => ArrayPredicate::Some,
+        Some(member) if member == dir::LanguageItem::Array.member("every") => ArrayPredicate::Every,
+        _ => return Ok(None),
+    };
+
+    Ok(Some((call.receiver, predicate)))
+}
+
+/// Build the unguarded array predicate call.
+fn fix(
+    module: &DirModule<'_>,
+    lint: &Lint,
+    extent: destack_source::Span,
+    predicate: dir::LocalNodeId<dir::Expression>,
+) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
+    let retained = module.source_extent(predicate.into_any())?;
+    if module.has_unretained_comment(extent, &[retained])? {
+        return Ok(None);
+    }
+
+    // retain the complete predicate call
+    let replacement = module.expression_source(predicate, dir::OperatorPrecedence::Postfix)?;
+    let patch = Patch::replace(extent, replacement);
+    let fix = lint.fix("remove the redundant length guard", patch)?;
+
+    Ok(Some(fix))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Replace empty and nonempty guards in either operand order.
+    #[test]
+    fn test_replaces_redundant_guards() {
+        let session = TestSession::dir(
+            &NO_USELESS_LENGTH_CHECK,
+            r#"
+function accepted(values: int32[]): boolean {
+    const all = values.length === 0 || values.every((value) => value > 0);
+    const any = values.some((value) => value > 0) && 0 < values.length;
+    return all && any;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function accepted(values: int32[]): boolean {
+    const all = values.every((value) => value > 0);
+    const any = values.some((value) => value > 0);
+    return all && any;
+}
+"#,
+        );
+    }
+
+    /// Replace equivalent zero and one bounds around array predicates.
+    #[test]
+    fn test_replaces_equivalent_length_bounds() {
+        let session = TestSession::dir(
+            &NO_USELESS_LENGTH_CHECK,
+            r#"
+function accepted(values: int32[]): boolean {
+    const all = values.length < 1 || values.every((value) => value > 0);
+    const any = values.length >= 1 && values.some((value) => value > 0);
+    return all && any;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function accepted(values: int32[]): boolean {
+    const all = values.every((value) => value > 0);
+    const any = values.some((value) => value > 0);
+    return all && any;
+}
+"#,
+        );
+    }
+
+    /// Keep guards that do not follow the predicate's empty-array result.
+    #[test]
+    fn test_accepts_distinct_empty_results() {
+        let session = TestSession::dir(
+            &NO_USELESS_LENGTH_CHECK,
+            r#"
+function accepted(values: int32[]): boolean {
+    const allNonempty = values.length !== 0 && values.every((value) => value > 0);
+    const anyOrEmpty = values.length === 0 || values.some((value) => value > 0);
+    return allNonempty || anyOrEmpty;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep a guard and predicate over different arrays.
+    #[test]
+    fn test_accepts_distinct_arrays() {
+        let session = TestSession::dir(
+            &NO_USELESS_LENGTH_CHECK,
+            r#"
+function accepted(left: int32[], right: int32[]): boolean {
+    return left.length === 0 || right.every((value) => value > 0);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep repeated effectful receivers.
+    #[test]
+    fn test_accepts_effectful_receiver() {
+        let session = TestSession::dir(
+            &NO_USELESS_LENGTH_CHECK,
+            r#"
+declare function values(): int32[];
+function accepted(): boolean {
+    return values().length === 0 || values().every((value) => value > 0);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept user-defined length and every members.
+    #[test]
+    fn test_accepts_user_members() {
+        let session = TestSession::dir(
+            &NO_USELESS_LENGTH_CHECK,
+            r#"
+class Values {
+    length: isize = 0;
+
+    every(predicate: (value: int32) => boolean): boolean {
+        return predicate(0);
+    }
+}
+
+function accepted(values: Values): boolean {
+    return values.length === 0 || values.every((value) => value > 0);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Preserve a comment in the removed length guard by omitting the fix.
+    #[test]
+    fn test_reports_commented_guard_without_fix() {
+        let session = TestSession::dir(
+            &NO_USELESS_LENGTH_CHECK,
+            r#"
+function accepted(values: int32[]): boolean {
+    return values.length === 0 /* retain */ || values.every((value) => value > 0);
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-useless-length-check]: length guard repeats the array result
+ ──▶ main.ds:2:12
+  │
+1 │ function accepted(values: int32[]): boolean {
+2 │     return values.length === 0 /* retain */ || values.every((value) => value > 0);
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
     }
 }
