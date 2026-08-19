@@ -199,6 +199,30 @@ pub enum VerifyError {
         anchor: DiagnosticAnchor,
     },
 
+    /// A constructor returns before initializing one field.
+    #[diagnostic(
+        id = "field-left-uninitialized",
+        message = "constructor returns before initializing field {field}"
+    )]
+    FieldLeftUninitialized {
+        /// The returning path.
+        anchor: DiagnosticAnchor,
+        /// The uninitialized field position.
+        field: String,
+    },
+
+    /// A constructor initializes one field twice.
+    #[diagnostic(
+        id = "field-initialized-twice",
+        message = "constructor initializes field {field} twice"
+    )]
+    FieldInitializedTwice {
+        /// The repeated store.
+        anchor: DiagnosticAnchor,
+        /// The repeated field position.
+        field: String,
+    },
+
     // Borrow checking
     /// A new borrow conflicts with an active borrow.
     ///

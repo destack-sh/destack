@@ -9,7 +9,7 @@ use destack_mir::{
 use destack_source::ModuleId;
 
 use crate::DiagnosticAnchor;
-use crate::verify::{BorrowChecker, DropChecker, MoveChecker, VerifyError};
+use crate::verify::{BorrowChecker, DropChecker, InitializationChecker, MoveChecker, VerifyError};
 
 /// State for one MIR verification.
 pub(crate) struct VerifyState<'a> {
@@ -75,6 +75,9 @@ impl<'a> VerifyState<'a> {
 
             // check moves before borrow legality
             MoveChecker::new(function, tree, self, &mut analyses).check();
+
+            // check constructor receivers initialize every field
+            InitializationChecker::new(function, tree, self).check();
 
             // check borrows and retain ownership roots
             let retention = BorrowChecker::new(function, tree, self, &mut analyses).check();

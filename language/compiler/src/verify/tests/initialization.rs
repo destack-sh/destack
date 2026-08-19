@@ -259,3 +259,76 @@ error[maybe-use-after-move]: value may have been moved
 for more information about an error, run `destack explain maybe-use-after-move`
 "#);
 }
+
+#[test]
+fn test_reject_constructor_return_with_uninitialized_field() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair {
+    first: int32;
+    second: int32;
+}
+
+function construct(v0: ref<uninit<Pair>, borrowed, exclusive>, v1: int32): void {
+entry(v0: ref<uninit<Pair>, borrowed, exclusive>, v1: int32):
+    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[field-left-uninitialized]: constructor returns before initializing field 1
+  ──▶ <test.dsm>:11:5
+   │
+ 9 │     v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+10 │     store v2, v1
+11 │     return
+   │     ^^^^^^
+12 │ }
+13 │
+   │
+
+for more information about an error, run `destack explain field-left-uninitialized`
+"#,
+    );
+}
+
+#[test]
+fn test_reject_constructor_field_initialized_twice() {
+    let mut program = TestProgram::mir(
+        r#"
+type Single {
+    value: int32;
+}
+
+function construct(v0: ref<uninit<Single>, borrowed, exclusive>, v1: int32): void {
+entry(v0: ref<uninit<Single>, borrowed, exclusive>, v1: int32):
+    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    v3: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    store v3, v1
+    return
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[field-initialized-twice]: constructor initializes field 0 twice
+  ──▶ <test.dsm>:11:5
+   │
+ 9 │     store v2, v1
+10 │     v3: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+11 │     store v3, v1
+   │     ^^^^^^^^^^^^
+12 │     return
+13 │ }
+   │
+
+for more information about an error, run `destack explain field-initialized-twice`
+"#,
+    );
+}
