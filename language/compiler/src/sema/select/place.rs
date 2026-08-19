@@ -633,16 +633,16 @@ impl BodyState<'_, '_> {
                     reads.extend(selection.read);
                     writes.push(selection.write);
                 }
-                let write = self.intersect_member_decisions(origin, writes)?;
+                let write = self.intersect_member_decisions(writes)?;
                 let read = if reads.is_empty() {
                     None
                 } else {
-                    Some(self.intersect_member_decisions(origin, reads)?)
+                    Some(self.intersect_member_decisions(reads)?)
                 };
 
                 Ok(Some(MemberAssignmentSelection { read, write }))
             }
-            MemberLookup::Missing => Ok(None),
+            MemberLookup::Missing | MemberLookup::Undecided => Ok(None),
         }
     }
 

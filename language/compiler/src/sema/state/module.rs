@@ -335,9 +335,31 @@ impl CheckModuleState {
         view.get_span_by_id(node.id)
     }
 
+    /// Return the member membership stored for one subject, reading the pass tail over the base.
+    pub(in crate::sema) fn membership(
+        &self,
+        subject: &dir::MemberSubject,
+    ) -> Option<&dir::Membership> {
+        if let Some(membership) = self.members_tail.membership(subject) {
+            return Some(membership);
+        }
+
+        self.members
+            .as_ref()
+            .and_then(|base| base.membership(subject))
+    }
+
     /// Return the cumulative binding table visible to check.
     pub(in crate::sema) fn binding_table(&self) -> dir::BindingTable<'_> {
         self.bindings.with_tail(&self.bindings_tail)
+    }
+
+    /// Return one symbol, reading the pass tail over the committed base.
+    pub(in crate::sema) fn symbol(&self, symbol: dir::LocalSymbolId) -> &dir::Symbol {
+        match self.bindings_tail.get_symbol_maybe(symbol) {
+            Some(symbol) => symbol,
+            None => self.bindings.get_symbol(symbol),
+        }
     }
 
     /// Return the symbol introduced by a source declaration node.
@@ -524,20 +546,6 @@ impl CheckModuleState {
             .or_else(|| self.members.as_ref().and_then(|base| base.subject(site)))
     }
 
-    /// Return the member bindings stored for one subject, reading the pass tail over the base.
-    pub(in crate::sema) fn member_subject_bindings(
-        &self,
-        subject: &dir::MemberSubject,
-    ) -> Option<&[dir::MemberBinding]> {
-        if let Some(bindings) = self.members_tail.subject_bindings(subject) {
-            return Some(bindings);
-        }
-
-        self.members
-            .as_ref()
-            .and_then(|base| base.subject_bindings(subject))
-    }
-
     /// Iterate member subjects with pass entries shadowing the committed base.
     pub(in crate::sema) fn iter_member_subjects(
         &self,
@@ -571,8 +579,8 @@ impl CheckModuleState {
         for (owner, space, bindings) in base.iter_bindings() {
             merged.set_bindings(owner, space, bindings.to_vec());
         }
-        for (subject, bindings) in base.iter_subject_bindings() {
-            merged.set_subject_bindings(*subject, bindings.to_vec());
+        for (subject, membership) in base.iter_memberships() {
+            merged.set_membership(*subject, membership.clone());
         }
 
         // layer the pass entries over them
@@ -582,8 +590,8 @@ impl CheckModuleState {
         for (owner, space, bindings) in tail.iter_bindings() {
             merged.set_bindings(owner, space, bindings.to_vec());
         }
-        for (subject, bindings) in tail.iter_subject_bindings() {
-            merged.set_subject_bindings(*subject, bindings.to_vec());
+        for (subject, membership) in tail.iter_memberships() {
+            merged.set_membership(*subject, membership.clone());
         }
 
         merged
@@ -824,7 +832,7 @@ impl CheckState<'_> {
                         ty,
                         previous,
                         cause,
-                    ));
+                    ))?;
 
                     return Ok(());
                 }
@@ -1355,11 +1363,13 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::SymbolKind> {
-        // load the foreign module the classification reads
-        if !self.is_own_module(symbol.module_id) {
-            self.import_external_module(symbol.module_id)?;
+        // read own symbols straight from the tail over the base
+        if self.is_own_module(symbol.module_id) {
+            return Ok(self.module.symbol(symbol.local_id).kind);
         }
 
+        // load the foreign module the classification reads
+        self.import_external_module(symbol.module_id)?;
         let binding_table = self.binding_table(symbol.module_id);
         let symbol = binding_table.get_symbol(symbol.local_id);
 
@@ -1372,15 +1382,16 @@ impl CheckState<'_> {
         let module = self.module_id;
         let mut owners = Vec::new();
         for (symbol, definition) in self.module(module).iter_definitions() {
-            let is_nominal = matches!(
+            let is_owner = matches!(
                 definition,
                 dir::Definition::Struct(_)
                     | dir::Definition::Class(_)
                     | dir::Definition::Enum(_)
                     | dir::Definition::Newtype(_)
                     | dir::Definition::Interface(_)
+                    | dir::Definition::Extension(_)
             );
-            if is_nominal {
+            if is_owner {
                 owners.push(symbol);
             }
         }

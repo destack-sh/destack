@@ -178,7 +178,7 @@ impl CheckState<'_> {
             self.push_obligation(
                 Obligation::WellFormedType(WellFormedTypeObligation { source, ty }),
                 None,
-            );
+            )?;
         }
 
         // declared symbol entries carry alias and annotation values

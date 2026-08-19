@@ -86,7 +86,7 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
     /// @resolution.name source='a target=read.'a
 
         return shape.width;
-        /// @type.node source=shape type=Narrow<&'a Rectangle | Circle, &'a Rectangle>
+        /// @type.node source=shape type=&'a Rectangle
         /// @type.node source=shape.width type=int32
         /// @resolution.name source=shape target=read.shape
         /// @resolution.member source=shape.width receiver=Narrow<&'a Rectangle | Circle, &'a Rectangle> type=int32 kind=field target_receiver=Narrow<&'a Rectangle | Circle, &'a Rectangle> key=width target=Rectangle.width target_type=int32
@@ -206,7 +206,7 @@ function read<'a, const A: Access>(
     /// @resolution.name source=A target=read.A
 
         return shape.width;
-        /// @type.node source=shape type=Narrow<Borrowed<Rectangle | Circle, 'a, A>, Borrowed<Rectangle, 'a, A>>
+        /// @type.node source=shape type=Borrowed<Rectangle, 'a, A>
         /// @type.node source=shape.width type=int32
         /// @resolution.name source=shape target=read.shape
         /// @resolution.member source=shape.width receiver=Narrow<Borrowed<Rectangle | Circle, 'a, A>, Borrowed<Rectangle, 'a, A>> type=int32 kind=field target_receiver=Narrow<Borrowed<Rectangle | Circle, 'a, A>, Borrowed<Rectangle, 'a, A>> key=width target=Rectangle.width target_type=int32

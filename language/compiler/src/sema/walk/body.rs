@@ -317,7 +317,7 @@ impl WalkState<'_, '_> {
                     receiver: receiver.ty,
                 }),
                 scope,
-            );
+            )?;
         }
 
         Ok(())

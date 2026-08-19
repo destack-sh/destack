@@ -2512,7 +2512,7 @@ declare const starts: (int32 | undefined)[];
 const doubled: int32[] = collect<int32, int32>(
     collect<int32 | undefined, int32>(starts, (start: int32 | undefined): int32 | undefined => {
         if (start !== (undefined as int32 | undefined)) {
-            return start;
+            return start as int32 | undefined;
         }
         return undefined as int32 | undefined;
     }),
@@ -2574,7 +2574,7 @@ const doubled = collect(collect(starts, (start) => {
     /// @type.node source=undefined type=undefined
 
         return start;
-        /// @type.node source=start type=int32 | undefined
+        /// @type.node source=start type=int32
         /// @resolution.name source=start target=symbol8.start
         /// @resolution.place source=start placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=start root=symbol8.start

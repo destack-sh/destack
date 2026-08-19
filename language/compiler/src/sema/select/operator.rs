@@ -1,12 +1,21 @@
+use std::sync::Arc;
+use std::{iter, slice};
+
 use destack_dir as dir;
 
 use crate::sema::{
-    BodyState, Callee, Cause, CauseKind, Check, CheckOutcome, Expectation, FailedCheck, FlowSite,
-    InferMode, Obligation, OperatorExpressionResult, Origin, PlaceUse, ProtocolCall, Relation,
-    RelationCheck, Selection, SelectionCheck, ValueUse, VariableRole, Verdict, Widening,
+    Answer, BodyState, Callee, Canonical, Cause, CauseKind, Check, CheckOutcome, EqualityCheck,
+    Expectation, FailedCheck, FlowSite, InferMode, Obligation, OperatorExpressionResult, Origin,
+    PlaceUse, ProtocolCall, Question, Relation, RelationCheck, Selected, ValueUse, Verdict,
     WritableTargetObligation, binary_operator_protocols, unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
+
+/// The integer domain an untyped literal shift produces.
+const SHIFT_LITERAL_INTEGER: dir::IntegerType = dir::IntegerType::Fixed {
+    width: 64,
+    is_signed: true,
+};
 
 /// Operands displayed for a rejected operator.
 pub(in crate::sema) enum OperatorOperands<'a> {
@@ -50,29 +59,40 @@ impl BodyState<'_, '_> {
                     message: "an operator selection deferred without an open operand".to_string(),
                 });
             };
-            self.defer_operator_selection(site, stalled_on)?;
+            self.defer_selection(site, stalled_on)?;
 
             return Ok(());
         }
 
-        // closed operand pairs select once; later uses replay the selection
-        let selection_key =
-            self.derive_selection_key(Callee::Operator(operator), None, &[left, right])?;
-        if let Some(key) = &selection_key
-            && let Some(selected) = self.check.selections.get(key).cloned()
-        {
-            return match selected {
-                Selection::Builtin { result, operands } => {
-                    self.check_builtin_operand(left_source, left, operands[0])?;
-                    self.check_builtin_operand(right_source, right, operands[1])?;
-                    let left = self.builtin_operand(origin, left_source, operands[0])?;
-                    let right = self.builtin_operand(origin, right_source, operands[1])?;
+        // ask the canonical operator question once per equal operand pair
+        let question = self.check.selection_question(
+            origin,
+            Callee::Operator(operator),
+            None,
+            &[left, right],
+        )?;
 
-                    self.commit_builtin_binary_operator(
-                        origin, node, operator, left, right, result, writeback,
-                    )
-                }
-                Selection::Protocol(mut call, expression_result) => {
+        // replay the decided answer at this site's live roots
+        if let Some((asked, canonical)) = &question
+            && let Some(Answer::Selection(response)) = self.check.answers.get(asked).cloned()
+        {
+            return match self
+                .check
+                .instantiate_response(origin, canonical, &response)?
+            {
+                // replay a builtin application over the decided operand types
+                Selected::Builtin { result, operands } => self.commit_builtin_operands(
+                    origin,
+                    node,
+                    operator,
+                    (left_source, left),
+                    (right_source, right),
+                    operands,
+                    result,
+                    writeback,
+                ),
+                // rebind the decided protocol call onto this site's operand
+                Selected::Protocol(mut call, expression_result) => {
                     rebind_call_arguments(&mut call.resolution, right_source);
 
                     self.commit_operator_call(
@@ -84,17 +104,22 @@ impl BodyState<'_, '_> {
                         writeback,
                     )
                 }
-                Selection::Rejected => {
+                // report the operands the decision already refused
+                Selected::Rejected => {
                     self.reject_operator(node, origin, operator.text().to_string(), &[left, right])
                 }
-                Selection::Callable(_) | Selection::Newtype(_) => {
-                    unreachable!("operator selections never store instantiated signatures")
-                }
+                // fail loudly on a callable answer stored under an operator
+                Selected::Callable(_) | Selected::Newtype(_) => Err(CompilerError::Internal {
+                    message: "operator selection stored an instantiated signature".to_string(),
+                }),
             };
         }
 
-        // equality and logic produce builtin results directly
-        let nullish_or_never = matches!(
+        // the decision starts here; its queued checks feed the stored response
+        let checks_before = self.check.fulfill.checks.count();
+
+        // classify nullish and never operands, which compare structurally
+        let is_nullish_or_never = matches!(
             self.ty(left)?,
             dir::Type::Null | dir::Type::Undefined | dir::Type::Never
         ) || matches!(
@@ -107,15 +132,18 @@ impl BodyState<'_, '_> {
         let right_value = self.strip_form(origin, right)?;
         let left_families = self.scalar_families(origin, left_value)?;
         let right_families = self.scalar_families(origin, right_value)?;
-        let comparable = match (&left_families, &right_families) {
+
+        // compare operands sharing exactly one scalar family
+        let is_comparable = match (&left_families, &right_families) {
             (Some(left), Some(right)) => left.len() == 1 && left == right,
-            _ => false,
+            (None, _) | (_, None) => false,
         };
-        let numeric = comparable
+        let is_numeric = is_comparable
             && left_families
                 .as_ref()
                 .is_some_and(dir::ScalarFamilySet::is_numeric);
 
+        // equality and logic produce builtin results directly
         let builtin = match operator {
             // require overlapping values with one common representation
             dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
@@ -169,7 +197,7 @@ impl BodyState<'_, '_> {
             }
             // nullish and same-kind scalar equality produce booleans
             dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
-                if nullish_or_never || (comparable && !numeric) =>
+                if is_nullish_or_never || (is_comparable && !is_numeric) =>
             {
                 let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
@@ -189,22 +217,24 @@ impl BodyState<'_, '_> {
             _ => None,
         };
         if let Some((result, left_target, right_target)) = builtin {
-            if let Some(key) = &selection_key {
-                self.check.selections.insert(
-                    *key,
-                    Selection::Builtin {
-                        result,
-                        operands: [left_target, right_target],
-                    },
-                );
-            }
-            self.check_builtin_operand(left_source, left, left_target)?;
-            self.check_builtin_operand(right_source, right, right_target)?;
-            let left = self.builtin_operand(origin, left_source, left_target)?;
-            let right = self.builtin_operand(origin, right_source, right_target)?;
+            self.decide_operator(
+                &question,
+                checks_before,
+                Selected::Builtin {
+                    result,
+                    operands: [left_target, right_target],
+                },
+            )?;
 
-            return self.commit_builtin_binary_operator(
-                origin, node, operator, left, right, result, writeback,
+            return self.commit_builtin_operands(
+                origin,
+                node,
+                operator,
+                (left_source, left),
+                (right_source, right),
+                [left_target, right_target],
+                result,
+                writeback,
             );
         }
 
@@ -212,20 +242,22 @@ impl BodyState<'_, '_> {
         if let Some((result, operands)) =
             self.builtin_numeric_result(origin, operator, left, right)?
         {
-            if let Some(key) = selection_key {
-                self.check
-                    .selections
-                    .insert(key, Selection::Builtin { result, operands });
-            }
+            self.decide_operator(
+                &question,
+                checks_before,
+                Selected::Builtin { result, operands },
+            )?;
 
             // operands check as arguments of the builtin operation
-            self.check_builtin_operand(left_source, left, operands[0])?;
-            self.check_builtin_operand(right_source, right, operands[1])?;
-            let left = self.builtin_operand(origin, left_source, operands[0])?;
-            let right = self.builtin_operand(origin, right_source, operands[1])?;
-
-            return self.commit_builtin_binary_operator(
-                origin, node, operator, left, right, result, writeback,
+            return self.commit_builtin_operands(
+                origin,
+                node,
+                operator,
+                (left_source, left),
+                (right_source, right),
+                [operands[0], operands[1]],
+                result,
+                writeback,
             );
         }
 
@@ -251,12 +283,11 @@ impl BodyState<'_, '_> {
                 continue;
             };
 
-            if let Some(key) = selection_key {
-                self.check.selections.insert(
-                    key,
-                    Selection::Protocol(call.clone(), protocol.expression_result),
-                );
-            }
+            self.decide_operator(
+                &question,
+                checks_before,
+                Selected::Protocol(call.clone(), protocol.expression_result),
+            )?;
 
             return self.commit_operator_call(
                 origin,
@@ -281,33 +312,72 @@ impl BodyState<'_, '_> {
             {
                 // record the selection so later passes replay this dispatch
                 let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
-                if let Some(key) = selection_key {
-                    self.check.selections.insert(
-                        key,
-                        Selection::Builtin {
-                            result,
-                            operands: [left_operand, right_operand],
-                        },
-                    );
-                }
+                self.decide_operator(
+                    &question,
+                    checks_before,
+                    Selected::Builtin {
+                        result,
+                        operands: [left_operand, right_operand],
+                    },
+                )?;
 
-                // check and lower both operands as builtin values
-                self.check_builtin_operand(left_source, left, left_operand)?;
-                self.check_builtin_operand(right_source, right, right_operand)?;
-                let left = self.builtin_operand(origin, left_source, left_operand)?;
-                let right = self.builtin_operand(origin, right_source, right_operand)?;
-
-                return self.commit_builtin_binary_operator(
-                    origin, node, operator, left, right, result, writeback,
+                return self.commit_builtin_operands(
+                    origin,
+                    node,
+                    operator,
+                    (left_source, left),
+                    (right_source, right),
+                    [left_operand, right_operand],
+                    result,
+                    writeback,
                 );
             }
         }
 
-        if let Some(key) = selection_key {
-            self.check.selections.insert(key, Selection::Rejected);
-        }
+        self.decide_operator(&question, checks_before, Selected::Rejected)?;
 
         self.reject_operator(node, origin, operator.text().to_string(), &[left, right])
+    }
+
+    /// Remember one decided operator selection for its canonical question.
+    fn decide_operator(
+        &mut self,
+        question: &Option<(Question, Arc<Canonical>)>,
+        checks_before: usize,
+        selected: Selected,
+    ) -> CompilerResult<()> {
+        if let Some((asked, canonical)) = question {
+            self.check.remember_answer(
+                asked,
+                canonical,
+                checks_before,
+                selected,
+                Answer::Selection,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Check and lower both operands as builtin values, committing the result.
+    #[allow(clippy::too_many_arguments)]
+    fn commit_builtin_operands(
+        &mut self,
+        origin: Origin,
+        node: dir::GlobalNodeIdAny,
+        operator: dir::BinaryOperator,
+        left: (dir::GlobalNodeIdAny, dir::GlobalTypeId),
+        right: (dir::GlobalNodeIdAny, dir::GlobalTypeId),
+        operands: [dir::GlobalTypeId; 2],
+        result: dir::GlobalTypeId,
+        writeback: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<()> {
+        self.check_builtin_operand(left.0, left.1, operands[0])?;
+        self.check_builtin_operand(right.0, right.1, operands[1])?;
+        let left = self.builtin_operand(origin, left.0, operands[0])?;
+        let right = self.builtin_operand(origin, right.0, operands[1])?;
+
+        self.commit_builtin_binary_operator(origin, node, operator, left, right, result, writeback)
     }
 
     /// Commit one selected operator protocol call at a node.
@@ -368,6 +438,21 @@ impl BodyState<'_, '_> {
         let origin = value_site.origin();
         let scrutinee_value = self.strip_form(origin, scrutinee)?;
         let mut selected = Vec::with_capacity(cases.len());
+
+        // wait for open operands before selecting a common representation
+        for operand in iter::once(scrutinee).chain(cases.iter().map(|(_, _, ty)| *ty)) {
+            let value = self.strip_form(origin, operand)?;
+            if let Some(stalled_on) = self.check.root_variable(value)? {
+                self.check.register_check(Check::Equality(EqualityCheck {
+                    value: value_source,
+                    scrutinee,
+                    cases: cases.to_vec(),
+                    stalled_on,
+                }))?;
+
+                return Ok(());
+            }
+        }
 
         // reject cases outside builtin strict equality
         for (case, selector, ty) in cases {
@@ -433,28 +518,6 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Defer one operator selection until its operands settle, committing an open hole.
-    fn defer_operator_selection(
-        &mut self,
-        site: FlowSite,
-        stalled_on: dir::TypeVariableId,
-    ) -> CompilerResult<()> {
-        let node = site.node;
-        if self.committed_node_type(node).is_none() {
-            let variable =
-                self.allocate_variable(site.origin(), Widening::Never, VariableRole::Regular);
-            let hole = self.variable_type(variable)?;
-            self.commit_node_type(node, hole)?;
-        }
-        self.check.register_check(Check::Selection(SelectionCheck {
-            site,
-            use_: PlaceUse::Read,
-            stalled_on: Some(stalled_on),
-        }));
-
-        Ok(())
-    }
-
     /// Select one unary operator application.
     pub(in crate::sema) fn select_unary_operator(
         &mut self,
@@ -500,11 +563,14 @@ impl BodyState<'_, '_> {
             let write_type = place.write.ty();
 
             if self.operand_is_numeric(origin, operand)? {
+                // commit the updated place as the operand's own decision
                 let source = place.source;
                 let resolution = place.clone().resolution();
                 self.commit_node_type(source, operand)?;
                 self.commit_decision(source, dir::Decision::Assignment(Box::new(resolution)))?;
                 self.record_access_use(source, dir::BindingUse::WRITTEN);
+
+                // require the place to accept a write at its scope
                 let scope = self.origin_scope(origin)?;
                 self.push_obligation(
                     Obligation::WritableTarget(Box::new(WritableTargetObligation {
@@ -512,7 +578,9 @@ impl BodyState<'_, '_> {
                         ty: operand,
                     })),
                     scope,
-                );
+                )?;
+
+                // require the rewritten value to store back into the place
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 self.push_relation(RelationCheck::new(
                     origin,
@@ -521,6 +589,8 @@ impl BodyState<'_, '_> {
                     write_type,
                     cause,
                 ))?;
+
+                // apply the builtin rewrite over the read value
                 let result = operand;
                 let operand = self.builtin_operand(origin, source, operand)?;
 
@@ -679,26 +749,22 @@ impl BodyState<'_, '_> {
             });
         };
 
-        // select one common type when equality requires a shared representation
-        let mut numeric = true;
+        // classify the operands equality must share a representation across
+        let mut is_numeric = true;
         for operand in &operands {
-            numeric &= self.operand_is_numeric(origin, *operand)?;
+            is_numeric &= self.operand_is_numeric(origin, *operand)?;
         }
         let mut has_union = false;
-        if !numeric {
+        if !is_numeric {
             for operand in &operands {
                 has_union |= matches!(self.ty(*operand)?, dir::Type::Union(_));
             }
         }
-        let common = if numeric {
+
+        // join every numeric operand into one carrier
+        let common = if is_numeric {
             let mut carrier = *first;
             for operand in rest {
-                // FUGU #Architecture: builtin_numeric_join collapses Verdict::Ambiguous
-                //  to false through .holds(), so an open operand arriving from
-                //  select_switch_equality hits the internal error below while it
-                //  should wait. A proper fix defers the whole switch equality
-                //  selection through infer_switch_statement's flow forking. Today
-                //  every test stays clear of it.
                 let Some(joined) = self.builtin_numeric_join(origin, carrier, *operand)? else {
                     return Err(CompilerError::Internal {
                         message: "comparable numeric operands have no common type".to_string(),
@@ -708,9 +774,13 @@ impl BodyState<'_, '_> {
             }
 
             Some(carrier)
-        } else if has_union {
+        }
+        // compare union operands through their joined type
+        else if has_union {
             Some(self.normalized_union_type(operands.iter().copied())?)
-        } else {
+        }
+        // require every other operand to agree exactly
+        else {
             let mut is_equal = true;
             for operand in rest {
                 is_equal &= self
@@ -745,14 +815,14 @@ impl BodyState<'_, '_> {
         let right = self.strip_form(origin, right)?;
 
         // classify both operands once
-        let numeric =
+        let is_numeric =
             self.operand_is_numeric(origin, left)? && self.operand_is_numeric(origin, right)?;
-        let integral = numeric
+        let is_integral = is_numeric
             && self.operand_is_integral(origin, left)?
             && self.operand_is_integral(origin, right)?;
 
         // fold literal operands through the const static operation
-        if numeric
+        if is_numeric
             && matches!(
                 (self.ty(left)?, self.ty(right)?),
                 (dir::Type::Literal(_), dir::Type::Literal(_))
@@ -760,13 +830,14 @@ impl BodyState<'_, '_> {
             && let Ok(static_operator) = dir::StaticBinaryOperator::try_from(operator)
             && !static_operator.yields_boolean()
         {
-            // evaluate non-integral joins in the float domain
-            let (left, right) = match integral {
-                true => (left, right),
-                false => (
-                    self.float_literal_operand(left)?,
-                    self.float_literal_operand(right)?,
-                ),
+            // evaluate fractional joins in the float domain
+            let (left, right) = if is_integral {
+                (left, right)
+            } else {
+                (
+                    self.operand_as_float_literal(left)?,
+                    self.operand_as_float_literal(right)?,
+                )
             };
 
             // fold the static operation over the two literals
@@ -787,19 +858,18 @@ impl BodyState<'_, '_> {
             dir::BinaryOperator::ShiftLeft
             | dir::BinaryOperator::ShiftRight
             | dir::BinaryOperator::UnsignedShiftRight
-                if integral =>
+                if is_integral =>
             {
                 let result = match self.ty(left)? {
-                    // typed shifts keep the left operand's integer type
+                    // bigint literals shift in the bigint domain
                     dir::Type::Literal(dir::ScalarLiteral::Bigint(_)) => {
                         self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Bigint))?
                     }
+                    // every other literal shifts in the default integer domain
                     dir::Type::Literal(_) => self.intern_type(dir::Type::Primitive(
-                        dir::PrimitiveType::Integer(dir::IntegerType::Fixed {
-                            width: 64,
-                            is_signed: true,
-                        }),
+                        dir::PrimitiveType::Integer(SHIFT_LITERAL_INTEGER),
                     ))?,
+                    // typed shifts keep the left operand's integer type
                     _ => left,
                 };
 
@@ -821,7 +891,7 @@ impl BodyState<'_, '_> {
             dir::BinaryOperator::ElementwiseAnd
             | dir::BinaryOperator::ElementwiseOr
             | dir::BinaryOperator::ElementwiseXor
-                if integral =>
+                if is_integral =>
             {
                 let joined = self.builtin_numeric_join(origin, left, right)?;
 
@@ -834,7 +904,7 @@ impl BodyState<'_, '_> {
             | dir::BinaryOperator::Divide
             | dir::BinaryOperator::Remainder
             | dir::BinaryOperator::Exponent
-                if numeric =>
+                if is_numeric =>
             {
                 let joined = self.builtin_numeric_join(origin, left, right)?;
 
@@ -847,7 +917,7 @@ impl BodyState<'_, '_> {
             | dir::BinaryOperator::LessThanOrEqual
             | dir::BinaryOperator::GreaterThan
             | dir::BinaryOperator::GreaterThanOrEqual
-                if numeric =>
+                if is_numeric =>
             {
                 let Some(joined) = self.builtin_numeric_join(origin, left, right)? else {
                     return Ok(None);
@@ -892,7 +962,6 @@ impl BodyState<'_, '_> {
 
         // concrete operands retain the ordinary checked value relation
         let cause = self.intern_cause(Cause::root(operand_site.origin(), CauseKind::Expression));
-
         let expectation = Expectation {
             target,
             relation: Relation::Assignable,
@@ -949,7 +1018,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Return one const integer literal lifted into the float domain.
-    fn float_literal_operand(
+    fn operand_as_float_literal(
         &mut self,
         operand: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -962,7 +1031,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Return one interval operand widened to its base scalar.
-    fn interval_operand_base(
+    fn operand_as_base_scalar(
         &mut self,
         operand: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -984,8 +1053,8 @@ impl BodyState<'_, '_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // interval operands widen to their base scalar under arithmetic
-        let left = self.interval_operand_base(left)?;
-        let right = self.interval_operand_base(right)?;
+        let left = self.operand_as_base_scalar(left)?;
+        let right = self.operand_as_base_scalar(right)?;
 
         // literals adapt into the other operand's type
         let left_literal = match self.ty(left)? {
@@ -1266,9 +1335,9 @@ impl BodyState<'_, '_> {
 
 /// Rebind every provided argument in one memoized call onto a new operand.
 fn rebind_call_arguments(resolution: &mut dir::CallDecision, operand: dir::GlobalNodeIdAny) {
-    let calls: &mut dyn Iterator<Item = &mut dir::Call> = match resolution {
-        dir::OperationResolution::One(call) => &mut std::iter::once(call),
-        dir::OperationResolution::Union { arms, .. } => &mut arms.iter_mut(),
+    let calls = match resolution {
+        dir::OperationResolution::One(call) => slice::from_mut(call),
+        dir::OperationResolution::Union { arms, .. } => arms.as_mut_slice(),
     };
     for call in calls {
         for argument in &mut call.arguments {

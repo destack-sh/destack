@@ -4,9 +4,9 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Cause, CauseKind, Check, CheckEvent, CheckFailure, CheckId, CheckOutcome, CheckState,
-    CheckTable, ConversionCheck, FailedCheck, FlowNarrowing, NarrowingCheck, NodeCheck,
-    ObligationEntry, ObligationPhase, Relation, RelationCheck, SelectionCheck, Settle, Verdict,
-    WorkState,
+    CheckTable, ConversionCheck, EqualityCheck, FailedCheck, FlowNarrowing, NarrowingCheck,
+    NodeCheck, ObligationEntry, ObligationPhase, Relation, RelationCheck, SelectionCheck, Settle,
+    Verdict, WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -201,40 +201,29 @@ impl Fulfillment {
 
 impl CheckState<'_> {
     /// Register one check with fulfillment, queuing it to step.
-    pub(in crate::sema) fn register_check(&mut self, check: Check) -> CheckId {
-        let produces = self.check_produces(&check).unwrap_or_default();
+    pub(in crate::sema) fn register_check(&mut self, check: Check) -> CompilerResult<CheckId> {
+        let produces = self.check_produces(&check)?;
         let id = self.fulfill.checks.allocate(check);
         self.fulfill.register_work(id, produces);
 
-        id
+        Ok(id)
     }
 
     /// Register one check already stalled on the blockers it waits behind.
-    ///
-    /// A check still behind an open inference barrier watches its blockers like any
-    /// other stalled work.
-    /// A check bouncing back onto the ready queue every round stays live with a target
-    /// naming the blocker, which the fulfillment queue reads as a producer still able
-    /// to grow it.
     pub(in crate::sema) fn register_check_stalled(
         &mut self,
         check: Check,
         blockers: &[dir::TypeVariableId],
-    ) -> CheckId {
-        let produces = self.check_produces(&check).unwrap_or_default();
+    ) -> CompilerResult<CheckId> {
+        let produces = self.check_produces(&check)?;
         let id = self.fulfill.checks.allocate(check);
         self.fulfill.register_work(id, produces);
         self.fulfill.stall_work(id, blockers);
 
-        id
+        Ok(id)
     }
 
     /// Return the open variables one check's completion can still bound.
-    ///
-    /// A blocked node lands its result on the expectation target, a
-    /// narrowing solves its own hole, and a reselection overwrites the hole
-    /// it minted at its site; every other check contributed its bounds when
-    /// it was collected.
     fn check_produces(&self, check: &Check) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
         let mut produces = SmallVec::new();
         match check {
@@ -256,14 +245,18 @@ impl CheckState<'_> {
                     produces.push(root);
                 }
             }
-            Check::Relation(_) | Check::Conversion(_) | Check::Declared(_) => {}
+            Check::Relation(_) | Check::Conversion(_) | Check::Declared(_) | Check::Equality(_) => {
+            }
         }
 
         Ok(produces)
     }
 
     /// Collect one relation and queue it without attempting it yet.
-    pub(in crate::sema) fn register_relation(&mut self, relation: RelationCheck) -> CheckId {
+    pub(in crate::sema) fn register_relation(
+        &mut self,
+        relation: RelationCheck,
+    ) -> CompilerResult<CheckId> {
         self.register_check(Check::Relation(relation))
     }
 
@@ -314,6 +307,7 @@ impl CheckState<'_> {
             Check::Conversion(conversion) => self.step_conversion(id, conversion, settle),
             Check::Narrowing(narrowing) => self.step_narrowing(id, narrowing, settle),
             Check::Selection(selection) => self.step_selection(id, selection, settle),
+            Check::Equality(equality) => self.step_equality(id, equality, settle),
             Check::Declared(entry) => self.step_declared(id, entry, settle),
         }
     }
@@ -505,6 +499,30 @@ impl CheckState<'_> {
         self.fulfill.finish_work(id);
         let mut body = self.body();
         body.attempt_node(selection.site, selection.use_, None)?;
+
+        Ok(self.fulfill.checks.state(id) == WorkState::Done)
+    }
+
+    /// Step one stalled switch equality selection, returning whether it completed.
+    fn step_equality(
+        &mut self,
+        id: CheckId,
+        equality: EqualityCheck,
+        settle: Settle,
+    ) -> CompilerResult<bool> {
+        // wait for the stalled selection's blocker to solve
+        let root = self.infer.alias_root(equality.stalled_on)?;
+        self.settle_blockers(settle, &[root])?;
+        if self.infer.variable(root)?.state.is_open() {
+            self.fulfill.stall_work(id, &[root]);
+
+            return Ok(false);
+        }
+
+        // reattempt the selection, which re-registers itself while blocked
+        self.fulfill.finish_work(id);
+        let mut body = self.body();
+        body.select_switch_equality(equality.value, equality.scrutinee, &equality.cases)?;
 
         Ok(self.fulfill.checks.state(id) == WorkState::Done)
     }

@@ -144,11 +144,9 @@ impl CheckState<'_> {
         }
 
         // select a visible extension implementation
-        let module = origin.module();
         let implemented = self.body().decide_extension_implementation(
             origin,
             relation,
-            module,
             target.module_id,
             source,
             &target_instance,

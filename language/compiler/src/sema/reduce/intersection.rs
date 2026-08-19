@@ -63,7 +63,7 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // collect the elements this intersection merges
+        // collect the elements this intersection merges, each once
         let mut closed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for element in elements {
             let element = self.shallow_resolve(*element)?;
@@ -71,12 +71,17 @@ impl CheckState<'_> {
             if let dir::Type::Intersection(nested) = self.ty(head)? {
                 let nested = self.type_ids(head.module_id, nested.elements)?.to_vec();
                 for nested in nested {
-                    closed.push(self.shallow_resolve(nested)?);
+                    let nested = self.shallow_resolve(nested)?;
+                    if !closed.contains(&nested) {
+                        closed.push(nested);
+                    }
                 }
 
                 continue;
             }
-            closed.push(element);
+            if !closed.contains(&element) {
+                closed.push(element);
+            }
         }
 
         // distribute the intersection over one union element at a time

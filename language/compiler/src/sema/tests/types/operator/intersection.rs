@@ -266,7 +266,7 @@ type Wide = { value: string | int32 };
 type Narrow = { value: string; extra: string };
 type Value = Wide & Narrow;
 
-const value: { value: string & string; extra: string } = { value: "ok", extra: "yes" };
+const value: { value: string; extra: string } = { value: "ok", extra: "yes" };
 value.value satisfies string;
 value.extra satisfies string;
 
@@ -280,7 +280,7 @@ type Narrow = { value: string; extra: string };
 /// @definition.type symbol=Narrow source="type Narrow = { value: string; extra: string }" value={ value: string; extra: string }
 
 type Value = Wide & Narrow;
-/// @type.symbol symbol=Value source="type Value = Wide & Narrow" type={ value: string & string; extra: string }
+/// @type.symbol symbol=Value source="type Value = Wide & Narrow" type={ value: string; extra: string }
 /// @definition.type symbol=Value source="type Value = Wide & Narrow" value={ value: string; extra: string }
 /// @resolution.name source=Wide target=Wide
 /// @resolution.name source=Narrow target=Narrow

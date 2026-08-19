@@ -52,7 +52,7 @@ impl WalkState<'_, '_> {
                     },
                 }),
                 self.flow().template_scope(),
-            );
+            )?;
         }
 
         Ok(())

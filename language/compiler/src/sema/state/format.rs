@@ -51,6 +51,8 @@ impl CheckState<'_> {
 
         let rendered = match self.ty(id)? {
             dir::Type::Error => "<error>".to_string(),
+            dir::Type::Hole(hole) => format!("?{hole}"),
+            dir::Type::Rigid(rigid) => format!("^{rigid}"),
             dir::Type::Never => "never".to_string(),
             dir::Type::Any => "any".to_string(),
             dir::Type::Unknown => "unknown".to_string(),

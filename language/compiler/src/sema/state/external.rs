@@ -34,6 +34,8 @@ pub(in crate::sema) struct CheckExternalModuleState {
     pub(in crate::sema) definitions: dir::DefinitionTable<'static>,
     /// The committed member table, elaborated while checking.
     pub(in crate::sema) members: dir::MemberTable<'static>,
+    /// The decided conformances and winners, carried once elaborate ran.
+    pub(in crate::sema) auto: Option<Arc<dir::AutoSegment>>,
     /// The modules the loaded entries mention, empty while elaborating.
     pub(in crate::sema) references: Vec<ModuleId>,
 }
@@ -361,6 +363,7 @@ impl CheckState<'_> {
             coercions: Self::empty_coercions(module),
             definitions: declared.definition_table(),
             members: declared.member_table(),
+            auto: None,
             references: declared.references.clone(),
             resolved,
             parsed,
@@ -399,6 +402,7 @@ impl CheckState<'_> {
             coercions: Self::empty_coercions(module),
             definitions: elaborated.definition_table(),
             members: elaborated.member_table(),
+            auto: Some(Arc::clone(&elaborated.auto)),
             references,
             resolved,
             parsed,
@@ -437,7 +441,8 @@ impl CheckState<'_> {
             decisions: checked.decision_table(&declared, &elaborated),
             coercions: checked.coercion_table(),
             definitions: checked.definition_table(&elaborated),
-            members: checked.member_table(),
+            members: checked.member_table(&elaborated),
+            auto: Some(Arc::clone(&elaborated.auto)),
             references,
             resolved,
             parsed,

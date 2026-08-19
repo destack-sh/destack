@@ -12,11 +12,10 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace, DecoratorApplication,
-    ExtensionCandidateKey, ExtensionCandidates, ExternalModuleTable, FlowBranch, FlowState,
-    Fulfillment, FunctionBody, GenericParameterId, HeritageReach, InducedParameterSite,
-    InferContext, Origin, OriginId, Relation, RelationKey, Selection, SelectionKey, VarianceForm,
-    VarianceState, Verdict, should_stream_check_events,
+    Answer, BoundSet, Canonical, Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace,
+    DecoratorApplication, ExternalModuleTable, FlowBranch, FlowState, Fulfillment, FunctionBody,
+    GenericParameterId, HeritageReach, InducedParameterSite, InferContext, Origin, OriginId,
+    Premise, Question, Relation, VarianceForm, VarianceState, should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -100,17 +99,23 @@ impl NodeTable {
     }
 
     /// Roll journaled inserts back to one probe mark.
-    pub(in crate::sema) fn close_probe(&mut self, mark: usize) {
+    pub(in crate::sema) fn close_probe(&mut self, mark: usize) -> CompilerResult<()> {
         while self.journal.len() > mark {
-            let (node, prior) = self.journal.pop().expect("journaled probe entry");
-            let column = self
-                .columns
-                .get_mut(&node.module_id)
-                .expect("journaled column");
+            let Some((node, prior)) = self.journal.pop() else {
+                return Err(CompilerError::Internal {
+                    message: "node journal ended before its probe mark".to_string(),
+                });
+            };
+            let Some(column) = self.columns.get_mut(&node.module_id) else {
+                return Err(CompilerError::Internal {
+                    message: format!("journaled node {node:?} has no column"),
+                });
+            };
             column[node.local_id.id as usize] = prior.map(|ty| (node.local_id.ty, ty));
         }
-
         self.probes -= 1;
+
+        Ok(())
     }
 }
 
@@ -134,7 +139,7 @@ pub(in crate::sema) struct CheckState<'a> {
     /// The ambient environment captured by the current revision.
     pub(in crate::sema) environment: Arc<Environment>,
 
-    // self
+    // module
     /// The module being declared or checked.
     pub(in crate::sema) module_id: ModuleId,
     /// The module's working state.
@@ -148,46 +153,83 @@ pub(in crate::sema) struct CheckState<'a> {
     /// Resolved import targets of external modules read for alias hops.
     pub(in crate::sema) external_resolved: FxIndexMap<ModuleId, Arc<DirResolved>>,
 
-    // decisions
-    /// Decided relations between settled type pairs.
-    pub(in crate::sema) relates: FxIndexMap<RelationKey, bool>,
-    /// Canonical member bindings per owner and space.
-    pub(in crate::sema) bindings:
-        FxIndexMap<(dir::GlobalSymbolId, dir::MemberSpace), Option<Arc<Vec<dir::MemberBinding>>>>,
-    /// Extension selections of settled goals, replaying the winning implementation on later hits.
-    pub(in crate::sema) extensions: FxIndexMap<
-        (Relation, dir::GlobalTypeId, dir::GlobalTypeId),
-        (Verdict, Option<dir::GlobalSymbolId>),
+    // canonical questions
+    /// Decided answers per canonical question, replayed on later asks.
+    pub(in crate::sema) answers: FxIndexMap<Question, Answer>,
+    /// Canonical operand pairs per interned operands and assuming scope.
+    pub(in crate::sema) canonicals: FxIndexMap<
+        ([dir::GlobalTypeId; 2], Option<dir::GlobalGenericTemplateId>),
+        Option<Arc<Canonical>>,
     >,
-    /// Work counters for the stats sidecar.
-    pub(in crate::sema) counters: CheckCounters,
-    /// Normalized heads of settled types.
-    pub(in crate::sema) normalizations: FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+    /// Interned assumed bound sets, shared by questions with equal content.
+    pub(in crate::sema) bound_sets: FxIndexSet<BoundSet>,
+    /// Assumed bound content per scope and numbered parameter list.
+    pub(in crate::sema) premise_contents: FxIndexMap<
+        (
+            Option<dir::GlobalGenericTemplateId>,
+            SmallVec<[GenericParameterId; 4]>,
+        ),
+        (SmallVec<[GenericParameterId; 4]>, Option<Premise>),
+    >,
+    /// Assuming templates per declared scope.
+    pub(in crate::sema) assuming_scopes:
+        FxIndexMap<Option<dir::GlobalGenericTemplateId>, Option<dir::GlobalGenericTemplateId>>,
+
+    // graph memos
+    /// Normalized heads per canonical type and assuming template.
+    pub(in crate::sema) normalizations:
+        FxIndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
     /// Barrier-erased forms of closed contextual targets.
     pub(in crate::sema) erasures: FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     /// Extension symbols visible per looking module and target declaration.
     pub(in crate::sema) extension_sets:
         FxIndexMap<(ModuleId, dir::GlobalSymbolId), SmallVec<[dir::GlobalSymbolId; 4]>>,
-    /// Extension member candidates decided once per extension and subject identity.
-    pub(in crate::sema) extension_candidates:
-        FxIndexMap<ExtensionCandidateKey, ExtensionCandidates>,
-    /// Whether writeback is settling declared-form member bindings.
-    pub(in crate::sema) settling: bool,
-    /// Decided auto interface conformances of settled types.
-    pub(in crate::sema) conforms: FxIndexMap<(dir::GlobalTypeId, dir::AutoInterface), bool>,
+    /// Member keys each blanket extension can expose.
+    pub(in crate::sema) blanket_keys: FxIndexMap<dir::GlobalSymbolId, FxIndexSet<dir::StaticKey>>,
+    /// Written-syntax ranks per generic parameter.
+    pub(in crate::sema) argument_ranks:
+        FxIndexMap<GenericParameterId, (usize, Option<dir::GlobalGenericTemplateId>, usize)>,
+    /// Scalar families per settled ground type.
+    pub(in crate::sema) scalar_families:
+        FxIndexMap<dir::GlobalTypeId, Option<dir::ScalarFamilySet>>,
+    /// Aliasing per settled ground type.
+    pub(in crate::sema) aliased: FxIndexMap<dir::GlobalTypeId, bool>,
+    /// Canonical member bindings per owner and space.
+    pub(in crate::sema) bindings:
+        FxIndexMap<(dir::GlobalSymbolId, dir::MemberSpace), Option<Arc<Vec<dir::MemberBinding>>>>,
     /// Declarations reached by each declaration's heritage.
     pub(in crate::sema) heritages: FxIndexMap<dir::GlobalSymbolId, HeritageReach>,
+    /// Decided auto interface conformances per canonical type and assuming template.
+    pub(in crate::sema) conformances: FxIndexMap<
+        (
+            dir::GlobalTypeId,
+            dir::AutoInterface,
+            Option<dir::GlobalGenericTemplateId>,
+        ),
+        bool,
+    >,
+    /// Storable representations proved this pass.
+    pub(in crate::sema) storables:
+        FxIndexSet<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>)>,
+    /// Substituted graphs per closed template type and substitution content.
+    pub(in crate::sema) substitutions: FxIndexMap<
+        (dir::GlobalTypeId, Option<dir::GlobalTypeId>, u64),
+        (
+            SmallVec<[dir::GenericArgumentBinding; 4]>,
+            dir::GlobalTypeId,
+        ),
+    >,
+    /// Derived parameter variances per handle form, with in-flight marks.
+    pub(in crate::sema) variances:
+        FxIndexMap<(dir::GlobalGenericParameterId, VarianceForm), VarianceState>,
+
+    // cycle guards
     /// Active derivability goals closed coinductively on re-entry.
     pub(in crate::sema) deriving: FxIndexSet<(dir::GlobalTypeId, dir::AutoInterface)>,
     /// Active extension member lookups closed coinductively on re-entry.
     pub(in crate::sema) extending: FxIndexSet<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
-    /// Storable representations proved this pass.
-    pub(in crate::sema) storable: FxIndexSet<dir::GlobalTypeId>,
-    /// Selected and instantiated callables keyed by callee and operand types.
-    pub(in crate::sema) selections: FxIndexMap<SelectionKey, Selection>,
-    /// Derived parameter variances per handle form, with in-flight marks.
-    pub(in crate::sema) variances:
-        FxIndexMap<(dir::GlobalGenericParameterId, VarianceForm), VarianceState>,
+    /// Extension applicability goals currently deciding.
+    pub(in crate::sema) deciding: FxIndexSet<(Relation, dir::GlobalTypeId, dir::GlobalTypeId)>,
 
     /// The module's transient inference state.
     pub(in crate::sema) infer: InferContext,
@@ -223,9 +265,8 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) walked_declarations: FxIndexSet<dir::GlobalNodeIdAny>,
     /// Declarations currently walking, innermost last.
     pub(in crate::sema) walking_declarations: Vec<dir::GlobalNodeIdAny>,
-    /// Extension applicability goals currently deciding, for cycle breaking.
-    pub(in crate::sema) deciding_extensions:
-        FxIndexSet<(Relation, dir::GlobalTypeId, dir::GlobalTypeId)>,
+    /// Whether writeback is settling declared-form member bindings.
+    pub(in crate::sema) is_settling: bool,
 
     // body driver state
     /// Named function bodies keyed by their declaration symbol.
@@ -235,7 +276,9 @@ pub(in crate::sema) struct CheckState<'a> {
     /// Lambda bodies keyed by their value expression.
     pub(in crate::sema) lambdas: FxIndexMap<dir::GlobalNodeIdAny, FunctionBody>,
 
-    // tracing
+    // stats
+    /// Work counters for the stats sidecar.
+    pub(in crate::sema) counters: CheckCounters,
     /// Retained trace state, present only when tracing is requested.
     pub(in crate::sema) trace: Option<Box<CheckTrace>>,
 }
@@ -319,21 +362,27 @@ impl<'a> CheckState<'a> {
             external_modules: ExternalModuleTable::default(),
             external_resolved: FxIndexMap::default(),
             pass,
-            relates: FxIndexMap::default(),
+            assuming_scopes: FxIndexMap::default(),
+            answers: FxIndexMap::default(),
             bindings: FxIndexMap::default(),
-            extensions: FxIndexMap::default(),
+            canonicals: FxIndexMap::default(),
+            bound_sets: FxIndexSet::default(),
+            premise_contents: FxIndexMap::default(),
             extension_sets: FxIndexMap::default(),
-            extension_candidates: FxIndexMap::default(),
+            blanket_keys: FxIndexMap::default(),
             counters: CheckCounters::default(),
             normalizations: FxIndexMap::default(),
             erasures: FxIndexMap::default(),
-            settling: false,
-            conforms: FxIndexMap::default(),
+            argument_ranks: FxIndexMap::default(),
+            scalar_families: FxIndexMap::default(),
+            aliased: FxIndexMap::default(),
+            is_settling: false,
+            conformances: FxIndexMap::default(),
             heritages: FxIndexMap::default(),
             deriving: FxIndexSet::default(),
             extending: FxIndexSet::default(),
-            storable: FxIndexSet::default(),
-            selections: FxIndexMap::default(),
+            storables: FxIndexSet::default(),
+            substitutions: FxIndexMap::default(),
             variances: FxIndexMap::default(),
             infer: InferContext::new(),
             fulfill: Fulfillment::new(),
@@ -349,7 +398,7 @@ impl<'a> CheckState<'a> {
             expected_types: NodeTable::default(),
             walked_declarations: FxIndexSet::default(),
             walking_declarations: Vec::new(),
-            deciding_extensions: FxIndexSet::default(),
+            deciding: FxIndexSet::default(),
             functions: FxIndexMap::default(),
             blocks: Vec::new(),
             lambdas: FxIndexMap::default(),
@@ -696,18 +745,31 @@ impl CheckState<'_> {
             }
         }
 
-        // operation payloads contribute their own symbolic flags
+        // merge the flags of operation payloads
         if let dir::Type::Operation(operation) = ty {
             child_flags |= self.type_operation(module, operation)?.own_flags();
         }
 
+        // mark alias heads for lazy normalization
+        let is_alias = match &ty {
+            dir::Type::Application(instance) => matches!(
+                self.definition(instance.symbol)?,
+                Some(dir::Definition::TypeAlias(_))
+            ),
+            dir::Type::Reference(reference) => matches!(
+                self.definition(reference.symbol)?,
+                Some(dir::Definition::TypeAlias(_))
+            ),
+            _ => false,
+        };
+        if is_alias {
+            child_flags |= dir::TypeFlags::HAS_ALIAS;
+        }
+
         // keep written alias and collection applications intact, normalizing them lazily
-        let is_written_alias = match &ty {
-            dir::Type::Application(instance) => {
-                matches!(
-                    self.definition(instance.symbol)?,
-                    Some(dir::Definition::TypeAlias(_))
-                ) || matches!(
+        let is_written_alias = is_alias
+            || match &ty {
+                dir::Type::Application(instance) => matches!(
                     self.language_item(instance.symbol)?,
                     Some(
                         dir::LanguageItem::Array
@@ -715,10 +777,9 @@ impl CheckState<'_> {
                             | dir::LanguageItem::FixedArray
                             | dir::LanguageItem::Dynamic
                     )
-                )
-            }
-            _ => false,
-        };
+                ),
+                _ => false,
+            };
 
         // store the type in this module's working tail
         let (local, inserted) = self.module.types_tail.intern_type_inserted(ty, child_flags);
@@ -1311,6 +1372,8 @@ impl CheckState<'_> {
         let ty = match ty {
             // leaves without child types
             dir::Type::Variable(_)
+            | dir::Type::Hole(_)
+            | dir::Type::Rigid(_)
             | dir::Type::Error
             | dir::Type::Never
             | dir::Type::Any

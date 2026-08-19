@@ -498,13 +498,13 @@ declare const point: ^Point;
 witness<Point>(point);
 
 declare const pair: ^Pair;
-witness<^Pair>(pair);
+witness(pair);
 
 declare const object: ^{ value: int32 };
 witness<^{ value: int32 }>(object);
 
 declare const named: ^Named;
-witness<^Named>(named);
+witness(named);
 
 declare const values: ^int32[];
 witness(values);
@@ -604,8 +604,8 @@ declare const pair: ^Pair;
 
 witness(pair);
 /// @resolution.name source=witness target=witness
-/// @resolution.call source=witness(pair) parameters=(Owned<Pair>) arguments=(provided(pair) as Owned<Pair>) return=Owned<Pair> kind=symbol target=witness instance=witness<Owned<Pair>>
-/// @generic.instantiation id=witness<Owned<Pair>> template=witness arguments=(Owned<Pair>)
+/// @resolution.call source=witness(pair) parameters=(<error>) arguments=(provided(pair) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @generic.instantiation id=witness<<error>> template=witness arguments=(<error>)
 /// @resolution.name source=pair target=pair
 /// @resolution.place source=pair placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
@@ -629,8 +629,7 @@ declare const named: ^Named;
 
 witness(named);
 /// @resolution.name source=witness target=witness
-/// @resolution.call source=witness(named) parameters=(Owned<Named>) arguments=(provided(named) as Owned<Named>) return=Owned<Named> kind=symbol target=witness instance=witness<Owned<Named>>
-/// @generic.instantiation id=witness<Owned<Named>> template=witness arguments=(Owned<Named>)
+/// @resolution.call source=witness(named) parameters=(<error>) arguments=(provided(named) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
 /// @resolution.name source=named target=named
 /// @resolution.place source=named placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=named root=named
@@ -716,6 +715,9 @@ witness(big);
 /// @resolution.access source=big root=big
 "#,
         r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^Pair' does not satisfy 'Copy'"
+/// @diagnostic.label line=26 column=1 span="witness(pair)" line_source="witness(pair);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
 /// @diagnostic.error id=constraint-not-satisfied message="type '^int32[]' does not satisfy 'Copy'"
 /// @diagnostic.label line=35 column=1 span="witness(values)" line_source="witness(values);"
 /// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
@@ -736,6 +738,9 @@ witness(big);
 /// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
 /// @diagnostic.error id=constraint-not-satisfied message="type '^bigint' does not satisfy 'Copy'"
 /// @diagnostic.label line=53 column=1 span="witness(big)" line_source="witness(big);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^Named' does not satisfy 'Copy'"
+/// @diagnostic.label line=32 column=1 span="witness(named)" line_source="witness(named);"
 /// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
 "#,
     );

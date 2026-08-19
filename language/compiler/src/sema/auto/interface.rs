@@ -89,17 +89,18 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<Verdict> {
-        // decide conformance once over variable-free types
+        // decide conformance once over variable-free types under the assuming template
         let flags = self.type_flags(ty)?;
-        let key = if flags.has_variable() || flags.has_parameter() || flags.has_this() {
+        let key = if flags.has_variable() {
             None
         } else {
-            Some((ty, interface))
+            self.decision_scope(origin, flags)?
+                .map(|assumes| (ty, interface, assumes))
         };
 
         // serve the memoized verdict
         if let Some(key) = &key
-            && let Some(holds) = self.conforms.get(key)
+            && let Some(holds) = self.conformances.get(key)
         {
             return Ok(Verdict::decided(*holds));
         }
@@ -107,7 +108,7 @@ impl CheckState<'_> {
         // use bounds declared by generic types
         if let Some(decision) = self.decide_generic_auto_interface(origin, ty, interface)? {
             if let Some(key) = key {
-                self.conforms.insert(key, decision);
+                self.conformances.insert(key, decision);
             }
 
             return Ok(Verdict::decided(decision));
@@ -123,7 +124,7 @@ impl CheckState<'_> {
                 .is_some_and(|derives| !derives.contains(&interface));
             if excluded {
                 if let Some(key) = key {
-                    self.conforms.insert(key, false);
+                    self.conformances.insert(key, false);
                 }
 
                 return Ok(Verdict::Fails);
@@ -189,7 +190,7 @@ impl CheckState<'_> {
         if let Some(key) = key
             && verdict != Verdict::Ambiguous
         {
-            self.conforms.insert(key, verdict.holds());
+            self.conformances.insert(key, verdict.holds());
         }
 
         Ok(verdict)

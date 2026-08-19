@@ -42,10 +42,18 @@ impl BodyState<'_, '_> {
                 if self.check.committed_node_type(node.into_any()).is_none()
                     && let [symbol] = resolution.symbols()
                 {
-                    // replay a frameless read without re-checking it
-                    let bindings = self.check.binding_table(symbol.module_id);
-                    let is_module_binding =
-                        bindings.get_symbol(symbol.local_id).scope.id == bindings.module_scope().id;
+                    // read the binding scope out of the module under check
+                    let is_module_binding = if self.check.is_own_module(symbol.module_id) {
+                        let module = &self.check.module;
+                        module.symbol(symbol.local_id).scope.id == module.bindings.module_scope().id
+                    }
+                    // otherwise read it from the imported module's binding table
+                    else {
+                        let bindings = self.check.binding_table(symbol.module_id);
+                        bindings.get_symbol(symbol.local_id).scope.id == bindings.module_scope().id
+                    };
+
+                    // replay a module read at any point, a local read inside its frame
                     if is_module_binding || self.check.flow.current_function().is_some() {
                         self.check
                             .check_assigned_read(node.local_id.into_any(), *symbol);

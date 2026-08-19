@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::sema::{CheckState, Origin, Verdict};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Decide whether one type duplicates implicitly without ownership.
@@ -74,8 +74,8 @@ impl CheckState<'_> {
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
         match kind {
-            // leave an open variable undecided
-            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
+            // leave an open variable or canonical hole undecided
+            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -109,11 +109,12 @@ impl CheckState<'_> {
             | dir::Type::Function(_)
             | dir::Type::Reference(_) => Ok(Verdict::Fails),
             // fail loudly on generic forms that survived substitution
-            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
-                Err(crate::CompilerError::Internal {
-                    message: format!("generic type {ty:?} reached structural copy"),
-                })
-            }
+            dir::Type::Parameter(_)
+            | dir::Type::Rigid(_)
+            | dir::Type::Erased(_)
+            | dir::Type::This => Err(CompilerError::Internal {
+                message: format!("generic type {ty:?} reached structural copy"),
+            }),
             // explicit memory forms decide before structural storage
             dir::Type::Form(_) => unreachable!("memory forms return before structural copy"),
             // judge nominal storage through its declaration
@@ -240,9 +241,11 @@ impl CheckState<'_> {
         };
 
         match definition {
+            // look through an alias to the type it names
             dir::Definition::TypeAlias(definition) => {
                 self.satisfies_copy(origin, definition.value, active)
             }
+            // copy a struct once every field copies
             dir::Definition::Struct(definition) => {
                 let mut fields = SmallVec::<[_; 8]>::new();
                 for member in &definition.members {
@@ -255,7 +258,9 @@ impl CheckState<'_> {
 
                 self.all_applied_copy(origin, instance_module, &instance, fields, active)
             }
+            // copy an enum at its integer tag or managed string reference
             dir::Definition::Enum(_) => Ok(Verdict::Holds),
+            // copy a newtype once its backing type copies
             dir::Definition::Newtype(definition) => self.all_applied_copy(
                 origin,
                 instance_module,
@@ -263,23 +268,11 @@ impl CheckState<'_> {
                 [definition.backing],
                 active,
             ),
-            dir::Definition::Class(definition) => {
-                let mut fields = SmallVec::<[_; 8]>::new();
-                // owned base values store their fields inline
-                if let Some(extends) = &definition.extends {
-                    fields.push(extends.ty);
-                }
-                for member in &definition.members {
-                    if let dir::DefinitionMember::Field(_) = member
-                        && let Some(ty) = self.definition_member_type(member)?
-                    {
-                        fields.push(ty);
-                    }
-                }
-
-                self.all_applied_copy(origin, instance_module, &instance, fields, active)
-            }
+            // move class values
+            dir::Definition::Class(_) => Ok(Verdict::Fails),
+            // move interface values
             dir::Definition::Interface(_) => Ok(Verdict::Fails),
+            // move extension values
             dir::Definition::Extension(_) => Ok(Verdict::Fails),
         }
     }

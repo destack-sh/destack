@@ -5,13 +5,14 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Check, CheckState, FlowSite,
-    InferMode, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation, SelectionCheck,
-    SignatureMatch, TypeSubstitution, UnboundParameters, Value, ValueUse, VariableRole, Widening,
+    BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Check, CheckState,
+    ExtensionMatch, FlowSite, InferMode, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation,
+    RelationCheck, SelectionCheck, SignatureMatch, TypeSubstitution, UnboundParameters, Value,
+    ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
-pub(in crate::sema) use destack_dir::MemberRole;
+use destack_dir::MemberRole;
 
 /// One field found by member lookup.
 #[derive(Debug, Clone)]
@@ -50,6 +51,8 @@ pub(in crate::sema) enum MemberLookup {
     Union(Vec<MemberArmLookup>),
     /// One intersection receiver imposes every constituent lookup.
     Intersection(Vec<MemberLookup>),
+    /// The lookup re-entered an in-flight extension decision and stays undecided.
+    Undecided,
 }
 
 /// One member lookup selected for a runtime union arm.
@@ -285,19 +288,36 @@ impl MemberLookup {
 
                 Some(candidates)
             }
-            Self::Missing | Self::Field(_) | Self::Union(_) => None,
+            Self::Missing | Self::Field(_) | Self::Union(_) | Self::Undecided => None,
         }
     }
 
     /// Return whether lookup found at least one member.
     pub(in crate::sema) fn is_found(&self) -> bool {
-        !matches!(self, Self::Missing)
+        !matches!(self, Self::Missing | Self::Undecided)
+    }
+
+    /// Return whether this lookup's shape survives canonical storage.
+    pub(in crate::sema) fn is_canonical(&self) -> bool {
+        match self {
+            Self::Missing => true,
+            Self::Field(FieldLookup::Structural { receiver, .. }) => {
+                matches!(receiver, LookupReceiver::Direct(_))
+            }
+            Self::Field(FieldLookup::Projection { .. }) => false,
+            Self::Found(candidates) => candidates
+                .iter()
+                .all(|candidate| matches!(candidate.receiver, LookupReceiver::Direct(_))),
+            Self::Union(arms) => arms.iter().all(|arm| arm.lookup.is_canonical()),
+            Self::Intersection(lookups) => lookups.iter().all(Self::is_canonical),
+            Self::Undecided => false,
+        }
     }
 
     /// Return the declaration candidates selected by lookup precedence.
     fn declaration_candidates(&self) -> Vec<&MemberCandidate> {
         match self {
-            Self::Missing | Self::Field(_) => Vec::new(),
+            Self::Missing | Self::Field(_) | Self::Undecided => Vec::new(),
             Self::Found(candidates) => Self::selected_candidates(candidates),
             Self::Union(arms) => arms
                 .iter()
@@ -323,7 +343,7 @@ impl MemberLookup {
     /// Return whether this lookup may produce an absent member.
     fn is_optional(&self) -> bool {
         match self {
-            Self::Missing => false,
+            Self::Missing | Self::Undecided => false,
             Self::Field(field) => field.is_optional(),
             Self::Found(candidates) => Self::selected_candidates(candidates)
                 .into_iter()
@@ -365,7 +385,8 @@ impl MemberLookup {
             | Self::Field(FieldLookup::Structural { .. })
             | Self::Field(FieldLookup::Projection { .. })
             | Self::Union(_)
-            | Self::Intersection(_) => None,
+            | Self::Intersection(_)
+            | Self::Undecided => None,
         }
     }
 
@@ -386,7 +407,7 @@ impl MemberLookup {
     /// Collect member kinds selected by this lookup.
     fn collect_kinds(&self, kinds: &mut Vec<dir::MemberKind>) {
         match self {
-            Self::Missing => {}
+            Self::Missing | Self::Undecided => {}
             Self::Field(_) => kinds.push(dir::MemberKind::Field),
             Self::Found(candidates) => kinds.extend(
                 Self::selected_candidates(candidates)
@@ -409,11 +430,11 @@ impl MemberLookup {
     /// Return whether any selected declaration is a setter.
     fn has_setter(&self) -> bool {
         match self {
-            Self::Missing | Self::Field(_) => false,
+            Self::Missing | Self::Field(_) | Self::Undecided => false,
             Self::Found(candidates) => candidates
                 .iter()
                 .any(|candidate| candidate.role == MemberRole::Setter),
-            Self::Union(lookups) => lookups.iter().any(|arm| arm.lookup.has_setter()),
+            Self::Union(arms) => arms.iter().any(|arm| arm.lookup.has_setter()),
             Self::Intersection(lookups) => lookups.iter().any(Self::has_setter),
         }
     }
@@ -421,15 +442,15 @@ impl MemberLookup {
     /// Prepend one implicit adjustment to every selected receiver.
     pub(in crate::sema) fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) {
         match self {
-            Self::Missing => {}
+            Self::Missing | Self::Undecided => {}
             Self::Field(field) => field.prepend_adjustment(adjustment),
             Self::Found(candidates) => {
                 for candidate in candidates {
                     candidate.receiver.prepend(adjustment.clone());
                 }
             }
-            Self::Union(lookups) => {
-                for arm in lookups {
+            Self::Union(arms) => {
+                for arm in arms {
                     arm.lookup.prepend_adjustment(adjustment.clone());
                 }
             }
@@ -447,7 +468,7 @@ impl MemberLookup {
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         match self {
-            Self::Missing => {}
+            Self::Missing | Self::Undecided => {}
             Self::Field(field) => field.select_dynamic(constraint)?,
             Self::Found(candidates) => {
                 for candidate in candidates {
@@ -457,8 +478,8 @@ impl MemberLookup {
                     };
                 }
             }
-            Self::Union(lookups) => {
-                for arm in lookups {
+            Self::Union(arms) => {
+                for arm in arms {
                     arm.lookup.select_dynamic(constraint)?;
                 }
             }
@@ -559,6 +580,10 @@ pub(in crate::sema) struct MemberCandidate {
     pub(in crate::sema) value_type: Option<dir::GlobalTypeId>,
     /// The receiver adjustments selected during lookup.
     pub(in crate::sema) receiver: LookupReceiver,
+    /// The declared bounds the winning candidate registers at its site.
+    pub(in crate::sema) bounds: Vec<RelationCheck>,
+    /// The declared target the winning candidate's receiver satisfies at its site.
+    pub(in crate::sema) target: Option<RelationCheck>,
 }
 
 /// Receiver state retained by one member lookup candidate.
@@ -573,18 +598,6 @@ pub(in crate::sema) enum LookupReceiver {
         /// The interface constraint declaring the dispatch member.
         constraint: dir::GlobalTypeId,
     },
-}
-
-impl MemberCandidate {
-    /// Return this candidate's selection precedence.
-    pub(in crate::sema) fn precedence(&self) -> (dir::MemberOrigin, bool) {
-        let is_adjusted = match &self.receiver {
-            LookupReceiver::Direct(steps) => !steps.is_empty(),
-            LookupReceiver::Dynamic { .. } => true,
-        };
-
-        (self.origin, is_adjusted)
-    }
 }
 
 impl LookupReceiver {
@@ -618,6 +631,16 @@ impl LookupReceiver {
 }
 
 impl MemberCandidate {
+    /// Return this candidate's selection precedence.
+    pub(in crate::sema) fn precedence(&self) -> (dir::MemberOrigin, bool) {
+        let is_adjusted = match &self.receiver {
+            LookupReceiver::Direct(steps) => !steps.is_empty(),
+            LookupReceiver::Dynamic { .. } => true,
+        };
+
+        (self.origin, is_adjusted)
+    }
+
     /// Return the type produced by reading this candidate.
     pub(in crate::sema) fn read_type(
         &self,
@@ -742,7 +765,7 @@ impl BodyState<'_, '_> {
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match lookup {
-            MemberLookup::Missing => Ok(None),
+            MemberLookup::Missing | MemberLookup::Undecided => Ok(None),
             MemberLookup::Field(field) => field.read_type(self),
             MemberLookup::Found(candidates) => {
                 let candidates = MemberLookup::selected_candidates(candidates);
@@ -797,7 +820,7 @@ impl BodyState<'_, '_> {
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match lookup {
-            MemberLookup::Missing => Ok(None),
+            MemberLookup::Missing | MemberLookup::Undecided => Ok(None),
             MemberLookup::Field(field) => Ok(field.write_type()),
             MemberLookup::Found(candidates) => {
                 let writable = MemberLookup::selected_candidates(candidates)
@@ -879,19 +902,6 @@ impl BodyState<'_, '_> {
         )))
     }
 
-    /// Return the lookup member represented by one definition member.
-    pub(in crate::sema) fn declared_member(
-        &mut self,
-        member: &dir::DefinitionMember,
-    ) -> CompilerResult<Option<DeclaredMember>> {
-        let Some(mut declared) = DeclaredMember::from_definition(member)? else {
-            return Ok(None);
-        };
-        declared.ty = self.definition_member_type(member)?;
-
-        Ok(Some(declared))
-    }
-
     /// Resolve the checked type of each member declared through its own symbol.
     pub(in crate::sema) fn resolve_declared_types(
         &mut self,
@@ -908,7 +918,20 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Select the readable resolution exposed by one member lookup.
+    /// Return the lookup member represented by one definition member.
+    pub(in crate::sema) fn declared_member(
+        &mut self,
+        member: &dir::DefinitionMember,
+    ) -> CompilerResult<Option<DeclaredMember>> {
+        let Some(mut declared) = DeclaredMember::from_definition(member)? else {
+            return Ok(None);
+        };
+        declared.ty = self.definition_member_type(member)?;
+
+        Ok(Some(declared))
+    }
+
+    /// Select the readable resolution one member lookup exposes.
     pub(in crate::sema) fn select_member_read(
         &mut self,
         origin: Origin,
@@ -917,7 +940,7 @@ impl BodyState<'_, '_> {
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::MemberDecision>> {
         match lookup {
-            MemberLookup::Missing => Ok(None),
+            MemberLookup::Missing | MemberLookup::Undecided => Ok(None),
             MemberLookup::Field(field) => Ok(field
                 .read_access(receiver.ty, key, self)?
                 .map(dir::OperationResolution::One)),
@@ -961,6 +984,20 @@ impl BodyState<'_, '_> {
                     } else {
                         candidate.access(receiver.ty, key, ty)
                     };
+
+                    // commit the surviving candidate's site constraints
+                    for constraint in &candidate.bounds {
+                        self.check.push_relation(*constraint)?;
+                    }
+                    if let Some(target) = candidate.target {
+                        self.constrain_type(
+                            target.origin,
+                            target.cause,
+                            target.relation,
+                            target.source,
+                            target.target,
+                        )?;
+                    }
 
                     targets.push(access.target);
                     types.push(access.ty);
@@ -1017,7 +1054,7 @@ impl BodyState<'_, '_> {
                     resolutions.push(resolution);
                 }
 
-                let resolution = self.intersect_member_decisions(origin, resolutions)?;
+                let resolution = self.intersect_member_decisions(resolutions)?;
 
                 Ok(Some(resolution))
             }
@@ -1027,7 +1064,6 @@ impl BodyState<'_, '_> {
     /// Intersect simultaneous member resolutions, distributing runtime union arms.
     pub(in crate::sema) fn intersect_member_decisions(
         &mut self,
-        origin: Origin,
         resolutions: Vec<dir::MemberDecision>,
     ) -> CompilerResult<dir::MemberDecision> {
         // expand each resolution into the runtime combinations it contributes
@@ -1056,7 +1092,7 @@ impl BodyState<'_, '_> {
         // intersect the accesses of every combination into one arm
         let mut arms = Vec::with_capacity(combinations.len());
         for accesses in combinations {
-            arms.push(self.intersect_member_accesses(origin, accesses)?);
+            arms.push(self.intersect_member_accesses(accesses)?);
         }
 
         if !has_union && arms.len() == 1 {
@@ -1073,13 +1109,10 @@ impl BodyState<'_, '_> {
     /// Intersect simultaneous member accesses into one runtime access.
     fn intersect_member_accesses(
         &mut self,
-        _origin: Origin,
-        accesses: Vec<dir::MemberAccess>,
+        mut accesses: Vec<dir::MemberAccess>,
     ) -> CompilerResult<dir::MemberAccess> {
         // take a lone access without intersecting
         if accesses.len() == 1 {
-            let mut accesses = accesses;
-
             return Ok(accesses.remove(0));
         }
 
@@ -1227,7 +1260,7 @@ impl BodyState<'_, '_> {
 
         // unknown receivers defer selection until their value settles
         if let Some(stalled_on) = self.check.root_variable(written_receiver)? {
-            return self.defer_member_selection(site, stalled_on);
+            return self.defer_selection(site, stalled_on);
         }
 
         // strip the nullish arms the access reads through
@@ -1255,22 +1288,28 @@ impl BodyState<'_, '_> {
         // look the written key up and commit whatever it finds
         let key = dir::StaticKey::Name(name);
         let mut lookup = self.lookup_member(origin, module, subject, key)?;
-        self.adjust_narrowed_lookup(origin, receiver, subject.target, &mut lookup)?;
+
+        // materialize the answer for narrowed receivers
+        if receiver != subject.target {
+            self.adjust_narrowed_lookup(origin, receiver, subject.target, &mut lookup)?;
+        }
 
         match lookup {
+            // report a key the receiver exposes nowhere
             MemberLookup::Missing => {
                 let key = self.strings().get(name).to_string();
 
                 self.reject_member(node, origin, written_receiver, key)
             }
-            lookup => self.commit_member_lookup(
+            // commit whatever the lookup found
+            found => self.commit_member_lookup(
                 node,
                 receiver_node,
                 origin,
                 subject.receiver,
                 key,
                 name,
-                lookup,
+                &found,
             ),
         }
     }
@@ -1284,24 +1323,22 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
         name: dir::StringId,
-        lookup: MemberLookup,
+        lookup: &MemberLookup,
     ) -> CompilerResult<()> {
         // select the readable resolution, or report why the read fails
+        let written_key = self.strings().get(name).to_string();
         let receiver_site = self.visit_site(receiver_node)?;
         let receiver = self.expression_value(receiver_site, receiver)?;
-        let Some(resolution) = self.select_member_read(origin, receiver, key, &lookup)? else {
+        let Some(resolution) = self.select_member_read(origin, receiver, key, lookup)? else {
             if lookup.has_setter() {
-                let key = self.strings().get(name).to_string();
-                self.report_write_only_member(origin, key)?;
+                self.report_write_only_member(origin, written_key)?;
                 self.commit_decision(node, dir::Decision::Rejected)?;
                 self.commit_error_node(node)?;
 
                 return Ok(());
             }
 
-            let key = self.strings().get(name).to_string();
-
-            return self.reject_member(node, origin, receiver.ty, key);
+            return self.reject_member(node, origin, receiver.ty, written_key);
         };
 
         // reject instance methods read as values outside call positions
@@ -1310,8 +1347,7 @@ impl BodyState<'_, '_> {
             .iter()
             .any(|access| selects_bound_method(&access.target));
         if extracts_method && !self.is_callee_position(node) {
-            let key = self.strings().get(name).to_string();
-            self.report_bound_method_extraction(origin, key)?;
+            self.report_bound_method_extraction(origin, written_key)?;
             self.commit_decision(node, dir::Decision::Rejected)?;
             self.commit_error_node(node)?;
 
@@ -1361,8 +1397,8 @@ impl BodyState<'_, '_> {
         false
     }
 
-    /// Defer one member access until its receiver value settles, committing an open hole.
-    fn defer_member_selection(
+    /// Defer one selection until the stalled variable solves, committing an open hole.
+    pub(super) fn defer_selection(
         &mut self,
         site: FlowSite,
         stalled_on: dir::TypeVariableId,
@@ -1376,12 +1412,12 @@ impl BodyState<'_, '_> {
             self.commit_node_type(node, hole)?;
         }
 
-        // re-select once the receiver's variable solves
+        // re-select once the stalled variable solves
         self.check.register_check(Check::Selection(SelectionCheck {
             site,
             use_: PlaceUse::Read,
             stalled_on: Some(stalled_on),
-        }));
+        }))?;
 
         Ok(())
     }
@@ -1488,26 +1524,31 @@ impl BodyState<'_, '_> {
         origin: Origin,
         member: &dir::MemberType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // read the written refinement bindings of a qualified projection once
+        let refinement = match member.qualifier {
+            Some(qualifier) => Some(self.refinement_bindings(qualifier)?),
+            None => None,
+        };
+
         // bind the projection from written refinements
-        if let Some(qualifier) = member.qualifier {
-            let (_, bindings) = self.refinement_bindings(qualifier)?;
-            if let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key) {
-                return Ok(Some(*value));
-            }
+        if let Some((_, bindings)) = &refinement
+            && let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key)
+        {
+            return Ok(Some(*value));
         }
 
         // select the implementation for applied interface scopes
-        if let Some(qualifier) = member.qualifier
+        if let Some((base, _)) = refinement
             && !self.is_rigid_projection_owner(member.owner)?
         {
-            let (base, _) = self.refinement_bindings(qualifier)?;
-
             return match self.ty(base)? {
+                // project the applied interface's selected implementation
                 dir::Type::Application(_) => self.project_selected_member(origin, member, base),
                 // project the lexical extension scope's own associated member
                 dir::Type::Reference(reference) => {
                     self.project_scope_member(origin, member, reference.symbol)
                 }
+                // every other qualifier projects nothing
                 _ => Ok(None),
             };
         }
@@ -1517,8 +1558,10 @@ impl BodyState<'_, '_> {
         let subject = dir::MemberSubject::new(member.owner, member.owner, dir::MemberSpace::Static);
         let lookup = self.lookup_member(origin, module, subject, member.key)?;
         let projected = match lookup {
+            // fall back to the qualifying interface's declared default
             MemberLookup::Missing => self.project_default_member(origin, member)?,
-            lookup => self.project_member_lookup(module, member, lookup)?,
+            // project whatever the lookup found
+            found => self.project_member_lookup(module, member, found)?,
         };
 
         Ok(projected)
@@ -1592,8 +1635,11 @@ impl BodyState<'_, '_> {
                 )?;
 
                 Ok(match matched {
-                    Some(_) => CandidateOutcome::Accepted(()),
-                    None => CandidateOutcome::Rejected(()),
+                    ExtensionMatch::Matched(..) => CandidateOutcome::Accepted(()),
+                    // unproven bounds leave the candidate unselected at this ask
+                    ExtensionMatch::Unmatched | ExtensionMatch::Unproven => {
+                        CandidateOutcome::Rejected(())
+                    }
                 })
             })?;
 
@@ -1613,7 +1659,7 @@ impl BodyState<'_, '_> {
                 target_type,
                 &interfaces,
             )?;
-            let Some((substitution, _)) = matched else {
+            let ExtensionMatch::Matched(substitution, _) = matched else {
                 continue;
             };
 
@@ -1720,7 +1766,7 @@ impl BodyState<'_, '_> {
         members: &[dir::DefinitionMember],
         substitution: &TypeSubstitution,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // select and substitute the scope's declared value
+        // select the scope's declared value for this key
         let declared = members.iter().find_map(|declared| match declared {
             dir::DefinitionMember::AssociatedType(associated) if associated.key == member.key => {
                 associated.value.map(|value| (associated, value))
@@ -1823,7 +1869,8 @@ impl BodyState<'_, '_> {
 
                     candidate.read_type(self)
                 }
-                _ => Ok(None),
+                // several candidates project no single type
+                [] | [_, _, ..] => Ok(None),
             },
             MemberLookup::Union(lookups) => {
                 let mut types = Vec::with_capacity(lookups.len());
@@ -1847,7 +1894,7 @@ impl BodyState<'_, '_> {
 
                 self.normalized_intersection_type(types).map(Some)
             }
-            MemberLookup::Missing => Ok(None),
+            MemberLookup::Missing | MemberLookup::Undecided => Ok(None),
         }
     }
 
@@ -2146,6 +2193,8 @@ impl BodyState<'_, '_> {
 
         let result = match self.ty(ty)? {
             dir::Type::Error
+            | dir::Type::Hole(_)
+            | dir::Type::Rigid(_)
             | dir::Type::Never
             | dir::Type::Any
             | dir::Type::Unknown
@@ -2187,7 +2236,7 @@ impl BodyState<'_, '_> {
 
     /// Return whether one memory access component is readonly.
     pub(in crate::sema) fn access_is_readonly(
-        &mut self,
+        &self,
         access: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let is_readonly = matches!(
@@ -2212,5 +2261,90 @@ fn selects_bound_method(target: &dir::MemberTarget) -> bool {
         | dir::MemberTarget::Field(_)
         | dir::MemberTarget::Projection { .. }
         | dir::MemberTarget::Index(_) => false,
+    }
+}
+
+impl dir::TypeFold for LookupReceiver {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        match self {
+            Self::Direct(steps) => steps.map_types(map),
+            Self::Dynamic {
+                adjustments,
+                constraint,
+            } => {
+                adjustments.map_types(map)?;
+                constraint.map_types(map)
+            }
+        }
+    }
+}
+
+impl dir::TypeFold for FieldLookup {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        match self {
+            Self::Structural {
+                receiver,
+                owner,
+                access,
+                ..
+            } => {
+                receiver.map_types(map)?;
+                owner.map_types(map)?;
+                access.map_types(map)
+            }
+            Self::Projection {
+                adjustments,
+                projection,
+            } => {
+                adjustments.map_types(map)?;
+                projection.map_types(map)
+            }
+        }
+    }
+}
+
+impl dir::TypeFold for MemberCandidate {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.access_type.map_types(map)?;
+        self.callable.map_types(map)?;
+        self.value_type.map_types(map)?;
+        self.generic_arguments.map_types(map)?;
+        self.receiver.map_types(map)?;
+        self.bounds.map_types(map)?;
+        self.target.map_types(map)
+    }
+}
+
+impl dir::TypeFold for MemberArmLookup {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.receiver.map_types(map)?;
+        self.lookup.map_types(map)
+    }
+}
+
+impl dir::TypeFold for MemberLookup {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        match self {
+            Self::Missing | Self::Undecided => Ok(()),
+            Self::Field(field) => field.map_types(map),
+            Self::Found(candidates) => candidates.map_types(map),
+            Self::Union(arms) => arms.map_types(map),
+            Self::Intersection(lookups) => lookups.map_types(map),
+        }
     }
 }

@@ -1728,6 +1728,23 @@ impl WalkState<'_, '_> {
         {
             return Ok(dir::ExtensionTarget::Rooted { root, ty });
         }
+
+        // root structural constructors at their language items
+        let item = match self.check.ty(chain.base())? {
+            dir::Type::Slice(_) => Some(dir::LanguageItem::Slice),
+            dir::Type::FixedArray(_) => Some(dir::LanguageItem::FixedArray),
+            dir::Type::Function(_) | dir::Type::FunctionSignature(_) => {
+                Some(dir::LanguageItem::Function)
+            }
+            _ => None,
+        };
+        if let Some(item) = item {
+            let root = self.check.language_symbol(item)?;
+
+            return Ok(dir::ExtensionTarget::Rooted { root, ty });
+        }
+
+        // fall back to a blanket over the written target
         let coverage = self.blanket_coverage(origin, ty)?;
 
         Ok(dir::ExtensionTarget::Blanket { ty, coverage })

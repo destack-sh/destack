@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    Check, CheckState, FlowPointChange, FlowPredicate, FlowSite, NarrowingCheck, Origin,
-    VariableRole, Widening,
+    Check, CheckState, FlowPointChange, FlowPredicate, FlowSite, NarrowingCheck, Origin, Relation,
+    VariableRole, Verdict, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -56,7 +56,7 @@ impl CheckState<'_> {
                     operation,
                     source: ty,
                     hole,
-                }));
+                }))?;
 
                 self.variable_type(hole)
             }
@@ -375,10 +375,43 @@ impl CheckState<'_> {
         origin: Origin,
         value: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // peel the written assertions so the compared value decides,
+        //  stepping through `as` where the inner type widens
+        let mut value = value;
+        loop {
+            let node = self.module(value.module_id).view().get(value.local_id);
+            match *node {
+                // step through a cast that widens the value it wraps
+                dir::Expression::As { expression, .. } => {
+                    let widened = self.require_node_type(value.into_any())?;
+                    let inner = expression.into_global(value.module_id);
+                    let narrow = self.require_node_type(inner.into_any())?;
+
+                    // stop where the cast converts the value
+                    if self.evaluate_relation(origin, Relation::Subtype, narrow, widened)?
+                        != Verdict::Holds
+                    {
+                        break;
+                    }
+
+                    value = inner;
+                }
+                // step through an assertion, which keeps its written value
+                dir::Expression::Satisfies { expression, .. } => {
+                    value = expression.into_global(value.module_id);
+                }
+                // stop at the compared value
+                _ => break,
+            }
+        }
+
+        // answer a written singleton directly
         let ty = self.require_node_type(value.into_any())?;
         if self.is_singleton_type(ty)? {
             return Ok(Some(ty));
         }
+
+        // answer a newtype whose backing type is a singleton
         if let Some(instance) = self.decompose_newtype(origin, ty)? {
             let backing = instance.backing;
             if self.is_singleton_type(backing)? {

@@ -19,6 +19,8 @@ impl DirSnapshotBuilder<'_> {
     fn type_label_from_value(&self, types: &dir::TypeTable<'_>, ty: &dir::Type) -> String {
         match ty {
             dir::Type::Error => "<error>".to_string(),
+            dir::Type::Hole(hole) => format!("?{hole}"),
+            dir::Type::Rigid(rigid) => format!("^{rigid}"),
             dir::Type::Never => "never".to_string(),
             dir::Type::Any => "any".to_string(),
             dir::Type::Unknown => "unknown".to_string(),

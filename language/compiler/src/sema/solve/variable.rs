@@ -8,7 +8,7 @@ use crate::sema::{BoundEntry, BoundIter, BoundList, BoundSide, EMPTY, OriginId, 
 use crate::{CompilerError, CompilerResult};
 
 /// Special behavior attached to one inference variable.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) enum VariableRole {
     /// Ordinary inference variable.
     Regular,

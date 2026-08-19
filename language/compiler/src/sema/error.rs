@@ -2630,6 +2630,26 @@ pub enum CheckError {
         interface: String,
     },
 
+    /// Blanket extension member implements no declared interface member.
+    ///
+    /// ```ds
+    /// export extension<T: Display> of T {
+    ///     shout(): string { ... }
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "unanchored-blanket-member",
+        message = "member '{member}' on a blanket extension implements no declared interface member"
+    )]
+    UnanchoredBlanketMember {
+        /// Report the blanket extension.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The unanchored member key.
+        member: String,
+    },
+
     /// Member shadows an inherited member without the override modifier.
     ///
     /// ```ds

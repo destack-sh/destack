@@ -1,6 +1,4 @@
-use destack_core::FxIndexMap;
 use destack_dir as dir;
-use destack_source::ModuleId;
 
 use crate::sema::{
     BodyState, Check, CheckEvent, CheckId, CheckOutcome, CheckState, Settle, TrailMark, WorkState,
@@ -12,7 +10,7 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::sema) enum CandidateOutcome<T, R> {
     /// The candidate applies.
     Accepted(T),
-    /// The candidate does not apply.
+    /// The candidate is refused.
     Rejected(R),
 }
 
@@ -29,9 +27,9 @@ enum CandidateAttempt<T, R> {
 pub(in crate::sema) enum CandidateVerdict {
     /// The candidate applies.
     Viable,
-    /// Probe-local inference cannot decide whether the candidate applies.
+    /// Probe-local inference leaves the candidate open.
     Indeterminate,
-    /// The candidate does not apply.
+    /// The candidate is refused.
     Rejected,
 }
 
@@ -42,8 +40,8 @@ pub(in crate::sema) struct ProbeMark {
     trail: TrailMark,
     /// The node type count before the probe.
     node_types: usize,
-    /// The selection memo count before the probe.
-    selections: usize,
+    /// The substitution memo count before the probe.
+    substitutions: usize,
     /// The checked function body count before the probe.
     functions: usize,
     /// The checked function value count before the probe.
@@ -62,8 +60,8 @@ pub(in crate::sema) struct ProbeMark {
     events: usize,
     /// The failed check count before the probe.
     failures: usize,
-    /// The per-module marks before the probe.
-    modules: FxIndexMap<ModuleId, ModuleProbeMark>,
+    /// The own module's segment marks before the probe.
+    module: ModuleProbeMark,
 }
 
 /// Per-module check state mark before one probe.
@@ -95,6 +93,32 @@ impl BodyState<'_, '_> {
         self.check.finish_probe(mark, outcome)
     }
 
+    /// Probe one deduction under a rollback, keeping only its refused value.
+    pub(in crate::sema) fn probe_deduction<R>(
+        &mut self,
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<(), R>>,
+    ) -> CompilerResult<Option<R>> {
+        // pull the deduced value out before the rollback consumes the outcome
+        let mark = self.check.open_probe();
+        let outcome = self.attempt_candidate(&mark, false, &mut attempt);
+        let (outcome, deduced): (CompilerResult<CandidateAttempt<(), ()>>, Option<R>) =
+            match outcome {
+                Ok(CandidateAttempt::Outcome(CandidateOutcome::Rejected(deduced))) => (
+                    Ok(CandidateAttempt::Outcome(CandidateOutcome::Rejected(()))),
+                    Some(deduced),
+                ),
+                Ok(CandidateAttempt::Outcome(CandidateOutcome::Accepted(()))) => (
+                    Ok(CandidateAttempt::Outcome(CandidateOutcome::Rejected(()))),
+                    None,
+                ),
+                Ok(CandidateAttempt::Failed) => (Ok(CandidateAttempt::Failed), None),
+                Err(error) => (Err(error), None),
+            };
+        self.check.finish_probe(mark, outcome)?;
+
+        Ok(deduced)
+    }
+
     /// Run one candidate attempt, rejecting it on failed constraints.
     fn attempt_candidate<T, R>(
         &mut self,
@@ -111,7 +135,7 @@ impl BodyState<'_, '_> {
             let scope = mark.trail.inference_scope();
             self.check.fulfill_scope(scope, Settle::Complete)?;
 
-            // re-solve the stalled pending set, not only fresh allocations
+            // re-solve the stalled pending set alongside fresh allocations
             let mut relations: Vec<CheckId> = Vec::new();
             for (id, check) in self.check.fulfill.checks.iter() {
                 let is_open = self.check.fulfill.checks.state(id) != WorkState::Done;
@@ -213,6 +237,65 @@ impl CheckState<'_> {
         self.finish_probe(mark, outcome)
     }
 
+    /// Probe one relation judgment under an inference-only rollback.
+    pub(in crate::sema) fn probe_relation(
+        &mut self,
+        attempt: impl FnOnce(&mut Self) -> CompilerResult<bool>,
+    ) -> CompilerResult<CandidateVerdict> {
+        self.counters.probes += 1;
+        self.record_event(CheckEvent::ProbeStarted {
+            variables: self.infer.variable_count(),
+        });
+        let trail = self.infer.mark(&self.fulfill);
+        let failures = self.fulfill.failures.len();
+
+        let accepted = match attempt(self) {
+            Ok(accepted) => accepted,
+            Err(error) => {
+                let poison = self.intern_type(dir::Type::Error)?;
+                self.infer.rollback(trail, poison, &mut self.fulfill)?;
+                self.fulfill.failures.truncate(failures);
+
+                return Err(error);
+            }
+        };
+
+        // reject failed judgments and roll their inference back
+        let has_failure = !accepted
+            || self
+                .fulfill
+                .checks
+                .relation_failures_from(trail.check_count())
+                .next()
+                .is_some()
+            || self.fulfill.failures.len() > failures;
+        if has_failure {
+            let poison = self.intern_type(dir::Type::Error)?;
+            self.infer.rollback(trail, poison, &mut self.fulfill)?;
+            self.fulfill.failures.truncate(failures);
+            self.record_event(CheckEvent::ProbeFinished {
+                verdict: Some(CandidateVerdict::Rejected),
+            });
+
+            return Ok(CandidateVerdict::Rejected);
+        }
+
+        // keep the judgment indeterminate while its variables stay open
+        let verdict = match self
+            .open_scope_variables(trail.inference_scope())?
+            .is_empty()
+        {
+            true => CandidateVerdict::Viable,
+            false => CandidateVerdict::Indeterminate,
+        };
+        self.infer.commit(trail);
+        self.record_event(CheckEvent::ProbeFinished {
+            verdict: Some(verdict),
+        });
+
+        Ok(verdict)
+    }
+
     /// Confirm one candidate inside the current transaction on the plain check state.
     pub(in crate::sema) fn confirm_candidate<T, R>(
         &mut self,
@@ -253,16 +336,16 @@ impl CheckState<'_> {
 
         // commit complete candidates and provisional children
         match verdict {
-            CandidateVerdict::Viable => {
+            CandidateVerdict::Viable | CandidateVerdict::Indeterminate => {
                 let CandidateOutcome::Accepted(selected) = outcome else {
                     self.end_probe(mark)?;
 
                     return Err(CompilerError::Internal {
-                        message: "viable probe has no accepted outcome".into(),
+                        message: "confirmed candidate has no accepted outcome".into(),
                     });
                 };
                 self.record_event(CheckEvent::ProbeFinished {
-                    verdict: Some(CandidateVerdict::Viable),
+                    verdict: Some(verdict),
                 });
                 self.commit_probe(mark)?;
 
@@ -272,21 +355,6 @@ impl CheckState<'_> {
                 self.reject_probe(mark)?;
 
                 Ok(None)
-            }
-            CandidateVerdict::Indeterminate => {
-                let CandidateOutcome::Accepted(selected) = outcome else {
-                    self.end_probe(mark)?;
-
-                    return Err(CompilerError::Internal {
-                        message: "indeterminate confirmed candidate has no accepted outcome".into(),
-                    });
-                };
-                self.record_event(CheckEvent::ProbeFinished {
-                    verdict: Some(CandidateVerdict::Indeterminate),
-                });
-                self.commit_probe(mark)?;
-
-                Ok(Some(selected))
             }
         }
     }
@@ -313,11 +381,7 @@ impl CheckState<'_> {
             }
             Ok(CandidateAttempt::Outcome(CandidateOutcome::Rejected(_)))
             | Ok(CandidateAttempt::Failed) => Ok(CandidateVerdict::Rejected),
-            Err(error) => {
-                self.end_probe(mark)?;
-
-                return Err(error);
-            }
+            Err(error) => Err(error),
         };
         let verdict = match verdict {
             Ok(verdict) => verdict,
@@ -365,28 +429,20 @@ impl CheckState<'_> {
             variables: self.infer.variable_count(),
         });
 
-        let modules = [&self.module]
-            .into_iter()
-            .map(|state| {
-                (
-                    self.module_id,
-                    ModuleProbeMark {
-                        decisions: state.decisions.mark(),
-                        members: state.members_tail.mark(),
-                        coercions: state.coercions.mark(),
-                        flows: state.flows.mark(),
-                        diagnostics: state.diagnostics.len(),
-                        warnings: state.warnings.len(),
-                    },
-                )
-            })
-            .collect();
+        let module = ModuleProbeMark {
+            decisions: self.module.decisions.mark(),
+            members: self.module.members_tail.mark(),
+            coercions: self.module.coercions.mark(),
+            flows: self.module.flows.mark(),
+            diagnostics: self.module.diagnostics.len(),
+            warnings: self.module.warnings.len(),
+        };
         let trail = self.infer.mark(&self.fulfill);
 
         ProbeMark {
             trail,
             node_types: self.node_types.open_probe(),
-            selections: self.selections.len(),
+            substitutions: self.substitutions.len(),
             functions: self.functions.len(),
             lambdas: self.lambdas.len(),
             walked_declarations: self.walked_declarations.len(),
@@ -396,7 +452,7 @@ impl CheckState<'_> {
             expected_types: self.expected_types.open_probe(),
             events: self.trace_events().len(),
             failures: self.fulfill.failures.len(),
-            modules,
+            module,
         }
     }
 
@@ -405,7 +461,7 @@ impl CheckState<'_> {
         let ProbeMark {
             trail,
             node_types,
-            selections,
+            substitutions,
             functions,
             lambdas,
             walked_declarations,
@@ -415,7 +471,7 @@ impl CheckState<'_> {
             expected_types,
             events,
             failures,
-            modules,
+            module,
         } = mark;
 
         // roll inference back, poisoning undone allocations
@@ -423,8 +479,8 @@ impl CheckState<'_> {
         self.infer.rollback(trail, poison, &mut self.fulfill)?;
 
         // close the probe's type and body tables
-        self.node_types.close_probe(node_types);
-        self.selections.truncate(selections);
+        self.node_types.close_probe(node_types)?;
+        self.substitutions.truncate(substitutions);
         self.functions.truncate(functions);
         self.lambdas.truncate(lambdas);
         self.walked_declarations.truncate(walked_declarations);
@@ -437,7 +493,7 @@ impl CheckState<'_> {
         while self.infer.symbol_variables.len() > symbol_variables {
             self.infer.symbol_variables.pop();
         }
-        self.expected_types.close_probe(expected_types);
+        self.expected_types.close_probe(expected_types)?;
 
         // drop the probe's trace events and failures
         if let Some(trace) = &mut self.trace {
@@ -445,17 +501,13 @@ impl CheckState<'_> {
         }
         self.fulfill.failures.truncate(failures);
 
-        // drop the probe's per module segments
-        for (module, mark) in modules {
-            if let Some(state) = self.module_maybe_mut(module) {
-                state.decisions.truncate_to(mark.decisions);
-                state.members_tail.truncate_to(mark.members);
-                state.coercions.truncate_to(mark.coercions);
-                state.flows.truncate_to(mark.flows);
-                state.diagnostics.truncate(mark.diagnostics);
-                state.warnings.truncate(mark.warnings);
-            }
-        }
+        // drop the probe's own module segments
+        self.module.decisions.truncate_to(module.decisions);
+        self.module.members_tail.truncate_to(module.members);
+        self.module.coercions.truncate_to(module.coercions);
+        self.module.flows.truncate_to(module.flows);
+        self.module.diagnostics.truncate(module.diagnostics);
+        self.module.warnings.truncate(module.warnings);
 
         Ok(())
     }

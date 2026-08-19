@@ -79,13 +79,26 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // replay the alias decision a settled ground type already made
+        let ty = self.shallow_resolve(ty)?;
+        let flags = self.type_flags(ty)?;
+        let is_ground = !flags.has_variable() && !flags.has_parameter() && !flags.has_this();
+        if is_ground && let Some(is_aliased) = self.aliased.get(&ty) {
+            return Ok(*is_aliased);
+        }
+
+        // read the aliasing off the form chain's ownership
         let chain = self.form_chain(origin, ty)?;
         let ownership = self.form_ownership(origin, &chain)?;
-
-        Ok(matches!(
+        let is_aliased = matches!(
             ownership,
             Some(dir::Ownership::Managed | dir::Ownership::Borrowed)
-        ))
+        );
+        if is_ground {
+            self.aliased.insert(ty, is_aliased);
+        }
+
+        Ok(is_aliased)
     }
 
     /// Return whether one memory form is represented by a safe reference.
@@ -902,6 +915,8 @@ impl CheckState<'_> {
             | dir::Type::Parameter(_)
             | dir::Type::Erased(_)
             | dir::Type::Variable(_)
+            | dir::Type::Hole(_)
+            | dir::Type::Rigid(_)
             | dir::Type::This
             | dir::Type::Member(_)
             | dir::Type::Operation(_)

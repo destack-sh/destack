@@ -8,7 +8,6 @@ use destack_source::DiagnosticRegistry;
 use crate::CompilerResult;
 
 /// Compile source modules into DIR and MIR artifacts.
-/// #Architecture: should Compiler be per-target? what about const though?
 #[allow(clippy::type_complexity)]
 pub struct Compiler {
     /// The repository being compiled.

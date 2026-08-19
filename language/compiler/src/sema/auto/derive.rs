@@ -65,7 +65,7 @@ impl CheckState<'_> {
         // decide the remaining structural forms
         match kind {
             // an open variable answers optimistically, its retained bound re-decides once solved
-            dir::Type::Variable(_) => Ok(true),
+            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(true),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -102,11 +102,12 @@ impl CheckState<'_> {
             | dir::Type::Function(_)
             | dir::Type::Reference(_) => Ok(false),
             // fail loudly on generic forms that survived substitution
-            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
-                Err(CompilerError::Internal {
-                    message: format!("generic type {ty:?} reached structural derivability"),
-                })
-            }
+            dir::Type::Parameter(_)
+            | dir::Type::Rigid(_)
+            | dir::Type::Erased(_)
+            | dir::Type::This => Err(CompilerError::Internal {
+                message: format!("generic type {ty:?} reached structural derivability"),
+            }),
             dir::Type::Form(_) => {
                 unreachable!("memory forms return before structural derivability")
             }

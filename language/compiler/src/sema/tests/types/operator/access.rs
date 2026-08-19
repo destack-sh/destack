@@ -607,7 +607,7 @@ type User = {
 };
 
 function get<K: keyof User>(user: { readonly name: string; readonly age: int32 }, key: K): User[K] {
-    return user[key as keyof { readonly name: string; readonly age: int32 }];
+    return user[key as "name" | "age"];
 }
 
 declare const user: { readonly name: string; readonly age: int32 };
@@ -662,7 +662,7 @@ const name = get(user, "name");
 /// @type.symbol symbol=name source=name type=string
 /// @resolution.pattern source=name kind=binding target=name
 /// @type.node source="get(user, \"name\")" type=string
-/// @type.node source=get type=(User, "name") => User["name"]
+/// @type.node source=get type=(User, "name") => string
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"name\")" parameters=(User, "name") arguments=(provided(user) as User, provided("name") as "name") return=User["name"] kind=symbol target=get instance="get<\"name\">"
 /// @generic.instantiation id="get<\"name\">" template=get arguments=("name")
@@ -677,7 +677,7 @@ const age = get(user, "age");
 /// @type.symbol symbol=age source=age type=int32
 /// @resolution.pattern source=age kind=binding target=age
 /// @type.node source="get(user, \"age\")" type=int32
-/// @type.node source=get type=(User, "age") => User["age"]
+/// @type.node source=get type=(User, "age") => int32
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"age\")" parameters=(User, "age") arguments=(provided(user) as User, provided("age") as "age") return=User["age"] kind=symbol target=get instance="get<\"age\">"
 /// @generic.instantiation id="get<\"age\">" template=get arguments=("age")

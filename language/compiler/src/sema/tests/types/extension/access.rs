@@ -203,7 +203,7 @@ function read(grid: &readonly Grid): int32 {
     /// @type.node source=grid.view() type=int32
     /// @resolution.name source=grid target=read.grid
     /// @resolution.member source=grid.view receiver=&read.'a readonly Grid type=<view.'a>(this: WithAccess<&view.'a Grid, "readonly">) => int32 kind=symbol target_receiver=&read.'a readonly Grid target=view
-    /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&read.'a readonly Grid instance=Grid.<extension#1>.view
+    /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&read.'a readonly Grid adjustments=(&read.'a readonly Grid => direct -> Grid, borrow(&read.'a readonly Grid)) instance=Grid.<extension#1>.view
     /// @resolution.place source=grid placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=grid root=read.grid
     /// @generic.instantiation id="view<\"readonly\">" template=view arguments=("readonly")
@@ -551,12 +551,12 @@ extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {
 
 function firstDefined(values: It<int32, void>): int32 | undefined {
     return values.map<int32, void, int32>((value: int32): int32 => value).find<
-        It<int32, void>,
-        int32,
         int32,
         void,
         int32,
-        void
+        int32,
+        void,
+        It<int32, void>
     >();
 }
 
@@ -680,9 +680,9 @@ function firstDefined(values: It<int32>): int32 | undefined {
     /// @resolution.call source="values.map((value) => value).find()" parameters=() return=int32 | undefined kind=symbol target=It.find receiver=Wrap<It<int32, void>, int32, int32> instance="Wrap<It<int32, void>, int32, int32>.<extension#1>.find"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=firstDefined.values
-    /// @generic.instantiation id="It.find<It<int32, void>, int32, int32, void, int32, void>" template=It.find arguments=(It<int32, void>, int32, int32, void, int32, void)
+    /// @generic.instantiation id="It.find<int32, void, int32, int32, void, It<int32, void>>" template=It.find arguments=(int32, void, int32, int32, void, It<int32, void>)
     /// @generic.instantiation id="It.map<int32, void>" template=It.map arguments=(int32, void)
-    /// @generic.instance id="It.find<It<int32, void>, int32, int32, void, int32, void>" template=It.find arguments=(It<int32, void>, int32, int32, void, int32, void)
+    /// @generic.instance id="It.find<int32, void, int32, int32, void, It<int32, void>>" template=It.find arguments=(int32, void, int32, int32, void, It<int32, void>)
     /// @generic.instance id="Wrap<It<int32, void>, int32, int32>" template=Wrap arguments=(It<int32, void>, int32, int32)
     /// @type.symbol symbol=firstDefined.symbol34 source="(value) => value" type=Function<(int32,), int32>
     /// @type.node source="(value) => value" type=Function<(int32,), int32>

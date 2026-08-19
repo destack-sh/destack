@@ -3,9 +3,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, BorrowConversion, CandidateOutcome, CandidateVerdict, CauseId, Check, CheckFailure,
-    CheckOutcome, CheckState, ConversionCheck, Expectation, FlowSite, InferMode, Origin, Relation,
-    Value, ValueConversion, ValueUse, Verdict,
+    Answer, Ask, BodyState, BorrowConversion, CandidateOutcome, CandidateVerdict, CauseId, Check,
+    CheckFailure, CheckOutcome, CheckState, ConversionCheck, Expectation, FlowSite, InferMode,
+    Origin, Relation, Value, ValueConversion, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -86,7 +86,7 @@ impl BodyState<'_, '_> {
                             use_,
                             mode,
                         },
-                    }));
+                    }))?;
 
                 return Ok(ValueConversion {
                     outcome: CheckOutcome::Pending,
@@ -114,7 +114,7 @@ impl BodyState<'_, '_> {
                                 use_,
                                 mode,
                             },
-                        }));
+                        }))?;
 
                     return Ok(ValueConversion {
                         outcome: CheckOutcome::Holds,
@@ -549,9 +549,17 @@ impl BodyState<'_, '_> {
                 let adjustments = conversion
                     .map(|coercion| coercion.adjustments)
                     .unwrap_or_default();
+
+                // record the arm each case enters, scalar targets holding a sole arm
+                let index = match &targets {
+                    Some(targets) => self.declared_arm_index(targets, target_case)?,
+                    None => 0,
+                };
+
                 cases.push(dir::CoercionCase {
                     source: source_case.ty,
                     target: target_case,
+                    index,
                     adjustments,
                 });
             }
@@ -581,9 +589,11 @@ impl BodyState<'_, '_> {
             let adjustments = conversion
                 .map(|coercion| coercion.adjustments)
                 .unwrap_or_default();
+            let index = self.declared_arm_index(&targets, member)?;
             let case = dir::CoercionCase {
                 source: source.ty,
                 target: member,
+                index,
                 adjustments,
             };
             let coercion =
@@ -593,6 +603,22 @@ impl BodyState<'_, '_> {
         }
 
         self.convert_existing_value(site, origin, cause, source, target, use_)
+    }
+
+    /// Return one selected member's arm position in the declared target union.
+    fn declared_arm_index(
+        &self,
+        targets: &[dir::GlobalTypeId],
+        member: dir::GlobalTypeId,
+    ) -> CompilerResult<u32> {
+        let index = targets
+            .iter()
+            .position(|arm| *arm == member)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("union conversion selected the absent member {member:?}"),
+            })?;
+
+        Ok(index as u32)
     }
 
     /// Return the concrete cases represented by one source type.
@@ -631,19 +657,55 @@ impl BodyState<'_, '_> {
         targets: &[dir::GlobalTypeId],
         use_: ValueUse,
     ) -> CompilerResult<Result<(dir::GlobalTypeId, Option<Box<dir::Coercion>>), CheckFailure>> {
+        // replay the arm a settled source already selected for this union
+        let mut arm_key = None;
+        let mut operands = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        operands.push(source.ty);
+        operands.extend_from_slice(targets);
+        let subject = Ask::Arm {
+            value_use: use_,
+            is_placed: source.place.is_some(),
+        };
+        if let Some((key, _)) = self.check.ask(origin, subject, &operands, false)? {
+            // answers select by target position, so they replay across live id spaces
+            match self.check.answers.get(&key) {
+                // replay an exact case at its declared identity
+                Some(Answer::Arm(Ok((arm, true)))) => {
+                    return Ok(Ok((targets[*arm as usize], None)));
+                }
+                // replay a converted case through its recorded arm
+                Some(Answer::Arm(Ok((arm, false)))) => {
+                    let target = targets[*arm as usize];
+
+                    return self.confirm_union_case(site, origin, cause, source, target, use_);
+                }
+                // replay the recorded failure
+                Some(Answer::Arm(Err(failure))) => return Ok(Err(*failure)),
+                // record the arm this selection settles on
+                _ => arm_key = Some(key),
+            }
+        }
+
         // exact cases preserve their declared identity
-        for target in targets.iter().copied() {
+        for (arm, target) in targets.iter().copied().enumerate() {
             if self
                 .evaluate_relation(origin, Relation::Equal, source.ty, target)?
                 .holds()
             {
+                // settle the arm as an exact case
+                if let Some(key) = arm_key {
+                    self.check
+                        .answers
+                        .insert(key, Answer::Arm(Ok((arm as u16, true))));
+                }
+
                 return Ok(Ok((target, None)));
             }
         }
 
         // identify every represented case the source can enter
         let mut selected = None;
-        for target in targets.iter().copied() {
+        for (arm, target) in targets.iter().copied().enumerate() {
             let verdict = self.probe_candidate(|state| {
                 let conversion =
                     state.convert_closed_value(site, origin, cause, source, target, use_)?;
@@ -661,14 +723,40 @@ impl BodyState<'_, '_> {
                 if selected.is_some() {
                     return Ok(Err(CheckFailure::AmbiguousUnionCoercion));
                 }
-                selected = Some(target);
+                selected = Some((arm, target));
             }
         }
-        let Some(target) = selected else {
+        // settle the arm as a failure when every case rejects the source
+        let Some((arm, target)) = selected else {
+            if let Some(key) = arm_key {
+                self.check
+                    .answers
+                    .insert(key, Answer::Arm(Err(CheckFailure::Relation)));
+            }
+
             return Ok(Err(CheckFailure::Relation));
         };
 
-        // commit the sole viable conversion
+        // settle the arm as a converted case
+        if let Some(key) = arm_key {
+            self.check
+                .answers
+                .insert(key, Answer::Arm(Ok((arm as u16, false))));
+        }
+
+        self.confirm_union_case(site, origin, cause, source, target, use_)
+    }
+
+    /// Commit the sole viable conversion into one selected union case.
+    fn confirm_union_case(
+        &mut self,
+        site: FlowSite,
+        origin: Origin,
+        cause: CauseId,
+        source: Value,
+        target: dir::GlobalTypeId,
+        use_: ValueUse,
+    ) -> CompilerResult<Result<(dir::GlobalTypeId, Option<Box<dir::Coercion>>), CheckFailure>> {
         let conversion = self.confirm_candidate(|state| {
             let conversion =
                 state.convert_closed_value(site, origin, cause, source, target, use_)?;

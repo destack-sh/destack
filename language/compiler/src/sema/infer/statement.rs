@@ -718,7 +718,7 @@ impl BodyState<'_, '_> {
                         },
                     }),
                     scope,
-                );
+                )?;
             }
         }
 

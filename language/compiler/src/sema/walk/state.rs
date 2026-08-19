@@ -138,7 +138,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let cause = self.check.intern_cause(Cause::root(site.origin(), kind));
         let expectation = Expectation::assignable(target, cause, use_);
         self.check
-            .register_check(Check::Node(NodeCheck { site, expectation }));
+            .register_check(Check::Node(NodeCheck { site, expectation }))?;
 
         Ok(())
     }

@@ -311,6 +311,13 @@ pub(in crate::sema) enum ObligationFailure {
         /// The implemented interface.
         interface: dir::GlobalSymbolId,
     },
+    /// A blanket extension member implements no declared interface member.
+    UnanchoredBlanketMember {
+        /// The extension declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The unanchored member key.
+        member: String,
+    },
     /// Extension parameter left unconstrained by the target and its conformances.
     UnconstrainedExtensionParameter {
         /// The parameter declaration source.
@@ -645,7 +652,7 @@ impl CheckState<'_> {
         &mut self,
         obligation: Obligation,
         scope: Option<GenericTemplateId>,
-    ) -> CheckId {
+    ) -> CompilerResult<CheckId> {
         let entry = ObligationEntry { obligation, scope };
 
         self.register_check(Check::Declared(entry))

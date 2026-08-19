@@ -7,6 +7,7 @@ mod r#const;
 mod instance;
 mod method;
 mod module;
+mod order;
 mod parameter;
 mod r#return;
 mod unused;

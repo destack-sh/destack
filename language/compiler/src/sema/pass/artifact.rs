@@ -4,7 +4,7 @@ use destack_artifact::{ArtifactProjectionFingerprint, DirChecked, DirDeclared, D
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::sema::{CheckModuleState, CheckState};
+use crate::sema::{Answer, Ask, CheckModuleState, CheckState, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -83,6 +83,9 @@ impl CheckState<'_> {
         mut self,
         module: ModuleId,
     ) -> CompilerResult<DirElaborated> {
+        // persist the implementation winners this pass decided
+        self.record_selected_implementations(module)?;
+
         let definitions = self.module.merged_definitions();
         let members = self.module.merged_members();
         let bindings = self.module.bindings_tail;
@@ -137,6 +140,82 @@ impl CheckState<'_> {
             decisions: Arc::new(decisions),
             flows: Arc::new(flows),
         })
+    }
+
+    /// Record the most general implementations this pass selected for its own owners.
+    fn record_selected_implementations(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // collect every implementation goal this pass answered
+        let goals: Vec<_> = self
+            .answers
+            .iter()
+            .filter_map(|(question, answer)| match (question.ask, answer) {
+                (Ask::Implementation(relation), Answer::Implement(response)) => Some((
+                    relation,
+                    question.operands,
+                    response.value.verdict,
+                    response.value.winner,
+                )),
+                _ => None,
+            })
+            .collect();
+
+        for (relation, operands, verdict, winner) in goals {
+            // keep the decided goals this module's own concrete owners answered
+            if relation != Relation::Satisfies || verdict != Verdict::Holds {
+                continue;
+            }
+            let [source, target] = *self.type_ids(module, operands)? else {
+                return Err(CompilerError::Internal {
+                    message: "an implementation question lost its operand pair".to_string(),
+                });
+            };
+            let Some(owner) = self.concrete_owner(module, source)? else {
+                continue;
+            };
+            let dir::Type::Application(instance) = self.ty(target)? else {
+                continue;
+            };
+
+            // record the winner of the most general application, whose arguments all stay holes
+            let arguments = self.type_ids(target.module_id, instance.arguments)?;
+            let mut is_general = true;
+            for argument in arguments {
+                is_general &= matches!(self.ty(*argument)?, dir::Type::Hole(_));
+            }
+            if is_general {
+                self.module
+                    .auto
+                    .set_selected(owner, instance.symbol, winner);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return the concrete declared owner one canonical type names in one module.
+    fn concrete_owner(
+        &mut self,
+        module: ModuleId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        // owners name themselves through argument-free applications and references
+        let symbol = match self.ty(ty)? {
+            dir::Type::Application(instance) if instance.arguments.is_empty() => instance.symbol,
+            dir::Type::Reference(reference) => reference.symbol,
+            _ => return Ok(None),
+        };
+
+        // keep the owners this module declares
+        if symbol.module_id != module {
+            return Ok(None);
+        }
+
+        // generic owners decide under their parameters, which stay per-site
+        if self.symbol_template(symbol)?.is_some() {
+            return Ok(None);
+        }
+
+        Ok(Some(symbol))
     }
 
     /// Convert solved state into one checked DIR module.

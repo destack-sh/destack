@@ -45,6 +45,8 @@ impl CheckState<'_> {
             self.module.resolutions.drop_carried(&stage.resolutions);
         }
 
-        Ok((self.into_checked(module)?, diagnostics, annotated))
+        let checked = self.into_checked(module)?;
+
+        Ok((checked, diagnostics, annotated))
     }
 }

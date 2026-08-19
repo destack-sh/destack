@@ -6,8 +6,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    ApparentInstance, BodyState, FieldLookup, LookupReceiver, MemberArmLookup, MemberCandidate,
-    MemberLookup, MemberRole, Origin, ReceiverSteps, TypeArgumentInference, TypeSubstitution,
+    Answer, ApparentInstance, Ask, BodyState, FieldLookup, LookupReceiver, MemberArmLookup,
+    MemberCandidate, MemberLookup, MemberRole, Origin, ReceiverSteps, TypeArgumentInference,
+    TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult, diagnostic_suggestion_distance};
 
@@ -78,7 +79,28 @@ impl BodyState<'_, '_> {
         Ok(space)
     }
 
-    /// Look up one member on a receiver type.
+    /// Collect the declared member keys reachable from one lookup subject.
+    pub(in crate::sema) fn subject_member_keys(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        subject: &dir::MemberSubject,
+    ) -> CompilerResult<Vec<dir::StaticKey>> {
+        let mut keys = FxIndexSet::default();
+        let mut visited = FxIndexSet::default();
+        self.collect_subject_keys(
+            origin,
+            module,
+            subject.key_type,
+            subject.space,
+            &mut keys,
+            &mut visited,
+        )?;
+
+        Ok(keys.into_iter().collect())
+    }
+
+    /// Look one member up on a settled subject, sharing the canonical answer.
     pub(in crate::sema) fn lookup_member(
         &mut self,
         origin: Origin,
@@ -86,9 +108,38 @@ impl BodyState<'_, '_> {
         subject: dir::MemberSubject,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
-        let mut active_queries = FxIndexSet::default();
+        let asked = self.check.ask(
+            origin,
+            Ask::Member {
+                module,
+                space: subject.space,
+                key,
+            },
+            &[subject.receiver, subject.target],
+            false,
+        )?;
 
-        self.lookup_subject_member(
+        // replay the decided answer at this ask's live roots
+        if let Some((question, canonical)) = &asked
+            && let Some(Answer::Member(response)) = self.check.answers.get(question).cloned()
+        {
+            self.check.counters.member_replays += 1;
+
+            return self
+                .check
+                .instantiate_response(origin, canonical, &response);
+        }
+
+        // count each underived ask once, refusals apart from derivations
+        if asked.is_some() {
+            self.check.counters.member_derivations += 1;
+        } else {
+            self.check.counters.member_refusals += 1;
+        }
+
+        // derive the lookup, guarding the recursion path it walks
+        let mut active_queries = FxIndexSet::default();
+        let lookup = self.lookup_subject_member(
             origin,
             module,
             subject.receiver,
@@ -97,7 +148,24 @@ impl BodyState<'_, '_> {
             key,
             ExtensionFilter::Include,
             &mut active_queries,
-        )
+        )?;
+
+        // remember the decision folded canonical over its ask; candidate
+        //  bounds re-check at commit, so the obligation window stays empty
+        if let Some((question, canonical)) = &asked
+            && lookup.is_canonical()
+        {
+            let checks_from = self.check.fulfill.checks.count();
+            self.check.remember_answer(
+                question,
+                canonical,
+                checks_from,
+                lookup.clone(),
+                Answer::Member,
+            )?;
+        }
+
+        Ok(lookup)
     }
 
     /// Look up one non-extension member on a receiver type.
@@ -426,6 +494,7 @@ impl BodyState<'_, '_> {
                     is_optional,
                 }))
             }
+
             // tuples expose their labeled elements
             dir::Type::Tuple(tuple) => {
                 let element = self
@@ -507,6 +576,7 @@ impl BodyState<'_, '_> {
                 Ok(lookup)
             }
 
+            // every remaining subject shape exposes no keyed member
             _ => Ok(MemberLookup::Missing),
         }
     }
@@ -527,9 +597,8 @@ impl BodyState<'_, '_> {
             let lookup = self.lookup_subject_member(
                 origin, module, receiver, *bound, space, key, extensions, active,
             )?;
-            match lookup {
-                MemberLookup::Missing => continue,
-                lookup => return Ok(lookup),
+            if lookup.is_found() {
+                return Ok(lookup);
             }
         }
 
@@ -730,7 +799,11 @@ impl BodyState<'_, '_> {
         }
 
         // require one distinct singleton-valued field from every selected arm
-        debug_assert_eq!(elements.len(), lookups.len());
+        if elements.len() != lookups.len() {
+            return Err(CompilerError::Internal {
+                message: "union member selection has mismatched arms".to_string(),
+            });
+        }
         let mut cases = Vec::with_capacity(lookups.len());
         let mut types = Vec::with_capacity(lookups.len());
         for (element, arm) in elements.iter().zip(lookups) {
@@ -786,8 +859,8 @@ impl BodyState<'_, '_> {
         }
 
         // search inherent members first, from stored bindings for closed subjects
-        let closed = !self.type_flags(subject)?.has_variable();
-        let inherent = if closed {
+        let is_closed = !self.type_flags(subject)?.has_variable();
+        let inherent = if is_closed {
             self.stored_member_lookup(origin, receiver, &instance, space, key)?
         } else {
             self.lookup_inherent_symbol_member(origin, receiver, &instance, space, key)?
@@ -916,9 +989,8 @@ impl BodyState<'_, '_> {
                     &heritage_arguments,
                     key,
                 )?;
-                match lookup {
-                    MemberLookup::Missing => continue,
-                    lookup => return Ok(lookup),
+                if lookup.is_found() {
+                    return Ok(lookup);
                 }
             }
 
@@ -934,8 +1006,8 @@ impl BodyState<'_, '_> {
             };
 
             // project valueless associated members symbolically over the receiver
-            let ty = match member.ty {
-                Some(ty) => Some(ty),
+            let mut ty = match member.ty {
+                Some(ty) => ty,
                 None if member.role == MemberRole::Associated
                     && let Some(key) = key =>
                 {
@@ -947,15 +1019,11 @@ impl BodyState<'_, '_> {
                         qualifier: None,
                     };
 
-                    Some(self.check.intern_member(projection)?)
+                    self.check.intern_member(projection)?
                 }
-                None => None,
-            };
-            let Some(ty) = ty else {
-                continue;
+                None => continue,
             };
 
-            let mut ty = ty;
             let mut written = self.static_value(member.symbol);
             let mut generic_arguments = applied.bindings.to_vec();
 
@@ -967,11 +1035,8 @@ impl BodyState<'_, '_> {
                     .map(|written| self.substitute_type(written, &substitution))
                     .transpose()?;
             }
-
             // instantiate each direct value at its source use
-            if !member.role.is_callable()
-                && let Some(template) = self.symbol_template(symbol)?
-            {
+            else if let Some(template) = self.symbol_template(symbol)? {
                 let parameters = self.generic_template_parameters(template)?;
                 let Some(substitution) = self.instantiate_parameters(
                     origin,
@@ -1019,6 +1084,8 @@ impl BodyState<'_, '_> {
                 value: member.value,
                 value_type: written,
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+                bounds: Vec::new(),
+                target: None,
             });
         }
 
@@ -1077,9 +1144,8 @@ impl BodyState<'_, '_> {
 
             let lookup =
                 self.lookup_inherent_symbol_member(origin, receiver, &heritage, space, key)?;
-            match lookup {
-                MemberLookup::Missing => continue,
-                lookup => return Ok(lookup),
+            if lookup.is_found() {
+                return Ok(lookup);
             }
         }
 
@@ -1217,14 +1283,14 @@ impl BodyState<'_, '_> {
                         dir::DefinitionMember::AssociatedType(associated) => {
                             associated.value.is_some()
                         }
-                        member => member.is_default(),
+                        other => other.is_default(),
                     };
                     if !has_default {
                         continue;
                     }
                 }
 
-                let Some(declared) = self.declared_member(&member.clone())? else {
+                let Some(declared) = self.declared_member(member)? else {
                     continue;
                 };
 
@@ -1347,7 +1413,6 @@ impl BodyState<'_, '_> {
     /// Return the applied heritage level of one declaring owner.
     fn heritage_level_instance(
         &mut self,
-        _origin: Origin,
         instance: &ApparentInstance,
         owner: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<ApparentInstance>> {
@@ -1426,12 +1491,12 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<Arc<Vec<dir::MemberBinding>>>> {
         // serve the memo
         if let Some(bindings) = self.check.bindings.get(&(symbol, space)) {
-            self.check.counters.binding_hits += 1;
+            self.check.counters.binding_replays += 1;
 
             return Ok(bindings.clone());
         }
 
-        self.check.counters.binding_builds += 1;
+        self.check.counters.binding_derivations += 1;
 
         // read owners their module's elaborate pass already flattened
         let stored = self.stored_member_bindings(symbol, space);
@@ -1512,9 +1577,7 @@ impl BodyState<'_, '_> {
             // carry the arguments of the declaring heritage level
             let generic_arguments = if declaration.owner == instance.symbol {
                 generic_arguments.clone()
-            } else if let Some(level) =
-                self.heritage_level_instance(origin, instance, declaration.owner)?
-            {
+            } else if let Some(level) = self.heritage_level_instance(instance, declaration.owner)? {
                 self.symbol_generic_argument_bindings(level.symbol, &level.arguments)?
             } else {
                 generic_arguments.clone()
@@ -1580,6 +1643,8 @@ impl BodyState<'_, '_> {
                 value,
                 value_type,
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+                bounds: Vec::new(),
+                target: None,
             });
         }
 
@@ -1635,7 +1700,7 @@ impl BodyState<'_, '_> {
             // substitute static value types for projections
             let written = match self.static_value(symbol) {
                 Some(written) => Some(self.substitute_type(written, &substitution)?),
-                written => written,
+                None => None,
             };
 
             // carry this instance's solved arguments onto the candidate
@@ -1656,6 +1721,8 @@ impl BodyState<'_, '_> {
                 value: member.value,
                 value_type: written,
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+                bounds: Vec::new(),
+                target: None,
             });
         }
 
@@ -1691,27 +1758,6 @@ impl BodyState<'_, '_> {
         ))
     }
 
-    /// Collect the declared member keys reachable from one lookup subject.
-    pub(in crate::sema) fn subject_member_keys(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        subject: &dir::MemberSubject,
-    ) -> CompilerResult<Vec<dir::StaticKey>> {
-        let mut keys = FxIndexSet::default();
-        let mut visited = FxIndexSet::default();
-        self.collect_subject_keys(
-            origin,
-            module,
-            subject.key_type,
-            subject.space,
-            &mut keys,
-            &mut visited,
-        )?;
-
-        Ok(keys.into_iter().collect())
-    }
-
     /// Collect declared member keys from one subject type.
     fn collect_subject_keys(
         &mut self,
@@ -1739,10 +1785,22 @@ impl BodyState<'_, '_> {
                     ),
                 });
             }
+            // fail loudly on a canonical hole or rigid type outside the solver
+            dir::Type::Hole(hole) => {
+                return Err(CompilerError::Internal {
+                    message: format!("member keys contain canonical hole ?{hole}"),
+                });
+            }
+            dir::Type::Rigid(rigid) => {
+                return Err(CompilerError::Internal {
+                    message: format!("member keys contain canonical rigid type ^{rigid}"),
+                });
+            }
             // declarations expose the same keys as keyed lookup
             dir::Type::Reference(reference) => {
                 self.collect_reference_keys(origin, module, reference, space, keys, visited)?;
             }
+            // applied declarations expose their instance and extension keys
             dir::Type::Application(_) => {
                 self.collect_instance_keys(origin, module, subject, space, keys)?;
 
@@ -1796,6 +1854,7 @@ impl BodyState<'_, '_> {
             | dir::Type::FixedArray(_) => {
                 self.collect_instance_keys(origin, module, subject, space, keys)?;
             }
+
             // tuples expose their labeled elements
             dir::Type::Tuple(tuple) => {
                 for element in self.tuple_elements(subject.module_id, tuple.elements)? {
@@ -1906,7 +1965,18 @@ impl BodyState<'_, '_> {
             self.reachable_extensions(origin, module, subject, subject, instance.symbol)?;
         for extension in extensions {
             let matched = self
-                .decided_extension_candidates(origin, module, subject, subject, extension, space)?;
+                .extension_subject_candidates(
+                    origin,
+                    module,
+                    instance.symbol,
+                    subject,
+                    subject,
+                    extension,
+                    space,
+                    None,
+                )?
+                // a re-entered extension adds no keys at its own fixed point
+                .unwrap_or_default();
             keys.extend(matched.iter().map(|(key, _)| *key));
         }
 

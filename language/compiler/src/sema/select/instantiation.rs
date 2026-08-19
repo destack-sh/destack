@@ -105,7 +105,7 @@ impl CheckState<'_> {
 
             // reuse a parameter opened earlier at this typing position
             let origin_id = self.infer.intern_origin(origin);
-            if !self.settling
+            if !self.is_settling
                 && let Some(existing) = self.infer.instantiation(origin_id, parameter)
             {
                 let argument = self.variable_type(existing)?;
@@ -119,7 +119,7 @@ impl CheckState<'_> {
             let variable =
                 self.allocate_variable(origin, widening, VariableRole::Instantiation { parameter });
             // settled throwaway variables never claim the site's typing position
-            if !self.settling {
+            if !self.is_settling {
                 self.infer
                     .record_instantiation(origin_id, parameter, variable);
             }
@@ -138,7 +138,7 @@ impl CheckState<'_> {
     }
 
     /// Return the literal widening policy for one inferred type argument.
-    fn type_argument_widening(
+    pub(in crate::sema) fn type_argument_widening(
         &mut self,
         origin: Origin,
         parameter: GenericParameterId,

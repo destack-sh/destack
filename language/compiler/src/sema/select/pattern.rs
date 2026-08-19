@@ -179,7 +179,7 @@ impl BodyState<'_, '_> {
                 ty: target_type,
             })),
             scope,
-        );
+        )?;
 
         // commit the assignment pattern resolution
         let () = self.commit_assign_pattern(node, dir::AssignPatternDecision::Place)?;

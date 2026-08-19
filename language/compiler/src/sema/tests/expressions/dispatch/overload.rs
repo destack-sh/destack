@@ -1084,7 +1084,7 @@ extension of Counter implements It<int32> {
 }
 
 function finish(wrapped: Wrap<Counter>): boolean {
-    return wrapped.next<Counter, int32>();
+    return wrapped.next<int32, Counter>();
 }
 
 === dir ===
@@ -1210,8 +1210,8 @@ function finish(wrapped: Wrap<Counter>): boolean {
     /// @resolution.call source=wrapped.next() parameters=() return=boolean kind=symbol target=next#1 receiver=Wrap<Counter> adjustments=(borrow(&'frame readonly Wrap<Counter>)) instance=Wrap<Counter>.<extension#1>.next#1
     /// @resolution.place source=wrapped placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=wrapped root=finish.wrapped
-    /// @generic.instantiation id="next#1<Counter, int32>" template=next#1 arguments=(Counter, int32)
-    /// @generic.instance id="next#1<Counter, int32>" template=next#1 arguments=(Counter, int32)
+    /// @generic.instantiation id="next#1<int32, Counter>" template=next#1 arguments=(int32, Counter)
+    /// @generic.instance id="next#1<int32, Counter>" template=next#1 arguments=(int32, Counter)
 
 }
 "#);

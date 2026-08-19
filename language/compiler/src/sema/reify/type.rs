@@ -258,8 +258,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let next = depth - 1;
 
         let expression = match ty {
-            // open variables, erased parameters, and errors have no honest source form
-            dir::Type::Variable(_) | dir::Type::Erased(_) | dir::Type::Error => return Ok(None),
+            // skip open variables, holes, rigid and erased parameters, and errors
+            dir::Type::Variable(_)
+            | dir::Type::Hole(_)
+            | dir::Type::Rigid(_)
+            | dir::Type::Erased(_)
+            | dir::Type::Error => {
+                return Ok(None);
+            }
             // refinements print as their base application
             dir::Type::Refined(refined) => {
                 let refined = self.check.type_refined(id.module_id, refined)?;

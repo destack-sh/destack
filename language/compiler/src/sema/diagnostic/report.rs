@@ -2165,6 +2165,9 @@ impl CheckState<'_> {
             ObligationFailure::ForeignBlanketImplementation { source, interface } => {
                 self.report_foreign_blanket_implementation(source, interface);
             }
+            ObligationFailure::UnanchoredBlanketMember { source, member } => {
+                self.report_unanchored_blanket_member(source, member);
+            }
             ObligationFailure::UnconstrainedExtensionParameter { source, parameter } => {
                 self.report_unconstrained_extension_parameter(source, parameter);
             }
@@ -2612,6 +2615,22 @@ impl CheckState<'_> {
             anchor,
             module,
             interface: self.format_symbol(interface),
+        };
+
+        self.report(module, error);
+    }
+
+    /// Report one blanket extension member outside its declared interfaces.
+    pub(in crate::sema) fn report_unanchored_blanket_member(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        member: String,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::UnanchoredBlanketMember {
+            anchor,
+            module,
+            member,
         };
 
         self.report(module, error);

@@ -229,6 +229,9 @@ impl CheckState<'_> {
                 receiver: owner,
                 key: key_type,
             })),
+
+            // keep undecided lookups symbolic
+            MemberLookup::Undecided => Ok(OperationReduction::Rigid),
         }
     }
 

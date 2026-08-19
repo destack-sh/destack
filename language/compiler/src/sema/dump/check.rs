@@ -54,6 +54,11 @@ impl Check {
                 .text("node", context.node_label(selection.site.node))
                 .text("id", context.check_label(id))
                 .bool("finished", finished),
+            Self::Equality(equality) => ArtifactEvent::new("equality.checked")
+                .debug()
+                .text("node", context.node_label(equality.value))
+                .text("id", context.check_label(id))
+                .bool("finished", finished),
             Self::Declared(entry) => entry.obligation.render_event(id, finished, context),
         }
     }

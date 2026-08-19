@@ -18,7 +18,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     values.iterator<int32 | undefined>().map<int32 | undefined, int32 | undefined>(
         (value: int32 | undefined): int32 | undefined => value,
-    ).find<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined, int32 | undefined>(
+    ).find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>(
         (value: &'a readonly (int32 | undefined)): boolean =>
             value !== (undefined as int32 | undefined) && (value as int32) > 0,
     ) as int32 | undefined
@@ -43,7 +43,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=firstPositive.values
     /// @generic.instantiation id="collections.array.iterator#2<int32 | undefined>" template=collections.array.iterator#2 arguments=(int32 | undefined)
-    /// @generic.instantiation id="iter.iterator.Iterator.find<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined, int32 | undefined>" template=iter.iterator.Iterator.find arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined, int32 | undefined)
+    /// @generic.instantiation id="iter.iterator.Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, iter.iterator.Iterator<int32 | undefined>>" template=iter.iterator.Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, iter.iterator.Iterator<int32 | undefined>)
     /// @generic.instantiation id="iter.iterator.Iterator.map<int32 | undefined>" template=iter.iterator.Iterator.map arguments=(int32 | undefined)
     /// @generic.instance id="collections.array.iterator#2<int32 | undefined>" template=collections.array.iterator#2 arguments=(int32 | undefined)
     /// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
@@ -51,7 +51,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="iter.iterator.Iterator.find<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined, int32 | undefined>" template=iter.iterator.Iterator.find arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined, int32 | undefined)
+    /// @generic.instance id="iter.iterator.Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, iter.iterator.Iterator<int32 | undefined>>" template=iter.iterator.Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, iter.iterator.Iterator<int32 | undefined>)
     /// @generic.instance id="iter.iterator.Iterator<int32 | undefined>" template=iter.iterator.Iterator arguments=(int32 | undefined)
     /// @generic.instance id="iter.iterator.IteratorResult<int32 | undefined, iter.iterator.Iterator<int32 | undefined>.Return>" template=iter.iterator.IteratorResult arguments=(int32 | undefined, iter.iterator.Iterator<int32 | undefined>.Return)
     /// @generic.instance id="iter.iterator.IteratorResult<int32 | undefined, void>" template=iter.iterator.IteratorResult arguments=(int32 | undefined, void)

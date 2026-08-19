@@ -94,7 +94,7 @@ impl InferContext {
 }
 
 /// Mark of the inference trail before one speculative attempt.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) struct TrailMark {
     /// The variable count at the mark.
     variables: usize,

@@ -94,6 +94,15 @@ pub(in crate::sema) struct RelationAttempt {
     index: usize,
 }
 
+/// The cycle discipline one relation pair decides under.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::sema) enum Cycle {
+    /// A repeated pair holds as a recursive hypothesis.
+    Coinductive,
+    /// A repeated pair is refused, rejecting self-supported proof.
+    Inductive,
+}
+
 /// One stack entry tracking cycle use during an attempt.
 #[derive(Debug, Clone)]
 struct RelationStackEntry {
@@ -101,6 +110,8 @@ struct RelationStackEntry {
     key: RelationKey,
     /// The outermost stack index this attempt's result depends on.
     dependency: usize,
+    /// Whether this attempt consumed an inductive refusal.
+    refused: bool,
 }
 
 /// In-flight relation decisions with their cycle stack.
@@ -127,18 +138,34 @@ impl RelationStack {
         }
     }
 
-    /// Return the in-flight answer for one pair, recording cycle use.
-    pub(in crate::sema) fn lookup(&mut self, key: &RelationKey) -> Option<bool> {
-        let verdict = *self.decisions.get(key)?;
+    /// Return whether no decision attempt is in flight.
+    pub(in crate::sema) fn is_idle(&self) -> bool {
+        self.stack.is_empty()
+    }
 
-        // make the consuming attempt depend on the encountered cycle
+    /// Return the in-flight answer for one pair, recording cycle use.
+    pub(in crate::sema) fn lookup(&mut self, key: &RelationKey, cycle: Cycle) -> Option<bool> {
+        let verdict = *self.decisions.get(key)?;
         match verdict {
             RelationDecision::InProgress(index) | RelationDecision::Provisional(index) => {
-                if let Some(top) = self.stack.last_mut() {
-                    top.dependency = top.dependency.min(index);
-                }
+                match cycle {
+                    // hold the repeated pair as a recursive hypothesis
+                    Cycle::Coinductive => {
+                        if let Some(top) = self.stack.last_mut() {
+                            top.dependency = top.dependency.min(index);
+                        }
 
-                Some(true)
+                        Some(true)
+                    }
+                    // refuse self-supported proof, tainting the asking attempt
+                    Cycle::Inductive => {
+                        if let Some(top) = self.stack.last_mut() {
+                            top.refused = true;
+                        }
+
+                        Some(false)
+                    }
+                }
             }
         }
     }
@@ -152,30 +179,33 @@ impl RelationStack {
         self.stack.push(RelationStackEntry {
             key,
             dependency: index,
+            refused: false,
         });
 
         RelationAttempt { key, index }
     }
 
     /// Finish one attempt, returning the decision it settled.
-    ///
-    /// Settled attempts decide durable pairs: the caller records the returned
-    /// decision as a relation fact. Cycle-provisional holds stay in flight
-    /// and open answers are not retained at all.
     pub(in crate::sema) fn finish(
         &mut self,
         attempt: RelationAttempt,
         holds: bool,
-    ) -> Option<(RelationKey, bool)> {
+    ) -> Option<bool> {
         let entry = self.pop(attempt);
 
-        // failure is robust: cycle hypotheses only widen relations,
-        //  so a failure reached under one holds without it
         if !holds {
             self.resolve_dependents(attempt.index, None);
             self.decisions.swap_remove(&attempt.key);
+            // keep refusal-fed failures open, since the pair may hold alone
+            if entry.refused {
+                if let Some(top) = self.stack.last_mut() {
+                    top.refused = true;
+                }
 
-            return Some((attempt.key, false));
+                return None;
+            }
+
+            return Some(false);
         }
 
         // pass provisional holds through the outer cycle
@@ -195,7 +225,7 @@ impl RelationStack {
         self.resolve_dependents(attempt.index, Some(attempt.index));
         self.decisions.swap_remove(&attempt.key);
 
-        Some((attempt.key, true))
+        Some(true)
     }
 
     /// Cancel one attempt without an answer, forgetting its dependents.

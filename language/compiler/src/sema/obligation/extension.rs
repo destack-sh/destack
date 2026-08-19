@@ -48,6 +48,13 @@ impl CheckState<'_> {
             &mut failures,
         )?;
 
+        // require every member of an unanchored blanket to implement a declared interface member
+        if let dir::ExtensionTarget::Blanket { ty, .. } = target
+            && !self.is_blanket_interface_anchored(ty)?
+        {
+            self.check_blanket_member_anchoring(symbol, source, &interfaces, &mut failures)?;
+        }
+
         if interfaces.is_empty() {
             let check = ObligationCheck::from_failures(failures);
 
@@ -100,6 +107,70 @@ impl CheckState<'_> {
         let check = ObligationCheck::from_failures(failures);
 
         Ok(check)
+    }
+
+    /// Return whether one blanket target's own constraint anchors an interface.
+    fn is_blanket_interface_anchored(&mut self, target: dir::GlobalTypeId) -> CompilerResult<bool> {
+        // read the constraint the blanket parameter declares
+        let dir::Type::Parameter(parameter) = self.ty(target)? else {
+            return Ok(false);
+        };
+        let Some(constraint) = self
+            .generic_parameter(parameter)
+            .and_then(|binding| binding.constraint)
+        else {
+            return Ok(false);
+        };
+
+        // answer whether that constraint applies an interface
+        let Some((_, instance)) = self.nominal_application_maybe(constraint)? else {
+            return Ok(false);
+        };
+
+        self.symbol_kind(instance.symbol)
+            .map(|kind| kind.is_interface())
+    }
+
+    /// Reject blanket members outside the declared interfaces' member keys.
+    fn check_blanket_member_anchoring(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        source: dir::GlobalNodeIdAny,
+        interfaces: &[dir::GlobalTypeId],
+        failures: &mut Vec<ObligationFailure>,
+    ) -> CompilerResult<()> {
+        // collect the member keys the declared interfaces admit
+        let mut admitted = FxIndexSet::default();
+        for implemented in interfaces {
+            let (_, interface) = self.nominal_application(*implemented)?;
+            if let Some(dir::Definition::Interface(definition)) =
+                self.definition(interface.symbol)?
+            {
+                admitted.extend(definition.members.iter().filter_map(|member| member.key()));
+            }
+        }
+
+        // read the keys the extension declares
+        let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: format!("blanket obligation symbol {symbol:?} names no extension"),
+            });
+        };
+        let declared: SmallVec<[dir::StaticKey; 8]> = extension
+            .members
+            .iter()
+            .filter_map(|member| member.key())
+            .collect();
+
+        // require every declared key to implement an admitted member
+        for key in declared {
+            if !admitted.contains(&key) {
+                let member = self.format_static_key(&key);
+                failures.push(ObligationFailure::UnanchoredBlanketMember { source, member });
+            }
+        }
+
+        Ok(())
     }
 
     /// Reject extension parameters the target and conformances leave unconstrained.

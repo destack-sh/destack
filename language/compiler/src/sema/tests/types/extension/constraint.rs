@@ -669,7 +669,7 @@ extension of Token implements Give<Box<boolean>> {
 }
 
 function open(value: Token): boolean {
-    return value.unwrap<Token, boolean>();
+    return value.unwrap<boolean, Token>();
 }
 
 === dir ===
@@ -767,8 +767,8 @@ function open(value: Token): boolean {
     /// @resolution.call source=value.unwrap() parameters=() return=boolean kind=symbol target=unwrap receiver=Token instance=Token.<extension#1>.unwrap
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=open.value
-    /// @generic.instantiation id="unwrap<Token, boolean>" template=unwrap arguments=(Token, boolean)
-    /// @generic.instance id="unwrap<Token, boolean>" template=unwrap arguments=(Token, boolean)
+    /// @generic.instantiation id="unwrap<boolean, Token>" template=unwrap arguments=(boolean, Token)
+    /// @generic.instance id="unwrap<boolean, Token>" template=unwrap arguments=(boolean, Token)
     /// @generic.instance id=Give.give<Box<boolean>> template=Give.give arguments=(Box<boolean>)
 
 }

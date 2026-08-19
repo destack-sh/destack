@@ -42,7 +42,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        if self.is_representation_proven(ty, dir::AutoInterface::Concrete)? {
+        if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
             return Ok(true);
         }
 
@@ -57,7 +57,7 @@ impl CheckState<'_> {
             &mut visited,
         )?;
         if failure.is_none() {
-            self.prove_representation(ty, dir::AutoInterface::Concrete)?;
+            self.prove_representation(origin, ty, dir::AutoInterface::Concrete)?;
         }
 
         Ok(failure.is_none())
@@ -69,7 +69,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        if self.is_representation_proven(ty, dir::AutoInterface::SharedSafe)? {
+        if self.is_representation_proven(origin, ty, dir::AutoInterface::SharedSafe)? {
             return Ok(true);
         }
 
@@ -103,7 +103,7 @@ impl CheckState<'_> {
             &mut visited,
         )?;
         if failure.is_none() {
-            self.prove_representation(ty, dir::AutoInterface::SharedSafe)?;
+            self.prove_representation(origin, ty, dir::AutoInterface::SharedSafe)?;
         }
 
         Ok(failure.is_none())
@@ -115,8 +115,8 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<ObligationCheck> {
-        if let Some(key) = self.storage_key(ty)?
-            && self.storable.contains(&key)
+        if let Some(key) = self.storage_key(origin, ty)?
+            && self.storables.contains(&key)
         {
             return Ok(ObligationCheck::holds());
         }
@@ -138,12 +138,12 @@ impl CheckState<'_> {
             None => {
                 let chain = self.form_chain(origin, ty)?;
                 let Some(place) = chain.place() else {
-                    self.prove_storage(ty)?;
+                    self.prove_storage(origin, ty)?;
 
                     return Ok(ObligationCheck::holds());
                 };
                 if self.place_space(place)? != Some(dir::Space::Shared) {
-                    self.prove_storage(ty)?;
+                    self.prove_storage(origin, ty)?;
 
                     return Ok(ObligationCheck::holds());
                 }
@@ -188,7 +188,7 @@ impl CheckState<'_> {
             None => {
                 // prove storage away from the field's own declaration site
                 if !is_declaration_site {
-                    self.prove_storage(ty)?;
+                    self.prove_storage(origin, ty)?;
                 }
 
                 return Ok(ObligationCheck::holds());
@@ -201,62 +201,79 @@ impl CheckState<'_> {
     /// Return whether one type already proved a representation interface.
     fn is_representation_proven(
         &mut self,
+        origin: Origin,
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<bool> {
-        let Some(key) = self.representation_key(ty, interface)? else {
+        let Some(key) = self.representation_key(origin, ty, interface)? else {
             return Ok(false);
         };
 
-        Ok(self.conforms.get(&key) == Some(&true))
+        Ok(self.conformances.get(&key) == Some(&true))
     }
 
     /// Record one proven representation interface.
     fn prove_representation(
         &mut self,
+        origin: Origin,
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<()> {
-        if let Some(key) = self.representation_key(ty, interface)? {
-            self.conforms.insert(key, true);
+        if let Some(key) = self.representation_key(origin, ty, interface)? {
+            self.conformances.insert(key, true);
         }
 
         Ok(())
     }
 
     /// Record one proven storable representation.
-    fn prove_storage(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<()> {
-        if let Some(key) = self.storage_key(ty)? {
-            self.storable.insert(key);
+    fn prove_storage(&mut self, origin: Origin, ty: dir::GlobalTypeId) -> CompilerResult<()> {
+        if let Some(key) = self.storage_key(origin, ty)? {
+            self.storables.insert(key);
         }
 
         Ok(())
     }
 
     /// Key one proven storable representation by type identity, for settled types only.
-    fn storage_key(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // open, parameter, and This types decide under their context and never memo
+    fn storage_key(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>)>> {
+        // decide storability once over variable-free types under the assuming template
         let flags = self.type_flags(ty)?;
-        if flags.has_variable() || flags.has_parameter() || flags.has_this() {
+        if flags.has_variable() {
             return Ok(None);
         }
 
-        Ok(Some(ty))
+        Ok(self
+            .decision_scope(origin, flags)?
+            .map(|assumes| (ty, assumes)))
     }
 
     /// Key one representation interface by type identity, for settled types only.
     fn representation_key(
         &mut self,
+        origin: Origin,
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
-    ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::AutoInterface)>> {
-        // open, parameter, and This types decide under their context and never memo
+    ) -> CompilerResult<
+        Option<(
+            dir::GlobalTypeId,
+            dir::AutoInterface,
+            Option<dir::GlobalGenericTemplateId>,
+        )>,
+    > {
+        // decide the interface once over variable-free types under the assuming template
         let flags = self.type_flags(ty)?;
-        if flags.has_variable() || flags.has_parameter() || flags.has_this() {
+        if flags.has_variable() {
             return Ok(None);
         }
 
-        Ok(Some((ty, interface)))
+        Ok(self
+            .decision_scope(origin, flags)?
+            .map(|assumes| (ty, interface, assumes)))
     }
 
     /// Return the first invalid stored representation beneath one type.
@@ -297,13 +314,13 @@ impl CheckState<'_> {
         // reuse per-node proofs, since concrete and finite walks are place independent
         match check {
             RepresentationCheck::Concrete { .. } => {
-                if self.is_representation_proven(ty, dir::AutoInterface::Concrete)? {
+                if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
                     return Ok(None);
                 }
             }
             RepresentationCheck::Finite => {
-                if let Some(key) = self.storage_key(ty)?
-                    && self.storable.contains(&key)
+                if let Some(key) = self.storage_key(origin, ty)?
+                    && self.storables.contains(&key)
                 {
                     return Ok(None);
                 }
@@ -330,10 +347,10 @@ impl CheckState<'_> {
         if let Ok(None) = &failure {
             match check {
                 RepresentationCheck::Concrete { .. } => {
-                    self.prove_representation(ty, dir::AutoInterface::Concrete)?;
+                    self.prove_representation(origin, ty, dir::AutoInterface::Concrete)?;
                 }
                 RepresentationCheck::Finite => {
-                    self.prove_storage(ty)?;
+                    self.prove_storage(origin, ty)?;
                 }
                 RepresentationCheck::Shared { .. } => {}
             }

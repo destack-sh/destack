@@ -45,8 +45,8 @@ impl CheckState<'_> {
 
         // decide each stored representation
         match kind {
-            // leave an open variable undecided
-            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
+            // leave an open variable or canonical hole undecided
+            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -78,11 +78,12 @@ impl CheckState<'_> {
             | dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
             | dir::Type::Union(_) => Ok(Verdict::Fails),
-            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
-                Err(CompilerError::Internal {
-                    message: format!("generic type {ty:?} reached structural overwrite stability"),
-                })
-            }
+            dir::Type::Parameter(_)
+            | dir::Type::Rigid(_)
+            | dir::Type::Erased(_)
+            | dir::Type::This => Err(CompilerError::Internal {
+                message: format!("generic type {ty:?} reached structural overwrite stability"),
+            }),
             dir::Type::Form(form) => match form.form {
                 dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(Verdict::Holds),
                 dir::Form::Owned => Ok(Verdict::Fails),

@@ -436,6 +436,11 @@ impl CheckState<'_> {
                     message: "nominal implementation has a structural member".into(),
                 });
             }
+            MemberLookup::Undecided => {
+                return Err(CompilerError::Internal {
+                    message: "an inherent lookup re-entered an extension decision".into(),
+                });
+            }
         };
 
         // conformances select only public members
@@ -444,7 +449,7 @@ impl CheckState<'_> {
         Ok(candidates)
     }
 
-    /// Return whether one member is part of its declaration's public surface.
+    /// Return whether one member is part of its declaration's public membership.
     fn is_public_member(&self, symbol: dir::GlobalSymbolId) -> bool {
         !matches!(
             self.member_visibility(symbol),

@@ -65,7 +65,7 @@ function read(value: Result<int32, Cancelled>): int32 {
         /// @resolution.access source=value root=read.value
 
     } catch (Cancelled) {
-    /// @type.symbol symbol=read.Cancelled source=Cancelled type=TryResidual<error.result.Result<int32, Cancelled>>
+    /// @type.symbol symbol=read.Cancelled source=Cancelled type=Cancelled
     /// @resolution.pattern source=Cancelled kind=binding target=read.Cancelled
 
         0

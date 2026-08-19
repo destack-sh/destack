@@ -1,0 +1,236 @@
+use std::sync::Arc;
+
+use destack_dir as dir;
+use destack_source::ModuleId;
+use smallvec::SmallVec;
+
+use crate::sema::{
+    CheckFailure, MemberLookup, NewtypeInstance, NewtypeOverload, OperatorExpressionResult,
+    ProtocolCall, Relation, Response, SignatureInstance, ValueUse, VariableRole, Verdict, Widening,
+};
+
+/// One question the solver decides, in canonical form.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(in crate::sema) struct Question {
+    /// The decided subject.
+    pub(in crate::sema) ask: Ask,
+    /// The canonical operands, in ask order.
+    pub(in crate::sema) operands: dir::TypeListId,
+    /// The assumptions the operands decide under.
+    pub(in crate::sema) premise: Premise,
+}
+
+/// The subject one question decides.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) enum Ask {
+    /// One judged relation over [source, target].
+    Relation(Relation),
+    /// One implementation decision over [source, target].
+    Implementation(Relation),
+    /// The extensions one owner admits over [receiver, subject].
+    Sources {
+        /// The declaration whose extensions the ask reaches.
+        owner: dir::GlobalSymbolId,
+        /// The module whose visibility admits the extensions.
+        module: ModuleId,
+    },
+    /// One extension's deduced arguments over [receiver, subject].
+    Extension {
+        /// The extension declaration the match decides.
+        extension: dir::GlobalSymbolId,
+    },
+    /// The member one key exposes over [receiver, target].
+    Member {
+        /// The module whose visibility admits the members.
+        module: ModuleId,
+        /// The searched member space.
+        space: dir::MemberSpace,
+        /// The looked-up member key.
+        key: dir::StaticKey,
+    },
+    /// The callable selected over [expected.., callee, arguments..].
+    Selection {
+        /// The callable identity asked.
+        callee: Callee,
+        /// Whether an expectation leads the canonical operands.
+        expected: bool,
+    },
+    /// The union arm selected over [source, targets..].
+    Arm {
+        /// The expected value use.
+        value_use: ValueUse,
+        /// Whether the converted value owns an addressable place.
+        is_placed: bool,
+    },
+}
+
+/// The callable identity one selection decides for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) enum Callee {
+    /// A declared callable symbol.
+    Symbol(dir::GlobalSymbolId),
+    /// A builtin binary operator.
+    Operator(dir::BinaryOperator),
+    /// A newtype construction under one backing selection rule.
+    Newtype(dir::GlobalSymbolId, NewtypeOverload),
+}
+
+/// One decided answer, applied without re-derivation.
+#[derive(Debug, Clone)]
+pub(in crate::sema) enum Answer {
+    /// The relation holds.
+    Holds,
+    /// The relation fails.
+    Fails,
+    /// The implementation decision with its winner and hole solutions.
+    Implement(Arc<Response<Implementation>>),
+    /// The matching extensions with their deduced canonical arguments.
+    Sources(Arc<Response<Vec<ExtensionSource>>>),
+    /// The extension match with its deduced canonical arguments, absent on refusal.
+    Extension(Option<Arc<Response<SmallVec<[dir::GlobalTypeId; 4]>>>>),
+    /// The member lookup the canonical receiver decided.
+    Member(Arc<Response<MemberLookup>>),
+    /// The selected union arm by target position, exact or converted, or its failure.
+    Arm(Result<(u16, bool), CheckFailure>),
+    /// The callable decision one canonical operand list selected.
+    Selection(Arc<Response<Selected>>),
+}
+
+/// One decided extension-implementation verdict with its winner.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::sema) struct Implementation {
+    /// The decided verdict.
+    pub(in crate::sema) verdict: Verdict,
+    /// The winning implementation, absent on disproof.
+    pub(in crate::sema) winner: Option<dir::GlobalSymbolId>,
+}
+
+/// One matched extension with the arguments its template deduces.
+#[derive(Debug, Clone)]
+pub(in crate::sema) struct ExtensionSource {
+    /// The matched extension declaration.
+    pub(in crate::sema) extension: dir::GlobalSymbolId,
+    /// The deduced template arguments, in declaration order.
+    pub(in crate::sema) arguments: SmallVec<[dir::GlobalTypeId; 4]>,
+}
+
+/// One decided callable selection, replayed per ask site.
+#[derive(Debug, Clone)]
+pub(in crate::sema) enum Selected {
+    /// The selected declaration with its instantiated signature.
+    Callable(SignatureInstance),
+    /// The selected newtype backing without per-site coercions.
+    Newtype(NewtypeInstance),
+    /// The selected operator protocol call.
+    Protocol(ProtocolCall, OperatorExpressionResult),
+    /// A builtin binary operator application.
+    Builtin {
+        /// The applied result type.
+        result: dir::GlobalTypeId,
+        /// The coerced operand types.
+        operands: [dir::GlobalTypeId; 2],
+    },
+    /// No candidate applies to these operands.
+    Rejected,
+}
+
+/// One interned bound set inside the solver's premise storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) struct BoundSetId(pub(in crate::sema) u32);
+
+/// The assumptions one canonical question decides under.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) enum Premise {
+    /// The operands are settled and decide once per pass.
+    Free,
+    /// The renamed parameters assume one interned bound set.
+    Bounds(BoundSetId),
+    /// The operands stay scoped to their assuming template.
+    Scope(Option<dir::GlobalGenericTemplateId>),
+}
+
+/// The declared content one renamed parameter assumes, in canonical form.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) struct PremiseParameter {
+    /// The parameter representation.
+    pub(in crate::sema) kind: dir::GenericParameterKind,
+    /// Whether the parameter captures remaining arguments.
+    pub(in crate::sema) is_variadic: bool,
+    /// The canonical declared constraint.
+    pub(in crate::sema) constraint: Option<dir::GlobalTypeId>,
+    /// The canonical declared default.
+    pub(in crate::sema) default: Option<dir::GlobalTypeId>,
+}
+
+/// The bound content one question's renamed parameters assume.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub(in crate::sema) struct BoundSet {
+    /// The renamed parameters' declared content, in rigid order.
+    pub(in crate::sema) parameters: SmallVec<[PremiseParameter; 4]>,
+    /// The assumed where predicates reaching the renamed parameters.
+    pub(in crate::sema) predicates:
+        SmallVec<[(dir::WhereRelation, dir::GlobalTypeId, dir::GlobalTypeId); 2]>,
+    /// The renamed holes' carried content, in hole order.
+    pub(in crate::sema) holes: SmallVec<[Hole; 2]>,
+}
+
+/// One numbered open root's carried content, shared by asks and answers.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(in crate::sema) struct Hole {
+    /// The canonical lower bounds with their relations.
+    pub(in crate::sema) lower: SmallVec<[(Relation, dir::GlobalTypeId); 2]>,
+    /// The canonical upper bounds with their relations.
+    pub(in crate::sema) upper: SmallVec<[(Relation, dir::GlobalTypeId); 2]>,
+    /// The canonical declared default.
+    pub(in crate::sema) default: Option<dir::GlobalTypeId>,
+    /// The literal widening the root applies when solving.
+    pub(in crate::sema) widening: Widening,
+    /// The special role the root carries.
+    pub(in crate::sema) role: VariableRole,
+}
+
+impl Hole {
+    /// Return whether this hole carries any bound or default.
+    pub(super) fn is_bound(&self) -> bool {
+        !self.lower.is_empty() || !self.upper.is_empty() || self.default.is_some()
+    }
+}
+
+impl dir::TypeFold for Implementation {
+    /// Map every type this verdict carries.
+    fn map_types<E>(
+        &mut self,
+        _map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        Ok(())
+    }
+}
+
+impl dir::TypeFold for ExtensionSource {
+    /// Map every type this match carries.
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.arguments.map_types(map)
+    }
+}
+
+impl dir::TypeFold for Selected {
+    /// Map every type this selection carries.
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        match self {
+            Self::Callable(instance) => instance.map_types(map),
+            Self::Newtype(instance) => instance.map_types(map),
+            Self::Protocol(call, _) => call.map_types(map),
+            Self::Builtin { result, operands } => {
+                result.map_types(map)?;
+                operands.map_types(map)
+            }
+            Self::Rejected => Ok(()),
+        }
+    }
+}

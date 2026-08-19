@@ -380,7 +380,7 @@ impl BodyState<'_, '_> {
                         },
                     }),
                     scope,
-                );
+                )?;
             }
             self.check.mark_bindings_assigned(pattern.into_any());
         }
@@ -417,7 +417,7 @@ impl BodyState<'_, '_> {
 
         // queue exhaustiveness checking at the first visit
         if first_visit {
-            self.queue_match_coverage(module, node.local_id, value, coverage);
+            self.queue_match_coverage(module, node.local_id, value, coverage)?;
         }
 
         Ok(())
@@ -731,7 +731,7 @@ impl BodyState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
         arms: Vec<PatternArm>,
-    ) {
+    ) -> CompilerResult<()> {
         let scope = self.check.flow.template_scope();
         self.check.push_obligation(
             Obligation::PatternCoverage(PatternCoverageObligation {
@@ -740,7 +740,9 @@ impl BodyState<'_, '_> {
                 coverage: PatternCoverage::Match { arms },
             }),
             scope,
-        );
+        )?;
+
+        Ok(())
     }
 
     /// Check one match expression under an expected result type.
@@ -768,7 +770,7 @@ impl BodyState<'_, '_> {
         // queue exhaustiveness checking at the first visit
         if first_visit {
             let node = site.node.into_typed::<dir::Expression>();
-            self.queue_match_coverage(module, node.local_id, value, coverage);
+            self.queue_match_coverage(module, node.local_id, value, coverage)?;
         }
 
         // return never for an empty match
@@ -922,7 +924,7 @@ impl BodyState<'_, '_> {
                 ty: iterator_type,
             }),
             scope,
-        );
+        )?;
         let string = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
 
         Ok(string)

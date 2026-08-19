@@ -1,4 +1,3 @@
-use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_dir::TypeFold;
 use destack_repository::ArtifactAttemptRecorder;
@@ -34,7 +33,7 @@ impl CheckState<'_> {
 
         // write each identity value as a type static
         for (symbol, value) in identities {
-            let value = self.fully_resolve(value, &FxIndexSet::default())?;
+            let value = self.fully_resolve(value)?;
             let state = self.module_mut(module);
             if state.statics_tail.get_symbol_static_id(symbol).is_some() {
                 continue;
@@ -141,78 +140,67 @@ impl CheckState<'_> {
         Ok(subject)
     }
 
-    /// Store the member bindings each settled subject selects, projected once per subject.
+    /// Store the membership each settled subject selects.
     fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // project each settled subject once, at the first site that selected it
-        let mut first_recorded: FxIndexMap<dir::MemberSubject, dir::MemberSubject> =
-            FxIndexMap::default();
         for (site, recorded) in self.recorded_member_sites(module) {
             // re-key the site, since inference solved its subject after selection
             let subject = self.settle_member_site(module, site, recorded)?;
 
-            // project what this subject selects the first time it settles
-            if self
-                .module(module)
-                .member_subject_bindings(&subject)
-                .is_none()
-            {
-                let bindings = self.settled_subject_bindings(site, module, subject)?;
-                self.module_mut(module)
-                    .members_tail
-                    .set_subject_bindings(subject, bindings);
-                first_recorded.insert(subject, recorded);
-            }
-            // require a second recorded form settling on this subject to project the same members
-            else if let Some(first) = first_recorded.get(&subject).copied()
-                && first != recorded
-            {
-                let bindings = self.settled_subject_bindings(site, module, subject)?;
-                let stored = self.module(module).member_subject_bindings(&subject);
-                if stored != Some(bindings.as_slice()) {
+            // require one membership per settled subject
+            let membership = self.settled_membership(site, module, subject)?;
+            if let Some(stored) = self.module(module).membership(&subject).cloned() {
+                if !memberships_agree(&stored, &membership) {
                     return Err(CompilerError::Internal {
                         message: format!(
-                            "member subjects {first:?} and {recorded:?} settle to {subject:?} with conflicting bindings"
+                            "member subject {subject:?} projected diverging memberships: {stored:?} vs {membership:?}"
                         ),
                     });
                 }
+
+                continue;
             }
+
+            // store the membership the first settling site projects
+            self.module_mut(module)
+                .members_tail
+                .set_membership(subject, membership);
         }
 
         Ok(())
     }
 
-    /// Project one settled subject and settle the types its bindings carry.
-    fn settled_subject_bindings(
+    /// Project one settled subject's membership, settling the types its bindings carry.
+    fn settled_membership(
         &mut self,
         site: dir::MemberSite,
         module: ModuleId,
         subject: dir::MemberSubject,
-    ) -> CompilerResult<Vec<dir::MemberBinding>> {
+    ) -> CompilerResult<dir::Membership> {
+        // project the membership under the settling flag
         let origin = Origin::Node(site.node(), subject.scope);
-        self.settling = true;
-        let bindings = self.project_subject_bindings(origin, module, subject);
-        self.settling = false;
-        let mut bindings = bindings?;
+        self.is_settling = true;
+        let membership = self.project_membership(origin, module, subject);
+        self.is_settling = false;
+        let mut membership = membership?;
 
-        // settle the open types a projected binding still carries,
+        // settle the open types a structural binding still carries,
         //  folding throwaway instantiation variables to erased parameter holes
-        let intact = FxIndexSet::default();
-        for binding in &mut bindings {
+        for binding in &mut membership.structural {
             binding.map_types(&mut |ty| {
                 if !self.type_flags(ty)?.has_variable() {
                     return Ok(ty);
                 }
                 let ty = self.erase_instantiations(module, ty)?;
 
-                self.fully_resolve(ty, &intact)
+                self.fully_resolve(ty)
             })?;
         }
 
-        Ok(bindings)
+        Ok(membership)
     }
 
     /// Replace instantiation variables in one type with erased parameter holes.
-    fn erase_instantiations(
+    pub(in crate::sema) fn erase_instantiations(
         &mut self,
         module: ModuleId,
         mut id: dir::GlobalTypeId,
@@ -230,17 +218,17 @@ impl CheckState<'_> {
         Ok(id)
     }
 
-    /// Project the member bindings one settled subject selects.
+    /// Project the membership one settled subject selects.
     ///
-    /// NOTE #Incomplete: the flattened arm binds This and substitutes arguments but
-    /// does not re-run place projection or readonly widening, and members reachable
-    /// only through a uniquely declaring interface stay unprojected.
-    fn project_subject_bindings(
+    /// NOTE #Incomplete: extension members compose into the structural bindings
+    /// until candidates carry their deduced arguments, where stage two references
+    /// them as sources beside the nominal owner.
+    fn project_membership(
         &mut self,
         origin: Origin,
         module: ModuleId,
         subject: dir::MemberSubject,
-    ) -> CompilerResult<Vec<dir::MemberBinding>> {
+    ) -> CompilerResult<dir::Membership> {
         // reduce projection heads to their identities first
         let subject = match self.ty(subject.key_type)? {
             dir::Type::Member(_) | dir::Type::Operation(_) => {
@@ -251,8 +239,10 @@ impl CheckState<'_> {
             _ => subject,
         };
 
-        // substitute declaration-backed subjects over their owner's flattened bindings,
-        //  leaving newtypes to keyed lookups so their backing members project too
+        // strip the receiver's form once for every projection below
+        let receiver = self.strip_form(origin, subject.receiver)?;
+
+        // reference declaration-backed subjects by their owner and arguments
         let instance = self.apparent_instance(subject.key_type)?;
         let is_newtype = match &instance {
             Some(instance) => matches!(
@@ -263,66 +253,88 @@ impl CheckState<'_> {
         };
         if let Some(instance) = instance
             && !is_newtype
-            && let Some(flattened) = self
+            && self
                 .body()
                 .member_bindings(instance.symbol, subject.space)?
+                .is_some()
         {
-            let mut bindings = flattened.as_ref().clone();
+            let arguments = self.intern_type_ids(&instance.arguments)?;
+            let mut membership = dir::Membership {
+                receiver,
+                sources: vec![dir::MemberSource {
+                    owner: instance.symbol,
+                    arguments,
+                }],
+                structural: Vec::new(),
+            };
 
-            // apply the instance arguments and the stripped receiver across every binding
-            let receiver = self.strip_form(origin, subject.receiver)?;
-            let substitution = instance.substitution(self)?.with_receiver(receiver);
-            for binding in &mut bindings {
-                binding.map_types(&mut |ty| {
-                    let flags = self.type_flags(ty)?;
-                    if !flags.has_parameter() && !flags.has_this() {
-                        return Ok(ty);
-                    }
-
-                    self.substitute_type(ty, &substitution)
-                })?;
-            }
-
-            // append the decided extension members for keys the declaration leaves open
-            self.body().project_extension_bindings(
+            // reference the matching extensions as sources beside the owner
+            let core = self.strip_form(origin, subject.key_type)?;
+            let sources = self.body().decided_extension_sources(
                 origin,
                 module,
-                subject,
+                subject.receiver,
+                core,
                 instance.symbol,
-                &mut bindings,
             )?;
+            for source in sources {
+                let arguments = self.intern_type_ids(&source.arguments)?;
+                membership.sources.push(dir::MemberSource {
+                    owner: source.extension,
+                    arguments,
+                });
+            }
 
-            Ok(bindings)
+            return Ok(membership);
         }
-        // merge generic parameter subjects over their bounds' projections
-        else if let dir::Type::Parameter(parameter) = self.ty(subject.key_type)? {
+
+        // merge generic parameter subjects over their bounds' sources
+        if let dir::Type::Parameter(parameter) = self.ty(subject.key_type)? {
             let bounds = self.body().parameter_bounds(origin, parameter)?;
-            let mut bindings: Vec<dir::MemberBinding> = Vec::new();
+            let mut membership = dir::Membership {
+                receiver,
+                sources: Vec::new(),
+                structural: Vec::new(),
+            };
             for bound in bounds {
                 let projected =
-                    self.project_subject_bindings(origin, module, subject.with_key_type(bound))?;
-                for binding in projected {
-                    if bindings.iter().all(|existing| existing.key != binding.key) {
-                        bindings.push(binding);
+                    self.project_membership(origin, module, subject.with_key_type(bound))?;
+
+                // keep each owner and structural key the bounds contribute once
+                for source in projected.sources {
+                    if !membership.sources.contains(&source) {
+                        membership.sources.push(source);
+                    }
+                }
+                for binding in projected.structural {
+                    if membership
+                        .structural
+                        .iter()
+                        .all(|existing| existing.key != binding.key)
+                    {
+                        membership.structural.push(binding);
                     }
                 }
             }
 
-            Ok(bindings)
+            return Ok(membership);
         }
-        // fall back to keyed lookups for the remaining subject heads
-        else {
-            let keys = self.body().subject_member_keys(origin, module, &subject)?;
-            let mut bindings = Vec::with_capacity(keys.len());
-            for key in keys {
-                let lookup = self.body().lookup_member(origin, module, subject, key)?;
-                if let Some(binding) = self.body().member_binding(key, &lookup)? {
-                    bindings.push(binding);
-                }
-            }
 
-            Ok(bindings)
+        // fall back to keyed lookups for the remaining subject heads
+        let keys = self.body().subject_member_keys(origin, module, &subject)?;
+        let mut structural = Vec::with_capacity(keys.len());
+        for key in keys {
+            let lookup = self.body().lookup_member(origin, module, subject, key)?;
+            if let Some(binding) = self.body().member_binding(key, &lookup)? {
+                structural.push(binding);
+            }
         }
+
+        Ok(dir::Membership {
+            receiver,
+            sources: Vec::new(),
+            structural,
+        })
     }
 
     /// Write the declaration selected for each source path segment.
@@ -415,27 +427,45 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return the declaration one site's stored member bindings select at one key.
+    /// Return the declaration one site's stored member membership selects at one key.
     fn member_site_resolution(
-        &self,
+        &mut self,
         module: ModuleId,
         site: dir::MemberSite,
         key: dir::StaticKey,
     ) -> CompilerResult<Option<dir::NameResolution>> {
+        // read the membership the site's settled subject stored
         let Some(subject) = self.module(module).member_subject(site) else {
             return Ok(None);
         };
-        let bindings = self
+        let membership = self
             .module(module)
-            .member_subject_bindings(&subject)
+            .membership(&subject)
+            .cloned()
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("member site {site:?} stored no bindings for {subject:?}"),
+                message: format!("member site {site:?} stored no membership for {subject:?}"),
             })?;
 
-        Ok(bindings
+        // answer from the structural bindings the subject projected
+        if let Some(binding) = membership
+            .structural
             .iter()
             .find(|binding| binding.key == key)
-            .and_then(dir::MemberBinding::declaration_resolution))
+        {
+            return Ok(binding.declaration_resolution());
+        }
+
+        // answer from each source owner's declared bindings
+        for source in membership.sources {
+            let Some(bindings) = self.body().member_bindings(source.owner, subject.space)? else {
+                continue;
+            };
+            if let Some(binding) = bindings.iter().find(|binding| binding.key == key) {
+                return Ok(binding.declaration_resolution());
+            }
+        }
+
+        Ok(None)
     }
 
     /// Commit one path segment resolution into its module's resolution segment.
@@ -477,10 +507,9 @@ impl CheckState<'_> {
         &mut self,
         subject: dir::MemberSubject,
     ) -> CompilerResult<dir::MemberSubject> {
-        let intact = FxIndexSet::default();
-        let receiver = self.fully_resolve(subject.receiver, &intact)?;
-        let target = self.fully_resolve(subject.target, &intact)?;
-        let key_type = self.fully_resolve(subject.key_type, &intact)?;
+        let receiver = self.fully_resolve(subject.receiver)?;
+        let target = self.fully_resolve(subject.target)?;
+        let key_type = self.fully_resolve(subject.key_type)?;
 
         Ok(dir::MemberSubject {
             receiver,
@@ -561,4 +590,28 @@ impl CheckState<'_> {
 
         Ok(constants)
     }
+}
+
+/// Return whether two memberships select the same owners and structural keys.
+///
+/// Projection reopens per site, so type ids drift with interning, leaving the
+/// selected owners and keys as the stable comparison.
+fn memberships_agree(recorded: &dir::Membership, projected: &dir::Membership) -> bool {
+    // compare the contributing owners in order
+    let has_same_owners = recorded.sources.len() == projected.sources.len()
+        && recorded
+            .sources
+            .iter()
+            .zip(projected.sources.iter())
+            .all(|(recorded, projected)| recorded.owner == projected.owner);
+
+    // compare the structural member keys in order
+    let has_same_keys = recorded.structural.len() == projected.structural.len()
+        && recorded
+            .structural
+            .iter()
+            .zip(projected.structural.iter())
+            .all(|(recorded, projected)| recorded.key == projected.key);
+
+    has_same_owners && has_same_keys
 }

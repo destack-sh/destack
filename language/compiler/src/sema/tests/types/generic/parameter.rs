@@ -1259,7 +1259,7 @@ function active<T: boolean | string>(value: T): boolean where T: boolean {
         r#"
 === annotated ===
 function active<T: boolean | string>(value: T): boolean where T: boolean {
-    return value;
+    return value as boolean;
 }
 
 === dir ===

@@ -1,8 +1,9 @@
+use destack_dir as dir;
+
 use crate::sema::{
     BodyState, CandidateOutcome, Cause, CauseKind, MemberLookup, Origin, Relation, Value,
 };
 use crate::{CompilerError, CompilerResult};
-use destack_dir as dir;
 
 /// The implicit adjustments selected for one receiver.
 pub(in crate::sema) type ReceiverSteps = Vec<dir::ReceiverAdjustment>;
@@ -16,11 +17,8 @@ impl BodyState<'_, '_> {
         narrowed: dir::GlobalTypeId,
         lookup: &mut MemberLookup,
     ) -> CompilerResult<()> {
-        if source == narrowed {
-            return Ok(());
-        }
-
-        // project ordinary narrowed union lookups through each physical arm
+        // project union lookups through each physical arm: every arm reads
+        //  its payload out of the carrier union
         if let MemberLookup::Union(lookups) = lookup
             && let Some(arms) = self.union_arms(origin, narrowed)?
         {
@@ -39,6 +37,11 @@ impl BodyState<'_, '_> {
                 }
             }
 
+            return Ok(());
+        }
+
+        // unchanged receivers keep their direct form
+        if source == narrowed {
             return Ok(());
         }
 
@@ -68,10 +71,12 @@ impl BodyState<'_, '_> {
             return Ok(steps);
         }
 
-        // project a precise physical union arm
+        // keep a carrier that names no physical union
         let Some(arms) = self.union_arms(origin, carrier)? else {
             return Ok(steps);
         };
+
+        // project a precise physical union arm
         if arms.contains(&narrowed) {
             let union = self.form_chain(origin, carrier)?.base();
             let arm = self.form_chain(origin, narrowed)?.base();
@@ -92,6 +97,7 @@ impl BodyState<'_, '_> {
             return Ok(steps);
         }
 
+        // fail loudly on a narrowing the carrier cannot represent
         Err(CompilerError::Internal {
             message: "narrowed receiver is outside its physical union carrier".to_string(),
         })
@@ -125,11 +131,10 @@ impl BodyState<'_, '_> {
     pub(in crate::sema) fn constrain_receiver_argument(
         &mut self,
         origin: Origin,
-        receiver: Value,
+        mut receiver: Value,
         this_parameter: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ReceiverSteps>> {
         let mut steps = ReceiverSteps::new();
-        let mut receiver = receiver;
         loop {
             // try the current step speculatively
             let related = self.confirm_candidate(|state| {
@@ -155,22 +160,22 @@ impl BodyState<'_, '_> {
                         )?
                         .holds();
 
-                    return match acquired {
-                        true => {
-                            let borrowed = state.intern_type(dir::Type::Form(dir::FormType {
-                                form: conversion.borrow.form,
-                                value: receiver.ty,
-                            }))?;
-                            let adjustment = dir::ReceiverAdjustment::Borrow { ty: borrowed };
+                    // record the acquired borrow as one receiver step
+                    if acquired {
+                        let borrowed = state.intern_type(dir::Type::Form(dir::FormType {
+                            form: conversion.borrow.form,
+                            value: receiver.ty,
+                        }))?;
+                        let adjustment = dir::ReceiverAdjustment::Borrow { ty: borrowed };
 
-                            Ok(CandidateOutcome::Accepted(Some(adjustment)))
-                        }
-                        false => Ok(CandidateOutcome::Rejected(())),
-                    };
+                        return Ok(CandidateOutcome::Accepted(Some(adjustment)));
+                    }
+
+                    return Ok(CandidateOutcome::Rejected(()));
                 }
 
                 // otherwise relate the current receiver without acquiring storage
-                match state
+                let relates = state
                     .constrain_type(
                         origin,
                         cause,
@@ -178,10 +183,11 @@ impl BodyState<'_, '_> {
                         receiver.ty,
                         this_parameter,
                     )?
-                    .holds()
-                {
-                    true => Ok(CandidateOutcome::Accepted(None)),
-                    false => Ok(CandidateOutcome::Rejected(())),
+                    .holds();
+                if relates {
+                    Ok(CandidateOutcome::Accepted(None))
+                } else {
+                    Ok(CandidateOutcome::Rejected(()))
                 }
             })?;
 
@@ -194,7 +200,7 @@ impl BodyState<'_, '_> {
                 return Ok(Some(steps));
             }
 
-            // dereference one step further, or run out of ladder
+            // dereference one step further
             let Some(step) = self.receiver_step(origin, receiver.ty)? else {
                 return Ok(None);
             };

@@ -20,7 +20,6 @@ mod property;
 mod protocol;
 mod receiver;
 mod scalar;
-mod selection;
 mod sequence;
 mod signature;
 mod template;
@@ -28,18 +27,18 @@ mod tree;
 mod tuple;
 mod variant;
 
-pub(in crate::sema) use extension::{
-    ExtensionCandidateKey, ExtensionCandidates, UnboundParameters,
-};
+pub(in crate::sema) use destack_dir::MemberRole;
+
+pub(in crate::sema) use extension::{ExtensionMatch, UnboundParameters};
 pub(in crate::sema) use instantiation::TypeArgumentInference;
 pub(in crate::sema) use member::*;
 pub(in crate::sema) use newtype::{
     NewtypeInstance, NewtypeMatch, NewtypeOverload, NewtypeRejection, NewtypeSignature,
+    REPORTED_REJECTIONS,
 };
 pub(in crate::sema) use operator::OperatorOperands;
 pub(in crate::sema) use protocol::*;
 pub(in crate::sema) use receiver::ReceiverSteps;
-pub(in crate::sema) use selection::*;
 pub(in crate::sema) use signature::{
     CallableArgument, SignatureInstance, SignatureMatch, SignatureRejection, SignatureSelection,
 };

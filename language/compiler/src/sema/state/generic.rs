@@ -348,6 +348,42 @@ impl CheckState<'_> {
         Ok(bindings)
     }
 
+    /// Return how many parameters accept written arguments.
+    pub(in crate::sema) fn writable_parameter_count(
+        &self,
+        parameters: &[GenericParameterId],
+    ) -> usize {
+        parameters
+            .iter()
+            .filter(|parameter| {
+                self.generic_parameter(**parameter)
+                    .is_some_and(dir::GenericParameterBinding::is_writable)
+            })
+            .count()
+    }
+
+    /// Return one generic template that must already be loaded.
+    pub(in crate::sema) fn require_generic_template(
+        &self,
+        id: GenericTemplateId,
+    ) -> CompilerResult<&dir::GenericTemplate> {
+        self.generic_template(id)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("generic template {id:?} is missing"),
+            })
+    }
+
+    /// Return one generic parameter that must already be loaded.
+    pub(in crate::sema) fn require_generic_parameter(
+        &self,
+        id: GenericParameterId,
+    ) -> CompilerResult<&dir::GenericParameterBinding> {
+        self.generic_parameter(id)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("generic parameter {id:?} is not bound"),
+            })
+    }
+
     /// Return applied generic argument bindings for one symbol template.
     pub(in crate::sema) fn symbol_generic_argument_bindings(
         &mut self,
@@ -438,7 +474,10 @@ impl CheckState<'_> {
             });
         }
 
-        // allocate the template in its owning module
+        // allocate the template in its owning module, dropping the caches
+        //  derived from the template graph it extends
+        self.assuming_scopes.clear();
+        self.argument_ranks.clear();
         let module = self
             .module_maybe_mut(module_id)
             .ok_or_else(|| CompilerError::Internal {
@@ -452,7 +491,8 @@ impl CheckState<'_> {
         Ok(id)
     }
 
-    /// Push one generic parameter onto its template.
+    /// Push one generic parameter onto its template, dropping the caches
+    /// derived from the template contents it extends.
     pub(in crate::sema) fn push_generic_parameter(
         &mut self,
         template: GenericTemplateId,
@@ -474,6 +514,8 @@ impl CheckState<'_> {
                 message: format!("check module {module:?} has no working generics"),
             });
         }
+        self.assuming_scopes.clear();
+        self.argument_ranks.clear();
         let local = dir::LocalGenericParameterId::new(self.module.generics_tail.parameter_count());
         let id = local.into_global(module);
         let ty = self
@@ -875,9 +917,6 @@ impl CheckState<'_> {
     }
 
     /// Slot one applied argument row over ordered parameters, filling elided slots.
-    ///
-    /// Rows bind positionally. A row may elide trailing defaulted slots, and may
-    /// elide lifetime slots wherever it writes no lifetime of its own.
     fn parameter_substitution(
         &mut self,
         parameters: &[GenericParameterId],
@@ -1101,7 +1140,13 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        let mut template = self.origin_scope(origin)?;
+        // the walk is a pure function of the declared scope
+        let scope = self.origin_scope(origin)?;
+        if let Some(assuming) = self.assuming_scopes.get(&scope) {
+            return Ok(*assuming);
+        }
+
+        let mut template = scope;
         while let Some(id) = template {
             let declared = self.require_generic_template(id)?;
             if !declared.parameters.is_empty() || !declared.predicates.is_empty() {
@@ -1109,6 +1154,7 @@ impl CheckState<'_> {
             }
             template = self.parent_generic_template(id)?;
         }
+        self.assuming_scopes.insert(scope, template);
 
         Ok(template)
     }
@@ -1151,42 +1197,6 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Return how many parameters accept written arguments.
-    pub(in crate::sema) fn writable_parameter_count(
-        &self,
-        parameters: &[GenericParameterId],
-    ) -> usize {
-        parameters
-            .iter()
-            .filter(|parameter| {
-                self.generic_parameter(**parameter)
-                    .is_some_and(dir::GenericParameterBinding::is_writable)
-            })
-            .count()
-    }
-
-    /// Return one generic template that must already be loaded.
-    pub(in crate::sema) fn require_generic_template(
-        &self,
-        id: GenericTemplateId,
-    ) -> CompilerResult<&dir::GenericTemplate> {
-        self.generic_template(id)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("generic template {id:?} is missing"),
-            })
-    }
-
-    /// Return one generic parameter that must already be loaded.
-    pub(in crate::sema) fn require_generic_parameter(
-        &self,
-        id: GenericParameterId,
-    ) -> CompilerResult<&dir::GenericParameterBinding> {
-        self.generic_parameter(id)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("generic parameter {id:?} is not bound"),
-            })
-    }
-
     /// Settle applied generic argument bindings for checked DIR.
     pub(in crate::sema) fn settled_argument_bindings(
         &mut self,
@@ -1203,6 +1213,61 @@ impl CheckState<'_> {
             bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
         }
 
-        Ok(bindings)
+        // record in written order: outer templates first, declaration order
+        //  within each, independent of the derivation's binding sequence
+        let mut keyed = Vec::with_capacity(bindings.len());
+        for binding in bindings {
+            let rank = self.written_argument_rank(binding.parameter)?;
+            keyed.push((rank, binding));
+        }
+        keyed.sort_by_key(|(rank, binding)| (*rank, binding.parameter));
+
+        Ok(keyed.into_iter().map(|(_, binding)| binding).collect())
+    }
+
+    /// Return one parameter's written-syntax rank: its template's lexical
+    /// depth, the template itself, and its declared position within it.
+    fn written_argument_rank(
+        &mut self,
+        parameter: GenericParameterId,
+    ) -> CompilerResult<(usize, Option<GenericTemplateId>, usize)> {
+        // the rank is a pure function of the declared templates
+        if let Some(rank) = self.argument_ranks.get(&parameter) {
+            return Ok(*rank);
+        }
+        let rank = self.derive_argument_rank(parameter)?;
+        self.argument_ranks.insert(parameter, rank);
+
+        Ok(rank)
+    }
+
+    /// Derive one parameter's written-syntax rank from its template chain.
+    fn derive_argument_rank(
+        &mut self,
+        parameter: GenericParameterId,
+    ) -> CompilerResult<(usize, Option<GenericTemplateId>, usize)> {
+        let Some(declared) = self.generic_parameter(parameter) else {
+            return Ok((usize::MAX, None, usize::MAX));
+        };
+        let template = declared.template.into_global(parameter.module_id);
+        let position = self
+            .generic_template(template)
+            .map(|template| {
+                template
+                    .parameters
+                    .iter()
+                    .position(|declared| *declared == parameter.local_id)
+                    .unwrap_or(usize::MAX)
+            })
+            .unwrap_or(usize::MAX);
+
+        // outer templates rank before the chains nested under them
+        let mut depth = 0usize;
+        let mut current = template;
+        while let Some(parent) = self.parent_generic_template(current)? {
+            depth += 1;
+            current = parent;
+        }
+        Ok((depth, Some(template), position))
     }
 }

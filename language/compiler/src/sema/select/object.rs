@@ -641,7 +641,7 @@ impl BodyState<'_, '_> {
 
                 ObjectField::Projection(Box::new(resolution.into()))
             }
-            MemberLookup::Missing => ObjectField::Missing,
+            MemberLookup::Missing | MemberLookup::Undecided => ObjectField::Missing,
         };
 
         Ok(field)

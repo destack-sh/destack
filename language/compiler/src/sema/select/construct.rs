@@ -1113,7 +1113,7 @@ impl BodyState<'_, '_> {
         rejections.truncate(4);
         self.reject_construct(site, node, origin, argument_nodes, &rejections)?;
 
-        self.reject_call(node, None)
+        self.reject_call(node, None, None)
     }
 
     /// Commit one selected base constructor as the super initialization.

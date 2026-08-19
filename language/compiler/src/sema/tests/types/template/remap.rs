@@ -69,7 +69,7 @@ type Events = {
 };
 
 declare const handlers: Handlers<Events>;
-/// @type.symbol symbol=handlers source=handlers type={ on-ready: Function<(Events["ready"],), void>; on-message: Function<(Events["message"],), void> }
+/// @type.symbol symbol=handlers source=handlers type={ on-ready: Function<(boolean,), void>; on-message: Function<(string,), void> }
 /// @resolution.pattern source=handlers kind=binding target=handlers
 /// @resolution.name source=Handlers target=Handlers
 /// @resolution.name source=Events target=Events
@@ -161,7 +161,7 @@ type Person = {
 };
 
 declare const getters: Getters<Person>;
-/// @type.symbol symbol=getters source=getters type={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> }
+/// @type.symbol symbol=getters source=getters type={ getName: Function<(), string>; getAge: Function<(), int32> }
 /// @resolution.pattern source=getters kind=binding target=getters
 /// @resolution.name source=Getters target=Getters
 /// @resolution.name source=Person target=Person

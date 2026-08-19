@@ -1,4 +1,4 @@
-use destack_core::{FxIndexMap, FxIndexSet};
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use smallvec::SmallVec;
 
@@ -42,6 +42,8 @@ pub(in crate::sema) enum Check {
     Narrowing(NarrowingCheck),
     /// A node's selection resumes once its blocking variable solves.
     Selection(SelectionCheck),
+    /// A switch equality selection resumes once its open operand solves.
+    Equality(EqualityCheck),
 }
 
 /// One relation checked between two types.
@@ -59,6 +61,17 @@ pub(in crate::sema) struct RelationCheck {
     pub(in crate::sema) cause: CauseId,
     /// The generic application this bound guards, when any.
     pub(in crate::sema) application: Option<dir::GlobalTypeId>,
+}
+
+impl dir::TypeFold for RelationCheck {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.source.map_types(map)?;
+        self.target.map_types(map)?;
+        self.application.map_types(map)
+    }
 }
 
 impl RelationCheck {
@@ -143,6 +156,23 @@ pub(in crate::sema) struct SelectionCheck {
     pub(in crate::sema) use_: PlaceUse,
     /// The open variable the selection stalled on, when known.
     pub(in crate::sema) stalled_on: Option<dir::TypeVariableId>,
+}
+
+/// One switch equality selection stalled on an open operand.
+#[derive(Debug, Clone)]
+pub(in crate::sema) struct EqualityCheck {
+    /// The switch value node the selection reports through.
+    pub(in crate::sema) value: dir::GlobalNodeIdAny,
+    /// The scrutinee type.
+    pub(in crate::sema) scrutinee: dir::GlobalTypeId,
+    /// The admitted cases with their selector nodes and types.
+    pub(in crate::sema) cases: Vec<(
+        dir::GlobalNodeIdAny,
+        dir::GlobalNodeIdAny,
+        dir::GlobalTypeId,
+    )>,
+    /// The open variable the selection waits for.
+    pub(in crate::sema) stalled_on: dir::TypeVariableId,
 }
 
 /// One contextual value role.
@@ -238,6 +268,7 @@ impl CheckTable {
             Check::Conversion(conversion) => self.allocate_conversion(conversion),
             Check::Narrowing(narrowing) => self.allocate_narrowing(narrowing),
             Check::Selection(selection) => self.allocate_selection(selection),
+            Check::Equality(equality) => self.push(Check::Equality(equality)),
         }
     }
 
@@ -400,7 +431,11 @@ impl CheckTable {
         // reject a resumption completing with a verdict
         if matches!(
             row.check,
-            Check::Node(_) | Check::Conversion(_) | Check::Narrowing(_) | Check::Selection(_)
+            Check::Node(_)
+                | Check::Conversion(_)
+                | Check::Narrowing(_)
+                | Check::Selection(_)
+                | Check::Equality(_)
         ) {
             return Err(CompilerError::Internal {
                 message: format!("resumption {id:?} cannot complete with a result"),
@@ -725,25 +760,5 @@ impl CheckState<'_> {
         }
 
         Ok(checks)
-    }
-}
-
-impl CheckState<'_> {
-    /// Collect generic applications whose declared argument bounds failed.
-    pub(in crate::sema) fn failed_generic_applications(
-        &self,
-    ) -> CompilerResult<FxIndexSet<dir::GlobalTypeId>> {
-        // collect the application each failed bound check guards
-        let mut applications = FxIndexSet::default();
-        for id in self.fulfill.checks.relation_failures_from(0) {
-            let Check::Relation(relation) = self.fulfill.checks.get(id)? else {
-                continue;
-            };
-            if let Some(application) = relation.application {
-                applications.insert(application);
-            }
-        }
-
-        Ok(applications)
     }
 }

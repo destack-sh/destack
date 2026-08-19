@@ -189,7 +189,7 @@ impl BodyState<'_, '_> {
                         element,
                     }),
                     scope,
-                );
+                )?;
 
                 Some(element)
             }

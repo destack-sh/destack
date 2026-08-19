@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{
-    CandidateOutcome, CandidateVerdict, Cause, CauseId, CauseKind, CheckState, Origin, Relation,
+    Answer, Ask, CandidateOutcome, CandidateVerdict, Cause, CauseId, CauseKind, CheckState, Cycle,
+    Origin, Relation,
 };
 
 /// The outcome of deciding one relation, keeping ambiguity apart from failure.
@@ -80,15 +81,12 @@ impl CheckState<'_> {
         // relate the written heads first, rolling every evaluation effect back
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         let mut related = Verdict::Fails;
-        let probe = self.probe_candidate(|state| {
+        let probe = self.probe_relation(|state| {
             related = ensure_sufficient_stack(|| {
                 state.relate_pair(origin, cause, relation, source, target)
             })?;
 
-            Ok(match related.holds() {
-                true => CandidateOutcome::<(), ()>::Accepted(()),
-                false => CandidateOutcome::Rejected(()),
-            })
+            Ok(related.holds())
         })?;
         if probe == CandidateVerdict::Viable {
             return Ok(Verdict::Holds);
@@ -270,33 +268,49 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // decide open pairs outside the memo, since their heads still move
-        let flags = self.type_flags(source)? | self.type_flags(target)?;
-        if flags.has_variable() {
+        // canonicalize the pair, deciding uncanonical pairs outside the memo
+        let Some((question, canonical)) =
+            self.ask(origin, Ask::Relation(relation), &[source, target], true)?
+        else {
             return self.relate_matrix(origin, cause, relation, source, target);
+        };
+        let flags =
+            self.type_flags(canonical.operands[0])? | self.type_flags(canonical.operands[1])?;
+        let has_holes = flags.has_hole();
+
+        // replay a decided answer, taking a disproof for a holed pair, since
+        //  a proof would have bound the holes this goal leaves open
+        if let Some(answer) = self.answers.get(&question) {
+            let holds = matches!(answer, Answer::Holds);
+            if !has_holes || !holds {
+                self.counters.judge_replays += 1;
+
+                return Ok(Verdict::decided(holds));
+            }
         }
 
-        // parameter and This pairs decide under their context and never memo
-        if flags.has_parameter() || flags.has_this() {
-            return self.relate_matrix(origin, cause, relation, source, target);
+        // decide holed pairs outside the in-flight stack, storing the
+        //  disproofs a cycle hypothesis or probe leaves untouched
+        if has_holes {
+            let decision = self.relate_matrix(origin, cause, relation, source, target)?;
+            if decision == Verdict::Fails && self.infer.relations.is_idle() {
+                self.answers.insert(question, Answer::Fails);
+            }
+
+            return Ok(decision);
         }
 
-        // reuse decided relations, treating in-flight pairs as recursive cycles
-        //
-        // FUGU #Architecture: extract conformance decisions properly: the
-        // in-flight lookup answers a repeated pair coinductively, which
-        // recursive structural types need, but a conformance bound reaching its
-        // own goal through another blanket inherits that Holds, so mutually
-        // recursive blanket bounds prove each other; conformance needs its own
-        // inductive query kind so deciding_extensions decides such cycles.
+        // reuse decided relations, treating in-flight pairs as recursive
+        //  cycles: structural pairs hold coinductively, conformance pairs
+        //  reject self-supported proof
+        let cycle = if self.is_conformance_target(target)? {
+            Cycle::Inductive
+        } else {
+            Cycle::Coinductive
+        };
         let key = (relation, source, target);
-        if let Some(holds) = self.relates.get(&key) {
-            self.counters.judge_hits += 1;
-
-            return Ok(Verdict::decided(*holds));
-        }
-        if let Some(holds) = self.infer.relations.lookup(&key) {
-            self.counters.judge_hits += 1;
+        if let Some(holds) = self.infer.relations.lookup(&key, cycle) {
+            self.counters.judge_replays += 1;
 
             return Ok(Verdict::decided(holds));
         }
@@ -312,14 +326,30 @@ impl CheckState<'_> {
             Ok(verdict) if *verdict != Verdict::Ambiguous => {
                 // decided settled pairs are durable for the whole module
                 let holds = verdict.holds();
-                if let Some((key, holds)) = self.infer.relations.finish(attempt, holds) {
-                    self.relates.insert(key, holds);
+                if let Some(holds) = self.infer.relations.finish(attempt, holds) {
+                    let answer = if holds { Answer::Holds } else { Answer::Fails };
+                    self.answers.insert(question, answer);
                 }
             }
             _ => self.infer.relations.cancel(attempt),
         }
 
         decision
+    }
+
+    /// Return whether one relation target asks interface conformance.
+    fn is_conformance_target(&mut self, target: dir::GlobalTypeId) -> CompilerResult<bool> {
+        // read the nominal symbol the target names
+        let symbol = match self.ty(target)? {
+            dir::Type::Application(application) => application.symbol,
+            dir::Type::Reference(reference) => reference.symbol,
+            _ => return Ok(false),
+        };
+
+        Ok(matches!(
+            self.definition(symbol)?,
+            Some(dir::Definition::Interface(_))
+        ))
     }
 
     /// Dispatch one relation over its constructor matrix.

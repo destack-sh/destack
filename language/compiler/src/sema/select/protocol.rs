@@ -4,8 +4,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CandidateOutcome, CheckState, DeclaredMember, InterfaceMember, MemberCandidate,
-    MemberLookup, Origin, Relation, SignatureMatch, TypeArgumentInference, TypeSubstitution, Value,
+    BodyState, CandidateOutcome, CheckState, DeclaredMember, ExtensionMatch, InterfaceMember,
+    MemberCandidate, MemberLookup, Origin, Relation, SignatureMatch, TypeArgumentInference,
+    TypeSubstitution, Value,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -116,6 +117,16 @@ pub(in crate::sema) struct ProtocolCall {
     pub(in crate::sema) resolution: dir::CallDecision,
     /// The call return type.
     pub(in crate::sema) return_type: dir::GlobalTypeId,
+}
+
+impl dir::TypeFold for ProtocolCall {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.resolution.map_types(map)?;
+        self.return_type.map_types(map)
+    }
 }
 
 impl CheckState<'_> {
@@ -602,7 +613,7 @@ impl BodyState<'_, '_> {
         let template = self.symbol_template(extension_symbol)?;
         let interface = protocol.instance(self, module)?;
 
-        self.match_extension_implementation(
+        let matched = self.match_extension_implementation(
             origin,
             Relation::Assignable,
             module,
@@ -612,7 +623,15 @@ impl BodyState<'_, '_> {
             template,
             target_type,
             interfaces,
-        )
+        )?;
+
+        // unproven bounds leave the protocol unselected at this ask
+        Ok(match matched {
+            ExtensionMatch::Matched(substitution, implementation) => {
+                Some((*substitution, implementation))
+            }
+            ExtensionMatch::Unmatched | ExtensionMatch::Unproven => None,
+        })
     }
 
     /// Select one protocol member from every receiver alternative.
@@ -687,7 +706,7 @@ impl BodyState<'_, '_> {
                     candidates,
                 )
             }
-            MemberLookup::Missing | MemberLookup::Field(_) => Ok(None),
+            MemberLookup::Missing | MemberLookup::Field(_) | MemberLookup::Undecided => Ok(None),
         }
     }
 
@@ -776,7 +795,7 @@ impl BodyState<'_, '_> {
                     candidates,
                 )
             }
-            MemberLookup::Missing | MemberLookup::Field(_) => Ok(None),
+            MemberLookup::Missing | MemberLookup::Field(_) | MemberLookup::Undecided => Ok(None),
         }
     }
 

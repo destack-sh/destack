@@ -224,7 +224,7 @@ impl BodyState<'_, '_> {
             let open = self.open_type_variables([no_infer])?;
             if !open.is_empty() {
                 self.check
-                    .register_check_stalled(Check::Node(NodeCheck { site, expectation }), &open);
+                    .register_check_stalled(Check::Node(NodeCheck { site, expectation }), &open)?;
 
                 return Ok(ValueCheck {
                     source: expectation.target,
@@ -258,7 +258,7 @@ impl BodyState<'_, '_> {
                     self.check.register_check_stalled(
                         Check::Node(NodeCheck { site, expectation }),
                         &open,
-                    );
+                    )?;
 
                     return Ok(ValueCheck {
                         source: target,
@@ -289,7 +289,7 @@ impl BodyState<'_, '_> {
                     self.check.register_check_stalled(
                         Check::Node(NodeCheck { site, expectation }),
                         &open,
-                    );
+                    )?;
 
                     return Ok(ValueCheck {
                         source: target,

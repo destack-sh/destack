@@ -352,7 +352,7 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
     /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32>" template=collections.array.map#2 arguments=(int32 | undefined, int32)
     /// @generic.instantiation id="collections.array.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined)
     /// @generic.instance id="collections.array.map#2<int32 | undefined, int32>" template=collections.array.map#2 arguments=(int32 | undefined, int32)
-    /// @type.symbol symbol=unwrap.symbol3 source="(value) => value!" type=Function<(int32 | undefined,), TryOutput<int32 | undefined>>
+    /// @type.symbol symbol=unwrap.symbol3 source="(value) => value!" type=Function<(int32 | undefined,), int32>
     /// @type.symbol symbol=unwrap.symbol3.value source=value type=int32 | undefined
     /// @resolution.name source=value target=unwrap.symbol3.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

@@ -276,9 +276,9 @@ impl BodyState<'_, '_> {
                     _ => return Ok(None),
                 }
             }
-            dir::Type::Tuple(_)
-            | dir::Type::FixedArray(_)
-            | dir::Type::Slice(_) => dir::PredicateCondition::Type(target),
+            dir::Type::Tuple(_) | dir::Type::FixedArray(_) | dir::Type::Slice(_) => {
+                dir::PredicateCondition::Type(target)
+            }
             dir::Type::Form(_) => dir::PredicateCondition::Type(target),
             dir::Type::Object(_) => return Ok(None),
             dir::Type::Union(union) => {
@@ -304,6 +304,8 @@ impl BodyState<'_, '_> {
             dir::Type::Error
             | dir::Type::Void
             | dir::Type::Variable(_)
+            | dir::Type::Hole(_)
+            | dir::Type::Rigid(_)
             | dir::Type::Key(_)
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
@@ -401,8 +403,12 @@ impl BodyState<'_, '_> {
             return Ok(Some(predicate));
         }
 
+        // arms without a scalar tag still test by their type descriptor
         let predicate = match self.ty(ty)? {
-            dir::Type::Object(_) => {
+            dir::Type::Object(_)
+            | dir::Type::FunctionSignature(_)
+            | dir::Type::Function(_)
+            | dir::Type::FunctionPointer(_) => {
                 Some(self.unary_predicate(origin, value, ty, dir::PredicateCondition::Type(ty))?)
             }
             _ => None,
@@ -559,7 +565,7 @@ impl BodyState<'_, '_> {
             predicate,
         };
         let scope = self.origin_scope(origin)?;
-        self.push_obligation(Obligation::RuntimePredicate(Box::new(obligation)), scope);
+        self.push_obligation(Obligation::RuntimePredicate(Box::new(obligation)), scope)?;
 
         Ok(())
     }

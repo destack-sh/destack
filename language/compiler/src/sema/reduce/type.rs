@@ -62,12 +62,35 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // resolve the root, then normalize children with aliases kept symbolic
+        let mut shared = FxIndexMap::default();
+
+        self.deeply_resolve_shared(origin, id, &mut shared)
+    }
+
+    /// Resolve solved variables through one type graph, replaying scoped heads.
+    pub(in crate::sema) fn deeply_resolve_shared(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+        shared: &mut FxIndexMap<
+            (Option<dir::GlobalGenericTemplateId>, dir::GlobalTypeId),
+            dir::GlobalTypeId,
+        >,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // replay the root this scope already resolved
         let id = self.shallow_resolve(id)?;
+        let scope = self.assuming_scope(origin)?;
+        if let Some(resolved) = shared.get(&(scope, id)) {
+            return Ok(*resolved);
+        }
+
+        // normalize the children with aliases kept symbolic
         let mut memo = FxIndexMap::default();
         let mut active = FxIndexSet::default();
+        let resolved = self.normalize_graph(origin, id, &mut memo, &mut active)?;
+        shared.insert((scope, id), resolved);
 
-        self.normalize_graph(origin, id, &mut memo, &mut active)
+        Ok(resolved)
     }
 
     /// Splice one tuple's closed rest spreads into positional elements.
@@ -291,11 +314,13 @@ impl CheckState<'_> {
         let id = self.shallow_resolve(id)?;
         let flags = self.type_flags(id)?;
 
-        // parameter and This heads reduce under their context and never memo
-        let decides = !flags.has_parameter() && !flags.has_this();
+        // parameter and This heads reduce under their assuming template
+        let assumes = self.decision_scope(origin, flags)?;
 
         // replay decided reductions
-        if decides && let Some(reduced) = self.normalizations.get(&id) {
+        if let Some(assumes) = assumes
+            && let Some(reduced) = self.normalizations.get(&(id, assumes))
+        {
             return Ok(*reduced);
         }
 
@@ -313,8 +338,11 @@ impl CheckState<'_> {
                 | dir::Type::Tuple(_)
         ) {
             // record the fixed point of a settled head, skipping the declaring pass
-            if decides && !flags.has_variable() && !self.is_declaration() {
-                self.normalizations.insert(id, id);
+            if let Some(assumes) = assumes
+                && !flags.has_variable()
+                && !self.is_declaration()
+            {
+                self.normalizations.insert((id, assumes), id);
             }
 
             return Ok(id);
@@ -325,12 +353,12 @@ impl CheckState<'_> {
         let reduced = self.normalize_chain(origin, id, &mut expanding)?;
 
         // decide variable-free reductions once, keeping variable heads open
-        if decides
+        if let Some(assumes) = assumes
             && !flags.has_variable()
             && !self.type_flags(reduced)?.has_variable()
             && !self.is_declaration()
         {
-            self.normalizations.insert(id, reduced);
+            self.normalizations.insert((id, assumes), reduced);
         }
 
         Ok(reduced)
@@ -657,10 +685,12 @@ impl CheckState<'_> {
             }
         }
 
-        // keep an unchanged local root as it stands
+        // keep an unchanged local root as it stands, leaving computation
+        //  heads to reduce once their operands close
         let target = origin.module();
         let is_union = matches!(root, dir::Type::Union(_));
-        if replacements.is_empty() && id.module_id == target && !is_union {
+        let is_computation = matches!(root, dir::Type::Operation(_));
+        if replacements.is_empty() && id.module_id == target && !is_union && !is_computation {
             active.swap_remove(&id);
             memo.insert(original, id);
 

@@ -408,7 +408,7 @@ function adopt<T>(value: T): void {
 
         value.then((value) => {});
         /// @type.node source="value.then((value) => {})" type=void
-        /// @type.node source=value type=Narrow<T#2, Deferred<*>>
+        /// @type.node source=value type=T#2 & Deferred<*>
         /// @type.node source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void
         /// @resolution.name source=value target=adopt.value
         /// @resolution.member source=value.then receiver=Narrow<T#2, Deferred<*>> type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void kind=symbol target_receiver=Narrow<T#2, Deferred<*>> target=Deferred.then
@@ -494,7 +494,7 @@ function adopt<T>(value: T | Deferred<T>): void {
 
         value.then((value) => {});
         /// @type.node source="value.then((value) => {})" type=void
-        /// @type.node source=value type=Narrow<T#2 | Deferred<T#2>, Deferred<*>>
+        /// @type.node source=value type=T#2 & Deferred<*> | Deferred<T#2>
         /// @type.node source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void
         /// @resolution.name source=value target=adopt.value
         /// @resolution.member source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void kind=union arms=[receiver=T#2 & Deferred<*>, target=Deferred.then, type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void, receiver=Deferred<T#2>, target=Deferred.then, type=(this: Deferred<T#2>, Function<(T#2,), void>) => void]
@@ -587,7 +587,7 @@ function adopt<T>(value: T | Deferred<T>): void {
 
         value.then(() => {});
         /// @type.node source="value.then(() => {})" type=void
-        /// @type.node source=value type=Narrow<T#2 | Deferred<T#2>, Deferred<*>>
+        /// @type.node source=value type=T#2 & Deferred<*> | Deferred<T#2>
         /// @type.node source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void
         /// @resolution.name source=value target=adopt.value
         /// @resolution.member source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void kind=union arms=[receiver=T#2 & Deferred<*>, target=Deferred.then, type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void, receiver=Deferred<T#2>, target=Deferred.then, type=(this: Deferred<T#2>, Function<(T#2,), void>) => void]

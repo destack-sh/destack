@@ -45,8 +45,8 @@ impl CheckState<'_> {
 
         // decide each runtime representation
         match kind {
-            // leave an open variable undecided
-            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
+            // leave an open variable or canonical hole undecided
+            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -80,11 +80,12 @@ impl CheckState<'_> {
 
                 Ok(Verdict::decided(is_type_reference))
             }
-            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
-                Err(CompilerError::Internal {
-                    message: format!("generic type {ty:?} reached structural dynamic safety"),
-                })
-            }
+            dir::Type::Parameter(_)
+            | dir::Type::Rigid(_)
+            | dir::Type::Erased(_)
+            | dir::Type::This => Err(CompilerError::Internal {
+                message: format!("generic type {ty:?} reached structural dynamic safety"),
+            }),
             dir::Type::Member(_) | dir::Type::Operation(_) => Ok(Verdict::Fails),
             dir::Type::Form(form) => self.satisfies_dynamic_safe(origin, form.value, active),
             dir::Type::Dynamic(dynamic) => {

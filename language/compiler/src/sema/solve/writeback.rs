@@ -8,15 +8,21 @@ use crate::{CompilerError, CompilerResult};
 impl CheckState<'_> {
     /// Write every commit since the last write into the module tail.
     pub(in crate::sema) fn write_back(&mut self) -> CompilerResult<()> {
-        let failed = self.failed_generic_applications()?;
+        // share normalized heads across the write, keyed by assuming scope
+        let mut normalized: FxIndexMap<
+            (Option<dir::GlobalGenericTemplateId>, dir::GlobalTypeId),
+            dir::GlobalTypeId,
+        > = FxIndexMap::default();
 
         // resolve committed node types, storing their reduced heads
         for node in self.node_types.nodes() {
             let ty = self.node_types.get(&node).expect("collected node type");
-            let resolved = self.fully_resolve(ty, &failed)?;
+            let resolved = self.fully_resolve(ty)?;
             let resolved = match self.is_checking() {
                 true => match self.node_origin_maybe(node) {
-                    Some(origin) => self.deeply_resolve(origin, resolved)?,
+                    Some(origin) => {
+                        self.deeply_resolve_shared(origin, resolved, &mut normalized)?
+                    }
                     None => resolved,
                 },
                 false => resolved,
@@ -38,7 +44,7 @@ impl CheckState<'_> {
                 .expected_types
                 .get(&node)
                 .expect("collected expected type");
-            let resolved = self.fully_resolve(ty, &failed)?;
+            let resolved = self.fully_resolve(ty)?;
             self.expected_types.insert(node, resolved);
             if self.node_types.get(&node) != Some(resolved) {
                 self.module.types_tail.set_expected_type(node, resolved);
@@ -52,9 +58,11 @@ impl CheckState<'_> {
                 .get_index(index)
                 .map(|(k, v)| (*k, *v))
                 .expect("indexed entry");
-            let resolved = self.fully_resolve(ty, &failed)?;
+            let resolved = self.fully_resolve(ty)?;
             let resolved = match self.is_checking() {
-                true => self.deeply_resolve(Origin::Symbol(symbol), resolved)?,
+                true => {
+                    self.deeply_resolve_shared(Origin::Symbol(symbol), resolved, &mut normalized)?
+                }
                 false => resolved,
             };
             self.declaration_types[index] = resolved;
@@ -68,9 +76,11 @@ impl CheckState<'_> {
                 .get_index(index)
                 .map(|(k, v)| (*k, *v))
                 .expect("indexed entry");
-            let resolved = self.fully_resolve(ty, &failed)?;
+            let resolved = self.fully_resolve(ty)?;
             let resolved = match self.is_checking() {
-                true => self.deeply_resolve(Origin::Symbol(symbol), resolved)?,
+                true => {
+                    self.deeply_resolve_shared(Origin::Symbol(symbol), resolved, &mut normalized)?
+                }
                 false => resolved,
             };
             self.binding_types[index] = resolved;
@@ -211,8 +221,7 @@ impl CheckState<'_> {
         let mut segment = std::mem::replace(select(&mut self.module), replacement);
 
         // selections keep the types they chose, so only their variables resolve
-        let intact = FxIndexSet::default();
-        segment.map_types(&mut |ty| self.fully_resolve(ty, &intact))?;
+        segment.map_types(&mut |ty| self.fully_resolve(ty))?;
         *select(&mut self.module) = segment;
 
         Ok(())
@@ -231,21 +240,15 @@ impl CheckState<'_> {
     }
 
     /// Resolve one committed type into the canonical form the write boundary requires.
-    ///
-    /// Every type a retained reference reaches after the write carries no inference variable,
-    /// settles every closed computation to its result, normalizes every union and intersection,
-    /// composes every carrier in canonical order, keeps the written face of plain-valued alias
-    /// applications, and leaves parameter-dependent computations open for monomorphization.
     pub(in crate::sema) fn fully_resolve(
         &mut self,
         ty: dir::GlobalTypeId,
-        failed: &FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // track the roots on the active path to break cycles, replaying settled subgraphs
         let ty = self.shallow_resolve(ty)?;
         let mut active = FxIndexSet::default();
         let mut settled = FxIndexMap::default();
-        let resolved = self.resolve_open_type(ty, failed, &mut active, &mut settled)?;
+        let resolved = self.resolve_open_type(ty, &mut active, &mut settled)?;
 
         // require the write to close, since a pass exports solutions and holes only
         if self.type_flags(resolved)?.has_variable() {
@@ -261,13 +264,18 @@ impl CheckState<'_> {
     fn resolve_open_type(
         &mut self,
         id: dir::GlobalTypeId,
-        failed: &FxIndexSet<dir::GlobalTypeId>,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
         settled: &mut FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // poison a generic application whose declared argument bound failed
-        if failed.contains(&id) {
-            return self.intern_type(dir::Type::Error);
+        // a closed graph without computation heads resolves to itself
+        let flags = self.type_flags(id)?;
+        if !flags.has_variable()
+            && !flags.has_member()
+            && !flags.has_operation()
+            && !flags.has_alias()
+            && !flags.has_reference()
+        {
+            return Ok(id);
         }
 
         // replay the form this walk already resolved for the root
@@ -287,10 +295,13 @@ impl CheckState<'_> {
                 Some(solution) => {
                     let solution = self.shallow_resolve(solution)?;
 
-                    self.resolve_open_type(solution, failed, active, settled)?
+                    self.resolve_open_type(solution, active, settled)?
                 }
-                // a declaration writes every type it carries, so nothing stays open
-                None if self.is_declaration() => {
+                // a clean declaration writes every type it carries and
+                //  reported errors poison the remainder
+                None if self.is_declaration()
+                    && self.module(self.module_id).diagnostics.is_empty() =>
+                {
                     return Err(CompilerError::Internal {
                         message: format!("declaration variable {variable:?} left unsolved"),
                     });
@@ -306,7 +317,7 @@ impl CheckState<'_> {
         else {
             let rebuilt =
                 self.map_type_children(id.module_id, id.module_id, ty, &mut |state, child| {
-                    state.resolve_open_type(child, failed, active, settled)
+                    state.resolve_open_type(child, active, settled)
                 })?;
 
             // renormalize solved unions like any other construction

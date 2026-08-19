@@ -13,11 +13,11 @@ pub(in crate::sema) struct CheckCounters {
     /// Relation judgments computed past the memos.
     pub(in crate::sema) judges: u64,
     /// Relation judgments served from the memos.
-    pub(in crate::sema) judge_hits: u64,
-    /// Member binding surfaces built past the memo.
-    pub(in crate::sema) binding_builds: u64,
-    /// Member binding surfaces served from the memo.
-    pub(in crate::sema) binding_hits: u64,
+    pub(in crate::sema) judge_replays: u64,
+    /// Member bindings derived past the memo.
+    pub(in crate::sema) binding_derivations: u64,
+    /// Member bindings served from the memo.
+    pub(in crate::sema) binding_replays: u64,
     /// Speculative probes opened.
     pub(in crate::sema) probes: u64,
     /// Probes opened by overload selection.
@@ -30,6 +30,12 @@ pub(in crate::sema) struct CheckCounters {
     pub(in crate::sema) reduces: u64,
     /// Generic parameter instantiations opened.
     pub(in crate::sema) instantiations: u64,
+    /// Member lookups served from the answers table.
+    pub(in crate::sema) member_replays: u64,
+    /// Member lookups derived past the answers table.
+    pub(in crate::sema) member_derivations: u64,
+    /// Member lookups refusing canonical form.
+    pub(in crate::sema) member_refusals: u64,
 }
 
 /// Derived size counters for one checked module.
@@ -216,7 +222,8 @@ impl CheckState<'_> {
                 Check::Node(_)
                 | Check::Conversion(_)
                 | Check::Narrowing(_)
-                | Check::Selection(_) => {}
+                | Check::Selection(_)
+                | Check::Equality(_) => {}
             }
         }
 
@@ -237,8 +244,8 @@ pub(in crate::sema) fn should_stream_check_events() -> bool {
 }
 
 impl CheckStats {
-    /// Render these stats as stable metadata lines.
-    pub(in crate::sema) fn render_metadata(self) -> String {
+    /// Render these stats with their counters as stable metadata lines.
+    pub(in crate::sema) fn render_metadata(self, counters: CheckCounters) -> String {
         format!(
             "\
 check.stats.solve.variables={}
@@ -246,13 +253,39 @@ check.stats.solve.constraints={}
 check.stats.solve.obligations={}
 check.stats.solve.solutions={}
 check.stats.solve.bounds={}
-check.stats.solve.decisions={}",
+check.stats.solve.decisions={}
+check.stats.judges.decided={}
+check.stats.judges.replayed={}
+check.stats.bindings.built={}
+check.stats.bindings.replayed={}
+check.stats.members.derived={}
+check.stats.members.replayed={}
+check.stats.members.refused={}
+check.stats.probes.total={}
+check.stats.probes.selections={}
+check.stats.probes.extensions={}
+check.stats.instantiations={}
+check.stats.interns={}
+check.stats.reduces={}",
             self.variables,
             self.constraints,
             self.obligations,
             self.solutions,
             self.bounds,
             self.decisions,
+            counters.judges,
+            counters.judge_replays,
+            counters.binding_derivations,
+            counters.binding_replays,
+            counters.member_derivations,
+            counters.member_replays,
+            counters.member_refusals,
+            counters.probes,
+            counters.selection_probes,
+            counters.extension_probes,
+            counters.instantiations,
+            counters.interns,
+            counters.reduces,
         )
     }
 }
