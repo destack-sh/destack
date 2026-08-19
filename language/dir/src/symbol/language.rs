@@ -805,6 +805,9 @@ define_language_items! {
         box {
             /// Boxed owned heap allocation.
             Box => (Newtype, "memory/box", "Box"),
+
+            /// Internal unique heap reference.
+            Unique => (Newtype, "memory/box", "Unique"),
         }
 
         /// `destack:memory/capability`.
@@ -1011,11 +1014,6 @@ define_language_items! {
             WithSpace => (Newtype, "memory/type", "WithSpace"),
         }
 
-        /// `destack:memory/unique`.
-        unique {
-            /// Unique traced heap handle.
-            Unique => (Newtype, "memory/unique", "Unique"),
-        }
     }
 
     /// Module types.
