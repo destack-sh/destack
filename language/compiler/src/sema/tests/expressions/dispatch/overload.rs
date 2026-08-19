@@ -575,6 +575,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 /// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int32>, int32)
 /// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<int32>, int32)
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=error.result.Err<string> template=error.result.Err arguments=(string)
 /// @generic.instance id=error.result.Ok<int32> template=error.result.Ok arguments=(int32)
 /// @generic.instance id=iter.iterator.Iterator<int32> template=iter.iterator.Iterator arguments=(int32)
@@ -582,11 +583,6 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 /// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
 /// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 /// @type.symbol symbol=sum.values source="values: Iterator<int32>" type=iter.iterator.Iterator<int32>
 /// @resolution.name source=Iterator target=iter.iterator.Iterator
 /// @resolution.name source=Result target=error.result.Result
@@ -882,12 +878,8 @@ function append(values: int32[], more: ^int32[]): int32 {
 function total(...values: int32[]): int32 {
 /// @type.symbol symbol=total type=(...int32[]) => int32
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 /// @type.symbol symbol=total.values source="...values: int32[]" type=int32[]
 
     return 0;

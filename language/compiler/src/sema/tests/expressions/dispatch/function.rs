@@ -28,12 +28,8 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 /// @type.symbol symbol=firstPositive type=(int32 | undefined[]) => int32 | undefined
 /// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
+/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<int32 | undefined>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<int32 | undefined>)
 /// @generic.instance id="memory.init.MaybeUninit<int32 | undefined>" template=memory.init.MaybeUninit arguments=(int32 | undefined)
-/// @generic.instance id="memory.raw.dangling<memory.init.MaybeUninit<int32 | undefined>>" template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32 | undefined>)
-/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<int32 | undefined>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32 | undefined>>)
-/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32 | undefined>)
-/// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32 | undefined>)
-/// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32 | undefined>)
 /// @type.symbol symbol=firstPositive.values source="values: (int32 | undefined)[]" type=int32 | undefined[]
 
     values.iterator().map((value) => value).find((value) => value !== undefined && value > 0)

@@ -107,12 +107,8 @@ const ok: (string, ...boolean[]) = ("Ada", true, false) as (string, ...boolean[]
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=(string, ...boolean[])
 /// @generic.instance id=Array<boolean> template=collections.array.Array arguments=(boolean)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<boolean>> template=collections.slice.new arguments=(memory.init.MaybeUninit<boolean>)
 /// @generic.instance id=memory.init.MaybeUninit<boolean> template=memory.init.MaybeUninit arguments=(boolean)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<boolean>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<boolean>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<boolean>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<boolean>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<boolean>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<boolean>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<boolean>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<boolean>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<boolean>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<boolean>)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=(string, ...boolean[])
 /// @resolution.name source=Parameters target=types.function.Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string

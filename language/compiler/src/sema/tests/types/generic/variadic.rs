@@ -55,12 +55,8 @@ newtype Sharding<...Axes: Axis[]> = intrinsic;
 /// @type.symbol symbol=Sharding.Axes source="...Axes: Axis[]" type=Axes#1
 /// @resolution.name source=Axis target=Axis
 /// @generic.instance id=Array<Axis> template=collections.array.Array arguments=(Axis)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<Axis>> template=collections.slice.new arguments=(memory.init.MaybeUninit<Axis>)
 /// @generic.instance id=memory.init.MaybeUninit<Axis> template=memory.init.MaybeUninit arguments=(Axis)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<Axis>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<Axis>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Axis>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Axis>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Axis>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Axis>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<Axis>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<Axis>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<Axis>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<Axis>)
 
 newtype Grid<T, P> = intrinsic;
 /// @generic.template symbol=Grid parameters=(in out T#1, in out P)

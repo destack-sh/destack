@@ -509,12 +509,8 @@ const shapes: Array<Shape> = [
 /// @type.symbol symbol=shapes source=shapes type=Shape[]
 /// @resolution.pattern source=shapes kind=binding target=shapes
 /// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<Shape>> template=collections.slice.new arguments=(memory.init.MaybeUninit<Shape>)
 /// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<Shape>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<Shape>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<Shape>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<Shape>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<Shape>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<Shape>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<Shape>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<Shape>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<Shape>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<Shape>)
 /// @resolution.name source=Array target=collections.array.Array
 /// @resolution.name source=Shape target=Shape
 /// @resolution.call parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<Shape>

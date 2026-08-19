@@ -419,17 +419,9 @@ struct Store {
     /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
     /// @generic.instance id="collections.map.MapEntry<string, int32>" template=collections.map.MapEntry arguments=(string, int32)
     /// @generic.instance id="collections.map.MapSlot<string, int32>" template=collections.map.MapSlot arguments=(string, int32)
+    /// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>)
     /// @generic.instance id="memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>" template=memory.init.MaybeUninit arguments=(collections.map.MapSlot<string, int32>)
-    /// @generic.instance id="memory.raw.dangling<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>" template=memory.raw.dangling arguments=(memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>)
-    /// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>)
-    /// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>)
-    /// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>)
-    /// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>)
-    /// @generic.instance id=memory.raw.dangling<uint32> template=memory.raw.dangling arguments=(uint32)
-    /// @generic.instance id=memory.unique.Unique<Slice<uint32>> template=memory.unique.Unique arguments=(Slice<uint32>)
-    /// @generic.instance id=memory.unique.empty<uint32> template=memory.unique.empty arguments=(uint32)
-    /// @generic.instance id=memory.unique.emptyUniqueSlice<uint32> template=memory.unique.emptyUniqueSlice arguments=(uint32)
-    /// @generic.instance id=memory.unique.uniqueSliceFromRaw<uint32> template=memory.unique.uniqueSliceFromRaw arguments=(uint32)
+    /// @generic.instance id=collections.slice.new<uint32> template=collections.slice.new arguments=(uint32)
     /// @resolution.name source=Map target=collections.map.Map
 
 }

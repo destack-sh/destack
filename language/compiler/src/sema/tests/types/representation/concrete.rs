@@ -188,12 +188,8 @@ interface Writer {
     /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(this: Writer, readonly uint8[]) => uint64
     /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
     /// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
+    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<uint8>> template=collections.slice.new arguments=(memory.init.MaybeUninit<uint8>)
     /// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
-    /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<uint8>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<uint8>)
-    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
-    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
-    /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<uint8>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<uint8>)
-    /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<uint8>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<uint8>)
 
 }
 
@@ -245,12 +241,8 @@ size satisfies usize;
 type Writer = {
 /// @type.symbol symbol=Writer type={ write(readonly uint8[]): uint64 }
 /// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<uint8>> template=collections.slice.new arguments=(memory.init.MaybeUninit<uint8>)
 /// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<uint8>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<uint8>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<uint8>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<uint8>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<uint8>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<uint8>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<uint8>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<uint8>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<uint8>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<uint8>)
 /// @definition.type symbol=Writer value={ write(readonly uint8[]): uint64 }
 
     write(bytes: readonly uint8[]): uint;
@@ -306,7 +298,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
         r#"
 /// @diagnostic.error id=not-erasable message="type '<T>(input: T) => T' cannot be erased into 'DynamicSafe'"
 /// @diagnostic.label line=2 column=30 span="<T>(input: T) => T" line_source="declare const value: Dynamic<<T>(input: T) => T>;"
-/// @diagnostic.related file="dynamic.ds" line=11 column=24 span="T" line_source="export newtype Dynamic<T: DynamicSafe> = intrinsic;" message="required by this bound on 'T'"
+/// @diagnostic.related file="dynamic.ds" line=7 column=24 span="T" line_source="export newtype Dynamic<T: DynamicSafe> = intrinsic;" message="required by this bound on 'T'"
 /// @diagnostic.help message="prove the source erasable with a DynamicSafe bound"
 "#,
     );

@@ -246,7 +246,7 @@ struct Node {
     next: Box<Node> | null;
     /// @type.symbol symbol=Node.next source="next: Box<Node> | null" type=Box<Node> | null
     /// @generic.instance id=Box<Node> template=memory.box.Box arguments=(Node)
-    /// @generic.instance id=memory.unique.Unique<Owned<Node>> template=memory.unique.Unique arguments=(Owned<Node>)
+    /// @generic.instance id=memory.box.Unique<Owned<Node>> template=memory.box.Unique arguments=(Owned<Node>)
     /// @resolution.name source=Box target=memory.box.Box
     /// @resolution.name source=Node target=Node
 

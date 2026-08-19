@@ -691,12 +691,8 @@ const values = identity([1, 2]);
 /// @type.symbol symbol=values source=values type=float64[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source="identity([1, 2])" type=float64[]
 /// @type.node source=identity type=(float64[]) => float64[]
 /// @resolution.name source=identity target=identity
@@ -771,13 +767,9 @@ const value = first([1, 2]);
 /// @generic.instance id="memory.type.WithAccess<&'frame float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame float64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64[], "exclusive")
 /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
 /// @generic.instance id=first<float64> template=first arguments=(float64)
 /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<float64>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<float64>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<float64>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<float64>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<float64>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<float64>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<float64>)
 /// @type.node source=[1, 2] type=float64[]
 /// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
 /// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
@@ -2919,12 +2911,8 @@ function positive(values: int32[]): int32[] {
 function positive(values: int32[]): int32[] {
 /// @type.symbol symbol=positive type=(int32[]) => int32[]
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 /// @type.symbol symbol=positive.values source="values: int32[]" type=int32[]
 
     return values.map((value) => value + 1).filter((value) => value > 0);
@@ -2998,12 +2986,8 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 /// @type.symbol symbol=defined type=(int32 | undefined[]) => int32 | undefined[]
 /// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
+/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<int32 | undefined>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<int32 | undefined>)
 /// @generic.instance id="memory.init.MaybeUninit<int32 | undefined>" template=memory.init.MaybeUninit arguments=(int32 | undefined)
-/// @generic.instance id="memory.raw.dangling<memory.init.MaybeUninit<int32 | undefined>>" template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32 | undefined>)
-/// @generic.instance id="memory.unique.Unique<Slice<memory.init.MaybeUninit<int32 | undefined>>>" template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32 | undefined>>)
-/// @generic.instance id="memory.unique.empty<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32 | undefined>)
-/// @generic.instance id="memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32 | undefined>)
-/// @generic.instance id="memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32 | undefined>>" template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32 | undefined>)
 /// @type.symbol symbol=defined.values source="values: (int32 | undefined)[]" type=int32 | undefined[]
 
     return values.map((value) => value).filter((value) => value !== undefined);
@@ -3074,12 +3058,8 @@ function containsPositive(values: int32[]): boolean {
 function containsPositive(values: int32[]): boolean {
 /// @type.symbol symbol=containsPositive type=(int32[]) => boolean
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 /// @type.symbol symbol=containsPositive.values source="values: int32[]" type=int32[]
 
     return values.reduce(

@@ -886,12 +886,8 @@ class State {
     users!: User[];
     /// @type.symbol symbol=State.users source="users!: User[]" type=User[]
     /// @generic.instance id=Array<User> template=collections.array.Array arguments=(User)
+    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<User>> template=collections.slice.new arguments=(memory.init.MaybeUninit<User>)
     /// @generic.instance id=memory.init.MaybeUninit<User> template=memory.init.MaybeUninit arguments=(User)
-    /// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<User>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<User>)
-    /// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<User>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<User>>)
-    /// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<User>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<User>)
-    /// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<User>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<User>)
-    /// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<User>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<User>)
     /// @resolution.name source=User target=User
 
 }
@@ -1473,12 +1469,8 @@ declare const values: int32[];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @generic.instance id=memory.raw.dangling<memory.init.MaybeUninit<int32>> template=memory.raw.dangling arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.Unique<Slice<memory.init.MaybeUninit<int32>>> template=memory.unique.Unique arguments=(Slice<memory.init.MaybeUninit<int32>>)
-/// @generic.instance id=memory.unique.empty<memory.init.MaybeUninit<int32>> template=memory.unique.empty arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.emptyUniqueSlice<memory.init.MaybeUninit<int32>> template=memory.unique.emptyUniqueSlice arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.unique.uniqueSliceFromRaw<memory.init.MaybeUninit<int32>> template=memory.unique.uniqueSliceFromRaw arguments=(memory.init.MaybeUninit<int32>)
 
 inspectPoint(point);
 /// @resolution.name source=inspectPoint target=inspectPoint
