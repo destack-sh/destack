@@ -103,7 +103,15 @@ mod tests {
     fn test_reports_case_before_default() {
         let session = TestSession::dir(
             &NO_USELESS_SWITCH_CASE,
-            NO_USELESS_SWITCH_CASE.example.reported(),
+            r#"
+function classify(value: int32): void {
+    switch (value) {
+        case 0:
+        default:
+            value;
+    }
+}
+"#,
         );
 
         session.assert_diagnostics(

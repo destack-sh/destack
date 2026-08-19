@@ -108,18 +108,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace a lambda block containing only one returned expression.
-    #[test]
-    fn test_replaces_single_return() {
-        let session = TestSession::dir(
-            &PREFER_IMPLICIT_RETURN,
-            PREFER_IMPLICIT_RETURN.example.reported(),
-        );
-
-        session.assert_suggestions(PREFER_IMPLICIT_RETURN.example.accepted());
-    }
-
     /// Parenthesize an object literal used as the expression body.
     #[test]
     fn test_parenthesizes_object_literal() {

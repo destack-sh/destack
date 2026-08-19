@@ -145,7 +145,17 @@ warning[no-explicit-iterator-in-for-of]: for-of calls iterator explicitly
 +   3│     for (const value of values) {
 "#,
         );
-        session.assert_fixes(NO_EXPLICIT_ITERATOR_IN_FOR_OF.example.accepted());
+        session.assert_fixes(
+            r#"
+function sum(values: int32[]): int32 {
+    let total: int32 = 0;
+    for (const value of values) {
+        total += value;
+    }
+    return total;
+}
+"#,
+        );
     }
 
     /// Preserve a comment inside the removed call.

@@ -193,7 +193,15 @@ mod tests {
     /// Remove a peekable adapter when only next is called.
     #[test]
     fn test_removes_unobserved_peekable() {
-        let session = TestSession::dir(&UNUSED_PEEKABLE, UNUSED_PEEKABLE.example.reported());
+        let session = TestSession::dir(
+            &UNUSED_PEEKABLE,
+            r#"
+function consume(values: int32[]): void {
+    const iterator = values.iterator().peekable();
+    iterator.next();
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -216,7 +224,14 @@ warning[unused-peekable]: peekable iterator is never peeked
 +   2│     const iterator = values.iterator();
 "#,
         );
-        session.assert_fixes(UNUSED_PEEKABLE.example.accepted());
+        session.assert_fixes(
+            r#"
+function consume(values: int32[]): void {
+    const iterator = values.iterator();
+    iterator.next();
+}
+"#,
+        );
     }
 
     /// Remove peekable before several ordinary Iterator operations.

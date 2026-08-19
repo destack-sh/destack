@@ -77,7 +77,13 @@ mod tests {
     fn test_reports_short_circuit_operand() {
         let session = TestSession::dir(
             &NO_DIVERGING_SUBEXPRESSION,
-            NO_DIVERGING_SUBEXPRESSION.example.reported(),
+            r#"
+declare function stop(): never;
+
+function require(active: boolean): boolean {
+    return active || stop();
+}
+"#,
         );
 
         session.assert_diagnostics(

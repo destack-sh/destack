@@ -84,7 +84,18 @@ mod tests {
     /// Report a standalone block without declarations.
     #[test]
     fn test_reports_lone_block() {
-        let session = TestSession::dir(&NO_LONE_BLOCK, NO_LONE_BLOCK.example.reported());
+        let session = TestSession::dir(
+            &NO_LONE_BLOCK,
+            r#"
+declare function work(): void;
+
+function run(): void {
+    {
+        work();
+    }
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"

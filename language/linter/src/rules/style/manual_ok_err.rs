@@ -207,15 +207,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace successful payload projection.
-    #[test]
-    fn test_replaces_ok_projection() {
-        let session = TestSession::dir(&MANUAL_OK_ERR, MANUAL_OK_ERR.example.reported());
-
-        session.assert_fixes(MANUAL_OK_ERR.example.accepted());
-    }
-
     /// Replace error projection with reversed arm ordering.
     #[test]
     fn test_replaces_err_projection() {
@@ -255,7 +246,13 @@ function value(result: Result<int32, string>): int32 | undefined {
 "#,
         );
 
-        session.assert_fixes(MANUAL_OK_ERR.example.accepted());
+        session.assert_fixes(
+            r#"
+function value(result: Result<int32, string>): int32 | undefined {
+    return result.ok();
+}
+"#,
+        );
     }
 
     /// Replace an if-let Result projection.
@@ -274,7 +271,13 @@ function value(result: Result<int32, string>): int32 | undefined {
 "#,
         );
 
-        session.assert_fixes(MANUAL_OK_ERR.example.accepted());
+        session.assert_fixes(
+            r#"
+function value(result: Result<int32, string>): int32 | undefined {
+    return result.ok();
+}
+"#,
+        );
     }
 
     /// Accept a transformed Result payload.

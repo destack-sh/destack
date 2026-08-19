@@ -178,7 +178,13 @@ warning[prefer-some]: filtered array is used only for emptiness
 +   2│     return values.some((value) => value > 0);
 "#,
         );
-        session.assert_suggestions(PREFER_SOME.example.accepted());
+        session.assert_suggestions(
+            r#"
+function hasPositive(values: int32[]): boolean {
+    return values.some((value) => value > 0);
+}
+"#,
+        );
     }
 
     /// Negate some when the filtered array is required to be empty.

@@ -282,7 +282,15 @@ mod tests {
     /// Combine consecutive array pushes.
     #[test]
     fn test_combines_push_calls() {
-        let session = TestSession::dir(&PREFER_SINGLE_CALL, PREFER_SINGLE_CALL.example.reported());
+        let session = TestSession::dir(
+            &PREFER_SINGLE_CALL,
+            r#"
+function append(values: int32[]): void {
+    values.push(1);
+    values.push(2);
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -307,7 +315,13 @@ warning[prefer-single-call]: array calls `push` repeatedly
 +   2│     values.push(1, 2);
 "#,
         );
-        session.assert_fixes(PREFER_SINGLE_CALL.example.accepted());
+        session.assert_fixes(
+            r#"
+function append(values: int32[]): void {
+    values.push(1, 2);
+}
+"#,
+        );
     }
 
     /// Combine complete push runs and retain spread arguments.

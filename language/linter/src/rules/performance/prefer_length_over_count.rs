@@ -133,7 +133,11 @@ mod tests {
     fn test_replaces_array_iterator_count() {
         let session = TestSession::dir(
             &PREFER_LENGTH_OVER_COUNT,
-            PREFER_LENGTH_OVER_COUNT.example.reported(),
+            r#"
+function length(values: int32[]): isize {
+    return values.iterator().count();
+}
+"#,
         );
 
         session.assert_diagnostics(
@@ -156,7 +160,13 @@ warning[prefer-length-over-count]: array iterator is counted in full
 +   2│     return values.length;
 "#,
         );
-        session.assert_fixes(PREFER_LENGTH_OVER_COUNT.example.accepted());
+        session.assert_fixes(
+            r#"
+function length(values: int32[]): isize {
+    return values.length;
+}
+"#,
+        );
     }
 
     /// Replace counting array keys, values, and entries with the same length.

@@ -141,24 +141,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&PREFER_LOOP_CONDITION);
-    }
-
-    /// Move a leading break condition into a while header.
-    #[test]
-    fn test_replaces_leading_break() {
-        let session = TestSession::dir(
-            &PREFER_LOOP_CONDITION,
-            PREFER_LOOP_CONDITION.example.reported(),
-        );
-
-        session.assert_suggestions(PREFER_LOOP_CONDITION.example.accepted());
-    }
-
     /// Remove an existing negation when forming the continuation condition.
     #[test]
     fn test_replaces_negated_break_condition() {

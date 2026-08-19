@@ -111,18 +111,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Remove redundant propagation and Result construction.
-    #[test]
-    fn test_replaces_unchanged_result() {
-        let session = TestSession::dir(
-            &NEEDLESS_QUESTION_MARK,
-            NEEDLESS_QUESTION_MARK.example.reported(),
-        );
-
-        session.assert_fixes(NEEDLESS_QUESTION_MARK.example.accepted());
-    }
-
     /// Accept construction that changes the Result error type.
     #[test]
     fn test_accepts_residual_widening() {

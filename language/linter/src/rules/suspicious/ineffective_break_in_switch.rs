@@ -120,7 +120,19 @@ mod tests {
     fn test_reports_nonterminal_switch_break() {
         let session = TestSession::dir(
             &INEFFECTIVE_BREAK_IN_SWITCH,
-            INEFFECTIVE_BREAK_IN_SWITCH.example.reported(),
+            r#"
+function visit(values: int32[]): void {
+    outer: for (const value of values) {
+        switch (value) {
+            default:
+                if (value < 0) {
+                    break;
+                }
+                value;
+        }
+    }
+}
+"#,
         );
 
         session.assert_diagnostics(
@@ -202,7 +214,19 @@ warning[ineffective-break-in-switch]: break exits the switch rather than the enc
     fn test_accepts_labeled_loop_break() {
         let session = TestSession::dir(
             &INEFFECTIVE_BREAK_IN_SWITCH,
-            INEFFECTIVE_BREAK_IN_SWITCH.example.accepted(),
+            r#"
+function visit(values: int32[]): void {
+    outer: for (const value of values) {
+        switch (value) {
+            default:
+                if (value < 0) {
+                    break outer;
+                }
+                value;
+        }
+    }
+}
+"#,
         );
 
         session.assert_no_diagnostics();

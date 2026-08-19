@@ -265,7 +265,17 @@ mod tests {
     fn test_moves_cloned_after_take() {
         let session = TestSession::dir(
             &ITER_OVEREAGER_CLONED,
-            ITER_OVEREAGER_CLONED.example.reported(),
+            r#"
+import { Iterator } from "destack:iter";
+
+struct Label {
+    values: ^int32[];
+}
+
+function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+    return values.cloned().take(count);
+}
+"#,
         );
 
         session.assert_diagnostics(
@@ -288,7 +298,19 @@ warning[iter-overeager-cloned]: iterator cloning precedes an operation that can 
 +   8│     return values.take(count).cloned();
 "#,
         );
-        session.assert_suggestions(ITER_OVEREAGER_CLONED.example.accepted());
+        session.assert_suggestions(
+            r#"
+import { Iterator } from "destack:iter";
+
+struct Label {
+    values: ^int32[];
+}
+
+function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+    return values.take(count).cloned();
+}
+"#,
+        );
     }
 
     /// Move cloning after a drop adapter.
@@ -329,7 +351,17 @@ function suffix(values: Iterator<&readonly Label>, count: isize): Iterator<Label
     fn test_accepts_lazy_cloning() {
         let session = TestSession::dir(
             &ITER_OVEREAGER_CLONED,
-            ITER_OVEREAGER_CLONED.example.accepted(),
+            r#"
+import { Iterator } from "destack:iter";
+
+struct Label {
+    values: ^int32[];
+}
+
+function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+    return values.take(count).cloned();
+}
+"#,
         );
 
         session.assert_no_diagnostics();

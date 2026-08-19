@@ -177,7 +177,13 @@ warning[manual-extend]: loop pushes every source value
 +   2│     target.extend(source);
 "#,
         );
-        session.assert_suggestions(MANUAL_EXTEND.example.accepted());
+        session.assert_suggestions(
+            r#"
+function append(target: int32[], source: int32[]): void {
+    target.extend(source);
+}
+"#,
+        );
     }
 
     /// Accept a loop that transforms values before pushing them.

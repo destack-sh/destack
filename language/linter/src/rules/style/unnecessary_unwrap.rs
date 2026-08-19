@@ -106,14 +106,6 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Replace unwrap after successful Result narrowing.
-    #[test]
-    fn test_replaces_successful_unwrap() {
-        let session = TestSession::dir(&UNNECESSARY_UNWRAP, UNNECESSARY_UNWRAP.example.reported());
-
-        session.assert_fixes(UNNECESSARY_UNWRAP.example.accepted());
-    }
-
     /// Replace unwrapErr after failed Result narrowing.
     #[test]
     fn test_replaces_failed_unwrap() {

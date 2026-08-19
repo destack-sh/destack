@@ -137,19 +137,20 @@ fn mutation_span(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&NO_MUTATED_RANGE_BOUND);
-    }
-
     /// Report mutation of a captured range end.
     #[test]
     fn test_reports_mutated_end() {
         let session = TestSession::dir(
             &NO_MUTATED_RANGE_BOUND,
-            NO_MUTATED_RANGE_BOUND.example.reported(),
+            r#"
+function visit(limit: int32): void {
+    let end = limit;
+    for (const value of 0..end) {
+        end -= 1;
+        value;
+    }
+}
+"#,
         );
 
         session.assert_diagnostics(

@@ -144,8 +144,18 @@ mod tests {
     /// Replace a cloned iterator collected through toArray.
     #[test]
     fn test_replaces_cloned_to_array() {
-        let session =
-            TestSession::dir(&ITER_CLONED_COLLECT, ITER_CLONED_COLLECT.example.reported());
+        let session = TestSession::dir(
+            &ITER_CLONED_COLLECT,
+            r#"
+struct Label {
+    values: ^int32[];
+}
+
+function copy(values: &readonly Label[]): Label[] {
+    return values.iterator().cloned().toArray();
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -167,7 +177,17 @@ warning[iter-cloned-collect]: collection is cloned through its iterator
 +   6│     return values.clone();
 "#,
         );
-        session.assert_fixes(ITER_CLONED_COLLECT.example.accepted());
+        session.assert_fixes(
+            r#"
+struct Label {
+    values: ^int32[];
+}
+
+function copy(values: &readonly Label[]): Label[] {
+    return values.clone();
+}
+"#,
+        );
     }
 
     /// Replace a values iterator collected through collect.
@@ -186,7 +206,17 @@ function copy(values: &readonly Label[]): Label[] {
 "#,
         );
 
-        session.assert_fixes(ITER_CLONED_COLLECT.example.accepted());
+        session.assert_fixes(
+            r#"
+struct Label {
+    values: ^int32[];
+}
+
+function copy(values: &readonly Label[]): Label[] {
+    return values.clone();
+}
+"#,
+        );
     }
 
     /// Replace cloned slice iteration with direct owned collection creation.

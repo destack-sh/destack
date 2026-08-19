@@ -171,7 +171,13 @@ warning[map-identity]: array is mapped through the identity function
 +   2│     return values;
 "#,
         );
-        session.assert_fixes(MAP_IDENTITY.example.accepted());
+        session.assert_fixes(
+            r#"
+function identity(values: ^int32[]): ^int32[] {
+    return values;
+}
+"#,
+        );
     }
 
     /// Accept a map whose callback changes each value.

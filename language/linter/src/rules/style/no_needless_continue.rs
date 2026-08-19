@@ -82,19 +82,19 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&NO_NEEDLESS_CONTINUE);
-    }
-
     /// Remove a continue at the end of a loop body.
     #[test]
     fn test_removes_terminal_continue() {
         let session = TestSession::dir(
             &NO_NEEDLESS_CONTINUE,
-            NO_NEEDLESS_CONTINUE.example.reported(),
+            r#"
+function visit(values: int32[]): void {
+    for (const value of values) {
+        value;
+        continue;
+    }
+}
+"#,
         );
 
         session.assert_diagnostics(
@@ -118,7 +118,15 @@ warning[no-needless-continue]: continue repeats the end of this iteration
 -   4│         continue;
 "#,
         );
-        session.assert_fixes(NO_NEEDLESS_CONTINUE.example.accepted());
+        session.assert_fixes(
+            r#"
+function visit(values: int32[]): void {
+    for (const value of values) {
+        value;
+    }
+}
+"#,
+        );
     }
 
     /// Remove a continue at the end of one conditional path.

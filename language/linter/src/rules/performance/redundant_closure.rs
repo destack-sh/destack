@@ -169,15 +169,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace an exact forwarding closure with its function.
-    #[test]
-    fn test_replaces_forwarding_closure() {
-        let session = TestSession::dir(&REDUNDANT_CLOSURE, REDUNDANT_CLOSURE.example.reported());
-
-        session.assert_fixes(REDUNDANT_CLOSURE.example.accepted());
-    }
-
     /// Replace a standalone forwarding closure with its function.
     #[test]
     fn test_replaces_standalone_forwarding_closure() {

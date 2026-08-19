@@ -69,19 +69,20 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&LOOP_SINGLE_ITERATION);
-    }
-
     /// Report a while loop that always breaks.
     #[test]
     fn test_reports_breaking_while() {
         let session = TestSession::dir(
             &LOOP_SINGLE_ITERATION,
-            LOOP_SINGLE_ITERATION.example.reported(),
+            r#"
+declare function ready(): boolean;
+declare function process(): void;
+
+while (ready()) {
+    process();
+    break;
+}
+"#,
         );
 
         session.assert_diagnostics(

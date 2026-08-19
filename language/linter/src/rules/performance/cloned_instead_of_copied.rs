@@ -88,18 +88,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace cloned with copied for primitive iterator elements.
-    #[test]
-    fn test_replaces_clone_of_copy_elements() {
-        let session = TestSession::dir(
-            &CLONED_INSTEAD_OF_COPIED,
-            CLONED_INSTEAD_OF_COPIED.example.reported(),
-        );
-
-        session.assert_fixes(CLONED_INSTEAD_OF_COPIED.example.accepted());
-    }
-
     /// Replace cloned for a directly declared borrowed iterator.
     #[test]
     fn test_replaces_direct_iterator_clone() {

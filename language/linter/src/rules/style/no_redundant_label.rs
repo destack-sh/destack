@@ -112,7 +112,14 @@ mod tests {
     /// Remove a break label that selects the innermost loop.
     #[test]
     fn test_removes_innermost_break_label() {
-        let session = TestSession::dir(&NO_REDUNDANT_LABEL, NO_REDUNDANT_LABEL.example.reported());
+        let session = TestSession::dir(
+            &NO_REDUNDANT_LABEL,
+            r#"
+outer: loop {
+    break outer;
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -134,7 +141,13 @@ warning[no-redundant-label]: label does not change the control target
 +   2│     break;
 "#,
         );
-        session.assert_fixes(NO_REDUNDANT_LABEL.example.accepted());
+        session.assert_fixes(
+            r#"
+outer: loop {
+    break;
+}
+"#,
+        );
     }
 
     /// Remove a continue label that selects the innermost loop.

@@ -80,17 +80,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&NO_USELESS_RETURN);
-    }
-
     /// Remove a bare return at the end of a function body.
     #[test]
     fn test_removes_final_return() {
-        let session = TestSession::dir(&NO_USELESS_RETURN, NO_USELESS_RETURN.example.reported());
+        let session = TestSession::dir(
+            &NO_USELESS_RETURN,
+            r#"
+function record(value: int32): void {
+    value;
+    return;
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -112,7 +113,13 @@ warning[no-useless-return]: return is redundant at the end of this function
 -   3│     return;
 "#,
         );
-        session.assert_fixes(NO_USELESS_RETURN.example.accepted());
+        session.assert_fixes(
+            r#"
+function record(value: int32): void {
+    value;
+}
+"#,
+        );
     }
 
     /// Remove a bare return from a final conditional path.

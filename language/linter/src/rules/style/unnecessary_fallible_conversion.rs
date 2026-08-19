@@ -130,18 +130,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace a widening signed integer conversion.
-    #[test]
-    fn test_replaces_widening_conversion() {
-        let session = TestSession::dir(
-            &UNNECESSARY_FALLIBLE_CONVERSION,
-            UNNECESSARY_FALLIBLE_CONVERSION.example.reported(),
-        );
-
-        session.assert_fixes(UNNECESSARY_FALLIBLE_CONVERSION.example.accepted());
-    }
-
     /// Replace an unsigned conversion into a wider signed integer.
     #[test]
     fn test_replaces_unsigned_to_signed_widening() {

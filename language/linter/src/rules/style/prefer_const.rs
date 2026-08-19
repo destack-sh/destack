@@ -244,13 +244,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&PREFER_CONST);
-    }
-
     /// Accept a binding that is reassigned after initialization.
     #[test]
     fn test_accepts_reassigned_binding() {

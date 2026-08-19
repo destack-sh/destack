@@ -397,7 +397,16 @@ mod tests {
     /// Report a complete element copy loop.
     #[test]
     fn test_reports_array_copy_loop() {
-        let session = TestSession::dir(&MANUAL_COPY, MANUAL_COPY.example.reported());
+        let session = TestSession::dir(
+            &MANUAL_COPY,
+            r#"
+function copy(target: int32[], source: int32[]): void {
+    for (let index: isize = 0; index < source.length; index++) {
+        target[index] = source[index];
+    }
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"

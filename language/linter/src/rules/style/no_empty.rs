@@ -87,7 +87,14 @@ mod tests {
     /// Report an empty conditional body.
     #[test]
     fn test_reports_empty_conditional() {
-        let session = TestSession::dir(&NO_EMPTY, NO_EMPTY.example.reported());
+        let session = TestSession::dir(
+            &NO_EMPTY,
+            r#"
+declare function ready(): boolean;
+
+if (ready()) {}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -106,7 +113,16 @@ warning[no-empty]: block is empty
     /// Accept an explanatory comment inside an empty block.
     #[test]
     fn test_accepts_commented_block() {
-        let session = TestSession::dir(&NO_EMPTY, NO_EMPTY.example.accepted());
+        let session = TestSession::dir(
+            &NO_EMPTY,
+            r#"
+declare function ready(): boolean;
+
+if (ready()) {
+    // no action is required while ready
+}
+"#,
+        );
 
         session.assert_no_diagnostics();
     }

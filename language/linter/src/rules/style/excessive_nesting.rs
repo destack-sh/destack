@@ -150,7 +150,31 @@ mod tests {
     /// Highlight the control keyword that exceeds the maximum depth.
     #[test]
     fn test_reports_fifth_nesting_level() {
-        let session = TestSession::dir(&EXCESSIVE_NESTING, EXCESSIVE_NESTING.example.reported());
+        let session = TestSession::dir(
+            &EXCESSIVE_NESTING,
+            r#"
+function acceptsMail(
+    isActive: boolean,
+    hasEmail: boolean,
+    isSubscribed: boolean,
+    isVerified: boolean,
+    allowsMail: boolean,
+): boolean {
+    if (isActive) {
+        if (hasEmail) {
+            if (isSubscribed) {
+                if (isVerified) {
+                    if (allowsMail) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"

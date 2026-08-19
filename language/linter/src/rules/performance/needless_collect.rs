@@ -211,7 +211,14 @@ mod tests {
     /// Replace an intermediate array length with Iterator.count.
     #[test]
     fn test_replaces_collection_length() {
-        let session = TestSession::dir(&NEEDLESS_COLLECT, NEEDLESS_COLLECT.example.reported());
+        let session = TestSession::dir(
+            &NEEDLESS_COLLECT,
+            r#"
+function length(values: Iterator<int32>): isize {
+    return values.toArray().length;
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -233,7 +240,13 @@ warning[needless-collect]: Iterator is materialized only to read its length
 +   2│     return values.count();
 "#,
         );
-        session.assert_fixes(NEEDLESS_COLLECT.example.accepted());
+        session.assert_fixes(
+            r#"
+function length(values: Iterator<int32>): isize {
+    return values.count();
+}
+"#,
+        );
     }
 
     /// Remove collection before equivalent Iterator terminal operations.
@@ -333,7 +346,13 @@ function length(values: Iterator<int32>): isize {
 "#,
         );
 
-        session.assert_fixes(NEEDLESS_COLLECT.example.accepted());
+        session.assert_fixes(
+            r#"
+function length(values: Iterator<int32>): isize {
+    return values.count();
+}
+"#,
+        );
     }
 
     /// Accept a collection retained as the final value.

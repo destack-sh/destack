@@ -209,13 +209,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&MANUAL_FILL);
-    }
-
     /// Replace a complete zero-to-length Array assignment loop.
     #[test]
     fn test_replaces_index_fill_loop() {
@@ -256,7 +249,13 @@ warning[manual-fill]: index loop assigns one value to every element
 +   2│     values.fill(0);
 "#,
         );
-        session.assert_suggestions(MANUAL_FILL.example.accepted());
+        session.assert_suggestions(
+            r#"
+function clear(values: int32[]): void {
+    values.fill(0);
+}
+"#,
+        );
     }
 
     /// Replace a complete fill loop whose counter uses additive assignment.
@@ -273,7 +272,13 @@ function clear(values: int32[]): void {
 "#,
         );
 
-        session.assert_suggestions(MANUAL_FILL.example.accepted());
+        session.assert_suggestions(
+            r#"
+function clear(values: int32[]): void {
+    values.fill(0);
+}
+"#,
+        );
     }
 
     /// Replace a complete fill loop whose counter uses an explicit sum assignment.
@@ -290,7 +295,13 @@ function clear(values: int32[]): void {
 "#,
         );
 
-        session.assert_suggestions(MANUAL_FILL.example.accepted());
+        session.assert_suggestions(
+            r#"
+function clear(values: int32[]): void {
+    values.fill(0);
+}
+"#,
+        );
     }
 
     /// Replace a complete fill loop with its bound written before the counter.
@@ -307,7 +318,13 @@ function clear(values: int32[]): void {
 "#,
         );
 
-        session.assert_suggestions(MANUAL_FILL.example.accepted());
+        session.assert_suggestions(
+            r#"
+function clear(values: int32[]): void {
+    values.fill(0);
+}
+"#,
+        );
     }
 
     /// Replace a complete zero-to-length slice assignment loop.

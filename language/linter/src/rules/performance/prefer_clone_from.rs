@@ -137,15 +137,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace a clone assignment with cloneFrom.
-    #[test]
-    fn test_replaces_clone_assignment() {
-        let session = TestSession::dir(&PREFER_CLONE_FROM, PREFER_CLONE_FROM.example.reported());
-
-        session.assert_suggestions(PREFER_CLONE_FROM.example.accepted());
-    }
-
     /// Accept a self clone that would create overlapping borrows.
     #[test]
     fn test_accepts_self_clone() {

@@ -335,15 +335,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace a repeatable fallback with unwrapOr.
-    #[test]
-    fn test_replaces_eager_fallback() {
-        let session = TestSession::dir(&MANUAL_UNWRAP_OR, MANUAL_UNWRAP_OR.example.reported());
-
-        session.assert_suggestions(MANUAL_UNWRAP_OR.example.accepted());
-    }
-
     /// Preserve an error-dependent fallback with unwrapOrElse.
     #[test]
     fn test_replaces_error_fallback() {
@@ -478,7 +469,13 @@ function value(result: Result<int32, string>): int32 {
 "#,
         );
 
-        session.assert_suggestions(MANUAL_UNWRAP_OR.example.accepted());
+        session.assert_suggestions(
+            r#"
+function value(result: Result<int32, string>): int32 {
+    return result.unwrapOr(0);
+}
+"#,
+        );
     }
 
     /// Replace an exhaustive wildcard fallback.
@@ -496,7 +493,13 @@ function value(result: Result<int32, string>): int32 {
 "#,
         );
 
-        session.assert_suggestions(MANUAL_UNWRAP_OR.example.accepted());
+        session.assert_suggestions(
+            r#"
+function value(result: Result<int32, string>): int32 {
+    return result.unwrapOr(0);
+}
+"#,
+        );
     }
 
     /// Preserve a fallback that returns from the enclosing function.

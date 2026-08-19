@@ -188,18 +188,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace repeated nominal object patterns.
-    #[test]
-    fn test_replaces_nominal_object_patterns() {
-        let session = TestSession::dir(
-            &PREFER_NESTED_OR_PATTERN,
-            PREFER_NESTED_OR_PATTERN.example.reported(),
-        );
-
-        session.assert_fixes(PREFER_NESTED_OR_PATTERN.example.accepted());
-    }
-
     /// Replace repeated nominal tuple patterns.
     #[test]
     fn test_replaces_nominal_tuple_patterns() {

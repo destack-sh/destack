@@ -157,15 +157,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Fuse mapped iterator search into findMap.
-    #[test]
-    fn test_replaces_mapped_defined_search() {
-        let session = TestSession::dir(&PREFER_FIND_MAP, PREFER_FIND_MAP.example.reported());
-
-        session.assert_fixes(PREFER_FIND_MAP.example.accepted());
-    }
-
     /// Recognize undefined on the left of the strict comparison.
     #[test]
     fn test_replaces_reversed_defined_search() {
@@ -181,7 +172,15 @@ function firstDefined(values: (int32 | undefined)[]): int32 | undefined {
 "#,
         );
 
-        session.assert_fixes(PREFER_FIND_MAP.example.accepted());
+        session.assert_fixes(
+            r#"
+function firstDefined(values: (int32 | undefined)[]): int32 | undefined {
+    return values
+        .iterator()
+        .findMap((value) => value);
+}
+"#,
+        );
     }
 
     /// Preserve mapper index behavior while removing the search predicate.

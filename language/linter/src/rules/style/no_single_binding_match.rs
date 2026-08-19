@@ -132,18 +132,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace one binding arm with a scoped declaration.
-    #[test]
-    fn test_replaces_binding_arm() {
-        let session = TestSession::dir(
-            &NO_SINGLE_BINDING_MATCH,
-            NO_SINGLE_BINDING_MATCH.example.reported(),
-        );
-
-        session.assert_fixes(NO_SINGLE_BINDING_MATCH.example.accepted());
-    }
-
     /// Retain evaluation when replacing a wildcard arm.
     #[test]
     fn test_replaces_wildcard_arm() {

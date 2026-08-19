@@ -76,7 +76,19 @@ mod tests {
     /// Highlight the misplaced default selector.
     #[test]
     fn test_reports_default_selector() {
-        let session = TestSession::dir(&DEFAULT_CASE_LAST, DEFAULT_CASE_LAST.example.reported());
+        let session = TestSession::dir(
+            &DEFAULT_CASE_LAST,
+            r#"
+function classify(value: int32): string {
+    switch (value) {
+        default:
+            return "other";
+        case 1:
+            return "one";
+    }
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"

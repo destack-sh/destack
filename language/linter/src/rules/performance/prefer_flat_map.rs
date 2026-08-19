@@ -141,7 +141,13 @@ warning[prefer-flat-map]: mapped array is immediately flattened
 +   2│     return values.flatMap((value) => [value, value]);
 "#,
         );
-        session.assert_fixes(PREFER_FLAT_MAP.example.accepted());
+        session.assert_fixes(
+            r#"
+function pairs(values: int32[]): int32[] {
+    return values.flatMap((value) => [value, value]);
+}
+"#,
+        );
     }
 
     /// Preserve comments carried by the removed flatten call.

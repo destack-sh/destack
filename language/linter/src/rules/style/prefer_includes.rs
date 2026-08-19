@@ -192,7 +192,13 @@ warning[prefer-includes]: array index is only used for membership
 +   2│     return values.includes(target);
 "#,
         );
-        session.assert_fixes(PREFER_INCLUDES.example.accepted());
+        session.assert_fixes(
+            r#"
+function contains(values: int32[], target: int32): boolean {
+    return values.includes(target);
+}
+"#,
+        );
     }
 
     /// Negate equality with undefined in either operand order.

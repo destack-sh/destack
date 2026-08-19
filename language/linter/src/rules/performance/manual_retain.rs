@@ -168,7 +168,15 @@ warning[manual-retain]: owned array is replaced by its own filtered values
 +   3│     values.retain((value) => value > 0);
 "#,
         );
-        session.assert_suggestions(MANUAL_RETAIN.example.accepted());
+        session.assert_suggestions(
+            r#"
+function keepPositive(input: ^int32[]): ^int32[] {
+    let values = input;
+    values.retain((value) => value > 0);
+    return values;
+}
+"#,
+        );
     }
 
     /// Accept filtering a different source collection.

@@ -253,18 +253,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Merge a nested match into one shorthand field pattern.
-    #[test]
-    fn test_merges_shorthand_field_pattern() {
-        let session = TestSession::dir(
-            &NO_COLLAPSIBLE_MATCH,
-            NO_COLLAPSIBLE_MATCH.example.reported(),
-        );
-
-        session.assert_suggestions(NO_COLLAPSIBLE_MATCH.example.accepted());
-    }
-
     /// Accept nested matches with distinct fallback results.
     #[test]
     fn test_accepts_distinct_fallbacks() {

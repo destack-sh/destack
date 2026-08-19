@@ -225,18 +225,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace canonical default construction.
-    #[test]
-    fn test_replaces_default_match() {
-        let session = TestSession::dir(
-            &MANUAL_UNWRAP_OR_DEFAULT,
-            MANUAL_UNWRAP_OR_DEFAULT.example.reported(),
-        );
-
-        session.assert_fixes(MANUAL_UNWRAP_OR_DEFAULT.example.accepted());
-    }
-
     /// Recognize reversed Result arm ordering.
     #[test]
     fn test_replaces_reversed_arms() {
@@ -277,7 +265,13 @@ function value<T: Default>(result: Result<T, string>): T {
 "#,
         );
 
-        session.assert_fixes(MANUAL_UNWRAP_OR_DEFAULT.example.accepted());
+        session.assert_fixes(
+            r#"
+function value<T: Default>(result: Result<T, string>): T {
+    return result.unwrapOrDefault();
+}
+"#,
+        );
     }
 
     /// Replace an exhaustive wildcard with the canonical default.
@@ -295,7 +289,13 @@ function value<T: Default>(result: Result<T, string>): T {
 "#,
         );
 
-        session.assert_fixes(MANUAL_UNWRAP_OR_DEFAULT.example.accepted());
+        session.assert_fixes(
+            r#"
+function value<T: Default>(result: Result<T, string>): T {
+    return result.unwrapOrDefault();
+}
+"#,
+        );
     }
 
     /// Accept a literal fallback that is not canonical default construction.

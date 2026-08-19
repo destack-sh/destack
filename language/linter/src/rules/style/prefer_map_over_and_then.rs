@@ -170,18 +170,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace a successful Result chain.
-    #[test]
-    fn test_replaces_and_then() {
-        let session = TestSession::dir(
-            &PREFER_MAP_OVER_AND_THEN,
-            PREFER_MAP_OVER_AND_THEN.example.reported(),
-        );
-
-        session.assert_fixes(PREFER_MAP_OVER_AND_THEN.example.accepted());
-    }
-
     /// Replace a failed Result chain.
     #[test]
     fn test_replaces_or_else() {

@@ -165,7 +165,13 @@ warning[prefer-find]: filtered array is only used for its first element
 +   2│     return values.find((value) => value > 0);
 "#,
         );
-        session.assert_suggestions(PREFER_FIND.example.accepted());
+        session.assert_suggestions(
+            r#"
+function firstPositive(values: int32[]): int32 | undefined {
+    return values.find((value) => value > 0);
+}
+"#,
+        );
     }
 
     /// Accept checked indexing because it traps instead of returning undefined.

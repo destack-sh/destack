@@ -202,7 +202,14 @@ mod tests {
     /// Replace an existential boolean reduction with some.
     #[test]
     fn test_replaces_existential_reduction() {
-        let session = TestSession::dir(&UNNECESSARY_FOLD, UNNECESSARY_FOLD.example.reported());
+        let session = TestSession::dir(
+            &UNNECESSARY_FOLD,
+            r#"
+function containsPositive(values: int32[]): boolean {
+    return values.reduce((found, value) => found || value > 0, false);
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -224,7 +231,13 @@ warning[unnecessary-fold]: boolean accumulator duplicates a terminal predicate
 +   2│     return values.some((value) => value > 0);
 "#,
         );
-        session.assert_suggestions(UNNECESSARY_FOLD.example.accepted());
+        session.assert_suggestions(
+            r#"
+function containsPositive(values: int32[]): boolean {
+    return values.some((value) => value > 0);
+}
+"#,
+        );
     }
 
     /// Replace a universal boolean reduction with every.

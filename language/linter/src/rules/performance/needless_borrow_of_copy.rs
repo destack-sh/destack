@@ -119,18 +119,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace a readonly integer borrow with its value type.
-    #[test]
-    fn test_replaces_readonly_integer() {
-        let session = TestSession::dir(
-            &NEEDLESS_BORROW_OF_COPY,
-            NEEDLESS_BORROW_OF_COPY.example.reported(),
-        );
-
-        session.assert_suggestions(NEEDLESS_BORROW_OF_COPY.example.accepted());
-    }
-
     /// Replace a readonly boolean borrow with its value type.
     #[test]
     fn test_replaces_readonly_boolean() {

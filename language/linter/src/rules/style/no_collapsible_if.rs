@@ -192,15 +192,6 @@ fn condition_source(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Join two nested conditions.
-    #[test]
-    fn test_joins_nested_conditions() {
-        let session = TestSession::dir(&NO_COLLAPSIBLE_IF, NO_COLLAPSIBLE_IF.example.reported());
-
-        session.assert_suggestions(NO_COLLAPSIBLE_IF.example.accepted());
-    }
-
     /// Accept a nested if with an alternative branch.
     #[test]
     fn test_accepts_nested_alternative() {

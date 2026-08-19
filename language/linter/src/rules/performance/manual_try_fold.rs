@@ -258,15 +258,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace a two-parameter Result reduction that propagates the accumulator.
-    #[test]
-    fn test_replaces_propagated_result_reduction() {
-        let session = TestSession::dir(&MANUAL_TRY_FOLD, MANUAL_TRY_FOLD.example.reported());
-
-        session.assert_suggestions(MANUAL_TRY_FOLD.example.accepted());
-    }
-
     /// Retain a fallible reducer result.
     #[test]
     fn test_replaces_fallible_reducer() {

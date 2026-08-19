@@ -213,18 +213,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Remove cloning before a map callback whose inferred uses borrow its values.
-    #[test]
-    fn test_removes_cloned_before_borrowing_map() {
-        let session = TestSession::dir(
-            &REDUNDANT_ITER_CLONED,
-            REDUNDANT_ITER_CLONED.example.reported(),
-        );
-
-        session.assert_fixes(REDUNDANT_ITER_CLONED.example.accepted());
-    }
-
     /// Remove cloning before counting values without observing them.
     #[test]
     fn test_removes_cloned_before_count() {

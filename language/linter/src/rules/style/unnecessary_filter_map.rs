@@ -124,7 +124,13 @@ warning[unnecessary-filter-map]: filterMap callback always returns a defined val
 +   2│     return values.map((value) => value + 1);
 "#,
         );
-        session.assert_suggestions(UNNECESSARY_FILTER_MAP.example.accepted());
+        session.assert_suggestions(
+            r#"
+function increment(values: int32[]): int32[] {
+    return values.map((value) => value + 1);
+}
+"#,
+        );
     }
 
     /// Accept a callback whose result can be undefined.

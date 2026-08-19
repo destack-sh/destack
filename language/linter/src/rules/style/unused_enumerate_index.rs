@@ -148,13 +148,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&UNUSED_ENUMERATE_INDEX);
-    }
-
     /// Remove entries when a wildcard discards the index.
     #[test]
     fn test_removes_wildcard_index() {
@@ -190,7 +183,15 @@ warning[unused-enumerate-index]: indexed iteration index is unused
 +   2│     for (const value of values) {
 "#,
         );
-        session.assert_fixes(UNUSED_ENUMERATE_INDEX.example.accepted());
+        session.assert_fixes(
+            r#"
+function copy(values: int32[], output: int32[]): void {
+    for (const value of values) {
+        output.push(value);
+    }
+}
+"#,
+        );
     }
 
     /// Remove entries when a named index has no references.

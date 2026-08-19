@@ -192,15 +192,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace successful payload observation with tap.
-    #[test]
-    fn test_replaces_success_observation() {
-        let session = TestSession::dir(&MANUAL_RESULT_TAP, MANUAL_RESULT_TAP.example.reported());
-
-        session.assert_fixes(MANUAL_RESULT_TAP.example.accepted());
-    }
-
     /// Replace error observation with tapErr.
     #[test]
     fn test_replaces_error_observation() {
@@ -248,7 +239,17 @@ function inspect(result: Result<int32, string>): Result<int32, string> {
 "#,
         );
 
-        session.assert_fixes(MANUAL_RESULT_TAP.example.accepted());
+        session.assert_fixes(
+            r#"
+declare function record(value: &readonly int32): void;
+
+function inspect(result: Result<int32, string>): Result<int32, string> {
+    return result.tap((value) => {
+        record(&readonly value);
+    });
+}
+"#,
+        );
     }
 
     /// Accept a callback that transforms its payload.

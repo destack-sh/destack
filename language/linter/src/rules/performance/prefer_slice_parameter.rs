@@ -161,18 +161,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace a readonly borrowed array parameter with a slice.
-    #[test]
-    fn test_replaces_readonly_array() {
-        let session = TestSession::dir(
-            &PREFER_SLICE_PARAMETER,
-            PREFER_SLICE_PARAMETER.example.reported(),
-        );
-
-        session.assert_suggestions(PREFER_SLICE_PARAMETER.example.accepted());
-    }
-
     /// Preserve mutable access when replacing an array parameter.
     #[test]
     fn test_replaces_mutable_array() {

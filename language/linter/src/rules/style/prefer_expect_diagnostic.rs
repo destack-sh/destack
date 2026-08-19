@@ -69,18 +69,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace a local allow control with an expectation.
-    #[test]
-    fn test_replaces_allow_with_expect() {
-        let session = TestSession::dir(
-            &PREFER_EXPECT_DIAGNOSTIC,
-            PREFER_EXPECT_DIAGNOSTIC.example.reported(),
-        );
-
-        session.assert_suggestions(PREFER_EXPECT_DIAGNOSTIC.example.accepted());
-    }
-
     /// Retain conditional diagnostic control options.
     #[test]
     fn test_retains_conditional_options() {
@@ -125,7 +113,16 @@ function ready(): boolean {
     fn test_accepts_expect() {
         let session = TestSession::dir(
             &PREFER_EXPECT_DIAGNOSTIC,
-            PREFER_EXPECT_DIAGNOSTIC.example.accepted(),
+            r#"
+@expect("constant-condition", { reason: "required sentinel branch" })
+function ready(): boolean {
+    if (true) {
+        return true;
+    }
+
+    return false;
+}
+"#,
         );
 
         session.assert_no_diagnostics();

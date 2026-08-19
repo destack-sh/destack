@@ -118,7 +118,14 @@ mod tests {
     /// Report an Array drain collected into another Array.
     #[test]
     fn test_reports_array_drain_collect() {
-        let session = TestSession::dir(&DRAIN_COLLECT, DRAIN_COLLECT.example.reported());
+        let session = TestSession::dir(
+            &DRAIN_COLLECT,
+            r#"
+function removeAll(values: &exclusive int32[]): int32[] {
+    return values.drain().toArray();
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"

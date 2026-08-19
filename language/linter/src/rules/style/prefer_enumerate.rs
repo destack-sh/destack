@@ -209,17 +209,21 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&PREFER_ENUMERATE);
-    }
-
     /// Replace a separately counted array loop.
     #[test]
     fn test_replaces_manual_index() {
-        let session = TestSession::dir(&PREFER_ENUMERATE, PREFER_ENUMERATE.example.reported());
+        let session = TestSession::dir(
+            &PREFER_ENUMERATE,
+            r#"
+function indexes(values: int32[], output: isize[]): void {
+    let index: isize = 0;
+    for (const value of values) {
+        output.push(index);
+        index++;
+    }
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -246,7 +250,15 @@ warning[prefer-enumerate]: iteration maintains its index manually
 -   5│         index++;
 "#,
         );
-        session.assert_suggestions(PREFER_ENUMERATE.example.accepted());
+        session.assert_suggestions(
+            r#"
+function indexes(values: int32[], output: isize[]): void {
+    for (const (index, value) of values.entries()) {
+        output.push(index);
+    }
+}
+"#,
+        );
     }
 
     /// Replace a separate counter using additive assignment.
@@ -265,7 +277,15 @@ function indexes(values: int32[], output: isize[]): void {
 "#,
         );
 
-        session.assert_suggestions(PREFER_ENUMERATE.example.accepted());
+        session.assert_suggestions(
+            r#"
+function indexes(values: int32[], output: isize[]): void {
+    for (const (index, value) of values.entries()) {
+        output.push(index);
+    }
+}
+"#,
+        );
     }
 
     /// Replace a separate counter using an explicit reversed sum assignment.
@@ -284,7 +304,15 @@ function indexes(values: int32[], output: isize[]): void {
 "#,
         );
 
-        session.assert_suggestions(PREFER_ENUMERATE.example.accepted());
+        session.assert_suggestions(
+            r#"
+function indexes(values: int32[], output: isize[]): void {
+    for (const (index, value) of values.entries()) {
+        output.push(index);
+    }
+}
+"#,
+        );
     }
 
     /// Preserve a destructured value pattern in the indexed binding.

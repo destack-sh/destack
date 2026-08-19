@@ -133,7 +133,17 @@ mod tests {
     /// Report a value moved before the same place is defaulted.
     #[test]
     fn test_reports_manual_take() {
-        let session = TestSession::dir(&MANUAL_TAKE, MANUAL_TAKE.example.reported());
+        let session = TestSession::dir(
+            &MANUAL_TAKE,
+            r#"
+function remove<T: Default>(initial: T): T {
+    let value = initial;
+    const previous = value;
+    value = T.default();
+    return previous;
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"

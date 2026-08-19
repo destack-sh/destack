@@ -125,7 +125,16 @@ mod tests {
     fn test_reports_allow_without_reason() {
         let session = TestSession::dir(
             &REQUIRE_DIAGNOSTIC_REASON,
-            REQUIRE_DIAGNOSTIC_REASON.example.reported(),
+            r#"
+@allow("constant-condition")
+function ready(): boolean {
+    if (true) {
+        return true;
+    }
+
+    return false;
+}
+"#,
         );
 
         session.assert_diagnostics(
@@ -147,7 +156,16 @@ warning[require-diagnostic-reason]: diagnostic suppression has no reason
     fn test_accepts_reason() {
         let session = TestSession::dir(
             &REQUIRE_DIAGNOSTIC_REASON,
-            REQUIRE_DIAGNOSTIC_REASON.example.accepted(),
+            r#"
+@allow("constant-condition", { reason: "required sentinel branch" })
+function ready(): boolean {
+    if (true) {
+        return true;
+    }
+
+    return false;
+}
+"#,
         );
 
         session.assert_no_diagnostics();

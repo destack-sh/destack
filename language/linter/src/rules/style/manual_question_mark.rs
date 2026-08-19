@@ -224,18 +224,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace manual error propagation.
-    #[test]
-    fn test_replaces_result_match() {
-        let session = TestSession::dir(
-            &MANUAL_QUESTION_MARK,
-            MANUAL_QUESTION_MARK.example.reported(),
-        );
-
-        session.assert_fixes(MANUAL_QUESTION_MARK.example.accepted());
-    }
-
     /// Recognize reversed Result arm ordering.
     #[test]
     fn test_replaces_reversed_arms() {
@@ -252,7 +240,14 @@ function value(result: Result<int32, string>): Result<int32, string> {
 "#,
         );
 
-        session.assert_fixes(MANUAL_QUESTION_MARK.example.accepted());
+        session.assert_fixes(
+            r#"
+function value(result: Result<int32, string>): Result<int32, string> {
+    const value = result?;
+    return Result.ok(value);
+}
+"#,
+        );
     }
 
     /// Replace propagation written in a sole-expression block.
@@ -273,7 +268,14 @@ function value(result: Result<int32, string>): Result<int32, string> {
 "#,
         );
 
-        session.assert_fixes(MANUAL_QUESTION_MARK.example.accepted());
+        session.assert_fixes(
+            r#"
+function value(result: Result<int32, string>): Result<int32, string> {
+    const value = result?;
+    return Result.ok(value);
+}
+"#,
+        );
     }
 
     /// Replace a failed-pattern condition that returns its error unchanged.
