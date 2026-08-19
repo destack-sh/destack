@@ -21,46 +21,21 @@ export type DiagnosticControlOptions =
       };
 
 /// Suppress a diagnostic.
-///
-/// ```
-/// @allow("no-floating-promises", { if: import.meta.dev, otherwise: "deny" })
-/// function oldAPI() {}
-/// ```
 @languageItem("decorator.allow")
 export newtype allow = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
 
 /// Report a diagnostic as a warning.
-///
-/// ```
-/// @warn("no-floating-promises")
-/// function oldAPI() {}
-/// ```
 @languageItem("decorator.warn")
 export newtype warn = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
 
 /// Report a diagnostic as an error.
-///
-/// ```
-/// @deny("no-floating-promises")
-/// function oldAPI() {}
-/// ```
 @languageItem("decorator.deny")
 export newtype deny = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
 
 /// Forbid overriding a diagnostic error.
-///
-/// ```
-/// @forbid("unsafe-code")
-/// function oldAPI() {}
-/// ```
 @languageItem("decorator.forbid")
 export newtype forbid = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
 
 /// Expect a diagnostic.
-///
-/// ```
-/// @expect("no-floating-promises", { reason: "intentional fire-and-forget" })
-/// function oldAPI() {}
-/// ```
 @languageItem("decorator.expect")
 export newtype expect = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);

@@ -29,7 +29,7 @@ export extension<T> of Rc<T> implements Unpin {}
 /// Local reference-counted ownership.
 @languageItem("memory.rc.Rc")
 export local struct Rc<T> {
-    /// The inner block.
+    /// The reference-counted allocation.
     inner: *RcInner<Owned<T>>;
 }
 

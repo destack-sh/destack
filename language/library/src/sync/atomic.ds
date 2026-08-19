@@ -2,9 +2,7 @@ import { todo } from "destack:error";
 import { Integer } from "destack:math";
 import { Concrete, Copy, SharedSafe } from "destack:memory";
 
-/// Memory ordering for atomic operations.
-///
-/// Specifies how memory accesses around atomic operations can be reordered.
+/// Memory reordering constraint for atomic operations.
 export enum MemoryOrdering {
     /// Atomicity without synchronization ordering.
     Relaxed,
@@ -196,9 +194,7 @@ export extension<T: Integer> of Atomic<T> where T: AtomicSafe {
     }
 }
 
-/// Atomic load.
-///
-/// Atomically reads the value at `ptr` with the specified memory ordering.
+/// Load the value at `ptr` atomically.
 @intrinsic("sync.atomic.load")
 export declare function atomicLoad<T>(
     ptr: *T,
@@ -211,9 +207,7 @@ export declare function atomicLoad<T>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic store.
-///
-/// Atomically writes `value` to `ptr` with the specified memory ordering.
+/// Store `value` at `ptr` atomically.
 @intrinsic("sync.atomic.store")
 export declare function atomicStore<T>(
     ptr: *T,
@@ -227,11 +221,7 @@ export declare function atomicStore<T>(
     isMakeVisible: boolean,
 ): void;
 
-/// Atomic compare-and-swap.
-///
-/// Atomically compares the value at `ptr` with `expected`.
-/// If equal, stores `desired` and returns `[oldValue, true]`.
-/// If not equal, returns `[currentValue, false]`.
+/// Store `desired` when `*ptr` equals `expected`, returning the old value and success.
 @intrinsic("sync.atomic.cas")
 export declare function atomicCas<T>(
     ptr: *T,
@@ -246,9 +236,7 @@ export declare function atomicCas<T>(
     isMakeVisible: boolean,
 ): (T, boolean);
 
-/// Atomic compare-and-swap (weak).
-///
-/// Like `atomicCas`, but may fail spuriously even if the comparison succeeds.
+/// Compare and swap like `atomicCas`, but permit spurious failure.
 @intrinsic("sync.atomic.cas.weak")
 export declare function atomicCasWeak<T>(
     ptr: *T,
@@ -263,10 +251,7 @@ export declare function atomicCasWeak<T>(
     isMakeVisible: boolean,
 ): (T, boolean);
 
-/// Atomic exchange.
-///
-/// Atomically replaces the value at `ptr` with `value`.
-/// Returns the previous value.
+/// Replace `*ptr` with `value` atomically and return the previous value.
 @intrinsic("sync.atomic.xchg")
 export declare function atomicExchange<T>(
     ptr: *T,
@@ -280,10 +265,7 @@ export declare function atomicExchange<T>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-add.
-///
-/// Atomically adds `value` to the value at `ptr`.
-/// Returns the previous value before the addition.
+/// Add `value` to `*ptr` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.add")
 export declare function atomicFetchAdd<T: Integer>(
     ptr: *T,
@@ -297,10 +279,7 @@ export declare function atomicFetchAdd<T: Integer>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-subtract.
-///
-/// Atomically subtracts `value` from the value at `ptr`.
-/// Returns the previous value before the subtraction.
+/// Subtract `value` from `*ptr` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.sub")
 export declare function atomicFetchSub<T: Integer>(
     ptr: *T,
@@ -314,10 +293,7 @@ export declare function atomicFetchSub<T: Integer>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-bitwise-and.
-///
-/// Atomically performs bitwise AND of `value` with the value at `ptr`.
-/// Returns the previous value before the operation.
+/// Apply bitwise AND with `value` to `*ptr` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.and")
 export declare function atomicFetchAnd<T: Integer>(
     ptr: *T,
@@ -331,10 +307,7 @@ export declare function atomicFetchAnd<T: Integer>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-bitwise-or.
-///
-/// Atomically performs bitwise OR of `value` with the value at `ptr`.
-/// Returns the previous value before the operation.
+/// Apply bitwise OR with `value` to `*ptr` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.or")
 export declare function atomicFetchOr<T: Integer>(
     ptr: *T,
@@ -348,10 +321,7 @@ export declare function atomicFetchOr<T: Integer>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-bitwise-xor.
-///
-/// Atomically performs bitwise XOR of `value` with the value at `ptr`.
-/// Returns the previous value before the operation.
+/// Apply bitwise XOR with `value` to `*ptr` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.xor")
 export declare function atomicFetchXor<T: Integer>(
     ptr: *T,
@@ -365,10 +335,7 @@ export declare function atomicFetchXor<T: Integer>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-min.
-///
-/// Atomically stores the minimum of the current value and `value`.
-/// Returns the previous value before the operation.
+/// Store the minimum of `*ptr` and `value` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.min")
 export declare function atomicFetchMin<T: Integer>(
     ptr: *T,
@@ -382,10 +349,7 @@ export declare function atomicFetchMin<T: Integer>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-max.
-///
-/// Atomically stores the maximum of the current value and `value`.
-/// Returns the previous value before the operation.
+/// Store the maximum of `*ptr` and `value` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.max")
 export declare function atomicFetchMax<T: Integer>(
     ptr: *T,
@@ -399,10 +363,7 @@ export declare function atomicFetchMax<T: Integer>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-min (unsigned).
-///
-/// Atomically stores the unsigned minimum of the current value and `value`.
-/// Returns the previous value before the operation.
+/// Store the unsigned minimum of `*ptr` and `value` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.umin")
 export declare function atomicFetchUmin<T: Integer>(
     ptr: *T,
@@ -416,10 +377,7 @@ export declare function atomicFetchUmin<T: Integer>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-max (unsigned).
-///
-/// Atomically stores the unsigned maximum of the current value and `value`.
-/// Returns the previous value before the operation.
+/// Store the unsigned maximum of `*ptr` and `value` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.umax")
 export declare function atomicFetchUmax<T: Integer>(
     ptr: *T,
@@ -433,10 +391,7 @@ export declare function atomicFetchUmax<T: Integer>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-add (float).
-///
-/// Atomically adds `value` to the value at `ptr`.
-/// Returns the previous value before the addition.
+/// Add `value` to floating-point `*ptr` atomically and return the previous value.
 @intrinsic("sync.atomic.fetch.fadd")
 export declare function atomicFetchFadd<T: Float>(
     ptr: *T,
@@ -450,10 +405,7 @@ export declare function atomicFetchFadd<T: Float>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-min (float).
-///
-/// Atomically stores the minimum of the current value and `value`.
-/// Returns the previous value before the operation.
+/// Store the floating-point minimum of `*ptr` and `value` and return the previous value.
 @intrinsic("sync.atomic.fetch.fmin")
 export declare function atomicFetchFmin<T: Float>(
     ptr: *T,
@@ -467,10 +419,7 @@ export declare function atomicFetchFmin<T: Float>(
     isMakeVisible: boolean,
 ): T;
 
-/// Atomic fetch-and-max (float).
-///
-/// Atomically stores the maximum of the current value and `value`.
-/// Returns the previous value before the operation.
+/// Store the floating-point maximum of `*ptr` and `value` and return the previous value.
 @intrinsic("sync.atomic.fetch.fmax")
 export declare function atomicFetchFmax<T: Float>(
     ptr: *T,
@@ -484,10 +433,7 @@ export declare function atomicFetchFmax<T: Float>(
     isMakeVisible: boolean,
 ): T;
 
-/// Memory fence.
-///
-/// Establishes a memory ordering constraint without an associated atomic operation.
-/// Prevents reordering of memory accesses across the fence.
+/// Prevent memory accesses from moving across this fence according to `order`.
 @intrinsic("sync.atomic.fence")
 export declare function atomicFence(
     order: MemoryOrdering,
@@ -499,9 +445,7 @@ export declare function atomicFence(
     isMakeVisible: boolean,
 ): void;
 
-/// Wait on an atomic integer location.
-///
-/// Blocks the current Worker or parks the current simulated Worker while `ptr` equals `expected`.
+/// Block or park the current worker while `*ptr` equals `expected`.
 @intrinsic("sync.atomic.wait")
 export declare function atomicWait<T: Integer>(
     ptr: *T,

@@ -129,7 +129,7 @@ export class RegExp {
         todo("RegExp.test")
     }
 
-    /// Return the literal regular expression spelling.
+    /// Return this regular expression as source text.
     toString(&readonly this): MaybeOwned<string> {
         todo("RegExp.toString")
     }

@@ -2,11 +2,7 @@ import { Type } from "destack:reflect/type";
 
 import { DynamicSafe } from "./capability.ds";
 
-/// Erased runtime value for interface constraint `T`.
-///
-/// `Dynamic<T>` stores an erased payload and concrete runtime type id.
-/// It is compiler-known because static interface constraints are specialized by default, while
-/// `Dynamic<T>` explicitly requests runtime erasure.
+/// Runtime-erased value satisfying interface constraint `T`.
 @languageItem("memory.Dynamic")
 export newtype Dynamic<T: DynamicSafe> = intrinsic;
 

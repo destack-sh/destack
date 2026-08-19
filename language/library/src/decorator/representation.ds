@@ -19,34 +19,6 @@ export type RepresentationOptions = {
 /// Specify the representation for a declaration.
 ///
 /// `@repr("destack")` is the default language representation.
-///
-/// ```
-/// @repr("uint8")
-/// enum Color {
-///     Red = 1,
-///     Green = 2,
-/// }
-///
-/// @repr("C")
-/// struct Header {
-///     tag: uint8;
-///     size: uint32;
-/// }
-///
-/// @repr("transparent")
-/// newtype UserId = uint64;
-///
-/// @repr("C", { packed: true })
-/// struct WireHeader {
-///     tag: uint8;
-///     size: uint32;
-/// }
-///
-/// @repr({ align: 64 })
-/// struct CacheLine {
-///     value: uint64;
-/// }
-/// ```
 @languageItem("decorator.repr")
 export newtype repr =
     | (Representation,)

@@ -3,7 +3,7 @@ import { Add, Multiply, Negate, Subtract } from "destack:ops";
 import { Arithmetic } from "./arithmetic.ds";
 import { Integer } from "./integer.ds";
 
-/// Integer wrapper whose operators use modular arithmetic.
+/// Integer with modular arithmetic operators.
 export newtype Wrapping<T: Integer> = T;
 
 export extension<T: Integer> of Wrapping<T> implements Add<Wrapping<T>> {

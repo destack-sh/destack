@@ -9,24 +9,5 @@ export type CaptureDirective =
       };
 
 /// Configure closure capture modes for a lambda.
-///
-/// ```
-/// const f = () => value;
-/// ```
-///
-/// ```
-/// @capture("manage")
-/// const f = () => value;
-/// ```
-///
-/// ```
-/// @capture("copy")
-/// const f = () => value;
-/// ```
-///
-/// ```
-/// @capture("move")
-/// const f = () => resource.use();
-/// ```
 @languageItem("decorator.capture")
 export newtype capture = (CaptureDirective,) | ();

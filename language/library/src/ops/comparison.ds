@@ -1,8 +1,6 @@
 import { Equal, PartialEqual } from "./equality.ds";
 
 /// Result of a comparison operation.
-///
-/// Used by the `Compare` interface.
 @languageItem("ops.Ordering")
 export const enum Ordering {
     Less = -1,

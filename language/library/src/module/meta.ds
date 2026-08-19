@@ -1,6 +1,6 @@
 import { Derive } from "./config.ds";
 
-/// The target platform (OS) the code is being compiled for.
+/// Target operating system.
 export type Platform =
     | "unknown"
     | "windows"
@@ -18,16 +18,16 @@ export type Platform =
     | "hermit"
     | "none";
 
-/// The semantic runtime contract for the build.
+/// Runtime selected for the build.
 export type Runtime = "destack" | "js";
 
-/// The artifact produced by the current build target.
+/// Build artifact kind.
 export type Output = "bundle" | "program";
 
-/// The package release stage.
+/// Package release stage.
 export type Stage = "experimental" | "alpha" | "beta" | "stable";
 
-/// The target host environment that provides imports and ambient effects.
+/// Host environment providing imports and ambient effects.
 export type Host = "native" | "browser" | "wasi" | "emscripten" | "freestanding";
 
 /// Coarse target family metadata.
@@ -78,7 +78,7 @@ export interface ImportMeta {
     readonly output: Output;
     /// The target platform (OS) being compiled for.
     readonly platform: Platform;
-    /// The semantic runtime contract for this build.
+    /// Runtime selected for this build.
     readonly runtime: Runtime;
     /// Structured target metadata.
     readonly target: ImportMetaTarget;

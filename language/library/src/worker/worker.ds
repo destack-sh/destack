@@ -25,9 +25,7 @@ export class Worker<T, R> {
 
     /// Observe this worker's exit.
     ///
-    /// The worker is the fault boundary: a panic unwinds the worker, and the supervising parent
-    /// observes the termination and the panic payload here and decides what to do (restart,
-    /// propagate, report).
+    /// A worker is the panic boundary; its parent receives the termination and panic payload.
     exit(): Promise<WorkerExit> {
         todo("Worker.exit")
     }

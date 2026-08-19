@@ -1,8 +1,6 @@
 import { Access, WithAccess } from "destack:memory";
 
 /// Interface for dereference projection `*a`.
-///
-/// `A` selects the access form required by the operator use.
 @languageItem("ops.Dereference")
 export newtype interface Dereference<const A: Access = "readonly"> {
     /// The projected result form.

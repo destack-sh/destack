@@ -1,8 +1,6 @@
 import { Access, WithAccess } from "destack:memory";
 
 /// Interface for reference conversion.
-///
-/// `A` selects the access form required by the conversion.
 @languageItem("convert.As")
 export newtype interface As<T, const A: Access = "readonly"> {
     /// Borrow this value as `T`.

@@ -1,17 +1,7 @@
 /// Compiler intrinsic marker.
-///
-/// ```
-/// @intrinsic
-/// declare function typeOf<T>(value: T): Type<T>;
-/// ```
 @languageItem("decorator.intrinsic")
 export newtype intrinsic = (string,) | ();
 
 /// Compiler language item marker.
-///
-/// ```
-/// @languageItem("memory.Unique")
-/// export newtype Unique<T> = intrinsic;
-/// ```
 @languageItem("decorator.languageItem")
 export newtype languageItem = (string,) | ();

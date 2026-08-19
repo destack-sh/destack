@@ -1,19 +1,7 @@
-/// Marks a declaration as deprecated.
-///
-/// Emits a compile-time warning when the declaration is used.
-///
-/// ```ds
-/// @deprecated("use read instead")
-/// function readOld(): string;
-/// ```
+/// Marks a declaration as deprecated and warns when it is used.
 @languageItem("decorator.deprecated")
 export newtype deprecated = (string,) | ();
 
 /// Marks a declaration as experimental.
-///
-/// ```ds
-/// @experimental
-/// function preview(): void;
-/// ```
 @languageItem("decorator.experimental")
 export newtype experimental = (string,) | ();

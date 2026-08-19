@@ -6,7 +6,7 @@ import { Arc, ArcInner } from "./arc.ds";
 /// Weak shared reference-counted handle.
 @languageItem("memory.arc.Weak")
 export struct Weak<T> {
-    /// The inner block.
+    /// The reference-counted allocation.
     inner: *ArcInner<Owned<T>> | undefined;
 }
 

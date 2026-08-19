@@ -30,7 +30,7 @@ export extension<T> of Arc<T> implements Unpin {}
 /// Shared reference-counted ownership.
 @languageItem("memory.arc.Arc")
 export struct Arc<T> {
-    /// The inner block.
+    /// The reference-counted allocation.
     inner: *ArcInner<Owned<T>>;
 }
 

@@ -3,9 +3,6 @@ import { Owned } from "./owned.ds";
 import { dangling } from "./raw.ds";
 
 /// Unique traced heap handle containing exactly `T`.
-///
-/// `Unique<T>` is the low-level storage handle behind types such as `Box<T>`.
-/// It is compiler-known because tracing, drop, and move checking must understand the handle.
 @languageItem("memory.Unique")
 export newtype Unique<out T> = intrinsic;
 
@@ -33,7 +30,5 @@ export function emptyUniqueSlice<T>(): Unique<[T]> {
 }
 
 /// Assemble one unique slice handle over raw parts.
-///
-/// Reuses the slice descriptor intrinsic at the unique carrier.
 @intrinsic("collections.slice.fromRaw")
 declare function uniqueSliceFromRaw<T>(data: *T, length: usize): Unique<[T]>;

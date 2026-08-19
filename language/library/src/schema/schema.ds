@@ -22,7 +22,7 @@ export enum SchemaKind {
     This = 7,
     /// Unevaluated type expression.
     Unevaluated = 8,
-    /// Readonly type wrapper.
+    /// Readonly form type.
     Readonly = 9,
     /// Owned form type.
     ValueOf = 10,

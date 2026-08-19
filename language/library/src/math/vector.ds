@@ -17,9 +17,7 @@ export type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 /// Return the element type in `Vector<T, N>`.
 export type LaneOf<V> = V extends Vector<infer T, infer N> ? T : never;
 
-/// Broadcast scalar to all lanes.
-///
-/// Creates a vector with all lanes set to the same scalar value.
+/// Broadcast `value` to every lane.
 @intrinsic("math.vector.splat")
 export declare function splat<T: Numeric | boolean, const N: usize>(value: T): Vector<T, N>;
 
@@ -38,10 +36,7 @@ export declare function insert<T: Numeric | boolean, const N: usize>(
     value: T,
 ): Vector<T, N>;
 
-/// Shuffle vector lanes.
-///
-/// Rearranges elements from two input vectors according to a mask.
-/// Each element in the result comes from either `a` or `b` as specified by the mask.
+/// Select lanes from `a` and `b` according to `Pattern`.
 @intrinsic("math.vector.shuffle")
 export declare function shuffle<
     T: Numeric | boolean,
@@ -53,9 +48,7 @@ export declare function shuffle<
     b: Vector<T, N>,
 ): Vector<T, M>;
 
-/// Per-lane conditional select.
-///
-/// Returns a[i] if mask[i] is true, otherwise b[i], for each lane.
+/// Select `a[i]` when `mask[i]` is true and `b[i]` otherwise.
 @intrinsic("math.vector.select")
 export declare function select<T: Numeric | boolean, const N: usize>(
     mask: Vector<boolean, N>,

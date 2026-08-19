@@ -20,8 +20,6 @@ export newtype ImageId = uint64;
 export newtype TraceSequence = uint64;
 
 /// Precise history coordinate in one world.
-///
-/// This is not a clock timestamp.
 export struct Moment {
     /// Branch containing this history coordinate.
     branch: BranchId;

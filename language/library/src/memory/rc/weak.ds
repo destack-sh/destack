@@ -6,7 +6,7 @@ import { Rc, RcInner } from "./rc.ds";
 /// Weak local reference-counted handle.
 @languageItem("memory.rc.Weak")
 export local struct Weak<T> {
-    /// The inner block.
+    /// The reference-counted allocation.
     inner: *RcInner<Owned<T>> | undefined;
 }
 

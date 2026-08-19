@@ -33,7 +33,7 @@ export enum Engine {
 
 /// Execution selection for one world.
 export enum Execution {
-    /// Strict execution through runtime-owned facts and effect boundaries.
+    /// Strict execution with complete runtime mediation.
     Strict = 1,
     /// Fast execution with minimal runtime mediation.
     Fast = 2,

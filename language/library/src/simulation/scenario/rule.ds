@@ -44,17 +44,17 @@ export struct Rule {
     labels?: LabelSet;
 }
 
-/// Create a binding selector wrapper.
+/// Create a binding selector.
 export function binding(selector: BindingSelector): Selector {
     { kind: "binding", binding: selector }
 }
 
-/// Create an entity selector wrapper.
+/// Create an entity selector.
 export function entity(selector: EntitySelector): Selector {
     { kind: "entity", entity: selector }
 }
 
-/// Create an edge selector wrapper.
+/// Create an edge selector.
 export function edge(selector: EdgeSelector): Selector {
     { kind: "edge", edge: selector }
 }

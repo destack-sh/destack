@@ -3,103 +3,46 @@ export type InlineHint = "hint" | "always" | "never";
 
 /// Inline hint for generated code.
 ///
-/// `@inline` is the same as `@inline("hint")`.
+/// `@inline` defaults to `@inline("hint")`.
 /// `@inline("always")` asks the compiler to inline and report when it cannot.
 /// `@inline("never")` prevents inlining.
-///
-/// ```
-/// @inline
-/// function add(a: int, b: int): int {
-///     a + b
-/// }
-/// ```
 @languageItem("decorator.inline")
 export newtype inline = () | (InlineHint,);
 
 /// No-inline hint for generated code.
 ///
-/// This is the same as `@inline("never")`.
-///
-/// ```
-/// @noinline
-/// function complexCalculation() { ... }
-/// ```
+/// Equivalent to `@inline("never")`.
 @languageItem("decorator.noinline")
 export newtype noinline = ();
 
 /// Loop unroll hint for generated code.
-///
-/// ```
-/// @unroll
-/// for (let i = 0; i < 4; i++) {}
-///
-/// @unroll(4)
-/// for (let i = 0; i < 16; i++) {}
-/// ```
 @languageItem("decorator.unroll")
 export newtype unroll = (int,) | ();
 
 /// Hint that a function is on a hot path.
-///
-/// ```
-/// @hot
-/// function parse() {}
-/// ```
 @languageItem("decorator.hot")
 export newtype hot = ();
 
 /// Hint that a function is on a cold path.
-///
-/// ```
-/// @cold
-/// function logError() {}
-/// ```
 @languageItem("decorator.cold")
 export newtype cold = ();
 
 /// Hint that a branch is likely to be taken.
-///
-/// ```
-/// @likely
-/// function handleHotPath() {}
-/// ```
 @languageItem("decorator.likely")
 export newtype likely = ();
 
 /// Hint that a branch is unlikely to be taken.
-///
-/// ```
-/// @unlikely
-/// function handleColdPath() {}
-/// ```
 @languageItem("decorator.unlikely")
 export newtype unlikely = ();
 
 /// Warn when a return value is ignored.
-///
-/// ```
-/// @mustUse
-/// function read(): FileHandle {}
-/// ```
 @languageItem("decorator.mustUse")
 export newtype mustUse = ();
 
 /// Mark a function as free of observable side effects.
-///
-/// ```
-/// @pure
-/// function add(a: int, b: int): int {
-///     a + b
-/// }
-/// ```
 @languageItem("decorator.pure")
 export newtype pure = ();
 
 /// Hint that a function should use a tail call.
-///
-/// ```
-/// @tailcall
-/// function loop(n: int): int { loop(n - 1) }
-/// ```
 @languageItem("decorator.tailcall")
 export newtype tailcall = ();
