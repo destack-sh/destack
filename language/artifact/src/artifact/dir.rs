@@ -479,9 +479,9 @@ impl DirChecked {
         ])
     }
 
-    /// Return the checked member table.
-    pub fn member_table(&self) -> dir::MemberTable<'static> {
-        dir::MemberTable::from_segment(self.members.clone())
+    /// Return the checked member table over the elaborated owner bindings.
+    pub fn member_table(&self, elaborated: &DirElaborated) -> dir::MemberTable<'static> {
+        dir::MemberTable::from_segments(vec![elaborated.members.clone(), self.members.clone()])
     }
 
     /// Return the cumulative binding table for checked DIR.
