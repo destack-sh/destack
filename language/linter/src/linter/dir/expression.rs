@@ -298,6 +298,79 @@ impl DirModule<'_> {
         self.can_trap(expression).map(|can_trap| !can_trap)
     }
 
+    /// Return whether checked boolean structure proves one expression implies another.
+    pub(crate) fn boolean_implies(
+        &self,
+        premise: dir::LocalNodeId<dir::Expression>,
+        conclusion: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        if !self.is_repeatable_expression(premise)? || !self.is_repeatable_expression(conclusion)? {
+            return Ok(false);
+        }
+
+        self.repeatable_boolean_implies(premise, conclusion)
+    }
+
+    /// Compare repeatable boolean expressions through builtin conjunctions and disjunctions.
+    fn repeatable_boolean_implies(
+        &self,
+        premise: dir::LocalNodeId<dir::Expression>,
+        conclusion: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        // identical computations imply one another
+        if self.is_same_computation(premise, conclusion)? {
+            return Ok(true);
+        }
+
+        // every disjunct in the premise must imply the conclusion
+        let operands = self.short_circuit_operands(premise, dir::BinaryOperator::Or)?;
+        if operands.len() > 1 {
+            for operand in operands {
+                if !self.repeatable_boolean_implies(operand, conclusion)? {
+                    return Ok(false);
+                }
+            }
+
+            return Ok(true);
+        }
+
+        // the premise must imply every conjunct in the conclusion
+        let operands = self.short_circuit_operands(conclusion, dir::BinaryOperator::And)?;
+        if operands.len() > 1 {
+            for operand in operands {
+                if !self.repeatable_boolean_implies(premise, operand)? {
+                    return Ok(false);
+                }
+            }
+
+            return Ok(true);
+        }
+
+        // any conjunct in the premise may establish the conclusion
+        let operands = self.short_circuit_operands(premise, dir::BinaryOperator::And)?;
+        if operands.len() > 1 {
+            for operand in operands {
+                if self.repeatable_boolean_implies(operand, conclusion)? {
+                    return Ok(true);
+                }
+            }
+
+            return Ok(false);
+        }
+
+        // the premise may establish any disjunct in the conclusion
+        let operands = self.short_circuit_operands(conclusion, dir::BinaryOperator::Or)?;
+        if operands.len() > 1 {
+            for operand in operands {
+                if self.repeatable_boolean_implies(premise, operand)? {
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Return whether evaluating one checked expression can trap.
     fn can_trap(
         &self,
