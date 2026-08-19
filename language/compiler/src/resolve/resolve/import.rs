@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{FileId, ModuleId};
 
 use crate::export::ExportLookup;
 use crate::resolve::state::ResolveState;
@@ -14,6 +14,9 @@ impl ResolveState<'_> {
     /// ```
     pub(in crate::resolve) fn resolve_imports(&mut self) -> CompilerResult<()> {
         let imports = std::mem::take(&mut self.import_expressions);
+        let mut seen = Vec::<(FileId, ModuleId, dir::LocalNodeId<dir::Expression>)>::new();
+
+        // resolve each import and diagnose repeated targets within one file
         for import in imports {
             let items = match self.view.get(import) {
                 dir::Expression::Import { items, .. } => items.clone(),
@@ -23,50 +26,46 @@ impl ResolveState<'_> {
                     });
                 }
             };
+            let source = import.into_global_any(self.module);
 
-            // resolve the exact import declaration
-            self.resolve_import_expression(import, items.as_deref())?;
-        }
+            // require the module graph edge built for this exact import
+            let Some(edge) = self
+                .modules
+                .edge_for_source(source, dir::ModuleRelation::Import)
+            else {
+                return Err(CompilerError::Internal {
+                    message: format!("import expression {source:?} has no imported module edge"),
+                });
+            };
+            let target = edge.target;
+            let specifier = edge.specifier;
 
-        Ok(())
-    }
+            // unresolved imports retain their missing item resolutions
+            let Some(target) = target else {
+                if let Some(items) = items.as_deref() {
+                    self.record_missing_import_items(items)?;
+                }
 
-    /// Resolve targets for one import declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// import * as dep from "./dep.ds";
-    /// import { value } from "./dep.ds";
-    /// ```
-    fn resolve_import_expression(
-        &mut self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        items: Option<&[dir::LocalNodeId<dir::DependencyItem>]>,
-    ) -> CompilerResult<()> {
-        let source = expression_id.into_global_any(self.module);
+                continue;
+            };
 
-        let Some(edge) = self
-            .modules
-            .edge_for_source(source, dir::ModuleRelation::Import)
-        else {
-            return Err(CompilerError::Internal {
-                message: format!("import expression {source:?} has no imported module edge"),
-            });
-        };
-        let target = edge.target;
-        let specifier = edge.specifier;
-
-        let Some(target) = target else {
-            if let Some(items) = items {
-                self.record_missing_import_items(items)?;
+            // compare resolved targets only within the same physical source file
+            let span = self.view.get_span(import);
+            let duplicate = seen
+                .iter()
+                .find(|(file, module, _)| *file == span.file && *module == target);
+            if let Some((_, _, first)) = duplicate {
+                self.report_duplicate_import(import, *first, specifier)?;
+            } else {
+                seen.push((span.file, target, import));
             }
 
-            return Ok(());
-        };
-        if let Some(items) = items {
-            for item in items {
-                self.stats.import_items += 1;
-                self.resolve_import_item(target, specifier, *item)?;
+            // resolve every imported binding against the target exports
+            if let Some(items) = items.as_deref() {
+                for item in items {
+                    self.stats.import_items += 1;
+                    self.resolve_import_item(target, specifier, *item)?;
+                }
             }
         }
 

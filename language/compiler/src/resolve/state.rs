@@ -9,7 +9,8 @@ use smallvec::{SmallVec, smallvec};
 use crate::export::{ExportLookup, ExportResolver};
 use crate::resolve::stats::ResolveStats;
 use crate::{
-    CompilerError, CompilerResult, ResolveError, diagnostic_suggestion_distance, rename_suggestion,
+    CompilerError, CompilerResult, ResolveError, ResolveWarning, diagnostic_suggestion_distance,
+    rename_suggestion,
 };
 
 /// Resolve phase state for one module.
@@ -30,8 +31,10 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) imports: dir::ImportTable,
     /// The reference resolutions being built.
     pub(in crate::resolve) references: dir::ReferenceTable,
-    /// The diagnostics produced while resolving.
-    pub(in crate::resolve) diagnostics: Vec<DiagnosticBuilder<ResolveError>>,
+    /// The errors produced while resolving.
+    pub(in crate::resolve) errors: Vec<DiagnosticBuilder<ResolveError>>,
+    /// The warnings produced while resolving.
+    pub(in crate::resolve) warnings: Vec<DiagnosticBuilder<ResolveWarning>>,
     /// The work stats accumulated while resolving.
     pub(in crate::resolve) stats: ResolveStats,
     /// Import expressions collected from active roots.
@@ -89,7 +92,8 @@ impl<'a> ResolveState<'a> {
             strings,
             imports: dir::ImportTable::new(module),
             references: dir::ReferenceTable::new(module),
-            diagnostics: Vec::new(),
+            errors: Vec::new(),
+            warnings: Vec::new(),
             stats: ResolveStats::default(),
             import_expressions: Vec::new(),
             path_references: Vec::new(),
@@ -175,9 +179,14 @@ impl<'a> ResolveState<'a> {
         self.function_stack.last().copied()
     }
 
-    /// Drain resolve diagnostics.
-    pub(in crate::resolve) fn take_diagnostics(&mut self) -> Vec<DiagnosticBuilder<ResolveError>> {
-        std::mem::take(&mut self.diagnostics)
+    /// Drain resolve errors.
+    pub(in crate::resolve) fn take_errors(&mut self) -> Vec<DiagnosticBuilder<ResolveError>> {
+        std::mem::take(&mut self.errors)
+    }
+
+    /// Drain resolve warnings.
+    pub(in crate::resolve) fn take_warnings(&mut self) -> Vec<DiagnosticBuilder<ResolveWarning>> {
+        std::mem::take(&mut self.warnings)
     }
 
     /// Resolve one exported target through this state's export resolver.
@@ -293,7 +302,7 @@ impl<'a> ResolveState<'a> {
             };
             let diagnostic =
                 DiagnosticBuilder::new(error).help(format!("export '{name}' from '{target}'"));
-            self.diagnostics.push(diagnostic);
+            self.errors.push(diagnostic);
 
             return Ok(());
         }
@@ -324,7 +333,7 @@ impl<'a> ResolveState<'a> {
         }
 
         // record the diagnostic
-        self.diagnostics.push(diagnostic);
+        self.errors.push(diagnostic);
 
         Ok(())
     }
@@ -368,7 +377,24 @@ impl<'a> ResolveState<'a> {
         diagnostic = diagnostic.help(format!("import '{name}' directly from one origin module"));
 
         // record the diagnostic
-        self.diagnostics.push(diagnostic);
+        self.errors.push(diagnostic);
+
+        Ok(())
+    }
+
+    /// Report one repeated import of the same resolved module.
+    pub(in crate::resolve) fn report_duplicate_import(
+        &mut self,
+        repeated: dir::LocalNodeId<dir::Expression>,
+        first: dir::LocalNodeId<dir::Expression>,
+        specifier: dir::StringId,
+    ) -> CompilerResult<()> {
+        let anchor = self.anchor_node(repeated.id)?;
+        let first = self.anchor_node(first.id)?;
+        let specifier = self.strings.get(specifier).to_string();
+        let warning = ResolveWarning::DuplicateImport { anchor, specifier };
+        let diagnostic = DiagnosticBuilder::new(warning).label(first, "first imported here");
+        self.warnings.push(diagnostic);
 
         Ok(())
     }

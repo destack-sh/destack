@@ -11,7 +11,7 @@ use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexSet;
 
 use crate::resolve::state::ResolveState;
-use crate::{Compiler, CompilerError, CompilerResult, ResolveError};
+use crate::{Compiler, CompilerError, CompilerResult, ResolveError, ResolveWarning};
 
 impl Compiler {
     /// Collect the dependencies of one resolved DIR build.
@@ -97,8 +97,11 @@ impl Compiler {
         )?);
 
         // emit resolve diagnostics
-        for diagnostic in state.take_diagnostics() {
-            self.emit_diagnostic::<ResolveError>(context, diagnostic)?;
+        for error in state.take_errors() {
+            self.emit_diagnostic::<ResolveError>(context, error)?;
+        }
+        for warning in state.take_warnings() {
+            self.emit_diagnostic::<ResolveWarning>(context, warning)?;
         }
 
         // publish resolved DIR

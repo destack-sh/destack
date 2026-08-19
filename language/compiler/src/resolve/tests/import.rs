@@ -1,6 +1,45 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_warn_duplicate_import() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+import { left } from "./dep.ds";
+import { right } from "././dep.ds";
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export const left = 1;
+export const right = 2;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved_and_diagnostics(
+        "main.ds",
+        DirRows::imports(),
+        r#"
+import { left } from "./dep.ds";
+/// @import.resolved symbol=left declarations=[dep.left] targets=[dep.left]
+/// @reference.target source=left kind=bound targets=[dep.left]
+
+import { right } from "././dep.ds";
+/// @import.resolved symbol=right declarations=[dep.right] targets=[dep.right]
+/// @reference.target source=right kind=bound targets=[dep.right]
+"#,
+        r#"
+/// @diagnostic.warning id=duplicate-import message="module '././dep.ds' is imported more than once"
+/// @diagnostic.label line=3 column=1 span="import { right } from \"././dep.ds\"" line_source="import { right } from \"././dep.ds\";"
+/// @diagnostic.related line=2 column=1 span="import { left } from \"./dep.ds\"" line_source="import { left } from \"./dep.ds\";" message="first imported here"
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_records_named_import_references() {
     let compiler = TestSession::builder()
         .module(
