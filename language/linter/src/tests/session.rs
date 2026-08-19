@@ -34,6 +34,8 @@ pub(crate) struct TestSession {
     source: TestSource,
     /// The displayed fixture file.
     file: Arc<File>,
+    /// The displayed fixture path.
+    path: String,
 }
 
 /// Source available to one lint test session.
@@ -76,7 +78,11 @@ impl TestSession {
 
     /// Assert the reported behavior and accepted replacement of one DIR lint example.
     fn assert_dir_example(lint: &'static Lint) {
-        let reported = Self::dir(lint, lint.example.reported());
+        let reported = Self::dir_path(
+            lint,
+            lint.example.reported.path(),
+            lint.example.reported.source(),
+        );
         let [diagnostic] = reported.diagnostics.diagnostics.as_slice() else {
             panic!(
                 "lint '{}' example emitted {} diagnostics:\n{}",
@@ -104,7 +110,7 @@ impl TestSession {
                     lint.id
                 );
             }
-            reported.assert_edits(lint.example.accepted(), suggestion.applicability);
+            reported.assert_edits(lint.example.accepted.source(), suggestion.applicability);
         } else {
             assert!(
                 diagnostic.suggestions.is_empty(),
@@ -114,23 +120,35 @@ impl TestSession {
         }
 
         // require the accepted form to remain clean
-        let accepted = Self::dir(lint, lint.example.accepted());
+        let accepted = Self::dir_path(
+            lint,
+            lint.example.accepted.path(),
+            lint.example.accepted.source(),
+        );
         accepted.assert_no_diagnostics();
     }
 
     /// Assert that one MIR lint's documentation examples pass check.
     fn assert_mir_example_sources(lint: &'static Lint) {
-        for source in [lint.example.reported(), lint.example.accepted()] {
-            let checked = Self::source(lint, source, |module, profile, _| {
-                ArtifactKey::dir_checked(module, profile)
-            });
+        for example in [&lint.example.reported, &lint.example.accepted] {
+            let checked = Self::source(
+                lint,
+                example.path(),
+                example.source(),
+                |module, profile, _| ArtifactKey::dir_checked(module, profile),
+            );
             checked.assert_no_diagnostics();
         }
     }
 
     /// Run one isolated checked DIR lint fixture.
     pub(crate) fn dir(lint: &'static Lint, source: &str) -> Self {
-        Self::source(lint, source, |module, profile, target| {
+        Self::dir_path(lint, SOURCE_PATH, source)
+    }
+
+    /// Run one isolated checked DIR lint fixture at one source path.
+    pub(crate) fn dir_path(lint: &'static Lint, path: &str, source: &str) -> Self {
+        Self::source(lint, path, source, |module, profile, target| {
             match lint.check.scope() {
                 LintScope::Module => ArtifactKey::module_linted(module, profile, target),
                 LintScope::Program => ArtifactKey::program_linted(profile, target),
@@ -141,6 +159,7 @@ impl TestSession {
     /// Run one source fixture through the selected artifact.
     fn source(
         lint: &'static Lint,
+        path: &str,
         source: &str,
         artifact: impl FnOnce(ModuleId, ProfileId, TargetId) -> ArtifactKey,
     ) -> Self {
@@ -154,7 +173,7 @@ impl TestSession {
             .expect("lint source Blob should store");
         let edits = [
             Edit::add_file("destack.json", configuration),
-            Edit::add_file(SOURCE_PATH, source),
+            Edit::add_file(path, source),
         ];
         let revision = repository
             .edit(base.revision(), edits)
@@ -167,7 +186,7 @@ impl TestSession {
 
         // resolve the source module and target
         let module = repository
-            .module_id_for_path(revision, Path::new(SOURCE_PATH))
+            .module_id_for_path(revision, Path::new(path))
             .expect("lint test module should resolve")
             .expect("lint test module should exist");
         let module = repository
@@ -208,6 +227,7 @@ impl TestSession {
                 revision,
             },
             file,
+            path: path.to_string(),
         }
     }
 
@@ -281,6 +301,7 @@ impl TestSession {
             diagnostics: DiagnosticCollection::from_diagnostics(diagnostics),
             source: TestSource::File(file.clone()),
             file,
+            path: "main.mir".to_string(),
         }
     }
 
@@ -351,8 +372,11 @@ impl TestSession {
 
         assert_snapshot(&actual, expected);
 
-        // require the corrected source to pass the same lint after checking again
-        let corrected = Self::dir(self.lint, &actual);
+        // require the corrected source to pass the same lint again
+        let corrected = match self.lint.check.tier() {
+            LintTier::Dir => Self::dir_path(self.lint, &self.path, &actual),
+            LintTier::Mir => Self::mir(self.lint, &actual),
+        };
         corrected.assert_no_diagnostics();
 
         self

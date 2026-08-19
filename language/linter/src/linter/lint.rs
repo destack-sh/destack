@@ -178,25 +178,34 @@ impl LintCheck {
     }
 }
 
+/// One source file in a canonical lint example.
+#[derive(Debug, Clone)]
+pub struct LintExampleSource {
+    /// The source path.
+    pub path: Cow<'static, str>,
+    /// The source text.
+    pub source: Cow<'static, str>,
+}
+
+impl LintExampleSource {
+    /// Return the source without its framing newlines.
+    pub fn source(&self) -> &str {
+        trim_source_frame(&self.source)
+    }
+
+    /// Return the source path.
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+}
+
 /// One canonical example of a lint violation and its accepted replacement.
 #[derive(Debug, Clone)]
 pub struct LintExample {
-    /// Source that produces the lint.
-    pub reported: Cow<'static, str>,
-    /// Source that expresses the same intent without the lint.
-    pub accepted: Cow<'static, str>,
-}
-
-impl LintExample {
-    /// Return the reported source without its framing newlines.
-    pub fn reported(&self) -> &str {
-        trim_source_frame(&self.reported)
-    }
-
-    /// Return the accepted source without its framing newlines.
-    pub fn accepted(&self) -> &str {
-        trim_source_frame(&self.accepted)
-    }
+    /// The source that produces the lint.
+    pub reported: LintExampleSource,
+    /// The source that expresses the same intent without the lint.
+    pub accepted: LintExampleSource,
 }
 
 /// Remove one framing newline from each edge of multiline source.

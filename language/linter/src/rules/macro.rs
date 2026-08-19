@@ -1,3 +1,18 @@
+macro_rules! lint_example_source {
+    ($source:literal) => {
+        $crate::LintExampleSource {
+            path: std::borrow::Cow::Borrowed("main.ds"),
+            source: std::borrow::Cow::Borrowed($source),
+        }
+    };
+    (($path:literal, $source:literal)) => {
+        $crate::LintExampleSource {
+            path: std::borrow::Cow::Borrowed($path),
+            source: std::borrow::Cow::Borrowed($source),
+        }
+    };
+}
+
 macro_rules! declare_lint_stub {
     (
         @declare
@@ -7,8 +22,8 @@ macro_rules! declare_lint_stub {
             summary: $summary:literal,
             explanation: $explanation:literal,
             example: {
-                reported: $reported:literal,
-                accepted: $accepted:literal,
+                reported: $reported:tt,
+                accepted: $accepted:tt,
             },
             category: $category:ident,
             level: $level:ident,
@@ -25,8 +40,8 @@ macro_rules! declare_lint_stub {
             summary: std::borrow::Cow::Borrowed($summary),
             explanation: std::borrow::Cow::Borrowed($explanation.trim_ascii()),
             example: $crate::LintExample {
-                reported: std::borrow::Cow::Borrowed($reported),
-                accepted: std::borrow::Cow::Borrowed($accepted),
+                reported: $crate::rules::lint_example_source!($reported),
+                accepted: $crate::rules::lint_example_source!($accepted),
             },
             category: $crate::LintCategory::$category,
             default_level: destack_repository::LintLevel::$level,
@@ -41,8 +56,8 @@ macro_rules! declare_lint_stub {
             summary: $summary:literal,
             explanation: $explanation:literal,
             example: {
-                reported: $reported:literal,
-                accepted: $accepted:literal,
+                reported: $reported:tt,
+                accepted: $accepted:tt,
             },
             category: $category:ident,
             level: $level:ident,
@@ -106,8 +121,8 @@ macro_rules! declare_lint {
             summary: $summary:literal,
             explanation: $explanation:literal,
             example: {
-                reported: $reported:literal,
-                accepted: $accepted:literal,
+                reported: $reported:tt,
+                accepted: $accepted:tt,
             },
             category: $category:ident,
             level: $level:ident,
@@ -147,3 +162,4 @@ macro_rules! declare_lint {
 
 pub(crate) use declare_lint;
 pub(crate) use declare_lint_stub;
+pub(crate) use lint_example_source;
