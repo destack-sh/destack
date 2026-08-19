@@ -1,6 +1,7 @@
 use destack_dir as dir;
 
 use super::CompletionCollector;
+use super::membership::{membership_member, membership_members};
 use crate::{CompletionCandidate, CompletionOrigin, Formatter, QueryError, QueryResult};
 
 impl CompletionCollector<'_, '_, '_> {
@@ -9,17 +10,12 @@ impl CompletionCollector<'_, '_, '_> {
         &self,
         site: dir::MemberSite,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let members = self.module.members()?;
-        let subject = members
-            .subject(site)
-            .ok_or(QueryError::missing(format!("member subject: {site:?}")))?;
-        let bindings = members.members(site).ok_or(QueryError::missing(format!(
-            "member bindings: site={site:?}, subject={subject:?}"
-        )))?;
+        let members = membership_members(self.module, self.program, site)?;
         let mut results = Vec::new();
 
         // collect readable members in precedence order
-        for member in bindings {
+        for entry in &members {
+            let member = &entry.binding;
             if !member.access.is_readable() {
                 continue;
             }
@@ -59,13 +55,10 @@ impl CompletionCollector<'_, '_, '_> {
         site: dir::MemberSite,
         key: dir::StaticKey,
     ) -> QueryResult<CompletionCandidate> {
-        let member = self
-            .module
-            .members()?
-            .binding(site, key)
-            .ok_or(QueryError::missing(format!(
-                "completion member binding: {site:?}, {key:?}"
-            )))?;
+        let entry = membership_member(self.module, self.program, site, key)?.ok_or(
+            QueryError::missing(format!("completion member binding: {site:?}, {key:?}")),
+        )?;
+        let member = &entry.binding;
         let declaration = member.read_declaration();
 
         // render the selected access type
@@ -80,7 +73,8 @@ impl CompletionCollector<'_, '_, '_> {
                 | dir::MemberKind::CallSignature
                 | dir::MemberKind::ConstructSignature
         );
-        let formatter = Formatter::new(self.module, self.program);
+        let formatter =
+            Formatter::new(self.module, self.program).with_reopening(entry.reopening.as_ref());
         let suffix = if is_callable {
             let callable = match declaration {
                 Some(declaration) => declaration
@@ -121,15 +115,14 @@ impl CompletionCollector<'_, '_, '_> {
         site: dir::MemberSite,
         key: dir::StaticKey,
     ) -> QueryResult<CompletionCandidate> {
-        let member = self
-            .module
-            .members()?
-            .binding(site, key)
-            .ok_or(QueryError::missing(format!(
-                "completion object field: {site:?}, {key:?}"
-            )))?;
+        let entry = membership_member(self.module, self.program, site, key)?.ok_or(
+            QueryError::missing(format!("completion object field: {site:?}, {key:?}")),
+        )?;
+        let member = &entry.binding;
         let type_id = member.access.store();
-        let type_text = Formatter::new(self.module, self.program).global_type(type_id)?;
+        let formatter =
+            Formatter::new(self.module, self.program).with_reopening(entry.reopening.as_ref());
+        let type_text = formatter.global_type(type_id)?;
 
         Ok(completion
             .with_label_suffix(format!(": {type_text}"))

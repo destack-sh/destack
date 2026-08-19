@@ -2,6 +2,7 @@ use destack_dir as dir;
 use destack_source::FileId;
 use rustc_hash::FxHashSet;
 
+use super::membership::membership_members;
 use super::{CompletionCollector, CompletionContext};
 use crate::{
     CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
@@ -189,9 +190,7 @@ impl CompletionCollector<'_, '_, '_> {
         let members = self.module.members()?;
         let site = dir::MemberSite::Node(node);
         let expected = match members.subject(site) {
-            Some(subject) => Some(members.members(site).ok_or(QueryError::missing(format!(
-                "object literal bindings: source={node:?}, subject={subject:?}"
-            )))?),
+            Some(_) => Some(membership_members(self.module, self.program, site)?),
             None if self.module.types()?.get_expected_type_id(node).is_some() => {
                 return Err(QueryError::missing(format!(
                     "object literal member subject: {node:?}"
@@ -203,7 +202,8 @@ impl CompletionCollector<'_, '_, '_> {
         // overlay missing contextual fields onto visible shorthands
         let mut results = Vec::new();
         if let Some(expected) = expected {
-            for member in expected {
+            for entry in &expected {
+                let member = &entry.binding;
                 // require construction fields
                 if member.kind != dir::MemberKind::Field {
                     return Err(QueryError::invalid(format!(
@@ -296,16 +296,11 @@ impl CompletionCollector<'_, '_, '_> {
         property: dir::LocalNodeId<dir::Property>,
     ) -> QueryResult<Vec<dir::StaticKey>> {
         let node = property.into_global_any(self.module.module_id());
-        let members = self
-            .module
-            .members()?
-            .members(dir::MemberSite::Node(node))
-            .ok_or(QueryError::missing(format!(
-                "object spread members: {node:?}"
-            )))?;
+        let members = membership_members(self.module, self.program, dir::MemberSite::Node(node))?;
 
         let mut keys = Vec::with_capacity(members.len());
-        for member in members {
+        for entry in &members {
+            let member = &entry.binding;
             if member.kind != dir::MemberKind::Field {
                 return Err(QueryError::invalid(format!(
                     "object spread member is not a field: {node:?}, {:?}",

@@ -6,6 +6,7 @@ mod construct;
 mod context;
 mod import;
 mod member;
+mod membership;
 mod object;
 mod rank;
 mod slot;

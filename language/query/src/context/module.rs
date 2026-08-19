@@ -433,8 +433,11 @@ impl<'a> ModuleQueryContext<'a> {
         }
 
         let checked = self.checked()?;
+        let elaborated = self.elaborated()?;
 
-        Ok(self.members.get_or_init(|| checked.member_table()))
+        Ok(self
+            .members
+            .get_or_init(|| checked.member_table(elaborated)))
     }
 
     /// Return the cumulative DIR module table.

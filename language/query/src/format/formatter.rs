@@ -1,6 +1,16 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryResult};
+
+/// The reopening one declared membership formats under.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Reopening {
+    /// The use-site argument per declared parameter.
+    pub(crate) parameters: FxIndexMap<dir::GlobalGenericParameterId, dir::GlobalTypeId>,
+    /// The use-site receiver `this` reopens at.
+    pub(crate) receiver: Option<dir::GlobalTypeId>,
+}
 
 /// Formatter for query display text.
 pub(crate) struct Formatter<'owner, 'module, 'program> {
@@ -8,6 +18,8 @@ pub(crate) struct Formatter<'owner, 'module, 'program> {
     pub(super) module: &'owner ModuleQueryContext<'module>,
     /// The queried program.
     pub(super) program: &'owner ProgramQueryContext<'program>,
+    /// The reopening declared member types format under.
+    pub(super) reopening: Option<&'owner Reopening>,
 }
 
 impl<'owner, 'module, 'program> Formatter<'owner, 'module, 'program> {
@@ -16,7 +28,18 @@ impl<'owner, 'module, 'program> Formatter<'owner, 'module, 'program> {
         module: &'owner ModuleQueryContext<'module>,
         program: &'owner ProgramQueryContext<'program>,
     ) -> Self {
-        Self { module, program }
+        Self {
+            module,
+            program,
+            reopening: None,
+        }
+    }
+
+    /// Format declared member types under one reopening, when any.
+    pub(crate) fn with_reopening(mut self, reopening: Option<&'owner Reopening>) -> Self {
+        self.reopening = reopening;
+
+        self
     }
 
     /// Return the type table visible to this formatter.
@@ -36,7 +59,9 @@ impl<'owner, 'module, 'program> Formatter<'owner, 'module, 'program> {
             read(&type_value, self)
         } else {
             self.program.read_type(type_id, |type_value, module| {
-                let formatter = Formatter::new(module, self.program);
+                // carry the reopening into the owning module's formatter
+                let mut formatter = Formatter::new(module, self.program);
+                formatter.reopening = self.reopening;
 
                 read(type_value, &formatter)
             })

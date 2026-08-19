@@ -71,7 +71,7 @@ impl Indexer {
             dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
         }
         // index exports from exported declarations and resolved dependencies,
-        //  reading the import closure's export tables for star surfaces
+        //  reading the import closure's export tables for star exports
         else if kind == IndexKind::Exports {
             dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_resolved(module_id, profile_id));

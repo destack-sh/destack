@@ -53,6 +53,8 @@ impl Formatter<'_, '_, '_> {
     /// Format one type owned by this formatter's module.
     pub(super) fn local_type(&self, type_value: &dir::Type) -> QueryResult<String> {
         let text = match type_value {
+            dir::Type::Hole(hole) => format!("?{hole}"),
+            dir::Type::Rigid(rigid) => format!("^{rigid}"),
             dir::Type::Error => "<error>".to_string(),
             dir::Type::Never => "never".to_string(),
             dir::Type::Any => "any".to_string(),
@@ -65,7 +67,16 @@ impl Formatter<'_, '_, '_> {
             dir::Type::Literal(literal) => self.literal(*literal),
             dir::Type::Reference(reference) => return self.symbol(reference.symbol),
             dir::Type::Application(instance) => return self.instance(*instance),
-            dir::Type::Parameter(parameter) => return self.generic_parameter_type(*parameter),
+            dir::Type::Parameter(parameter) => {
+                // declared parameters reopen at their use-site arguments
+                if let Some(reopen) = self.reopening
+                    && let Some(argument) = reopen.parameters.get(parameter)
+                {
+                    return self.global_type(*argument);
+                }
+
+                return self.generic_parameter_type(*parameter);
+            }
             dir::Type::Erased(_) => "*".to_string(),
             dir::Type::Member(member) => return self.member(*self.types()?.member(*member)),
             dir::Type::Refined(refined) => {
@@ -109,7 +120,16 @@ impl Formatter<'_, '_, '_> {
             dir::Type::Intersection(intersection) => {
                 return self.type_list(intersection.elements, " & ", TypeOperand::Intersection);
             }
-            dir::Type::This => "this".to_string(),
+            dir::Type::This => {
+                // declared `this` reopens at the use-site receiver
+                if let Some(reopen) = self.reopening
+                    && let Some(receiver) = reopen.receiver
+                {
+                    return self.global_type(receiver);
+                }
+
+                "this".to_string()
+            }
             dir::Type::Operation(operation) => {
                 return self.operation(self.types()?.operation(*operation));
             }
@@ -159,7 +179,11 @@ impl Formatter<'_, '_, '_> {
         let arguments = self.types()?.type_ids(instance.arguments);
 
         // array applications render in their written rest form
-        if self.program.environment_bound()?.language.item(instance.symbol)
+        if self
+            .program
+            .environment_bound()?
+            .language
+            .item(instance.symbol)
             == Some(dir::LanguageItem::Array)
             && let [element] = arguments
         {

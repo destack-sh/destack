@@ -62,7 +62,7 @@ impl<'a> ModuleIndexContext<'a> {
             decorators: checked.decorator_table(elaborated),
             definitions: checked.definition_table(elaborated),
             resolutions: checked.resolution_table(declared, elaborated),
-            members: checked.member_table(),
+            members: checked.member_table(elaborated),
             decisions: checked.decision_table(declared, elaborated),
             resolved,
             strings,

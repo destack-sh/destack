@@ -14,7 +14,7 @@ pub(in crate::index) struct ExportIndexer<'a> {
     exported: &'a DirExported,
     /// The resolved dependency targets.
     resolved: &'a DirResolved,
-    /// The import closure's exported and resolved views for star surfaces.
+    /// The import closure's exported and resolved views for star exports.
     closure: &'a FxIndexMap<ModuleId, (Arc<DirExported>, Arc<DirResolved>)>,
     /// The shared string pool.
     strings: &'a StringPool,
@@ -70,7 +70,7 @@ impl<'a> ExportIndexer<'a> {
 
     /// Collect the entries visible through this module's star exports.
     fn collect_star_exports(&mut self) -> ProviderResult<()> {
-        // shadow the star surface with this module's own named exports
+        // shadow the star export set with this module's own named exports
         let shadowed = self
             .exported
             .exports
