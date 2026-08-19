@@ -820,15 +820,20 @@ requireEqual(Point { x: 1 });
 fn test_check_replaces_auto_set_with_written_derives() {
     let session = TestSession::single(
         r#"
-@derive(Debug)
+@derive(Copy)
 struct Point {
     x: int32;
+}
+
+function requireClone<T: Clone>(value: T): T {
+    return value;
 }
 
 function requireEqual<T: Equal>(value: T): T {
     return value;
 }
 
+const cloned = requireClone(Point { x: 1 });
 const value = requireEqual(Point { x: 1 });
 "#,
     );
@@ -838,26 +843,31 @@ const value = requireEqual(Point { x: 1 });
         DirRows::checked(),
         r#"
 === annotated ===
-@derive(Debug)
+@derive(Copy)
 struct Point {
     x: int32;
+}
+
+function requireClone<T: Clone>(value: T): T {
+    return value;
 }
 
 function requireEqual<T: Equal>(value: T): T {
     return value;
 }
 
+const cloned: Point = requireClone<Point>(Point { x: 1 });
 const value = requireEqual(Point { x: 1 });
 
 === dir ===
-@derive(Debug)
+@derive(Copy)
 /// @resolution.name source=derive target=decorator.derive.derive
-/// @resolution.name source=Debug target=ops.format.Debug
+/// @resolution.name source=Copy target=memory.capability.Copy
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
-/// @definition.implements symbol=Point source=Debug target=Debug
+/// @definition.implements symbol=Point source=Copy target=Copy
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 
     x: int32;
@@ -865,12 +875,28 @@ struct Point {
 
 }
 
+function requireClone<T: Clone>(value: T): T {
+/// @generic.template symbol=requireClone parameters=(T#1: Clone)
+/// @type.symbol symbol=requireClone type=<T#1: Clone>(T#1) => T#1
+/// @type.symbol symbol=requireClone.T source="T: Clone" type=T#1
+/// @resolution.name source=Clone target=memory.capability.Clone
+/// @type.symbol symbol=requireClone.value source="value: T" type=T#1
+/// @resolution.name source=T target=requireClone.T
+/// @resolution.name source=T target=requireClone.T
+
+    return value;
+    /// @resolution.name source=value target=requireClone.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=requireClone.value
+
+}
+
 function requireEqual<T: Equal>(value: T): T {
-/// @generic.template symbol=requireEqual parameters=(T: Equal)
-/// @type.symbol symbol=requireEqual type=<T: Equal>(T) => T
-/// @type.symbol symbol=requireEqual.T source="T: Equal" type=T
+/// @generic.template symbol=requireEqual parameters=(T#2: Equal)
+/// @type.symbol symbol=requireEqual type=<T#2: Equal>(T#2) => T#2
+/// @type.symbol symbol=requireEqual.T source="T: Equal" type=T#2
 /// @resolution.name source=Equal target=ops.equality.Equal
-/// @type.symbol symbol=requireEqual.value source="value: T" type=T
+/// @type.symbol symbol=requireEqual.value source="value: T" type=T#2
 /// @resolution.name source=T target=requireEqual.T
 /// @resolution.name source=T target=requireEqual.T
 
@@ -880,6 +906,14 @@ function requireEqual<T: Equal>(value: T): T {
     /// @resolution.access source=value root=requireEqual.value
 
 }
+
+const cloned = requireClone(Point { x: 1 });
+/// @type.symbol symbol=cloned source=cloned type=Point
+/// @resolution.pattern source=cloned kind=binding target=cloned
+/// @resolution.name source=requireClone target=requireClone
+/// @resolution.call source="requireClone(Point { x: 1 })" parameters=(Point) arguments=(provided(Point { x: 1 }) as Point) return=Point kind=symbol target=requireClone instance=requireClone<Point>
+/// @generic.instantiation id=requireClone<Point> template=requireClone arguments=(Point)
+/// @resolution.name source=Point target=Point
 
 const value = requireEqual(Point { x: 1 });
 /// @type.symbol symbol=value source=value type=<error>
@@ -891,8 +925,8 @@ const value = requireEqual(Point { x: 1 });
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Equal'"
-/// @diagnostic.label line=11 column=15 span="requireEqual(Point { x: 1 })" line_source="const value = requireEqual(Point { x: 1 });"
-/// @diagnostic.related line=7 column=23 span="T" line_source="function requireEqual<T: Equal>(value: T): T {" message="required by this bound on 'T'"
+/// @diagnostic.label line=16 column=15 span="requireEqual(Point { x: 1 })" line_source="const value = requireEqual(Point { x: 1 });"
+/// @diagnostic.related line=11 column=23 span="T" line_source="function requireEqual<T: Equal>(value: T): T {" message="required by this bound on 'T'"
 "#,
     );
 }
