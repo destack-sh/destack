@@ -3,7 +3,7 @@ use destack_repository::ProviderError;
 use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
-use crate::{DirModule, IntegerStep, Lint, LintOutput, LintResult};
+use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
     /// Prefer fill over an index loop assigning one repeated value.
@@ -41,63 +41,22 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let occurrences = module.flows.binding_occurrences().collect::<Vec<_>>();
     let mut output = LintOutput::default();
 
-    // inspect canonical three-part loops
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::For {
-            initialization: Some(initialization),
-            condition: Some(condition),
-            increment: Some(increment),
-            body,
-            ..
-        } = node
-        else {
+    // inspect zero-based counted loops spanning one complete collection
+    for expression in view.iter_node_ids_of_type::<dir::Expression>() {
+        let Some(iteration) = module.counted_iteration(expression)? else {
             continue;
         };
-        let Some((dir::Mutability::Mutable, declarator)) =
-            module.binding_declarator(*initialization)
-        else {
+        let Some(counter) = iteration.binding else {
             continue;
         };
-        let Some(initializer) = declarator.value else {
-            continue;
-        };
-        if module.integral_constant(initializer)? != Some(0) {
+        if iteration.start != 0 || iteration.end_kind != dir::RangeEnd::Open {
             continue;
         }
-        let counter = module.declaration_symbol(declarator.pattern)?;
-        let Some(IntegerStep::Increment(increment_target)) = module.integer_update(*increment)?
-        else {
-            continue;
-        };
-        if module.selected_symbol(increment_target)? != Some(counter) {
-            continue;
-        }
-
-        // require an exclusive upper bound of the exact array length
-        let Some((operator, [left, right])) = module.builtin_binary(*condition)? else {
-            continue;
-        };
-        let length = if operator == dir::BinaryOperator::LessThan
-            && module.selected_symbol(left.source.local_id)? == Some(counter)
-        {
-            right.source.local_id
-        } else if operator == dir::BinaryOperator::GreaterThan
-            && module.selected_symbol(right.source.local_id)? == Some(counter)
-        {
-            left.source.local_id
-        } else {
-            continue;
-        };
-        let dir::Expression::Member {
-            left: array,
-            is_optional: false,
-            ..
-        } = view.get(length)
-        else {
+        let Some(collection) = module.length_receiver(iteration.end)? else {
             continue;
         };
         if !matches!(
-            module.language_member(length)?,
+            module.language_member(iteration.end)?,
             Some(member)
                 if member == dir::LanguageItem::Array.member("length")
                     || member == dir::LanguageItem::Slice.member("length")
@@ -106,7 +65,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require one plain assignment to the corresponding array element
-        let Some(action) = view.get(*body).only_expression() else {
+        let Some(action) = view.get(iteration.body).only_expression() else {
             continue;
         };
         let Some(assignment) = module.place_assignment(action) else {
@@ -116,7 +75,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
         let dir::Expression::Index {
-            left: target_array,
+            left: target,
             index: Some(index),
             is_optional: false,
             ..
@@ -125,8 +84,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
         if module.selected_symbol(*index)? != Some(counter)
-            || !module.is_same_computation(*array, *target_array)?
-            || !is_invariant_fill_value(module, assignment.value, *body, counter, &occurrences)?
+            || !module.is_same_computation(collection, *target)?
+            || !is_invariant_fill_value(
+                module,
+                assignment.value,
+                iteration.body,
+                counter,
+                &occurrences,
+            )?
         {
             continue;
         }
@@ -134,7 +99,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // replace the loop with fill
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic = lint.diagnostic("index loop assigns one value to every element", span);
-        if let Some(suggestion) = suggestion(module, lint, expression, *array, assignment.value)? {
+        if let Some(suggestion) =
+            suggestion(module, lint, expression, collection, assignment.value)?
+        {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
@@ -185,20 +152,20 @@ fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
     expression: dir::LocalNodeId<dir::Expression>,
-    array: dir::LocalNodeId<dir::Expression>,
+    collection: dir::LocalNodeId<dir::Expression>,
     value: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let extent = module.source_extent(expression.into_any())?;
-    let array_extent = module.source_extent(array.into_any())?;
+    let collection_extent = module.source_extent(collection.into_any())?;
     let value_extent = module.source_extent(value.into_any())?;
-    if module.has_unretained_comment(extent, &[array_extent, value_extent])? {
+    if module.has_unretained_comment(extent, &[collection_extent, value_extent])? {
         return Ok(None);
     }
 
-    // preserve the authored array and repeated value expressions
-    let array = module.expression_source(array, dir::OperatorPrecedence::Postfix)?;
+    // preserve the authored collection and repeated value expressions
+    let collection = module.expression_source(collection, dir::OperatorPrecedence::Postfix)?;
     let value = module.source(value_extent)?;
-    let replacement = format!("{array}.fill({value});");
+    let replacement = format!("{collection}.fill({value});");
     let patch = Patch::replace(extent, replacement);
     let suggestion = lint.suggestion("call fill directly", patch)?;
 
@@ -209,6 +176,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Replace a complete zero-to-length Array assignment loop.
     #[test]
     fn test_replaces_index_fill_loop() {
@@ -249,6 +217,29 @@ warning[manual-fill]: index loop assigns one value to every element
 +   2│     values.fill(0);
 "#,
         );
+        session.assert_suggestions(
+            r#"
+function clear(values: int32[]): void {
+    values.fill(0);
+}
+"#,
+        );
+    }
+
+    /// Replace a complete fill over an authored index range.
+    #[test]
+    fn test_replaces_range_fill_loop() {
+        let session = TestSession::dir(
+            &MANUAL_FILL,
+            r#"
+function clear(values: int32[]): void {
+    for (const index of 0..values.length) {
+        values[index] = 0;
+    }
+}
+"#,
+        );
+
         session.assert_suggestions(
             r#"
 function clear(values: int32[]): void {

@@ -2,13 +2,7 @@ use destack_dir as dir;
 use destack_repository::ProviderError;
 
 use crate::rules::declare_lint;
-use crate::{DirModule, IntegerStep, Lint, LintOutput, LintResult};
-
-const COLLECTION_LENGTH_OWNERS: &[dir::LanguageItem] = &[
-    dir::LanguageItem::Sequence,
-    dir::LanguageItem::Array,
-    dir::LanguageItem::Slice,
-];
+use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
     /// Replace element-by-element copy loops with a bulk copy operation.
@@ -40,15 +34,13 @@ function copy(target: int32[], source: int32[]): void {
     }
 }
 
-/// One increasing index loop bounded by a collection length.
+/// One increasing bounded index loop.
 #[derive(Debug, Clone, Copy)]
 struct IndexLoop {
     /// The index binding.
     index: dir::GlobalSymbolId,
     /// The first yielded index.
     start: i64,
-    /// The indexed collection.
-    collection: dir::LocalNodeId<dir::Expression>,
     /// The loop body.
     body: dir::LocalNodeId<dir::Block>,
 }
@@ -63,142 +55,40 @@ struct IndexedAccess {
 }
 
 impl IndexLoop {
-    /// Select one increasing index loop bounded by a collection length.
+    /// Select one increasing bounded index loop.
     fn select(
         module: &DirModule<'_>,
         expression: dir::LocalNodeId<dir::Expression>,
+        occurrences: &[dir::BindingOccurrence],
     ) -> Result<Option<Self>, ProviderError> {
-        match module.view().get(expression) {
-            // select classic counter loops
-            dir::Expression::For {
-                initialization: Some(initialization),
-                condition: Some(condition),
-                increment: Some(increment),
-                body,
-                ..
-            } => Self::select_counter(module, *initialization, *condition, *increment, *body),
-
-            // select authored range loops
-            dir::Expression::ForEach {
-                asynchrony: dir::Asynchrony::Sync,
-                operator: dir::ForEachOperator::Of,
-                binding,
-                iterator,
-                body,
-                ..
-            } => Self::select_range(module, binding, *iterator, *body),
-            _ => Ok(None),
-        }
-    }
-
-    /// Select one classic increasing counter loop.
-    fn select_counter(
-        module: &DirModule<'_>,
-        initialization: dir::LocalNodeId<dir::Expression>,
-        condition: dir::LocalNodeId<dir::Expression>,
-        increment: dir::LocalNodeId<dir::Expression>,
-        body: dir::LocalNodeId<dir::Block>,
-    ) -> Result<Option<Self>, ProviderError> {
-        // require one integral index binding
-        let Some((dir::Mutability::Mutable, declarator)) =
-            module.binding_declarator(initialization)
-        else {
+        let Some(iteration) = module.counted_iteration(expression)? else {
             return Ok(None);
         };
-        let Some(initializer) = declarator.value else {
+        let Some(index) = iteration.binding else {
             return Ok(None);
         };
-        let Some(start) = module.integral_constant(initializer)? else {
-            return Ok(None);
-        };
-        if start < 0 {
-            return Ok(None);
-        }
-        let index = module.declaration_symbol(declarator.pattern)?;
-
-        // require one increasing unit step over the same binding
-        let Some(IntegerStep::Increment(target)) = module.integer_update(increment)? else {
-            return Ok(None);
-        };
-        if module.selected_symbol(target)? != Some(index) {
+        if iteration.start < 0 {
             return Ok(None);
         }
 
-        // select the exclusive collection length upper bound
-        let Some((operator, [left, right])) = module.builtin_binary(condition)? else {
+        // require the upper bound to remain independent from the counter
+        let end_uses = module.binding_uses_within(index, iteration.end.into_any(), occurrences);
+        if !end_uses.is_empty() {
             return Ok(None);
-        };
-        let length = match operator {
-            dir::BinaryOperator::LessThan
-                if module.selected_symbol(left.source.local_id)? == Some(index) =>
-            {
-                right.source.local_id
+        }
+
+        // require repeatedly evaluated bounds to remain stable
+        if iteration.is_end_rechecked {
+            let is_length = module.length_receiver(iteration.end)?.is_some();
+            if !is_length && !module.is_repeatable_expression(iteration.end)? {
+                return Ok(None);
             }
-            dir::BinaryOperator::GreaterThan
-                if module.selected_symbol(right.source.local_id)? == Some(index) =>
-            {
-                left.source.local_id
-            }
-            _ => return Ok(None),
-        };
-        let Some(collection) = length_receiver(module, length)? else {
-            return Ok(None);
-        };
+        }
 
         Ok(Some(Self {
             index,
-            start,
-            collection,
-            body,
-        }))
-    }
-
-    /// Select one exclusive integral range ending at a collection length.
-    fn select_range(
-        module: &DirModule<'_>,
-        binding: &dir::ForEachBinding,
-        iterator: dir::LocalNodeId<dir::Expression>,
-        body: dir::LocalNodeId<dir::Block>,
-    ) -> Result<Option<Self>, ProviderError> {
-        // require one direct declared binding
-        let dir::ForEachBinding::Pattern {
-            pattern,
-            keyword: Some(_),
-        } = binding
-        else {
-            return Ok(None);
-        };
-        if !matches!(
-            module.view().get(*pattern),
-            dir::Pattern::Binding { pattern: None, .. }
-        ) {
-            return Ok(None);
-        }
-
-        // require one constant start and collection length end
-        let dir::Expression::RangeExpression {
-            start: Some(start),
-            end: Some(end),
-            end_kind: dir::RangeEnd::Open,
-        } = module.view().get(iterator)
-        else {
-            return Ok(None);
-        };
-        let Some(start) = module.integral_constant(*start)? else {
-            return Ok(None);
-        };
-        if start < 0 {
-            return Ok(None);
-        }
-        let Some(collection) = length_receiver(module, *end)? else {
-            return Ok(None);
-        };
-
-        Ok(Some(Self {
-            index: module.declaration_symbol(*pattern)?,
-            start,
-            collection,
-            body,
+            start: iteration.start,
+            body: iteration.body,
         }))
     }
 
@@ -244,18 +134,12 @@ impl IndexLoop {
         let Some(target_start) = self.start.checked_add(target.offset) else {
             return Ok(false);
         };
-        let copies_bound_collection =
-            source.offset == 0 && module.is_same_computation(source.collection, self.collection)?;
+        let Some(source_start) = self.start.checked_add(source.offset) else {
+            return Ok(false);
+        };
         let has_distinct_target =
             !module.is_same_computation(target.collection, source.collection)?;
-        if target_start < 0 || !copies_bound_collection || !has_distinct_target {
-            return Ok(false);
-        }
-
-        // require the assigned element to satisfy the bulk operation's Copy bound
-        let element = module.node_type_id(assignment.value.into_any())?;
-        let element = module.dir.strip_form(element)?;
-        if !module.auto.conforms(element, dir::AutoInterface::Copy) {
+        if target_start < 0 || source_start < 0 || !has_distinct_target {
             return Ok(false);
         }
 
@@ -328,11 +212,12 @@ impl IndexedAccess {
 /// Report complete index loops that copy corresponding collection elements.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
+    let occurrences = module.flows.binding_occurrences().collect::<Vec<_>>();
     let mut output = LintOutput::default();
 
-    // inspect increasing index loops bounded by one collection length
+    // inspect increasing bounded index loops
     for expression in view.iter_node_ids_of_type::<dir::Expression>() {
-        let Some(index_loop) = IndexLoop::select(module, expression)? else {
+        let Some(index_loop) = IndexLoop::select(module, expression, &occurrences)? else {
             continue;
         };
         if !index_loop.copies_only(module)? {
@@ -347,29 +232,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Return the receiver of one canonical collection length property.
-fn length_receiver(
-    module: &DirModule<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
-    let dir::Expression::Member {
-        left: collection,
-        is_optional: false,
-        ..
-    } = module.view().get(expression)
-    else {
-        return Ok(None);
-    };
-    let Some(member) = module.language_member(expression)? else {
-        return Ok(None);
-    };
-    let is_length = COLLECTION_LENGTH_OWNERS
-        .iter()
-        .any(|owner| member == owner.member("length"));
-
-    Ok(is_length.then_some(*collection))
 }
 
 /// Return whether one expression denotes an array or slice.
@@ -514,6 +376,38 @@ warning[manual-copy]: index loop copies corresponding collection elements
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index] = source[index];
   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+4 │     }
+  │     ^
+5 │ }
+  │
+"#,
+        );
+    }
+
+    /// Report offset copies over an inclusive range.
+    #[test]
+    fn test_reports_inclusive_offset_copy() {
+        let session = TestSession::dir(
+            &MANUAL_COPY,
+            r#"
+function copy(target: int32[], source: int32[]): void {
+    for (const index of 2..=source.length - 2) {
+        target[index - 2] = source[index + 1];
+    }
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[manual-copy]: index loop copies corresponding collection elements
+ ──▶ main.ds:2:5
+  │
+1 │ function copy(target: int32[], source: int32[]): void {
+2 │     for (const index of 2..=source.length - 2) {
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │         target[index - 2] = source[index + 1];
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 4 │     }
   │     ^
 5 │ }
