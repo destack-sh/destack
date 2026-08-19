@@ -1,7 +1,7 @@
 import { HostError } from "destack:error/host";
 import { ResourceId } from "destack:runtime/resource";
 
-import { FilesystemEntry } from "./entry.ds";
+import { Entry } from "./entry.ds";
 import { PathBuffer, PathSpan } from "./path.ds";
 import { FileMode } from "./status.ds";
 
@@ -49,7 +49,7 @@ export struct DirectoryBatch {
 }
 
 /// Filesystem directory binding family.
-export interface FsDirectoryBinding {
+export interface DirectoryBinding {
     /// Create one directory entry.
     @binding("destack.fs.directory.create", {
         provider: "host",
@@ -57,7 +57,7 @@ export interface FsDirectoryBinding {
         requires: ["host.fs.write"],
         families: ["windows", "unix"],
     })
-    create(entry: &readonly FilesystemEntry, mode: FileMode): Result<void, HostError>;
+    create(entry: &readonly Entry, mode: FileMode): Result<void, HostError>;
 
     /// Remove one empty directory entry.
     @binding("destack.fs.directory.remove", {
@@ -66,7 +66,7 @@ export interface FsDirectoryBinding {
         requires: ["host.fs.write"],
         families: ["windows", "unix"],
     })
-    remove(entry: &readonly FilesystemEntry): Result<void, HostError>;
+    remove(entry: &readonly Entry): Result<void, HostError>;
 
     /// Open one directory stream.
     @binding("destack.fs.directory.open", {
@@ -75,7 +75,7 @@ export interface FsDirectoryBinding {
         requires: ["host.fs.read"],
         families: ["windows", "unix"],
     })
-    open(entry: &readonly FilesystemEntry): Result<DirectoryHandle, HostError>;
+    open(entry: &readonly Entry): Result<DirectoryHandle, HostError>;
 
     /// Close one open directory handle.
     @binding("destack.fs.directory.close", {
@@ -115,5 +115,5 @@ export interface FsDirectoryBinding {
         requires: ["host.fs.temp"],
         families: ["windows", "unix"],
     })
-    createTemporary(template: &readonly FilesystemEntry): Result<FilesystemEntry, HostError>;
+    createTemporary(template: &readonly Entry): Result<Entry, HostError>;
 }

@@ -1,7 +1,7 @@
 import { HostError } from "destack:error/host";
 import { FileHandle } from "destack:fs/binding";
 
-import { FilesystemEntry } from "./entry.ds";
+import { Entry } from "./entry.ds";
 
 /// Volume mount flags.
 export newtype FileVolumeFlags = uint64;
@@ -57,7 +57,7 @@ export struct FileVolumeStatus {
 }
 
 /// Filesystem volume binding family.
-export interface FsVolumeBinding {
+export interface VolumeBinding {
     /// Read status for the volume containing an entry.
     @binding("destack.fs.volume.entry", {
         provider: "host",
@@ -65,7 +65,7 @@ export interface FsVolumeBinding {
         requires: ["host.fs.metadata"],
         families: ["windows", "unix"],
     })
-    readEntry(entry: &readonly FilesystemEntry): Result<FileVolumeStatus, HostError>;
+    readEntry(entry: &readonly Entry): Result<FileVolumeStatus, HostError>;
 
     /// Read status for the volume containing an open file.
     @binding("destack.fs.volume.file", {

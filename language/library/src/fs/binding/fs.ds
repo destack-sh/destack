@@ -1,37 +1,37 @@
-import { Binding } from "destack:binding";
+import * as binding from "destack:binding";
 
-import { FsAttributeBinding } from "./attribute.ds";
-import { FsDirectoryBinding } from "./directory.ds";
-import { FsFileBinding } from "./file.ds";
-import { FsMountBinding } from "./mount.ds";
-import { FsNamespaceBinding } from "./namespace.ds";
-import { FsStatusBinding } from "./status.ds";
-import { FsVolumeBinding } from "./volume.ds";
-import { FsWatchBinding } from "./watch.ds";
-import { FsXattrBinding } from "./xattr.ds";
-
-/// Filesystem binding family.
-@languageItem("fs.FsBinding")
-export interface FsBinding {
-    /// File attribute bindings.
-    readonly attribute: FsAttributeBinding;
-    /// Directory bindings.
-    readonly directory: FsDirectoryBinding;
-    /// File descriptor bindings.
-    readonly file: FsFileBinding;
-    /// Mount table bindings.
-    readonly mount: FsMountBinding;
-    /// Namespace bindings.
-    readonly namespace: FsNamespaceBinding;
-    /// Status bindings.
-    readonly status: FsStatusBinding;
-    /// Volume bindings.
-    readonly volume: FsVolumeBinding;
-    /// Watch bindings.
-    readonly watch: FsWatchBinding;
-    /// Extended attribute bindings.
-    readonly xattr: FsXattrBinding;
-}
+import { AttributeBinding } from "./attribute.ds";
+import { DirectoryBinding } from "./directory.ds";
+import { FileBinding } from "./file.ds";
+import { MountBinding } from "./mount.ds";
+import { NamespaceBinding } from "./namespace.ds";
+import { StatusBinding } from "./status.ds";
+import { VolumeBinding } from "./volume.ds";
+import { WatchBinding } from "./watch.ds";
+import { XattrBinding } from "./xattr.ds";
 
 /// Current filesystem binding family.
-export const fs: Binding<FsBinding> = new Binding<FsBinding>("fs");
+export const fs: binding.Binding<Binding> = new binding.Binding<Binding>("fs");
+
+/// Filesystem binding family.
+@languageItem("fs.Binding")
+export interface Binding {
+    /// File attribute bindings.
+    readonly attribute: AttributeBinding;
+    /// Directory bindings.
+    readonly directory: DirectoryBinding;
+    /// File descriptor bindings.
+    readonly file: FileBinding;
+    /// Mount table bindings.
+    readonly mount: MountBinding;
+    /// Namespace bindings.
+    readonly namespace: NamespaceBinding;
+    /// Status bindings.
+    readonly status: StatusBinding;
+    /// Volume bindings.
+    readonly volume: VolumeBinding;
+    /// Watch bindings.
+    readonly watch: WatchBinding;
+    /// Extended attribute bindings.
+    readonly xattr: XattrBinding;
+}

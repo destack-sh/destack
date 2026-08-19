@@ -1,7 +1,7 @@
 import { HostError } from "destack:error/host";
 import { ResourceId } from "destack:runtime/resource";
 
-import { FilesystemEntry } from "./entry.ds";
+import { Entry } from "./entry.ds";
 import { FileOffset, FileRange, FileSize } from "./range.ds";
 import { FileMode } from "./status.ds";
 
@@ -201,7 +201,7 @@ export struct FileLockOptions {
 }
 
 /// Filesystem file binding family.
-export interface FsFileBinding {
+export interface FileBinding {
     /// Open one filesystem entry as a file handle.
     @binding("destack.fs.file.open", {
         provider: "host",
@@ -209,7 +209,7 @@ export interface FsFileBinding {
         requires: ["host.fs.open"],
         families: ["windows", "unix"],
     })
-    open(entry: &readonly FilesystemEntry, options: FileOpenOptions): Result<FileHandle, HostError>;
+    open(entry: &readonly Entry, options: FileOpenOptions): Result<FileHandle, HostError>;
 
     /// Close one open file handle.
     @binding("destack.fs.file.close", {

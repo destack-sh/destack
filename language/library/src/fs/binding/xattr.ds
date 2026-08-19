@@ -1,7 +1,7 @@
 import { HostError } from "destack:error/host";
 import { FileHandle } from "destack:fs/binding";
 
-import { FilesystemEntry } from "./entry.ds";
+import { Entry } from "./entry.ds";
 
 /// Extended attribute creation flags.
 export newtype XattrFlags = uint32;
@@ -17,7 +17,7 @@ export struct XattrTargetEntry {
     /// Target discriminator.
     kind: "entry";
     /// Target filesystem entry.
-    entry: FilesystemEntry;
+    entry: Entry;
     /// Whether symbolic links should be followed.
     isFollowing: boolean;
 }
@@ -34,7 +34,7 @@ export struct XattrTargetFile {
 export newtype XattrTarget = XattrTargetEntry | XattrTargetFile;
 
 /// Filesystem extended attribute binding family.
-export interface FsXattrBinding {
+export interface XattrBinding {
     /// Read one extended attribute into an output buffer.
     @binding("destack.fs.xattr.read", {
         provider: "host",

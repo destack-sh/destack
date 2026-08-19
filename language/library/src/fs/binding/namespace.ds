@@ -1,29 +1,30 @@
 import { HostError } from "destack:error/host";
 
-import { FilesystemEntry } from "./entry.ds";
-import { Path, PathBuffer } from "./path.ds";
+import { PathSlice } from "../path.ds";
+import { Entry } from "./entry.ds";
+import { PathBuffer } from "./path.ds";
 import { FileMode } from "./status.ds";
 
-/// Rename operation flags.
-export newtype FilesystemRenameFlags = uint32;
-
 /// Reject replacing an existing destination.
-export const FILESYSTEM_RENAME_NO_REPLACE: FilesystemRenameFlags = FilesystemRenameFlags(0x1);
+export const RENAME_NO_REPLACE: RenameFlags = RenameFlags(0x1);
 
 /// Exchange the source and destination entries atomically.
-export const FILESYSTEM_RENAME_EXCHANGE: FilesystemRenameFlags = FilesystemRenameFlags(0x2);
+export const RENAME_EXCHANGE: RenameFlags = RenameFlags(0x2);
 
 /// Create a whiteout entry as part of the rename when supported.
-export const FILESYSTEM_RENAME_WHITEOUT: FilesystemRenameFlags = FilesystemRenameFlags(0x4);
-
-/// Link operation flags.
-export newtype FilesystemLinkFlags = uint32;
+export const RENAME_WHITEOUT: RenameFlags = RenameFlags(0x4);
 
 /// Follow a symlink source where the host operation supports it.
-export const FILESYSTEM_LINK_FOLLOW: FilesystemLinkFlags = FilesystemLinkFlags(0x1);
+export const LINK_FOLLOW: LinkFlags = LinkFlags(0x1);
+
+/// Rename operation flags.
+export newtype RenameFlags = uint32;
+
+/// Link operation flags.
+export newtype LinkFlags = uint32;
 
 /// Symlink target type hint.
-export enum FilesystemSymlinkKind {
+export enum SymlinkKind {
     /// Let the runtime infer the target type.
     Auto = 0,
     /// Create a symlink to a file.
@@ -33,18 +34,18 @@ export enum FilesystemSymlinkKind {
 }
 
 /// Node device identifier.
-export newtype FilesystemNodeDevice = uint64;
+export newtype NodeDevice = uint64;
 
 /// Host filesystem node creation options.
-export struct FilesystemNodeOptions {
+export struct NodeOptions {
     /// File mode including file type bits.
     mode: FileMode;
     /// Device identifier for device nodes.
-    device: FilesystemNodeDevice;
+    device: NodeDevice;
 }
 
 /// Filesystem namespace binding family.
-export interface FsNamespaceBinding {
+export interface NamespaceBinding {
     /// Rename or exchange one filesystem entry.
     @binding("destack.fs.namespace.rename", {
         provider: "host",
@@ -52,11 +53,7 @@ export interface FsNamespaceBinding {
         requires: ["host.fs.write"],
         families: ["windows", "unix"],
     })
-    rename(
-        from: &readonly FilesystemEntry,
-        to: &readonly FilesystemEntry,
-        flags: FilesystemRenameFlags,
-    ): Result<void, HostError>;
+    rename(from: &readonly Entry, to: &readonly Entry, flags: RenameFlags): Result<void, HostError>;
 
     /// Remove one non-directory filesystem entry.
     @binding("destack.fs.namespace.unlink", {
@@ -65,7 +62,7 @@ export interface FsNamespaceBinding {
         requires: ["host.fs.write"],
         families: ["windows", "unix"],
     })
-    unlink(entry: &readonly FilesystemEntry): Result<void, HostError>;
+    unlink(entry: &readonly Entry): Result<void, HostError>;
 
     /// Create one hard link.
     @binding("destack.fs.namespace.link", {
@@ -75,9 +72,9 @@ export interface FsNamespaceBinding {
         families: ["windows", "unix"],
     })
     link(
-        existing: &readonly FilesystemEntry,
-        created: &readonly FilesystemEntry,
-        flags: FilesystemLinkFlags,
+        existing: &readonly Entry,
+        created: &readonly Entry,
+        flags: LinkFlags,
     ): Result<void, HostError>;
 
     /// Create one symbolic link.
@@ -88,9 +85,9 @@ export interface FsNamespaceBinding {
         families: ["windows", "unix"],
     })
     symlink(
-        target: &readonly Path,
-        created: &readonly FilesystemEntry,
-        kind: FilesystemSymlinkKind,
+        target: &readonly PathSlice,
+        created: &readonly Entry,
+        kind: SymlinkKind,
     ): Result<void, HostError>;
 
     /// Read a symbolic link into an output buffer.
@@ -100,7 +97,7 @@ export interface FsNamespaceBinding {
         requires: ["host.fs.read"],
         families: ["windows", "unix"],
     })
-    readSymlink(entry: &readonly FilesystemEntry, buffer: &PathBuffer): Result<uint64, HostError>;
+    readSymlink(entry: &readonly Entry, buffer: &PathBuffer): Result<uint64, HostError>;
 
     /// Resolve an entry into an output buffer.
     @binding("destack.fs.namespace.canonicalize", {
@@ -109,7 +106,7 @@ export interface FsNamespaceBinding {
         requires: ["host.fs.metadata"],
         families: ["windows", "unix"],
     })
-    canonicalize(entry: &readonly FilesystemEntry, buffer: &PathBuffer): Result<uint64, HostError>;
+    canonicalize(entry: &readonly Entry, buffer: &PathBuffer): Result<uint64, HostError>;
 
     /// Create one FIFO node.
     @binding("destack.fs.namespace.fifo", {
@@ -118,7 +115,7 @@ export interface FsNamespaceBinding {
         requires: ["host.fs.node"],
         families: ["unix"],
     })
-    createFifo(entry: &readonly FilesystemEntry, mode: FileMode): Result<void, HostError>;
+    createFifo(entry: &readonly Entry, mode: FileMode): Result<void, HostError>;
 
     /// Create one host filesystem node.
     @binding("destack.fs.namespace.node", {
@@ -127,8 +124,5 @@ export interface FsNamespaceBinding {
         requires: ["host.fs.node"],
         families: ["unix"],
     })
-    createNode(
-        entry: &readonly FilesystemEntry,
-        options: FilesystemNodeOptions,
-    ): Result<void, HostError>;
+    createNode(entry: &readonly Entry, options: NodeOptions): Result<void, HostError>;
 }

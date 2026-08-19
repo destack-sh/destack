@@ -1,7 +1,7 @@
 import { HostError } from "destack:error/host";
 import { FileHandle } from "destack:fs/binding";
 
-import { FilesystemEntry } from "./entry.ds";
+import { Entry } from "./entry.ds";
 import { FileSize } from "./range.ds";
 
 /// File permission mode bits.
@@ -204,7 +204,7 @@ export struct FileStatus {
 }
 
 /// Filesystem status binding family.
-export interface FsStatusBinding {
+export interface StatusBinding {
     /// Read status for a filesystem entry.
     @binding("destack.fs.status.entry", {
         provider: "host",
@@ -212,10 +212,7 @@ export interface FsStatusBinding {
         requires: ["host.fs.metadata"],
         families: ["windows", "unix"],
     })
-    readEntry(
-        entry: &readonly FilesystemEntry,
-        options: FileStatusOptions,
-    ): Result<FileStatus, HostError>;
+    readEntry(entry: &readonly Entry, options: FileStatusOptions): Result<FileStatus, HostError>;
 
     /// Read status for an open file.
     @binding("destack.fs.status.file", {

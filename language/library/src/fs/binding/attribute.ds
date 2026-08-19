@@ -1,7 +1,7 @@
 import { HostError } from "destack:error/host";
 import { FileHandle } from "destack:fs/binding";
 
-import { FilesystemEntry } from "./entry.ds";
+import { Entry } from "./entry.ds";
 import { FileMode, FileOwner, FileTimes } from "./status.ds";
 
 /// Access check bitset.
@@ -20,7 +20,7 @@ export const FILE_ACCESS_WRITE: FileAccessMask = FileAccessMask(0x2);
 export const FILE_ACCESS_READ: FileAccessMask = FileAccessMask(0x4);
 
 /// Filesystem attribute binding family.
-export interface FsAttributeBinding {
+export interface AttributeBinding {
     /// Check access to a filesystem entry.
     @binding("destack.fs.attribute.checkAccess", {
         provider: "host",
@@ -28,7 +28,7 @@ export interface FsAttributeBinding {
         requires: ["host.fs.metadata"],
         families: ["windows", "unix"],
     })
-    checkAccess(entry: &readonly FilesystemEntry, access: FileAccessMask): Result<void, HostError>;
+    checkAccess(entry: &readonly Entry, access: FileAccessMask): Result<void, HostError>;
 
     /// Set the permission mode for an entry.
     @binding("destack.fs.attribute.mode", {
@@ -37,11 +37,7 @@ export interface FsAttributeBinding {
         requires: ["host.fs.mode"],
         families: ["windows", "unix"],
     })
-    setMode(
-        entry: &readonly FilesystemEntry,
-        mode: FileMode,
-        isFollowing: boolean,
-    ): Result<void, HostError>;
+    setMode(entry: &readonly Entry, mode: FileMode, isFollowing: boolean): Result<void, HostError>;
 
     /// Set the permission mode for an open file.
     @binding("destack.fs.attribute.fileMode", {
@@ -60,7 +56,7 @@ export interface FsAttributeBinding {
         families: ["windows", "unix"],
     })
     setOwner(
-        entry: &readonly FilesystemEntry,
+        entry: &readonly Entry,
         owner: &readonly FileOwner,
         isFollowing: boolean,
     ): Result<void, HostError>;
@@ -82,7 +78,7 @@ export interface FsAttributeBinding {
         families: ["windows", "unix"],
     })
     setTimes(
-        entry: &readonly FilesystemEntry,
+        entry: &readonly Entry,
         times: FileTimes,
         isFollowing: boolean,
     ): Result<void, HostError>;
