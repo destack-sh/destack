@@ -27,6 +27,26 @@ impl DirModule<'_> {
         self.decisions.access_resolution(global)
     }
 
+    /// Return the recorded uses of one stable access and its projections within a node.
+    pub(crate) fn access_uses_within(
+        &self,
+        path: &dir::AccessPath,
+        node: dir::LocalNodeIdAny,
+        occurrences: &[dir::AccessOccurrence],
+    ) -> dir::BindingUse {
+        let view = self.view();
+        let mut uses = dir::BindingUse::default();
+
+        // merge uses of the selected storage beneath the selected node
+        for occurrence in occurrences {
+            if occurrence.path.starts_with(path) && view.is_inside(occurrence.node, node) {
+                uses |= occurrence.uses;
+            }
+        }
+
+        uses
+    }
+
     /// Return the weakest access sufficient for one binding's checked uses.
     pub(crate) fn weakest_binding_access(
         &self,

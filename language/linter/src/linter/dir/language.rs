@@ -180,9 +180,8 @@ impl DirModule<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::LanguageItem>, ProviderError> {
         let symbol = match self.view().get(expression) {
-            dir::Expression::Call { .. } | dir::Expression::New { .. } => {
-                self.call_symbol(expression)?
-            }
+            dir::Expression::Call { .. } => self.call_symbol(expression)?,
+            dir::Expression::New { .. } => self.construct_symbol(expression)?,
             _ => self.selected_symbol(expression)?,
         };
         let item = symbol.and_then(|symbol| self.dir.environment.language.item(symbol));

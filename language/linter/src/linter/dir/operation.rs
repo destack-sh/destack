@@ -352,6 +352,25 @@ impl DirModule<'_> {
         Ok(decision.agreed_target_symbol())
     }
 
+    /// Return the declaration symbol selected by one checked construction.
+    pub(crate) fn construct_symbol(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::GlobalSymbolId>, ProviderError> {
+        let global = expression.into_global_any(self.id);
+        let Some(decision) = self.decisions.construct_decision(global) else {
+            if self.node_type(expression.into_any())?.is_error() {
+                return Ok(None);
+            }
+
+            return Err(ProviderError::internal(format!(
+                "checked construction {global:?} has no construct resolution"
+            )));
+        };
+
+        Ok(decision.target.symbol())
+    }
+
     /// Iterate expressions with a checked call resolution.
     pub fn call_expressions(
         &self,

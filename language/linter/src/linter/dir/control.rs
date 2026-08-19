@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
 
-use super::DirModule;
+use super::{DirModule, IntegerStep};
 
 /// One authored for-of expression.
 #[derive(Debug, Clone, Copy)]
@@ -13,6 +13,23 @@ pub(crate) struct ForOf<'a> {
     /// The iterated expression.
     pub(crate) iterator: dir::LocalNodeId<dir::Expression>,
     /// The loop body.
+    pub(crate) body: dir::LocalNodeId<dir::Block>,
+}
+
+/// One increasing counted iteration.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct CountedIteration {
+    /// The counter binding, when named.
+    pub(crate) binding: Option<dir::GlobalSymbolId>,
+    /// The first yielded integer.
+    pub(crate) start: i64,
+    /// The upper bound expression.
+    pub(crate) end: dir::LocalNodeId<dir::Expression>,
+    /// Whether the upper bound is excluded or included.
+    pub(crate) end_kind: dir::RangeEnd,
+    /// Whether the upper bound is evaluated before every iteration.
+    pub(crate) is_end_rechecked: bool,
+    /// The iteration body.
     pub(crate) body: dir::LocalNodeId<dir::Block>,
 }
 
@@ -95,6 +112,145 @@ impl DirModule<'_> {
             iterator: *iterator,
             body: *body,
         })
+    }
+
+    /// Select one synchronous increasing counted iteration.
+    pub(crate) fn counted_iteration(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<CountedIteration>, ProviderError> {
+        match self.view().get(expression) {
+            // select classic counter loops
+            dir::Expression::For {
+                initialization: Some(initialization),
+                condition: Some(condition),
+                increment: Some(increment),
+                body,
+                ..
+            } => self.counted_counter(*initialization, *condition, *increment, *body),
+
+            // select authored ranges
+            dir::Expression::ForEach {
+                asynchrony: dir::Asynchrony::Sync,
+                operator: dir::ForEachOperator::Of,
+                binding,
+                iterator,
+                body,
+                ..
+            } => self.counted_range(binding, *iterator, *body),
+            _ => Ok(None),
+        }
+    }
+
+    /// Select one classic increasing counted loop.
+    fn counted_counter(
+        &self,
+        initialization: dir::LocalNodeId<dir::Expression>,
+        condition: dir::LocalNodeId<dir::Expression>,
+        increment: dir::LocalNodeId<dir::Expression>,
+        body: dir::LocalNodeId<dir::Block>,
+    ) -> Result<Option<CountedIteration>, ProviderError> {
+        // require one mutable counter with a constant initial value
+        let Some((dir::Mutability::Mutable, declarator)) = self.binding_declarator(initialization)
+        else {
+            return Ok(None);
+        };
+        let Some(initializer) = declarator.value else {
+            return Ok(None);
+        };
+        let Some(start) = self.integral_constant(initializer)? else {
+            return Ok(None);
+        };
+        let binding = self.declaration_symbol(declarator.pattern)?;
+
+        // require one increasing unit step over the counter
+        let Some(IntegerStep::Increment(target)) = self.integer_update(increment)? else {
+            return Ok(None);
+        };
+        if self.selected_symbol(target)? != Some(binding) {
+            return Ok(None);
+        }
+
+        // normalize either operand order of the upper bound
+        let Some((operator, [left, right])) = self.builtin_binary(condition)? else {
+            return Ok(None);
+        };
+        let (end, end_kind) = match operator {
+            dir::BinaryOperator::LessThan
+                if self.selected_symbol(left.source.local_id)? == Some(binding) =>
+            {
+                (right.source.local_id, dir::RangeEnd::Open)
+            }
+            dir::BinaryOperator::LessThanOrEqual
+                if self.selected_symbol(left.source.local_id)? == Some(binding) =>
+            {
+                (right.source.local_id, dir::RangeEnd::Inclusive)
+            }
+            dir::BinaryOperator::GreaterThan
+                if self.selected_symbol(right.source.local_id)? == Some(binding) =>
+            {
+                (left.source.local_id, dir::RangeEnd::Open)
+            }
+            dir::BinaryOperator::GreaterThanOrEqual
+                if self.selected_symbol(right.source.local_id)? == Some(binding) =>
+            {
+                (left.source.local_id, dir::RangeEnd::Inclusive)
+            }
+            _ => return Ok(None),
+        };
+
+        Ok(Some(CountedIteration {
+            binding: Some(binding),
+            start,
+            end,
+            end_kind,
+            is_end_rechecked: true,
+            body,
+        }))
+    }
+
+    /// Select one authored finite integer range.
+    fn counted_range(
+        &self,
+        binding: &dir::ForEachBinding,
+        iterator: dir::LocalNodeId<dir::Expression>,
+        body: dir::LocalNodeId<dir::Block>,
+    ) -> Result<Option<CountedIteration>, ProviderError> {
+        // require a wildcard or direct declared binding
+        let dir::ForEachBinding::Pattern {
+            pattern,
+            keyword: Some(_),
+        } = binding
+        else {
+            return Ok(None);
+        };
+        let binding = match self.view().get(*pattern) {
+            dir::Pattern::Wildcard => None,
+            dir::Pattern::Binding { pattern: None, .. } => Some(self.declaration_symbol(*pattern)?),
+            _ => return Ok(None),
+        };
+
+        // require finite bounds with a constant integer start
+        let dir::Expression::RangeExpression {
+            start: Some(start),
+            end: Some(end),
+            end_kind,
+        } = self.view().get(iterator)
+        else {
+            return Ok(None);
+        };
+        let Some(start) = self.integral_constant(*start)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(CountedIteration {
+            binding,
+            start,
+            end: *end,
+            end_kind: *end_kind,
+            is_end_rechecked: false,
+            body,
+        }))
     }
 
     /// Return the body of one authored iteration expression.
