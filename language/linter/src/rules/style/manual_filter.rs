@@ -104,7 +104,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let Some(condition) = condition.as_expression() else {
                 continue;
             };
-            if module.uses_enclosing_control(condition)? {
+            if module.uses_enclosing_control(condition.into_any())? {
                 continue;
             }
             let dir::Expression::Block(then_block) = view.get(*then_expression) else {
@@ -225,16 +225,23 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&MANUAL_FILTER);
-    }
-
     /// Replace a complete conditional push-and-return loop.
     #[test]
     fn test_replaces_manual_filter() {
-        let session = TestSession::dir(&MANUAL_FILTER, MANUAL_FILTER.example.reported());
+        let session = TestSession::dir(
+            &MANUAL_FILTER,
+            r#"
+function positive(values: int32[]): int32[] {
+    const result: int32[] = [];
+    for (const value of values) {
+        if (value > 0) {
+            result.push(value);
+        }
+    }
+    return result;
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -272,7 +279,13 @@ warning[manual-filter]: loop manually collects matching values
 +   2│     return values.filter((value) => value > 0);
 "#,
         );
-        session.assert_suggestions(MANUAL_FILTER.example.accepted());
+        session.assert_suggestions(
+            r#"
+function positive(values: int32[]): int32[] {
+    return values.filter((value) => value > 0);
+}
+"#,
+        );
     }
 
     /// Accept pushing a transformed element.

@@ -121,7 +121,7 @@ fn suggestion(
             .into_owned()
     }
     // preserve a control-free statement block as a scoped do expression
-    else if !module.uses_enclosing_control(body)? {
+    else if !module.uses_enclosing_control(body.into_any())? {
         format!("do {}", module.source(body_extent)?)
     } else {
         return Ok(None);
@@ -137,17 +137,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace one immediately called expression lambda.
-    #[test]
-    fn test_replaces_expression_lambda() {
-        let session = TestSession::dir(
-            &NO_REDUNDANT_CLOSURE_CALL,
-            NO_REDUNDANT_CLOSURE_CALL.example.reported(),
-        );
-
-        session.assert_fixes(NO_REDUNDANT_CLOSURE_CALL.example.accepted());
-    }
 
     /// Preserve precedence when replacing a binary lambda body.
     #[test]

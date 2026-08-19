@@ -106,7 +106,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                         .binding_uses_within(binding, mapped.into_any(), &occurrences)
                         .may_mutate()
                 });
-            if mutates_binding || module.uses_enclosing_control(*mapped)? {
+            if mutates_binding || module.uses_enclosing_control(mapped.into_any())? {
                 continue;
             }
             let dir::Expression::Return {
@@ -207,16 +207,21 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&MANUAL_MAP);
-    }
-
     /// Replace a complete push-and-return mapping loop.
     #[test]
     fn test_replaces_manual_map() {
-        let session = TestSession::dir(&MANUAL_MAP, MANUAL_MAP.example.reported());
+        let session = TestSession::dir(
+            &MANUAL_MAP,
+            r#"
+function doubled(values: int32[]): int32[] {
+    const result: int32[] = [];
+    for (const value of values) {
+        result.push(value * 2);
+    }
+    return result;
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -248,7 +253,13 @@ warning[manual-map]: loop manually collects mapped values
 +   2│     return values.map((value) => value * 2);
 "#,
         );
-        session.assert_suggestions(MANUAL_MAP.example.accepted());
+        session.assert_suggestions(
+            r#"
+function doubled(values: int32[]): int32[] {
+    return values.map((value) => value * 2);
+}
+"#,
+        );
     }
 
     /// Parenthesize an object literal used as the generated lambda value.

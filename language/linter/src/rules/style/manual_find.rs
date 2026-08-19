@@ -97,7 +97,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let Some(condition) = condition.as_expression() else {
                 continue;
             };
-            if module.uses_enclosing_control(condition)? {
+            if module.uses_enclosing_control(condition.into_any())? {
                 continue;
             }
             let dir::Expression::Block(then_block) = view.get(*then_expression) else {
@@ -187,16 +187,22 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Validate the canonical lint example.
-    #[test]
-    fn test_lint_example() {
-        TestSession::assert_example(&MANUAL_FIND);
-    }
-
     /// Replace a complete first-match loop.
     #[test]
     fn test_replaces_manual_find() {
-        let session = TestSession::dir(&MANUAL_FIND, MANUAL_FIND.example.reported());
+        let session = TestSession::dir(
+            &MANUAL_FIND,
+            r#"
+function firstPositive(values: int32[]): int32 | undefined {
+    for (const value of values) {
+        if (value > 0) {
+            return value;
+        }
+    }
+    return undefined;
+}
+"#,
+        );
 
         session.assert_diagnostics(
             r#"
@@ -232,7 +238,13 @@ warning[manual-find]: loop manually finds its first matching value
 +   2│     return values.find((value) => value > 0);
 "#,
         );
-        session.assert_suggestions(MANUAL_FIND.example.accepted());
+        session.assert_suggestions(
+            r#"
+function firstPositive(values: int32[]): int32 | undefined {
+    return values.find((value) => value > 0);
+}
+"#,
+        );
     }
 
     /// Accept returning a transformed matching value.

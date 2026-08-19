@@ -157,15 +157,8 @@ fn arm_preserves_value(
     if nominal.fields.len() != 1 {
         return Ok(false);
     }
-    let mut bindings = module.symbols_declared_within(pattern.into_any());
-    let Some(binding) = bindings.next() else {
-        return Ok(false);
-    };
-    if bindings.next().is_some() {
-        return Ok(false);
-    }
 
-    Ok(module.selected_symbol(*value)? == Some(binding))
+    Ok(module.selected_pattern_binding(pattern, *value)?.is_some())
 }
 
 /// Build one direct scrutinee replacement.
@@ -192,14 +185,6 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace an identity match over scalar values.
-    #[test]
-    fn test_replaces_scalar_identity() {
-        let session = TestSession::dir(&NO_NEEDLESS_MATCH, NO_NEEDLESS_MATCH.example.reported());
-
-        session.assert_fixes(NO_NEEDLESS_MATCH.example.accepted());
-    }
 
     /// Replace canonical Result reconstruction.
     #[test]

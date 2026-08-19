@@ -104,15 +104,7 @@ fn result_arm(
     let Some(result) = view.get(*body).as_boolean() else {
         return Ok(None);
     };
-    let symbol = match module.pattern_decision(*pattern)? {
-        dir::PatternDecision::Variant(variant) => variant.case.variant,
-        dir::PatternDecision::Destructure(destructure) => match destructure.as_ref() {
-            dir::PatternDestructureResolution::Nominal(nominal) => nominal.selection.symbol,
-            _ => return Ok(None),
-        },
-        _ => return Ok(None),
-    };
-    let Some(variant) = module.dir.environment.language.item(symbol) else {
+    let Some(variant) = module.pattern_language_item(*pattern)? else {
         return Ok(None);
     };
     if !matches!(variant, dir::LanguageItem::Ok | dir::LanguageItem::Err) {

@@ -131,7 +131,7 @@ fn suggestion(
     }
 
     // reject callback control whose target would change after inlining
-    if module.uses_enclosing_control(body)? {
+    if module.uses_enclosing_control(body.into_any())? {
         return Ok(None);
     }
 
@@ -273,7 +273,15 @@ warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
 +   4│     }
 "#,
         );
-        session.assert_suggestions(PREFER_FOR_OF_OVER_FOR_EACH.example.accepted());
+        session.assert_suggestions(
+            r#"
+function copy(values: int32[], output: int32[]): void {
+    for (const value of values) {
+        output.push(value);
+    }
+}
+"#,
+        );
     }
 
     /// Bind a wildcard when the callback ignores each value.
