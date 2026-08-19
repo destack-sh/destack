@@ -1124,8 +1124,14 @@ impl WalkState<'_, '_> {
         body: Option<dir::LocalNodeId<dir::Expression>>,
         receiver: Option<ReceiverBinding>,
     ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::TypeVariableId>)> {
-        // use the receiver as the constructor result
+        // reject source result annotations and use the receiver result
         if signature.is_constructor() {
+            if let Some(return_type) = signature.return_type {
+                self.walk_type_expression(return_type)?;
+                self.check
+                    .report_constructor_result_annotation(self.module, return_type.into_any());
+            }
+
             let result = receiver
                 .map(|_| self.intern_type(dir::Type::This))
                 .transpose()?;

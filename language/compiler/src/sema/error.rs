@@ -99,6 +99,42 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Constructor declares a result type.
+    ///
+    /// ```ds
+    /// class User {
+    ///     constructor(): this {}
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "constructor-result-annotation",
+        message = "constructor cannot declare a result type"
+    )]
+    ConstructorResultAnnotation {
+        /// Report the result annotation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Constructor returns a value.
+    ///
+    /// ```ds
+    /// class User {
+    ///     constructor() { return this; }
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "constructor-return-value",
+        message = "constructor cannot return a value"
+    )]
+    ConstructorReturnValue {
+        /// Report the returned value.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Exported binding requires a written type.
     ///
     /// ```ds

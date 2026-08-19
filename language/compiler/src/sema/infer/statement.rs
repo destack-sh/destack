@@ -125,6 +125,12 @@ impl BodyState<'_, '_> {
                 .report_return_outside_function(module, node.local_id);
         }
 
+        // reject values returned from constructors
+        if self.initializes.is_some() && value.is_some() {
+            self.check
+                .report_constructor_return_value(module, node.local_id);
+        }
+
         // relate the returned value to the body's return target
         if let Some(value) = value {
             let value_site = self.check.visit_site(value.into_global_any(module))?;

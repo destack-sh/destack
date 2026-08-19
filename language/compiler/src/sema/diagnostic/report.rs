@@ -65,6 +65,30 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report a constructor result annotation.
+    pub(in crate::sema) fn report_constructor_result_annotation(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ConstructorResultAnnotation { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report a constructor return value.
+    pub(in crate::sema) fn report_constructor_return_value(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ConstructorReturnValue { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
     /// Report an export whose type needs another module.
     pub(in crate::sema) fn report_export_type_not_derivable(
         &mut self,

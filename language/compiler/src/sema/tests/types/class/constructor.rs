@@ -1,6 +1,130 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_reject_constructor_result_annotation() {
+    let session = TestSession::single(
+        r#"
+class User {
+    constructor(): this {}
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class User {
+    constructor(): this {}
+}
+
+=== dir ===
+class User {
+/// @type.symbol symbol=User type=User
+/// @definition.class symbol=User
+/// @definition.method symbol=User.constructor source="constructor(): this {}" slot=constructor role=constructor type=() => this
+
+    constructor(): this {}
+    /// @type.symbol symbol=User.constructor source="constructor(): this {}" type=() => this
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=constructor-result-annotation message="constructor cannot declare a result type"
+/// @diagnostic.label line=3 column=20 span="this" line_source="constructor(): this {}"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_constructor_return_value() {
+    let session = TestSession::single(
+        r#"
+class User {
+    constructor() {
+        return this;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class User {
+    constructor(): this {
+        return this;
+    }
+}
+
+=== dir ===
+class User {
+/// @type.symbol symbol=User type=User
+/// @definition.class symbol=User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=() => this
+
+    constructor() {
+    /// @type.symbol symbol=User.constructor type=() => this
+
+        return this;
+        /// @type.node source=this type=User
+        /// @resolution.receiver source=this kind=this declaration=User type=User
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=constructor-return-value message="constructor cannot return a value"
+/// @diagnostic.label line=4 column=9 span="return this" line_source="return this;"
+"#,
+    );
+}
+
+#[test]
+fn test_accept_constructor_bare_return() {
+    let session = TestSession::single(
+        r#"
+class User {
+    constructor() {
+        return;
+    }
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class User {
+    constructor(): this {
+        return;
+    }
+}
+
+=== dir ===
+class User {
+/// @type.symbol symbol=User type=User
+/// @definition.class symbol=User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=() => User
+
+    constructor() {
+    /// @type.symbol symbol=User.constructor type=() => User
+
+        return;
+    }
+}
+"#,
+    );
+}
+
+#[test]
 fn test_class_without_constructor_gets_implicit_empty_constructor() {
     let session = TestSession::single(
         r#"
