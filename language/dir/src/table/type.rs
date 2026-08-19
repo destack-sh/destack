@@ -29,9 +29,7 @@ pub struct TypeTable<'a> {
 impl TypeTable<'static> {
     /// Create a type table from ordered segments.
     pub fn from_segments(segments: Vec<Arc<TypeSegment>>) -> Self {
-        let segments = SegmentView::from_segments(segments);
-
-        Self::from_view(segments)
+        Self::from_view(SegmentView::from_segments(segments))
     }
 
     /// Create a type table from one segment.
@@ -48,12 +46,18 @@ impl<'a> TypeTable<'a> {
             .unwrap_or_else(|| panic!("type table needs at least one segment"));
         let module_id = first.module_id;
 
-        // require a single module owner
+        // require a single module owner and contiguous id ranges
+        let mut count = 0;
         for segment in segments.iter() {
             assert_eq!(
                 segment.module_id, module_id,
                 "type table segment belongs to a different module"
             );
+            assert_eq!(
+                segment.first_type_id, count,
+                "type table segments must stack contiguously"
+            );
+            count += segment.types.len() as u32;
         }
 
         Self {
@@ -281,6 +285,8 @@ impl<'a> TypeTable<'a> {
         match ty {
             // leaves without child types
             Type::Variable(_)
+            | Type::Hole(_)
+            | Type::Rigid(_)
             | Type::Error
             | Type::Never
             | Type::Any
@@ -891,6 +897,8 @@ pub(crate) struct ListPool<T> {
     first: u32,
     /// The stored list elements.
     elements: Arena<T>,
+    /// The lists allocated in this segment, in order.
+    lists: Vec<TypeListId>,
 }
 
 /// Intern bookkeeping growing one list pool.
@@ -898,6 +906,8 @@ pub(crate) struct ListPool<T> {
 pub(crate) struct ListInterner {
     /// The intern index from list hash to owned list ids.
     index: FxHashMap<u64, SmallVec<[TypeListId; 1]>>,
+    /// The intern index over the committed segments beneath this tail.
+    committed: FxHashMap<u64, SmallVec<[TypeListId; 1]>>,
     /// The intern log of owned list ids, in allocation order.
     log: Vec<(u64, TypeListId)>,
 }
@@ -908,6 +918,7 @@ impl<T> ListPool<T> {
         Self {
             first,
             elements: Arena::new(),
+            lists: Vec::new(),
         }
     }
 
@@ -935,16 +946,51 @@ impl<T> ListPool<T> {
     }
 }
 
+impl<T: Copy> ListPool<T> {
+    /// Allocate one list at the pool tail.
+    fn allocate_list(&mut self, values: &[T]) -> TypeListId {
+        let list = TypeListId::new(self.element_count(), values.len() as u32);
+        for value in values {
+            self.elements.allocate(*value);
+        }
+        self.lists.push(list);
+
+        list
+    }
+}
+
 impl ListInterner {
-    /// Intern one list into the pool.
-    fn intern<T: Copy + Eq + Hash>(&mut self, pool: &mut ListPool<T>, values: &[T]) -> TypeListId {
+    /// Seed the committed index from one committed segment's pool.
+    fn seed<T: Copy + Eq + Hash>(&mut self, pool: &ListPool<T>) {
+        for list in &pool.lists {
+            let hash = fx_hash(&pool.get(*list));
+            self.committed.entry(hash).or_default().push(*list);
+        }
+    }
+
+    /// Intern one list into the pool, reusing committed content.
+    fn intern<T: Copy + Eq + Hash>(
+        &mut self,
+        pool: &mut ListPool<T>,
+        committed_holds: impl Fn(TypeListId, &[T]) -> bool,
+        values: &[T],
+    ) -> TypeListId {
         // canonicalize the empty list without touching storage
         if values.is_empty() {
             return TypeListId::EMPTY;
         }
 
-        // probe the index for an existing content hit
+        // probe the committed segments beneath this tail
         let hash = fx_hash(&values);
+        if let Some(lists) = self.committed.get(&hash) {
+            for list in lists {
+                if committed_holds(*list, values) {
+                    return *list;
+                }
+            }
+        }
+
+        // probe the index for an existing content hit
         if let Some(lists) = self.index.get(&hash) {
             for list in lists {
                 if pool.get(*list) == values {
@@ -954,10 +1000,7 @@ impl ListInterner {
         }
 
         // append and index the new list
-        let list = TypeListId::new(pool.element_count(), values.len() as u32);
-        for value in values {
-            pool.elements.allocate(*value);
-        }
+        let list = pool.allocate_list(values);
         self.index.entry(hash).or_default().push(list);
         self.log.push((hash, list));
 
@@ -977,9 +1020,11 @@ impl ListInterner {
             self.log.pop();
         }
 
-        // drop the elements
+        // drop the elements and their recorded lists
         let keep = count.saturating_sub(pool.first) as usize;
         pool.elements.truncate(keep);
+        let retained = pool.lists.partition_point(|list| list.start < count);
+        pool.lists.truncate(retained);
     }
 }
 
@@ -1065,6 +1110,16 @@ impl TypeTail {
                     .or_default()
                     .push(id);
             }
+        }
+
+        // index the committed lists so identical content reuses their ids
+        for base in tail.committed.clone() {
+            tail.type_ids.seed(&base.type_ids);
+            tail.elements.seed(&base.elements);
+            tail.properties.seed(&base.properties);
+            tail.parameters.seed(&base.parameters);
+            tail.index_signatures.seed(&base.index_signatures);
+            tail.strings.seed(&base.strings);
         }
 
         tail
@@ -1171,33 +1226,68 @@ impl TypeTail {
 
     /// Intern one type id list.
     pub fn intern_type_ids(&mut self, values: &[GlobalTypeId]) -> TypeListId {
-        self.type_ids.intern(&mut self.segment.type_ids, values)
+        intern_list(
+            &mut self.type_ids,
+            &mut self.segment.type_ids,
+            &self.committed,
+            |base| &base.type_ids,
+            values,
+        )
     }
 
     /// Intern one tuple element list.
     pub fn intern_elements(&mut self, values: &[TypeElement]) -> TypeListId {
-        self.elements.intern(&mut self.segment.elements, values)
+        intern_list(
+            &mut self.elements,
+            &mut self.segment.elements,
+            &self.committed,
+            |base| &base.elements,
+            values,
+        )
     }
 
     /// Intern one shape property list.
     pub fn intern_properties(&mut self, values: &[TypeProperty]) -> TypeListId {
-        self.properties.intern(&mut self.segment.properties, values)
+        intern_list(
+            &mut self.properties,
+            &mut self.segment.properties,
+            &self.committed,
+            |base| &base.properties,
+            values,
+        )
     }
 
     /// Intern one function parameter list.
     pub fn intern_parameters(&mut self, values: &[FunctionParameterType]) -> TypeListId {
-        self.parameters.intern(&mut self.segment.parameters, values)
+        intern_list(
+            &mut self.parameters,
+            &mut self.segment.parameters,
+            &self.committed,
+            |base| &base.parameters,
+            values,
+        )
     }
 
     /// Intern one index signature list.
     pub fn intern_index_signatures(&mut self, values: &[TypeIndexSignature]) -> TypeListId {
-        self.index_signatures
-            .intern(&mut self.segment.index_signatures, values)
+        intern_list(
+            &mut self.index_signatures,
+            &mut self.segment.index_signatures,
+            &self.committed,
+            |base| &base.index_signatures,
+            values,
+        )
     }
 
     /// Intern one string list.
     pub fn intern_strings(&mut self, values: &[StringId]) -> TypeListId {
-        self.strings.intern(&mut self.segment.strings, values)
+        intern_list(
+            &mut self.strings,
+            &mut self.segment.strings,
+            &self.committed,
+            |base| &base.strings,
+            values,
+        )
     }
 
     /// Drop every type and list interned after one mark.
@@ -1241,4 +1331,24 @@ impl TypeTail {
         self.borrows
             .truncate(&mut self.segment.borrows, mark.borrows);
     }
+}
+
+/// Intern one list into a kind's pool, reusing content the committed
+/// segments beneath the tail already hold.
+fn intern_list<T: Copy + Eq + Hash>(
+    interner: &mut ListInterner,
+    pool: &mut ListPool<T>,
+    committed: &[Arc<TypeSegment>],
+    select: impl Fn(&TypeSegment) -> &ListPool<T>,
+    values: &[T],
+) -> TypeListId {
+    interner.intern(
+        pool,
+        |list, values| {
+            committed
+                .iter()
+                .any(|base| select(base).get_maybe(list) == Some(values))
+        },
+        values,
+    )
 }
