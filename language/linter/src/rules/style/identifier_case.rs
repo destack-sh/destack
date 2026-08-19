@@ -179,7 +179,7 @@ impl IdentifierCase {
     }
 }
 
-/// Report authored symbols whose names do not match their declaration kind.
+/// Report symbols whose names do not match their declaration kind.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
@@ -196,15 +196,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // select named authored identifiers with locally chosen names
+        // select named identifiers with locally chosen names
         let symbol = module.bindings.get_symbol(symbol_id);
         let Some(name) = symbol.name() else {
             continue;
         };
 
         if symbol.kind == dir::SymbolKind::Import
-            || !module.is_authored(declaration.local_id)
-            || !is_authored_identifier(&view, declaration.local_id)
+            || !has_identifier_name(&view, declaration.local_id)
             || is_ambient(&view, declaration.local_id)
             || imposed.contains(&symbol_id.into_global(module.id))
         {
@@ -225,7 +224,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // report the authored declaration name
+        // report the declaration name
         let span = module.main_span(declaration.local_id)?;
         let noun = case.noun(symbol.kind);
         let message = format!("{noun} name `{name}` must use {}", case.name());
@@ -245,8 +244,8 @@ fn is_ambient(view: &dir::View<'_>, node: dir::LocalNodeIdAny) -> bool {
         .is_some_and(|declaration| view.get(declaration).is_ambient())
 }
 
-/// Return whether one declaration was written as an identifier.
-fn is_authored_identifier(view: &dir::View<'_>, node: dir::LocalNodeIdAny) -> bool {
+/// Return whether one declaration has an identifier name.
+fn has_identifier_name(view: &dir::View<'_>, node: dir::LocalNodeIdAny) -> bool {
     match node.ty {
         // inspect declaration names
         dir::NodeType::Declaration => view

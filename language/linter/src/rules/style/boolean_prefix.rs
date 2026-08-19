@@ -42,7 +42,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // select authored local value declarations
+        // select local value declarations
         let symbol = module.bindings.get_symbol(symbol_id);
         if !matches!(
             symbol.kind,
@@ -51,9 +51,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 | dir::SymbolKind::Parameter
                 | dir::SymbolKind::Variable
         ) {
-            continue;
-        }
-        if !module.is_authored(declaration.local_id) {
             continue;
         }
         let Some(name) = symbol.name() else {
@@ -97,7 +94,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // report the authored declaration name
+        // report the declaration name
         let span = module.main_span(declaration.local_id)?;
         let message = format!("boolean value `{name}` needs a predicate prefix");
         output.report(lint.diagnostic(message, span));

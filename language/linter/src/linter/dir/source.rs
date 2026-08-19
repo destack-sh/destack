@@ -67,11 +67,6 @@ impl DirModule<'_> {
             })
     }
 
-    /// Return whether one visible DIR node was authored directly.
-    pub fn is_authored(&self, node: dir::LocalNodeIdAny) -> bool {
-        self.view().get_source_any(node) == node.id
-    }
-
     /// Return the source text covered by one span.
     pub fn source(&self, span: Span) -> Result<&str, ProviderError> {
         let source = self.file(span.file)?.text();
