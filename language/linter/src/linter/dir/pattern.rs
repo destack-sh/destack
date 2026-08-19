@@ -45,4 +45,23 @@ impl DirModule<'_> {
 
         Ok(self.dir.environment.language.item(symbol))
     }
+
+    /// Return the sole pattern binding selected directly by one expression.
+    pub(crate) fn selected_pattern_binding(
+        &self,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::GlobalSymbolId>, ProviderError> {
+        // select the pattern's only declared binding
+        let Some(binding) = self.sole_declared_symbol(pattern.into_any()) else {
+            return Ok(None);
+        };
+
+        // require the expression to select the declared binding directly
+        if self.selected_symbol(expression)? != Some(binding) {
+            return Ok(None);
+        }
+
+        Ok(Some(binding))
+    }
 }
