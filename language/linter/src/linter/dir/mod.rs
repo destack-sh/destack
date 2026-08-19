@@ -13,6 +13,7 @@ mod scalar;
 mod source;
 mod symbol;
 
+pub(crate) use callable::*;
 pub use comment::*;
 pub use index::*;
 pub use module::*;

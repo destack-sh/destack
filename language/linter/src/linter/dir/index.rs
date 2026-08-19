@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, EnvironmentBound,
 };
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderError, Repository, Revision};
 use destack_source::ModuleId;
@@ -67,6 +67,84 @@ impl<'a> Dir<'a> {
         }
 
         Ok(type_id)
+    }
+
+    /// Return one nominal declaration's instance field keys in declaration order.
+    pub(crate) fn instance_field_keys(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Result<Vec<dir::StaticKey>, ProviderError> {
+        self.read_declaration_tables(symbol.module_id, |_, definitions| {
+            let definition = definitions.definition(symbol).ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "nominal field owner {symbol:?} has no checked definition"
+                ))
+            })?;
+            let fields = definition
+                .instance_fields()
+                .map(|field| field.key)
+                .collect();
+
+            Ok(fields)
+        })
+    }
+
+    /// Return whether one declaration inherits any instance member other than a constructor.
+    pub(crate) fn inherits_instance_members(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Result<bool, ProviderError> {
+        let mut visited = FxIndexSet::default();
+        let mut pending = vec![symbol];
+
+        // traverse checked base declarations once
+        while let Some(current) = pending.pop() {
+            if !visited.insert(current) {
+                continue;
+            }
+            let (has_instance_member, bases) =
+                self.read_declaration_tables(current.module_id, |_, definitions| {
+                    let definition = definitions.definition(current).ok_or_else(|| {
+                        ProviderError::internal(format!(
+                            "nominal declaration {current:?} has no checked definition"
+                        ))
+                    })?;
+                    let has_instance_member = current != symbol
+                        && definition
+                            .members_in(dir::MemberSpace::Instance)
+                            .any(|member| {
+                                !matches!(
+                                    member,
+                                    dir::DefinitionMember::Method(method)
+                                        if method.role == Some(dir::FunctionRole::Constructor)
+                                )
+                            });
+                    let bases = definition
+                        .bases()
+                        .into_iter()
+                        .map(|heritage| heritage.ty)
+                        .collect::<Vec<_>>();
+
+                    Ok((has_instance_member, bases))
+                })?;
+            if has_instance_member {
+                return Ok(true);
+            }
+
+            // resolve the next base declarations from their checked types
+            for base in bases {
+                let base = self.strip_form(base)?;
+                let ty = self.get_type(base)?;
+                let base = ty.symbol().ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "checked heritage type {base:?} is not nominal"
+                    ))
+                })?;
+                pending.push(base);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return the access represented by one checked memory type.

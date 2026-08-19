@@ -3,7 +3,71 @@ use destack_repository::ProviderError;
 
 use super::DirModule;
 
+/// One getter or setter.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Accessor {
+    /// The accessor node.
+    pub(crate) node: dir::LocalNodeIdAny,
+    /// The property namespace.
+    pub(crate) space: dir::MemberSpace,
+    /// The property slot.
+    pub(crate) slot: dir::MemberSlot,
+    /// Whether this accessor is a getter.
+    pub(crate) is_getter: bool,
+}
+
 impl DirModule<'_> {
+    /// Return one getter or setter.
+    pub(crate) fn accessor(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Result<Option<Accessor>, ProviderError> {
+        // read the callable shape shared by declaration member forms
+        let view = self.view();
+        let (signature, space, slot) = match node.ty {
+            dir::NodeType::Member => {
+                let member = dir::LocalNodeId::<dir::Member>::new(node.id);
+                let member = view.get(member);
+
+                (member.signature(), member.space(), member.slot())
+            }
+            dir::NodeType::Property => {
+                let property = dir::LocalNodeId::<dir::Property>::new(node.id);
+                let property = view.get(property);
+
+                (property.signature(), property.space(), property.slot())
+            }
+            dir::NodeType::TypeMember => {
+                let member = dir::LocalNodeId::<dir::TypeMember>::new(node.id);
+                let member = view.get(member);
+
+                (member.signature(), member.space(), member.slot())
+            }
+            _ => return Ok(None),
+        };
+
+        // require one named getter or setter
+        let Some(signature) = signature else {
+            return Ok(None);
+        };
+        let Some(role @ (dir::FunctionRole::Getter | dir::FunctionRole::Setter)) = signature.role
+        else {
+            return Ok(None);
+        };
+        let (Some(space), Some(slot @ dir::MemberSlot::Key(_))) = (space, slot) else {
+            return Err(ProviderError::internal(format!(
+                "checked accessor {node:?} has no named member slot"
+            )));
+        };
+
+        Ok(Some(Accessor {
+            node,
+            space,
+            slot,
+            is_getter: role == dir::FunctionRole::Getter,
+        }))
+    }
+
     /// Return the authored return type owned by one callable node.
     pub(crate) fn callable_return_type(
         &self,
