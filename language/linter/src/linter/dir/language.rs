@@ -109,6 +109,33 @@ impl Dir<'_> {
 }
 
 impl DirModule<'_> {
+    /// Return the receiver of one canonical length access.
+    pub(crate) fn length_receiver(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+        let dir::Expression::Member {
+            left: collection,
+            is_optional: false,
+            ..
+        } = self.view().get(expression)
+        else {
+            return Ok(None);
+        };
+        if !matches!(
+            self.language_member(expression)?,
+            Some(member)
+                if member == dir::LanguageItem::Sequence.member("length")
+                    || member == dir::LanguageItem::Array.member("length")
+                    || member == dir::LanguageItem::Slice.member("length")
+                    || member == dir::LanguageItem::String.member("length")
+        ) {
+            return Ok(None);
+        }
+
+        Ok(Some(*collection))
+    }
+
     /// Return the canonical language item represented by one checked node.
     pub fn representation_item(
         &self,
@@ -153,7 +180,9 @@ impl DirModule<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::LanguageItem>, ProviderError> {
         let symbol = match self.view().get(expression) {
-            dir::Expression::Call { .. } => self.call_symbol(expression)?,
+            dir::Expression::Call { .. } | dir::Expression::New { .. } => {
+                self.call_symbol(expression)?
+            }
             _ => self.selected_symbol(expression)?,
         };
         let item = symbol.and_then(|symbol| self.dir.environment.language.item(symbol));

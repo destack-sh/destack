@@ -277,25 +277,35 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return whether one checked type includes undefined.
-    pub fn type_includes_undefined(
+    /// Return whether one checked type includes an element selected by `predicate`.
+    pub fn type_includes(
         &self,
         type_id: dir::GlobalTypeId,
+        mut predicate: impl FnMut(&dir::Type) -> bool,
     ) -> Result<bool, ProviderError> {
         let ty = self.get_type(type_id)?;
         let dir::Type::Union(union) = ty else {
-            return Ok(ty.is_undefined());
+            return Ok(predicate(&ty));
         };
 
         self.read_types(type_id.module_id, |types| {
             for element in types.type_ids(union.elements) {
-                if self.get_type(*element)?.is_undefined() {
+                let element = self.get_type(*element)?;
+                if predicate(&element) {
                     return Ok(true);
                 }
             }
 
             Ok(false)
         })
+    }
+
+    /// Return whether one checked type includes undefined.
+    pub fn type_includes_undefined(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<bool, ProviderError> {
+        self.type_includes(type_id, dir::Type::is_undefined)
     }
 
     /// Return one checked static value by global id.

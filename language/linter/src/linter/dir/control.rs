@@ -111,6 +111,34 @@ impl DirModule<'_> {
         }
     }
 
+    /// Return the nearest iteration containing one node in the same callable.
+    pub(crate) fn enclosing_iteration(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        let view = self.view();
+        let mut parent = view.get_parent_any(node);
+
+        // climb to the nearest iteration or callable boundary
+        while let Some(node) = parent {
+            // stop before crossing nested callable ownership
+            if self.callable_body(node).is_some() {
+                return None;
+            }
+
+            // select the nearest iteration expression
+            if let Ok(expression) = node.try_into_typed::<dir::Expression>()
+                && self.iteration_body(expression).is_some()
+            {
+                return Some(expression);
+            }
+
+            parent = view.get_parent_any(node);
+        }
+
+        None
+    }
+
     /// Return the target selected by one unlabeled break or continue expression.
     pub(crate) fn unlabeled_transfer_target(
         &self,

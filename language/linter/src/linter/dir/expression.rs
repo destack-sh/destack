@@ -4,6 +4,69 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return the ordered operands of one checked builtin short-circuit chain.
+    pub(crate) fn short_circuit_operands(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        operator: dir::BinaryOperator,
+    ) -> Result<Vec<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+        if !matches!(
+            operator,
+            dir::BinaryOperator::And | dir::BinaryOperator::Or | dir::BinaryOperator::Coalesce
+        ) {
+            return Err(ProviderError::internal(format!(
+                "operator {operator:?} does not short circuit"
+            )));
+        }
+        let mut operands = Vec::new();
+        self.collect_short_circuit_operands(expression, operator, &mut operands)?;
+
+        Ok(operands)
+    }
+
+    /// Return whether the checked parent selects one builtin binary operator.
+    pub(crate) fn has_builtin_binary_parent(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        operator: dir::BinaryOperator,
+    ) -> Result<bool, ProviderError> {
+        let Some(parent) = self.view().get_parent_for(expression) else {
+            return Ok(false);
+        };
+        let Ok(parent) = parent.try_into_typed::<dir::Expression>() else {
+            return Ok(false);
+        };
+        let selected = self.builtin_binary(parent)?.map(|(selected, _)| selected);
+
+        Ok(selected == Some(operator))
+    }
+
+    /// Append the operands of one checked builtin short-circuit chain.
+    fn collect_short_circuit_operands(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        operator: dir::BinaryOperator,
+        operands: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+    ) -> Result<(), ProviderError> {
+        let Some((selected, children)) = self.builtin_binary(expression)? else {
+            operands.push(expression);
+
+            return Ok(());
+        };
+        if selected != operator {
+            operands.push(expression);
+
+            return Ok(());
+        }
+
+        // flatten both sides of the same short-circuit operation
+        for operand in children {
+            self.collect_short_circuit_operands(operand.source.local_id, operator, operands)?;
+        }
+
+        Ok(())
+    }
+
     /// Return the sole direct binding declarator in one declaration expression.
     pub(crate) fn binding_declarator(
         &self,
@@ -47,7 +110,7 @@ impl DirModule<'_> {
     }
 
     /// Return every terminal expression that can produce one expression's value.
-    pub(super) fn terminal_values(
+    pub(crate) fn terminal_values(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<Vec<dir::LocalNodeId<dir::Expression>>> {
@@ -308,11 +371,6 @@ impl DirModule<'_> {
         left: dir::LocalNodeId<dir::Expression>,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> Result<bool, ProviderError> {
-        // require identical checked source types
-        if self.node_type_id(left.into_any())? != self.node_type_id(right.into_any())? {
-            return Ok(false);
-        }
-
         // compare repeatable places through their canonical paths
         let left_access = self.access_resolution(left);
         let right_access = self.access_resolution(right);
@@ -320,6 +378,11 @@ impl DirModule<'_> {
             (Some(left), Some(right)) => return Ok(left == right),
             (Some(_), None) | (None, Some(_)) => return Ok(false),
             (None, None) => {}
+        }
+
+        // require identical checked source types for computed values
+        if self.node_type_id(left.into_any())? != self.node_type_id(right.into_any())? {
+            return Ok(false);
         }
 
         let view = self.view();

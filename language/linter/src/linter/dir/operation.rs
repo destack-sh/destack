@@ -18,11 +18,25 @@ pub(crate) struct MemberCall<'a> {
     is_optional: bool,
 }
 
-impl MemberCall<'_> {
-    /// Return whether the call or its member access is optional.
-    pub(crate) fn is_optional(self) -> bool {
-        self.is_optional
-    }
+/// One exact nullish test and the sense in which it succeeds.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NullishTest {
+    /// The value compared with nullish literals.
+    pub(crate) value: dir::LocalNodeId<dir::Expression>,
+    /// Whether the test succeeds for non-nullish values.
+    pub(crate) is_defined: bool,
+}
+
+/// One exact comparison between a value and a nullish literal.
+struct NullishComparison {
+    /// The compared value.
+    value: dir::LocalNodeId<dir::Expression>,
+    /// Whether the comparison succeeds for non-nullish values.
+    is_defined: bool,
+    /// Whether the comparison distinguishes null.
+    checks_null: bool,
+    /// Whether the comparison distinguishes undefined.
+    checks_undefined: bool,
 }
 
 /// One authored assignment to a direct place.
@@ -36,7 +50,116 @@ pub(crate) struct PlaceAssignment {
     pub(crate) value: dir::LocalNodeId<dir::Expression>,
 }
 
+impl MemberCall<'_> {
+    /// Return whether the call or its member access is optional.
+    pub(crate) fn is_optional(self) -> bool {
+        self.is_optional
+    }
+}
+
 impl DirModule<'_> {
+    /// Select one exact test that distinguishes every possible nullish value.
+    pub(crate) fn nullish_test(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<NullishTest>, ProviderError> {
+        let Some((operator, [left, right])) = self.builtin_binary(expression)? else {
+            return Ok(None);
+        };
+
+        // combine strict comparisons that cover both nullish literals
+        if matches!(operator, dir::BinaryOperator::And | dir::BinaryOperator::Or) {
+            let Some(first) = self.nullish_comparison(left.source.local_id)? else {
+                return Ok(None);
+            };
+            let Some(second) = self.nullish_comparison(right.source.local_id)? else {
+                return Ok(None);
+            };
+            let is_defined = operator == dir::BinaryOperator::And;
+            if first.is_defined != is_defined
+                || second.is_defined != is_defined
+                || !self.is_same_computation(first.value, second.value)?
+                || !(first.checks_null || second.checks_null)
+                || !(first.checks_undefined || second.checks_undefined)
+            {
+                return Ok(None);
+            }
+
+            return Ok(Some(NullishTest {
+                value: first.value,
+                is_defined,
+            }));
+        }
+
+        // require one comparison that covers every possible nullish value
+        let Some(comparison) = self.nullish_comparison(expression)? else {
+            return Ok(None);
+        };
+        let type_id = self.node_type_id(comparison.value.into_any())?;
+        let includes_null = self
+            .dir
+            .type_includes(type_id, |ty| *ty == dir::Type::Null)?;
+        let includes_undefined = self.dir.type_includes_undefined(type_id)?;
+        if !comparison.checks_null && includes_null
+            || !comparison.checks_undefined && includes_undefined
+        {
+            return Ok(None);
+        }
+
+        Ok(Some(NullishTest {
+            value: comparison.value,
+            is_defined: comparison.is_defined,
+        }))
+    }
+
+    /// Select one checked equality comparison against null or undefined.
+    fn nullish_comparison(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<NullishComparison>, ProviderError> {
+        let Some((operator, [left, right])) = self.builtin_binary(expression)? else {
+            return Ok(None);
+        };
+        if !operator.is_equality() {
+            return Ok(None);
+        }
+
+        // normalize the value and nullish literal from either operand order
+        let view = self.view();
+        let left_literal = view.get(left.source.local_id).as_scalar();
+        let right_literal = view.get(right.source.local_id).as_scalar();
+        let (value, literal) = match (left_literal, right_literal) {
+            (
+                Some(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined),
+                Some(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined),
+            ) => return Ok(None),
+            (_, Some(literal @ (dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined))) => {
+                (left.source.local_id, literal)
+            }
+            (Some(literal @ (dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined)), _) => {
+                (right.source.local_id, literal)
+            }
+            _ => return Ok(None),
+        };
+
+        // loose nullish equality covers both singleton values
+        let (checks_null, checks_undefined) = if operator.is_strict_equality() {
+            (
+                literal == dir::ScalarLiteral::Null,
+                literal == dir::ScalarLiteral::Undefined,
+            )
+        } else {
+            (true, true)
+        };
+
+        Ok(Some(NullishComparison {
+            value,
+            is_defined: operator.is_negative_equality(),
+            checks_null,
+            checks_undefined,
+        }))
+    }
+
     /// Return one call whose callee is a member access.
     pub(crate) fn member_call(
         &self,
@@ -357,7 +480,7 @@ impl DirModule<'_> {
     }
 
     /// Return the call decision selected for one checked expression.
-    pub(super) fn call_decision(
+    pub(crate) fn call_decision(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<&dir::CallDecision>, ProviderError> {
