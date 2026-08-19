@@ -3,6 +3,7 @@ use destack_mir as mir;
 
 use crate::lower::{
     FunctionDeclaration, FunctionDefinition, GenericInstanceKey, LifetimeParameters, ModuleLowerer,
+    constructor_receiver_type,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -176,20 +177,16 @@ impl ModuleLowerer<'_> {
         let this = match role {
             // take no receiver for static members
             _ if is_static => None,
-            // receive an exclusive borrow in constructors
+            // receive an exclusive borrow of uninitialized storage
             Some(dir::FunctionRole::Constructor) => {
                 let nominal = self
                     .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
                     .lower_nominal(owner, &[])?;
 
-                Some(builder.tree_mut().intern_type(mir::Type::Reference {
-                    kind: mir::ReferenceKind::Borrowed,
-                    lifetime: mir::Lifetime::empty(),
-                    storage: mir::Storage::Heap(mir::Space::Local),
-                    access: mir::Access::Exclusive,
-                    pointee: nominal.storage,
-                    nullability: mir::Nullability::None,
-                }))
+                Some(constructor_receiver_type(
+                    builder.tree_mut(),
+                    nominal.storage,
+                ))
             }
             // pass this at the declared receiver type
             _ => {

@@ -5,6 +5,7 @@ use destack_source::ModuleId;
 
 use crate::lower::{
     CallableImplementation, FunctionDefinition, LifetimeParameters, ModuleLowerer, Reachable,
+    insert_local_reference,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -357,21 +358,17 @@ impl ModuleLowerer<'_> {
         let this = match role {
             // take no receiver for static members
             _ if is_static => None,
-            // receive an exclusive borrow in constructors
+            // receive an exclusive borrow of uninitialized storage
             Some(dir::FunctionRole::Constructor) => {
                 let nominal = self
                     .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
                     .with_instance(specialization)
                     .lower_nominal(owner, &[])?;
 
-                Some(builder.tree_mut().intern_type(mir::Type::Reference {
-                    kind: mir::ReferenceKind::Borrowed,
-                    lifetime: mir::Lifetime::empty(),
-                    storage: mir::Storage::Heap(mir::Space::Local),
-                    access: mir::Access::Exclusive,
-                    pointee: nominal.storage,
-                    nullability: mir::Nullability::None,
-                }))
+                Some(constructor_receiver_type(
+                    builder.tree_mut(),
+                    nominal.storage,
+                ))
             }
             // pass this at the declared receiver type
             _ => {
@@ -531,14 +528,7 @@ impl ModuleLowerer<'_> {
             .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
             .lower_nominal(class, &arguments)?;
-        let this = builder.tree_mut().intern_type(mir::Type::Reference {
-            kind: mir::ReferenceKind::Borrowed,
-            lifetime: mir::Lifetime::empty(),
-            storage: mir::Storage::Heap(mir::Space::Local),
-            access: mir::Access::Exclusive,
-            pointee: nominal.storage,
-            nullability: mir::Nullability::None,
-        });
+        let this = constructor_receiver_type(builder.tree_mut(), nominal.storage);
         let void = builder.tree_mut().intern_type(mir::Type::Void);
         let name = format!("{}.constructor", self.symbol_path(class)?);
 
@@ -570,4 +560,19 @@ impl ModuleLowerer<'_> {
 
         Ok(())
     }
+}
+
+/// Intern one constructor receiver: an exclusive borrow of the uninitialized constructed storage.
+pub(in crate::lower) fn constructor_receiver_type(
+    tree: &mut mir::Tree,
+    storage: mir::LocalNodeId<mir::Type>,
+) -> mir::LocalNodeId<mir::Type> {
+    let pointee = tree.intern_type(mir::Type::Uninit { value: storage });
+
+    insert_local_reference(
+        tree,
+        mir::ReferenceKind::Borrowed,
+        mir::Access::Exclusive,
+        pointee,
+    )
 }

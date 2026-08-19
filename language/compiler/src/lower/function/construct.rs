@@ -1,8 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionLowerer, NominalField};
-
+use crate::lower::{FunctionLowerer, NominalField, constructor_receiver_type};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One declared field an object literal constructs.
@@ -182,21 +181,21 @@ impl FunctionLowerer<'_, '_, '_> {
             self.builder.tree().get(carrier),
             mir::Type::Reference { .. }
         );
-        let (slot, storage) = match is_reference {
-            // allocate zeroed heap storage for managed destinations
-            true => (None, self.builder.new_zeroed(pointee, carrier)),
-            // construct owned destinations in place inside a local slot
-            false => {
-                let slot = self.builder.local(pointee, mir::Mutability::Mutable);
-                let address = self.insert_reference(
-                    mir::ReferenceKind::Borrowed,
-                    mir::Access::Exclusive,
-                    pointee,
-                );
-                let address = self.builder.local_addr(slot, address);
+        // allocate zeroed heap storage for managed destinations
+        let (slot, storage) = if is_reference {
+            (None, self.builder.new_zeroed(pointee, carrier))
+        }
+        // otherwise construct owned destinations in place inside a local slot
+        else {
+            let slot = self.builder.local(pointee, mir::Mutability::Mutable);
+            let address = self.insert_reference(
+                mir::ReferenceKind::Borrowed,
+                mir::Access::Exclusive,
+                pointee,
+            );
+            let address = self.builder.local_addr(slot, address);
 
-                (Some(slot), address)
-            }
+            (Some(slot), address)
         };
 
         // initialize the storage through an exclusive borrow
@@ -209,7 +208,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let instance: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
                 let key = self.generic_instance_key(*symbol, &instance)?;
                 let function = self.function(&key)?;
-                let receiver = self.constructed_receiver(storage, pointee, is_reference);
+                let receiver = self.constructed_receiver(storage, pointee);
 
                 // bind the constructor arguments after the receiver
                 let mut values = Vec::with_capacity(arguments.len() + 1);
@@ -237,7 +236,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         bindings.iter().map(|binding| binding.argument).collect();
                     let key = self.generic_instance_key(class, &instance)?;
                     let function = self.function(&key)?;
-                    let receiver = self.constructed_receiver(storage, pointee, is_reference);
+                    let receiver = self.constructed_receiver(storage, pointee);
                     self.builder.call_function(function, vec![receiver]);
                 }
             }
@@ -259,25 +258,16 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(object)
     }
 
-    /// Borrow one constructed storage exclusively for its constructor call.
+    /// Bitcast one constructed storage to its exclusive uninitialized receiver.
     fn constructed_receiver(
         &mut self,
         storage: mir::Value,
         pointee: mir::LocalNodeId<mir::Type>,
-        is_reference: bool,
     ) -> mir::Value {
-        if !is_reference {
-            return storage;
-        }
-
-        let exclusive = self.insert_reference(
-            mir::ReferenceKind::Borrowed,
-            mir::Access::Exclusive,
-            pointee,
-        );
+        let receiver = constructor_receiver_type(self.builder.tree_mut(), pointee);
 
         self.builder
-            .cast(mir::CastOperator::Bitcast, storage, exclusive)
+            .cast(mir::CastOperator::Bitcast, storage, receiver)
     }
 
     /// Lower one newtype construction to a single-value aggregate.
@@ -759,6 +749,14 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(value);
         }
 
+        // pass distinct identities sharing one structure unchanged
+        if self.builder.tree().types_equal(
+            mir::TypeId::from(value_base),
+            mir::TypeId::from(carrier_base),
+        ) {
+            return Ok(value);
+        }
+
         // store no value in erased zero-sized carriers such as variant tags
         if matches!(self.builder.tree().get(carrier_base), mir::Type::Void) {
             return Ok(self
@@ -860,6 +858,14 @@ impl FunctionLowerer<'_, '_, '_> {
         index: usize,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let tree = self.builder.tree();
+
+        // unwrap uninitialized storage to the layout its value holds
+        let mut concrete = concrete;
+        while let mir::Type::Uninit { value } = tree.get(concrete) {
+            concrete = *value;
+        }
+
+        // read the field carrier out of the struct layout
         let mir::Type::Struct { fields, .. } = tree.get(concrete) else {
             return Err(CompilerError::Internal {
                 message: "dynamic constraint lowered outside a struct".to_string(),

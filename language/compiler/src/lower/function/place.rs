@@ -219,13 +219,30 @@ impl FunctionLowerer<'_, '_, '_> {
         field: mir::LocalNodeId<mir::Type>,
         access: mir::Access,
     ) -> mir::Value {
+        // project an uninitialized field out of an uninitialized aggregate
+        let mut pointee = field;
+        if let Some(ty) = self.builder.value_type(reference)
+            && let mir::Type::Reference {
+                pointee: aggregate, ..
+            } = self.builder.tree().get(ty)
+            && matches!(
+                self.builder.tree().get(*aggregate),
+                mir::Type::Uninit { .. }
+            )
+        {
+            pointee = self
+                .builder
+                .tree_mut()
+                .intern_type(mir::Type::Uninit { value: field });
+        }
+
         // borrow interior addresses from the object reference
         let address = self.builder.tree_mut().intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
             storage: mir::Storage::Heap(mir::Space::Local),
             access,
-            pointee: field,
+            pointee,
             nullability: mir::Nullability::None,
         });
 

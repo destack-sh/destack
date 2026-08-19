@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 
 use crate::lower::{
     CallableImplementation, FunctionDeclaration, GenericInstanceKey, LifetimeParameters,
-    ModuleLowerer,
+    ModuleLowerer, constructor_receiver_type,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -183,20 +183,13 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<(String, Option<mir::LocalNodeId<mir::Type>>)> {
         let pointer_bytes = builder.pointer_bytes();
         let receiver = match member.role {
-            // pass an exclusive reference to constructors
+            // pass an exclusive reference to uninitialized constructor storage
             Some(dir::FunctionRole::Constructor) => {
                 let value = self
                     .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
                     .lower_nominal(member.owner, &[])?;
 
-                Some(builder.tree_mut().intern_type(mir::Type::Reference {
-                    kind: mir::ReferenceKind::Borrowed,
-                    lifetime: mir::Lifetime::empty(),
-                    storage: mir::Storage::Heap(mir::Space::Local),
-                    access: mir::Access::Exclusive,
-                    pointee: value.storage,
-                    nullability: mir::Nullability::None,
-                }))
+                Some(constructor_receiver_type(builder.tree_mut(), value.storage))
             }
             // statics call without a receiver slot
             _ if member.is_static => None,

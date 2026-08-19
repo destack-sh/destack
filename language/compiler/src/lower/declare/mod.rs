@@ -9,5 +9,7 @@ mod reachable;
 mod root;
 
 pub(in crate::lower) use decorator::CallableImplementation;
-pub(in crate::lower) use instance::{FunctionDeclaration, GenericInstanceKey};
+pub(in crate::lower) use instance::{
+    FunctionDeclaration, GenericInstanceKey, constructor_receiver_type,
+};
 pub(in crate::lower) use reachable::Reachable;
