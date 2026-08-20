@@ -272,7 +272,7 @@ else {
 - Avoid "hiding" payloads inside `enum`s that sound like scalars (e.g., no values in variants of a `*Kind` named enum)
 - Avoid `include!` or convoluted `#[path]` to bypass
 - Avoid nesting `mod x { }` inside a file (except for `tests`)
-- Avoid `Cell` and `RefCell`, they almost always imply a bad ownership model
+- Avoid `Cell` / `RefCell` / `UnsafeCell`, they almost always imply a bad ownership model
 - Import aliases are evil. 
 - Prefer direct `expr.clone()` over `Arc.clone(expr)`
 - Heavy `.clone()` are to be avoided (memory is expensive, fragmentatio is even more expensive)
