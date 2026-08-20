@@ -1,3 +1,4 @@
+use crate::lex::{InvalidEscape, cook};
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserError, ParserResult};
 
@@ -462,7 +463,8 @@ impl Parser {
             return Err(ParserError::expected(token, TokenType::Literal));
         }
 
-        let content = self.string_literal_str(token).to_owned();
+        let content = cook(self.string_literal_str(token))
+            .map_err(|InvalidEscape| ParserError::expected(token, TokenType::Literal))?;
         let string_id = self.strings.intern(&content);
         self.bump();
 

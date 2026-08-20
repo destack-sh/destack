@@ -35,11 +35,11 @@ fn test_parse_tagged_template_with_regex_interpolation() {
     assert_node!(parser.tree, expr_id, Expression::TaggedTemplateExpression { tag, value, .. } => {
         assert_expression_path!(parser, parser.tree.get(*tag), "re");
         match value {
-            TemplateLiteral::InterpolatedString { strings, arguments } => {
-                assert_eq!(strings.len(), 2);
+            TemplateLiteral::InterpolatedString { chunks, arguments } => {
+                assert_eq!(chunks.len(), 2);
                 assert_eq!(arguments.len(), 1);
-                assert_string!(parser, strings[0], "/^");
-                assert_string!(parser, strings[1], "$/u");
+                assert_string!(parser, chunks[0].cooked.unwrap(), "/^");
+                assert_string!(parser, chunks[1].cooked.unwrap(), "$/u");
                 assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
                 });
@@ -64,8 +64,9 @@ fn test_parse_tagged_template_with_legacy_octal_escape() {
 
         // `\\1`
         match value {
-            TemplateLiteral::String { string } => {
-                assert_string!(parser, *string, r"\1");
+            TemplateLiteral::String { chunk } => {
+                assert!(chunk.cooked.is_none());
+                assert_string!(parser, chunk.raw, r"\1");
             }
             other => panic!("expected string template literal, got {other:?}"),
         }
@@ -467,9 +468,9 @@ fn test_parse_string_unicode_escape_with_long_leading_zeros() {
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
         .unwrap();
 
-    // "\u{00000000034}"
+    // "4"
     assert_node!(parser.tree, expr_id, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-        assert_string!(parser, *string_id, "\\u{00000000034}");
+        assert_string!(parser, *string_id, "4");
     });
 }
 

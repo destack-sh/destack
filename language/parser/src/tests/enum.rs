@@ -183,15 +183,15 @@ enum CHAR {
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
         assert_eq!(fields.len(), 3);
         assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-            assert_string!(parser, name.string(), "\\v");
+            assert_string!(parser, name.string(), "\u{b}");
             assert!(value.is_some());
         });
         assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-            assert_string!(parser, name.string(), "\\f");
+            assert_string!(parser, name.string(), "\u{c}");
             assert!(value.is_some());
         });
         assert_node!(parser.tree, fields[2], EnumField { name, value } => {
-            assert_string!(parser, name.string(), "\\r");
+            assert_string!(parser, name.string(), "\r");
             assert!(value.is_some());
         });
     });

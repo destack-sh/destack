@@ -230,9 +230,9 @@ fn test_parse_template_literal() {
     // `hello`
     let literal = parser.parse_template_literal().unwrap();
     match literal {
-        TemplateLiteral::String { string: template } => {
+        TemplateLiteral::String { chunk } => {
             // hello
-            assert_string!(parser, template, "hello");
+            assert_string!(parser, chunk.cooked.unwrap(), "hello");
         }
         other => panic!("unexpected {other:?}"),
     }
@@ -240,17 +240,17 @@ fn test_parse_template_literal() {
     // `hello ${name}`
     let literal = parser.parse_template_literal().unwrap();
     match literal {
-        TemplateLiteral::InterpolatedString { strings, arguments } => {
+        TemplateLiteral::InterpolatedString { chunks, arguments } => {
             assert_eq!(arguments.len(), 1);
-            assert_eq!(strings.len(), 2);
+            assert_eq!(chunks.len(), 2);
             // hello
-            assert_string!(parser, strings[0], "hello ");
+            assert_string!(parser, chunks[0].cooked.unwrap(), "hello ");
             // name
             assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "name");
             });
             //
-            assert_string!(parser, strings[1], "");
+            assert_string!(parser, chunks[1].cooked.unwrap(), "");
         }
         other => panic!("unexpected {other:?}"),
     }
@@ -258,12 +258,12 @@ fn test_parse_template_literal() {
     // `${stmt}`
     let literal = parser.parse_template_literal().unwrap();
     match literal {
-        TemplateLiteral::InterpolatedString { strings, arguments } => {
-            assert_eq!(strings.len(), 2);
+        TemplateLiteral::InterpolatedString { chunks, arguments } => {
+            assert_eq!(chunks.len(), 2);
             assert_eq!(arguments.len(), 1);
             // empty start & empty end
-            assert_string!(parser, strings[0], "");
-            assert_string!(parser, strings[1], "");
+            assert_string!(parser, chunks[0].cooked.unwrap(), "");
+            assert_string!(parser, chunks[1].cooked.unwrap(), "");
             // stmt
             assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "stmt");
@@ -275,14 +275,14 @@ fn test_parse_template_literal() {
     // `${start}${middle}${end}`
     let literal = parser.parse_template_literal().unwrap();
     match literal {
-        TemplateLiteral::InterpolatedString { strings, arguments } => {
-            assert_eq!(strings.len(), 4);
+        TemplateLiteral::InterpolatedString { chunks, arguments } => {
+            assert_eq!(chunks.len(), 4);
             assert_eq!(arguments.len(), 3);
             // empty string before & after each argument
-            assert_string!(parser, strings[0], "");
-            assert_string!(parser, strings[1], "");
-            assert_string!(parser, strings[2], "");
-            assert_string!(parser, strings[3], "");
+            assert_string!(parser, chunks[0].cooked.unwrap(), "");
+            assert_string!(parser, chunks[1].cooked.unwrap(), "");
+            assert_string!(parser, chunks[2].cooked.unwrap(), "");
+            assert_string!(parser, chunks[3].cooked.unwrap(), "");
             // start
             assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "start");
@@ -302,17 +302,21 @@ fn test_parse_template_literal() {
     // `SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`
     let literal = parser.parse_template_literal().unwrap();
     match literal {
-        TemplateLiteral::InterpolatedString { strings, arguments } => {
+        TemplateLiteral::InterpolatedString { chunks, arguments } => {
             assert_eq!(arguments.len(), 2);
-            assert_eq!(strings.len(), 3);
+            assert_eq!(chunks.len(), 3);
             // SELECT * FROM users WHERE name =
-            assert_string!(parser, strings[0], "SELECT * FROM users WHERE name = ");
+            assert_string!(
+                parser,
+                chunks[0].cooked.unwrap(),
+                "SELECT * FROM users WHERE name = "
+            );
             // name
             assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "name");
             });
             // AND age >
-            assert_string!(parser, strings[1], " AND age > ");
+            assert_string!(parser, chunks[1].cooked.unwrap(), " AND age > ");
             // group.age()
             assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::Call { left, .. } => {
@@ -320,7 +324,7 @@ fn test_parse_template_literal() {
                 });
             });
             // LIMIT 10
-            assert_string!(parser, strings[2], " LIMIT 10");
+            assert_string!(parser, chunks[2].cooked.unwrap(), " LIMIT 10");
         }
         other => panic!("unexpected {other:?}"),
     }
@@ -334,11 +338,11 @@ fn test_parse_template_literal_as_cast_expression() {
     let literal = parser.parse_template_literal().unwrap();
 
     match literal {
-        TemplateLiteral::InterpolatedString { strings, arguments } => {
-            assert_eq!(strings.len(), 2);
+        TemplateLiteral::InterpolatedString { chunks, arguments } => {
+            assert_eq!(chunks.len(), 2);
             assert_eq!(arguments.len(), 1);
-            assert_string!(parser, strings[0], "");
-            assert_string!(parser, strings[1], "");
+            assert_string!(parser, chunks[0].cooked.unwrap(), "");
+            assert_string!(parser, chunks[1].cooked.unwrap(), "");
 
             assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {
@@ -361,11 +365,12 @@ fn test_parse_template_literal_with_escaped_interpolation_prefix() {
     let literal = parser.parse_template_literal().unwrap();
 
     match literal {
-        TemplateLiteral::InterpolatedString { strings, arguments } => {
-            assert_eq!(strings.len(), 2);
+        TemplateLiteral::InterpolatedString { chunks, arguments } => {
+            assert_eq!(chunks.len(), 2);
             assert_eq!(arguments.len(), 1);
-            assert_string!(parser, strings[0], r"\${");
-            assert_string!(parser, strings[1], "}");
+            assert_string!(parser, chunks[0].cooked.unwrap(), "${");
+            assert_string!(parser, chunks[0].raw, r"\${");
+            assert_string!(parser, chunks[1].cooked.unwrap(), "}");
 
             assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "value");
@@ -1874,10 +1879,10 @@ fn test_parse_template_literal_empty() {
     let mut parser = test.prepare();
     let literal = parser.parse_template_literal().unwrap();
 
-    let TemplateLiteral::String { string } = literal else {
+    let TemplateLiteral::String { chunk } = literal else {
         panic!("expected plain template literal");
     };
-    assert_string!(parser, string, "");
+    assert_string!(parser, chunk.cooked.unwrap(), "");
 }
 
 /// Template literal interpolation should allow optional chaining.
@@ -1887,13 +1892,13 @@ fn test_parse_template_literal_optional_chain() {
     let mut parser = test.prepare();
     let literal = parser.parse_template_literal().unwrap();
 
-    let TemplateLiteral::InterpolatedString { strings, arguments } = literal else {
+    let TemplateLiteral::InterpolatedString { chunks, arguments } = literal else {
         panic!("expected interpolated template literal");
     };
-    assert_eq!(strings.len(), 2);
+    assert_eq!(chunks.len(), 2);
     assert_eq!(arguments.len(), 1);
-    assert_string!(parser, strings[0], "value ");
-    assert_string!(parser, strings[1], "");
+    assert_string!(parser, chunks[0].cooked.unwrap(), "value ");
+    assert_string!(parser, chunks[1].cooked.unwrap(), "");
     assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
         assert_node!(parser.tree, *value, Expression::Chain { expression } => {
             assert_node!(parser.tree, *expression, Expression::Member { left, name, is_optional } => {
@@ -1912,13 +1917,13 @@ fn test_parse_template_literal_ternary() {
     let mut parser = test.prepare();
     let literal = parser.parse_template_literal().unwrap();
 
-    let TemplateLiteral::InterpolatedString { strings, arguments } = literal else {
+    let TemplateLiteral::InterpolatedString { chunks, arguments } = literal else {
         panic!("expected interpolated template literal");
     };
-    assert_eq!(strings.len(), 2);
+    assert_eq!(chunks.len(), 2);
     assert_eq!(arguments.len(), 1);
-    assert_string!(parser, strings[0], "value ");
-    assert_string!(parser, strings[1], "");
+    assert_string!(parser, chunks[0].cooked.unwrap(), "value ");
+    assert_string!(parser, chunks[1].cooked.unwrap(), "");
     assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
         assert_node!(parser.tree, *value, Expression::If { form, condition, then_expression, else_expression } => {
             assert_eq!(*form, IfForm::Ternary);

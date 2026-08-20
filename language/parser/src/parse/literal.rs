@@ -1,5 +1,6 @@
 use std::borrow::Cow;
-use std::str::Chars;
+
+use crate::lex::{InvalidEscape, cook};
 
 use crate::lex::decode_html_entity;
 use crate::parse::{RegexFlags, RegexPattern};
@@ -160,75 +161,12 @@ impl Parser {
         Ok(value)
     }
 
-    /// Decode one fixed-width hexadecimal character escape.
-    fn decode_fixed_character_escape(characters: &mut Chars<'_>, width: usize) -> Option<char> {
-        let mut value = 0u32;
-
-        for _ in 0..width {
-            let digit = characters.next()?.to_digit(16)?;
-            value = value.checked_mul(16)?.checked_add(digit)?;
-        }
-
-        char::from_u32(value)
-    }
-
-    /// Decode one braced hexadecimal character escape.
-    fn decode_braced_character_escape(characters: &mut Chars<'_>) -> Option<char> {
-        let mut value = 0u32;
-        let mut digits = 0usize;
-
-        loop {
-            let character = characters.next()?;
-            if character == '}' {
-                return (digits > 0).then(|| char::from_u32(value)).flatten();
-            }
-
-            let digit = character.to_digit(16)?;
-            value = value.checked_mul(16)?.checked_add(digit)?;
-            digits += 1;
-        }
-    }
-
-    /// Decode one escaped character payload.
-    fn decode_character_escape(characters: &mut Chars<'_>) -> Option<char> {
-        let escaped = characters.next()?;
-
-        match escaped {
-            '0' => Some('\0'),
-            'b' => Some('\u{08}'),
-            'f' => Some('\u{0C}'),
-            'n' => Some('\n'),
-            'r' => Some('\r'),
-            't' => Some('\t'),
-            'v' => Some('\u{0B}'),
-            'x' => Self::decode_fixed_character_escape(characters, 2),
-            'u' => {
-                if characters.as_str().starts_with('{') {
-                    characters.next();
-                    Self::decode_braced_character_escape(characters)
-                } else {
-                    Self::decode_fixed_character_escape(characters, 4)
-                }
-            }
-            character if character.is_ascii_digit() => None,
-            character => Some(character),
-        }
-    }
-
     /// Decode one single-quoted character literal.
     fn decode_character_literal(literal: &str) -> Option<char> {
-        if !literal.starts_with('\'') || !literal.ends_with('\'') || literal.len() < 2 {
-            return None;
-        }
-
-        let content = &literal[1..literal.len() - 1];
-        let mut characters = content.chars();
-        let character = if content.starts_with('\\') {
-            characters.next();
-            Self::decode_character_escape(&mut characters)?
-        } else {
-            characters.next()?
-        };
+        let content = literal.strip_prefix('\'')?.strip_suffix('\'')?;
+        let decoded = cook(content).ok()?;
+        let mut characters = decoded.chars();
+        let character = characters.next()?;
 
         characters.next().is_none().then_some(character)
     }
@@ -447,8 +385,12 @@ impl Parser {
                     return Err(ParserError::unexpected(literal_span.span.range()));
                 }
                 let content = &literal_str[1..literal_str.len() - 1];
+                let content = cook(content).map_err(|InvalidEscape| {
+                    ParserError::expected(literal_span.span.range(), TokenType::Literal)
+                        .in_node(NodeType::Expression)
+                })?;
 
-                let string_id = self.strings.intern(content);
+                let string_id = self.strings.intern(&content);
                 Ok(ScalarLiteral::String(string_id))
             }
 

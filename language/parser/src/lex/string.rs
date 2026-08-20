@@ -1,3 +1,4 @@
+use super::escape::decode_escape;
 use super::tokenizer::Tokenizer;
 
 impl Tokenizer {
@@ -64,103 +65,16 @@ impl Tokenizer {
         (false, has_invalid_escape)
     }
 
-    /// Consume a string escape sequence after `\`.
+    /// Consume a string escape sequence after `\\`.
     /// Return true when the escape sequence is invalid.
     fn eat_string_escape_sequence(&mut self) -> bool {
-        if self.is_end() {
-            return true;
-        }
+        let remaining = self.scanner.remaining();
+        let mut characters = remaining.chars();
+        let decoded = decode_escape(&mut characters);
+        let consumed = remaining.len() - characters.as_str().len();
+        self.scanner.advance_bytes(consumed);
 
-        let escaped = self.scanner.peek_byte();
-        match escaped {
-            // legacy escaped digits are invalid
-            b'8' | b'9' => {
-                self.scanner.advance_ascii_byte();
-                true
-            }
-            // legacy octal escapes are invalid without a following digit
-            b'0'..=b'7' => {
-                self.scanner.advance_ascii_byte();
-                if escaped != b'0' {
-                    return true;
-                }
-                if self.scanner.peek_byte().is_ascii_digit() {
-                    return true;
-                }
-                false
-            }
-            // \uXXXX and \u{...}
-            b'u' => {
-                self.scanner.advance_ascii_byte();
-                self.eat_unicode_escape_after_u()
-            }
-            // \xXX
-            b'x' => {
-                self.scanner.advance_ascii_byte();
-                self.eat_fixed_hex_escape(2)
-            }
-            // regular escaped character
-            _ => {
-                if escaped.is_ascii() {
-                    self.scanner.advance_ascii_byte();
-                } else {
-                    let _ = self.scanner.eat_char();
-                }
-                false
-            }
-        }
-    }
-
-    /// Consume a unicode escape sequence body after `\u`.
-    /// Return true when the sequence is invalid.
-    fn eat_unicode_escape_after_u(&mut self) -> bool {
-        if self.scanner.peek_byte() == b'{' {
-            self.scanner.advance_ascii_byte();
-            let mut digits = 0usize;
-            let mut value: u32 = 0;
-            let mut overflowed = false;
-            while self.scanner.peek_byte().is_ascii_hexdigit() {
-                if !overflowed {
-                    // convert ascii hex digit
-                    let head = self.scanner.peek_byte();
-                    let digit = if head.is_ascii_digit() {
-                        u32::from(head - b'0')
-                    } else if (b'a'..=b'f').contains(&head) {
-                        u32::from(head - b'a') + 10
-                    } else {
-                        u32::from(head - b'A') + 10
-                    };
-
-                    if let Some(next) = value.checked_mul(16).and_then(|v| v.checked_add(digit)) {
-                        value = next;
-                    } else {
-                        overflowed = true;
-                    }
-                }
-                self.scanner.advance_ascii_byte();
-                digits += 1;
-            }
-
-            if digits == 0 || self.scanner.peek_byte() != b'}' {
-                return true;
-            }
-            self.scanner.advance_ascii_byte();
-            overflowed || value > 0x10FFFF
-        } else {
-            self.eat_fixed_hex_escape(4)
-        }
-    }
-
-    /// Consume an exact number of hexadecimal digits.
-    /// Return true when the sequence is invalid.
-    fn eat_fixed_hex_escape(&mut self, width: usize) -> bool {
-        for _ in 0..width {
-            if !self.scanner.peek_byte().is_ascii_hexdigit() {
-                return true;
-            }
-            self.scanner.advance_ascii_byte();
-        }
-        false
+        decoded.is_err()
     }
 
     /// Parse a template string (excluding first backtick).

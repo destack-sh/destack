@@ -1,3 +1,4 @@
+use crate::lex::{InvalidEscape, cook};
 use crate::parse::error::ParserResultExt;
 use crate::parse::{DeclarationHeader, ExpressionPosition, ExpressionStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
@@ -212,7 +213,8 @@ impl Parser {
                     Some(TokenLiteral::String { .. })
                 ) {
                 let token = self.peek_token();
-                let content = self.string_literal_str(token).to_owned();
+                let content = cook(self.string_literal_str(token))
+                    .map_err(|InvalidEscape| ParserError::expected(token, TokenType::Literal))?;
                 let string_id = self.strings.intern(&content);
                 self.bump();
                 Name::String(string_id)
@@ -222,7 +224,13 @@ impl Parser {
             } else if self.peek_is(TokenType::TemplateString) {
                 let template = self.parse_template_literal()?;
                 match template {
-                    TemplateLiteral::String { string } => Name::String(string),
+                    TemplateLiteral::String { chunk } => {
+                        let cooked = chunk
+                            .cooked
+                            .ok_or_else(|| ParserError::unexpected(self.peek_token_span()))?;
+
+                        Name::String(cooked)
+                    }
                     TemplateLiteral::InterpolatedString { .. } => {
                         return Err(ParserError::unexpected(self.peek_token_span()));
                     }

@@ -1,10 +1,11 @@
 use crate::parse::ExpressionStop;
 use destack_dir::{
-    Argument, Expression, LocalNodeId, StringId, TemplateLiteral, Token, TokenSpan, TokenType,
-    TypeExpression,
+    Argument, Expression, LocalNodeId, StringId, TemplateChunk, TemplateLiteral, Token, TokenSpan,
+    TokenType, TypeExpression,
 };
 use destack_source::ByteRange;
 
+use crate::lex::{InvalidEscape, cook};
 use crate::parse::{ExpressionPosition, TypePosition, TypeStop};
 use crate::{Parser, ParserError, ParserResult};
 
@@ -46,17 +47,15 @@ impl Parser {
     /// Parse a value-space template with the selected escape rules.
     fn parse_expression_template(
         &mut self,
-        allow_legacy_octal_escapes: bool,
+        is_tagged: bool,
     ) -> ParserResult<TemplateLiteral> {
-        let (strings, arguments) = self
-            .parse_template_chunks(allow_legacy_octal_escapes, |parser| {
-                parser.parse_template_argument()
-            })?;
+        let (chunks, arguments) =
+            self.parse_template_chunks(is_tagged, |parser| parser.parse_template_argument())?;
 
-        if arguments.is_empty() && strings.len() == 1 {
-            Ok(TemplateLiteral::String { string: strings[0] })
+        if arguments.is_empty() && chunks.len() == 1 {
+            Ok(TemplateLiteral::String { chunk: chunks[0] })
         } else {
-            Ok(TemplateLiteral::InterpolatedString { strings, arguments })
+            Ok(TemplateLiteral::InterpolatedString { chunks, arguments })
         }
     }
 
@@ -72,10 +71,16 @@ impl Parser {
         stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let start = self.mark_parse_start();
-        let (strings, spans) = self.parse_template_chunks(false, |parser| {
+        let (chunks, spans) = self.parse_template_chunks(false, |parser| {
             parser.parse_type(TypePosition::Type, stop.nest())
         })?;
 
+        // type templates are never tagged, so every chunk decoded
+        let strings = chunks
+            .into_iter()
+            .map(|chunk| chunk.cooked)
+            .collect::<Option<Vec<StringId>>>()
+            .ok_or_else(|| ParserError::unexpected(self.range_since(&start)))?;
         let expression = TypeExpression::TemplateLiteral { strings, spans };
         let expression_id = self.insert_node(expression, self.range_since(&start));
 
@@ -93,32 +98,28 @@ impl Parser {
     /// Parse a template literal body.
     fn parse_template_chunks<T>(
         &mut self,
-        allow_legacy_octal_escapes: bool,
+        is_tagged: bool,
         mut parse_span: impl FnMut(&mut Parser) -> ParserResult<T>,
-    ) -> ParserResult<(Vec<StringId>, Vec<T>)> {
+    ) -> ParserResult<(Vec<TemplateChunk>, Vec<T>)> {
         let next = self.eat();
         let next_str = self.file.span_str(next.span);
 
         // template string without interpolation
         if next.token.ty() == TokenType::TemplateString {
-            let string = Self::template_chunk_body(next.token, next_str, 1, 1)?;
-            Self::validate_template_chunk(next.span.range(), string, allow_legacy_octal_escapes)?;
+            let string = Self::template_chunk_body(next.token, next_str, 1, 1)?.to_owned();
+            let chunk = self.template_chunk(next.span.range(), &string, is_tagged)?;
 
-            let string_id = self.strings.intern(string);
-            return Ok((vec![string_id], Vec::new()));
+            return Ok((vec![chunk], Vec::new()));
         }
 
         // template string with interpolation
         if next.token.ty() == TokenType::TemplateStringStart {
-            let mut strings: Vec<StringId> = Vec::new();
+            let mut chunks: Vec<TemplateChunk> = Vec::new();
             let mut spans: Vec<T> = Vec::new();
 
             // start chunk: remove ` prefix and ${ suffix
-            let string = Self::template_chunk_body(next.token, next_str, 1, 2)?;
-            Self::validate_template_chunk(next.span.range(), string, allow_legacy_octal_escapes)?;
-
-            let string_id = self.strings.intern(string);
-            strings.push(string_id);
+            let string = Self::template_chunk_body(next.token, next_str, 1, 2)?.to_owned();
+            chunks.push(self.template_chunk(next.span.range(), &string, is_tagged)?);
 
             // eat until the end
             while !self.peek_is(TokenType::TemplateStringEnd) {
@@ -126,15 +127,9 @@ impl Parser {
                 if self.peek_is(TokenType::TemplateStringMiddle) {
                     let token = self.eat();
                     let token_str = self.file.span_str(token.span);
-                    let string = Self::template_chunk_body(token.token, token_str, 1, 2)?;
-                    Self::validate_template_chunk(
-                        token.span.range(),
-                        string,
-                        allow_legacy_octal_escapes,
-                    )?;
-
-                    let string_id = self.strings.intern(string);
-                    strings.push(string_id);
+                    let string =
+                        Self::template_chunk_body(token.token, token_str, 1, 2)?.to_owned();
+                    chunks.push(self.template_chunk(token.span.range(), &string, is_tagged)?);
                 }
                 // interpolation expression
                 else {
@@ -152,13 +147,10 @@ impl Parser {
             let token = self.eat_token(TokenType::TemplateStringEnd)?;
             let range = token.range();
             let token_str = &self.file.text()[range.start as usize..range.end as usize];
-            let string = Self::template_chunk_body(token, token_str, 1, 1)?;
-            Self::validate_template_chunk(range, string, allow_legacy_octal_escapes)?;
+            let string = Self::template_chunk_body(token, token_str, 1, 1)?.to_owned();
+            chunks.push(self.template_chunk(range, &string, is_tagged)?);
 
-            let string_id = self.strings.intern(string);
-            strings.push(string_id);
-
-            return Ok((strings, spans));
+            return Ok((chunks, spans));
         }
 
         Err(ParserError::unexpected(next))
@@ -181,69 +173,24 @@ impl Parser {
         Ok(body)
     }
 
-    /// Return true when the template chunk contains legacy octal escapes.
-    fn contains_legacy_octal_template_escape(string: &str) -> bool {
-        let bytes = string.as_bytes();
-        if !bytes.contains(&b'\\') {
-            return false;
-        }
-
-        let mut index = 0;
-
-        while index < bytes.len() {
-            if bytes[index] != b'\\' {
-                index += 1;
-                continue;
-            }
-
-            index += 1;
-            if index >= bytes.len() {
-                break;
-            }
-
-            let escaped = bytes[index];
-
-            // invalid legacy octal: \1 through \9
-            if escaped.is_ascii_digit() && escaped != b'0' {
-                return true;
-            }
-
-            // invalid legacy octal: \0 followed by another digit
-            if escaped == b'0' {
-                index += 1;
-                if index < bytes.len() && bytes[index].is_ascii_digit() {
-                    return true;
-                }
-                continue;
-            }
-
-            // skip escaped code unit
-            index += 1;
-        }
-
-        false
-    }
-
-    /// Reject template chunks with legacy octal escapes when the mode does not allow them.
-    fn validate_template_chunk(
+    /// Intern one template chunk as written and decoded, tagged templates keep invalid escapes.
+    fn template_chunk(
+        &mut self,
         range: ByteRange,
         string: &str,
-        allow_legacy_octal_escapes: bool,
-    ) -> ParserResult<()> {
-        if allow_legacy_octal_escapes {
-            return Ok(());
-        }
+        is_tagged: bool,
+    ) -> ParserResult<TemplateChunk> {
+        let raw = self.strings.intern(string);
+        let cooked = match cook(string) {
+            Ok(cooked) => Some(self.strings.intern(&cooked)),
+            Err(InvalidEscape) if is_tagged => None,
+            Err(InvalidEscape) => return Err(ParserError::expected(range, TokenType::Literal)),
+        };
 
-        if Self::contains_legacy_octal_template_escape(string) {
-            return Err(ParserError::unexpected(range));
-        }
-
-        Ok(())
+        Ok(TemplateChunk { cooked, raw })
     }
 
     /// Parse a template literal interpolation argument.
-    ///
-    /// Template literal interpolations parse as full expressions (no named args).
     pub(crate) fn parse_template_argument(&mut self) -> ParserResult<LocalNodeId<Argument>> {
         let start = self.mark_parse_start();
 

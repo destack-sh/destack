@@ -1,3 +1,4 @@
+use crate::lex::decode_unicode_escape;
 use crate::parse::{AwaitKeyword, YieldKeyword};
 use crate::{Parser, ParserError, ParserResult};
 use destack_core::StringId;
@@ -38,7 +39,7 @@ impl Parser {
         let range = token.range();
         let raw = &self.file.text()[range.start as usize..range.end as usize];
 
-        // validate escaped identifiers once after tokenization
+        // decode escaped identifiers to the name they spell
         if token.is_identifier_escaped() {
             let Some(decoded) = Self::decode_identifier_unicode_escapes(raw) else {
                 return Err(ParserError::unexpected(token));
@@ -46,6 +47,9 @@ impl Parser {
             if Keyword::from_str(&decoded).is_ok() || decoded.contains('\0') {
                 return Err(ParserError::unexpected(token));
             }
+            let string_id = self.strings.intern(&decoded);
+
+            return Ok((string_id, range));
         }
         let string_id = self.strings.intern(raw);
         Ok((string_id, range))
@@ -106,59 +110,20 @@ impl Parser {
 
     /// Decode Unicode escapes in one identifier.
     fn decode_identifier_unicode_escapes(raw: &str) -> Option<String> {
-        if !raw.contains('\\') {
-            return Some(raw.to_string());
-        }
-
         let mut decoded = String::with_capacity(raw.len());
-        let mut chars = raw.chars().peekable();
-
-        while let Some(ch) = chars.next() {
-            if ch != '\\' {
-                decoded.push(ch);
+        let mut characters = raw.chars();
+        while let Some(character) = characters.next() {
+            // copy plain identifier text through
+            if character != '\\' {
+                decoded.push(character);
                 continue;
             }
 
-            if chars.next() != Some('u') {
+            // identifiers allow unicode escapes only
+            if characters.next() != Some('u') {
                 return None;
             }
-
-            let value = if matches!(chars.peek(), Some('{')) {
-                chars.next();
-                let mut value: u32 = 0;
-                let mut digits = 0_usize;
-                let mut significant_digits = 0_usize;
-                while let Some(&next) = chars.peek() {
-                    if next == '}' {
-                        break;
-                    }
-                    let digit = next.to_digit(16)?;
-                    digits += 1;
-                    if digit != 0 || significant_digits > 0 {
-                        significant_digits += 1;
-                        if significant_digits > 6 {
-                            return None;
-                        }
-                        value = value.checked_mul(16)?.checked_add(digit)?;
-                    }
-                    chars.next();
-                }
-                if digits == 0 || chars.next() != Some('}') {
-                    return None;
-                }
-                value
-            } else {
-                let mut value: u32 = 0;
-                for _ in 0..4 {
-                    let next = chars.next()?;
-                    let digit = next.to_digit(16)?;
-                    value = value.checked_mul(16)?.checked_add(digit)?;
-                }
-                value
-            };
-
-            let decoded_char = char::from_u32(value)?;
-            decoded.push(decoded_char);
+            decoded.push(decode_unicode_escape(&mut characters).ok()?);
         }
 
         Some(decoded)

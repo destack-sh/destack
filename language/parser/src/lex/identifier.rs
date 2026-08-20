@@ -1,3 +1,4 @@
+use super::escape::decode_unicode_escape;
 use super::tokenizer::Tokenizer;
 use destack_dir::{Keyword, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start};
 use destack_unicode::UnicodeEmoji;
@@ -204,67 +205,13 @@ impl Tokenizer {
         }
     }
 
-    /// Decode an identifier unicode escape body after `u`.
-    ///
-    /// Returns the decoded character and consumed byte count from the body.
+    /// Decode one identifier unicode escape body after `\u`, with its byte length.
     fn decode_identifier_unicode_escape_body(bytes: &[u8]) -> Option<(char, usize)> {
-        let (value, consumed) = if bytes.first() == Some(&b'{') {
-            let mut index = 1usize;
-            let mut digit_count = 0usize;
-            let mut value: u32 = 0;
+        let text = str::from_utf8(bytes).ok()?;
+        let mut characters = text.chars();
+        let decoded = decode_unicode_escape(&mut characters).ok()?;
 
-            while let Some(&byte) = bytes.get(index) {
-                if byte == b'}' {
-                    break;
-                }
-                if !byte.is_ascii_hexdigit() {
-                    return None;
-                }
-
-                let digit = if byte.is_ascii_digit() {
-                    u32::from(byte - b'0')
-                } else if (b'a'..=b'f').contains(&byte) {
-                    u32::from(byte - b'a') + 10
-                } else {
-                    u32::from(byte - b'A') + 10
-                };
-                value = value.checked_mul(16)?.checked_add(digit)?;
-                digit_count += 1;
-                index += 1;
-                if digit_count > 6 {
-                    return None;
-                }
-            }
-
-            if digit_count == 0 || bytes.get(index) != Some(&b'}') {
-                return None;
-            }
-
-            (value, index + 1)
-        } else {
-            if bytes.len() < 4 {
-                return None;
-            }
-
-            let mut value: u32 = 0;
-            for &byte in &bytes[..4] {
-                if !byte.is_ascii_hexdigit() {
-                    return None;
-                }
-                let digit = if byte.is_ascii_digit() {
-                    u32::from(byte - b'0')
-                } else if (b'a'..=b'f').contains(&byte) {
-                    u32::from(byte - b'a') + 10
-                } else {
-                    u32::from(byte - b'A') + 10
-                };
-                value = value.checked_mul(16)?.checked_add(digit)?;
-            }
-
-            (value, 4)
-        };
-
-        Some((char::from_u32(value)?, consumed))
+        Some((decoded, text.len() - characters.as_str().len()))
     }
 
     /// Parse a unicode escape code point at the current `\u` tail.

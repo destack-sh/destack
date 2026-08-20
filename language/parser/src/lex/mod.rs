@@ -1,4 +1,5 @@
 mod comment;
+mod escape;
 mod highlight;
 mod html;
 mod identifier;
@@ -12,6 +13,7 @@ mod token;
 mod tokenizer;
 mod tree;
 
+pub use escape::{InvalidEscape, cook, decode_escape, decode_unicode_escape};
 pub use highlight::*;
 pub(crate) use identifier::classify_keyword;
 pub use lexer::*;
