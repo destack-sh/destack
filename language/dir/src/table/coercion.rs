@@ -148,6 +148,11 @@ pub enum CoercionAdjustment {
         /// The tuple type after this adjustment.
         target: GlobalTypeId,
     },
+    /// Transfer one owned value into managed storage, like `^T` into `T`.
+    Manage {
+        /// The managed type after this adjustment.
+        target: GlobalTypeId,
+    },
     /// Change the value carrier, like `^T` into `&T` or `T[]` into `[T]`.
     Carrier {
         /// The carrier type after this adjustment.
@@ -225,6 +230,7 @@ impl CoercionAdjustment {
             | Self::Scalar { target }
             | Self::Widen { target }
             | Self::Tuple { target }
+            | Self::Manage { target }
             | Self::Carrier { target }
             | Self::Instantiate { target, .. } => *target,
         }
@@ -240,6 +246,7 @@ impl CoercionAdjustment {
             Self::Scalar { .. } => "scalar",
             Self::Widen { .. } => "widen",
             Self::Tuple { .. } => "tuple",
+            Self::Manage { .. } => "manage",
             Self::Carrier { .. } => "carrier",
             Self::Instantiate { .. } => "instantiate",
         }
