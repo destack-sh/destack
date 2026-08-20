@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 use std::sync::Arc;
 
 use destack_mir as mir;
@@ -10,7 +10,7 @@ pub(in crate::elaborate) struct DropPlan {
     /// Independently movable ownership paths.
     pub(super) paths: Arc<mir::MoveTable>,
     /// Planned drops inside each block.
-    pub(super) block_drops: HashMap<mir::BlockId, Vec<BlockDrop>>,
+    pub(super) block_drops: FxIndexMap<mir::BlockId, Vec<BlockDrop>>,
     /// Planned edge-specific drops.
     pub(super) edge_drops: Vec<EdgeDrop>,
 }
@@ -33,7 +33,7 @@ struct DropAnalysis<'a> {
     retention: &'a mir::RetentionTable,
 
     /// Planned drops inside each block.
-    block_drops: HashMap<mir::BlockId, Vec<BlockDrop>>,
+    block_drops: FxIndexMap<mir::BlockId, Vec<BlockDrop>>,
     /// Planned edge-specific drops.
     edge_drops: Vec<EdgeDrop>,
 }
@@ -106,7 +106,7 @@ impl<'a> DropAnalysis<'a> {
             paths,
             initialization,
             retention,
-            block_drops: HashMap::new(),
+            block_drops: FxIndexMap::default(),
             edge_drops: Vec::new(),
         };
 
@@ -126,11 +126,11 @@ impl<'a> DropAnalysis<'a> {
     /// Plan straight-line destruction in every reachable block.
     fn plan_block_drops(
         &mut self,
-    ) -> HashMap<mir::LocalNodeId<mir::Block>, mir::InitializationState> {
+    ) -> FxIndexMap<mir::LocalNodeId<mir::Block>, mir::InitializationState> {
         // hold immutable analyses across mutable plan updates
         let liveness = self.liveness.clone();
         let tree = self.tree;
-        let mut exits = HashMap::new();
+        let mut exits = FxIndexMap::default();
 
         for &block in self.function.blocks() {
             let Some(mut state) = self.initialization.entry(block).cloned() else {
@@ -320,7 +320,7 @@ impl<'a> DropAnalysis<'a> {
     /// Plan ownership discarded on individual successor edges.
     fn plan_edge_drops(
         &mut self,
-        exits: &HashMap<mir::LocalNodeId<mir::Block>, mir::InitializationState>,
+        exits: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::InitializationState>,
     ) {
         for &predecessor in self.function.blocks() {
             let Some(exit) = exits.get(&predecessor) else {

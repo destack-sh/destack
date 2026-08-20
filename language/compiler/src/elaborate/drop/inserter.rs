@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use destack_mir as mir;
 
@@ -45,14 +45,14 @@ impl<'a> DropInserter<'a> {
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
         paths: &mir::MoveTable,
-        mut drops: HashMap<mir::LocalNodeId<mir::Block>, Vec<BlockDrop>>,
+        mut drops: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<BlockDrop>>,
     ) {
         // retain physical block order while instructions are inserted
         let blocks = self.tree.get(function_id).blocks().to_vec();
 
         // emit block drops in physical function order
         for block_id in blocks {
-            let Some(mut drops) = drops.remove(&block_id) else {
+            let Some(mut drops) = drops.swap_remove(&block_id) else {
                 continue;
             };
             let mut inserted = 0;
@@ -89,8 +89,8 @@ impl<'a> DropInserter<'a> {
     ) {
         // collect edge placements before updating the stored function
         let mut function = self.tree.get(function_id).clone();
-        let mut incoming = HashMap::new();
-        let mut edge_blocks = HashMap::new();
+        let mut incoming = FxIndexMap::default();
+        let mut edge_blocks = FxIndexMap::default();
         let mut placements = Vec::new();
         let mut is_changed = false;
 
