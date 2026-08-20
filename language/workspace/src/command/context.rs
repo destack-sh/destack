@@ -465,25 +465,16 @@ impl<'a> CommandContext<'a> {
         let uri = Uri::memory(path);
         let file_id = FileId::from_logical_str(uri.as_ref());
         let path = Path::new(path);
-        let name = path
-            .file_name()
-            .ok_or_else(|| {
-                CommandError::internal(format!(
-                    "command file path has no file name: {}",
-                    path.display()
-                ))
-            })?
-            .to_string_lossy()
-            .into_owned();
-        let file = File::from_text(
-            file_id,
-            name,
-            uri,
-            None,
-            FileType::from_path_or_unknown(path),
-            content.to_string(),
-        )
-        .map_err(|error| CommandError::internal(error.to_string()))?;
+        let name_and_type = path.file_name().zip(FileType::from_path(path));
+        let Some((name, file_type)) = name_and_type else {
+            return Err(CommandError::internal(format!(
+                "command file path has no file name: {}",
+                path.display()
+            )));
+        };
+        let name = name.to_string_lossy().into_owned();
+        let file = File::from_text(file_id, name, uri, None, file_type, content.to_string())
+            .map_err(|error| CommandError::internal(error.to_string()))?;
         let file = Arc::new(file);
         self.files.insert(file_id, file.clone());
 

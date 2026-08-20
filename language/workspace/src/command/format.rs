@@ -498,8 +498,9 @@ fn format_single_file(
     diagnostic_files: &mut Vec<Arc<File>>,
 ) -> CommandResult<FormatResult> {
     // dispatch by file type
-    let file_type = FileType::from_path(path).unwrap_or(FileType::Unknown);
-    if !is_formattable_file_type(file_type) {
+    let file_type =
+        FileType::from_path(path).filter(|file_type| is_formattable_file_type(*file_type));
+    let Some(file_type) = file_type else {
         if !suppress_output {
             output.push_stderr(
                 format!(
@@ -510,7 +511,7 @@ fn format_single_file(
             );
         }
         return Ok(FormatResult::Error);
-    }
+    };
 
     // get formatting options from destack.json
     let formatting_options = formatting_options_for_path(repository.as_ref(), revision, path)?;

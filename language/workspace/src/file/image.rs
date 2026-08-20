@@ -26,7 +26,7 @@ pub struct FileImage {
 impl From<&File> for FileImage {
     /// Build a file image from one source file.
     fn from(file: &File) -> Self {
-        let content = (!file.ty.is_binary()).then(|| file.text().to_string());
+        let content = file.is_text().then(|| file.text().to_string());
 
         Self {
             id: file.id,
