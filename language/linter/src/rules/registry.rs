@@ -121,7 +121,6 @@ static LINTS: &[&Lint] = &[
     &style::GROUPED_ACCESSOR_PAIRS,
     &style::IDENTIFIER_CASE,
     &style::INCONSISTENT_FIELD_ORDER,
-    &style::LARGE_FUNCTION,
     &style::MANUAL_ABS_DIFF,
     &style::MANUAL_ASCII_CHECK,
     &style::MANUAL_ASSERT,
