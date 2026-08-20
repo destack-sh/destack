@@ -16,11 +16,13 @@ impl BindingUse {
     /// The symbol is read.
     pub const READ: Self = Self(1 << 0);
     /// The symbol is written after initialization.
-    pub const WRITTEN: Self = Self(1 << 1);
+    pub const WRITE: Self = Self(1 << 1);
     /// The symbol is captured by a closure.
-    pub const CAPTURED: Self = Self(1 << 2);
-    /// The binding storage requires mutable or exclusive access.
-    pub const MUTABLE: Self = Self(1 << 3);
+    pub const CAPTURE: Self = Self(1 << 2);
+    /// The use mutates the binding storage.
+    pub const MUTATE: Self = Self(1 << 3);
+    /// The use requires exclusive access.
+    pub const EXCLUSIVE: Self = Self(1 << 4);
 
     /// Return whether every bit of `other` is set.
     pub fn contains(self, other: Self) -> bool {
@@ -39,7 +41,7 @@ impl BindingUse {
 
     /// Return whether the recorded use may mutate binding storage or its value.
     pub fn may_mutate(self) -> bool {
-        self.contains(Self::WRITTEN) || self.contains(Self::MUTABLE)
+        self.contains(Self::WRITE) || self.contains(Self::MUTATE)
     }
 }
 

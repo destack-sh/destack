@@ -141,7 +141,7 @@ impl Decision {
                         .write
                         .target_symbols()
                         .into_iter()
-                        .map(|symbol| (symbol, BindingUse::WRITTEN)),
+                        .map(|symbol| (symbol, BindingUse::WRITE)),
                 );
             }
             // no binding use at this node
