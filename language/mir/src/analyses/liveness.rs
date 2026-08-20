@@ -1,8 +1,6 @@
-use std::collections::HashSet;
-
 use std::cmp::Reverse;
 
-use destack_core::BitSet;
+use destack_core::{BitSet, FxIndexSet};
 
 use super::{Analysis, FunctionCache, Mutation};
 use crate::{
@@ -531,10 +529,10 @@ impl LivenessTable {
         tree: &Tree,
         block_id: LocalNodeId<Block>,
         instruction_offset: usize,
-    ) -> HashSet<Value> {
+    ) -> FxIndexSet<Value> {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        let mut live = self.value_live_out(block_id).collect::<HashSet<_>>();
+        let mut live = self.value_live_out(block_id).collect::<FxIndexSet<_>>();
 
         // retain values consumed by the terminator
         live.extend(terminator.uses(tree));
@@ -544,7 +542,7 @@ impl LivenessTable {
             let instruction = tree.get(*instruction_id);
 
             if let Some(destination) = instruction.destination() {
-                live.remove(&destination);
+                live.shift_remove(&destination);
             }
 
             for used in instruction.reads(tree) {
@@ -561,7 +559,7 @@ impl LivenessTable {
         tree: &Tree,
         block_id: LocalNodeId<Block>,
         instruction_offset: usize,
-    ) -> HashSet<LocalNodeId<Local>> {
+    ) -> FxIndexSet<LocalNodeId<Local>> {
         let block = tree.get(block_id);
 
         // return entry liveness directly
@@ -569,13 +567,13 @@ impl LivenessTable {
             return self.local_live_in(block_id).collect();
         }
 
-        let mut live = self.local_live_out(block_id).collect::<HashSet<_>>();
+        let mut live = self.local_live_out(block_id).collect::<FxIndexSet<_>>();
 
         // walk later local reads and writes backward
         for instruction_id in block.instructions.iter().skip(instruction_offset).rev() {
             match tree.get(*instruction_id) {
                 Instruction::LocalSet { local, .. } => {
-                    live.remove(local);
+                    live.shift_remove(local);
                 }
                 Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
                     live.insert(*local);
@@ -592,10 +590,10 @@ impl LivenessTable {
         &self,
         tree: &Tree,
         block_id: LocalNodeId<Block>,
-    ) -> HashSet<Value> {
+    ) -> FxIndexSet<Value> {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        let mut live = self.value_live_out(block_id).collect::<HashSet<_>>();
+        let mut live = self.value_live_out(block_id).collect::<FxIndexSet<_>>();
 
         // retain values consumed by the terminator itself
         live.extend(terminator.uses(tree));
@@ -607,13 +605,13 @@ impl LivenessTable {
     pub fn local_live_before_terminator(
         &self,
         block_id: LocalNodeId<Block>,
-    ) -> HashSet<LocalNodeId<Local>> {
+    ) -> FxIndexSet<LocalNodeId<Local>> {
         self.local_live_out(block_id).collect()
     }
 
     /// Return all values live somewhere in the function.
-    pub fn all_live_values(&self) -> HashSet<Value> {
-        let mut values = HashSet::new();
+    pub fn all_live_values(&self) -> FxIndexSet<Value> {
+        let mut values = FxIndexSet::default();
 
         for live in self.value_live_in.values() {
             values.extend(live.iter().map(|index| Value(index as u32)));
@@ -868,32 +866,32 @@ entry(v0: int32):
 
         // retain the entry parameter before the defining local store
         assert_eq!(
-            live.values().collect::<HashSet<_>>(),
-            HashSet::from([Value::new(0)])
+            live.values().collect::<FxIndexSet<_>>(),
+            FxIndexSet::from_iter([Value::new(0)])
         );
         assert!(!live.contains_local(local));
         live.advance(tree.get(instructions[0]), &tree);
 
         // retain the local until its final load
         assert_eq!(
-            live.values().collect::<HashSet<_>>(),
-            HashSet::from([Value::new(0)])
+            live.values().collect::<FxIndexSet<_>>(),
+            FxIndexSet::from_iter([Value::new(0)])
         );
         assert!(live.contains_local(local));
         live.advance(tree.get(instructions[1]), &tree);
 
         // retain SSA operands until the arithmetic operation
         assert_eq!(
-            live.values().collect::<HashSet<_>>(),
-            HashSet::from([Value::new(0), Value::new(1)])
+            live.values().collect::<FxIndexSet<_>>(),
+            FxIndexSet::from_iter([Value::new(0), Value::new(1)])
         );
         assert!(!live.contains_local(local));
         live.advance(tree.get(instructions[2]), &tree);
 
         // retain only the return value before the terminator
         assert_eq!(
-            live.values().collect::<HashSet<_>>(),
-            HashSet::from([Value::new(2)])
+            live.values().collect::<FxIndexSet<_>>(),
+            FxIndexSet::from_iter([Value::new(2)])
         );
         assert!(!live.contains_local(local));
     }

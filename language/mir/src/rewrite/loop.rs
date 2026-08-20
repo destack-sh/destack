@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate as mir;
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
     ControlTable, DefinitionTable, DominatorTable, MemoryAccessEffect, MemoryNode, MemoryRegion,
@@ -34,7 +35,7 @@ pub enum LoopEffectPolicy {
 pub fn loop_guard_branch(
     header: mir::LocalNodeId<mir::Block>,
     in_loop: mir::LocalNodeId<mir::Block>,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
 ) -> Option<LoopGuardBranch> {
     // read the header terminator
@@ -123,7 +124,7 @@ pub fn block_is_speculatable_no_reads(
 /// Find a loop preheader and its header arguments.
 pub fn loop_preheader(
     header: mir::LocalNodeId<mir::Block>,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     cfg: &ControlTable,
     dominator: &DominatorTable,
     tree: &mir::Tree,
@@ -168,9 +169,9 @@ pub fn control_instructions_for_latch(
     latch: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     definitions: &DefinitionTable,
-) -> HashSet<mir::LocalNodeId<mir::Instruction>> {
+) -> FxIndexSet<mir::LocalNodeId<mir::Instruction>> {
     // collect control values from header and latch arguments
-    let mut control_values = HashSet::new();
+    let mut control_values = FxIndexSet::default();
     let header_block = tree.get(header);
     for instruction_id in &header_block.instructions {
         let instruction = tree.get(*instruction_id);
@@ -186,7 +187,7 @@ pub fn control_instructions_for_latch(
     }
 
     // walk backward from control values to latch definitions
-    let mut control_instructions = HashSet::new();
+    let mut control_instructions = FxIndexSet::default();
     let mut worklist: VecDeque<_> = control_values.into_iter().collect();
     while let Some(value) = worklist.pop_front() {
         let Some(definition) = definitions.instruction(value) else {
@@ -210,7 +211,7 @@ pub fn control_instructions_for_latch(
 
 /// Collect loop memory effects across all loop blocks.
 pub fn collect_loop_effects(
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     function: &mir::Function,
     tree: &mir::Tree,
     accesses: &mir::AccessTable,
@@ -282,13 +283,13 @@ pub fn collect_loop_effects(
 /// Clone all blocks in a loop, creating fresh block and value ids.
 #[allow(clippy::type_complexity)]
 pub fn clone_loop_blocks(
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
 ) -> (
-    HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    HashMap<mir::Value, mir::Value>,
+    FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    FxIndexMap<mir::Value, mir::Value>,
 ) {
     // clone loop blocks and values
     let (block_map, value_map, _) =
@@ -299,14 +300,14 @@ pub fn clone_loop_blocks(
 /// Clone all blocks in a loop, returning instruction id mappings.
 #[allow(clippy::type_complexity)]
 pub fn clone_loop_blocks_with_instructions(
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
 ) -> (
-    HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    HashMap<mir::Value, mir::Value>,
-    HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>,
+    FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    FxIndexMap<mir::Value, mir::Value>,
+    FxIndexMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>,
 ) {
     // clone loop blocks and values
     clone_loop_blocks_internal(loop_blocks, function, tree, accesses)
@@ -315,19 +316,19 @@ pub fn clone_loop_blocks_with_instructions(
 /// Clone loop blocks and return block, value, and instruction maps.
 #[allow(clippy::type_complexity)]
 fn clone_loop_blocks_internal(
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
 ) -> (
-    HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    HashMap<mir::Value, mir::Value>,
-    HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>,
+    FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    FxIndexMap<mir::Value, mir::Value>,
+    FxIndexMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>,
 ) {
     // initialize clone maps
-    let mut block_map = HashMap::new();
-    let mut value_map = HashMap::new();
-    let mut instruction_id_map = HashMap::new();
+    let mut block_map = FxIndexMap::default();
+    let mut value_map = FxIndexMap::default();
+    let mut instruction_id_map = FxIndexMap::default();
     let Some(body) = function.body_mut() else {
         unreachable!("cannot clone loop blocks in a function without a body");
     };

@@ -1,7 +1,5 @@
-use std::collections::{HashMap, HashSet};
-
 use crate as mir;
-use destack_core::{float_from_bits, float_to_bits};
+use destack_core::{FxIndexMap, FxIndexSet, float_from_bits, float_to_bits};
 
 use crate::{
     Analysis, BlockParamForwarding, DefinitionTable, FunctionCache, TargetLayout, ValueDefinition,
@@ -15,7 +13,7 @@ use super::{ControlTable, Loop, LoopTable};
 #[derive(Debug)]
 pub struct EvolutionTable {
     /// SCEV expressions indexed by loop, then keyed by SSA value.
-    loop_scev: Vec<HashMap<mir::Value, Scev>>,
+    loop_scev: Vec<FxIndexMap<mir::Value, Scev>>,
 }
 
 /// Symbolic expression for scalar evolution.
@@ -167,7 +165,7 @@ impl EvolutionTable {
     }
 
     /// Return every evolution in one loop.
-    pub fn loop_scevs(&self, loop_index: usize) -> Option<&HashMap<mir::Value, Scev>> {
+    pub fn loop_scevs(&self, loop_index: usize) -> Option<&FxIndexMap<mir::Value, Scev>> {
         self.loop_scev.get(loop_index)
     }
 }
@@ -215,11 +213,11 @@ struct LoopScevBuilder<'a> {
     /// Block parameter forwarding information.
     forwarding: &'a BlockParamForwarding,
     /// Loop invariant values.
-    invariants: HashSet<mir::Value>,
+    invariants: FxIndexSet<mir::Value>,
     /// Cached SCEV expressions.
-    cache: HashMap<mir::Value, Scev>,
+    cache: FxIndexMap<mir::Value, Scev>,
     /// Values currently being computed.
-    in_progress: HashSet<mir::Value>,
+    in_progress: FxIndexSet<mir::Value>,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
@@ -245,14 +243,14 @@ impl<'a> LoopScevBuilder<'a> {
             definitions,
             forwarding,
             invariants,
-            cache: HashMap::new(),
-            in_progress: HashSet::new(),
+            cache: FxIndexMap::default(),
+            in_progress: FxIndexSet::default(),
             target_layout,
         }
     }
 
     /// Build the SCEV map for this loop.
-    fn build(&mut self) -> HashMap<mir::Value, Scev> {
+    fn build(&mut self) -> FxIndexMap<mir::Value, Scev> {
         let mut values = Vec::new();
 
         // collect values defined in the loop
@@ -298,7 +296,7 @@ impl<'a> LoopScevBuilder<'a> {
         let scev = self.compute_scev(value);
 
         // cache the evolution
-        self.in_progress.remove(&value);
+        self.in_progress.swap_remove(&value);
         self.cache.insert(value, scev.clone());
 
         scev
@@ -726,8 +724,8 @@ impl<'a> LoopScevBuilder<'a> {
         tree: &mir::Tree,
         lp: &Loop,
         definitions: &DefinitionTable,
-    ) -> HashSet<mir::Value> {
-        let mut invariants = HashSet::new();
+    ) -> FxIndexSet<mir::Value> {
+        let mut invariants = FxIndexSet::default();
 
         // seed invariants with function parameters
         for param in &function.parameters {
@@ -783,7 +781,7 @@ impl<'a> LoopScevBuilder<'a> {
     fn uses_invariants(
         instruction: &mir::Instruction,
         tree: &mir::Tree,
-        invariants: &HashSet<mir::Value>,
+        invariants: &FxIndexSet<mir::Value>,
     ) -> bool {
         // check inline operands
         for value in instruction.uses() {

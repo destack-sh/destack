@@ -1,9 +1,8 @@
-use std::collections::HashMap;
 use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
 
-use destack_core::{SectionEntry, StringId};
+use destack_core::{FxIndexMap, SectionEntry, StringId};
 use destack_serde::Reflect;
 
 use crate::{FloatType, LocalNodeId, Nullability, TraceMap, Type};
@@ -14,7 +13,7 @@ pub struct LayoutTable {
     /// Layout entries indexed by LayoutId.
     entries: Vec<Layout>,
     /// Layout ids keyed by type id.
-    types: HashMap<LocalNodeId<Type>, LayoutId>,
+    types: FxIndexMap<LocalNodeId<Type>, LayoutId>,
 }
 
 impl LayoutTable {

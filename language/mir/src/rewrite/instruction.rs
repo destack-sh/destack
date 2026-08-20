@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate as mir;
 use crate::{MemoryNode, MemoryTable, terminator_substitute_uses};
@@ -365,9 +365,9 @@ pub fn instruction_allows_read_only_motion(
 pub fn instruction_collect_used_values(
     function: &mir::Function,
     tree: &mir::Tree,
-) -> HashSet<mir::Value> {
+) -> FxIndexSet<mir::Value> {
     // seed the used value set
-    let mut used = HashSet::new();
+    let mut used = FxIndexSet::default();
 
     // add function parameters as implicitly used (they're inputs)
     for param in &function.parameters {
@@ -408,7 +408,7 @@ pub fn instruction_collect_used_values(
 /// Substitute mapped operands in one instruction.
 pub fn instruction_substitute_uses(
     instruction: &mir::Instruction,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> mir::Instruction {
     // skip when no substitutions are provided
     if substitutions.is_empty() {
@@ -926,7 +926,7 @@ pub fn instruction_substitute_uses(
 /// Substitute mapped operands and externalized arguments in one instruction.
 pub fn instruction_substitute_uses_in_tree(
     instruction: &mir::Instruction,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
     tree: &mut mir::Tree,
 ) -> mir::Instruction {
     // skip when no substitutions are provided
@@ -1127,7 +1127,7 @@ pub fn instruction_substitute_uses_in_tree(
 /// Substitute values in a slice using the provided mapping.
 pub fn substitute_values(
     values: &[mir::Value],
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> Vec<mir::Value> {
     // fast path for empty substitutions
     if substitutions.is_empty() {
@@ -1143,8 +1143,8 @@ pub fn substitute_values(
 
 /// Resolve transitive value substitutions.
 pub fn resolve_substitution_chains(
-    mut substitutions: HashMap<mir::Value, mir::Value>,
-) -> HashMap<mir::Value, mir::Value> {
+    mut substitutions: FxIndexMap<mir::Value, mir::Value>,
+) -> FxIndexMap<mir::Value, mir::Value> {
     for value in substitutions.keys().copied().collect::<Vec<_>>() {
         let mut replacement = substitutions[&value];
 
@@ -1167,8 +1167,8 @@ pub fn apply_substitutions_in_function(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-    to_remove: Option<&HashSet<mir::LocalNodeId<mir::Instruction>>>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
+    to_remove: Option<&FxIndexSet<mir::LocalNodeId<mir::Instruction>>>,
 ) -> bool {
     // check if work is required
     let has_substitutions = !substitutions.is_empty();
@@ -1238,7 +1238,7 @@ pub fn clone_instruction_tables(
     accesses: &mut mir::AccessTable,
     original: mir::LocalNodeId<mir::Instruction>,
     cloned: mir::LocalNodeId<mir::Instruction>,
-    value_map: &HashMap<mir::Value, mir::Value>,
+    value_map: &FxIndexMap<mir::Value, mir::Value>,
 ) {
     // preserve instruction source by default
     if let Some(source_id) = tree.get_source(original.id) {
@@ -1264,7 +1264,7 @@ pub fn clone_instruction_tables(
 pub fn remap_instruction_memory_accesses(
     accesses: &mut mir::AccessTable,
     instruction: mir::LocalNodeId<mir::Instruction>,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) {
     // skip when no substitutions are provided
     if substitutions.is_empty() {
@@ -1291,7 +1291,7 @@ pub fn remap_instruction_memory_accesses(
 /// Remap every value in one instruction.
 pub fn instruction_map(
     instruction: &mir::Instruction,
-    value_map: &HashMap<mir::Value, mir::Value>,
+    value_map: &FxIndexMap<mir::Value, mir::Value>,
     tree: &mut mir::Tree,
 ) -> mir::Instruction {
     // remap values through the provided map
@@ -1878,8 +1878,8 @@ pub fn instruction_map(
 /// Remap values and locals in one instruction.
 pub fn instruction_map_with_locals(
     instruction: &mir::Instruction,
-    value_map: &HashMap<mir::Value, mir::Value>,
-    local_map: &HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
+    value_map: &FxIndexMap<mir::Value, mir::Value>,
+    local_map: &FxIndexMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
     tree: &mut mir::Tree,
 ) -> mir::Instruction {
     // create a value remapper for simple value uses
@@ -2469,8 +2469,8 @@ pub fn instruction_map_with_locals(
 pub fn terminator_remap(
     tree: &mut mir::Tree,
     terminator: &mut mir::Terminator,
-    block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    value_map: &HashMap<mir::Value, mir::Value>,
+    block_map: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    value_map: &FxIndexMap<mir::Value, mir::Value>,
 ) {
     // remap one block target in place
     let remap_target = |target: &mut mir::BlockTarget| {
@@ -2659,7 +2659,7 @@ pub fn terminator_remap(
 fn remap_value_slice(
     tree: &mut mir::Tree,
     slice: mir::ValueSlice,
-    value_map: &HashMap<mir::Value, mir::Value>,
+    value_map: &FxIndexMap<mir::Value, mir::Value>,
 ) -> mir::ValueSlice {
     let values = tree
         .get_values(slice)

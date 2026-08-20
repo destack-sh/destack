@@ -20,7 +20,7 @@ destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 
 # general
-indexmap = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 smallvec = { workspace = true, features = ["serde"] }
 

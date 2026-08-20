@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use crate as mir;
 use crate::DefinitionTable;
-use destack_core::{float_from_bits, float_to_bits};
+use destack_core::{FxIndexMap, float_from_bits, float_to_bits};
 
 use super::{
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
@@ -34,7 +32,7 @@ pub trait ConstantLookup {
     fn get_constant(&self, value: mir::Value) -> Option<&mir::Constant>;
 }
 
-impl ConstantLookup for HashMap<mir::Value, mir::Constant> {
+impl ConstantLookup for FxIndexMap<mir::Value, mir::Constant> {
     /// Return the constant value for a MIR value when known.
     fn get_constant(&self, value: mir::Value) -> Option<&mir::Constant> {
         self.get(&value)
@@ -147,7 +145,7 @@ pub fn apply_constant_parameters(
     accesses: &mut mir::AccessTable,
 ) -> bool {
     // prepare the substitution map and new instructions
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
     let mut new_instructions = Vec::new();
 
     // allocate new constants at the entry block

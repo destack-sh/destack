@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -10,9 +10,9 @@ use crate::{Function, LocalNodeId, ReferenceKind, Storage, Tree, Type};
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct DropTable {
     /// Generated destructors keyed by type and storage.
-    destructors: HashMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
+    destructors: FxIndexMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
     /// User-authored drop hooks keyed by type and storage.
-    hooks: HashMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
+    hooks: FxIndexMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
 }
 
 impl DropTable {
@@ -88,7 +88,7 @@ impl DropTable {
             return true;
         }
 
-        self.children_require_destructor(ty, storage, tree, &mut HashSet::new())
+        self.children_require_destructor(ty, storage, tree, &mut FxIndexSet::default())
     }
 
     /// Record the generated destructor for a type in one storage.
@@ -143,7 +143,7 @@ impl DropTable {
         ty: LocalNodeId<Type>,
         storage: Storage,
         tree: &Tree,
-        seen: &mut HashSet<LocalNodeId<Type>>,
+        seen: &mut FxIndexSet<LocalNodeId<Type>>,
     ) -> bool {
         match tree.get(ty) {
             Type::Struct { fields, .. } => fields.iter().any(|field| {
@@ -179,7 +179,7 @@ impl DropTable {
         ty: LocalNodeId<Type>,
         storage: Storage,
         tree: &Tree,
-        seen: &mut HashSet<LocalNodeId<Type>>,
+        seen: &mut FxIndexSet<LocalNodeId<Type>>,
     ) -> bool {
         if tree.get(ty).copy(tree).is_yes() {
             return false;
@@ -195,7 +195,7 @@ impl DropTable {
         }
 
         let requires = self.children_require_destructor(ty, storage, tree, seen);
-        seen.remove(&ty);
+        seen.swap_remove(&ty);
 
         requires
     }

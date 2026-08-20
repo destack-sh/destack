@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +10,7 @@ use crate::{AtomicAccess, Global, Instruction, Local, LocalNodeId, Tree, Value};
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct AccessTable {
     /// Memory accesses keyed by instruction id.
-    accesses: HashMap<LocalNodeId<Instruction>, Vec<MemoryAccess>>,
+    accesses: FxIndexMap<LocalNodeId<Instruction>, Vec<MemoryAccess>>,
 }
 
 impl AccessTable {
@@ -32,7 +32,7 @@ impl AccessTable {
 
     /// Remove memory accesses for an instruction id.
     pub fn remove(&mut self, instruction: LocalNodeId<Instruction>) -> Option<Vec<MemoryAccess>> {
-        self.accesses.remove(&instruction)
+        self.accesses.shift_remove(&instruction)
     }
 
     /// Return whether one instruction has ordered memory behavior.

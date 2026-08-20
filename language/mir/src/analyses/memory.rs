@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate as mir;
+use destack_core::{FxIndexMap, FxIndexSet};
 use smallvec::SmallVec;
 
 use crate::{
@@ -581,17 +582,20 @@ impl MemoryTable {
 
     /// Compute the blocks that require memory phi nodes.
     fn phi_blocks(
-        definitions: &HashSet<mir::LocalNodeId<mir::Block>>,
-        frontiers: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
-        reachable: &HashSet<mir::LocalNodeId<mir::Block>>,
+        definitions: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
+        frontiers: &FxIndexMap<
+            mir::LocalNodeId<mir::Block>,
+            FxIndexSet<mir::LocalNodeId<mir::Block>>,
+        >,
+        reachable: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     ) -> Vec<mir::LocalNodeId<mir::Block>> {
         let mut worklist: VecDeque<_> = definitions.iter().copied().collect();
-        let mut queued: HashSet<_> = definitions.iter().copied().collect();
-        let mut blocks = HashSet::new();
+        let mut queued: FxIndexSet<_> = definitions.iter().copied().collect();
+        let mut blocks = FxIndexSet::default();
 
         // close definition blocks over their iterated dominance frontier
         while let Some(block) = worklist.pop_front() {
-            queued.remove(&block);
+            queued.swap_remove(&block);
 
             let Some(frontier) = frontiers.get(&block) else {
                 continue;
@@ -719,8 +723,8 @@ impl MemoryTable {
         let query = MemoryAccessQuery::from_effect(&use_access_data.effect);
 
         // compute the clobbering access
-        let mut cache = HashMap::new();
-        let mut visiting = HashSet::new();
+        let mut cache = FxIndexMap::default();
+        let mut visiting = FxIndexSet::default();
         self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
     }
 
@@ -740,8 +744,8 @@ impl MemoryTable {
         let query = MemoryAccessQuery::from_effect(&def_access_data.effect);
 
         // compute the clobbering access
-        let mut cache = HashMap::new();
-        let mut visiting = HashSet::new();
+        let mut cache = FxIndexMap::default();
+        let mut visiting = FxIndexSet::default();
         self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
     }
 
@@ -761,8 +765,8 @@ impl MemoryTable {
         let query = MemoryAccessQuery::from_region(region);
 
         // compute the clobbering access
-        let mut cache = HashMap::new();
-        let mut visiting = HashSet::new();
+        let mut cache = FxIndexMap::default();
+        let mut visiting = FxIndexSet::default();
         self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
     }
 
@@ -812,8 +816,8 @@ impl MemoryTable {
         access_id: MemoryAccessId,
         query: &MemoryAccessQuery,
         alias: &AliasTable,
-        cache: &mut HashMap<(MemoryAccessId, MemoryAccessQuery), MemoryAccessId>,
-        visiting: &mut HashSet<MemoryAccessId>,
+        cache: &mut FxIndexMap<(MemoryAccessId, MemoryAccessQuery), MemoryAccessId>,
+        visiting: &mut FxIndexSet<MemoryAccessId>,
     ) -> MemoryAccessId {
         // consult the cache
         if let Some(cached) = cache.get(&(access_id, query.clone())) {
@@ -869,7 +873,7 @@ impl MemoryTable {
         };
 
         // store and return
-        visiting.remove(&access_id);
+        visiting.swap_remove(&access_id);
         cache.insert((access_id, query.clone()), result);
         result
     }
@@ -929,11 +933,11 @@ struct MemoryAccessCollection {
     /// Memory accesses indexed by block id.
     block_accesses: NodeTable<mir::Block, Vec<CollectedAccess>>,
     /// Blocks that contain memory definitions.
-    def_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    def_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
     /// Blocks reachable from entry.
     reachable_blocks: Vec<mir::LocalNodeId<mir::Block>>,
     /// Reachable block set.
-    reachable: HashSet<mir::LocalNodeId<mir::Block>>,
+    reachable: FxIndexSet<mir::LocalNodeId<mir::Block>>,
 }
 
 /// Collector for memory accesses.
@@ -977,11 +981,11 @@ impl<'a> MemoryAccessCollector<'a> {
     fn collect(&mut self, entry: mir::LocalNodeId<mir::Block>) -> MemoryAccessCollection {
         // collect reachable blocks
         let reachable_blocks = collect_reachable_blocks(self.function, self.tree, entry);
-        let reachable: HashSet<_> = reachable_blocks.iter().copied().collect();
+        let reachable: FxIndexSet<_> = reachable_blocks.iter().copied().collect();
 
         // collect memory accesses per block
         let mut block_accesses = NodeTable::from_nodes(self.function.blocks(), Vec::new);
-        let mut def_blocks = HashSet::new();
+        let mut def_blocks = FxIndexSet::default();
 
         // scan reachable blocks
         for &block_id in &reachable_blocks {
@@ -1794,7 +1798,7 @@ struct MemoryRenamer<'a> {
     /// Entry block id.
     entry: mir::LocalNodeId<mir::Block>,
     /// Reachable block set.
-    reachable: HashSet<mir::LocalNodeId<mir::Block>>,
+    reachable: FxIndexSet<mir::LocalNodeId<mir::Block>>,
     /// Dominator tree children.
     children: NodeTable<mir::Block, Vec<mir::LocalNodeId<mir::Block>>>,
 }
@@ -1808,7 +1812,7 @@ impl<'a> MemoryRenamer<'a> {
         reachable_blocks: &[mir::LocalNodeId<mir::Block>],
     ) -> Self {
         // build reachable set
-        let reachable: HashSet<_> = reachable_blocks.iter().copied().collect();
+        let reachable: FxIndexSet<_> = reachable_blocks.iter().copied().collect();
 
         // build dominator tree children map
         let mut children = NodeTable::from_nodes(reachable_blocks, Vec::new);
@@ -1898,8 +1902,6 @@ impl<'a> MemoryRenamer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use super::*;
     use crate::analyses::tests::TestProgram;
 
@@ -2815,7 +2817,7 @@ b3:
             panic!("expected memory phi");
         };
 
-        let incoming_blocks: HashSet<_> = phi.incoming.iter().map(|(block, _)| *block).collect();
+        let incoming_blocks: FxIndexSet<_> = phi.incoming.iter().map(|(block, _)| *block).collect();
         let body_block = function.block(2);
 
         assert!(incoming_blocks.contains(&function.block(0)));

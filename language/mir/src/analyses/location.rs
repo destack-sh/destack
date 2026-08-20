@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate as mir;
 
@@ -499,7 +499,7 @@ impl MemoryPlace {
 #[derive(Debug)]
 pub(super) struct MemoryRegionBuilder<'a> {
     /// Cached region results.
-    cache: HashMap<mir::Value, MemoryRegion>,
+    cache: FxIndexMap<mir::Value, MemoryRegion>,
     /// Value definitions for address provenance.
     definitions: &'a DefinitionTable,
     /// The MIR tree.
@@ -519,7 +519,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         target_layout: TargetLayout,
     ) -> Self {
         Self {
-            cache: HashMap::new(),
+            cache: FxIndexMap::default(),
             definitions,
             tree,
             function,

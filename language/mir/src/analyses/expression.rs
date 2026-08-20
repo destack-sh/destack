@@ -1,7 +1,6 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_core::BitSet;
+use destack_core::{BitSet, FxIndexMap};
 
 use crate as mir;
 
@@ -35,7 +34,7 @@ struct ExpressionUniverse {
     /// Expressions indexed by dense expression id.
     expressions: Vec<PureExpression>,
     /// Dense ids indexed by expression.
-    indices: HashMap<PureExpression, usize>,
+    indices: FxIndexMap<PureExpression, usize>,
 }
 
 impl PartialEq for ExpressionState {
@@ -169,7 +168,7 @@ impl ExpressionUniverse {
     /// Intern every expression occurring in one function.
     fn build(function: &mir::Function, tree: &mir::Tree) -> Arc<Self> {
         let mut expressions = Vec::new();
-        let mut indices = HashMap::new();
+        let mut indices = FxIndexMap::default();
 
         // assign one dense id to each distinct expression
         for &block_id in function.blocks() {

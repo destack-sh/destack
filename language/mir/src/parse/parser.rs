@@ -1,6 +1,4 @@
-use std::collections::{HashMap, HashSet};
-
-use destack_core::{Blob, StringPool};
+use destack_core::{Blob, FxIndexMap, FxIndexSet, StringPool};
 use destack_source::{
     DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId, NodeSpanList,
     NodeSpanType, Span,
@@ -137,21 +135,21 @@ pub struct Parser {
     /// The diagnostics produced while parsing.
     pub(super) diagnostics: DiagnosticCollector,
     /// Map from concrete function names to their ids for forward references.
-    pub(super) function_map: HashMap<(String, Vec<StaticId>), LocalNodeId<Function>>,
+    pub(super) function_map: FxIndexMap<(String, Vec<StaticId>), LocalNodeId<Function>>,
     /// Map from global names to their ids (for forward references).
-    pub(super) global_map: HashMap<String, LocalNodeId<Global>>,
+    pub(super) global_map: FxIndexMap<String, LocalNodeId<Global>>,
     /// Map from type declaration names to their ids (for references).
-    pub(super) type_declaration_map: HashMap<(String, Vec<StaticId>), LocalNodeId<Type>>,
+    pub(super) type_declaration_map: FxIndexMap<(String, Vec<StaticId>), LocalNodeId<Type>>,
     /// Set of type declarations that have been defined.
-    pub(super) type_declaration_definitions: HashSet<(String, Vec<StaticId>)>,
+    pub(super) type_declaration_definitions: FxIndexSet<(String, Vec<StaticId>)>,
     /// Map from symbolic block names to their predeclared block ids.
-    pub(super) block_name_map: HashMap<String, LocalNodeId<Block>>,
+    pub(super) block_name_map: FxIndexMap<String, LocalNodeId<Block>>,
     /// Blocks predeclared for the current function body in source order.
     pub(super) predeclared_blocks: Vec<LocalNodeId<Block>>,
     /// SSA values defined in the current function.
-    pub(super) defined_values: HashSet<Value>,
+    pub(super) defined_values: FxIndexSet<Value>,
     /// Map from symbolic local names to their local ids.
-    pub(super) local_name_map: HashMap<String, LocalNodeId<Local>>,
+    pub(super) local_name_map: FxIndexMap<String, LocalNodeId<Local>>,
     /// The function currently being parsed.
     pub(super) current_function: Option<LocalNodeId<Function>>,
     /// SSA value types for the current function.
@@ -190,14 +188,14 @@ impl Parser {
             file_id: file.id,
             blob: file.blob(),
             diagnostics: DiagnosticCollector::new(),
-            function_map: HashMap::new(),
-            global_map: HashMap::new(),
-            type_declaration_map: HashMap::new(),
-            type_declaration_definitions: HashSet::new(),
-            block_name_map: HashMap::new(),
+            function_map: FxIndexMap::default(),
+            global_map: FxIndexMap::default(),
+            type_declaration_map: FxIndexMap::default(),
+            type_declaration_definitions: FxIndexSet::default(),
+            block_name_map: FxIndexMap::default(),
             predeclared_blocks: Vec::new(),
-            defined_values: HashSet::new(),
-            local_name_map: HashMap::new(),
+            defined_values: FxIndexSet::default(),
+            local_name_map: FxIndexMap::default(),
             current_function: None,
             value_types: Vec::new(),
             next_value_id: 0,

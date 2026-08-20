@@ -1,7 +1,6 @@
 use destack_serde::Reflect;
-use std::collections::HashMap;
 
-use destack_core::{BitSet, DenseGraph};
+use destack_core::{BitSet, DenseGraph, FxIndexMap};
 use serde::{Deserialize, Serialize};
 
 use super::{Analysis, AnalysisCache, Mutation};
@@ -118,7 +117,7 @@ impl LinkTable {
             .iter()
             .enumerate()
             .map(|(index, (symbol, _))| (*symbol, index))
-            .collect::<HashMap<_, _>>();
+            .collect::<FxIndexMap<_, _>>();
         references.sort_unstable_by_key(|(source, edge)| (*source, *edge));
 
         let mut offsets = vec![0u32; nodes.len() + 1];
@@ -356,7 +355,7 @@ impl LinkSupergraph {
         symbols.sort_unstable();
 
         // index each symbol to its dense id for edge translation
-        let index: HashMap<Symbol, u32> = symbols
+        let index: FxIndexMap<Symbol, u32> = symbols
             .iter()
             .enumerate()
             .map(|(dense, symbol)| (*symbol, dense as u32))

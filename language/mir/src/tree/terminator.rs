@@ -997,7 +997,7 @@ impl Terminator {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use destack_core::FxIndexMap;
 
     use crate::parse::{ParseOptions, Parser, test_file};
     use crate::{BlockId, Edge, Function, Successor, Terminator, Tree, Type};
@@ -1145,7 +1145,7 @@ b2(v3: int32):
         let edge = Edge::new(source, Successor::NewSuccess, destination);
 
         // split the exact success edge
-        let mut edge_blocks = HashMap::new();
+        let mut edge_blocks = FxIndexMap::default();
         let mut is_changed = false;
         let split = edge.split(&mut function, &mut tree, &mut edge_blocks, &mut is_changed);
         tree.set(function_id, function);

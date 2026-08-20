@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate as mir;
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
     ControlTable, DefinitionTable, DominatorTable, UseTable, instruction_substitute_uses_in_tree,
@@ -30,7 +31,7 @@ pub fn collect_reachable_blocks(
 ) -> Vec<mir::LocalNodeId<mir::Block>> {
     // seed worklist with entry
     let mut worklist = VecDeque::new();
-    let mut visited = HashSet::new();
+    let mut visited = FxIndexSet::default();
     worklist.push_back(entry);
     visited.insert(entry);
 
@@ -59,15 +60,15 @@ pub fn compute_dominance_frontiers(
     blocks: &[mir::LocalNodeId<mir::Block>],
     cfg: &ControlTable,
     dominator: &DominatorTable,
-) -> HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Block>, FxIndexSet<mir::LocalNodeId<mir::Block>>> {
     // initialize frontiers for each block
-    let mut frontiers: HashMap<
+    let mut frontiers: FxIndexMap<
         mir::LocalNodeId<mir::Block>,
-        HashSet<mir::LocalNodeId<mir::Block>>,
+        FxIndexSet<mir::LocalNodeId<mir::Block>>,
     > = blocks
         .iter()
         .copied()
-        .map(|block| (block, HashSet::new()))
+        .map(|block| (block, FxIndexSet::default()))
         .collect();
 
     // compute dominance frontiers with the standard algorithm
@@ -138,7 +139,7 @@ pub fn ensure_edge_block(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     cfg: &ControlTable,
-    edge_blocks: &mut HashMap<
+    edge_blocks: &mut FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
         mir::LocalNodeId<mir::Block>,
     >,
@@ -194,7 +195,7 @@ impl mir::Edge {
         self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        edge_blocks: &mut HashMap<mir::Edge, mir::LocalNodeId<mir::Block>>,
+        edge_blocks: &mut FxIndexMap<mir::Edge, mir::LocalNodeId<mir::Block>>,
         changed: &mut bool,
     ) -> mir::LocalNodeId<mir::Block> {
         if let Some(existing) = edge_blocks.get(&self) {
@@ -253,7 +254,7 @@ impl mir::Edge {
 /// Count the unique successors for a terminator.
 fn successor_count(tree: &mir::Tree, terminator: &mir::Terminator) -> usize {
     // track unique successors
-    let mut unique = HashSet::new();
+    let mut unique = FxIndexSet::default();
     for successor in terminator.successors(tree) {
         unique.insert(successor);
     }
@@ -304,14 +305,14 @@ fn redirect_successor_to_edge(
 #[derive(Debug, Clone)]
 pub struct BlockParamForwarding {
     /// Mapping from block parameters to their forwarded arguments.
-    map: HashMap<mir::Value, mir::Value>,
+    map: FxIndexMap<mir::Value, mir::Value>,
 }
 
 impl BlockParamForwarding {
     /// Build forwarding information for block parameters.
     pub fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlTable) -> Self {
         // map parameters to consistent incoming values
-        let mut map = HashMap::new();
+        let mut map = FxIndexMap::default();
 
         // scan blocks for forwarded parameters
         for &block_id in function.blocks() {
@@ -416,7 +417,7 @@ pub fn apply_substitutions_in_dominated_blocks(
     accesses: &mut mir::AccessTable,
     dominator: &DominatorTable,
     root: mir::LocalNodeId<mir::Block>,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> bool {
     // skip when there is nothing to substitute
     if substitutions.is_empty() {
@@ -499,7 +500,7 @@ pub fn block_uses_available_in_predecessor(
     dominator: &DominatorTable,
 ) -> bool {
     // collect block parameter values
-    let mut param_values: HashSet<mir::Value> = HashSet::new();
+    let mut param_values: FxIndexSet<mir::Value> = FxIndexSet::default();
 
     for param in &block.parameters {
         param_values.insert(param.value);
@@ -538,7 +539,7 @@ pub fn resolve_edge_value(
     block_id: mir::LocalNodeId<mir::Block>,
     predecessor: &mir::Block,
     tree: &mir::Tree,
-    param_indices: &HashMap<mir::Value, usize>,
+    param_indices: &FxIndexMap<mir::Value, usize>,
 ) -> Option<mir::Value> {
     // map block parameters to predecessor arguments
     let Some(&param_index) = param_indices.get(&value) else {
@@ -586,7 +587,8 @@ pub fn block_parameters_used_outside_block(
 /// Thread jumps through empty and passthrough blocks.
 pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> bool {
     // find all empty blocks (no instructions) that can be threaded
-    let mut threadable: HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock> = HashMap::new();
+    let mut threadable: FxIndexMap<mir::LocalNodeId<mir::Block>, ThreadableBlock> =
+        FxIndexMap::default();
 
     // scan blocks to identify threadable candidates
     for &block_id in function.blocks() {
@@ -886,12 +888,12 @@ enum ResolvedTarget {
 fn block_resolve_jump_target(
     target: mir::LocalNodeId<mir::Block>,
     arguments: &[mir::Value],
-    threadable: &HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock>,
+    threadable: &FxIndexMap<mir::LocalNodeId<mir::Block>, ThreadableBlock>,
 ) -> ResolvedTarget {
     // seed the traversal state
     let mut current = target;
     let mut current_args = arguments.to_vec();
-    let mut visited = HashSet::new();
+    let mut visited = FxIndexSet::default();
 
     // follow threadable blocks until a terminal target is found
     loop {
@@ -967,14 +969,14 @@ fn block_is_passthrough_jump(block: &mir::Block, arguments: &[mir::Value]) -> bo
 pub fn terminator_substitute_uses(
     tree: &mut mir::Tree,
     terminator: &mir::Terminator,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> mir::Terminator {
     if substitutions.is_empty() {
         return terminator.clone();
     }
 
     let mut terminator = terminator.clone();
-    let block_map = HashMap::new();
+    let block_map = FxIndexMap::default();
     terminator_remap(tree, &mut terminator, &block_map, substitutions);
 
     terminator

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,7 @@ pub struct MoveTable {
     /// Move paths in dense identifier order.
     paths: Vec<MovePath>,
     /// Dense identifiers keyed by canonical place.
-    ids: HashMap<Place, MovePathId>,
+    ids: FxIndexMap<Place, MovePathId>,
     /// Root paths keyed by SSA value.
     values: Vec<Option<MovePathId>>,
     /// Root paths keyed by function local.
@@ -26,7 +26,7 @@ impl MoveTable {
     pub fn build(function: &Function, tree: &Tree, places: &PlaceTable) -> Self {
         let mut table = Self {
             paths: Vec::new(),
-            ids: HashMap::new(),
+            ids: FxIndexMap::default(),
             values: vec![None; function.value_types().len()],
             locals: NodeTable::from_nodes(function.locals(), || None),
         };
@@ -57,7 +57,7 @@ impl MoveTable {
         }
 
         // collect types that MIR moves or reconstructs by projection
-        let mut projected_types = HashSet::new();
+        let mut projected_types = FxIndexSet::default();
         for &block in function.blocks() {
             for &instruction in &tree.get(block).instructions {
                 let aggregate = match tree.get(instruction) {

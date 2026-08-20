@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate as mir;
 
@@ -201,7 +201,7 @@ impl PureExpression {
     }
 
     /// Apply value substitutions to this pure expression.
-    pub fn substitute(self, substitutions: &HashMap<mir::Value, mir::Value>) -> Self {
+    pub fn substitute(self, substitutions: &FxIndexMap<mir::Value, mir::Value>) -> Self {
         match self {
             Self::Binary {
                 operator,
@@ -291,7 +291,7 @@ pub struct ValueEquivalence<'a> {
     /// Constant propagation results.
     constants: &'a ConstantTable,
     /// Cache of pairwise equivalence results.
-    cache: HashMap<(mir::Value, mir::Value), bool>,
+    cache: FxIndexMap<(mir::Value, mir::Value), bool>,
 }
 
 impl<'a> ValueEquivalence<'a> {
@@ -307,7 +307,7 @@ impl<'a> ValueEquivalence<'a> {
             tree,
             definitions,
             constants,
-            cache: HashMap::new(),
+            cache: FxIndexMap::default(),
         }
     }
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -10,9 +10,9 @@ use crate::{CallSite, Edge, FunctionId, Instruction, LocalNodeId, Symbol, Type, 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Profile {
     /// Per-function profile, by persistent symbol.
-    pub functions: HashMap<Symbol, FunctionProfile>,
+    pub functions: FxIndexMap<Symbol, FunctionProfile>,
     /// Per-global profile, by persistent symbol.
-    pub globals: HashMap<Symbol, GlobalProfile>,
+    pub globals: FxIndexMap<Symbol, GlobalProfile>,
 }
 
 impl Profile {
@@ -41,7 +41,7 @@ impl Profile {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ProfileTable {
     /// Per-function profile site tables.
-    pub functions: HashMap<FunctionId, FunctionProfileTable>,
+    pub functions: FxIndexMap<FunctionId, FunctionProfileTable>,
 }
 
 impl ProfileTable {
@@ -171,11 +171,11 @@ pub struct FunctionProfile {
     /// Function entry execution count.
     pub entry: Count,
     /// Observed control-flow edge counts.
-    pub edges: HashMap<Edge, Count>,
+    pub edges: FxIndexMap<Edge, Count>,
     /// Per-counter execution counts, indexed by [`CounterId`].
     pub counts: Vec<Count>,
     /// Observed value profiles indexed by sampler id.
-    pub values: HashMap<SamplerId, ValueProfile>,
+    pub values: FxIndexMap<SamplerId, ValueProfile>,
 }
 
 impl FunctionProfile {

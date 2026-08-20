@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use super::{Analysis, ExecutionFrequencyOptions, FunctionCache, LoopTable, Mutation};
 use crate::{
@@ -11,7 +11,7 @@ pub struct FrequencyTable {
     /// Frequency of each block relative to the function entry.
     blocks: NodeTable<Block, f64>,
     /// Frequency of each control-flow edge relative to the function entry.
-    edges: HashMap<Edge, f64>,
+    edges: FxIndexMap<Edge, f64>,
 }
 
 impl FrequencyTable {
@@ -49,7 +49,7 @@ impl FrequencyTable {
     }
 
     /// Absolute block execution counts, scaling each frequency by the entry count.
-    pub fn block_counts(&self, entry_count: u64) -> HashMap<LocalNodeId<Block>, u64> {
+    pub fn block_counts(&self, entry_count: u64) -> FxIndexMap<LocalNodeId<Block>, u64> {
         self.blocks
             .iter_nodes()
             .filter_map(|(block, frequency)| {
@@ -99,9 +99,9 @@ impl FrequencyTable {
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionCounts {
     /// Block execution counts.
-    blocks: HashMap<LocalNodeId<Block>, u64>,
+    blocks: FxIndexMap<LocalNodeId<Block>, u64>,
     /// Edge execution counts.
-    edges: HashMap<Edge, u64>,
+    edges: FxIndexMap<Edge, u64>,
 }
 
 impl ExecutionCounts {
@@ -129,12 +129,12 @@ impl ExecutionCounts {
     }
 
     /// Return block execution counts.
-    pub fn blocks(&self) -> &HashMap<LocalNodeId<Block>, u64> {
+    pub fn blocks(&self) -> &FxIndexMap<LocalNodeId<Block>, u64> {
         &self.blocks
     }
 
     /// Return edge execution counts.
-    pub fn edges(&self) -> &HashMap<Edge, u64> {
+    pub fn edges(&self) -> &FxIndexMap<Edge, u64> {
         &self.edges
     }
 
@@ -158,9 +158,9 @@ impl ExecutionCounts {
         function: &Function,
         tree: &Tree,
         profile: Option<&FunctionProfile>,
-        block_counts: &HashMap<LocalNodeId<Block>, u64>,
-    ) -> HashMap<Edge, u64> {
-        let mut counts = HashMap::new();
+        block_counts: &FxIndexMap<LocalNodeId<Block>, u64>,
+    ) -> FxIndexMap<Edge, u64> {
+        let mut counts = FxIndexMap::default();
 
         for &block in function.blocks() {
             // split this block's count across its successors
@@ -208,7 +208,7 @@ enum LevelTarget {
 #[derive(Debug, Clone, Default)]
 struct LoopMass {
     /// Local mass reaching each member per header entry.
-    local: HashMap<LocalNodeId<Block>, f64>,
+    local: FxIndexMap<LocalNodeId<Block>, f64>,
     /// Loop scale, the back-edge geometric series sum.
     scale: f64,
     /// Per-iteration exit distribution leaving the loop, summing to one.
@@ -226,7 +226,7 @@ struct Frequencies<'a> {
     /// Innermost containing loop index for each block.
     innermost: NodeTable<Block, Option<usize>>,
     /// Successor probability for each control-flow edge.
-    probabilities: HashMap<Edge, f64>,
+    probabilities: FxIndexMap<Edge, f64>,
     /// Whether any branch weight is present.
     weighted: bool,
     /// Options for execution frequency analysis.
@@ -268,7 +268,7 @@ impl<'a> Frequencies<'a> {
     fn run(&self) -> FrequencyTable {
         let empty = FrequencyTable {
             blocks: NodeTable::new(),
-            edges: HashMap::new(),
+            edges: FxIndexMap::default(),
         };
 
         // skip unweighted functions
@@ -344,7 +344,7 @@ impl<'a> Frequencies<'a> {
         }
 
         // edge frequency is the source frequency split by branch probability
-        let mut edges = HashMap::new();
+        let mut edges = FxIndexMap::default();
         for &block in self.function.blocks() {
             let source_frequency = *blocks.get(block);
             if source_frequency == 0.0 {
@@ -369,13 +369,13 @@ impl<'a> Frequencies<'a> {
         level: Option<usize>,
         entry: LocalNodeId<Block>,
         masses: &[LoopMass],
-    ) -> (HashMap<LocalNodeId<Block>, f64>, f64, Vec<(Edge, f64)>) {
+    ) -> (FxIndexMap<LocalNodeId<Block>, f64>, f64, Vec<(Edge, f64)>) {
         let order = self.level_order(level, entry, masses);
 
-        let mut local = HashMap::new();
+        let mut local = FxIndexMap::default();
         local.insert(entry, 1.0);
         let mut backedge = 0.0;
-        let mut exits: HashMap<Edge, f64> = HashMap::new();
+        let mut exits: FxIndexMap<Edge, f64> = FxIndexMap::default();
 
         // forward order guarantees every predecessor is settled before its target
         for &node in &order {
@@ -414,7 +414,7 @@ impl<'a> Frequencies<'a> {
                 .collect()
         };
 
-        let mut visited = HashSet::from([entry]);
+        let mut visited = FxIndexSet::from_iter([entry]);
         let mut stack = vec![(entry, successors(entry), 0usize)];
         let mut postorder = Vec::new();
 
@@ -534,8 +534,8 @@ impl<'a> Frequencies<'a> {
         function: &Function,
         tree: &Tree,
         profile: Option<&FunctionProfile>,
-    ) -> (HashMap<Edge, f64>, bool) {
-        let mut probabilities = HashMap::new();
+    ) -> (FxIndexMap<Edge, f64>, bool) {
+        let mut probabilities = FxIndexMap::default();
         let mut weighted = false;
 
         for &block in function.blocks() {
@@ -595,7 +595,7 @@ mod tests {
         else_count: u64,
     ) -> FunctionProfile {
         let terminator = tree.get(tree.get(block).terminator);
-        let mut edges = HashMap::new();
+        let mut edges = FxIndexMap::default();
 
         // attach counts to the structural branch successors
         for (edge, _) in terminator.targets(tree, block) {
@@ -615,7 +615,7 @@ mod tests {
             entry: Count::new(1),
             edges,
             counts: Vec::new(),
-            values: HashMap::<SamplerId, ValueProfile>::new(),
+            values: FxIndexMap::<SamplerId, ValueProfile>::default(),
         }
     }
 
@@ -708,8 +708,8 @@ b3:
         function_profile.entry = Count::new(100);
 
         let profile = Profile {
-            functions: HashMap::from([(function.symbol, function_profile)]),
-            globals: HashMap::new(),
+            functions: FxIndexMap::from_iter([(function.symbol, function_profile)]),
+            globals: FxIndexMap::default(),
         };
         let mut analyses = FunctionCache::new();
         let counts = ExecutionCounts::new(function, &tree, Some(&profile), &mut analyses);

@@ -1,6 +1,7 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 use crate as mir;
+use destack_core::FxIndexMap;
 
 use super::{Analysis, AnalysisCache, Mutation};
 
@@ -19,7 +20,7 @@ impl mir::EffectTable {
         let mut effects = effect_table
             .functions()
             .map(|(function, effect)| (function, effect.clone()))
-            .collect::<HashMap<_, _>>();
+            .collect::<FxIndexMap<_, _>>();
         let mut worklist: VecDeque<_> = function_ids.iter().copied().collect();
 
         // propagate direct-call effects to a fixpoint
@@ -93,7 +94,7 @@ struct FunctionEffectBuilder<'a> {
     /// Static callsite resolutions.
     resolution: &'a mir::ResolutionTable,
     /// Effects available from previous fixpoint iterations.
-    effects: &'a HashMap<mir::FunctionId, mir::FunctionEffect>,
+    effects: &'a FxIndexMap<mir::FunctionId, mir::FunctionEffect>,
     /// Accumulated memory effect.
     memory: MemoryAccumulator,
     /// Accumulated behavior effect.
@@ -110,7 +111,7 @@ impl<'a> FunctionEffectBuilder<'a> {
         accesses: &'a mir::AccessTable,
         effect_table: &'a mir::EffectTable,
         resolution: &'a mir::ResolutionTable,
-        effects: &'a HashMap<mir::FunctionId, mir::FunctionEffect>,
+        effects: &'a FxIndexMap<mir::FunctionId, mir::FunctionEffect>,
     ) -> mir::FunctionEffect {
         let function = tree.get(function_id);
         let mut builder = Self {

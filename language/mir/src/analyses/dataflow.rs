@@ -1,7 +1,8 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate as mir;
 use crate::NodeTable;
+use destack_core::FxIndexSet;
 
 use super::ControlTable;
 
@@ -303,7 +304,7 @@ where
 }
 
 /// Set lattice whose meet operation is union.
-impl<T: Clone + Eq + std::hash::Hash> Lattice for HashSet<T> {
+impl<T: Clone + Eq + std::hash::Hash> Lattice for FxIndexSet<T> {
     fn meet(&self, other: &Self) -> Self {
         self.union(other).cloned().collect()
     }
@@ -333,7 +334,7 @@ exit:
         let function = program.tree.get(function_id);
         let entry = function.entry().expect("missing entry");
         let control = ControlTable::build(function, &program.tree);
-        let state = HashSet::from([0_u8]);
+        let state = FxIndexSet::from_iter([0_u8]);
         let result = Dataflow::forward(
             function,
             &program.tree,
@@ -348,7 +349,7 @@ exit:
             },
         );
 
-        assert_eq!(result.entry(entry), Some(&HashSet::from([0, 1])));
+        assert_eq!(result.entry(entry), Some(&FxIndexSet::from_iter([0, 1])));
     }
 
     /// Forward dataflow should not skip blocks when the first predecessor is unreachable.
@@ -389,7 +390,7 @@ b2:
 
         let function = program.tree.get(function_id);
         let cfg = ControlTable::build(function, &program.tree);
-        let entry_state: HashSet<mir::LocalNodeId<mir::Block>> = [block0].into_iter().collect();
+        let entry_state: FxIndexSet<mir::LocalNodeId<mir::Block>> = [block0].into_iter().collect();
         let result = Dataflow::forward(
             function,
             &program.tree,
@@ -431,7 +432,7 @@ entry(v0: int32):
         let cfg = ControlTable::build(function, &program.tree);
         let entry = function.entry().expect("missing entry");
 
-        let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
+        let exit_state: FxIndexSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
         let result = Dataflow::backward(
             function,
             &program.tree,
@@ -464,7 +465,7 @@ entry(v0: ref<void, managed, readonly>):
         let cfg = ControlTable::build(function, &program.tree);
         let entry = function.entry().expect("missing entry");
 
-        let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
+        let exit_state: FxIndexSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
         let result = Dataflow::backward(
             function,
             &program.tree,

@@ -1,8 +1,7 @@
 use destack_serde::Reflect;
-use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 
-use destack_core::{Arena, StringId};
+use destack_core::{Arena, FxIndexMap, FxIndexSet, StringId};
 use destack_source::{FileId, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -29,7 +28,7 @@ pub struct Tree {
     /// Dense local id and node type by node id.
     pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
     /// Maps global node id → attached attributes.
-    pub(crate) attributes_by_node_id: HashMap<u32, Vec<Attribute>>,
+    pub(crate) attributes_by_node_id: FxIndexMap<u32, Vec<Attribute>>,
     /// DIR source id keyed by MIR node id.
     pub(crate) source_id_by_node_id: Vec<Option<u32>>,
     /// How each pass-created node came to be.
@@ -45,17 +44,17 @@ pub struct Tree {
     /// Leading comment spans keyed by global node id.
     pub(crate) leading_comment_spans_by_node_id: Vec<Option<Span>>,
     /// Parsed attribute spans keyed by global node id.
-    pub(crate) attribute_spans_by_node_id: HashMap<u32, Vec<Span>>,
+    pub(crate) attribute_spans_by_node_id: FxIndexMap<u32, Vec<Span>>,
     /// Parsed declaration keyword spans keyed by global node id.
-    pub(crate) keyword_spans_by_node_id: HashMap<u32, Span>,
+    pub(crate) keyword_spans_by_node_id: FxIndexMap<u32, Span>,
     /// Parsed function parameter spans keyed by global node id.
-    pub(crate) function_parameter_spans_by_node_id: HashMap<u32, Vec<TypedValueSpan>>,
+    pub(crate) function_parameter_spans_by_node_id: FxIndexMap<u32, Vec<TypedValueSpan>>,
     /// Parsed function header spans keyed by global node id.
-    pub(crate) function_header_spans_by_node_id: HashMap<u32, FunctionHeaderSpans>,
+    pub(crate) function_header_spans_by_node_id: FxIndexMap<u32, FunctionHeaderSpans>,
     /// Parsed type field spans keyed by global node id.
-    pub(crate) type_field_spans_by_node_id: HashMap<u32, Vec<FieldSpan>>,
+    pub(crate) type_field_spans_by_node_id: FxIndexMap<u32, Vec<FieldSpan>>,
     /// Parsed type declaration spans keyed by global node id.
-    pub(crate) type_declaration_spans_by_node_id: HashMap<u32, TypeDeclarationSpans>,
+    pub(crate) type_declaration_spans_by_node_id: FxIndexMap<u32, TypeDeclarationSpans>,
 
     // node arenas
     pub(crate) functions: Arena<Function>,
@@ -71,16 +70,16 @@ pub struct Tree {
     pub(crate) statics: Arena<Static>,
 
     /// Canonical type ids grouped by structural hash or identified symbol.
-    pub(crate) type_index: HashMap<TypeIndexKey, SmallVec<[TypeId; 1]>>,
+    pub(crate) type_index: FxIndexMap<TypeIndexKey, SmallVec<[TypeId; 1]>>,
     /// Cycle type ids keyed by canonical serialization.
-    pub(crate) canonical_index: HashMap<String, TypeId>,
+    pub(crate) canonical_index: FxIndexMap<String, TypeId>,
     /// Structural field ids grouped by hash.
-    pub(crate) field_index: HashMap<u64, SmallVec<[LocalNodeId<Field>; 1]>>,
+    pub(crate) field_index: FxIndexMap<u64, SmallVec<[LocalNodeId<Field>; 1]>>,
     /// Canonical compile-time values grouped by structural hash.
-    pub(crate) static_index: HashMap<u64, SmallVec<[StaticId; 1]>>,
+    pub(crate) static_index: FxIndexMap<u64, SmallVec<[StaticId; 1]>>,
 
     /// Lifetime parameters keyed by type node.
-    pub(crate) lifetimes_by_type: HashMap<LocalNodeId<Type>, Vec<LifetimeParameter>>,
+    pub(crate) lifetimes_by_type: FxIndexMap<LocalNodeId<Type>, Vec<LifetimeParameter>>,
 
     // externalized instruction payloads
     /// Flat buffer of MIR values.
@@ -131,19 +130,22 @@ impl Tree {
             first_global_id: 0,
             next_global_id: 0,
             node_index_by_node_id: Vec::with_capacity(capacity),
-            attributes_by_node_id: HashMap::with_capacity(capacity),
+            attributes_by_node_id: FxIndexMap::with_capacity_and_hasher(
+                capacity,
+                Default::default(),
+            ),
             source_id_by_node_id: Vec::with_capacity(capacity),
             origin_by_node_id: OriginTable::default(),
             source_index: SourceIndex::with_capacity(capacity),
             source_text: None,
             tokens: Vec::new(),
             leading_comment_spans_by_node_id: Vec::new(),
-            attribute_spans_by_node_id: HashMap::new(),
-            keyword_spans_by_node_id: HashMap::new(),
-            function_parameter_spans_by_node_id: HashMap::new(),
-            function_header_spans_by_node_id: HashMap::new(),
-            type_field_spans_by_node_id: HashMap::new(),
-            type_declaration_spans_by_node_id: HashMap::new(),
+            attribute_spans_by_node_id: FxIndexMap::default(),
+            keyword_spans_by_node_id: FxIndexMap::default(),
+            function_parameter_spans_by_node_id: FxIndexMap::default(),
+            function_header_spans_by_node_id: FxIndexMap::default(),
+            type_field_spans_by_node_id: FxIndexMap::default(),
+            type_declaration_spans_by_node_id: FxIndexMap::default(),
 
             functions: Arena::new(),
             blocks: Arena::new(),
@@ -155,11 +157,11 @@ impl Tree {
             fields: Arena::new(),
             globals: Arena::new(),
             statics: Arena::new(),
-            type_index: HashMap::new(),
-            canonical_index: HashMap::new(),
-            field_index: HashMap::new(),
-            static_index: HashMap::new(),
-            lifetimes_by_type: HashMap::new(),
+            type_index: FxIndexMap::default(),
+            canonical_index: FxIndexMap::default(),
+            field_index: FxIndexMap::default(),
+            static_index: FxIndexMap::default(),
+            lifetimes_by_type: FxIndexMap::default(),
 
             values: Vec::new(),
             indices: Vec::new(),
@@ -243,7 +245,7 @@ impl Tree {
 
     /// Return the explicit lifetime carried by a type.
     pub fn type_lifetime(&self, ty: TypeId) -> Option<Lifetime> {
-        let mut visited = HashSet::new();
+        let mut visited = FxIndexSet::default();
 
         self.type_lifetime_inner(ty, &[], &mut visited)
     }
@@ -254,7 +256,7 @@ impl Tree {
         ty: TypeId,
         lifetimes: &[Lifetime],
     ) -> Option<Lifetime> {
-        let mut visited = HashSet::new();
+        let mut visited = FxIndexSet::default();
 
         self.type_lifetime_inner(ty, lifetimes, &mut visited)
     }
@@ -264,7 +266,7 @@ impl Tree {
         &self,
         ty: TypeId,
         lifetime_args: &[Lifetime],
-        visited: &mut HashSet<LocalNodeId<Type>>,
+        visited: &mut FxIndexSet<LocalNodeId<Type>>,
     ) -> Option<Lifetime> {
         if !visited.insert(ty) {
             return None;
@@ -364,14 +366,14 @@ impl Tree {
             }
             _ => None,
         };
-        visited.remove(&ty);
+        visited.swap_remove(&ty);
 
         lifetime
     }
 
     /// Return whether a type may contain borrowed references.
     pub fn type_contains_borrowed_refs(&self, ty: TypeId) -> bool {
-        let mut visited = HashSet::new();
+        let mut visited = FxIndexSet::default();
 
         self.type_contains_borrowed_refs_inner(ty, &mut visited)
     }
@@ -380,7 +382,7 @@ impl Tree {
     fn type_contains_borrowed_refs_inner(
         &self,
         ty: TypeId,
-        visited: &mut HashSet<LocalNodeId<Type>>,
+        visited: &mut FxIndexSet<LocalNodeId<Type>>,
     ) -> bool {
         if !visited.insert(ty) {
             return false;
@@ -389,7 +391,7 @@ impl Tree {
         let type_id = ty;
         let ty = self.get(ty);
         if ty.is_borrowed_reference() {
-            visited.remove(&type_id);
+            visited.swap_remove(&type_id);
 
             return true;
         }
@@ -428,7 +430,7 @@ impl Tree {
             }
             _ => false,
         };
-        visited.remove(&type_id);
+        visited.swap_remove(&type_id);
 
         contains
     }
@@ -736,7 +738,7 @@ impl Tree {
         );
 
         if lifetimes.is_empty() {
-            self.lifetimes_by_type.remove(&ty);
+            self.lifetimes_by_type.shift_remove(&ty);
         } else {
             self.lifetimes_by_type.insert(ty, lifetimes);
         }
@@ -1010,7 +1012,7 @@ impl Tree {
         T: Node,
     {
         if attributes.is_empty() {
-            self.attributes_by_node_id.remove(&id.id);
+            self.attributes_by_node_id.shift_remove(&id.id);
         } else {
             self.attributes_by_node_id.insert(id.id, attributes);
         }
@@ -1227,7 +1229,7 @@ impl Tree {
         T: Node,
     {
         if spans.is_empty() {
-            self.attribute_spans_by_node_id.remove(&id.id);
+            self.attribute_spans_by_node_id.shift_remove(&id.id);
         } else {
             self.attribute_spans_by_node_id.insert(id.id, spans);
         }
@@ -1264,7 +1266,8 @@ impl Tree {
         spans: Vec<TypedValueSpan>,
     ) {
         if spans.is_empty() {
-            self.function_parameter_spans_by_node_id.remove(&id.id);
+            self.function_parameter_spans_by_node_id
+                .shift_remove(&id.id);
         } else {
             self.function_parameter_spans_by_node_id
                 .insert(id.id, spans);
@@ -1300,7 +1303,7 @@ impl Tree {
         spans: Vec<FieldSpan>,
     ) {
         if spans.is_empty() {
-            self.type_field_spans_by_node_id.remove(&id.id);
+            self.type_field_spans_by_node_id.shift_remove(&id.id);
         } else {
             self.type_field_spans_by_node_id.insert(id.id, spans);
         }

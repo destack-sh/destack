@@ -1,7 +1,6 @@
-use std::collections::HashMap;
 use std::fmt;
 
-use destack_core::StringPool;
+use destack_core::{FxIndexMap, StringPool};
 use destack_fir::format::{Allocator, Format, FormatContext, FormatError, FormatResult};
 use destack_source::{File, FileType};
 
@@ -27,9 +26,9 @@ pub struct Formatter<'a> {
     /// The function currently being formatted.
     function: Option<LocalNodeId<Function>>,
     /// Canonical block indices for the current function.
-    block_indices: HashMap<LocalNodeId<Block>, usize>,
+    block_indices: FxIndexMap<LocalNodeId<Block>, usize>,
     /// Canonical local indices for the current function.
-    local_indices: HashMap<LocalNodeId<Local>, usize>,
+    local_indices: FxIndexMap<LocalNodeId<Local>, usize>,
     /// Lifetime parameters currently in scope.
     lifetimes: Vec<LifetimeParameter>,
 }
@@ -61,8 +60,8 @@ impl<'a> Formatter<'a> {
             strings,
             file: File::empty_text(FileType::Destack),
             function: None,
-            block_indices: HashMap::new(),
-            local_indices: HashMap::new(),
+            block_indices: FxIndexMap::default(),
+            local_indices: FxIndexMap::default(),
             lifetimes: Vec::new(),
         }
     }

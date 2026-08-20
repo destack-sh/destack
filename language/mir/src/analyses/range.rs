@@ -1,7 +1,7 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 use crate as mir;
-use destack_core::{float_from_bits, float_to_bits};
+use destack_core::{FxIndexMap, float_from_bits, float_to_bits};
 
 use crate::{
     Analysis, ControlTable, FunctionCache, NodeTable, RangeOptions, TargetLayout, fold_binary,
@@ -360,14 +360,14 @@ impl ValueRange {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RangeState {
     /// Known ranges keyed by value.
-    ranges: HashMap<mir::Value, ValueRange>,
+    ranges: FxIndexMap<mir::Value, ValueRange>,
 }
 
 impl RangeState {
     /// Create an empty range map.
     pub fn new() -> Self {
         Self {
-            ranges: HashMap::new(),
+            ranges: FxIndexMap::default(),
         }
     }
 
@@ -383,7 +383,7 @@ impl RangeState {
 
     /// Remove any range for a value.
     pub fn remove(&mut self, value: impl Into<mir::Value>) {
-        self.ranges.remove(&value.into());
+        self.ranges.shift_remove(&value.into());
     }
 
     /// Iterate over known ranges.
@@ -402,7 +402,7 @@ impl RangeState {
 impl Lattice for RangeState {
     /// Merge ranges that are known on all incoming paths.
     fn meet(&self, other: &Self) -> Self {
-        let mut ranges = HashMap::new();
+        let mut ranges = FxIndexMap::default();
 
         // merge ranges present on every incoming path
         for (value, range) in &self.ranges {
@@ -641,11 +641,11 @@ impl RangeTable {
         tree: &mir::Tree,
         cfg: &ControlTable,
         block_exit: &NodeTable<mir::Block, Option<RangeState>>,
-    ) -> HashMap<mir::Value, ValueRange> {
+    ) -> FxIndexMap<mir::Value, ValueRange> {
         // early exit for blocks without parameters
         let block = tree.get(block_id);
         if block.parameters.is_empty() {
-            return HashMap::new();
+            return FxIndexMap::default();
         }
 
         // track parameter states across predecessors
@@ -706,11 +706,11 @@ impl RangeTable {
 
         // return empty if no predecessors were processed
         if !is_seen {
-            return HashMap::new();
+            return FxIndexMap::default();
         }
 
         // collect ranges for parameters
-        let mut ranges = HashMap::new();
+        let mut ranges = FxIndexMap::default();
         for (param, state) in block.parameters.iter().zip(states) {
             let param_value = param.value;
 

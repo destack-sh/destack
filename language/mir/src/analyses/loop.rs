@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate as mir;
 
@@ -27,7 +27,7 @@ pub struct Loop {
     pub latches: Vec<mir::LocalNodeId<mir::Block>>,
 
     /// All blocks in the loop body, including the header.
-    pub blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    pub blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
 
     /// The blocks with outgoing loop exits.
     pub exiting_blocks: Vec<mir::LocalNodeId<mir::Block>>,
@@ -101,11 +101,11 @@ impl LoopTable {
         function: &mir::Function,
         tree: &mir::Tree,
         dominator: &DominatorTable,
-    ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
-        let mut back_edges: HashMap<
+    ) -> FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
+        let mut back_edges: FxIndexMap<
             mir::LocalNodeId<mir::Block>,
             Vec<mir::LocalNodeId<mir::Block>>,
-        > = HashMap::new();
+        > = FxIndexMap::default();
 
         for &block_id in function.blocks() {
             let block = tree.get(block_id);
@@ -126,7 +126,7 @@ impl LoopTable {
     /// Build loop structures from back edges.
     fn build_loops(
         function: &mir::Function,
-        back_edges_by_header: HashMap<
+        back_edges_by_header: FxIndexMap<
             mir::LocalNodeId<mir::Block>,
             Vec<mir::LocalNodeId<mir::Block>>,
         >,
@@ -170,8 +170,8 @@ impl LoopTable {
         latches: &[mir::LocalNodeId<mir::Block>],
         cfg: &ControlTable,
         dominator: &DominatorTable,
-    ) -> HashSet<mir::LocalNodeId<mir::Block>> {
-        let mut body = HashSet::new();
+    ) -> FxIndexSet<mir::LocalNodeId<mir::Block>> {
+        let mut body = FxIndexSet::default();
         body.insert(header);
 
         let mut worklist: Vec<mir::LocalNodeId<mir::Block>> = Vec::new();
@@ -201,14 +201,14 @@ impl LoopTable {
 
     /// Find exiting blocks and exit blocks for a loop.
     fn compute_exits(
-        body: &HashSet<mir::LocalNodeId<mir::Block>>,
+        body: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
         tree: &mir::Tree,
     ) -> (
         Vec<mir::LocalNodeId<mir::Block>>,
         Vec<mir::LocalNodeId<mir::Block>>,
     ) {
         let mut exiting_blocks = Vec::new();
-        let mut exit_blocks_set = HashSet::new();
+        let mut exit_blocks_set = FxIndexSet::default();
 
         for &block_id in body {
             let block = tree.get(block_id);

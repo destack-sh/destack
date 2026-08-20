@@ -1,6 +1,7 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 use crate as mir;
+use destack_core::FxIndexMap;
 
 use crate::{
     Analysis, ConstantLookup, FunctionCache, NodeTable, TargetLayout, fold_binary, fold_cast,
@@ -24,14 +25,14 @@ pub struct ConstantTable {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ConstantState {
     /// Known constant values.
-    constants: HashMap<mir::Value, mir::Constant>,
+    constants: FxIndexMap<mir::Value, mir::Constant>,
 }
 
 impl ConstantState {
     /// Create an empty constant map.
     pub fn new() -> Self {
         Self {
-            constants: HashMap::new(),
+            constants: FxIndexMap::default(),
         }
     }
 
@@ -52,7 +53,7 @@ impl ConstantState {
     pub fn remove(&mut self, value: impl Into<mir::Value>) {
         let value = value.into();
 
-        self.constants.remove(&value);
+        self.constants.shift_remove(&value);
     }
 
     /// Iterate over known constants.
@@ -73,7 +74,7 @@ impl ConstantLookup for ConstantState {
 impl Lattice for ConstantState {
     /// Intersect constants that agree on both inputs.
     fn meet(&self, other: &Self) -> Self {
-        let mut constants = HashMap::new();
+        let mut constants = FxIndexMap::default();
 
         for (value, constant) in &self.constants {
             if let Some(other_constant) = other.constants.get(value)
@@ -261,7 +262,7 @@ impl ConstantTable {
         function: &mir::Function,
         tree: &mir::Tree,
         target_layout: TargetLayout,
-        param_constants: &HashMap<mir::Value, mir::Constant>,
+        param_constants: &FxIndexMap<mir::Value, mir::Constant>,
     ) -> Self {
         // build a control flow graph for the function
         let cfg = ControlTable::build(function, tree);
@@ -378,11 +379,11 @@ impl ConstantTable {
         tree: &mir::Tree,
         cfg: &ControlTable,
         block_exit: &NodeTable<mir::Block, Option<ConstantState>>,
-    ) -> HashMap<mir::Value, mir::Constant> {
+    ) -> FxIndexMap<mir::Value, mir::Constant> {
         // early exit for blocks without parameters
         let block = tree.get(block_id);
         if block.parameters.is_empty() {
-            return HashMap::new();
+            return FxIndexMap::default();
         }
 
         // track parameter states across predecessors
@@ -445,11 +446,11 @@ impl ConstantTable {
 
         // return empty if no predecessors were processed
         if !is_seen {
-            return HashMap::new();
+            return FxIndexMap::default();
         }
 
         // collect constants for parameters
-        let mut constants = HashMap::new();
+        let mut constants = FxIndexMap::default();
         for (param, state) in block.parameters.iter().zip(states) {
             let param_value = param.value;
 

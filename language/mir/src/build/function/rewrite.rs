@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate::build::FunctionBuilder;
 use crate::{Block, BlockParameter, Instruction, LocalNodeId, Terminator, Value, terminator_remap};
@@ -304,8 +304,8 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Replace a value in a terminator.
     fn replace_value_in_terminator(&mut self, terminator: &mut Terminator, from: Value, to: Value) {
-        let block_map = HashMap::new();
-        let substitutions = HashMap::from([(from, to)]);
+        let block_map = FxIndexMap::default();
+        let substitutions = FxIndexMap::from_iter([(from, to)]);
 
         terminator_remap(self.tree, terminator, &block_map, &substitutions);
     }
