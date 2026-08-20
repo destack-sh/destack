@@ -1,23 +1,13 @@
 # Contributing
 
-We welcome serious non-slop bug reports, fixes, and feature suggestions and such: join our [Discord](https://discord.gg/xUFQ45TWYd) to chat and discuss.
+We welcome serious non-slop bug reports, issues and feature suggestions: join our [Discord](https://discord.gg/xUFQ45TWYd) to chat and discuss.
 
-Destack is not generally open for public contributions at this point as we are in very active development with a singular focus - a fully integrated software stack for optimal, correct, integrated software.
-
-## Checklist
-
-- Before committing, run `just check` or `just check-quick` from the repository root.
-- Before pushing or landing a non-trivial change, run `just check-full` from the repository root at least once.
-- `just check-quick` is the normal local confidence check.
-- `just check-full` is the deepest local validation sweep and should be the final pre-push check for broad, risky, or cross-cutting changes.
-- Use `just fmt` for formatting and `just lint` for static checks when you are iterating on one area.
-- See [TESTING.md](TESTING.md) for the test matrix and suite details.
+Destack is not generally open for public contributions at this point.
 
 ## Versioning
 
 Destack uses one canonical monorepo release version from [VERSION.txt](VERSION.txt).
-Do not bump versions during normal development.
-Only bump versions through `just bump` or `just release`.
+Do not bump versions during normal development, only bump versions through `just bump` or `just release`.
 
 ## Commits
 
@@ -27,6 +17,7 @@ Use conventional commits for all repository changes.
 - Use the full scope (sometimes stylisied) like `language/ast`, `language/compiler/analyze`, `library/ui`, ...
 - If the commit touches multiple scopes either use the highest most, use `all`, or (if large enough) break into multiple smaller commits
 - For example: `feat(language/source): improve error span precision (to sub-token granularity)`.
+- For large packages / crates, we may want to use subscopes like `language/compiler/sema`.
 - When possible and sensible try to mention specific code concepts like `add SiteTable, rename Foo -> Bar` is nice and specific
 - In case of doubt, look at the past 50 or so commit messages for common style.
 - Do not mention non-human authors or contributors in commit messages. We don't care.
