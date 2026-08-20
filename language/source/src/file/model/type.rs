@@ -1,303 +1,205 @@
-use destack_serde::Reflect;
 use std::path::Path;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// The format of a source file.
+/// The physical format of one file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum FileType {
-    // code
-    /// `.ds`
+    /// Destack source code.
     Destack,
-    /// `.d.ds`
+    /// Destack declaration source code.
     DestackDeclaration,
-    /// Emitted ECMAScript-family script.
-    Script,
-
-    // data
-    /// `.txt`
+    /// JavaScript source code.
+    #[serde(rename = "javascript")]
+    JavaScript,
+    /// Plain text.
     Text,
-    /// `.toml`
+    /// TOML data.
     Toml,
-    /// `.yaml`, `.yml`
+    /// YAML data.
     Yaml,
-    /// `.json`
+    /// JSON data.
     Json,
-    /// `.env`
-    Env,
-
-    // markup/styling
-    /// `.html`, `.htm`
+    /// Dotenv data.
+    Dotenv,
+    /// HTML markup.
     Html,
-    /// `.md`
+    /// Markdown markup.
     Markdown,
-    /// `.css`
+    /// CSS styles.
     Css,
-    /// `.svg`
+    /// SVG markup.
     Svg,
-
-    // binary/system
-    /// `.wasm`
+    /// WebAssembly bytecode.
     Wasm,
-    /// `.node`
-    Node,
-    /// Source map `.map`
+    /// A source map.
     SourceMap,
-    /// Object file `.o`
+    /// A native object file.
     Object,
-
-    // media: coarse categories (pass-through)
-    /// Image files (png, jpg, gif, webp, avif, ico, bmp, tiff, dds, tga, exr, hdr, psd)
-    Image,
-    /// Font files (woff, woff2, ttf, otf, eot)
-    Font,
-    /// Audio files (mp3, wav, ogg, flac, aac, m4a, opus, mid, midi)
-    Audio,
-    /// Video files (mp4, webm, mov, avi, mkv, flv)
-    Video,
-    /// 3D model files (gltf, glb, obj, fbx, dae, stl, blend, 3ds)
-    Model,
-    /// AI/ML model weights (onnx, safetensors, pt, pth, h5, tflite, mlmodel, gguf, ggml)
-    Neural,
-    /// Document files (pdf, doc, docx, xls, xlsx, ppt, pptx, odt, ods, odp, rtf, epub, mobi)
-    Document,
-
-    // fallback
-    /// Binary (unknown binary format).
+    /// Opaque bytes.
     Binary,
-    /// Unknown file type.
-    Unknown,
 }
 
-/// File types that should be watched for source changes.
-/// NOTE #Architecture: do we need WATCHABLE_FILE_TYPES?
-pub const WATCHABLE_FILE_TYPES: &[FileType] = &[
-    FileType::Destack,
-    FileType::DestackDeclaration,
-    FileType::Text,
-    FileType::Toml,
-    FileType::Yaml,
-    FileType::Json,
-    FileType::Env,
-    FileType::Markdown,
-    FileType::Html,
-    FileType::Css,
-    FileType::Svg,
-    FileType::SourceMap,
-];
-
-/// Source code file types used for extensionless module resolution.
-pub const CODE_FILE_TYPES: &[FileType] = &[FileType::Destack, FileType::DestackDeclaration];
+/// Destack file types tried during extensionless module resolution.
+pub const DESTACK_FILE_TYPES: &[FileType] = &[FileType::Destack, FileType::DestackDeclaration];
 
 impl FileType {
-    /// Get a source format from a file extension.
-    pub fn from_extension(s: &str) -> Option<Self> {
-        let ty = match s {
-            // destack
-            "ds" => FileType::Destack,
-            "d.ds" => FileType::DestackDeclaration,
+    /// Return the file type for one extension when recognized.
+    pub fn from_extension(extension: &str) -> Option<Self> {
+        let file_type = match extension {
+            // code
+            "ds" => Self::Destack,
+            "d.ds" => Self::DestackDeclaration,
+            "js" | "mjs" | "cjs" => Self::JavaScript,
 
-            // data formats
-            "txt" => FileType::Text,
-            "toml" => FileType::Toml,
-            "yaml" | "yml" => FileType::Yaml,
-            "json" => FileType::Json,
-            "env" => FileType::Env,
+            // data
+            "txt" => Self::Text,
+            "toml" => Self::Toml,
+            "yaml" | "yml" => Self::Yaml,
+            "json" => Self::Json,
+            "env" => Self::Dotenv,
 
-            // markup/styling
-            "html" | "htm" => FileType::Html,
-            "md" => FileType::Markdown,
-            "css" => FileType::Css,
-            "svg" => FileType::Svg,
+            // markup and styles
+            "html" | "htm" => Self::Html,
+            "md" => Self::Markdown,
+            "css" => Self::Css,
+            "svg" => Self::Svg,
 
-            // binary/system
-            "wasm" => FileType::Wasm,
-            "node" => FileType::Node,
-            "map" => FileType::SourceMap,
-            "o" => FileType::Object,
-
-            // images
-            "png" | "jpg" | "jpeg" | "gif" | "webp" | "avif" | "ico" | "bmp" | "tiff" | "tif"
-            | "dds" | "tga" | "exr" | "hdr" | "psd" => FileType::Image,
-
-            // fonts
-            "woff" | "woff2" | "ttf" | "otf" | "eot" => FileType::Font,
-
-            // audio
-            "mp3" | "wav" | "ogg" | "flac" | "aac" | "m4a" | "opus" | "mid" | "midi" => {
-                FileType::Audio
-            }
-
-            // video
-            "mp4" | "webm" | "mov" | "avi" | "mkv" | "flv" => FileType::Video,
-
-            // 3D models
-            "gltf" | "glb" | "obj" | "fbx" | "dae" | "stl" | "blend" | "3ds" => FileType::Model,
-
-            // AI/ML weights
-            "onnx" | "safetensors" | "pt" | "pth" | "h5" | "tflite" | "mlmodel" | "gguf"
-            | "ggml" => FileType::Neural,
-
-            // documents
-            "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "odt" | "ods" | "odp"
-            | "rtf" | "epub" | "mobi" | "pages" | "numbers" | "keynote" => FileType::Document,
+            // executable formats
+            "wasm" => Self::Wasm,
+            "map" => Self::SourceMap,
+            "o" => Self::Object,
 
             _ => return None,
         };
 
-        Some(ty)
+        Some(file_type)
     }
 
-    /// Get the file extension from an extension or unknown.
-    pub fn from_extension_or_unknown(s: &str) -> Self {
-        Self::from_extension(s).unwrap_or(FileType::Unknown)
-    }
-
-    /// Get a source format from a file path.
+    /// Return the physical file type for one named path.
     pub fn from_path(path: &Path) -> Option<Self> {
-        // detect compound extensions first
-        if let Some(file_name) = path.file_name().and_then(|name| name.to_str())
-            && file_name.ends_with(".d.ds")
-        {
-            return Some(FileType::DestackDeclaration);
+        // recognize complete names before ordinary extensions
+        let file_name = path.file_name()?;
+        let file_name = file_name.to_str();
+        match file_name {
+            Some(file_name) if file_name == ".env" || file_name.starts_with(".env.") => {
+                return Some(Self::Dotenv);
+            }
+            Some(file_name) if file_name.ends_with(".d.ds") => {
+                return Some(Self::DestackDeclaration);
+            }
+            _ => {}
         }
 
-        // fall back to the simple extension
-        let extension = path.extension().and_then(|ext| ext.to_str());
-        extension.and_then(FileType::from_extension)
+        // preserve every other named format as opaque bytes
+        let file_type = path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .and_then(Self::from_extension)
+            .unwrap_or(Self::Binary);
+
+        Some(file_type)
     }
 
-    /// Get a source format from a file path, defaulting to unknown.
-    pub fn from_path_or_unknown(path: &Path) -> Self {
-        Self::from_path(path).unwrap_or(FileType::Unknown)
-    }
-}
-
-impl FileType {
-    /// Get the file extension for a source format.
-    ///
-    /// For coarse categories (Image, Font, etc.) returns None since they map to multiple extensions.
-    pub fn extension(&self) -> Option<&str> {
+    /// Return the canonical extension when the format has one.
+    pub fn extension(self) -> Option<&'static str> {
         let extension = match self {
-            // destack
-            FileType::Destack => "ds",
-            FileType::DestackDeclaration => "d.ds",
-
-            // data formats
-            FileType::Text => "txt",
-            FileType::Toml => "toml",
-            FileType::Yaml => "yaml",
-            FileType::Json => "json",
-            FileType::Env => "env",
-
-            // markup/styling
-            FileType::Html => "html",
-            FileType::Markdown => "md",
-            FileType::Css => "css",
-            FileType::Svg => "svg",
-
-            // binary/system
-            FileType::Wasm => "wasm",
-            FileType::Node => "node",
-            FileType::SourceMap => "map",
-            FileType::Object => "o",
-
-            // coarse categories have no single extension
-            FileType::Image
-            | FileType::Font
-            | FileType::Audio
-            | FileType::Video
-            | FileType::Model
-            | FileType::Neural
-            | FileType::Document
-            | FileType::Script
-            | FileType::Binary
-            | FileType::Unknown => return None,
+            Self::Destack => "ds",
+            Self::DestackDeclaration => "d.ds",
+            Self::JavaScript => "js",
+            Self::Text => "txt",
+            Self::Toml => "toml",
+            Self::Yaml => "yaml",
+            Self::Json => "json",
+            Self::Dotenv => "env",
+            Self::Html => "html",
+            Self::Markdown => "md",
+            Self::Css => "css",
+            Self::Svg => "svg",
+            Self::Wasm => "wasm",
+            Self::SourceMap => "map",
+            Self::Object => "o",
+            Self::Binary => return None,
         };
+
         Some(extension)
     }
 
-    /// Get the glob pattern for a source format.
-    ///
-    /// For multi-extension types, this returns the first canonical pattern.
-    /// Prefer [`FileType::globs`] when enumerating all variants.
-    pub fn glob(&self) -> Option<&str> {
-        self.globs().first().copied()
+    /// Return whether this format defaults to opaque bytes.
+    pub fn is_opaque(self) -> bool {
+        matches!(self, Self::Wasm | Self::Object | Self::Binary)
     }
+}
 
-    /// Whether this file type is a code file (can be parsed as code).
-    pub fn is_code(&self) -> bool {
-        matches!(self, FileType::Destack | FileType::DestackDeclaration)
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    /// Whether this file type is a data file (JSON, TOML, YAML, etc.).
-    pub fn is_data(&self) -> bool {
-        matches!(self, FileType::Json | FileType::Toml | FileType::Yaml)
-    }
+    #[test]
+    fn test_classify_file_paths() {
+        let cases = [
+            ("source.ds", FileType::Destack),
+            ("types.d.ds", FileType::DestackDeclaration),
+            ("output.js", FileType::JavaScript),
+            ("output.mjs", FileType::JavaScript),
+            ("output.cjs", FileType::JavaScript),
+            ("notes.txt", FileType::Text),
+            ("package.toml", FileType::Toml),
+            ("document.yaml", FileType::Yaml),
+            ("document.yml", FileType::Yaml),
+            ("document.json", FileType::Json),
+            (".env", FileType::Dotenv),
+            (".env.development.local", FileType::Dotenv),
+            ("page.html", FileType::Html),
+            ("page.htm", FileType::Html),
+            ("readme.md", FileType::Markdown),
+            ("style.css", FileType::Css),
+            ("image.svg", FileType::Svg),
+            ("module.wasm", FileType::Wasm),
+            ("output.map", FileType::SourceMap),
+            ("output.o", FileType::Object),
+            ("image.png", FileType::Binary),
+            ("shader.glsl", FileType::Binary),
+            ("LICENSE", FileType::Binary),
+        ];
 
-    /// Whether this file type is a text file.
-    pub fn is_text(&self) -> bool {
-        matches!(
-            self,
-            FileType::Text
-                | FileType::Markdown
-                | FileType::Html
-                | FileType::Css
-                | FileType::Svg
-                | FileType::Env
-                | FileType::Script
-                | FileType::SourceMap
-        )
-    }
-
-    /// Whether this file type is a binary file.
-    pub fn is_binary(&self) -> bool {
-        matches!(
-            self,
-            FileType::Wasm
-                | FileType::Node
-                | FileType::Object
-                | FileType::Image
-                | FileType::Font
-                | FileType::Audio
-                | FileType::Video
-                | FileType::Model
-                | FileType::Neural
-                | FileType::Document
-                | FileType::Binary
-        )
-    }
-
-    /// Get glob patterns for a file type.
-    ///
-    /// Some file types expand into multiple glob patterns.
-    pub fn globs(&self) -> &'static [&'static str] {
-        match self {
-            FileType::Destack => &["**/*.ds"],
-            FileType::DestackDeclaration => &["**/*.d.ds"],
-            FileType::Text => &["**/*.txt"],
-            FileType::Toml => &["**/*.toml"],
-            FileType::Yaml => &["**/*.yaml", "**/*.yml"],
-            FileType::Json => &["**/*.json"],
-            FileType::Env => &["**/*.env"],
-            FileType::Html => &["**/*.html", "**/*.htm"],
-            FileType::Markdown => &["**/*.md"],
-            FileType::Css => &["**/*.css"],
-            FileType::Svg => &["**/*.svg"],
-            FileType::Wasm => &["**/*.wasm"],
-            FileType::Node => &["**/*.node"],
-            FileType::SourceMap => &["**/*.map"],
-            FileType::Object => &["**/*.o"],
-            FileType::Image
-            | FileType::Font
-            | FileType::Audio
-            | FileType::Video
-            | FileType::Model
-            | FileType::Neural
-            | FileType::Document
-            | FileType::Script
-            | FileType::Binary
-            | FileType::Unknown => &[],
+        for (path, expected) in cases {
+            assert_eq!(
+                FileType::from_path(Path::new(path)),
+                Some(expected),
+                "{path}"
+            );
         }
+    }
+
+    #[test]
+    fn test_roundtrip_canonical_extensions() {
+        let file_types = [
+            FileType::Destack,
+            FileType::DestackDeclaration,
+            FileType::JavaScript,
+            FileType::Text,
+            FileType::Toml,
+            FileType::Yaml,
+            FileType::Json,
+            FileType::Dotenv,
+            FileType::Html,
+            FileType::Markdown,
+            FileType::Css,
+            FileType::Svg,
+            FileType::Wasm,
+            FileType::SourceMap,
+            FileType::Object,
+        ];
+
+        for file_type in file_types {
+            let extension = file_type
+                .extension()
+                .expect("canonical file type should have an extension");
+
+            assert_eq!(FileType::from_extension(extension), Some(file_type));
+        }
+        assert_eq!(FileType::Binary.extension(), None);
     }
 }

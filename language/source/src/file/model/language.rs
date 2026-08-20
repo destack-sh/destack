@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -38,9 +40,23 @@ impl From<LanguageType> for FileType {
 }
 
 impl LanguageType {
-    /// Whether this is a declaration file.
+    /// Return the source language for one extension when supported.
+    pub fn from_extension(extension: &str) -> Option<Self> {
+        let file_type = FileType::from_extension(extension)?;
+
+        Self::try_from(file_type).ok()
+    }
+
+    /// Return the source language for one path when supported.
+    pub fn from_path(path: &Path) -> Option<Self> {
+        let file_type = FileType::from_path(path)?;
+
+        Self::try_from(file_type).ok()
+    }
+
+    /// Return whether this is declaration source.
     #[inline]
-    pub fn is_declaration(&self) -> bool {
+    pub fn is_declaration(self) -> bool {
         matches!(self, Self::DestackDeclaration)
     }
 }

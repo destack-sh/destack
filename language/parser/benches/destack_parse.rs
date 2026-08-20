@@ -330,7 +330,7 @@ fn load_file_corpus(name: impl Into<String>, paths: &[PathBuf]) -> Option<Corpus
     let mut files = Vec::with_capacity(paths.len());
 
     for path in paths {
-        let file_type = FileType::from_path_or_unknown(path);
+        let file_type = FileType::from_path(path).expect("bench path should have a file type");
         let is_parser_source = is_source_file_type(file_type);
         assert!(is_parser_source, "path is not a parser source: {path:?}");
 
@@ -682,7 +682,7 @@ fn resolve_single_file_path(workspace_root: &Path) -> PathBuf {
 /// Load a single source file for benchmarking.
 fn load_single_file(path: &Path) -> (Arc<File>, u64) {
     // file type
-    let file_type = FileType::from_path_or_unknown(path);
+    let file_type = FileType::from_path(path).expect("bench path should have a file type");
     let is_parser_source = is_source_file_type(file_type);
     assert!(is_parser_source, "path is not a parser source: {path:?}");
 

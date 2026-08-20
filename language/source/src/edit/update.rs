@@ -129,7 +129,11 @@ impl Edit {
     ) -> io::Result<()> {
         let text = file_system.read_to_string(path)?;
         let file_id = FileId::from_logical_path(logical_path);
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        let name_and_type = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .zip(FileType::from_path(path));
+        let Some((name, file_type)) = name_and_type else {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!("text edit path must name a UTF-8 file: {}", path.display()),
@@ -142,7 +146,7 @@ impl Edit {
             name.to_string(),
             Uri::from_file_path(path),
             Some(path.to_path_buf()),
-            FileType::from_path_or_unknown(path),
+            file_type,
             text,
         )
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;

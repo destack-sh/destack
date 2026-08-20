@@ -87,7 +87,7 @@ fn bench_lex(criterion: &mut Criterion) {
     let mut sources: Vec<SourceFile> = Vec::with_capacity(ds_files.len());
     for path in ds_files.iter() {
         // file type
-        let file_type = FileType::from_path_or_unknown(path);
+        let file_type = FileType::from_path(path).expect("bench path should have a file type");
         let is_destack_source =
             matches!(file_type, FileType::Destack | FileType::DestackDeclaration);
         assert!(is_destack_source, "path is not a destack source: {path:?}");

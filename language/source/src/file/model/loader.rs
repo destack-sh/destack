@@ -37,26 +37,15 @@ impl TryFrom<FileType> for Loader {
             FileType::Json => Ok(Self::Json),
             FileType::Toml => Ok(Self::Toml),
             FileType::Yaml => Ok(Self::Yaml),
-            FileType::Env => Ok(Self::Text),
+            FileType::Dotenv => Ok(Self::Text),
             FileType::Text
             | FileType::Markdown
             | FileType::Html
             | FileType::Css
             | FileType::Svg
             | FileType::SourceMap => Ok(Self::Text),
-            FileType::Wasm
-            | FileType::Node
-            | FileType::Object
-            | FileType::Image
-            | FileType::Font
-            | FileType::Audio
-            | FileType::Video
-            | FileType::Model
-            | FileType::Neural
-            | FileType::Document
-            | FileType::Binary
-            | FileType::Unknown => Ok(Self::Binary),
-            FileType::Script => Err(file_type),
+            FileType::Wasm | FileType::Object | FileType::Binary => Ok(Self::Binary),
+            FileType::JavaScript => Err(file_type),
         }
     }
 }

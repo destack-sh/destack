@@ -141,7 +141,8 @@ fn file_language(file_type: FileType) -> Result<LanguageType, Box<dyn Error>> {
 /// Load one source file.
 fn load_file(path: &Path) -> Result<Arc<File>, Box<dyn Error>> {
     let content = fs::read_to_string(path)?;
-    let file_type = FileType::from_path_or_unknown(path);
+    let file_type = FileType::from_path(path)
+        .ok_or_else(|| format!("unsupported parser file: {}", path.display()))?;
     let file_id = FileId::new(0);
     let (file_name, uri) = Uri::from_path_with_name(path);
     let file = File::from_text(file_id, file_name, uri, None, file_type, content)?;

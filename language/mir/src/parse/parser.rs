@@ -167,7 +167,7 @@ pub struct Parser {
 impl Parser {
     /// Create a new parser for a specific file.
     pub fn new(file: &File, options: ParseOptions) -> ParseResult<Self> {
-        if file.ty.is_binary() {
+        if !file.is_text() {
             return Err(ParseError::new("MIR parser requires text content", 0));
         }
 

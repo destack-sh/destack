@@ -172,32 +172,23 @@ impl File {
         }
     }
 
-    /// Build one File from an exact Blob and retained memory.
-    pub fn from_blob(
+    /// Build one File from retained byte memory and an optional line index.
+    fn from_memory(
         id: FileId,
         name: String,
         uri: Uri,
         path: Option<PathBuf>,
         ty: FileType,
         memory: Arc<BlobMemory>,
+        line_index: Option<Arc<[u32]>>,
     ) -> Result<Self, FileError> {
+        // enforce source coordinate bounds
         let blob = memory.blob();
         if blob.byte_len > Self::MAX_BYTES as u64 {
             return Err(FileError::TooLarge {
                 byte_len: blob.byte_len,
             });
         }
-
-        // validate and index source text once
-        let line_index = if ty.is_binary() {
-            None
-        } else {
-            let text = str::from_utf8(memory.bytes()).map_err(FileError::Utf8)?;
-
-            Some(Arc::<[u32]>::from(Self::precompute_line_start_offsets(
-                text,
-            )))
-        };
 
         Ok(Self {
             id,
@@ -212,6 +203,29 @@ impl File {
         })
     }
 
+    /// Build one File from an exact Blob using its format's default representation.
+    pub fn from_blob(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        path: Option<PathBuf>,
+        ty: FileType,
+        memory: Arc<BlobMemory>,
+    ) -> Result<Self, FileError> {
+        // validate and index source text once
+        let line_index = if ty.is_opaque() {
+            None
+        } else {
+            let text = str::from_utf8(memory.bytes()).map_err(FileError::Utf8)?;
+
+            Some(Arc::<[u32]>::from(Self::precompute_line_start_offsets(
+                text,
+            )))
+        };
+
+        Self::from_memory(id, name, uri, path, ty, memory, line_index)
+    }
+
     /// Build one text File from owned source text.
     pub fn from_text(
         id: FileId,
@@ -221,11 +235,15 @@ impl File {
         ty: FileType,
         content: String,
     ) -> Result<Self, FileError> {
+        // normalize and index the provided text
         let content = Self::normalize_line_endings(content);
+        let line_index = Arc::<[u32]>::from(Self::precompute_line_start_offsets(&content));
+
+        // retain the normalized bytes
         let bytes = content.into_bytes();
         let memory = Arc::new(BlobMemory::from_bytes(bytes));
 
-        Self::from_blob(id, name, uri, path, ty, memory)
+        Self::from_memory(id, name, uri, path, ty, memory, Some(line_index))
     }
 
     /// Build one binary File from owned bytes.
@@ -246,18 +264,23 @@ impl File {
     ///
     /// # Panics
     ///
-    /// Panics when this File is binary.
+    /// Panics when this File has no text representation.
     #[inline]
     pub fn text(&self) -> &str {
-        assert!(self.line_index.is_some(), "binary File has no text");
+        assert!(self.is_text(), "File has no text representation");
 
-        // from_blob creates a line index only after successful UTF-8 validation
+        // constructors attach line indexes only to validated UTF-8
         unsafe { str::from_utf8_unchecked(self.bytes()) }
     }
 
     /// Return the exact immutable bytes.
     pub fn bytes(&self) -> &[u8] {
         self.memory.bytes()
+    }
+
+    /// Return whether this File has validated text content.
+    pub fn is_text(&self) -> bool {
+        self.line_index.is_some()
     }
 
     /// Return the exact Blob descriptor.
@@ -416,5 +439,27 @@ impl File {
     /// Get the span of the file.
     pub fn span(&self) -> Span {
         Span::new(self.id, 0, self.len)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_text_with_opaque_file_type() {
+        let file = File::from_text(
+            FileId::new(1),
+            "shader.glsl".to_string(),
+            Uri::from_string("memory:/shader.glsl"),
+            None,
+            FileType::Binary,
+            "first\nsecond".to_string(),
+        )
+        .expect("text file should build");
+
+        assert!(file.is_text());
+        assert_eq!(file.text(), "first\nsecond");
+        assert_eq!(file.line_start_offsets(), Some([0, 6].as_slice()));
     }
 }
