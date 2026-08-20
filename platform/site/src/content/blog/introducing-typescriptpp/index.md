@@ -18,6 +18,11 @@ author: "Florian"
 - not beautiful
 - honor the machine
 
+- what does higher order programming look like?
+- what should higher order progrmaming _feel_ like?
+- if code is so cheap, why can't we make it really good?
+- if software is so cheap, why can't we make _that_ really good?
+
 - We need a new _universal_ programming system to write all the world's software: a language that compiles very fast, runs very fast (ideally at machine speed), supports deep static and dynamic analysis, runs seamlssly everywhere (incl. on the web), can run systems software at machine speed, and is legible to humans and agents alike.
 - above all, we need a complete system, a unified method of software production, to reliably produce correct, optimal, integrated software in one standardized way
 - fully integrated infrastructure, from the bottom to the top of the "stack". 
@@ -243,6 +248,7 @@ author: "Florian"
 ### Enums
 
 - enums are reasonably simple
+- no const enum needed?
 - string and integer
 - auto incrementing enum (starts at 0, int64, signed)
 
