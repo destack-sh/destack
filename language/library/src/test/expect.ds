@@ -1,7 +1,39 @@
+import { Sequence } from "destack:collections";
+import { catchUnwind, Panic, Result, todo, UnwindSafe } from "destack:error";
 import { Iterable } from "destack:iter";
 import { Ordering, PartialCompare, PartialEqual, StrictEqual } from "destack:ops";
+import { RegExp } from "destack:regexp";
 
 import { Issue, IssueKind } from "./issue.ds";
+import { Poll, PollingExpectation, PollOptions } from "./poll.ds";
+import { SnapshotOptions } from "./snapshot.ds";
+
+/// Assertion function.
+export const expect: Expect = createExpect(false);
+
+/// Callable assertion interface.
+export newtype interface Expect {
+    /// Create a panic expectation over one unwind-safe callable.
+    <R>(body: Function<(), R, "once"> & UnwindSafe, message?: ^string): PanicExpectation<R>;
+
+    /// Create an expectation over `value`.
+    <T, 'a>(value: &'a readonly T, message?: ^string): Expectation<'a, T>;
+
+    /// Create soft expectations that record failures and continue.
+    readonly soft: Expect;
+
+    /// Repeatedly observe a value until one asynchronous matcher succeeds.
+    poll<T>(read: Poll<T>, options?: PollOptions): PollingExpectation<T>;
+
+    /// Require exactly `count` assertions in the current test.
+    assertions(count: usize): void;
+
+    /// Require at least one assertion in the current test.
+    hasAssertions(): void;
+
+    /// Fail because control reached an impossible branch.
+    unreachable(message?: ^string): never;
+}
 
 /// One expectation over an observed value.
 export struct Expectation<'a, T> {
@@ -9,10 +41,13 @@ export struct Expectation<'a, T> {
     private value: &'a readonly T;
 
     /// Whether the next matcher is negated.
-    private isNegated: boolean = false;
+    private isNegated: boolean;
 
     /// Whether a failed matcher permits the test to continue.
-    private isSoft: boolean = false;
+    private isSoft: boolean;
+
+    /// Assertion message supplied by the caller.
+    private message?: ^string;
 
     /// Negate the next matcher.
     get not(this): Expectation<'a, T> {
@@ -20,30 +55,7 @@ export struct Expectation<'a, T> {
             value: this.value,
             isNegated: !this.isNegated,
             isSoft: this.isSoft,
-        }
-    }
-
-    /// Record one matcher result.
-    private check(this, condition: boolean, message: string, negatedMessage: string): void {
-        // apply the chain polarity
-        const passed = this.isNegated ? !condition : condition;
-        if (passed) {
-            return;
-        }
-
-        // describe the failed expectation
-        const issue = Issue {
-            kind: IssueKind.Assertion,
-            message: this.isNegated ? negatedMessage : message,
-        };
-
-        // continue after soft failures
-        if (this.isSoft) {
-            report(&readonly issue);
-        }
-        // stop on hard failures
-        else {
-            fail(&readonly issue);
+            message: this.message,
         }
     }
 
@@ -66,44 +78,62 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the string value to contain `expected`.
-    toContain(this: Expectation<'a, string>, expected: &readonly string): void {
-        const contains = this.value.includes(*expected);
-
+    toContain(this: Expectation<'a, string>, expected: string): void {
         this.check(
-            contains,
+            this.value.includes(expected),
             "expected string to contain the substring",
-            "expected string not to contain the substring",
+            "expected string to omit the substring",
         );
     }
 
     /// Require the iterable value to contain `expected`.
-    toContain<U>(this, expected: &readonly U): void
-        where T: Iterable<U>, U: PartialEqual<U> {
-        const contains = this.value.iterator().some((value) => value.equal(expected));
+    toContain<U>(this, expected: &readonly U): void where T: Iterable<U>, U: StrictEqual<U> {
+        const contains = this.value.iterator().some((value) => value === *expected);
 
         this.check(
             contains,
             "expected iterable to contain the value",
-            "expected iterable not to contain the value",
+            "expected iterable to omit the value",
+        );
+    }
+
+    /// Require the iterable value to contain one value equal to `expected`.
+    toContainEqual<U>(this, expected: &readonly U): void where T: Iterable<U>, U: PartialEqual<U> {
+        const contains = this.value.iterator().some((value) => value.equal(expected));
+
+        this.check(
+            contains,
+            "expected iterable to contain an equal value",
+            "expected iterable to omit equal values",
+        );
+    }
+
+    /// Require the string value to match `expected`.
+    toMatch(this: Expectation<'a, string>, expected: RegExp): void {
+        this.check(
+            expected.test(*this.value),
+            "expected string to match the regular expression",
+            "expected string not to match the regular expression",
+        );
+    }
+
+    /// Require the sequence to have `expected` elements.
+    toHaveLength(this, expected: isize): void where T: Sequence {
+        this.check(
+            this.value.length == expected,
+            "expected sequence to have the requested length",
+            "expected sequence to have a different length",
         );
     }
 
     /// Require the value to be truthy.
     toBeTruthy(this): void {
-        this.check(
-            !!*this.value,
-            "expected value to be truthy",
-            "expected value to be falsy",
-        );
+        this.check(!!*this.value, "expected value to be truthy", "expected value to be falsy");
     }
 
     /// Require the value to be falsy.
     toBeFalsy(this): void {
-        this.check(
-            !*this.value,
-            "expected value to be falsy",
-            "expected value to be truthy",
-        );
+        this.check(!*this.value, "expected value to be falsy", "expected value to be truthy");
     }
 
     /// Require the value to be null.
@@ -133,6 +163,51 @@ export struct Expectation<'a, T> {
         );
     }
 
+    /// Require the value to be null or undefined.
+    toBeNullable(this): void {
+        const isNullable = *this.value === null || *this.value === undefined;
+
+        this.check(
+            isNullable,
+            "expected value to be nullable",
+            "expected value to be neither null nor undefined",
+        );
+    }
+
+    /// Require the value to compare equal to one expected value.
+    toBeOneOf<C>(this, expected: C): void where C: Iterable<T>, T: PartialEqual<T> {
+        const contains = expected.iterator().some((value) => value.equal(this.value));
+
+        this.check(
+            contains,
+            "expected value to equal one candidate",
+            "expected value to differ from every candidate",
+        );
+    }
+
+    /// Require the value to satisfy `predicate`.
+    toSatisfy(this, predicate: (value: &readonly T) => boolean): void {
+        this.check(
+            predicate(this.value),
+            "expected value to satisfy the predicate",
+            "expected value not to satisfy the predicate",
+        );
+    }
+
+    /// Require the number to be not-a-number.
+    toBeNaN(this: Expectation<'a, number>): void {
+        this.check(
+            Number.isNaN(*this.value),
+            "expected value to be NaN",
+            "expected value to be a number",
+        );
+    }
+
+    /// Require the number to be within `digits` decimal digits of `expected`.
+    toBeCloseTo(this: Expectation<'a, number>, expected: number, digits: uint32 = 2): void {
+        todo("test.Expectation.toBeCloseTo");
+    }
+
     /// Require the value to compare greater than `expected`.
     toBeGreaterThan<U>(this, expected: &readonly U): void where T: PartialCompare<U> {
         const ordering = this.value.partialCompare(expected);
@@ -145,8 +220,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to compare greater than or equal to `expected`.
-    toBeGreaterThanOrEqual<U>(this, expected: &readonly U): void
-        where T: PartialCompare<U> {
+    toBeGreaterThanOrEqual<U>(this, expected: &readonly U): void where T: PartialCompare<U> {
         const ordering = this.value.partialCompare(expected);
 
         this.check(
@@ -168,8 +242,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to compare less than or equal to `expected`.
-    toBeLessThanOrEqual<U>(this, expected: &readonly U): void
-        where T: PartialCompare<U> {
+    toBeLessThanOrEqual<U>(this, expected: &readonly U): void where T: PartialCompare<U> {
         const ordering = this.value.partialCompare(expected);
 
         this.check(
@@ -178,30 +251,114 @@ export struct Expectation<'a, T> {
             "expected value to be greater than the expected value",
         );
     }
+
+    /// Require the result to be successful.
+    toBeOk<V, E>(this: Expectation<'a, Result<V, E>>): void {
+        this.check(this.value.isOk(), "expected result to be Ok", "expected result to be Err");
+    }
+
+    /// Require the result to contain an error.
+    toBeErr<V, E>(this: Expectation<'a, Result<V, E>>): void {
+        this.check(this.value.isErr(), "expected result to be Err", "expected result to be Ok");
+    }
+
+    /// Require the value to match a stored snapshot.
+    toMatchSnapshot(this, name?: string, options?: SnapshotOptions): void {
+        todo("test.Expectation.toMatchSnapshot");
+    }
+
+    /// Require the value to match an inline snapshot.
+    toMatchInlineSnapshot(this, expected?: string): void {
+        todo("test.Expectation.toMatchInlineSnapshot");
+    }
+
+    /// Record one matcher result.
+    private check(this, condition: boolean, message: string, negatedMessage: string): void {
+        // apply the chain polarity
+        const passed = this.isNegated ? !condition : condition;
+        if (passed) {
+            return;
+        }
+
+        // describe the failed expectation
+        const defaultMessage = this.isNegated ? negatedMessage : message;
+        const message = this.message ?? String.from(defaultMessage.borrow());
+        const issue = Issue {
+            kind: IssueKind.Assertion,
+            message,
+        };
+
+        // continue after soft failures
+        if (this.isSoft) {
+            report(issue);
+        }
+        // stop on hard failures
+        else {
+            fail(issue);
+        }
+    }
 }
 
-/// Create an expectation over `value`.
-export function expect<T, 'a>(value: &'a readonly T): Expectation<'a, T> {
-    Expectation { value, isNegated: false, isSoft: false }
+/// One expectation over an unwind-safe callable.
+export struct PanicExpectation<R> {
+    /// The callable to invoke once.
+    private body: Function<(), R, "once"> & UnwindSafe;
+
+    /// Whether the matcher is negated.
+    private isNegated: boolean;
+
+    /// Whether a failed matcher permits the test to continue.
+    private isSoft: boolean;
+
+    /// Assertion message supplied by the caller.
+    private message?: ^string;
+
+    /// Negate the matcher.
+    get not(this): PanicExpectation<R> {
+        PanicExpectation {
+            body: this.body,
+            isNegated: !this.isNegated,
+            isSoft: this.isSoft,
+            message: this.message,
+        }
+    }
+
+    /// Require the callable to panic.
+    toPanic(this, expected?: string | RegExp): void {
+        // retain matcher configuration before consuming the callable
+        const isNegated = this.isNegated;
+        const isSoft = this.isSoft;
+        const message = this.message;
+
+        // catch the callable's panic
+        const result = catchUnwind(this.body);
+
+        checkPanic(result.err(), expected, isNegated, isSoft, message);
+    }
 }
 
-/// Create a soft expectation over `value`.
-export function expectSoft<T, 'a>(value: &'a readonly T): Expectation<'a, T> {
-    Expectation { value, isNegated: false, isSoft: true }
+/// Create one assertion function.
+function createExpect(isSoft: boolean): Expect {
+    todo("test.createExpect")
 }
 
 /// Record one issue and stop the current test.
-@binding("destack.test.issue.fail", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-declare function fail(issue: &readonly Issue): never;
+function fail(issue: Issue): never {
+    todo("test.fail")
+}
 
 /// Record one issue without stopping the current test.
-@binding("destack.test.issue.report", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-declare function report(issue: &readonly Issue): void;
+function report(issue: Issue): void {
+    todo("test.report");
+}
+
+/// Record whether one callable produced the expected panic.
+function checkPanic(
+    panic: Panic | undefined,
+    expected: string | RegExp | undefined,
+    isNegated: boolean,
+    isSoft: boolean,
+    message: ^string | undefined,
+): void {
+    todo("test.checkPanic");
+}

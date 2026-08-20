@@ -1,7 +1,8 @@
+import { Json } from "destack:json";
 import { Label } from "destack:runtime";
 import { Duration } from "destack:time";
 
-/// Test case or suite execution kind.
+/// Test case execution kind.
 export enum CaseKind {
     /// Ordinary example-based check.
     Example = 1,
@@ -13,55 +14,56 @@ export enum CaseKind {
     Simulation = 4,
 }
 
-/// Test scheduler concurrency mode.
-export enum Concurrency {
-    /// Let the runner decide.
-    Auto = 1,
-    /// Run cases one at a time.
-    Serial = 2,
-    /// Run independent cases concurrently.
-    Concurrent = 3,
-}
+/// Execution isolation using a pooled Worker, fresh Runtime, or fresh World.
+export type Isolation = "worker" | "runtime" | "world";
 
-/// Test runtime isolation mode.
-export enum Isolation {
-    /// Run in the current runtime.
-    None = 1,
-    /// Run in a fresh runtime.
-    Runtime = 2,
-    /// Run in a fresh world.
-    World = 3,
-}
+/// Retry policy for one test.
+export type RetryOptions = {
+    /// Maximum retry count after the first failed run.
+    count: uint32;
 
-/// Test scheduling policy.
-export type Schedule = {
-    /// Concurrency mode.
-    concurrency?: Concurrency;
-
-    /// Isolation mode.
-    isolation?: Isolation;
-
-    /// Retry count after failures.
-    retries?: uint32;
+    /// Delay before each retry.
+    delay?: Duration;
 };
 
 /// Test registration options.
 export type Options = {
-    /// Run only matching tests.
+    /// Focus this registration.
     only?: boolean;
 
-    /// Skip this test.
+    /// Skip this registration.
     skip?: boolean;
 
-    /// Record this test without running it.
+    /// Record this registration without running it.
     todo?: boolean;
 
-    /// Expected maximum duration.
+    /// Require this registration to fail.
+    fails?: boolean;
+
+    /// Permit this test to run concurrently with its siblings.
+    concurrent?: boolean;
+
+    /// Maximum execution duration.
     timeout?: Duration;
+
+    /// Retry policy after failure.
+    retry?: uint32 | RetryOptions;
+
+    /// Additional successful repetitions.
+    repeats?: uint32;
+
+    /// Isolation used to execute this registration.
+    isolation?: Isolation;
+
+    /// Shuffle direct children of this suite.
+    shuffle?: boolean;
 
     /// Labels attached to this registration.
     labels?: [Label];
 
-    /// Scheduling policy for this registration.
-    schedule?: Schedule;
+    /// Tags used to select and report this registration.
+    tags?: string[];
+
+    /// Structured metadata attached to this registration.
+    meta?: { readonly [key: string]: Json };
 };

@@ -1,11 +1,99 @@
-import { Duration } from "destack:time";
+import { todo } from "destack:error";
+import { Iterable } from "destack:iter";
 
+import { SuiteBody } from "./body.ds";
 import { SuiteId } from "./id.ds";
 import { Options } from "./options.ds";
-import { SuiteBody } from "./result.ds";
 
-/// Test suite registration argument after the suite name.
-export type SuiteArgument = SuiteBody | Options | Duration;
+/// Test suite registration function.
+export const describe: TestSuite = createSuite();
+
+/// Alias for `describe`.
+export const suite: TestSuite = describe;
+
+/// Callable test suite registration interface.
+export newtype interface TestSuite {
+    /// Register one test suite.
+    (name: string, body?: SuiteBody): void;
+
+    /// Register one configured test suite.
+    (name: string, options: Options, body?: SuiteBody): void;
+
+    /// Register skipped suites.
+    readonly skip: TestSuite;
+
+    /// Register focused suites.
+    readonly only: TestSuite;
+
+    /// Register pending suites.
+    readonly todo: TestSuite;
+
+    /// Register suites whose cases may run concurrently.
+    readonly concurrent: TestSuite;
+
+    /// Register suites whose direct children run in shuffled order.
+    readonly shuffle: TestSuite;
+
+    /// Register suites when `condition` holds.
+    runIf(condition: boolean): TestSuite;
+
+    /// Register skipped suites when `condition` holds.
+    skipIf(condition: boolean): TestSuite;
+
+    /// Register one suite for each parameter tuple.
+    each<P: readonly unknown[]>(values: Iterable<P>): ParameterizedSuite<P>;
+
+    /// Register one suite for each value without spreading arrays.
+    for<T>(values: Iterable<T>): TableSuite<T>;
+}
+
+/// Suite registration over one parameter tuple.
+export newtype interface ParameterizedSuite<P: readonly unknown[]> {
+    /// Register one parameterized suite.
+    (name: string, body?: Function<P, void>): void;
+
+    /// Register one configured parameterized suite.
+    (name: string, options: Options, body?: Function<P, void>): void;
+
+    /// Register skipped parameterized suites.
+    readonly skip: ParameterizedSuite<P>;
+
+    /// Register focused parameterized suites.
+    readonly only: ParameterizedSuite<P>;
+
+    /// Register pending parameterized suites.
+    readonly todo: ParameterizedSuite<P>;
+
+    /// Register parameterized suites whose cases may run concurrently.
+    readonly concurrent: ParameterizedSuite<P>;
+
+    /// Register parameterized suites whose direct children run in shuffled order.
+    readonly shuffle: ParameterizedSuite<P>;
+}
+
+/// Suite registration over one unspread table value.
+export newtype interface TableSuite<T> {
+    /// Register one table suite.
+    (name: string, body?: (value: T) => void): void;
+
+    /// Register one configured table suite.
+    (name: string, options: Options, body?: (value: T) => void): void;
+
+    /// Register skipped table suites.
+    readonly skip: TableSuite<T>;
+
+    /// Register focused table suites.
+    readonly only: TableSuite<T>;
+
+    /// Register pending table suites.
+    readonly todo: TableSuite<T>;
+
+    /// Register table suites whose cases may run concurrently.
+    readonly concurrent: TableSuite<T>;
+
+    /// Register table suites whose direct children run in shuffled order.
+    readonly shuffle: TableSuite<T>;
+}
 
 /// Registered test suite.
 export struct Suite {
@@ -16,57 +104,10 @@ export struct Suite {
     name: string;
 
     /// Suite options.
-    options?: Options;
+    options: Options;
 }
 
-/// Register one test suite.
-@binding("destack.test.suite.register", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-declare function registerSuite(name: string, argument?: SuiteArgument, body?: SuiteBody): void;
-
-/// Register one skipped test suite.
-@binding("destack.test.suite.skip", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-declare function registerSkippedSuite(
-    name: string,
-    argument?: SuiteArgument,
-    body?: SuiteBody,
-): void;
-
-/// Register one focused test suite.
-@binding("destack.test.suite.only", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-declare function registerFocusedSuite(
-    name: string,
-    argument?: SuiteArgument,
-    body?: SuiteBody,
-): void;
-
-/// Register one pending test suite.
-@binding("destack.test.suite.todo", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-declare function registerPendingSuite(name: string): void;
-
-export {
-    registerSuite,
-    registerSuite as describe,
-    registerSuite as suite,
-    registerFocusedSuite as describeOnly,
-    registerFocusedSuite as suiteOnly,
-    registerPendingSuite as describeTodo,
-    registerPendingSuite as suiteTodo,
-    registerSkippedSuite as describeSkip,
-    registerSkippedSuite as suiteSkip,
-};
+/// Create one suite registration function.
+function createSuite(): TestSuite {
+    todo("test.createSuite")
+}

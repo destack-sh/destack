@@ -1,35 +1,35 @@
+import { todo } from "destack:error";
 import { Duration } from "destack:time";
 
-import { HookBody } from "./result.ds";
+import { AroundHook, HookBody } from "./body.ds";
+import { CaseContext, SuiteContext } from "./context.ds";
 
 /// Register setup before all tests in the current suite.
-@binding("destack.test.hook.beforeAll", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-export declare function beforeAll(body: HookBody, timeout?: Duration): void;
+export function beforeAll(body: HookBody<SuiteContext>, timeout?: Duration): void {
+    todo("test.beforeAll");
+}
 
 /// Register cleanup after all tests in the current suite.
-@binding("destack.test.hook.afterAll", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-export declare function afterAll(body: HookBody, timeout?: Duration): void;
+export function afterAll(body: HookBody<SuiteContext>, timeout?: Duration): void {
+    todo("test.afterAll");
+}
+
+/// Register a function around all tests in the current suite.
+export function aroundAll(body: AroundHook<SuiteContext>, timeout?: Duration): void {
+    todo("test.aroundAll");
+}
 
 /// Register setup before each test in the current suite.
-@binding("destack.test.hook.beforeEach", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-export declare function beforeEach(body: HookBody, timeout?: Duration): void;
+export function beforeEach(body: HookBody<CaseContext>, timeout?: Duration): void {
+    todo("test.beforeEach");
+}
 
 /// Register cleanup after each test in the current suite.
-@binding("destack.test.hook.afterEach", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-})
-export declare function afterEach(body: HookBody, timeout?: Duration): void;
+export function afterEach(body: HookBody<CaseContext>, timeout?: Duration): void {
+    todo("test.afterEach");
+}
+
+/// Register a function around each test in the current suite.
+export function aroundEach(body: AroundHook<CaseContext>, timeout?: Duration): void {
+    todo("test.aroundEach");
+}

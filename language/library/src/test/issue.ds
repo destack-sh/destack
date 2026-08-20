@@ -1,4 +1,4 @@
-import { SourceLocation } from "destack:error";
+import { Panic, SourceLocation } from "destack:error";
 import { Json } from "destack:json";
 
 import { ArtifactId } from "./artifact.ds";
@@ -31,10 +31,13 @@ export struct Issue {
     kind: IssueKind;
 
     /// Human-readable issue message.
-    message: string;
+    message: ^string;
 
     /// Source location when available.
     location?: SourceLocation;
+
+    /// Uncaught panic when this issue ended a Worker.
+    panic?: shared readonly Panic;
 
     /// Structured fields attached to this issue.
     fields?: { readonly [key: string]: Json };

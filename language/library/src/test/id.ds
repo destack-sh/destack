@@ -6,6 +6,3 @@ export newtype SuiteId = string;
 
 /// Stable test run identifier.
 export newtype RunId = string;
-
-/// Named test resource key.
-export newtype ResourceKey = string;
