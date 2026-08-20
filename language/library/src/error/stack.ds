@@ -4,7 +4,7 @@ export newtype StackFrameId = uint64;
 /// Source location for a stack frame.
 export type SourceLocation = {
     /// Source file or URL.
-    file?: string;
+    file?: ^string;
 
     /// One-based source line.
     line?: uint32;
@@ -19,10 +19,10 @@ export type StackFrame = {
     id?: StackFrameId;
 
     /// Function or callable display name.
-    function?: string;
+    function?: ^string;
 
     /// Module display name or specifier.
-    module?: string;
+    module?: ^string;
 
     /// Source location after symbolication.
     location?: SourceLocation;
@@ -38,7 +38,7 @@ export type StackFrame = {
 };
 
 /// Structured stack trace.
-export type StackTrace = readonly StackFrame[];
+export type StackTrace = ^[StackFrame];
 
 /// Stack trace capture options.
 export type StackTraceOptions = {
@@ -60,4 +60,4 @@ export declare function captureStackTrace(options?: StackTraceOptions): StackTra
     effect: "pure",
     requires: [],
 })
-export declare function formatStackTrace(trace: StackTrace): ^string;
+export declare function formatStackTrace(trace: &readonly [StackFrame]): ^string;

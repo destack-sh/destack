@@ -1,10 +1,11 @@
+import { Result } from "./result.ds";
 import { SourceLocation, StackTrace } from "./stack.ds";
 
-/// Panic instance observed by hooks and supervisors.
+/// Panic observed by hooks, `catchUnwind`, and Worker supervisors.
 @languageItem("error.Panic")
 export struct Panic {
     /// The panic message.
-    message: string;
+    message: ^string;
 
     /// Source location where the panic began.
     location?: SourceLocation;
@@ -13,15 +14,40 @@ export struct Panic {
     stack?: StackTrace;
 }
 
-/// Runtime hook invoked before a panic starts unwinding.
-export type PanicHook = (panic: Panic) => void;
+/// Types safe to retain across a panic boundary.
+@languageItem("error.UnwindSafe")
+export newtype interface UnwindSafe {}
+
+/// Types safe to observe through readonly references after unwinding.
+@languageItem("error.RefUnwindSafe")
+export newtype interface RefUnwindSafe {}
+
+/// Hook invoked before the current Worker starts unwinding.
+export type PanicHook = (panic: &readonly Panic) => void;
 
 /// Stop execution with a language panic.
 @languageItem("error.panic")
 @intrinsic("error.panic")
-export declare function panic(message: string): never;
+export declare function panic(message: ^string): never;
 
-/// Install the runtime panic hook.
+/// Run one callable behind a panic boundary.
+@languageItem("error.catchUnwind")
+@intrinsic("error.catchUnwind")
+export declare function catchUnwind<T>(
+    body: Function<(), T, "once"> & UnwindSafe,
+): Result<T, Panic>;
+
+/// Resume an existing panic without invoking the panic hook again.
+@languageItem("error.resumeUnwind")
+@intrinsic("error.resumeUnwind")
+export declare function resumeUnwind(panic: Panic): never;
+
+/// Explicitly assert that a value may cross a panic boundary.
+@languageItem("error.assertUnwindSafe")
+@intrinsic("error.assertUnwindSafe")
+export declare function assertUnwindSafe<T>(value: T): T & UnwindSafe;
+
+/// Install the current Worker's panic hook.
 @languageItem("error.setPanicHook")
 @binding("destack.error.panic.hook.set", {
     provider: "runtime",
@@ -30,7 +56,7 @@ export declare function panic(message: string): never;
 })
 export declare function setPanicHook(hook: PanicHook): void;
 
-/// Remove the runtime panic hook and return the previous hook.
+/// Remove the current Worker's panic hook and return the previous hook.
 @languageItem("error.takePanicHook")
 @binding("destack.error.panic.hook.take", {
     provider: "runtime",
