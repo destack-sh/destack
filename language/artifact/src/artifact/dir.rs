@@ -479,9 +479,16 @@ pub struct DirChecked {
     pub captures: Arc<dir::CaptureSegment>,
     /// Flow conclusions.
     pub flows: Arc<dir::FlowSegment>,
+    /// The auto conformances the check pass decided.
+    pub auto: Arc<dir::AutoSegment>,
 }
 
 impl DirChecked {
+    /// Return the cumulative auto implementation table for checked DIR.
+    pub fn auto_table(&self, elaborated: &DirElaborated) -> dir::AutoTable<'static> {
+        dir::AutoTable::from_segments(vec![elaborated.auto.clone(), self.auto.clone()])
+    }
+
     /// Return the cumulative definition table for checked DIR.
     pub fn definition_table(&self, elaborated: &DirElaborated) -> dir::DefinitionTable<'static> {
         dir::DefinitionTable::from_segments(vec![
