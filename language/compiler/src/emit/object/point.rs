@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use std::iter;
 
 use destack_artifact::MirOptimized;
+use destack_core::FxIndexMap;
 use destack_mir as mir;
 use destack_program::object::Point;
 
@@ -9,19 +9,19 @@ use destack_program::object::Point;
 #[derive(Debug)]
 pub(super) struct PointMap {
     /// Instruction points.
-    instructions: HashMap<mir::LocalNodeId<mir::Instruction>, Point>,
+    instructions: FxIndexMap<mir::LocalNodeId<mir::Instruction>, Point>,
     /// Block entry points.
-    blocks: HashMap<mir::BlockId, Point>,
+    blocks: FxIndexMap<mir::BlockId, Point>,
     /// Block terminator points.
-    terminators: HashMap<mir::BlockId, Point>,
+    terminators: FxIndexMap<mir::BlockId, Point>,
 }
 
 impl PointMap {
     /// Map every MIR operation into canonical executable order.
     pub(super) fn build(optimized: &MirOptimized) -> Self {
-        let mut instructions = HashMap::new();
-        let mut blocks = HashMap::new();
-        let mut terminators = HashMap::new();
+        let mut instructions = FxIndexMap::default();
+        let mut blocks = FxIndexMap::default();
+        let mut terminators = FxIndexMap::default();
 
         // assign function-local operation indices in canonical execution order
         for (function_id, function) in optimized.tree.iter_nodes::<mir::Function>() {

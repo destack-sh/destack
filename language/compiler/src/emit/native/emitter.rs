@@ -1,4 +1,3 @@
-use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -10,6 +9,7 @@ use cranelift_codegen::{Context, ir as cir};
 use cranelift_module::{DataId, FuncId, Linkage, Module, ModuleReloc, ModuleRelocTarget};
 use cranelift_object::{ObjectBuilder, ObjectModule};
 use destack_artifact::MirOptimized;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
 use destack_native as native;
 use destack_repository::{OptimizeLevel, Target};
@@ -41,13 +41,13 @@ pub struct NativeEmitter<'a> {
     /// Target-native unwind tables.
     unwind: UnwindEmitter,
     /// Internal native functions keyed by MIR identity.
-    functions: HashMap<mir::FunctionId, FuncId>,
+    functions: FxIndexMap<mir::FunctionId, FuncId>,
     /// Canonical entries keyed by MIR identity.
-    entries: HashMap<mir::FunctionId, FuncId>,
+    entries: FxIndexMap<mir::FunctionId, FuncId>,
     /// Object-local function indices keyed by Cranelift identity.
-    function_indices: HashMap<FuncId, u32>,
+    function_indices: FxIndexMap<FuncId, u32>,
     /// Platform imports keyed by Cranelift identity.
-    imports: HashMap<FuncId, native::Import>,
+    imports: FxIndexMap<FuncId, native::Import>,
     /// Native definitions in object-local function order.
     definitions: Vec<Option<native::DefinitionBuilder>>,
     /// Independently placed code blocks in object-local order.
@@ -106,10 +106,10 @@ impl<'a> NativeEmitter<'a> {
             output,
             symbols: SymbolTable::default(),
             unwind,
-            functions: HashMap::new(),
-            entries: HashMap::new(),
-            function_indices: HashMap::new(),
-            imports: HashMap::new(),
+            functions: FxIndexMap::default(),
+            entries: FxIndexMap::default(),
+            function_indices: FxIndexMap::default(),
+            imports: FxIndexMap::default(),
             definitions: Vec::new(),
             blocks: Vec::new(),
             traps: Vec::new(),
@@ -477,7 +477,7 @@ impl<'a> NativeEmitter<'a> {
             .stackslots
             .values()
             .filter_map(|slot| slot.key.map(|key| (key, slot.offset)))
-            .collect::<HashMap<_, _>>();
+            .collect::<FxIndexMap<_, _>>();
         let mut frames = Vec::with_capacity(stack_maps.len());
 
         // resolve every requested stack map through its keyed marker slot
@@ -521,14 +521,14 @@ impl<'a> NativeEmitter<'a> {
     fn frame_values(
         module: ModuleId,
         map: &cir::UserStackMap,
-        locations: &HashMap<cir::StackSlotKey, u32>,
+        locations: &FxIndexMap<cir::StackSlotKey, u32>,
         marker: u32,
         stack_map: &StackMap,
     ) -> Result<Vec<native::FrameValueBuilder>, EmitError> {
         let live = map
             .entries()
             .map(|(_, offset)| offset)
-            .collect::<HashSet<_>>();
+            .collect::<FxIndexSet<_>>();
         let values = stack_map
             .values
             .iter()

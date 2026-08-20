@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use cranelift_module::{DataDescription, DataId, Linkage, Module, ModuleResult};
 use cranelift_object::ObjectModule;
@@ -10,11 +10,11 @@ pub(in crate::emit::native) struct SymbolTable {
     /// Symbols in object-local identity order.
     values: Vec<native::Symbol>,
     /// Object-local identities keyed by symbol.
-    indices: HashMap<native::Symbol, native::SymbolId>,
+    indices: FxIndexMap<native::Symbol, native::SymbolId>,
     /// Cranelift data identities keyed by object symbol.
-    data: HashMap<native::Symbol, DataId>,
+    data: FxIndexMap<native::Symbol, DataId>,
     /// Object-local symbols keyed by Cranelift data identity.
-    data_symbols: HashMap<DataId, native::SymbolId>,
+    data_symbols: FxIndexMap<DataId, native::SymbolId>,
 }
 
 impl SymbolTable {

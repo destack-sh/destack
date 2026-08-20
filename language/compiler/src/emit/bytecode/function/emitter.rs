@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use destack_artifact::MirOptimized;
 use destack_bytecode as bytecode;
@@ -31,7 +31,7 @@ pub(crate) struct FunctionEmitter<'a> {
     /// Fixed registers keyed by MIR value identity.
     pub(super) values: Vec<Option<bytecode::RegisterSpan>>,
     /// Permanent register ranges keyed by MIR local identity.
-    pub(super) locals: HashMap<mir::LocalId, bytecode::RegisterSpan>,
+    pub(super) locals: FxIndexMap<mir::LocalId, bytecode::RegisterSpan>,
     /// Reusable exact-type scratch ranges.
     pub(super) scratches: Vec<(bytecode::ValueType, bytecode::RegisterSpan)>,
     /// Reusable contiguous outgoing call registers.
@@ -39,7 +39,7 @@ pub(crate) struct FunctionEmitter<'a> {
     /// Frame states in canonical operation order.
     pub(super) frames: Vec<FrameEmission>,
     /// Branch labels keyed by MIR block identity.
-    pub(super) blocks: HashMap<mir::BlockId, bytecode::Label>,
+    pub(super) blocks: FxIndexMap<mir::BlockId, bytecode::Label>,
     /// Deferred blocks emitted after the main blocks.
     pub(super) stubs: Vec<Stub>,
     /// Next dense branch label.

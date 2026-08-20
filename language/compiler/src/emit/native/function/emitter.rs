@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
@@ -31,13 +31,13 @@ pub(crate) struct FunctionEmitter<'a> {
     /// Object-local native symbols.
     pub(super) symbols: &'a mut SymbolTable,
     /// Declared internal functions.
-    pub(super) functions: &'a HashMap<mir::FunctionId, FuncId>,
+    pub(super) functions: &'a FxIndexMap<mir::FunctionId, FuncId>,
     /// Declared platform imports.
-    pub(super) imports: &'a mut HashMap<FuncId, native::Import>,
+    pub(super) imports: &'a mut FxIndexMap<FuncId, native::Import>,
     /// Function-local platform function references.
-    pub(super) platform_functions: HashMap<native::Import, cir::FuncRef>,
+    pub(super) platform_functions: FxIndexMap<native::Import, cir::FuncRef>,
     /// Function-local references to linked Program indices.
-    pub(super) indices: HashMap<native::Index, cir::GlobalValue>,
+    pub(super) indices: FxIndexMap<native::Index, cir::GlobalValue>,
     /// MIR function declaration.
     pub(super) function: &'a mir::Function,
     /// Object-local function identity.
@@ -45,9 +45,9 @@ pub(crate) struct FunctionEmitter<'a> {
     /// Physical values keyed by MIR SSA identity.
     pub(super) values: Vec<Option<Value>>,
     /// Canonical locals keyed by MIR identity.
-    pub(super) locals: HashMap<mir::LocalId, Local>,
+    pub(super) locals: FxIndexMap<mir::LocalId, Local>,
     /// Cranelift blocks keyed by MIR identity.
-    pub(super) blocks: HashMap<mir::BlockId, cir::Block>,
+    pub(super) blocks: FxIndexMap<mir::BlockId, cir::Block>,
     /// Hidden native activation.
     pub(super) activation: Option<cir::Value>,
     /// Hidden callable environment.
@@ -73,8 +73,8 @@ impl<'a> FunctionEmitter<'a> {
         types: &'a TypeEmitter<'a>,
         output: &'a mut ObjectModule,
         symbols: &'a mut SymbolTable,
-        functions: &'a HashMap<mir::FunctionId, FuncId>,
-        imports: &'a mut HashMap<FuncId, native::Import>,
+        functions: &'a FxIndexMap<mir::FunctionId, FuncId>,
+        imports: &'a mut FxIndexMap<FuncId, native::Import>,
         function: &'a mir::Function,
         function_index: u32,
         frame_base: u32,
@@ -93,13 +93,13 @@ impl<'a> FunctionEmitter<'a> {
             symbols,
             functions,
             imports,
-            platform_functions: HashMap::new(),
-            indices: HashMap::new(),
+            platform_functions: FxIndexMap::default(),
+            indices: FxIndexMap::default(),
             function,
             function_index,
             values,
-            locals: HashMap::new(),
-            blocks: HashMap::new(),
+            locals: FxIndexMap::default(),
+            blocks: FxIndexMap::default(),
             activation: None,
             environment: None,
             result: None,
@@ -281,8 +281,8 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Return the MIR blocks executable without crossing an engine transition.
-    fn reachable_blocks(&self, entry: mir::BlockId) -> HashSet<mir::BlockId> {
-        let mut reachable = HashSet::new();
+    fn reachable_blocks(&self, entry: mir::BlockId) -> FxIndexSet<mir::BlockId> {
+        let mut reachable = FxIndexSet::default();
         let mut pending = vec![entry];
 
         // walk only control flow retained by the native body

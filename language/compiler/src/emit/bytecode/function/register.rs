@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use destack_artifact::MirOptimized;
 use destack_bytecode as bytecode;
@@ -17,7 +17,7 @@ pub(crate) struct RegisterAllocation {
     /// Register ranges keyed by MIR value identity.
     pub(crate) values: Vec<Option<bytecode::RegisterSpan>>,
     /// Permanent register ranges keyed by MIR local identity.
-    pub(crate) locals: HashMap<mir::LocalId, bytecode::RegisterSpan>,
+    pub(crate) locals: FxIndexMap<mir::LocalId, bytecode::RegisterSpan>,
 }
 
 /// Assign reusable bytecode register ranges to MIR values.
@@ -137,8 +137,9 @@ impl<'a> RegisterAllocator<'a> {
     /// Assign one permanent register range to every MIR local.
     fn allocate_locals(
         &mut self,
-    ) -> Result<HashMap<mir::LocalId, bytecode::RegisterSpan>, EmitError> {
-        let mut locals = HashMap::with_capacity(self.function.locals().len());
+    ) -> Result<FxIndexMap<mir::LocalId, bytecode::RegisterSpan>, EmitError> {
+        let mut locals =
+            FxIndexMap::with_capacity_and_hasher(self.function.locals().len(), Default::default());
 
         // append locals after reusable SSA ranges so their addresses remain stable
         for &local_id in self.function.locals() {
