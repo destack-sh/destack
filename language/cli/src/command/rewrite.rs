@@ -3,9 +3,9 @@ use destack_workspace::{CommandRevision, RewriteInput, RewriteMode, RewritePaylo
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, DiagnosticFormat, FormatOptions, InputArgs, NodeTypeArg,
-    ProgramArgs, ReportArgs, ReportFormat, command_error, command_inputs_from_sources,
-    ensure_no_watch_or_dev, finish_diagnostic_command, parse_required_command_payload,
-    report_error, run_workspace_command_or_report,
+    ProgramArgs, ReportArgs, ReportFormat, command_error, ensure_no_watch_or_dev,
+    finish_diagnostic_command, parse_required_command_payload, report_error,
+    run_workspace_command_or_report,
 };
 use crate::console;
 
@@ -132,7 +132,7 @@ pub async fn run(args: &RewriteArgs) -> i32 {
         Ok(sources) => sources,
         Err(error) => return report_error("rewrite", &args.report, &error.to_string()),
     };
-    let inputs = match command_inputs_from_sources(&sources, args.input.file_type()) {
+    let inputs = match args.input.command_inputs(&sources) {
         Ok(inputs) => inputs,
         Err(error) => return report_error("rewrite", &args.report, &error.to_string()),
     };

@@ -21,8 +21,7 @@ pub use format::{
     DiagnosticFormat, FormatOptions, FormatResult, LineWriter, collect_diagnostics_json,
     format_diagnostics, format_diagnostics_with_writer,
 };
-pub(crate) use input::command_inputs_from_sources;
-pub use input::{InputArgs, InputSource, SingleInputArgs};
+pub use input::{InputArgs, InputSource};
 pub use list::{
     ListEntry, ListGroup, ListPrinter, ListSpacing, grouped_list_payload, list_payload,
     list_payload_with_count, print_grouped_list, print_grouped_list_with, print_list,

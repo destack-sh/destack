@@ -5,9 +5,9 @@ use destack_workspace::{BuildInput, BuildOutputs, BuildRequest, CommandRevision}
 use crate::common::{
     CommandOptionsBuilder, CommandResult, CommandSummary, DiagnosticFormat, FormatOptions,
     InputArgs, InputSource, ProgramArgs, ReportArgs, TargetArgs, WatchCompileContext, WatchCycle,
-    WorkspaceWatch, command_data_json, command_error, command_inputs_from_sources,
-    emit_workspace_text_output, finish_diagnostic_command, report_error,
-    run_workspace_command_or_report, target_overrides_from_args,
+    WorkspaceWatch, command_data_json, command_error, emit_workspace_text_output,
+    finish_diagnostic_command, report_error, run_workspace_command_or_report,
+    target_overrides_from_args,
 };
 use crate::diagnostic::ConsoleResult;
 use clap::Args;
@@ -56,7 +56,7 @@ async fn run_build(args: &BuildArgs) -> i32 {
                 return report_error("build", &args.report, &error.to_string());
             }
         };
-        match command_inputs_from_sources(&sources, args.input.file_type()) {
+        match args.input.command_inputs(&sources) {
             Ok(inputs) => inputs,
             Err(error) => {
                 return report_error("build", &args.report, &error.to_string());
@@ -164,7 +164,7 @@ fn run_watch(args: &BuildArgs) -> i32 {
     let target_overrides = target_overrides_from_args(&args.target);
     let build_request =
         |sources: &[InputSource], revision: CommandRevision| -> ConsoleResult<BuildInput> {
-            let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
+            let inputs = args.input.command_inputs(sources)?;
             let common = CommandOptionsBuilder::new(&args.program)?
                 .inputs(inputs)
                 .config_inputs(!args.input.has_input())

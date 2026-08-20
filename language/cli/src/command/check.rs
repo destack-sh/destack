@@ -4,9 +4,8 @@ use crate::common::format::{DiagnosticFormat, FormatOptions};
 use crate::common::{
     CommandOptionsBuilder, CommandResult, CommandSummary, InputArgs, InputSource, LineWriter,
     ProgramArgs, ProgressMode, ProgressReporter, ReportArgs, WatchCompileContext, WatchCycle,
-    WorkspaceWatch, command_data_json, command_error, command_inputs_from_sources,
-    emit_workspace_text_output, finish_diagnostic_command, is_tty, report_error,
-    run_workspace_command,
+    WorkspaceWatch, command_data_json, command_error, emit_workspace_text_output,
+    finish_diagnostic_command, is_tty, report_error, run_workspace_command,
 };
 use crate::console;
 use crate::diagnostic::ConsoleResult;
@@ -461,7 +460,7 @@ fn build_check_command(
     sources: &[InputSource],
     revision: CommandRevision,
 ) -> ConsoleResult<CheckInput> {
-    let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
+    let inputs = args.input.command_inputs(sources)?;
     let common = CommandOptionsBuilder::new(&args.program)?
         .inputs(inputs)
         .config_inputs(!args.input.has_input())

@@ -2,7 +2,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use clap::Args;
-use destack_source::FileType;
+use destack_source::LanguageType;
 use destack_workspace::CommandInput;
 
 use crate::diagnostic::{ConsoleError, ConsoleResult};
@@ -18,45 +18,6 @@ pub enum InputSource {
     Stdin { name: String },
 }
 
-/// Single input arguments for debug commands (file OR eval, not multiple).
-#[derive(Args, Debug, Clone, Default)]
-pub struct SingleInputArgs {
-    /// Input file.
-    #[arg(value_name = "FILE")]
-    pub file: Option<PathBuf>,
-
-    /// Evaluate inline code.
-    #[arg(short = 'e', long = "eval")]
-    pub eval: Option<String>,
-
-    /// File format (ds|ts|tsx|js|jsx, default: ds).
-    #[arg(id = "file_type", long = "type", value_name = "TYPE")]
-    pub file_type: Option<String>,
-}
-
-impl SingleInputArgs {
-    /// Convert to InputSource, returning an error message if no input provided.
-    pub fn to_source(&self) -> Result<InputSource, &'static str> {
-        if let Some(ref path) = self.file {
-            Ok(InputSource::File(path.clone()))
-        } else if let Some(ref code) = self.eval {
-            let extension = self.file_type.as_deref().unwrap_or("ds");
-            Ok(InputSource::Inline {
-                code: code.clone(),
-                name: format!("<eval>.{extension}"),
-            })
-        } else {
-            Err("no input provided (use FILE or --eval)")
-        }
-    }
-
-    /// Get the file type from format argument.
-    pub fn file_type(&self) -> FileType {
-        let format_name = self.file_type.as_deref().unwrap_or("ds");
-        FileType::from_extension_or_unknown(format_name)
-    }
-}
-
 /// Common input arguments for compilation commands.
 #[derive(Args, Debug, Clone, Default)]
 pub struct InputArgs {
@@ -70,7 +31,7 @@ pub struct InputArgs {
 
     /// Named module as name:code (can be specified multiple times).
     /// Example: --module 'foo:export const x = 1' creates foo.ds
-    /// Include extension to override: --module 'bar.ts:const x: number = 1'
+    /// Include the declaration extension when needed: --module 'bar.d.ds:export type X = int32'
     #[arg(short = 'm', long = "module")]
     pub module: Vec<String>,
 
@@ -78,7 +39,7 @@ pub struct InputArgs {
     #[arg(long)]
     pub stdin: bool,
 
-    /// File format for --eval/--stdin (ds|ts|tsx|js|jsx, default: ds).
+    /// File format for `--eval` and `--stdin` (`ds` or `d.ds`, default: `ds`).
     #[arg(id = "file_type", long = "type", value_name = "TYPE")]
     pub file_type: Option<String>,
 }
@@ -110,15 +71,16 @@ impl InputArgs {
 
     /// Convert arguments to input sources.
     pub fn to_sources(&self) -> ConsoleResult<Vec<InputSource>> {
+        // collect sources in stable command order
         let mut sources = Vec::new();
         let default_extension = self.file_type.as_deref().unwrap_or("ds");
 
-        // files first
+        // add physical files first
         for path in &self.files {
             sources.push(InputSource::File(path.clone()));
         }
 
-        // then --eval (anonymous, simple)
+        // add anonymous evaluations
         for (index, code) in self.eval.iter().enumerate() {
             let name = format!("<eval{index}>.{default_extension}");
             sources.push(InputSource::Inline {
@@ -127,18 +89,21 @@ impl InputArgs {
             });
         }
 
-        // then --module (named, for cross-imports)
-        for module_str in &self.module {
-            let (name, code) = parse_module_arg(module_str, default_extension)?;
-            sources.push(InputSource::Inline { code, name });
+        // add named modules
+        for module_argument in &self.module {
+            sources.push(InputSource::from_module_argument(
+                module_argument,
+                default_extension,
+            )?);
         }
 
-        // then --stdin
+        // add standard input last
         if self.stdin {
             let name = format!("<stdin>.{default_extension}");
             sources.push(InputSource::Stdin { name });
         }
 
+        // require at least one source
         if sources.is_empty() {
             return Err(ConsoleError::message("no input provided"));
         }
@@ -155,90 +120,119 @@ impl InputArgs {
         }
     }
 
-    /// Get the file type from format argument.
-    pub fn file_type(&self) -> FileType {
+    /// Return the source language selected by the format argument.
+    fn language_type(&self) -> ConsoleResult<LanguageType> {
         let format_name = self.file_type.as_deref().unwrap_or("ds");
-        FileType::from_extension_or_unknown(format_name)
+        let language = LanguageType::from_extension(format_name).ok_or_else(|| {
+            ConsoleError::message(format!("unsupported input file type '{format_name}'"))
+        })?;
+
+        Ok(language)
+    }
+
+    /// Convert resolved input sources into workspace command inputs.
+    pub(crate) fn command_inputs(
+        &self,
+        sources: &[InputSource],
+    ) -> ConsoleResult<Vec<CommandInput>> {
+        let default_language = self.language_type()?;
+
+        sources
+            .iter()
+            .map(|source| source.to_command_input(default_language))
+            .collect()
     }
 }
 
-/// Parse a --module argument in `name:code` format.
-///
-/// Appends the default extension when none is provided.
-/// Returns an error when the format is invalid.
-///
-/// Examples:
-/// - `foo:export const x = 1` becomes `("foo.ds", "export const x = 1")`
-/// - `bar.ds:const x: number = 1` becomes `("bar.ds", "const x: number = 1")`
-fn parse_module_arg(arg: &str, default_extension: &str) -> ConsoleResult<(String, String)> {
-    let colon_pos = arg.find(':').ok_or_else(|| {
-        ConsoleError::message(format!(
-            "invalid --module format: expected 'name:code', got '{arg}'"
-        ))
-    })?;
+impl InputSource {
+    /// Parse one `--module` argument into an inline source.
+    fn from_module_argument(argument: &str, default_extension: &str) -> ConsoleResult<Self> {
+        // split the module name and code
+        let colon_position = argument.find(':').ok_or_else(|| {
+            ConsoleError::message(format!(
+                "invalid --module format: expected 'name:code', got '{argument}'"
+            ))
+        })?;
+        let name = &argument[..colon_position];
+        let code = argument[colon_position + 1..].to_string();
 
-    let name_part = &arg[..colon_pos];
-    let code = arg[colon_pos + 1..].to_string();
+        // require a module name
+        if name.is_empty() {
+            return Err(ConsoleError::message(
+                "invalid --module format: name cannot be empty",
+            ));
+        }
 
-    if name_part.is_empty() {
-        return Err(ConsoleError::message(
-            "invalid --module format: name cannot be empty",
-        ));
+        // require an identifier shaped module name
+        let is_valid_name = name
+            .chars()
+            .all(|character| character.is_alphanumeric() || matches!(character, '_' | '-' | '.'));
+        if !is_valid_name {
+            return Err(ConsoleError::message(format!(
+                "invalid --module name: '{name}' contains invalid characters"
+            )));
+        }
+
+        // append the selected extension when absent
+        let name = if name.contains('.') {
+            name.to_string()
+        } else {
+            format!("{name}.{default_extension}")
+        };
+
+        Ok(Self::Inline { code, name })
     }
 
-    // validate the module name
-    let valid_name = name_part
-        .chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.');
-    if !valid_name {
-        return Err(ConsoleError::message(format!(
-            "invalid --module name: '{name_part}' contains invalid characters"
-        )));
-    }
+    /// Convert this input source into one workspace command input.
+    fn to_command_input(&self, default_language: LanguageType) -> ConsoleResult<CommandInput> {
+        match self {
+            // preserve physical file inputs
+            Self::File(path) => Ok(CommandInput::File { path: path.clone() }),
 
-    // append the default extension when absent
-    let name = if name_part.contains('.') {
-        name_part.to_string()
-    } else {
-        format!("{name_part}.{default_extension}")
-    };
+            // resolve inline source language from its explicit module name
+            Self::Inline { code, name } => {
+                let path = Path::new(name);
+                let language = if path.extension().is_none() {
+                    default_language
+                } else {
+                    LanguageType::from_path(path).ok_or_else(|| {
+                        ConsoleError::message(format!(
+                            "unsupported source module file type for '{name}'"
+                        ))
+                    })?
+                };
 
-    Ok((name, code))
-}
-
-/// Convert input sources into workspace command inputs.
-pub(crate) fn command_inputs_from_sources(
-    sources: &[InputSource],
-    default_file_type: FileType,
-) -> ConsoleResult<Vec<CommandInput>> {
-    let mut inputs = Vec::new();
-    for source in sources {
-        match source {
-            InputSource::File(path) => inputs.push(CommandInput::File { path: path.clone() }),
-            InputSource::Inline { code, name } => {
-                let file_type = FileType::from_path(Path::new(name)).unwrap_or(default_file_type);
-                inputs.push(CommandInput::Inline {
+                Ok(CommandInput::Inline {
                     name: name.clone(),
                     content: code.clone(),
-                    file_type,
-                });
+                    file_type: language.into(),
+                })
             }
-            InputSource::Stdin { name } => {
+
+            // read and resolve standard input
+            Self::Stdin { name } => {
+                // read standard input once
                 let mut content = String::new();
                 std::io::stdin()
                     .read_to_string(&mut content)
                     .map_err(|error| {
                         ConsoleError::message(format!("failed to read stdin: {error}"))
                     })?;
-                let file_type = FileType::from_path(Path::new(name)).unwrap_or(default_file_type);
-                inputs.push(CommandInput::Stdin {
+
+                // require the synthetic source name to identify a Destack language
+                let path = Path::new(name);
+                let language = LanguageType::from_path(path).ok_or_else(|| {
+                    ConsoleError::message(format!(
+                        "unsupported source module file type for '{name}'"
+                    ))
+                })?;
+
+                Ok(CommandInput::Stdin {
                     name: name.clone(),
                     content,
-                    file_type,
-                });
+                    file_type: language.into(),
+                })
             }
         }
     }
-
-    Ok(inputs)
 }
