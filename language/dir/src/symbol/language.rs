@@ -609,17 +609,32 @@ define_language_items! {
             /// Immediate abort function.
             Abort => (Function, "error/panic", "abort"),
 
+            /// Assert unwind safety for one value.
+            AssertUnwindSafe => (Function, "error/panic", "assertUnwindSafe"),
+
+            /// Execute one function behind an unwind boundary.
+            CatchUnwind => (Function, "error/panic", "catchUnwind"),
+
             /// Panic diagnostic function.
             Panic => (Function, "error/panic", "panic"),
 
             /// Reified panic record.
             PanicValue => (Struct, "error/panic", "Panic"),
 
+            /// Values safe to observe through a shared reference after an unwind.
+            RefUnwindSafe => (NewtypeInterface, "error/panic", "RefUnwindSafe"),
+
+            /// Resume propagation of a captured panic.
+            ResumeUnwind => (Function, "error/panic", "resumeUnwind"),
+
             /// Install the panic hook.
             SetPanicHook => (Function, "error/panic", "setPanicHook"),
 
             /// Remove the panic hook.
             TakePanicHook => (Function, "error/panic", "takePanicHook"),
+
+            /// Values safe to cross an unwind boundary.
+            UnwindSafe => (NewtypeInterface, "error/panic", "UnwindSafe"),
 
             /// Unfinished-code trap function.
             Todo => (Function, "error/panic", "todo"),
