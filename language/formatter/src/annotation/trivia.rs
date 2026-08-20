@@ -490,7 +490,7 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for FormatDanglingComments<'_> {
 pub(crate) const fn format_trailing_comments(
     enclosing_span: Span,
     preceding_span: Span,
-    following_span_start: u32,
+    following_span_start: Option<u32>,
 ) -> FormatTrailingComments<'static> {
     FormatTrailingComments::Node((enclosing_span, preceding_span, following_span_start))
 }
@@ -499,7 +499,7 @@ pub(crate) const fn format_trailing_comments(
 pub(crate) fn format_node_with_trailing_comments<'ast, T>(
     enclosing_span: Span,
     node_id: LocalNodeId<T>,
-    following_span_start: u32,
+    following_span_start: Option<u32>,
 ) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: FormatNode<'ast, T> + Node + Clone + 'ast,
@@ -522,7 +522,7 @@ where
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum FormatTrailingComments<'a> {
     /// The enclosing span, preceding span, and following sibling start.
-    Node((Span, Span, u32)),
+    Node((Span, Span, Option<u32>)),
     /// One explicit trailing comment slice.
     Comments(&'a [Comment]),
 }

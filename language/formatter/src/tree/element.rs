@@ -119,7 +119,7 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for FormatTreeOpeningElement
                             .first()
                             .map(|argument_id| f.context().span(*argument_id).start)
                     })
-                    .unwrap_or_else(|| f.context().following_span_start());
+                    .or(f.context().following_span_start());
                 with_following_span_start(f, left_following_span_start, |f| write!(f, [left]))?;
             }
             if !self.generic_arguments.is_empty() {

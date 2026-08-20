@@ -1,20 +1,14 @@
-use std::cell::Cell;
-use std::collections::VecDeque;
-
 use super::{
-    ChainMember, ChainRoot, chain_member_is_call_like, chain_member_node_id,
-    expression_trivia_anchor_end, is_numeric_index, transparent_inner_expression,
+    ChainMember, expression_trivia_anchor_end, is_numeric_index, transparent_inner_expression,
 };
 use crate::DestackFormatContext;
-use destack_dir::{DecoratorPosition, Expression, PostfixPosition};
+use destack_dir::{DecoratorPosition, Expression, LocalNodeId, PostfixPosition};
+use destack_fir::format::{FormatError, FormatResult};
 use smallvec::SmallVec;
 
 /// One member-chain group.
-#[derive(Clone)]
 pub(crate) struct MemberChainGroup {
     members: SmallVec<[ChainMember; 2]>,
-    will_break: Cell<bool>,
-    needs_empty_line: Cell<bool>,
 }
 
 impl MemberChainGroup {
@@ -22,8 +16,6 @@ impl MemberChainGroup {
     pub(crate) fn from_members(members: Vec<ChainMember>) -> Self {
         Self {
             members: SmallVec::from_vec(members),
-            will_break: Cell::new(false),
-            needs_empty_line: Cell::new(false),
         }
     }
 
@@ -31,8 +23,6 @@ impl MemberChainGroup {
     fn new(member: ChainMember) -> Self {
         Self {
             members: SmallVec::from_iter([member]),
-            will_break: Cell::new(false),
-            needs_empty_line: Cell::new(false),
         }
     }
 
@@ -70,32 +60,12 @@ impl MemberChainGroup {
     pub(crate) fn into_members(self) -> SmallVec<[ChainMember; 2]> {
         self.members
     }
-
-    /// Record whether the formatted group breaks.
-    pub(crate) fn set_will_break(&self, will_break: bool) {
-        self.will_break.set(will_break);
-    }
-
-    /// Return whether the formatted group breaks.
-    pub(crate) fn will_break(&self) -> bool {
-        self.will_break.get()
-    }
-
-    /// Record whether an empty line precedes the group.
-    pub(crate) fn set_needs_empty_line(&self, needs_empty_line: bool) {
-        self.needs_empty_line.set(needs_empty_line);
-    }
-
-    /// Return whether an empty line precedes the group.
-    pub(crate) fn needs_empty_line(&self) -> bool {
-        self.needs_empty_line.get()
-    }
 }
 
 /// Build tail groups after the chain head.
 #[derive(Default)]
 struct TailChainGroupsBuilder {
-    groups: VecDeque<MemberChainGroup>,
+    groups: Vec<MemberChainGroup>,
     current_group: Option<MemberChainGroup>,
 }
 
@@ -117,7 +87,7 @@ impl TailChainGroupsBuilder {
     /// Close the current group.
     fn close_group(&mut self) {
         if let Some(group) = self.current_group.take() {
-            self.groups.push_back(group);
+            self.groups.push(group);
         }
     }
 
@@ -126,7 +96,7 @@ impl TailChainGroupsBuilder {
         let mut groups = self.groups;
 
         if let Some(group) = self.current_group {
-            groups.push_back(group);
+            groups.push(group);
         }
 
         TailChainGroups { groups }
@@ -134,9 +104,8 @@ impl TailChainGroupsBuilder {
 }
 
 /// The groups following the chain head.
-#[derive(Clone)]
 pub(crate) struct TailChainGroups {
-    groups: VecDeque<MemberChainGroup>,
+    groups: Vec<MemberChainGroup>,
 }
 
 impl TailChainGroups {
@@ -152,41 +121,26 @@ impl TailChainGroups {
 
     /// Return the first tail group.
     pub(crate) fn first(&self) -> Option<&MemberChainGroup> {
-        self.groups.front()
+        self.groups.first()
     }
 
     /// Return the last tail group.
     pub(crate) fn last(&self) -> Option<&MemberChainGroup> {
-        self.groups.back()
+        self.groups.last()
     }
 
     /// Remove and return the first tail group.
     pub(crate) fn pop_first(&mut self) -> Option<MemberChainGroup> {
-        self.groups.pop_front()
+        if self.groups.is_empty() {
+            None
+        } else {
+            Some(self.groups.remove(0))
+        }
     }
 
     /// Return an iterator over all tail groups.
     pub(crate) fn iter(&self) -> impl Iterator<Item = &MemberChainGroup> {
         self.groups.iter()
-    }
-
-    /// Return one tail group by index.
-    pub(crate) fn get(&self, index: usize) -> Option<&MemberChainGroup> {
-        self.groups.get(index)
-    }
-
-    /// Return one mutable tail group by index.
-    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut MemberChainGroup> {
-        self.groups.get_mut(index)
-    }
-
-    /// Return whether any group except the last breaks.
-    pub(crate) fn any_except_last_will_break(&self) -> bool {
-        let count = self.groups.len().saturating_sub(1);
-        self.groups
-            .iter()
-            .take(count)
-            .any(MemberChainGroup::will_break)
     }
 
     /// Return whether this chain has multiple tail groups.
@@ -198,31 +152,37 @@ impl TailChainGroups {
 /// Return the number of members that stay in the head group.
 pub(crate) fn chain_head_member_count(
     context: &DestackFormatContext<'_>,
-    root: &ChainRoot,
+    root_id: LocalNodeId<Expression>,
     members: &[ChainMember],
-) -> usize {
+) -> FormatResult<usize> {
     if members.is_empty() {
-        return 0;
+        return Ok(0);
     }
 
     if members
         .first()
         .is_some_and(|member| chain_member_has_leading_gap_comment(context, member))
     {
-        return 0;
+        return Ok(0);
     }
 
-    if chain_root_has_leading_call_like(context, root, members) {
-        return members
-            .iter()
-            .position(|member| !chain_member_stays_in_leading_head(context, member))
-            .unwrap_or(members.len());
+    if chain_root_has_leading_call_like(context, root_id, members) {
+        for (index, member) in members.iter().enumerate() {
+            if !chain_member_stays_in_leading_head(context, member)? {
+                return Ok(index);
+            }
+        }
+
+        return Ok(members.len());
     }
 
-    let non_call_or_numeric_index_start = members
-        .iter()
-        .position(|member| !chain_member_stays_in_leading_head(context, member))
-        .unwrap_or(members.len());
+    let mut non_call_or_numeric_index_start = members.len();
+    for (index, member) in members.iter().enumerate() {
+        if !chain_member_stays_in_leading_head(context, member)? {
+            non_call_or_numeric_index_start = index;
+            break;
+        }
+    }
 
     let rest = &members[non_call_or_numeric_index_start..];
     let member_end = rest
@@ -230,7 +190,7 @@ pub(crate) fn chain_head_member_count(
         .position(|member| !chain_member_extends_member_head(member))
         .map_or(rest.len(), |index| index.saturating_sub(1));
 
-    non_call_or_numeric_index_start + member_end
+    Ok(non_call_or_numeric_index_start + member_end)
 }
 
 /// Return whether one chain member owns a source comment before its leading token.
@@ -238,7 +198,7 @@ pub(crate) fn chain_member_has_leading_gap_comment(
     context: &DestackFormatContext<'_>,
     member: &ChainMember,
 ) -> bool {
-    let node_id = chain_member_node_id(member);
+    let node_id = member.node_id();
     let Some(left_id) = super::member::chain_node_left_id(context.tree, node_id) else {
         return false;
     };
@@ -261,7 +221,7 @@ pub(crate) fn chain_member_has_leading_gap_comment(
 pub(crate) fn build_tail_chain_groups(
     context: &DestackFormatContext<'_>,
     tail_members: Vec<ChainMember>,
-) -> TailChainGroups {
+) -> FormatResult<TailChainGroups> {
     let mut groups_builder = TailChainGroupsBuilder::default();
     let mut has_seen_call_like = false;
     let mut members = tail_members.into_iter().peekable();
@@ -271,7 +231,7 @@ pub(crate) fn build_tail_chain_groups(
             .peek()
             .is_some_and(|member| matches!(member, ChainMember::Instantiation { .. }));
 
-        if chain_member_is_numeric_direct_index(context, &member) {
+        if chain_member_is_numeric_direct_index(context, &member)? {
             groups_builder.start_or_continue_group(member);
         } else if chain_member_is_member_like(&member) {
             if has_seen_call_like && !next_is_instantiation {
@@ -310,7 +270,7 @@ pub(crate) fn build_tail_chain_groups(
         }
     }
 
-    groups_builder.finish()
+    Ok(groups_builder.finish())
 }
 
 /// Return whether one chain member has one source-adjacent trailing comment.
@@ -318,7 +278,7 @@ fn chain_member_has_trailing_comment(
     context: &DestackFormatContext<'_>,
     member: &ChainMember,
 ) -> bool {
-    let member_span = context.span(chain_member_node_id(member));
+    let member_span = context.span(member.node_id());
 
     context
         .comments()
@@ -336,26 +296,18 @@ fn chain_member_has_trailing_comment(
 /// Return whether one base begins with call-like chaining.
 fn chain_root_has_leading_call_like(
     context: &DestackFormatContext<'_>,
-    root: &ChainRoot,
+    root_id: LocalNodeId<Expression>,
     head_members: &[ChainMember],
 ) -> bool {
-    match root {
-        ChainRoot::Expression(expression_id) => {
-            let expression_id = transparent_inner_expression(context, *expression_id);
-            let expression = context.tree.get(expression_id);
-            chain_expression_is_call_like_base(context, expression)
-                || head_members.first().is_some_and(chain_member_is_call_like)
-        }
-    }
+    let root_id = transparent_inner_expression(context, root_id);
+    let expression = context.tree.get(root_id);
+
+    chain_expression_is_call_like_base(expression)
+        || head_members.first().is_some_and(ChainMember::is_call_like)
 }
 
 /// Return whether one expression behaves like a call-like chain base.
-fn chain_expression_is_call_like_base(
-    context: &DestackFormatContext<'_>,
-    expression: &Expression,
-) -> bool {
-    let _ = context;
-
+fn chain_expression_is_call_like_base(expression: &Expression) -> bool {
     matches!(
         expression,
         Expression::Call { .. } | Expression::Instantiation { .. }
@@ -366,10 +318,12 @@ fn chain_expression_is_call_like_base(
 fn chain_member_stays_in_leading_head(
     context: &DestackFormatContext<'_>,
     member: &ChainMember,
-) -> bool {
-    chain_member_is_call_like(member)
-        || chain_member_is_numeric_direct_index(context, member)
-        || matches!(member, ChainMember::Maybe { .. } | ChainMember::Must { .. })
+) -> FormatResult<bool> {
+    let stays = member.is_call_like()
+        || chain_member_is_numeric_direct_index(context, member)?
+        || matches!(member, ChainMember::Maybe { .. } | ChainMember::Must { .. });
+
+    Ok(stays)
 }
 
 /// Return whether one member extends the member head.
@@ -381,15 +335,20 @@ fn chain_member_extends_member_head(member: &ChainMember) -> bool {
 fn chain_member_is_numeric_direct_index(
     context: &DestackFormatContext<'_>,
     member: &ChainMember,
-) -> bool {
-    matches!(
-        member,
-        ChainMember::Index {
-            position: PostfixPosition::Direct,
-            index,
-            ..
-        } if is_numeric_index(context, index)
-    )
+) -> FormatResult<bool> {
+    let ChainMember::Index { .. } = member else {
+        return Ok(false);
+    };
+    let expression = member.expression(context.tree)?;
+    let Expression::Index {
+        position, index, ..
+    } = expression
+    else {
+        return Err(FormatError::SyntaxError {
+            message: "index chain member does not contain an index expression",
+        });
+    };
+    Ok(*position == PostfixPosition::Direct && is_numeric_index(context, index))
 }
 
 /// Return whether one member is member-like.
@@ -402,8 +361,7 @@ fn chain_member_is_member_like(member: &ChainMember) -> bool {
 
 /// Return whether one member should stay attached to the current group.
 fn chain_member_is_call_or_attached_tail(member: &ChainMember) -> bool {
-    chain_member_is_call_like(member)
-        || matches!(member, ChainMember::Maybe { .. } | ChainMember::Must { .. })
+    member.is_call_like() || matches!(member, ChainMember::Maybe { .. } | ChainMember::Must { .. })
 }
 
 /// Return whether one member has postfix annotations that force a split.
@@ -412,7 +370,7 @@ fn chain_member_has_trailing_annotations(
     member: &ChainMember,
 ) -> bool {
     context
-        .annotation_ids(chain_member_node_id(member))
+        .annotation_ids(member.node_id())
         .iter()
         .any(|annotation_id| {
             matches!(

@@ -2,9 +2,9 @@ use crate::DestackFormatContext;
 use crate::chain::{
     argument_value_id_if_present, chain_has_call_like_expression, transparent_inner_expression,
 };
+use crate::expression::expression_is_multiline_template_starting_on_same_line;
 use destack_dir::{
-    Argument, Declaration, Expression, FunctionForm, LocalNodeId, NodeType, ScalarLiteral,
-    TemplateLiteral,
+    Argument, Declaration, Expression, FunctionForm, LocalNodeId, ScalarLiteral, TemplateLiteral,
 };
 use destack_source::Span;
 
@@ -50,25 +50,6 @@ pub(crate) fn argument_is_interpolated_template_literal(
     )
 }
 
-/// Return whether one expression is a multiline template that starts on the same line.
-fn expression_is_multiline_template_starting_on_same_line(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression_span = context.span(expression_id);
-    let template_span = match context.tree.get(expression_id) {
-        Expression::TemplateExpression { .. } | Expression::TaggedTemplateExpression { .. } => {
-            expression_span
-        }
-        _ => return false,
-    };
-
-    context.source_text().contains_newline(template_span)
-        && !context
-            .source_text()
-            .has_newline_before(expression_span.start)
-}
-
 /// Return whether one argument list contains exactly one multiline template argument.
 pub(crate) fn is_multiline_template_only_args(
     context: &DestackFormatContext<'_>,
@@ -92,14 +73,10 @@ pub(crate) fn expression_is_long_curried_call(
         return false;
     };
 
-    let Some((parent_id, parent_type)) = context.parent(call_node_id) else {
+    let Some(parent_call_id) = context.expression_parent(call_node_id) else {
         return false;
     };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
 
-    let parent_call_id = LocalNodeId::<Expression>::new(parent_id);
     let Expression::Call {
         left,
         arguments: parent_dynamic_arguments,
@@ -307,15 +284,10 @@ fn call_is_nested_test_call_expression(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(call_node_id) else {
+    let Some(parent_call_id) = context.expression_parent(call_node_id) else {
         return false;
     };
 
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_call_id = LocalNodeId::<Expression>::new(parent_id);
     let Expression::Call {
         left, arguments, ..
     } = context.tree.get(parent_call_id)

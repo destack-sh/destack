@@ -13,25 +13,42 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
         _node_id: LocalNodeId<Decorator>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let tree = f.context().tree;
-        let needs_parentheses = decorator_needs_parentheses(tree, self.expression);
-        let expression_id = self.expression;
-        let expression = tree.get(expression_id);
-        let is_ignored = node_has_ignore_directive(f.context(), expression_id);
-
-        write!(f, [token("@")])?;
-        if needs_parentheses {
-            write!(f, [token("(")])?;
-        }
-
-        format_expression(f, expression_id, expression, is_ignored)?;
-
-        if needs_parentheses {
-            write!(f, [token(")")])?;
-        }
-
-        Ok(())
+        write_decorator_expression(f, self.expression)
     }
+}
+
+/// Write one decorator by node id.
+pub(crate) fn write_decorator<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    decorator_id: LocalNodeId<Decorator>,
+) -> FormatResult<()> {
+    let expression_id = f.context().tree.get(decorator_id).expression;
+
+    write_decorator_expression(f, expression_id)
+}
+
+/// Write one decorator expression.
+fn write_decorator_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+    let needs_parentheses = decorator_needs_parentheses(tree, expression_id);
+    let expression = tree.get(expression_id);
+    let is_ignored = node_has_ignore_directive(f.context(), expression_id);
+
+    write!(f, [token("@")])?;
+    if needs_parentheses {
+        write!(f, [token("(")])?;
+    }
+
+    format_expression(f, expression_id, expression, is_ignored)?;
+
+    if needs_parentheses {
+        write!(f, [token(")")])?;
+    }
+
+    Ok(())
 }
 
 /// Return whether a decorator expression requires parentheses.

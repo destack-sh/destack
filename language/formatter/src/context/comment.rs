@@ -252,7 +252,7 @@ impl<'a> Comments<'a> {
         &self,
         enclosing_span: Span,
         preceding_span: Span,
-        following_span_start: u32,
+        following_span_start: Option<u32>,
     ) -> &'a [Comment] {
         // empty
         let comments = self.unprinted_comments();
@@ -268,8 +268,8 @@ impl<'a> Comments<'a> {
                 .is_none_or(|comment| comment.span.end > preceding_span.start)
         );
 
-        // no following sibling: everything up to the enclosing end is eligible
-        if following_span_start == 0 {
+        // final sibling: everything up to the enclosing end is eligible
+        let Some(following_span_start) = following_span_start else {
             let comments = self.comments_before(enclosing_span.end);
             let mut start = preceding_span.end;
 
@@ -288,7 +288,7 @@ impl<'a> Comments<'a> {
             }
 
             return comments;
-        }
+        };
 
         // scan until the following sibling boundary
         let comments = self.comments_after(preceding_span.end);

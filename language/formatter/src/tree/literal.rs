@@ -422,14 +422,10 @@ fn tree_literal_is_call_argument(
         return false;
     }
 
-    let Some((parent_id, parent_type)) = context.parent(argument_id) else {
+    let Some(parent_id) = context.expression_parent(argument_id) else {
         return false;
     };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
 
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
     matches!(
         context.tree.get(parent_id),
         Expression::Call { .. } | Expression::New { .. }

@@ -16,10 +16,10 @@ use crate::file::write_source_span;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
-    Argument, Expression, IfForm, LocalNodeId, NodeType, ScalarLiteral, TreeAttribute,
-    TreeAttributeValue, TreeChild,
+    Argument, Expression, IfForm, LocalNodeId, Node, NodeType, ScalarLiteral, Tree, TreeAttribute,
+    TreeAttributeValue, TreeChild, TreeStore,
 };
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, line_suffix_boundary, soft_block_indent,
     text, token,
@@ -52,16 +52,14 @@ pub(crate) fn has_multiline_tree_argument(
 fn tree_node_enclosing_span(
     context: &DestackFormatContext<'_>,
     node_id: u32,
-    node_type: NodeType,
-) -> Span {
-    let Some((parent_id, parent_type)) = context.parent_by_id(node_id) else {
-        unreachable!("tree node should have one parent");
+) -> FormatResult<Span> {
+    let Some((parent_id, NodeType::Expression)) = context.parent_by_id(node_id) else {
+        return Err(FormatError::SyntaxError {
+            message: "tree node requires one expression parent",
+        });
     };
 
-    match parent_type {
-        NodeType::Expression => context.span(LocalNodeId::<Expression>::new(parent_id)),
-        _ => unreachable!("{} node parent should be one expression", node_type.name()),
-    }
+    Ok(context.span(LocalNodeId::<Expression>::new(parent_id)))
 }
 
 /// Write one empty tree expression container.
@@ -231,19 +229,23 @@ fn write_tree_expression_value<'ast>(
 }
 
 /// Write one tree spread expression container.
-fn write_tree_spread_attribute<'ast>(
+fn write_tree_spread<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
-    attribute_id: LocalNodeId<TreeAttribute>,
+    node_id: LocalNodeId<T>,
     value: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let node_span = f.context().span(attribute_id);
-    let node_start = f.context().node_token_start(attribute_id);
-    let value_span = f.context().span(value);
+) -> FormatResult<()>
+where
+    T: Node + Clone + 'ast,
+    Tree: TreeStore<T>,
+{
+    let node_span = f.context().span(node_id);
+    let node_start = f.context().node_token_start(node_id);
+    let value_span = f.context().span::<Expression>(value);
     write!(
         f,
         [prefix_annotations_before_offset(
             f.context(),
-            attribute_id,
+            node_id,
             node_start
         )]
     )?;
@@ -263,67 +265,7 @@ fn write_tree_spread_attribute<'ast>(
             f,
             [prefix_annotations_after_offset(
                 f.context(),
-                attribute_id,
-                node_start
-            )]
-        )?;
-        write!(f, [token("..."), value])
-    });
-
-    if has_spread_comment {
-        write!(
-            f,
-            [group(&format_args![
-                token("{"),
-                soft_block_indent(&spread_inner),
-                line_suffix_boundary(),
-                token("}")
-            ])]
-        )?;
-    } else {
-        write!(
-            f,
-            [token("{"), spread_inner, line_suffix_boundary(), token("}")]
-        )?;
-    }
-
-    Ok(())
-}
-
-/// Write one tree spread child expression container.
-fn write_tree_spread_child<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    child_id: LocalNodeId<TreeChild>,
-    value: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let node_span = f.context().span(child_id);
-    let node_start = f.context().node_token_start(child_id);
-    let value_span = f.context().span(value);
-    write!(
-        f,
-        [prefix_annotations_before_offset(
-            f.context(),
-            child_id,
-            node_start
-        )]
-    )?;
-
-    let has_spread_comment = !f
-        .context()
-        .comments()
-        .comments_before(value_span.start)
-        .is_empty()
-        || !f
-            .context()
-            .comments()
-            .comments_in_range(value_span.end, node_span.end)
-            .is_empty();
-    let spread_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write!(
-            f,
-            [prefix_annotations_after_offset(
-                f.context(),
-                child_id,
+                node_id,
                 node_start
             )]
         )?;
@@ -387,7 +329,7 @@ pub(crate) fn write_tree_attribute<'ast>(
             }
         }
         TreeAttribute::Spread { value } => {
-            write_tree_spread_attribute(f, attribute_id, *value)?;
+            write_tree_spread(f, attribute_id, *value)?;
         }
         TreeAttribute::Error => {
             write!(f, [prefix_annotations(f.context(), attribute_id)])?;
@@ -396,15 +338,14 @@ pub(crate) fn write_tree_attribute<'ast>(
     }
 
     if let Some(following_span_start) = following_span_start {
-        let enclosing_span =
-            tree_node_enclosing_span(f.context(), attribute_id.id, NodeType::TreeAttribute);
+        let enclosing_span = tree_node_enclosing_span(f.context(), attribute_id.id)?;
         let trailing_span = f.context().span(attribute_id);
         write!(
             f,
             [format_trailing_comments(
                 enclosing_span,
                 trailing_span,
-                following_span_start,
+                Some(following_span_start),
             )]
         )?;
     }
@@ -438,7 +379,7 @@ fn write_tree_child_inner<'ast>(
             write_tree_expression_child(f, child_id, *value)?;
         }
         TreeChild::Spread { value } => {
-            write_tree_spread_child(f, child_id, *value)?;
+            write_tree_spread(f, child_id, *value)?;
         }
         TreeChild::Tree { value } => {
             write!(f, [prefix_annotations(f.context(), child_id)])?;
@@ -451,15 +392,14 @@ fn write_tree_child_inner<'ast>(
     }
 
     if let Some(following_span_start) = following_span_start {
-        let enclosing_span =
-            tree_node_enclosing_span(f.context(), child_id.id, NodeType::TreeChild);
+        let enclosing_span = tree_node_enclosing_span(f.context(), child_id.id)?;
         let trailing_span = f.context().span(child_id);
         write!(
             f,
             [format_trailing_comments(
                 enclosing_span,
                 trailing_span,
-                following_span_start,
+                Some(following_span_start),
             )]
         )?;
     }

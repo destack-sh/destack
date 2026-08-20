@@ -10,6 +10,7 @@ use destack_parser::{CommentRetention, Parser};
 use destack_repository::FormatterOptions;
 use destack_source::{DiagnosticCollection, DiagnosticSeverity, File, LanguageType, Span};
 
+use crate::context::is_line_terminator;
 use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
 
 const MAX_PARSE_ERROR_MESSAGES: usize = 8;
@@ -53,6 +54,20 @@ pub struct FormattedRange {
     pub edit: Option<FormatEdit>,
     /// Diagnostics produced while parsing the source.
     pub diagnostics: DiagnosticCollection,
+}
+
+/// The parser state and roots for one authored source file.
+struct ParsedFile {
+    /// The source file owned by the parser.
+    file: Arc<File>,
+    /// The language variant used to parse the file.
+    language_type: LanguageType,
+    /// The parser after constructing the DIR roots.
+    parser: Parser,
+    /// The parsed program roots.
+    roots: Vec<LocalNodeId<Expression>>,
+    /// Diagnostics produced while parsing the roots.
+    diagnostics: DiagnosticCollection,
 }
 
 impl Display for FormatFileError {
@@ -106,38 +121,22 @@ pub fn format_source(
     source: &str,
     options: FormatterOptions,
 ) -> Result<FormattedFile, FormatFileError> {
-    let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
-        message: format!("formatter received non-code file type: {:?}", file.ty),
-    })?;
-    let parser_file = parser_file(file, source)?;
-    let mut parser = source_parser(parser_file.clone(), language_type);
-    let expressions = parser.parse();
-    let diagnostics = parser.diagnostics();
-    if has_blocking_diagnostics(&diagnostics) {
+    let parsed = parse_file(file, source)?;
+    if has_blocking_diagnostics(&parsed.diagnostics) {
         return Ok(FormattedFile {
             text: source.to_owned(),
-            diagnostics,
+            diagnostics: parsed.diagnostics,
         });
     }
 
-    // build the formatter context
-    let tokens = parser.take_token_spans();
-    let side_span = parser.tree.decorator_span();
-    parser.tree.index_parents(&expressions);
-    let comments = parser.comments();
-    let strings = parser.publish_strings();
-    let options = DestackFormatOptions::from_formatter_options(options, language_type);
-    let context = DestackFormatContext::new(
-        options,
-        parser_file.as_ref(),
-        &parser.tree,
-        &tokens,
-        comments,
-        &side_span,
-        strings,
-        parser.tree.parents(),
-    );
-    let text = render_program_roots(context, &expressions)?;
+    let ParsedFile {
+        file,
+        language_type,
+        mut parser,
+        roots,
+        diagnostics,
+    } = parsed;
+    let text = render_parsed_roots(&file, language_type, &mut parser, &roots, &roots, options)?;
 
     Ok(FormattedFile { text, diagnostics })
 }
@@ -150,25 +149,20 @@ pub fn format_source_range(
     start: u32,
     end: u32,
 ) -> Result<FormattedRange, FormatFileError> {
-    let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
-        message: format!("formatter received non-code file type: {:?}", file.ty),
-    })?;
-    let parser_file = parser_file(file, source)?;
-    let mut parser = source_parser(parser_file.clone(), language_type);
-    let expressions = parser.parse();
-    let diagnostics = parser.diagnostics();
-    if has_blocking_diagnostics(&diagnostics) {
+    let parsed = parse_file(file, source)?;
+    if has_blocking_diagnostics(&parsed.diagnostics) {
         return Ok(FormattedRange {
             edit: None,
-            diagnostics,
+            diagnostics: parsed.diagnostics,
         });
     }
 
     // find roots that overlap the selected byte range
-    let overlapping = expressions
+    let overlapping = parsed
+        .roots
         .iter()
         .filter(|expression| {
-            let span = parser.tree.get_span(**expression);
+            let span = parsed.parser.tree.get_span(**expression);
             span.start < end && span.end > start
         })
         .copied()
@@ -176,38 +170,35 @@ pub fn format_source_range(
     if overlapping.is_empty() {
         return Ok(FormattedRange {
             edit: None,
-            diagnostics,
+            diagnostics: parsed.diagnostics,
         });
     }
 
     // compute the exact replacement span
-    let first_span = parser.tree.get_span(overlapping[0]);
+    let first_span = parsed.parser.tree.get_span(overlapping[0]);
     let last_index = overlapping.len() - 1;
-    let last_span = parser.tree.get_span(overlapping[last_index]);
+    let last_span = parsed.parser.tree.get_span(overlapping[last_index]);
     let span = Span::new(file.id, first_span.start, last_span.end);
     let span = format_replacement_span(source, span);
 
-    // build the formatter context
-    let tokens = parser.take_token_spans();
-    let side_span = parser.tree.decorator_span();
-    parser.tree.index_parents(&expressions);
-    let comments = parser.comments();
-    let strings = parser.publish_strings();
-    let options = DestackFormatOptions::from_formatter_options(options, language_type);
-    let context = DestackFormatContext::new(
+    let ParsedFile {
+        file,
+        language_type,
+        mut parser,
+        roots,
+        diagnostics,
+    } = parsed;
+    let mut text = render_parsed_roots(
+        &file,
+        language_type,
+        &mut parser,
+        &roots,
+        &overlapping,
         options,
-        parser_file.as_ref(),
-        &parser.tree,
-        &tokens,
-        comments,
-        &side_span,
-        strings,
-        parser.tree.parents(),
-    );
-    let mut text = render_program_roots(context, &overlapping)?;
+    )?;
 
     // keep EOF range formatting newline terminated
-    let is_at_end = last_span.end >= parser_file.len.saturating_sub(1);
+    let is_at_end = last_span.end >= file.len.saturating_sub(1);
     if is_at_end && !text.is_empty() && !text.ends_with('\n') {
         text.push('\n');
     }
@@ -216,6 +207,52 @@ pub fn format_source_range(
         edit: Some(FormatEdit { text, span }),
         diagnostics,
     })
+}
+
+/// Parse one authored source file for formatting.
+fn parse_file(file: &File, source: &str) -> Result<ParsedFile, FormatFileError> {
+    let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
+        message: format!("formatter received non-code file type: {:?}", file.ty),
+    })?;
+    let file = parser_file(file, source)?;
+    let mut parser = source_parser(file.clone(), language_type);
+    let roots = parser.parse();
+    let diagnostics = parser.diagnostics();
+
+    Ok(ParsedFile {
+        file,
+        language_type,
+        parser,
+        roots,
+        diagnostics,
+    })
+}
+
+/// Render selected roots from one parsed source file.
+fn render_parsed_roots(
+    file: &File,
+    language_type: LanguageType,
+    parser: &mut Parser,
+    program_roots: &[LocalNodeId<Expression>],
+    selected_roots: &[LocalNodeId<Expression>],
+    options: FormatterOptions,
+) -> Result<String, FormatFileError> {
+    let tokens = parser.take_token_spans();
+    let side_span = parser.tree.decorator_span();
+    parser.tree.index_parents(program_roots);
+    let options = DestackFormatOptions::from_formatter_options(options, language_type);
+    let context = DestackFormatContext::new(
+        options,
+        file,
+        &parser.tree,
+        &tokens,
+        parser.comments(),
+        &side_span,
+        parser.publish_strings(),
+        parser.tree.parents(),
+    );
+
+    render_program_roots(context, selected_roots)
 }
 
 /// Build a parser file from an input file and source text.
@@ -322,11 +359,6 @@ fn consume_one_line_ending(source: &str, offset: usize) -> usize {
     }
 
     offset
-}
-
-/// Return whether one character is a line terminator.
-fn is_line_terminator(current: char) -> bool {
-    matches!(current, '\n' | '\r' | '\u{2028}' | '\u{2029}')
 }
 
 /// Render one parsed root list through the main formatter.

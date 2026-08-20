@@ -12,8 +12,7 @@ pub(crate) use self::expression::{
 };
 pub(crate) use self::groups::TailChainGroups;
 pub(crate) use self::member::{
-    ChainMember, ChainRoot, assignment_like_parent, chain_has_call_like_expression,
-    chain_member_is_call_like, chain_member_is_index, chain_member_node_id, chain_nodes,
+    ChainMember, assignment_like_parent, chain_has_call_like_expression, chain_nodes,
     expression_has_ternary_ancestor, expression_trivia_anchor_end, first_tail_group_member,
     format_maybe_expression, has_comment_between_expressions, is_numeric_index,
     member_has_intervening_comment, member_property_start, transparent_inner_expression,

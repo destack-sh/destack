@@ -253,7 +253,7 @@ impl<'a> SourceText<'a> {
 }
 
 /// Return whether one character is a line terminator.
-fn is_line_terminator(current: char) -> bool {
+pub(crate) fn is_line_terminator(current: char) -> bool {
     matches!(current, '\n' | '\r' | '\u{2028}' | '\u{2029}')
 }
 

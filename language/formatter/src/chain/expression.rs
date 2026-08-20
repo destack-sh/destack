@@ -1,10 +1,10 @@
 use super::groups::{MemberChainGroup, chain_member_has_leading_gap_comment};
 use super::member::{
-    CallExpressionPosition, build_member_chain_parts, member_has_intervening_comment,
+    CallExpressionPosition, access_marker_position, build_member_chain_parts,
+    member_has_intervening_comment,
 };
 use super::{
-    ChainMember, ChainRoot, TailChainGroups, assignment_like_parent, chain_member_is_call_like,
-    chain_member_is_index, chain_member_node_id, expression_has_ternary_ancestor,
+    ChainMember, TailChainGroups, assignment_like_parent, expression_has_ternary_ancestor,
     expression_trivia_anchor_end, first_tail_group_member, is_lambda_expression,
     is_nested_lambda_expression, transparent_inner_expression,
 };
@@ -26,13 +26,14 @@ use destack_dir::{
     Comment, Declaration, DecoratorPosition, Expression, FunctionForm, IfForm, LocalNodeId, Member,
     NodeType, PostfixPosition,
 };
-use destack_fir::format::{Format, FormatResult};
+use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::{
     empty_line, expand_parent, format_with, group, hard_line_break, indent, line_suffix_boundary,
     token,
 };
 use destack_fir::{best_fitting, format_args, write};
 use destack_source::Span;
+use smallvec::SmallVec;
 
 /// Check whether an assignment chain ends in a nested lambda expression.
 pub(crate) fn is_assignment_chain_tail_lambda(
@@ -52,12 +53,60 @@ pub(crate) fn is_assignment_chain_tail_lambda(
 }
 
 /// One normalized chain layout for the chain formatter.
-#[derive(Clone)]
 pub(crate) struct MemberChain {
+    /// The flattened expression path from root to formatted node.
     chain: Vec<LocalNodeId<Expression>>,
-    root: ChainRoot,
+    /// The expression at the chain root.
+    root_id: LocalNodeId<Expression>,
+    /// The operations retained beside the root.
     head: MemberChainGroup,
+    /// The operation groups rendered after the head.
     tail_groups: TailChainGroups,
+}
+
+/// The measured layout for one member-chain group.
+#[derive(Debug, Clone, Copy)]
+struct ChainGroupLayout {
+    /// Whether the group breaks when formatted alone.
+    will_break: bool,
+    /// Whether source spacing requires an empty line before the group.
+    needs_empty_line: bool,
+}
+
+/// The measured layouts for one member chain's tail groups.
+struct MemberChainLayout {
+    /// The layouts in tail-group order.
+    tail_groups: SmallVec<[ChainGroupLayout; 4]>,
+}
+
+impl MemberChainLayout {
+    /// Return one tail-group layout by index.
+    fn tail_group(&self, index: usize) -> Option<ChainGroupLayout> {
+        self.tail_groups.get(index).copied()
+    }
+
+    /// Return whether the last tail group breaks.
+    fn last_will_break(&self) -> bool {
+        self.tail_groups
+            .last()
+            .is_some_and(|layout| layout.will_break)
+    }
+
+    /// Return whether any tail group except the last breaks.
+    fn any_except_last_will_break(&self) -> bool {
+        let count = self.tail_groups.len().saturating_sub(1);
+        self.tail_groups
+            .iter()
+            .take(count)
+            .any(|layout| layout.will_break)
+    }
+
+    /// Return whether source spacing requires any empty line.
+    fn needs_empty_line(&self) -> bool {
+        self.tail_groups
+            .iter()
+            .any(|layout| layout.needs_empty_line)
+    }
 }
 
 /// One expanded member-chain layout.
@@ -111,12 +160,13 @@ impl MemberChain {
         context: &DestackFormatContext<'_>,
         node_id: LocalNodeId<Expression>,
     ) -> FormatResult<Self> {
-        let (chain, root, mut head, mut tail_groups) = build_member_chain_parts(context, node_id)?;
-        maybe_merge_with_first_group(context, node_id, &root, &mut head, &mut tail_groups);
+        let (chain, root_id, mut head, mut tail_groups) =
+            build_member_chain_parts(context, node_id)?;
+        maybe_merge_with_first_group(context, node_id, root_id, &mut head, &mut tail_groups)?;
 
         Ok(Self {
             chain,
-            root,
+            root_id,
             head,
             tail_groups,
         })
@@ -150,7 +200,7 @@ impl MemberChain {
             write_chain_head(
                 f,
                 formatted_root_id,
-                &self.root,
+                self.root_id,
                 &self.head,
                 &self.tail_groups,
                 false,
@@ -159,67 +209,69 @@ impl MemberChain {
         f.speculate_will_break_after(start, &content)
     }
 
-    /// Inspect every tail group and cache whether it breaks.
-    fn inspect_member_chain_groups<'ast>(
-        &mut self,
+    /// Measure every tail group's isolated layout.
+    fn inspect_layout<'ast>(
+        &self,
         f: &mut DestackFormatter<'ast, '_>,
         formatted_root_id: LocalNodeId<Expression>,
-    ) -> FormatResult<()> {
-        let group_count = self.tail_groups.len();
+    ) -> FormatResult<MemberChainLayout> {
+        let mut group_layouts = SmallVec::with_capacity(self.tail_groups.len());
+        let mut groups = self.tail_groups.iter().peekable();
 
-        for group_index in 0..group_count {
-            let following_group_first_member = self
-                .tail_groups
-                .get(group_index + 1)
-                .and_then(|group| group.first())
-                .cloned();
-
-            let group = self
-                .tail_groups
-                .get_mut(group_index)
-                .expect("tail chain group inspection should have one group");
-            let first_member = group
-                .first()
-                .expect("tail chain group inspection should have one first member");
-            let start = f
-                .context()
-                .expression_token_start(chain_member_node_id(first_member));
+        while let Some(group) = groups.next() {
+            let Some(first_member) = group.first() else {
+                return Err(FormatError::SyntaxError {
+                    message: "empty member chain group",
+                });
+            };
+            let following_group_first_member = groups.peek().and_then(|group| group.first());
+            let start = f.context().expression_token_start(first_member.node_id());
             let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 write_chain_group(
                     f,
                     formatted_root_id,
                     group.members(),
-                    following_group_first_member.as_ref(),
+                    following_group_first_member,
                 )
             });
             let will_break = f.speculate_will_break_after(start, &content)?;
+            let needs_empty_line = chain_group_needs_empty_line_before(f.context(), group);
 
-            group.set_will_break(will_break);
-            group.set_needs_empty_line(chain_group_needs_empty_line_before(f.context(), group));
+            group_layouts.push(ChainGroupLayout {
+                will_break,
+                needs_empty_line,
+            });
         }
 
-        Ok(())
+        Ok(MemberChainLayout {
+            tail_groups: group_layouts,
+        })
     }
 
     /// Return whether the last tail group is a call-like group that breaks.
-    fn last_call_breaks(&self) -> bool {
+    fn last_call_breaks(&self, layout: &MemberChainLayout) -> bool {
         let Some(last_group) = self.tail_groups.last() else {
             return false;
         };
 
-        last_group.last().is_some_and(chain_member_is_call_like) && last_group.will_break()
+        last_group.last().is_some_and(ChainMember::is_call_like) && layout.last_will_break()
     }
 
     /// Return whether one call operation has a function-like argument.
     fn call_operation_has_function_like_argument(
         context: &DestackFormatContext<'_>,
         operation: &ChainMember,
-    ) -> bool {
-        let ChainMember::Call { arguments, .. } = operation else {
-            return false;
+    ) -> FormatResult<bool> {
+        let ChainMember::Call { .. } = operation else {
+            return Ok(false);
         };
-
-        arguments.iter().copied().any(|argument_id| {
+        let expression = operation.expression(context.tree)?;
+        let Expression::Call { arguments, .. } = expression else {
+            return Err(FormatError::SyntaxError {
+                message: "call chain member does not contain a call expression",
+            });
+        };
+        let has_function_like_argument = arguments.iter().copied().any(|argument_id| {
             let Some(argument_value_id) =
                 super::argument_value_id_if_present(context.tree, argument_id)
             else {
@@ -229,15 +281,18 @@ impl MemberChain {
             let argument_value_id = transparent_inner_expression(context, argument_value_id);
             is_lambda_expression(context, argument_value_id)
                 || is_nested_lambda_expression(context, argument_value_id)
-        })
+        });
+
+        Ok(has_function_like_argument)
     }
 
     /// Return whether the inspected chain groups should force expanded layout.
     fn groups_should_break(
         &self,
+        layout: &MemberChainLayout,
         context: &DestackFormatContext<'_>,
         head_will_break: bool,
-    ) -> bool {
+    ) -> FormatResult<bool> {
         let mut has_function_like_argument = false;
 
         for operation in self
@@ -245,23 +300,23 @@ impl MemberChain {
             .iter()
             .chain(self.tail_groups.iter().flat_map(|group| group.iter()))
         {
-            if !chain_member_is_call_like(operation) {
+            if !operation.is_call_like() {
                 continue;
             }
 
             has_function_like_argument |=
-                Self::call_operation_has_function_like_argument(context, operation);
+                Self::call_operation_has_function_like_argument(context, operation)?;
         }
 
         if !self.tail_groups.is_empty() && head_will_break {
-            return true;
+            return Ok(true);
         }
 
-        if self.last_call_breaks() && has_function_like_argument {
-            return true;
+        if self.last_call_breaks(layout) && has_function_like_argument {
+            return Ok(true);
         }
 
-        self.tail_groups.any_except_last_will_break()
+        Ok(layout.any_except_last_will_break())
     }
 
     /// Return whether any member operation owns a comment before its property.
@@ -293,35 +348,37 @@ fn chain_has_layout_trivia(
 fn maybe_merge_with_first_group(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-    root: &ChainRoot,
+    root_id: LocalNodeId<Expression>,
     head: &mut MemberChainGroup,
     tail_groups: &mut TailChainGroups,
-) {
-    if !should_merge_tail_with_head(context, node_id, root, head, tail_groups) {
-        return;
+) -> FormatResult<()> {
+    if !should_merge_tail_with_head(context, node_id, root_id, head, tail_groups)? {
+        return Ok(());
     }
 
     let Some(first_group) = tail_groups.pop_first() else {
-        return;
+        return Ok(());
     };
 
     head.extend_members(first_group.into_members());
+
+    Ok(())
 }
 
 /// Return whether the first tail group should merge into the head.
 fn should_merge_tail_with_head(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-    root: &ChainRoot,
+    root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
-) -> bool {
+) -> FormatResult<bool> {
     let Some(first_group) = tail_groups.first() else {
-        return false;
+        return Ok(false);
     };
 
     if first_group_has_comment(context, first_group) {
-        return false;
+        return Ok(false);
     }
 
     let has_computed_property = first_group
@@ -329,30 +386,37 @@ fn should_merge_tail_with_head(
         .is_some_and(|operation| matches!(operation, ChainMember::Index { .. }));
 
     if head.members().is_empty() {
-        match root {
-            ChainRoot::Expression(expression_id) => {
-                let expression_id = transparent_inner_expression(context, *expression_id);
-                let is_standalone_statement = expression_is_standalone_statement(context, node_id);
+        let root_id = transparent_inner_expression(context, root_id);
+        let is_standalone_statement = expression_is_standalone_statement(context, node_id);
 
-                match context.tree.get(expression_id) {
-                    Expression::Identifier { name, .. } => {
-                        has_computed_property
-                            || is_factory_name(context, *name)
-                            || (is_standalone_statement
-                                && has_short_name(
-                                    context.strings.get(*name),
-                                    context.options.indent_width,
-                                ))
-                    }
-                    Expression::This => true,
-                    _ => false,
-                }
+        let should_merge = match context.tree.get(root_id) {
+            Expression::Identifier { name, .. } => {
+                has_computed_property
+                    || is_factory_name(context, *name)
+                    || (is_standalone_statement
+                        && has_short_name(context.strings.get(*name), context.options.indent_width))
             }
-        }
-    } else if let Some(ChainMember::Member { segment, .. }) = head.last() {
-        has_computed_property || is_factory_name(context, *segment)
+            Expression::This => true,
+            _ => false,
+        };
+
+        Ok(should_merge)
+    } else if let Some(member) = head.last()
+        && matches!(member, ChainMember::Member { .. })
+    {
+        let expression = member.expression(context.tree)?;
+        let Expression::Member {
+            name: Some(segment),
+            ..
+        } = expression
+        else {
+            return Err(FormatError::SyntaxError {
+                message: "member chain operation does not contain a named member expression",
+            });
+        };
+        Ok(has_computed_property || is_factory_name(context, *segment))
     } else {
-        false
+        Ok(false)
     }
 }
 
@@ -443,7 +507,7 @@ fn chain_group_needs_empty_line_before(
         return false;
     };
 
-    let node_id = chain_member_node_id(first_operation);
+    let node_id = first_operation.node_id();
     let Some(left_id) = super::member::chain_node_left_id(context.tree, node_id) else {
         return false;
     };
@@ -502,7 +566,8 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for MemberChain {
                     f,
                     formatted_root_id,
                     ExpandedChainLayout::direct(),
-                    &self.root,
+                    None,
+                    self.root_id,
                     &self.head,
                     &self.tail_groups,
                 )
@@ -516,28 +581,25 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for MemberChain {
             return Ok(());
         }
 
-        let mut chain = self.clone();
-        let head_will_break = chain.head_will_break(f, formatted_root_id)?;
-        chain.inspect_member_chain_groups(f, formatted_root_id)?;
-        let groups_should_break = chain.groups_should_break(f.context(), head_will_break);
+        let head_will_break = self.head_will_break(f, formatted_root_id)?;
+        let chain_layout = self.inspect_layout(f, formatted_root_id)?;
+        let groups_should_break =
+            self.groups_should_break(&chain_layout, f.context(), head_will_break)?;
         let parent_layout = if groups_should_break {
             ChainParentLayout::Expand
         } else {
             ChainParentLayout::Preserve
         };
         let has_member_comment = self.has_member_comment(f.context());
-        let has_new_line_or_comment_between = chain
-            .tail_groups
-            .iter()
-            .any(|group| group.needs_empty_line());
+        let has_new_line_or_comment_between = chain_layout.needs_empty_line();
 
         let format_one_line_chain = format_with(|f| {
             write_one_line_chain(
                 f,
                 formatted_root_id,
-                &chain.root,
-                &chain.head,
-                &chain.tail_groups,
+                self.root_id,
+                &self.head,
+                &self.tail_groups,
             )
         });
 
@@ -546,19 +608,20 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for MemberChain {
                 f,
                 formatted_root_id,
                 ExpandedChainLayout::standard(parent_layout),
-                &chain.root,
-                &chain.head,
-                &chain.tail_groups,
+                Some(&chain_layout),
+                self.root_id,
+                &self.head,
+                &self.tail_groups,
             )
         });
 
-        if chain.tail_groups.len() <= 1
+        if self.tail_groups.len() <= 1
             && !has_member_comment
             && !has_new_line_or_comment_between
             && !minimum_width_exceeds_line_width
         {
             let is_long_curried_call =
-                first_call_expression_id(f.context(), &chain.root, &chain.head, &chain.tail_groups)
+                first_call_expression_id(f.context(), self.root_id, &self.head, &self.tail_groups)
                     .is_some_and(|call_expression_id| {
                         expression_is_long_curried_call(f.context(), call_expression_id)
                     });
@@ -589,10 +652,7 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for MemberChain {
             return Ok(());
         }
 
-        let last_group_breaks = chain
-            .tail_groups
-            .last()
-            .is_some_and(|group| group.will_break());
+        let last_group_breaks = chain_layout.last_will_break();
 
         if last_group_breaks {
             write!(f, [expand_parent()])?;
@@ -614,18 +674,13 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for MemberChain {
 /// Return the leading call expression in one normalized chain, if any.
 fn first_call_expression_id(
     context: &DestackFormatContext<'_>,
-    root: &ChainRoot,
+    root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
 ) -> Option<LocalNodeId<Expression>> {
-    match root {
-        ChainRoot::Expression(expression_id) => {
-            let expression_id = transparent_inner_expression(context, *expression_id);
-
-            if matches!(context.tree.get(expression_id), Expression::Call { .. }) {
-                return Some(expression_id);
-            }
-        }
+    let root_id = transparent_inner_expression(context, root_id);
+    if matches!(context.tree.get(root_id), Expression::Call { .. }) {
+        return Some(root_id);
     }
 
     head.iter()
@@ -649,18 +704,17 @@ pub(crate) fn format_expression_chain<'ast>(
 fn write_one_line_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
-    root: &ChainRoot,
+    root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
 ) -> FormatResult<()> {
-    write_chain_head(f, formatted_root_id, root, head, tail_groups, false)?;
-    skip_comments_after_chain_head(f, root, head)?;
+    write_chain_head(f, formatted_root_id, root_id, head, tail_groups, false)?;
+    skip_comments_after_chain_head(f, root_id, head)?;
 
-    let groups = tail_groups.iter().collect::<Vec<_>>();
+    let mut groups = tail_groups.iter().peekable();
 
-    for (group_index, group) in groups.iter().enumerate() {
-        let following_group_first_operation =
-            groups.get(group_index + 1).and_then(|group| group.first());
+    while let Some(group) = groups.next() {
+        let following_group_first_operation = groups.peek().and_then(|group| group.first());
 
         write_chain_group(
             f,
@@ -679,7 +733,8 @@ fn write_expanded_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     layout: ExpandedChainLayout,
-    root: &ChainRoot,
+    chain_layout: Option<&MemberChainLayout>,
+    root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
 ) -> FormatResult<()> {
@@ -689,8 +744,8 @@ fn write_expanded_chain<'ast>(
     }
 
     // base
-    write_chain_head(f, formatted_root_id, root, head, tail_groups, true)?;
-    skip_comments_after_chain_head(f, root, head)?;
+    write_chain_head(f, formatted_root_id, root_id, head, tail_groups, true)?;
+    skip_comments_after_chain_head(f, root_id, head)?;
 
     // tail groups
     if tail_groups.is_empty() {
@@ -699,7 +754,7 @@ fn write_expanded_chain<'ast>(
 
     let skip_first_soft_break_for_conditional_head =
         expression_has_ternary_ancestor(f.context(), formatted_root_id)
-            && head.last().is_some_and(chain_member_is_call_like)
+            && head.last().is_some_and(ChainMember::is_call_like)
             && tail_groups.first().is_some_and(|group| {
                 matches!(
                     group.members(),
@@ -707,17 +762,19 @@ fn write_expanded_chain<'ast>(
                         ChainMember::Member { .. },
                         operation
                     ]
-                    if chain_member_is_call_like(operation)
+                    if operation.is_call_like()
                 )
             });
     let format_groups = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        for (group_index, tail_group) in tail_groups.iter().enumerate() {
+        let mut tail_groups = tail_groups.iter().enumerate().peekable();
+
+        while let Some((group_index, tail_group)) = tail_groups.next() {
             let should_skip_first_break =
                 group_index == 0 && skip_first_soft_break_for_conditional_head;
             let should_insert_break = !should_skip_first_break
                 && (group_index == 0
                     || !tail_group.first().is_some_and(|operation| {
-                        let node_id = chain_member_node_id(operation);
+                        let node_id = operation.node_id();
 
                         f.context()
                             .annotation_ids(node_id)
@@ -730,22 +787,25 @@ fn write_expanded_chain<'ast>(
                             })
                     }));
             if should_insert_break {
-                if tail_group.needs_empty_line() {
+                let needs_empty_line = chain_layout
+                    .and_then(|layout| layout.tail_group(group_index))
+                    .is_some_and(|layout| layout.needs_empty_line);
+
+                if needs_empty_line {
                     write!(f, [empty_line()])?;
                 } else {
                     write!(f, [hard_line_break()])?;
                 }
             }
 
+            let following_group_first_member =
+                tail_groups.peek().and_then(|(_, group)| group.first());
             let group_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 write_chain_group(
                     f,
                     formatted_root_id,
                     tail_group.members(),
-                    tail_groups
-                        .iter()
-                        .nth(group_index + 1)
-                        .and_then(|group| group.first()),
+                    following_group_first_member,
                 )
             });
 
@@ -774,15 +834,18 @@ fn chain_operation_start(
         ChainMember::Member { node_id, .. } => {
             return super::member::member_property_start(context, *node_id);
         }
-        ChainMember::Index {
-            index: Some(index), ..
-        } => {
-            return Some(context.span(*index).start);
+        ChainMember::Index { node_id } => {
+            if let Expression::Index {
+                index: Some(index), ..
+            } = context.tree.get(*node_id)
+            {
+                return Some(context.span(*index).start);
+            }
         }
         _ => {}
     }
 
-    let node_id = chain_member_node_id(operation);
+    let node_id = operation.node_id();
     let left_id = super::member::chain_node_left_id(context.tree, node_id)?;
     let left_end = expression_trivia_anchor_end(context, left_id);
     let node_span = context.span(node_id);
@@ -793,17 +856,28 @@ fn chain_operation_start(
 }
 
 /// Return whether the following call owns the gap comments before its arguments.
-fn next_operation_owns_callee_gap_comments(next_operation: Option<&ChainMember>) -> bool {
-    matches!(
-        next_operation,
-        Some(ChainMember::Call {
-            optional_position: None,
-            position: PostfixPosition::Direct,
-            generic_arguments,
-            arguments,
-            ..
-        }) if generic_arguments.is_empty() && !arguments.is_empty()
-    )
+fn next_operation_owns_callee_gap_comments(
+    context: &DestackFormatContext<'_>,
+    next_operation: Option<&ChainMember>,
+) -> bool {
+    let Some(ChainMember::Call { node_id, .. }) = next_operation else {
+        return false;
+    };
+    let Expression::Call {
+        left,
+        position,
+        generic_arguments,
+        arguments,
+        is_optional,
+    } = context.tree.get(*node_id)
+    else {
+        return false;
+    };
+
+    access_marker_position(context.tree, *left, *is_optional).is_none()
+        && *position == PostfixPosition::Direct
+        && generic_arguments.is_empty()
+        && !arguments.is_empty()
 }
 
 /// Return structural trailing comments emitted after one chain segment.
@@ -905,7 +979,7 @@ fn write_chain_trailing_comments<'ast>(
         return write!(f, [FormatTrailingComments::Comments(&structural_comments)]);
     };
 
-    if next_operation_owns_callee_gap_comments(Some(next_operation)) {
+    if next_operation_owns_callee_gap_comments(f.context(), Some(next_operation)) {
         return Ok(());
     }
 
@@ -915,7 +989,7 @@ fn write_chain_trailing_comments<'ast>(
         return write!(f, [FormatTrailingComments::Comments(&structural_comments)]);
     }
 
-    let following_span_start = chain_operation_start(f.context(), next_operation).unwrap_or(0);
+    let following_span_start = chain_operation_start(f.context(), next_operation);
 
     write!(
         f,
@@ -931,38 +1005,33 @@ fn write_chain_trailing_comments<'ast>(
 fn write_chain_head<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
-    root: &ChainRoot,
+    root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
     expand_if_value_root: bool,
 ) -> FormatResult<()> {
-    let skip_root_for_start_call = root_is_owned_by_start_call(root, head);
+    let skip_root_for_start_call = root_is_owned_by_start_call(head);
 
     if !skip_root_for_start_call {
-        match root {
-            ChainRoot::Expression(node_id) => {
-                let first_continuation = head
-                    .first()
-                    .or_else(|| first_tail_group_member(tail_groups));
-                let following_span_start = first_continuation
-                    .and_then(|operation| chain_operation_start(f.context(), operation))
-                    .unwrap_or(0);
+        let first_continuation = head
+            .first()
+            .or_else(|| first_tail_group_member(tail_groups));
+        let following_span_start =
+            first_continuation.and_then(|operation| chain_operation_start(f.context(), operation));
 
-                // the root expression still owns its own base formatting
-                with_following_span_start(f, following_span_start, |f| {
-                    write_chain_root_expression(f, *node_id, expand_if_value_root)?;
-                    write!(f, [infix_or_postfix_annotations(f.context(), *node_id)])
-                })?;
+        // format the chain base with its owned annotations and comments
+        with_following_span_start(f, following_span_start, |f| {
+            write_chain_root_expression(f, root_id, expand_if_value_root)?;
+            write!(f, [infix_or_postfix_annotations(f.context(), root_id)])
+        })?;
 
-                write_chain_trailing_comments(
-                    f,
-                    formatted_root_id,
-                    *node_id,
-                    f.context().span(*node_id),
-                    first_continuation,
-                )?;
-            }
-        }
+        write_chain_trailing_comments(
+            f,
+            formatted_root_id,
+            root_id,
+            f.context().span(root_id),
+            first_continuation,
+        )?;
     }
 
     for (index, op) in head.iter().enumerate() {
@@ -1016,16 +1085,14 @@ fn write_chain_root_expression<'ast>(
 /// Advance the comment cursor past the head owner span.
 fn skip_comments_after_chain_head<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    root: &ChainRoot,
+    root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
 ) -> FormatResult<()> {
     let head_end = if let Some(last_member) = head.last() {
-        let node_id = chain_member_node_id(last_member);
+        let node_id = last_member.node_id();
         f.context().span(node_id).end
     } else {
-        match root {
-            ChainRoot::Expression(node_id) => f.context().span(*node_id).end,
-        }
+        f.context().span(root_id).end
     };
 
     f.context_mut()
@@ -1044,7 +1111,7 @@ fn skip_comments_after_chain_group<'ast>(
         return Ok(());
     };
 
-    let node_id = chain_member_node_id(last_member);
+    let node_id = last_member.node_id();
     let group_end = f.context().span(node_id).end;
 
     f.context_mut()
@@ -1055,16 +1122,13 @@ fn skip_comments_after_chain_group<'ast>(
 }
 
 /// Return whether the first call operation prints the normalized base itself.
-fn root_is_owned_by_start_call(root: &ChainRoot, head: &MemberChainGroup) -> bool {
+fn root_is_owned_by_start_call(head: &MemberChainGroup) -> bool {
     matches!(
-        (root, head.first()),
-        (
-            ChainRoot::Expression(_),
-            Some(ChainMember::Call {
-                call_position: CallExpressionPosition::Start,
-                ..
-            })
-        )
+        head.first(),
+        Some(ChainMember::Call {
+            call_position: CallExpressionPosition::Start,
+            ..
+        })
     )
 }
 
@@ -1074,23 +1138,12 @@ fn chain_operation_annotation_emit_flags(
     formatted_root_id: LocalNodeId<Expression>,
     operation: &ChainMember,
 ) -> (LocalNodeId<Expression>, bool, bool) {
-    // member-chain analysis already computed exact ownership for direct members
-    let (node_id, emit_prefix_annotations, emit_postfix_annotations) = match operation {
-        ChainMember::Member {
-            node_id,
-            emit_prefix_annotations,
-            emit_postfix_annotations,
-            ..
-        } => (
-            *node_id,
-            *emit_prefix_annotations,
-            *emit_postfix_annotations,
-        ),
-        ChainMember::Instantiation { node_id, .. }
-        | ChainMember::Call { node_id, .. }
-        | ChainMember::Index { node_id, .. }
-        | ChainMember::Maybe { node_id, .. }
-        | ChainMember::Must { node_id, .. } => {
+    let node_id = operation.node_id();
+
+    // direct members only own postfix annotations
+    let (emit_prefix_annotations, emit_postfix_annotations) = match operation {
+        ChainMember::Member { .. } => (false, true),
+        _ => {
             // call hops may inherit prefix annotations from their callee path, so the
             // formatter must suppress duplicates when the left side already owns them
             let should_emit_prefix_annotations = match operation {
@@ -1126,7 +1179,7 @@ fn chain_operation_annotation_emit_flags(
                 },
                 _ => true,
             };
-            (*node_id, should_emit_prefix_annotations, true)
+            (should_emit_prefix_annotations, true)
         }
     };
 
@@ -1203,97 +1256,105 @@ fn write_chain_operation<'ast>(
     let (node_id, emit_prefix_annotations, emit_postfix_annotations) =
         chain_operation_annotation_emit_flags(f.context(), formatted_root_id, op);
     let operation_span = f.context().span(node_id);
+    let expression = f.context().tree.get(node_id);
     let call_or_new_handles_empty_infix = matches!(
-        op,
-        ChainMember::Call {
-            node_id,
-            arguments,
-            ..
-        } if arguments.is_empty() && f.context().has_infix_annotation(*node_id)
+        (op, expression),
+        (ChainMember::Call { .. }, Expression::Call { arguments, .. })
+            if arguments.is_empty() && f.context().has_infix_annotation(node_id)
     );
     write_chain_operation_prefix(f, node_id, emit_prefix_annotations)?;
     write_chain_operation_leading_comments(f, op)?;
 
-    match op {
-        ChainMember::Member {
-            node_id,
-            optional_position,
-            segment,
-            generic_arguments,
-            ..
-        } => {
-            write_chain_operation_optional_marker(f, *node_id, *optional_position)?;
+    match (op, expression) {
+        (
+            ChainMember::Member { .. },
+            Expression::Member {
+                left,
+                name: Some(segment),
+                is_optional,
+            },
+        ) => {
+            let optional_position = access_marker_position(f.context().tree, *left, *is_optional);
+            write_chain_operation_optional_marker(f, node_id, optional_position)?;
 
             write!(f, [token(".")])?;
             write!(f, [*segment])?;
-            if !generic_arguments.is_empty() {
-                if next_operation.is_some_and(chain_member_is_index) {
-                    format_generic_argument_list_with_relational_spacing(f, generic_arguments)?;
-                } else {
-                    format_generic_argument_list(f, generic_arguments)?;
-                }
-            }
         }
-        ChainMember::Instantiation {
-            generic_arguments, ..
-        } => {
-            if next_operation.is_some_and(chain_member_is_index) {
+        (
+            ChainMember::Instantiation { .. },
+            Expression::Instantiation {
+                generic_arguments, ..
+            },
+        ) => {
+            if next_operation.is_some_and(ChainMember::is_index) {
                 format_generic_argument_list_with_relational_spacing(f, generic_arguments)?;
             } else {
                 format_generic_argument_list(f, generic_arguments)?;
             }
         }
-        ChainMember::Call {
-            node_id: call_node_id,
-            call_position,
-            optional_position,
-            position,
-            generic_arguments,
-            arguments,
-        } => {
+        (
+            ChainMember::Call { call_position, .. },
+            Expression::Call {
+                left,
+                position,
+                generic_arguments,
+                arguments,
+                is_optional,
+            },
+        ) => {
             if *call_position == CallExpressionPosition::Start {
-                format_call_expression(f, *call_node_id)?;
+                format_call_expression(f, node_id)?;
             } else {
-                write_chain_operation_optional_marker(f, *call_node_id, *optional_position)?;
+                let optional_position =
+                    access_marker_position(f.context().tree, *left, *is_optional);
+                write_chain_operation_optional_marker(f, node_id, optional_position)?;
                 if *position == PostfixPosition::Indirect {
                     write!(f, [token(".")])?;
                 }
                 if !generic_arguments.is_empty() {
                     format_generic_argument_list(f, generic_arguments)?;
                 }
-                format_call_arguments(f, *call_node_id, arguments)?;
+                format_call_arguments(f, node_id, arguments)?;
             }
         }
-        ChainMember::Index {
-            node_id,
-            optional_position,
-            position,
-            index,
-            ..
-        } => {
+        (
+            ChainMember::Index { .. },
+            Expression::Index {
+                left,
+                position,
+                index,
+                is_optional,
+            },
+        ) => {
             write!(f, [line_suffix_boundary()])?;
-            write_chain_operation_optional_marker(f, *node_id, *optional_position)?;
+            let optional_position = access_marker_position(f.context().tree, *left, *is_optional);
+            write_chain_operation_optional_marker(f, node_id, optional_position)?;
             if *position == PostfixPosition::Indirect {
                 write!(f, [token(".")])?;
             }
             if let Some(index) = index {
-                write_index_access(f, *node_id, *index, false)?;
+                write_index_access(f, node_id, *index, false)?;
             } else {
                 write!(f, [token("[]")])?;
             }
         }
-        ChainMember::Maybe { position, .. } => match position {
+        (ChainMember::Maybe { .. }, Expression::Maybe { position, .. }) => match position {
             PostfixPosition::Direct => write!(f, [token("?")])?,
             PostfixPosition::Indirect => {
                 write!(f, [token("."), token("?")])?;
             }
         },
-        ChainMember::Must { position, .. } => match position {
+        (ChainMember::Must { .. }, Expression::Must { position, .. }) => match position {
             PostfixPosition::Direct => write!(f, [token("!")])?,
             PostfixPosition::Indirect => {
                 write!(f, [token("."), token("!")])?;
             }
         },
+        _ => {
+            return Err(FormatError::SyntaxError {
+                message: "chain member does not match its source expression",
+            });
+        }
     }
 
     write_chain_operation_postfix(

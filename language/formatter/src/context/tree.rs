@@ -1,5 +1,5 @@
 use super::context::DestackFormatContext;
-use destack_dir::{LocalNodeId, Node, NodeType, TokenSpan, TokenType, Tree, TreeStore};
+use destack_dir::{Expression, LocalNodeId, Node, NodeType, TokenSpan, TokenType, Tree, TreeStore};
 use destack_source::Span;
 
 /// Return whether a token contributes non-whitespace content.
@@ -72,6 +72,20 @@ impl<'a> DestackFormatContext<'a> {
         let parent_type = self.tree.get_node_type(parent_id);
 
         Some((parent_id, parent_type))
+    }
+
+    /// Return the expression parent for one node.
+    #[inline]
+    pub fn expression_parent<T>(&self, node_id: LocalNodeId<T>) -> Option<LocalNodeId<Expression>>
+    where
+        T: Node,
+        Tree: TreeStore<T>,
+    {
+        let (parent_id, NodeType::Expression) = self.parent(node_id)? else {
+            return None;
+        };
+
+        Some(LocalNodeId::new(parent_id))
     }
 
     /// Get the parent id and parent type for one raw node id.

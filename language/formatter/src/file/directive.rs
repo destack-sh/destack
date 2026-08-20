@@ -129,18 +129,6 @@ where
     ctx.tree.get_source_extent(node_id)
 }
 
-/// Return the source line distance between two byte offsets.
-fn line_distance_between_offsets(
-    ctx: &DestackFormatContext<'_>,
-    start_offset: u32,
-    end_offset: u32,
-) -> Option<u32> {
-    let (start_line, _) = ctx.file.get_position(start_offset)?;
-    let (end_line, _) = ctx.file.get_position(end_offset)?;
-
-    end_line.checked_sub(start_line)
-}
-
 /// Return whether one comment starts at the first non-whitespace position on its line.
 fn comment_starts_line(ctx: &DestackFormatContext<'_>, comment: Comment) -> bool {
     let Some(prefix) = line_prefix_text(ctx, comment.span.start) else {
@@ -169,7 +157,7 @@ fn trailing_ignore_comment(
 
     let comment = source_comments[comment_index..].iter().copied().next()?;
 
-    if line_distance_between_offsets(ctx, node_span.end, comment.span.start) != Some(0) {
+    if ctx.line_distance(node_span.end, comment.span.start) != Some(0) {
         return None;
     }
 
@@ -185,6 +173,24 @@ fn trailing_ignore_comment(
     .then_some(comment)
 }
 
+/// Return one node's same-line trailing ignore directive.
+fn trailing_ignore_directive<T: Node + Clone>(
+    ctx: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+) -> Option<Comment>
+where
+    Tree: TreeStore<T>,
+{
+    if !ctx.has_ignore_directive_markers() {
+        return None;
+    }
+
+    let node_span = ignore_target_span(ctx, node_id);
+    let source_comments = ctx.source_comments();
+
+    trailing_ignore_comment(ctx, node_span, source_comments)
+}
+
 /// Return whether one node has a same-line trailing ignore directive.
 pub fn node_has_trailing_ignore_directive<T: Node + Clone>(
     ctx: &DestackFormatContext<'_>,
@@ -193,14 +199,7 @@ pub fn node_has_trailing_ignore_directive<T: Node + Clone>(
 where
     Tree: TreeStore<T>,
 {
-    if !ctx.has_ignore_directive_markers() {
-        return false;
-    }
-
-    let node_span = ignore_target_span(ctx, node_id);
-    let source_comments = ctx.source_comments();
-
-    trailing_ignore_comment(ctx, node_span, source_comments).is_some()
+    trailing_ignore_directive(ctx, node_id).is_some()
 }
 
 /// Return whether one node has a same-line trailing line ignore directive.
@@ -211,14 +210,7 @@ pub fn node_has_trailing_line_ignore_directive<T: Node + Clone>(
 where
     Tree: TreeStore<T>,
 {
-    if !ctx.has_ignore_directive_markers() {
-        return false;
-    }
-
-    let node_span = ignore_target_span(ctx, node_id);
-    let source_comments = ctx.source_comments();
-
-    trailing_ignore_comment(ctx, node_span, source_comments).is_some_and(Comment::is_line)
+    trailing_ignore_directive(ctx, node_id).is_some_and(Comment::is_line)
 }
 
 /// Return whether one node has a prefix ignore directive.
@@ -249,7 +241,8 @@ where
             .span
             .gap_to(node_span)
             .is_none_or(|between_span| !ctx.has_non_whitespace_content(between_span));
-        let line_distance = line_distance_between_offsets(ctx, comment.span.end, node_span.start)
+        let line_distance = ctx
+            .line_distance(comment.span.end, node_span.start)
             .map_or(2, |distance| distance as usize);
         (between_is_whitespace_only, line_distance)
     };
@@ -283,8 +276,7 @@ where
 
     let comment = prefix_comment(ctx, node_span, source_comments)?;
 
-    let is_adjacent =
-        line_distance_between_offsets(ctx, comment.span.start, node_span.start) == Some(1);
+    let is_adjacent = ctx.line_distance(comment.span.start, node_span.start) == Some(1);
     if !is_adjacent {
         return None;
     }

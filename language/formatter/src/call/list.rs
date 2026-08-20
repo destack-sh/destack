@@ -26,16 +26,49 @@ pub(crate) enum CallArgumentSeparator {
     IfGroupBreaks,
 }
 
-/// Return the source line distance between two byte offsets.
-fn line_distance_between_offsets(
-    context: &DestackFormatContext<'_>,
-    start_offset: u32,
-    end_offset: u32,
-) -> Option<u32> {
-    let (start_line, _) = context.file.get_position(start_offset)?;
-    let (end_line, _) = context.file.get_position(end_offset)?;
+/// The break between call arguments.
+#[derive(Copy, Clone)]
+enum CallArgumentBreak {
+    /// Preserve empty source lines between arguments.
+    Source,
+    /// Use one soft line break.
+    Soft,
+}
 
-    end_line.checked_sub(start_line)
+/// Write the entries inside one call argument list.
+fn write_call_argument_entries<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    arguments: &[LocalNodeId<Argument>],
+    argument_break: CallArgumentBreak,
+    trailing_separator: CallArgumentSeparator,
+) -> FormatResult<()> {
+    for (index, argument_id) in arguments.iter().copied().enumerate() {
+        // separate adjacent arguments
+        if index > 0 {
+            let has_empty_line = call_argument_lines_before(f.context(), argument_id) > 1;
+
+            match argument_break {
+                CallArgumentBreak::Source if has_empty_line => write!(f, [empty_line()])?,
+                CallArgumentBreak::Source | CallArgumentBreak::Soft => {
+                    write!(f, [soft_line_break_or_space()])?;
+                }
+            }
+        }
+
+        // write the argument and its separator
+        let following_span_start = arguments
+            .get(index + 1)
+            .map(|argument_id| f.context().span(*argument_id).start);
+        let separator = if index + 1 < arguments.len() {
+            CallArgumentSeparator::Always
+        } else {
+            trailing_separator
+        };
+
+        write_call_argument_in_list(f, argument_id, following_span_start, separator)?;
+    }
+
+    Ok(())
 }
 
 /// Return whether source text contains an empty line between adjacent arguments.
@@ -51,7 +84,8 @@ pub(crate) fn arguments_have_empty_line(
         let current_span = context.span(*current_argument_id);
         let next_span = context.span(*next_argument_id);
 
-        line_distance_between_offsets(context, current_span.end, next_span.start)
+        context
+            .line_distance(current_span.end, next_span.start)
             .is_some_and(|line_distance| line_distance > 1)
     })
 }
@@ -80,41 +114,11 @@ pub(crate) fn format_all_args_broken_out<'ast>(
     let write_trailing_separator = !disallow_trailing_separator
         && matches!(f.context().options.trailing_comma, TrailingComma::All);
 
-    write!(
+    format_expanded_call_arguments(
         f,
-        [group(&format_args![
-            token("("),
-            soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                for (index, argument_id) in arguments.iter().copied().enumerate() {
-                    if index > 0 {
-                        let has_empty_line =
-                            call_argument_lines_before(f.context(), argument_id) > 1;
-
-                        if has_empty_line {
-                            write!(f, [empty_line()])?;
-                        } else {
-                            write!(f, [soft_line_break_or_space()])?;
-                        }
-                    }
-
-                    let following_span_start = arguments
-                        .get(index + 1)
-                        .map(|argument_id| f.context().span(*argument_id).start)
-                        .unwrap_or(0);
-                    let separator = if index + 1 != arguments.len() || write_trailing_separator {
-                        CallArgumentSeparator::Always
-                    } else {
-                        CallArgumentSeparator::None
-                    };
-
-                    write_call_argument_in_list(f, argument_id, following_span_start, separator)?;
-                }
-
-                Ok(())
-            })),
-            token(")")
-        ])
-        .should_expand(true)]
+        arguments,
+        CallArgumentBreak::Source,
+        write_trailing_separator,
     )
 }
 
@@ -126,30 +130,33 @@ pub(crate) fn format_long_curried_call_arguments<'ast>(
 ) -> FormatResult<()> {
     let write_trailing_separator = matches!(f.context().options.trailing_comma, TrailingComma::All);
 
+    format_expanded_call_arguments(
+        f,
+        arguments,
+        CallArgumentBreak::Soft,
+        write_trailing_separator,
+    )
+}
+
+/// Format one expanded call argument list.
+fn format_expanded_call_arguments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    arguments: &[LocalNodeId<Argument>],
+    line_break: CallArgumentBreak,
+    write_trailing_separator: bool,
+) -> FormatResult<()> {
     write!(
         f,
         [group(&format_args![
             token("("),
             soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                for (index, argument_id) in arguments.iter().copied().enumerate() {
-                    if index > 0 {
-                        write!(f, [soft_line_break_or_space()])?;
-                    }
+                let trailing_separator = if write_trailing_separator {
+                    CallArgumentSeparator::Always
+                } else {
+                    CallArgumentSeparator::None
+                };
 
-                    let following_span_start = arguments
-                        .get(index + 1)
-                        .map(|argument_id| f.context().span(*argument_id).start)
-                        .unwrap_or(0);
-                    let separator = if index + 1 != arguments.len() || write_trailing_separator {
-                        CallArgumentSeparator::Always
-                    } else {
-                        CallArgumentSeparator::None
-                    };
-
-                    write_call_argument_in_list(f, argument_id, following_span_start, separator)?;
-                }
-
-                Ok(())
+                write_call_argument_entries(f, arguments, line_break, trailing_separator)
             })),
             token(")")
         ])
@@ -161,7 +168,7 @@ pub(crate) fn format_long_curried_call_arguments<'ast>(
 pub(crate) fn write_call_argument_in_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
-    following_span_start: u32,
+    following_span_start: Option<u32>,
     separator: CallArgumentSeparator,
 ) -> FormatResult<()> {
     with_argument_following_span_start(f, following_span_start, |f| write!(f, [argument_id]))?;
@@ -266,8 +273,7 @@ pub(crate) fn write_simple_call_argument_list<'ast>(
 
         let following_span_start = arguments
             .get(index + 1)
-            .map(|argument_id| f.context().span(*argument_id).start)
-            .unwrap_or(0);
+            .map(|argument_id| f.context().span(*argument_id).start);
         let separator = if index + 1 != arguments.len() {
             CallArgumentSeparator::Always
         } else {
@@ -359,34 +365,18 @@ pub(crate) fn format_default_call_argument_list<'ast>(
             [
                 token("("),
                 soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                    for (index, argument_id) in arguments.iter().copied().enumerate() {
-                        if index > 0 {
-                            write!(f, [soft_line_break_or_space()])?;
-                        }
+                    let trailing_separator = match trailing_separator {
+                        TrailingSeparator::Allowed => CallArgumentSeparator::IfGroupBreaks,
+                        TrailingSeparator::Mandatory => CallArgumentSeparator::Always,
+                        TrailingSeparator::Omit => CallArgumentSeparator::None,
+                    };
 
-                        let following_span_start = arguments
-                            .get(index + 1)
-                            .map(|argument_id| f.context().span(*argument_id).start)
-                            .unwrap_or(0);
-                        let separator = if index + 1 != arguments.len() {
-                            CallArgumentSeparator::Always
-                        } else if trailing_separator == TrailingSeparator::Allowed {
-                            CallArgumentSeparator::IfGroupBreaks
-                        } else if trailing_separator == TrailingSeparator::Mandatory {
-                            CallArgumentSeparator::Always
-                        } else {
-                            CallArgumentSeparator::None
-                        };
-
-                        write_call_argument_in_list(
-                            f,
-                            argument_id,
-                            following_span_start,
-                            separator,
-                        )?;
-                    }
-
-                    Ok(())
+                    write_call_argument_entries(
+                        f,
+                        arguments,
+                        CallArgumentBreak::Soft,
+                        trailing_separator,
+                    )
                 })),
                 token(")")
             ]

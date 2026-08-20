@@ -141,7 +141,7 @@ pub(crate) fn format_new_expression<'ast>(
     let callee_following_span_start = arguments
         .first()
         .map(|argument_id| f.context().span(*argument_id).start)
-        .unwrap_or_else(|| f.context().following_span_start());
+        .or(f.context().following_span_start());
     with_following_span_start(f, callee_following_span_start, |f| write!(f, [ty]))?;
 
     format_call_arguments(f, node_id, arguments)?;

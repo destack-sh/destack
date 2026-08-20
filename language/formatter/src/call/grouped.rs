@@ -1,5 +1,6 @@
 use super::argument::{
-    argument_enclosing_span, argument_trailing_span, with_argument_following_span_start,
+    argument_enclosing_span, argument_trailing_span, arguments_have_annotations,
+    with_argument_following_span_start,
 };
 use super::list::{call_argument_lines_before, write_call_argument_in_list};
 use super::pattern::argument_expression_id;
@@ -14,7 +15,9 @@ use destack_dir::{
     Argument, Declaration, Expression, FunctionForm, FunctionSignature, GenericArgument,
     LocalNodeId, Parameter, ScalarLiteral, TypeExpression, UnaryOperator,
 };
-use destack_fir::format::{FormatElement as FirElement, FormatLayout, FormatResult, GroupId};
+use destack_fir::format::{
+    FormatElement as FirElement, FormatError, FormatLayout, FormatResult, GroupId,
+};
 use destack_fir::prelude::{
     empty_line, expand_parent, format_with, group, soft_block_indent, soft_line_break_or_space,
     token,
@@ -22,17 +25,6 @@ use destack_fir::prelude::{
 use destack_fir::{best_fitting, format_args, write};
 use destack_repository::TrailingComma;
 use destack_source::{NodeSpanRegion, NodeSpanType};
-
-/// Return whether any argument carries annotations.
-fn arguments_have_annotations(
-    context: &DestackFormatContext<'_>,
-    arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    arguments
-        .iter()
-        .copied()
-        .any(|argument_id| context.has_annotation(argument_id))
-}
 
 /// Return whether one expression is a function declaration expression.
 fn is_function_argument(
@@ -582,18 +574,20 @@ fn write_function_argument_with_options<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
     declaration_id: LocalNodeId<Declaration>,
-    following_span_start: u32,
+    following_span_start: Option<u32>,
     call_argument_layout: Option<GroupedCallArgumentLayout>,
     cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
     let Declaration::Function(function) = f.context().tree.get(declaration_id) else {
-        unreachable!();
+        return Err(FormatError::SyntaxError {
+            message: "grouped function argument requires a function declaration",
+        });
     };
 
     let argument = f.context().tree.get(argument_id);
     let argument_span = f.context().span(argument_id);
     let trailing_span = argument_trailing_span(f.context(), argument_id);
-    let enclosing_span = argument_enclosing_span(f.context(), argument_id);
+    let enclosing_span = argument_enclosing_span(f.context(), argument_id)?;
 
     // leading comments
     write!(f, [format_leading_comments(argument_span)])?;
@@ -655,7 +649,7 @@ fn write_function_argument_with_options<'ast>(
 fn write_grouped_argument_entry<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
-    following_span_start: u32,
+    following_span_start: Option<u32>,
     write_comma: bool,
     layout: GroupedCallArgumentLayout,
     is_only_argument: bool,
@@ -714,7 +708,6 @@ pub(crate) fn write_grouped_arguments<'ast>(
             arguments
                 .get(index + 1)
                 .map(|argument_id| f.context().span(*argument_id).start)
-                .unwrap_or(0)
         })
         .collect::<Vec<_>>();
     let mut non_grouped_breaks = false;
@@ -802,19 +795,16 @@ pub(crate) fn write_grouped_arguments<'ast>(
 
     if has_cached {
         let argument_id = arguments[grouped_index];
-        let Some(value_id) = argument_expression_id(f.context(), argument_id) else {
-            unreachable!("grouped function argument should be one expression");
-        };
-        let value_id = transparent_inner_expression(f.context(), value_id);
-        let Expression::Declaration(declaration_id) = f.context().tree.get(value_id) else {
-            unreachable!("grouped function argument should be one declaration expression");
-        };
-        let declaration_id = *declaration_id;
-
-        let Declaration::Function(_) = f.context().tree.get(declaration_id) else {
-            unreachable!();
-        };
-
+        let is_only_argument = arguments.len() == 1;
+        let declaration_id = grouped_function_argument_declaration_id(
+            f.context(),
+            argument_id,
+            layout,
+            is_only_argument,
+        )
+        .ok_or(FormatError::SyntaxError {
+            message: "cached grouped argument requires an eligible function declaration",
+        })?;
         let cache_key = f
             .context()
             .tree
@@ -822,13 +812,15 @@ pub(crate) fn write_grouped_arguments<'ast>(
                 declaration_id,
                 NodeSpanType::Region(NodeSpanRegion::Parameters),
             )
-            .unwrap_or_else(|| {
-                unreachable!("grouped function argument should own its parameter container")
-            });
-
-        let Some(cached_signature) = f.context().cached_element(&cache_key) else {
-            unreachable!("grouped lambda signature should already be cached");
-        };
+            .ok_or(FormatError::SyntaxError {
+                message: "grouped function argument requires a parameter span",
+            })?;
+        let cached_signature =
+            f.context()
+                .cached_element(&cache_key)
+                .ok_or(FormatError::SyntaxError {
+                    message: "grouped function argument requires a cached signature",
+                })?;
         let element = cached_signature.remove_soft_lines(f.allocator());
 
         if element.as_ref().is_some_and(FirElement::will_break) {
@@ -858,14 +850,13 @@ pub(crate) fn write_grouped_arguments<'ast>(
         elements[grouped_index].0 = element;
     }
 
-    let most_flat_elements = elements.clone();
-    let format_most_flat = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let format_most_flat = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write!(f, [token("(")])?;
 
         let separator = soft_line_break_or_space();
         let mut joiner = f.join_with(&separator);
 
-        for (element, _) in &most_flat_elements {
+        for (element, _) in &elements {
             let Some(element) = *element else {
                 continue;
             };
@@ -881,14 +872,13 @@ pub(crate) fn write_grouped_arguments<'ast>(
         write!(f, [token(")")])
     });
 
-    let grouped_elements = elements.clone();
-    let format_grouped = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let format_grouped = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write!(f, [token("(")])?;
 
         let separator = soft_line_break_or_space();
         let mut joiner = f.join_with(separator);
 
-        for (index, (element, _)) in grouped_elements.iter().enumerate() {
+        for (index, (element, _)) in elements.iter().enumerate() {
             let Some(element) = *element else {
                 continue;
             };
@@ -909,7 +899,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
         write!(f, [token(")")])
     });
 
-    let format_expanded = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let format_expanded = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         format_all_elements_broken_out(f, &elements, group_id, disallow_trailing_separator, true)
     });
 

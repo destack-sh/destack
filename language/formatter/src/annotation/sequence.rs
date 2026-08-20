@@ -1,5 +1,6 @@
+use super::decorator::write_decorator;
 use super::trivia::format_comment;
-use crate::{Decorator, DestackFormatContext, DestackFormatter, FormatNode};
+use crate::{Decorator, DestackFormatContext, DestackFormatter};
 use destack_dir::{Comment, DecoratorPosition, LocalNodeId, Node, TokenType, Tree, TreeStore};
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{format_with, *};
@@ -120,8 +121,7 @@ pub(crate) fn write_inline_prefix_annotations<'ast>(
             write!(f, [space()])?;
         }
 
-        let annotation = f.context().annotation(annotation_id).clone();
-        annotation.format_node(annotation_id, f)?;
+        write_decorator(f, annotation_id)?;
         wrote_annotation = true;
     }
 
@@ -134,8 +134,7 @@ pub(crate) fn write_vertical_prefix_annotations<'ast>(
     items: &[LocalNodeId<Decorator>],
 ) -> FormatResult<()> {
     for annotation_id in items.iter().copied() {
-        let annotation = f.context().annotation(annotation_id).clone();
-        annotation.format_node(annotation_id, f)?;
+        write_decorator(f, annotation_id)?;
         write!(f, [hard_line_break()])?;
     }
 
@@ -443,8 +442,7 @@ fn write_prefix_sequence_item<'ast>(
             format_comment(f, comment)?;
         }
         PrefixSequenceItem::Decorator(annotation_id) => {
-            let annotation = f.context().annotation(annotation_id).clone();
-            annotation.format_node(annotation_id, f)?;
+            write_decorator(f, annotation_id)?;
         }
     }
 
@@ -524,6 +522,24 @@ fn write_decorator_prefix_sequence_items<'ast>(
     Ok(())
 }
 
+/// Collect one node's annotations in the selected positions.
+fn annotation_ids_in_positions<T>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    positions: &[DecoratorPosition],
+) -> Vec<LocalNodeId<Decorator>>
+where
+    T: Node + Clone,
+    Tree: TreeStore<T>,
+{
+    context
+        .annotation_ids(node_id)
+        .iter()
+        .copied()
+        .filter(|annotation_id| positions.contains(&context.annotation(*annotation_id).position))
+        .collect()
+}
+
 /// Format postfix annotations for one node.
 pub(crate) fn postfix_annotations<'ast, T>(
     context: &DestackFormatContext<'ast>,
@@ -533,15 +549,11 @@ where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
 {
-    let mut items = Vec::new();
-    for annotation_id in context.annotation_ids(node_id).iter().copied() {
-        if matches!(
-            context.annotation(annotation_id).position,
-            DecoratorPosition::BlockPostfix | DecoratorPosition::LinePostfix
-        ) {
-            items.push(annotation_id);
-        }
-    }
+    let positions = [
+        DecoratorPosition::BlockPostfix,
+        DecoratorPosition::LinePostfix,
+    ];
+    let items = annotation_ids_in_positions(context, node_id, &positions);
 
     format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
 }
@@ -555,17 +567,12 @@ where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
 {
-    let mut items = Vec::new();
-    for annotation_id in context.annotation_ids(node_id).iter().copied() {
-        if matches!(
-            context.annotation(annotation_id).position,
-            DecoratorPosition::BlockInfix
-                | DecoratorPosition::BlockPostfix
-                | DecoratorPosition::LinePostfix
-        ) {
-            items.push(annotation_id);
-        }
-    }
+    let positions = [
+        DecoratorPosition::BlockInfix,
+        DecoratorPosition::BlockPostfix,
+        DecoratorPosition::LinePostfix,
+    ];
+    let items = annotation_ids_in_positions(context, node_id, &positions);
 
     format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
 }
@@ -598,8 +605,7 @@ fn write_annotation_sequence_with_trailing_break<'ast>(
             write!(f, [hard_line_break()])?;
         }
 
-        let annotation = f.context().annotation(annotation_id).clone();
-        annotation.format_node(annotation_id, f)?;
+        write_decorator(f, annotation_id)?;
 
         let should_write_trailing_break = should_write_trailing_break
             || !is_last_annotation

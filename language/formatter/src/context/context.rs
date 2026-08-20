@@ -24,7 +24,7 @@ pub type DestackFormatter<'ast, 'state> = Formatter<'state, 'ast, DestackFormatC
 /// Run one formatter callback with a temporary following sibling boundary.
 pub(crate) fn with_following_span_start<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    following_span_start: u32,
+    following_span_start: Option<u32>,
     format: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
 ) -> FormatResult<()> {
     let previous_following_span_start = f
@@ -74,7 +74,7 @@ pub struct DestackFormatContext<'a> {
     /// The FIR element cache for this formatter pass.
     element_cache: FormatElementCache<'a>,
     /// The start position of the following sibling for the node currently being formatted.
-    pub current_following_span_start: u32,
+    pub current_following_span_start: Option<u32>,
     /// Whether tree callback bodies should expand like tree return elements.
     pub should_expand_tree_callback_bodies: bool,
     /// The comment cursor for this formatting pass.
@@ -106,7 +106,7 @@ impl<'a> DestackFormatContext<'a> {
             strings,
             source_index,
             element_cache: FormatElementCache::default(),
-            current_following_span_start: 0,
+            current_following_span_start: None,
             should_expand_tree_callback_bodies: false,
             comments: Comments::new(SourceText::new(file.text()), comments),
         }
@@ -133,12 +133,15 @@ impl<'a> DestackFormatContext<'a> {
     }
 
     /// Return the current following sibling start used for trailing comment ownership.
-    pub fn following_span_start(&self) -> u32 {
+    pub fn following_span_start(&self) -> Option<u32> {
         self.current_following_span_start
     }
 
     /// Replace the current following sibling start and return the previous value.
-    pub fn replace_following_span_start(&mut self, following_span_start: u32) -> u32 {
+    pub fn replace_following_span_start(
+        &mut self,
+        following_span_start: Option<u32>,
+    ) -> Option<u32> {
         std::mem::replace(&mut self.current_following_span_start, following_span_start)
     }
 
@@ -152,6 +155,14 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn replace_should_expand_tree_callback_bodies(&mut self, should_expand: bool) -> bool {
         std::mem::replace(&mut self.should_expand_tree_callback_bodies, should_expand)
+    }
+
+    /// Return the source line distance between two byte offsets.
+    pub(crate) fn line_distance(&self, start: u32, end: u32) -> Option<u32> {
+        let (start_line, _) = self.file.get_position(start)?;
+        let (end_line, _) = self.file.get_position(end)?;
+
+        end_line.checked_sub(start_line)
     }
 }
 

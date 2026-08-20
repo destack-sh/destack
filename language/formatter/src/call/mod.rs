@@ -1,4 +1,4 @@
-mod argument;
+pub(crate) mod argument;
 mod expression;
 mod grouped;
 mod list;

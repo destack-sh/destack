@@ -20,7 +20,7 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     Argument, Declaration, DecoratorPosition, Expression, LocalNodeId, NodeType, TypeExpression,
 };
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
@@ -35,6 +35,17 @@ pub(crate) fn argument_is_plain_call_argument(
             context.tree.get(argument_id),
             Argument::Positional { .. } | Argument::Spread { .. }
         )
+}
+
+/// Return whether any argument carries annotations.
+pub(crate) fn arguments_have_annotations(
+    context: &DestackFormatContext<'_>,
+    arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    arguments
+        .iter()
+        .copied()
+        .any(|argument_id| context.has_annotation(argument_id))
 }
 
 /// Write one call argument that is known to be plain.
@@ -94,7 +105,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         }
 
         let trailing_span = argument_trailing_span(f.context(), node_id);
-        let enclosing_span = argument_enclosing_span(f.context(), node_id);
+        let enclosing_span = argument_enclosing_span(f.context(), node_id)?;
         let following_span_start = f.context().following_span_start();
 
         // leading comments and annotations
@@ -140,15 +151,19 @@ fn argument_uses_call_node_comments(
 pub(crate) fn argument_enclosing_span(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Argument>,
-) -> Span {
+) -> FormatResult<Span> {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        unreachable!("argument node should have one parent");
+        return Err(FormatError::SyntaxError {
+            message: "argument requires one call-like parent",
+        });
     };
 
     match parent_type {
-        NodeType::Expression => context.span(LocalNodeId::<Expression>::new(parent_id)),
-        NodeType::TypeExpression => context.span(LocalNodeId::<TypeExpression>::new(parent_id)),
-        _ => unreachable!("call-like argument node parent should be one expression"),
+        NodeType::Expression => Ok(context.span(LocalNodeId::<Expression>::new(parent_id))),
+        NodeType::TypeExpression => Ok(context.span(LocalNodeId::<TypeExpression>::new(parent_id))),
+        _ => Err(FormatError::SyntaxError {
+            message: "argument parent must be an expression or type expression",
+        }),
     }
 }
 
@@ -208,7 +223,7 @@ fn argument_value_trailing_span(
 /// Format one node while exposing one following sibling start to trailing comment logic.
 pub(crate) fn with_argument_following_span_start<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    following_span_start: u32,
+    following_span_start: Option<u32>,
     content: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
 ) -> FormatResult<()> {
     // install

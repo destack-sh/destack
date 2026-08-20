@@ -23,7 +23,7 @@ enum TreeTextChunk<'a> {
 }
 
 /// One embedded tree child in an inline content stream.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct TreeInlineEmbedded {
     /// The embedded tree child.
     child_id: LocalNodeId<TreeChild>,
@@ -34,7 +34,7 @@ struct TreeInlineEmbedded {
 }
 
 /// One item in a mixed tree child inline content stream.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 enum TreeInlineItem {
     /// One text word.
     Word(String),
@@ -287,10 +287,8 @@ fn tree_inline_items(
         };
 
         let mut chunks = tree_text_chunks(text).into_iter().peekable();
-        if let Some(TreeTextChunk::Whitespace(_)) = chunks.peek() {
-            let Some(TreeTextChunk::Whitespace(whitespace)) = chunks.next() else {
-                unreachable!("peeked whitespace chunk should be whitespace");
-            };
+        if let Some(TreeTextChunk::Whitespace(whitespace)) = chunks.peek().copied() {
+            chunks.next();
 
             if whitespace.contains('\n') {
                 if chunks.peek().is_none() {
@@ -452,7 +450,7 @@ pub(crate) fn format_tree_children_inline_fill<'ast>(
     }
 
     let mut fill = f.fill();
-    let mut previous_visible = None::<TreeInlineItem>;
+    let mut previous_visible = None::<&TreeInlineItem>;
     let mut pending_separator = TreeInlineSeparator::None;
 
     for item in &inline_items {
@@ -463,12 +461,11 @@ pub(crate) fn format_tree_children_inline_fill<'ast>(
                     continue;
                 }
 
-                let separator =
-                    tree_inline_separator(previous_visible.as_ref(), pending_separator, item);
+                let separator = tree_inline_separator(previous_visible, pending_separator, item);
                 let separator = format_with(|f| write_tree_inline_separator(f, separator));
                 let whitespace = format_with(write_tree_whitespace_separator);
                 fill.entry(&separator, &whitespace);
-                previous_visible = Some(item.clone());
+                previous_visible = Some(item);
                 pending_separator = TreeInlineSeparator::None;
             }
             TreeInlineItem::Newline => {
@@ -481,22 +478,20 @@ pub(crate) fn format_tree_children_inline_fill<'ast>(
                 pending_separator = TreeInlineSeparator::Empty;
             }
             TreeInlineItem::Word(word) | TreeInlineItem::Punctuation(word) => {
-                let separator =
-                    tree_inline_separator(previous_visible.as_ref(), pending_separator, item);
+                let separator = tree_inline_separator(previous_visible, pending_separator, item);
                 let separator = format_with(|f| write_tree_inline_separator(f, separator));
                 fill.entry(&separator, &copied_text(word.as_str()));
-                previous_visible = Some(item.clone());
+                previous_visible = Some(item);
                 pending_separator = TreeInlineSeparator::None;
             }
             TreeInlineItem::Embedded(embedded) => {
-                let separator =
-                    tree_inline_separator(previous_visible.as_ref(), pending_separator, item);
+                let separator = tree_inline_separator(previous_visible, pending_separator, item);
                 let separator = format_with(|f| write_tree_inline_separator(f, separator));
                 fill.entry(
                     &separator,
                     &format_with(|f| write_tree_inline_embedded(f, embedded)),
                 );
-                previous_visible = Some(item.clone());
+                previous_visible = Some(item);
                 pending_separator = TreeInlineSeparator::None;
             }
         }

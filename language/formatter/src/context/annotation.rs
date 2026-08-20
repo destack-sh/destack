@@ -58,6 +58,25 @@ impl<'a> DestackFormatContext<'a> {
         self.tree.get_decorators_ref(node_id.id)
     }
 
+    /// Return the earliest prefix annotation start for one node.
+    pub fn prefix_annotation_start<T>(&self, node_id: LocalNodeId<T>, default: u32) -> u32
+    where
+        T: Node,
+        Tree: TreeStore<T>,
+    {
+        self.annotation_ids(node_id)
+            .iter()
+            .copied()
+            .filter(|annotation_id| {
+                matches!(
+                    self.annotation(*annotation_id).position,
+                    DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
+                )
+            })
+            .map(|annotation_id| self.annotation_span(annotation_id).start)
+            .fold(default, u32::min)
+    }
+
     /// Check if a node has an annotation.
     #[inline]
     pub fn has_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
