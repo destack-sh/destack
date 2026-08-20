@@ -470,7 +470,7 @@ pub(crate) fn write_index_access<'ast>(
                 [soft_block_indent(&format_node_with_trailing_comments(
                     f.context().span(node_id),
                     index_id,
-                    0,
+                    None,
                 ))]
             )?;
         }

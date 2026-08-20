@@ -30,6 +30,8 @@ pub(crate) use self::primary::{
 };
 pub(crate) use self::shape::{
     ExpressionLeftPath, array_elements_are_fill_candidates, array_has_only_outer_comments,
+    expression_is_lambda_declaration, expression_is_multiline_template_starting_on_same_line,
+    is_control_expression,
 };
 pub use self::shape::{
     is_expression_breakable, is_pattern_breakable, is_trivial_argument, is_trivial_expression,

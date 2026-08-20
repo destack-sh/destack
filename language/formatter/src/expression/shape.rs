@@ -1,10 +1,44 @@
 use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
 use destack_dir::{
-    Argument, Expression, IfForm, LocalNodeId, Pattern, Property, ScalarLiteral, Tree,
-    TypeExpression, UnaryOperator,
+    Argument, Declaration, Expression, FunctionForm, IfForm, LocalNodeId, Pattern, Property,
+    ScalarLiteral, Tree, TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
+
+/// Return whether one expression is a lambda declaration.
+pub(crate) fn expression_is_lambda_declaration(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(*declaration_id),
+        Declaration::Function(function) if function.signature.form == FunctionForm::Lambda
+    )
+}
+
+/// Return whether one expression is a multiline template starting on its opening line.
+pub(crate) fn expression_is_multiline_template_starting_on_same_line(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if !matches!(
+        context.tree.get(expression_id),
+        Expression::TemplateExpression { .. } | Expression::TaggedTemplateExpression { .. }
+    ) {
+        return false;
+    }
+
+    let expression_span = context.span(expression_id);
+    context.source_text().contains_newline(expression_span)
+        && !context
+            .source_text()
+            .has_newline_before(expression_span.start)
+}
 
 /// A cursor over the successive left operands of one expression.
 #[derive(Debug, Copy, Clone)]
@@ -147,6 +181,10 @@ pub fn is_trivial_property(tree: &Tree, property: &Property) -> bool {
 
 /// Return whether an expression can break across multiple lines.
 pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
+    if is_control_expression(expression) {
+        return true;
+    }
+
     match expression {
         Expression::ArrayExpression { elements, .. } => !elements.is_empty(),
         Expression::TupleExpression { elements, .. } => !elements.is_empty(),
@@ -169,16 +207,7 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
         Expression::Call { arguments, .. } | Expression::New { arguments, .. } => {
             !arguments.is_empty()
         }
-        Expression::Match { .. }
-        | Expression::Switch { .. }
-        | Expression::If { .. }
-        | Expression::Loop { .. }
-        | Expression::Try { .. }
-        | Expression::Block { .. }
-        | Expression::ForEach { .. }
-        | Expression::For { .. }
-        | Expression::While { .. }
-        | Expression::Import { .. }
+        Expression::Import { .. }
         | Expression::Export { .. }
         | Expression::RangeExpression { .. }
         | Expression::Binary { .. }
@@ -188,6 +217,22 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
         | Expression::InstanceOf { .. } => true,
         _ => false,
     }
+}
+
+/// Return whether an expression is a control expression.
+pub(crate) fn is_control_expression(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::Match { .. }
+            | Expression::Switch { .. }
+            | Expression::If { .. }
+            | Expression::Loop { .. }
+            | Expression::Try { .. }
+            | Expression::Block { .. }
+            | Expression::ForEach { .. }
+            | Expression::For { .. }
+            | Expression::While { .. }
+    )
 }
 
 /// Return whether a type expression can break across multiple lines.

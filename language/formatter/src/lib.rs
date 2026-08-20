@@ -1,5 +1,4 @@
 #![feature(default_field_values)]
-#![allow(clippy::too_many_arguments)]
 
 pub mod annotation;
 pub mod call;

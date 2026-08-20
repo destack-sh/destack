@@ -6,6 +6,7 @@ use crate::annotation::{
     FormatTrailingComments, block_infix_annotations, format_dangling_comments,
     infix_or_postfix_annotations, postfix_annotations, write_comment_slice,
 };
+use crate::call::argument::arguments_have_annotations;
 use crate::collection::literal::{format_scalar_literal, format_template_literal};
 use crate::collection::{TrailingSeparator, separated_entries};
 use crate::context::FormatNodeWithoutTrailingComments;
@@ -23,17 +24,6 @@ use destack_fir::prelude::{
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
 use destack_source::Span;
-
-/// Return whether any argument in one collection has annotations.
-fn arguments_have_annotations(
-    context: &DestackFormatContext<'_>,
-    argument_ids: &[LocalNodeId<Argument>],
-) -> bool {
-    argument_ids
-        .iter()
-        .copied()
-        .any(|argument_id| context.has_annotation(argument_id))
-}
 
 /// Return whether one argument collection is inline between its outer spans.
 fn argument_range_is_inline(

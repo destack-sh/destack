@@ -1,3 +1,4 @@
+use super::shape::expression_is_lambda_declaration;
 use super::ternary::{expression_is_ternary_branch, ternary_branch_is_tree_like};
 use crate::DestackFormatContext;
 use crate::declaration::expression_is_in_statement_context;
@@ -220,21 +221,6 @@ fn expression_is_class_or_function_declaration(
     matches!(
         context.tree.get(*declaration_id),
         Declaration::Class(_) | Declaration::Function(_)
-    )
-}
-
-/// Return whether one expression is a lambda declaration.
-fn expression_is_lambda_declaration(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Declaration(declaration_id) = context.tree.get(node_id) else {
-        return false;
-    };
-
-    matches!(
-        context.tree.get(*declaration_id),
-        Declaration::Function(function) if function.signature.form == FunctionForm::Lambda
     )
 }
 
@@ -660,14 +646,11 @@ pub(crate) fn should_preserve_source_parentheses(
     }
 
     // preserve parentheses that change postfix parsing
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+    let Some(parent_id) = context.expression_parent(node_id) else {
         return false;
     };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
 
-    let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+    let parent_expression = context.tree.get(parent_id);
 
     is_postfix_parent_changed_by_parentheses(context.tree.get(node_id), parent_expression, node_id)
 }

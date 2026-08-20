@@ -5,9 +5,7 @@ use crate::expression::{
     TypeExpressionLayout, write_expression_without_trailing_comments, write_type_expression_node,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
-    Expression, GenericArgument, LocalNodeId, NodeType, TypeExpression, TypeLiteral,
-};
+use destack_dir::{Expression, GenericArgument, LocalNodeId, TypeExpression, TypeLiteral};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{
     format_with, group, soft_block_indent, soft_line_break_or_space, space, token,
@@ -233,14 +231,9 @@ fn is_callee_or_object_context(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+    let Some(parent_id) = context.expression_parent(node_id) else {
         return false;
     };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
 
     match context.tree.get(parent_id) {
         Expression::Member { left, .. }
@@ -312,7 +305,7 @@ fn format_type_target_expression<'ast>(
                 format_node_with_trailing_comments(
                     f.context().span(node_id),
                     expression_id,
-                    type_start
+                    Some(type_start)
                 ),
                 space(),
                 token(operation),

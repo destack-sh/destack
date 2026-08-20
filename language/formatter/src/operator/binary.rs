@@ -1,5 +1,6 @@
 use crate::chain::transparent_inner_expression;
 use crate::context::{DestackFormatterSpeculationExt, with_following_span_start};
+use crate::expression::is_control_expression;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, BinaryOperator, Expression, IfForm, LocalNodeId, Member, NodeType, Property,
@@ -103,18 +104,7 @@ fn binary_operand_is_control(
 ) -> bool {
     let expression_id = transparent_inner_expression(context, expression_id);
 
-    matches!(
-        context.tree.get(expression_id),
-        Expression::Match { .. }
-            | Expression::Switch { .. }
-            | Expression::If { .. }
-            | Expression::Loop { .. }
-            | Expression::Try { .. }
-            | Expression::Block { .. }
-            | Expression::ForEach { .. }
-            | Expression::For { .. }
-            | Expression::While { .. }
-    )
+    is_control_expression(context.tree.get(expression_id))
 }
 
 /// Return whether one operator belongs to the equality family.
@@ -230,57 +220,71 @@ fn binary_operator_needs_separator(
     true
 }
 
-/// One binary-like expression wrapper.
+/// One binary operation.
 #[derive(Debug, Clone, Copy)]
-struct BinaryLikeExpression {
-    /// The wrapped binary expression node.
+struct BinaryOperation {
+    /// The binary expression node.
     node_id: LocalNodeId<Expression>,
+    /// The left operand.
+    left: LocalNodeId<Expression>,
+    /// The operator.
+    operator: BinaryOperator,
+    /// The right operand.
+    right: LocalNodeId<Expression>,
 }
 
-impl BinaryLikeExpression {
-    /// Create one binary-like wrapper.
+impl BinaryOperation {
+    /// Create one binary operation.
     #[inline]
-    fn new(node_id: LocalNodeId<Expression>) -> Self {
-        Self { node_id }
+    fn new(
+        node_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        operator: BinaryOperator,
+        right: LocalNodeId<Expression>,
+    ) -> Self {
+        Self {
+            node_id,
+            left,
+            operator,
+            right,
+        }
     }
 
     /// Return the left operand.
-    fn left(self, context: &DestackFormatContext<'_>) -> LocalNodeId<Expression> {
-        let Expression::Binary { left, .. } = context.tree.get(self.node_id) else {
-            unreachable!("binary-like wrapper requires Expression::Binary");
-        };
-
-        *left
+    fn left(self) -> LocalNodeId<Expression> {
+        self.left
     }
 
     /// Return the right operand.
-    fn right(self, context: &DestackFormatContext<'_>) -> LocalNodeId<Expression> {
-        let Expression::Binary { right, .. } = context.tree.get(self.node_id) else {
-            unreachable!("binary-like wrapper requires Expression::Binary");
-        };
-
-        *right
+    fn right(self) -> LocalNodeId<Expression> {
+        self.right
     }
 
     /// Return the operator.
-    fn operator(self, context: &DestackFormatContext<'_>) -> BinaryOperator {
-        let Expression::Binary { operator, .. } = context.tree.get(self.node_id) else {
-            unreachable!("binary-like wrapper requires Expression::Binary");
+    fn operator(self) -> BinaryOperator {
+        self.operator
+    }
+
+    /// Return the flattenable binary expression on the left.
+    fn flattened_left(self, context: &DestackFormatContext<'_>) -> Option<Self> {
+        let Expression::Binary {
+            left,
+            operator,
+            right,
+        } = context.tree.get(self.left)
+        else {
+            return None;
         };
 
-        *operator
+        should_flatten_binary(self.operator, *operator)
+            .then(|| Self::new(self.left, *left, *operator, *right))
     }
 
     /// Return whether this expression is inside one test condition.
     fn is_inside_condition(self, context: &DestackFormatContext<'_>) -> bool {
-        let Some((parent_id, parent_type)) = context.parent(self.node_id) else {
+        let Some(parent_id) = context.expression_parent(self.node_id) else {
             return false;
         };
-        if parent_type != NodeType::Expression {
-            return false;
-        }
-
-        let parent_id = LocalNodeId::<Expression>::new(parent_id);
 
         match context.tree.get(parent_id) {
             Expression::If {
@@ -297,27 +301,13 @@ impl BinaryLikeExpression {
         }
     }
 
-    /// Return whether this expression can flatten with its left child.
-    fn can_flatten(self, context: &DestackFormatContext<'_>) -> bool {
-        let left = self.left(context);
-        let Expression::Binary {
-            operator: left_operator,
-            ..
-        } = context.tree.get(left)
-        else {
-            return false;
-        };
-
-        should_flatten_binary(self.operator(context), *left_operator)
-    }
-
     /// Return whether a logical chain should keep its right side inline.
     fn should_inline_logical_expression(self, context: &DestackFormatContext<'_>) -> bool {
-        if !is_logical_binary_operator(self.operator(context)) {
+        if !is_logical_binary_operator(self.operator()) {
             return false;
         }
 
-        match context.tree.get(self.right(context)) {
+        match context.tree.get(self.right()) {
             Expression::ObjectExpression { properties, .. }
             | Expression::StructExpression { properties, .. } => !properties.is_empty(),
             Expression::ArrayExpression { elements } => !elements.is_empty(),
@@ -380,14 +370,9 @@ impl BinaryLikeExpression {
 
     /// Return whether the parent already owns indentation.
     fn should_not_indent_if_parent_indents(self, context: &DestackFormatContext<'_>) -> bool {
-        let Some((parent_id, parent_type)) = context.parent(self.node_id) else {
+        let Some(parent_id) = context.expression_parent(self.node_id) else {
             return false;
         };
-        if parent_type != NodeType::Expression {
-            return false;
-        }
-
-        let parent_id = LocalNodeId::<Expression>::new(parent_id);
 
         match context.tree.get(parent_id) {
             Expression::Return { value } => value.is_some_and(|value| value == self.node_id),
@@ -425,13 +410,13 @@ enum BinarySide {
     /// The terminal left side.
     Left {
         /// The current parent chain node.
-        parent: BinaryLikeExpression,
+        parent: BinaryOperation,
     },
 
     /// One operator plus right operand.
     Right {
         /// The current parent chain node.
-        parent: BinaryLikeExpression,
+        parent: BinaryOperation,
         /// Whether the containing chain is in condition position.
         inside_condition: bool,
     },
@@ -441,8 +426,8 @@ impl BinarySide {
     /// Return whether this side is a tree expression.
     fn is_tree(self, context: &DestackFormatContext<'_>) -> bool {
         let expression_id = match self {
-            Self::Left { parent } => parent.left(context),
-            Self::Right { parent, .. } => parent.right(context),
+            Self::Left { parent } => parent.left(),
+            Self::Right { parent, .. } => parent.right(),
         };
 
         matches!(
@@ -459,13 +444,15 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
             Self::Left { parent } => {
                 let (left, following_span_start) = {
                     let context = f.context();
-                    let left = parent.left(context);
-                    let right = parent.right(context);
+                    let left = parent.left();
+                    let right = parent.right();
 
                     (left, context.span(right).start)
                 };
 
-                with_following_span_start(f, following_span_start, |f| write!(f, [group(&left)]))
+                with_following_span_start(f, Some(following_span_start), |f| {
+                    write!(f, [group(&left)])
+                })
             }
 
             // operator and right side
@@ -483,9 +470,9 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
                     should_break,
                 ) = {
                     let context = f.context();
-                    let left = parent.left(context);
-                    let right = parent.right(context);
-                    let operator = parent.operator(context);
+                    let left = parent.left();
+                    let right = parent.right();
+                    let operator = parent.operator();
                     let left_is_same_kind =
                         expression_is_same_binary_kind(context.tree.get(left), operator);
                     let right_is_same_kind =
@@ -513,7 +500,7 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
                     )
                 };
 
-                let left = parent.left(f.context());
+                let left = parent.left();
                 let right_will_break = f.speculate_will_break_after(
                     f.context().expression_token_start(right),
                     &right,
@@ -580,20 +567,18 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
 
 /// Collect one left-associative binary chain into printable sides.
 fn collect_binary_chain_sides(
-    binary: BinaryLikeExpression,
+    binary: BinaryOperation,
     inside_condition: bool,
     context: &DestackFormatContext<'_>,
     items: &mut BinarySideList,
 ) {
-    let mut ancestors = SmallVec::<[BinaryLikeExpression; 8]>::new();
+    let mut ancestors = SmallVec::<[BinaryOperation; 8]>::new();
     let mut current = binary;
 
     // walk to the terminal left operand
-    while current.can_flatten(context) {
-        let left = current.left(context);
-
+    while let Some(left) = current.flattened_left(context) {
         ancestors.push(current);
-        current = BinaryLikeExpression::new(left);
+        current = left;
     }
 
     // emit the chain in source order
@@ -664,14 +649,9 @@ fn binary_expression_is_inside_parenthesis_context(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
+    let Some(parent_id) = context.expression_parent(expression_id) else {
         return false;
     };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
 
     match context.tree.get(parent_id) {
         Expression::Unary { right, .. } => *right == expression_id,
@@ -687,15 +667,15 @@ fn binary_expression_is_inside_parenthesis_context(
     }
 }
 
-/// Format a binary expression with one binary-like printer.
+/// Format one binary expression.
 pub(crate) fn format_binary_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    _left: LocalNodeId<Expression>,
-    _operator: &BinaryOperator,
-    _right: LocalNodeId<Expression>,
+    left: LocalNodeId<Expression>,
+    operator: &BinaryOperator,
+    right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let binary = BinaryLikeExpression::new(node_id);
+    let binary = BinaryOperation::new(node_id, left, *operator, right);
     let is_inside_condition = binary.is_inside_condition(f.context());
     let mut sides = BinarySideList::new();
     collect_binary_chain_sides(binary, is_inside_condition, f.context(), &mut sides);

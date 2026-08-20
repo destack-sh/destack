@@ -8,7 +8,6 @@ use crate::annotation::{
     write_comment_slice,
 };
 use crate::declaration::sequence::block_statement_sequence;
-use crate::declaration::signature::expression_body_requires_head_space;
 use crate::declaration::statement::{format_block, format_block_wide};
 use crate::declaration::{
     empty_block_with_infix_annotations, statement_wrapper_needs_semicolon,
@@ -212,7 +211,9 @@ pub(crate) fn format_statement_body_block<'ast>(
     if block.is_empty() {
         write_statement_terminator_after_anchor(f, f.context().span(block_id).start)?;
     } else if block.len() == 1 {
-        let expression_id = block.first_expression().expect("single-expression block");
+        let expression_id = block.first_expression().ok_or(FormatError::SyntaxError {
+            message: "nonempty statement body requires one expression",
+        })?;
         if expression_has_block_prefix_annotation(f.context(), expression_id) {
             write!(
                 f,
@@ -278,7 +279,9 @@ fn format_statement_body_block_after_head_inner<'ast>(
     }
 
     if block.len() == 1 {
-        let expression_id = block.first_expression().expect("single-expression block");
+        let expression_id = block.first_expression().ok_or(FormatError::SyntaxError {
+            message: "nonempty control body requires one expression",
+        })?;
         let has_leading_comments = control_body_has_leading_comments(f.context(), expression_id);
         let body = format_with(|f| format_statement_body_expression(f, expression_id));
 
@@ -1130,7 +1133,7 @@ fn statement_body_requires_head_space(
             .has_comment_before(context.span(body).start);
     }
 
-    expression_body_requires_head_space(context, LocalNodeId::<Expression>::new(body.id))
+    true
 }
 
 /// Format a `while` or `do while` expression.

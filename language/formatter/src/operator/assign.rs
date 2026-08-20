@@ -181,19 +181,13 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
     let mut is_chain = false;
     let mut has_simple_head = false;
     let mut call_expression_ids = Vec::new();
-    let mut call_generic_argument_groups = Vec::<Vec<LocalNodeId<GenericArgument>>>::new();
 
     loop {
         current_expression_id = match f.context().tree.get(current_expression_id) {
             // call
-            Expression::Call {
-                left,
-                generic_arguments,
-                ..
-            } => {
+            Expression::Call { left, .. } => {
                 is_chain = true;
                 call_expression_ids.push(current_expression_id);
-                call_generic_argument_groups.push(generic_arguments.clone());
                 transparent_inner_expression(f.context(), *left)
             }
 
@@ -250,8 +244,13 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
     }
 
     // breakable calls defeat the shortcut
-    for (index, call_expression_id) in call_expression_ids.iter().copied().enumerate() {
-        let Expression::Call { arguments, .. } = f.context().tree.get(call_expression_id) else {
+    for call_expression_id in call_expression_ids.iter().copied() {
+        let Expression::Call {
+            arguments,
+            generic_arguments,
+            ..
+        } = f.context().tree.get(call_expression_id)
+        else {
             continue;
         };
 
@@ -267,9 +266,7 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
             return Ok(false);
         }
 
-        if let Some(generic_arguments) = call_generic_argument_groups.get(index)
-            && is_complex_generic_arguments(f, generic_arguments)?
-        {
+        if is_complex_generic_arguments(f, generic_arguments)? {
             return Ok(false);
         }
     }
@@ -1126,13 +1123,10 @@ impl AssignmentLike {
     fn layout<'ast>(
         self,
         f: &mut DestackFormatter<'ast, '_>,
+        right: LocalNodeId<Expression>,
         is_left_short: bool,
         left_may_break: bool,
     ) -> FormatResult<AssignmentLikeLayout> {
-        let right = self
-            .right(f.context())
-            .expect("assignment-like layout requires a right-hand side");
-
         // assignment chains
         if let Some(layout) = self.chain_layout(f.context()) {
             return Ok(layout);
@@ -1144,7 +1138,7 @@ impl AssignmentLike {
         }
 
         // operator-bound trivia and rhs pressure
-        if self.should_break_after_operator(f, is_left_short)? {
+        if self.should_break_after_operator(f, right, is_left_short)? {
             return Ok(AssignmentLikeLayout::BreakAfterOperator);
         }
 
@@ -1261,96 +1255,59 @@ impl AssignmentLike {
     fn write_right<'ast>(
         self,
         f: &mut DestackFormatter<'ast, '_>,
+        right: LocalNodeId<Expression>,
         layout: AssignmentLikeLayout,
     ) -> FormatResult<()> {
+        let comments = assignment_rhs_operator_comment_nodes(f.context(), right);
+        let has_inline_comment =
+            assignment_rhs_has_inline_operator_prefix_comment(f.context(), right);
+        let has_inline_line_comment =
+            has_inline_comment && comments.first().is_some_and(|comment| comment.is_line());
+
+        // attach the first line comment to the operator
+        if has_inline_line_comment {
+            let first_comment = comments[0];
+            let value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                self.write_right_value(f, right, layout, true, &[])
+            });
+            let value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [hard_line_break(), value])
+            });
+
+            write!(f, [space()])?;
+            format_comment(f, first_comment)?;
+
+            return write!(f, [indent(&value)]);
+        }
+
+        // write remaining operator comments with the value
+        let value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            self.write_right_value(f, right, layout, has_inline_comment, &comments)
+        });
+
+        write_assignment_like_right(f, layout, &value)
+    }
+
+    /// Write the right-hand value and its operator comments.
+    fn write_right_value<'ast>(
+        self,
+        f: &mut DestackFormatter<'ast, '_>,
+        right: LocalNodeId<Expression>,
+        layout: AssignmentLikeLayout,
+        has_inline_comment: bool,
+        comments: &[Comment],
+    ) -> FormatResult<()> {
         match self {
-            AssignmentLike::Declarator(declarator_id) => {
-                let declarator = f.context().tree.get(declarator_id);
-                let value = declarator
-                    .value
-                    .expect("declarator rhs requires an initializer");
-
-                let rhs_operator_comment_nodes =
-                    assignment_rhs_operator_comment_nodes(f.context(), value);
-                let rhs_has_inline_operator_prefix_comment =
-                    assignment_rhs_has_inline_operator_prefix_comment(f.context(), value);
-                let has_inline_line_operator_comment = rhs_has_inline_operator_prefix_comment
-                    && rhs_operator_comment_nodes
-                        .first()
-                        .is_some_and(|comment| comment.is_line());
-
-                if has_inline_line_operator_comment {
-                    let first_comment = rhs_operator_comment_nodes[0];
-                    let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write_declarator_assignment_value(f, value, layout, true, &[])
-                    });
-                    let indented_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write!(f, [hard_line_break(), formatted_right])
-                    });
-
-                    write!(f, [space()])?;
-                    format_comment(f, first_comment)?;
-
-                    return write!(f, [indent(&indented_right)]);
-                }
-
-                let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    write_assignment_rhs_operator_comments(f, value, true)?;
-                    write_declarator_assignment_value(
-                        f,
-                        value,
-                        layout,
-                        rhs_has_inline_operator_prefix_comment,
-                        &rhs_operator_comment_nodes,
-                    )
-                });
-
-                write_assignment_like_right(f, layout, &formatted_right)
+            Self::Declarator(_) => {
+                write_assignment_rhs_operator_comments(f, right, true)?;
+                write_declarator_assignment_value(f, right, layout, has_inline_comment, comments)
             }
-            AssignmentLike::Expression { right, .. } => {
-                let rhs_operator_comment_nodes =
-                    assignment_rhs_operator_comment_nodes(f.context(), right);
-                let rhs_has_inline_operator_prefix_comment =
-                    assignment_rhs_has_inline_operator_prefix_comment(f.context(), right);
-                let has_inline_line_operator_comment = rhs_has_inline_operator_prefix_comment
-                    && rhs_operator_comment_nodes
-                        .first()
-                        .is_some_and(|comment| comment.is_line());
-
-                if has_inline_line_operator_comment {
-                    let first_comment = rhs_operator_comment_nodes[0];
-                    let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write_expression_with_assignment_layout(
-                            f,
-                            right,
-                            layout,
-                            rhs_has_inline_operator_prefix_comment,
-                        )
-                    });
-                    let indented_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write!(f, [hard_line_break(), formatted_right])
-                    });
-
-                    write!(f, [space()])?;
-                    format_comment(f, first_comment)?;
-
-                    return write!(f, [indent(&indented_right)]);
+            Self::Expression { .. } => {
+                if !comments.is_empty() {
+                    write_assignment_rhs_operator_comments(f, right, true)?;
                 }
 
-                let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    if !rhs_operator_comment_nodes.is_empty() {
-                        write_assignment_rhs_operator_comments(f, right, true)?;
-                    }
-
-                    write_expression_with_assignment_layout(
-                        f,
-                        right,
-                        layout,
-                        rhs_has_inline_operator_prefix_comment,
-                    )
-                });
-
-                write_assignment_like_right(f, layout, &formatted_right)
+                write_expression_with_assignment_layout(f, right, layout, has_inline_comment)
             }
         }
     }
@@ -1437,12 +1394,10 @@ impl AssignmentLike {
     fn should_break_after_operator<'ast>(
         self,
         f: &mut DestackFormatter<'ast, '_>,
+        right: LocalNodeId<Expression>,
         is_left_short: bool,
     ) -> FormatResult<bool> {
         let context = f.context();
-        let right = self
-            .right(context)
-            .expect("assignment-like break check requires a right-hand side");
 
         match self {
             // declarator rhs pressure
@@ -1510,7 +1465,7 @@ impl AssignmentLike {
     /// Format one assignment-like expression.
     fn format<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         // left side only
-        let Some(_) = self.right(f.context()) else {
+        let Some(right) = self.right(f.context()) else {
             let (left_instructions, _, _) = self.capture_left(f)?;
             let left = left_instructions.collapse();
 
@@ -1523,7 +1478,7 @@ impl AssignmentLike {
 
         // buffered left side
         let (left_instructions, is_left_short, left_may_break) = self.capture_left(f)?;
-        let layout = self.layout(f, is_left_short, left_may_break)?;
+        let layout = self.layout(f, right, is_left_short, left_may_break)?;
         let left = left_instructions.collapse();
         let formatted_left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
             if let Some(left) = &left {
@@ -1542,7 +1497,7 @@ impl AssignmentLike {
             }
 
             self.write_operator(f)?;
-            self.write_right(f, layout)
+            self.write_right(f, right, layout)
         });
 
         match layout {

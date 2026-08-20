@@ -32,14 +32,10 @@ fn expression_is_await_callee_or_object_context(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+    let Some(parent_id) = context.expression_parent(node_id) else {
         return false;
     };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
 
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
     match context.tree.get(parent_id) {
         Expression::Member { left, .. } => *left == node_id,
         Expression::Index { left, .. } | Expression::Call { left, .. } => *left == node_id,
