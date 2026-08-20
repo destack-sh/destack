@@ -448,12 +448,21 @@ impl Hash for ScalarLiteral {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TemplateLiteral {
     /// Template string value.
-    String { string: StringId },
+    String { chunk: TemplateChunk },
     /// Interpolated template literal value.
     InterpolatedString {
-        strings: Vec<StringId>,
+        chunks: Vec<TemplateChunk>,
         arguments: Vec<LocalNodeId<Argument>>,
     },
+}
+
+/// One literal run of a template, decoded and as written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct TemplateChunk {
+    /// The decoded text, absent when a tagged template keeps an invalid escape.
+    pub cooked: Option<StringId>,
+    /// The text as written between the delimiters.
+    pub raw: StringId,
 }
 
 /// A TypeLiteral is literal type.

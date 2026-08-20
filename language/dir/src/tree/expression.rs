@@ -777,8 +777,8 @@ impl Expression {
         match self {
             Self::ScalarLiteral(value) => Some(*value),
             Self::TemplateExpression {
-                value: TemplateLiteral::String { string },
-            } => Some(ScalarLiteral::String(*string)),
+                value: TemplateLiteral::String { chunk },
+            } => chunk.cooked.map(ScalarLiteral::String),
             _ => None,
         }
     }
