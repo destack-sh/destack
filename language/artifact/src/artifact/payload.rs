@@ -436,14 +436,11 @@ impl<'a> ArtifactPayloadRef<'a> {
                 let keys = [ArtifactProjectionKey::ModuleEdges(*module)];
                 push_projection_fingerprints(self, keys, &mut projections)?;
             }
-            push_projection_fingerprints(
-                self,
-                [
-                    ArtifactProjectionKey::Modules,
-                    ArtifactProjectionKey::InherentExtensions,
-                ],
-                &mut projections,
-            )?;
+            for interface in graph.implemented_interfaces() {
+                let keys = [ArtifactProjectionKey::Implementations(interface)];
+                push_projection_fingerprints(self, keys, &mut projections)?;
+            }
+            push_projection_fingerprints(self, [ArtifactProjectionKey::Modules], &mut projections)?;
         }
 
         // index independently reusable resolved DIR relationships

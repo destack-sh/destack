@@ -250,7 +250,18 @@ impl DirResolved {
         extensions.sort_unstable();
         extensions.dedup();
 
-        ArtifactProjectionFingerprint::new(&(modules, symbols, namespaces, extensions))
+        // collect the interface implementations the module graph indexes
+        let mut implementations = self.extensions.implementations().collect::<Vec<_>>();
+        implementations.sort_unstable();
+        implementations.dedup();
+
+        ArtifactProjectionFingerprint::new(&(
+            modules,
+            symbols,
+            namespaces,
+            extensions,
+            implementations,
+        ))
     }
 }
 

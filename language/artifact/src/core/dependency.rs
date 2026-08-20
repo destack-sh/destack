@@ -2,6 +2,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 
 use destack_core::{BlobId, StableHasher};
+use destack_dir::GlobalSymbolId;
 use destack_serde as serde;
 use destack_serde::Reflect;
 use destack_source::{FileId, ModuleId, PackageId};
@@ -130,8 +131,8 @@ pub enum ArtifactProjectionKey {
     Modules,
     /// The import edges of one module in the module graph.
     ModuleEdges(ModuleId),
-    /// The inherent extensions resolved across the module graph.
-    InherentExtensions,
+    /// The implementations of one interface resolved across the module graph.
+    Implementations(GlobalSymbolId),
     /// The declared output fingerprint of one declared module.
     Declared,
     /// The elaborated output fingerprint of one elaborated module.

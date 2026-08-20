@@ -58,11 +58,13 @@ impl ModuleEdges {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
-pub struct InherentExtension {
-    /// The extension symbol.
+pub struct Implementation {
+    /// The implemented interface.
+    pub interface: GlobalSymbolId,
+    /// The implementing extension symbol.
     pub symbol: GlobalSymbolId,
-    /// The extended target root.
-    pub target: GlobalSymbolId,
+    /// The implementing target root, absent for blankets.
+    pub root: Option<GlobalSymbolId>,
 }
 
 /// Import graph over the modules of one profile.
@@ -74,8 +76,8 @@ pub struct ModuleGraph {
     modules: Arc<[ModuleId]>,
     /// Import edges over the module universe.
     edges: ModuleEdges,
-    /// All inherent extensions declared across the graph's modules.
-    extensions: Arc<[InherentExtension]>,
+    /// All interface implementations declared across the graph's modules, sorted by interface.
+    implementations: Arc<[Implementation]>,
 }
 
 impl ModuleGraph {
@@ -83,18 +85,20 @@ impl ModuleGraph {
     pub fn from_edges(
         profile: ProfileId,
         edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
-        extensions: Vec<InherentExtension>,
+        mut implementations: Vec<Implementation>,
     ) -> Result<Self, ModuleId> {
         let mut modules = edges.keys().copied().collect::<Vec<_>>();
         modules.sort_unstable();
         let modules = Arc::<[ModuleId]>::from(modules);
         let edges = ModuleEdges::from_edges(&modules, &edges)?;
+        implementations.sort_unstable();
+        implementations.dedup();
 
         Ok(Self {
             profile,
             modules,
             edges,
-            extensions: Arc::from(extensions),
+            implementations: Arc::from(implementations),
         })
     }
 
@@ -103,7 +107,7 @@ impl ModuleGraph {
         &self,
         updated_edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
         mut removed_modules: Vec<ModuleId>,
-        extensions: Vec<InherentExtension>,
+        implementations: Vec<Implementation>,
     ) -> Result<Self, ModuleId> {
         // index removals for filtering sources and targets
         removed_modules.sort_unstable();
@@ -137,7 +141,7 @@ impl ModuleGraph {
             edges.insert(module, targets);
         }
 
-        Self::from_edges(self.profile, edges, extensions)
+        Self::from_edges(self.profile, edges, implementations)
     }
 
     /// Return the profile this graph belongs to.
@@ -212,16 +216,28 @@ impl ModuleGraph {
         reachable
     }
 
-    /// Return all inherent extensions declared across the graph's modules.
-    pub fn extensions(&self) -> &[InherentExtension] {
-        &self.extensions
+    /// Return all interface implementations declared across the graph's modules.
+    pub fn implementations(&self) -> &[Implementation] {
+        &self.implementations
     }
 
-    /// Return the inherent extensions declared outside their target's module.
-    pub fn cross_module_extensions(&self) -> impl Iterator<Item = &InherentExtension> {
-        self.extensions
-            .iter()
-            .filter(|extension| extension.symbol.module_id != extension.target.module_id)
+    /// Return the implementations of one interface.
+    pub fn interface_implementations(&self, interface: GlobalSymbolId) -> &[Implementation] {
+        let start = self
+            .implementations
+            .partition_point(|implementation| implementation.interface < interface);
+        let end = start
+            + self.implementations[start..]
+                .partition_point(|implementation| implementation.interface == interface);
+
+        &self.implementations[start..end]
+    }
+
+    /// Iterate the distinct interfaces with implementations in the graph.
+    pub fn implemented_interfaces(&self) -> impl Iterator<Item = GlobalSymbolId> + '_ {
+        self.implementations
+            .chunk_by(|left, right| left.interface == right.interface)
+            .map(|run| run[0].interface)
     }
 
     /// Return the stable fingerprint of one projected module graph value.
@@ -238,9 +254,9 @@ impl ModuleGraph {
 
                 Some(ArtifactProjectionFingerprint::new(edges.as_ref()))
             }
-            ArtifactProjectionKey::InherentExtensions => {
-                Some(ArtifactProjectionFingerprint::new(self.extensions.as_ref()))
-            }
+            ArtifactProjectionKey::Implementations(interface) => Some(
+                ArtifactProjectionFingerprint::new(self.interface_implementations(interface)),
+            ),
             ArtifactProjectionKey::Declared
             | ArtifactProjectionKey::Elaborated
             | ArtifactProjectionKey::Checked

@@ -5,8 +5,9 @@ use std::sync::Arc;
 use destack_artifact::{
     Artifact, ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection,
     ArtifactProjectionDependency, ArtifactProjectionFingerprint, ArtifactProjectionKey,
-    ArtifactRequirement, ArtifactVersion, InherentExtension, ModuleGraph,
+    ArtifactRequirement, ArtifactVersion, Implementation, ModuleGraph,
 };
+use destack_dir::GlobalSymbolId;
 use destack_source::{ModuleId, ProfileId};
 
 use crate::provider::{ProviderContext, ProviderError};
@@ -384,13 +385,14 @@ impl ModuleGraphReader<'_> {
         Ok(reachable)
     }
 
-    /// Return the inherent extensions declared outside their target's module.
-    pub fn cross_module_extensions(
+    /// Return the implementations of one interface declared across the graph.
+    pub fn interface_implementations(
         &self,
-    ) -> Result<impl Iterator<Item = &InherentExtension>, ProviderError> {
-        self.require(ArtifactProjectionKey::InherentExtensions)?;
+        interface: GlobalSymbolId,
+    ) -> Result<&[Implementation], ProviderError> {
+        self.require(ArtifactProjectionKey::Implementations(interface))?;
 
-        Ok(self.graph.cross_module_extensions())
+        Ok(self.graph.interface_implementations(interface))
     }
 
     /// Require one exact module graph projection.
