@@ -12,6 +12,7 @@ export const describe: TestSuite = createSuite();
 export const suite: TestSuite = describe;
 
 /// Callable test suite registration interface.
+@languageItem("test.TestSuite")
 export newtype interface TestSuite {
     /// Register one test suite.
     (name: string, body?: SuiteBody): void;
@@ -48,6 +49,7 @@ export newtype interface TestSuite {
 }
 
 /// Suite registration over one parameter tuple.
+@languageItem("test.ParameterizedSuite")
 export newtype interface ParameterizedSuite<P: readonly unknown[]> {
     /// Register one parameterized suite.
     (name: string, body?: Function<P, void>): void;
@@ -72,6 +74,7 @@ export newtype interface ParameterizedSuite<P: readonly unknown[]> {
 }
 
 /// Suite registration over one unspread table value.
+@languageItem("test.TableSuite")
 export newtype interface TableSuite<T> {
     /// Register one table suite.
     (name: string, body?: (value: T) => void): void;

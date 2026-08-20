@@ -1370,6 +1370,54 @@ define_language_items! {
         }
     }
 
+    /// Test registration types and functions.
+    test {
+        /// `destack:test/case`.
+        case {
+            /// Callable test registration interface.
+            Test => (NewtypeInterface, "test/case", "Test"),
+
+            /// Test registration over one parameter tuple.
+            ParameterizedTest => (NewtypeInterface, "test/case", "ParameterizedTest"),
+
+            /// Test registration over one unspread table value.
+            TableTest => (NewtypeInterface, "test/case", "TableTest"),
+        }
+
+        /// `destack:test/hook`.
+        hook {
+            /// Register setup before all tests in the current suite.
+            TestBeforeAll => (Function, "test/hook", "beforeAll"),
+
+            /// Register cleanup after all tests in the current suite.
+            TestAfterAll => (Function, "test/hook", "afterAll"),
+
+            /// Register a function around all tests in the current suite.
+            TestAroundAll => (Function, "test/hook", "aroundAll"),
+
+            /// Register setup before each test in the current suite.
+            TestBeforeEach => (Function, "test/hook", "beforeEach"),
+
+            /// Register cleanup after each test in the current suite.
+            TestAfterEach => (Function, "test/hook", "afterEach"),
+
+            /// Register a function around each test in the current suite.
+            TestAroundEach => (Function, "test/hook", "aroundEach"),
+        }
+
+        /// `destack:test/suite`.
+        suite {
+            /// Callable test suite registration interface.
+            TestSuite => (NewtypeInterface, "test/suite", "TestSuite"),
+
+            /// Suite registration over one parameter tuple.
+            ParameterizedSuite => (NewtypeInterface, "test/suite", "ParameterizedSuite"),
+
+            /// Suite registration over one unspread table value.
+            TableSuite => (NewtypeInterface, "test/suite", "TableSuite"),
+        }
+    }
+
     /// Time types.
     time {
         /// `destack:time/binding`.

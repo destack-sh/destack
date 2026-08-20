@@ -22,6 +22,7 @@ export const test: Test = createTest();
 export const it: Test = test;
 
 /// Callable test registration interface.
+@languageItem("test.Test")
 export newtype interface Test<TestValues = {}, ModuleValues = {}, WorkerValues = {}> {
     /// Register one test.
     (name: string, body?: Body<TestContext<TestValues, ModuleValues, WorkerValues>>): void;
@@ -195,6 +196,7 @@ export newtype interface Test<TestValues = {}, ModuleValues = {}, WorkerValues =
 }
 
 /// Test registration over one parameter tuple.
+@languageItem("test.ParameterizedTest")
 export newtype interface ParameterizedTest<P: readonly unknown[] & Copy> {
     /// Register one parameterized test.
     (name: string, body?: Function<P, BodyResult>): void;
@@ -219,6 +221,7 @@ export newtype interface ParameterizedTest<P: readonly unknown[] & Copy> {
 }
 
 /// Test registration over one unspread table value.
+@languageItem("test.TableTest")
 export newtype interface TableTest<T, TestValues, ModuleValues, WorkerValues> {
     /// Register one table test.
     (
