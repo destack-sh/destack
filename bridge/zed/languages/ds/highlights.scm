@@ -318,7 +318,6 @@
   "set"
   "shared"
   "static"
-  "throw"
   "try"
   "typeof"
   "virtual"

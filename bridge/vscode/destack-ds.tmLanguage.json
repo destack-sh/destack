@@ -408,7 +408,7 @@
         },
         {
           "name": "keyword.control.exception.ds",
-          "match": "\\b(?:try|catch|throw|finally)\\b"
+          "match": "\\b(?:try|catch|finally)\\b"
         },
         {
           "name": "keyword.control.async.ds",

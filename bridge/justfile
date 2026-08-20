@@ -72,9 +72,9 @@ test-vscode:
 
 # compile zed tree-sitter queries
 test-zed:
-    for query in zed/languages/ds/*.scm; do (cd ../language/grammar/destack && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../test/fixtures/formatter/roundtrip/tree-idempotent-basic.ds") >/dev/null; done
-    for query in zed/languages/dsm/*.scm; do (cd ../language/grammar/mir && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../test/fixtures/grammar/mir/mir.txt") >/dev/null; done
-    for query in zed/languages/dsa/*.scm; do (cd ../language/grammar/bytecode && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../test/fixtures/grammar/bytecode/bytecode.txt") >/dev/null; done
+    for query in zed/languages/ds/*.scm; do (cd ../language/grammar/destack && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../formatter/fixture/roundtrip/tree-idempotent-basic.ds") >/dev/null || exit 1; done
+    for query in zed/languages/dsm/*.scm; do (cd ../language/grammar/mir && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/mir/mir.txt") >/dev/null || exit 1; done
+    for query in zed/languages/dsa/*.scm; do (cd ../language/grammar/bytecode && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/bytecode/bytecode.txt") >/dev/null || exit 1; done
 
 # default check
 check:
