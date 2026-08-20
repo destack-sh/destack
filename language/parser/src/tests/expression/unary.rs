@@ -283,18 +283,6 @@ fn test_parse_bound_reference_expression() {
     });
 }
 
-/// Reject the retired move prefix in expression position.
-#[test]
-fn test_reject_move_prefix_expression() {
-    let test = TestParser::new("^value");
-    let mut parser = test.prepare();
-
-    assert!(
-        parser.parse_expression(Default::default()).is_err(),
-        "move prefix should not parse"
-    );
-}
-
 /// Parse a new constructor call.
 #[test]
 fn test_parse_new_constructor_call() {

@@ -44,8 +44,6 @@ pub enum Keyword {
     This,
     /// Super expression (reserved).
     Super,
-    /// Refer to the containing package (alias).
-    Package,
 
     // ------------------------------------------------------------
     // Dependencies
@@ -178,8 +176,6 @@ pub enum Keyword {
     Try,
     /// Catch expression.
     Catch,
-    /// Reserved throw keyword.
-    Throw,
     /// Finally expression.
     Finally,
 
@@ -194,8 +190,6 @@ pub enum Keyword {
     Get,
     /// Setter function.
     Set,
-    /// Move values.
-    Move,
     /// With expression to declare use of items for a scope.
     With,
 }
@@ -263,7 +257,6 @@ impl Keyword {
             // context
             Keyword::This => "this",
             Keyword::Super => "super",
-            Keyword::Package => "package",
 
             // dependencies
             Keyword::Import => "import",
@@ -330,7 +323,6 @@ impl Keyword {
             // errors
             Keyword::Try => "try",
             Keyword::Catch => "catch",
-            Keyword::Throw => "throw",
             Keyword::Finally => "finally",
 
             // async & dispatch
@@ -338,7 +330,6 @@ impl Keyword {
             Keyword::Await => "await",
             Keyword::Get => "get",
             Keyword::Set => "set",
-            Keyword::Move => "move",
             Keyword::With => "with",
         }
     }
@@ -366,7 +357,6 @@ impl FromStr for Keyword {
             // context
             "this" => Ok(Keyword::This),
             "super" => Ok(Keyword::Super),
-            "package" => Ok(Keyword::Package),
 
             // dependencies
             "import" => Ok(Keyword::Import),
@@ -433,7 +423,6 @@ impl FromStr for Keyword {
             // errors
             "try" => Ok(Keyword::Try),
             "catch" => Ok(Keyword::Catch),
-            "throw" => Ok(Keyword::Throw),
             "finally" => Ok(Keyword::Finally),
 
             // async & dispatch
@@ -441,7 +430,6 @@ impl FromStr for Keyword {
             "await" => Ok(Keyword::Await),
             "get" => Ok(Keyword::Get),
             "set" => Ok(Keyword::Set),
-            "move" => Ok(Keyword::Move),
             "with" => Ok(Keyword::With),
 
             _ => Err(()),

@@ -344,7 +344,7 @@ impl Parser {
         }
 
         match keyword {
-            Keyword::Function | Keyword::Throw | Keyword::Typeof | Keyword::Void => {
+            Keyword::Function | Keyword::Typeof | Keyword::Void => {
                 Err(ParserError::unexpected(self.peek_token_span()))
             }
             Keyword::This => {

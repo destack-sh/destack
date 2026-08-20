@@ -100,7 +100,6 @@ impl Parser {
                 | Keyword::Match
                 | Keyword::Return
                 | Keyword::Switch
-                | Keyword::Throw
                 | Keyword::Type
                 | Keyword::Try
                 | Keyword::Using
