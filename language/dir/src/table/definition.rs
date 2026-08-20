@@ -104,14 +104,11 @@ impl<'a> DefinitionTable<'a> {
         }
     }
 
-    /// Iterate extension symbols targeting one nominal symbol.
-    pub fn target_extensions(
-        &self,
-        target_symbol: GlobalSymbolId,
-    ) -> impl Iterator<Item = GlobalSymbolId> + '_ {
+    /// Iterate extension symbols targeting one root.
+    pub fn root_extensions(&self, root: TypeRoot) -> impl Iterator<Item = GlobalSymbolId> + '_ {
         self.segments
             .iter()
-            .flat_map(move |segment| segment.target_extensions(target_symbol).iter().copied())
+            .flat_map(move |segment| segment.root_extensions(root).iter().copied())
     }
 
     /// Iterate blanket extension symbols.
@@ -177,19 +174,28 @@ pub struct DefinitionSegment {
     pub(crate) sources: IndexMap<GlobalSymbolId, GlobalNodeIdAny>,
     /// Definitions keyed by declaring symbol.
     pub(crate) definitions: IndexMap<GlobalSymbolId, Definition>,
-    /// Extension symbols by target symbol.
-    pub(crate) extensions_by_target_symbol: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
+    /// Extension symbols by target root.
+    pub(crate) extensions_by_root: IndexMap<TypeRoot, Vec<GlobalSymbolId>>,
     /// Blanket extension symbols.
     pub(crate) blanket_extensions: Vec<GlobalSymbolId>,
 }
 
-/// One receiver family judged for blanket extension applicability.
+/// One indexable receiver root, keying extension lookup and conflicts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum FamilyKey {
-    /// A nominal declaration family.
-    Nominal(GlobalSymbolId),
-    /// A builtin primitive family.
+pub enum TypeRoot {
+    /// A declared nominal root.
+    Declaration(GlobalSymbolId),
+    /// A builtin primitive root.
     Primitive(PrimitiveType),
+}
+
+impl TypeFold for TypeRoot {
+    fn map_types<E>(
+        &mut self,
+        _map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        Ok(())
+    }
 }
 
 impl DefinitionSegment {
@@ -199,7 +205,7 @@ impl DefinitionSegment {
             module_id,
             sources: IndexMap::default(),
             definitions: IndexMap::default(),
-            extensions_by_target_symbol: IndexMap::default(),
+            extensions_by_root: IndexMap::default(),
             blanket_extensions: Vec::new(),
         }
     }
@@ -214,9 +220,9 @@ impl DefinitionSegment {
         self.sources.insert(symbol, source);
         if let Definition::Extension(extension) = &definition {
             match extension.target.root() {
-                Some(target_symbol) => {
-                    self.extensions_by_target_symbol
-                        .entry(target_symbol)
+                Some(root) => {
+                    self.extensions_by_root
+                        .entry(root)
                         .or_default()
                         .push(symbol);
                 }
@@ -252,10 +258,10 @@ impl DefinitionSegment {
         self.definitions.get_mut(&symbol)
     }
 
-    /// Get all extension symbols targeting a specific type symbol.
-    pub fn target_extensions(&self, target_symbol: GlobalSymbolId) -> &[GlobalSymbolId] {
-        self.extensions_by_target_symbol
-            .get(&target_symbol)
+    /// Get all extension symbols targeting one root.
+    pub fn root_extensions(&self, root: TypeRoot) -> &[GlobalSymbolId] {
+        self.extensions_by_root
+            .get(&root)
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
@@ -644,7 +650,7 @@ impl ExtensionDefinition {
     /// Return whether this extension is inherent.
     pub fn is_inherent(&self) -> bool {
         self.target
-            .root()
+            .declaration()
             .is_some_and(|root| root.module_id == self.symbol.module_id)
     }
 
@@ -667,10 +673,10 @@ impl ExtensionDefinition {
 /// Extension lookup target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ExtensionTarget {
-    /// Extension whose receiver type has a lookup root.
+    /// Extension whose receiver type names one indexable root.
     Rooted {
-        /// The declaration root used for member lookup.
-        root: GlobalSymbolId,
+        /// The root used for member lookup and conflicts.
+        root: TypeRoot,
         /// The checked receiver type.
         ty: GlobalTypeId,
     },
@@ -702,8 +708,19 @@ impl ExtensionTarget {
         }
     }
 
+    /// Return the declaration symbol when this target roots at one.
+    pub fn declaration(&self) -> Option<GlobalSymbolId> {
+        match self {
+            Self::Rooted {
+                root: TypeRoot::Declaration(symbol),
+                ..
+            } => Some(*symbol),
+            Self::Rooted { .. } | Self::Blanket { .. } => None,
+        }
+    }
+
     /// Return the lookup root when this target has one.
-    pub fn root(&self) -> Option<GlobalSymbolId> {
+    pub fn root(&self) -> Option<TypeRoot> {
         match self {
             Self::Rooted { root, .. } => Some(*root),
             Self::Blanket { .. } => None,
@@ -1089,7 +1106,7 @@ impl Definition {
     /// Return the nominal owner of this definition's members.
     pub fn member_owner(&self, declaring: GlobalSymbolId) -> Option<GlobalSymbolId> {
         match self {
-            Self::Extension(extension) => extension.target.root(),
+            Self::Extension(extension) => extension.target.declaration(),
             _ => Some(declaring),
         }
     }
