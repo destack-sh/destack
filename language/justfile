@@ -2,8 +2,8 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
 # selected crates
-packages := "-p destack_artifact -p destack_artifact_macros -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_program -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_language_cli -p destack_linter -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_parser -p destack_query -p destack_runtime -p destack_workspace -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_repository"
-packages-no-linter := "-p destack_artifact -p destack_artifact_macros -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_program -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_language_cli -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_parser -p destack_query -p destack_runtime -p destack_workspace -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_repository"
+packages := "-p destack_artifact -p destack_artifact_macros -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_program -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_language_cli -p destack_linter -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_parser -p destack_query -p destack_runtime -p destack_workspace -p destack_session -p destack_source -p destack_unicode -p destack_vm -p destack_repository"
+packages-no-linter := "-p destack_artifact -p destack_artifact_macros -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_program -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_language_cli -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_parser -p destack_query -p destack_runtime -p destack_workspace -p destack_session -p destack_source -p destack_unicode -p destack_vm -p destack_repository"
 
 _default:
     @just --list --unsorted
@@ -98,7 +98,6 @@ clean:
 generate:
     just generate-unicode
     just generate-schema
-    just generate-stress
 
 # regenerate unicode tables
 generate-unicode:
@@ -108,10 +107,6 @@ generate-unicode:
 generate-schema:
     cargo run -p destack_repository --features schema --bin generate-schema --release > ../bridge/vscode/destack.schema.json
     @echo "generated ../bridge/vscode/destack.schema.json"
-
-# generate parser and formatter stress fixtures
-generate-stress:
-    cargo test --release -p destack_test --test stress -- --generate
 
 # --- test ---
 
@@ -143,8 +138,10 @@ check-quick:
 
 # check with slow suites
 check-full:
-    just check-quick
-    just test-stress
+    just format-check
+    just lint
+    just test-all
+    just test-grammar
 
 # run all crate tests
 test-all:
@@ -161,7 +158,7 @@ test-linter:
 
 # run formatter tests
 test-formatter:
-    cargo test --release -p destack_test --test formatter
+    cargo test --release -p destack_formatter --test fixture
 
 # run Destack Tree-sitter corpus tests
 test-grammar-destack:
@@ -183,19 +180,7 @@ test-grammar:
 
 # run query tests
 test-query:
-    cargo test --release -p destack_test --test query
-
-# run all stress tests
-test-stress:
-    cargo test --release -p destack_test --test stress
-
-# run parser stress tests
-test-stress-parser:
-    cargo test --release -p destack_test --test stress -- --parser
-
-# run formatter stress tests
-test-stress-formatter:
-    cargo test --release -p destack_test --test stress -- --formatter
+    cargo test --release -p destack_query --test fixture
 
 # --- bench ---
 

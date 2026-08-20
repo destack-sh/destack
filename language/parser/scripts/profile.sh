@@ -6,7 +6,7 @@ export LANG=C
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
-SOURCE_INPUT="${1:-language/test/fixtures/parser/oxc/typescript.js}"
+SOURCE_INPUT="${1:-language/library/src/collections/array.ds}"
 DURATION="${2:-10}"
 MODE="${3:-trivia}"
 OUTPUT_INPUT="${4:-}"

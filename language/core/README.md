@@ -33,8 +33,6 @@ Run these from the repository root.
 ```sh
 # focused local loop
 cargo test -p destack_core
-cargo test -p destack_test --test optimize
-just language/test-query
 
 # clean check
 just language/check-quick

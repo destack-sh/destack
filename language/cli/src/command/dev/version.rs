@@ -21,7 +21,9 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
 ];
 const FILE_GLOBS_TO_IGNORE: &[&str] = &[
     "template/create-destack/templates/",
-    "language/test/fixtures/",
+    "language/formatter/fixture/",
+    "language/query/fixture/",
+    "bridge/fixture/",
     "language/grammar/destack/",
     "bridge/zed/grammars/",
 ];

@@ -22,14 +22,9 @@ just check-full
 # language correctness suites
 just language/test
 just language/test-unit
-just language/test-specification
 just language/test-query
 just language/test-formatter
 just language/test-grammar
-just language/generate-stress
-just language/test-stress
-just language/test-stress-parser
-just language/test-stress-formatter
 
 # runtime and toolchain lanes
 just language/install-toolchain

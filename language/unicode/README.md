@@ -11,7 +11,6 @@ Run these from the repository root.
 # focused local loop
 cargo test -p destack_unicode
 cargo test -p destack_parser
-cargo test -p destack_test --test smoke -- --parser
 
 # clean check
 just language/check-quick

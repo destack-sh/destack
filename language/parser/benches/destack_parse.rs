@@ -503,13 +503,6 @@ fn collect_default_corpora(workspace_root: &Path) -> Vec<Corpus> {
         }
     }
 
-    if should_run_corpus("fixtures", filter) {
-        let paths = collect_parser_sources(&workspace_root.join("language/test/fixtures"), false);
-        if let Some(corpus) = load_file_corpus("fixtures", &paths) {
-            corpora.push(corpus);
-        }
-    }
-
     if should_run_corpus("generated_app_ds", filter) {
         corpora.push(generated_corpus(
             "generated_app_ds",

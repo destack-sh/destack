@@ -53,7 +53,6 @@ members = [
 	"language/serde",
 	"language/serde/macros",
 	"language/source",
-	"language/test",
 	"language/unicode",
 	"language/repository",
 	"language/workspace",
@@ -106,7 +105,6 @@ destack_session = { path = "language/session", default-features = false }
 destack_serde = { path = "language/serde" }
 destack_serde_macros = { path = "language/serde/macros" }
 destack_source = { path = "language/source" }
-destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
 destack_workspace = { path = "language/workspace", default-features = false }
 destack_webassembly = { path = "language/wasm" }
@@ -210,6 +208,7 @@ fs2 = "0.4.3"
 indexmap = "2.13.0"
 interprocess = "2.2.1"
 jiff = "0.2.23"
+libtest-mimic = "0.8.2"
 memchr = "2.7"
 markdown = "1.0.0"
 memmap2 = "0.9.10"

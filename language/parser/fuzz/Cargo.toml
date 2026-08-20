@@ -16,9 +16,6 @@ cargo-fuzz = true
 destack_core = { path = "../../core" }
 destack_parser = { path = ".." }
 destack_source = { path = "../../source" }
-destack_test = { path = "../../test" }
-
-arbitrary = { version = "1.4.2", features = ["derive"] }
 libfuzzer-sys = "0.4.10"
 
 [[bin]]

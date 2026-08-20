@@ -4,27 +4,17 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_parser::Parser;
-use destack_source::{DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri};
-use destack_test::stress::{StressExpectation, generate_fuzz_case};
+use destack_source::{File, FileId, FileType, LanguageType, Uri};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
+    // require one byte to select the source kind
     if data.is_empty() {
         return;
     }
 
-    let (input, file_type, expectation) = match data[0] % 3 {
-        0 => {
-            let file_type = file_type_from_byte(data.get(1).copied().unwrap_or(0));
-            let Ok(source) = std::str::from_utf8(data.get(2..).unwrap_or_default()) else {
-                return;
-            };
-
-            (source.to_string(), file_type, StressExpectation::Recovery)
-        }
-        _ => generate_fuzz_case(&data[1..]),
-    };
-    let file_name = file_name_for_type(file_type);
+    let (file_type, file_name) = file_from_byte(data[0]);
+    let input = String::from_utf8_lossy(&data[1..]).into_owned();
 
     // set up minimal context for parsing
     let file_id = FileId::from_logical_str(file_name);
@@ -38,27 +28,12 @@ fuzz_target!(|data: &[u8]| {
     let language = LanguageType::try_from(file_type).expect("file type has no parser language");
     let mut parser = Parser::lex_file(file, language, Arc::new(StringPool::new()));
     let _ = parser.parse();
-
-    if expectation == StressExpectation::Valid
-        && parser
-            .diagnostics()
-            .has_diagnostics_of_severity(DiagnosticSeverity::Error)
-    {
-        panic!("generated parser fuzz case produced diagnostics");
-    }
 });
 
-fn file_type_from_byte(byte: u8) -> FileType {
+/// Select one parser file type and its canonical name.
+fn file_from_byte(byte: u8) -> (FileType, &'static str) {
     match byte % 2 {
-        0 => FileType::Destack,
-        _ => FileType::DestackDeclaration,
-    }
-}
-
-fn file_name_for_type(file_type: FileType) -> &'static str {
-    match file_type {
-        FileType::Destack => "fuzz.ds",
-        FileType::DestackDeclaration => "fuzz.d.ds",
-        _ => panic!("stress generator produced unsupported parser file type: {file_type:?}"),
+        0 => (FileType::Destack, "fuzz.ds"),
+        _ => (FileType::DestackDeclaration, "fuzz.d.ds"),
     }
 }

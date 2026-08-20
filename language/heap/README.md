@@ -11,7 +11,6 @@ Run these from the repository root.
 # focused local loop
 cargo test -p destack_heap
 cargo test -p destack_vm
-cargo test -p destack_test --test optimize
 
 # clean check
 just language/check-quick

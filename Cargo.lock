@@ -1049,7 +1049,6 @@ dependencies = [
 name = "destack_formatter"
 version = "0.55.4"
 dependencies = [
- "clap",
  "destack_artifact",
  "destack_core",
  "destack_dir",
@@ -1057,7 +1056,9 @@ dependencies = [
  "destack_parser",
  "destack_repository",
  "destack_source",
+ "libtest-mimic",
  "markdown",
+ "pulldown-cmark",
  "rustc-hash 2.1.2",
  "serde_json",
  "smallvec",
@@ -1316,8 +1317,14 @@ dependencies = [
  "destack_dir",
  "destack_repository",
  "destack_serde",
+ "destack_session",
  "destack_source",
+ "destack_workspace",
+ "futures",
+ "indexmap",
+ "libtest-mimic",
  "parking_lot",
+ "pulldown-cmark",
  "rustc-hash 2.1.2",
  "serde",
 ]
@@ -1468,35 +1475,6 @@ dependencies = [
  "simdutf8",
  "smallvec",
  "windows",
-]
-
-[[package]]
-name = "destack_test"
-version = "0.55.4"
-dependencies = [
- "clap",
- "destack_artifact",
- "destack_compiler",
- "destack_core",
- "destack_dir",
- "destack_fir",
- "destack_formatter",
- "destack_heap",
- "destack_mir",
- "destack_parser",
- "destack_query",
- "destack_repository",
- "destack_runtime",
- "destack_session",
- "destack_source",
- "destack_vm",
- "destack_workspace",
- "futures",
- "indexmap",
- "pulldown-cmark",
- "rayon",
- "tokio",
- "toml",
 ]
 
 [[package]]
@@ -1711,6 +1689,12 @@ dependencies = [
  "libc",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "escape8259"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5692dd7b5a1978a5aeb0ce83b7655c58ca8efdcb79d21036ea249da95afec2c6"
 
 [[package]]
 name = "fancy-regex"
@@ -2383,6 +2367,18 @@ dependencies = [
  "libc",
  "plain",
  "redox_syscall 0.7.3",
+]
+
+[[package]]
+name = "libtest-mimic"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14e6ba06f0ade6e504aff834d7c34298e5155c6baca353cc6a4aaff2f9fd7f33"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "clap",
+ "escape8259",
 ]
 
 [[package]]
