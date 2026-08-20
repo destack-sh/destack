@@ -4,14 +4,18 @@ use crate::annotation::{
 };
 use crate::chain::transparent_inner_expression;
 use crate::declaration::signature::{
-    default_generic_parameter_trailing_separator, expression_body_requires_head_space,
-    format_where_clause, parameter_is_variadic, should_break_function_parameters,
-    should_hug_function_parameters, write_empty_parameter_list_with_interior_comments,
-    write_function_header_prefix, write_generic_parameter_list,
-    write_grouped_parameters_with_return_type, write_signature_hug_parameter_list_with_this,
-    write_signature_parameter_list_with_this, write_signature_return_type,
+    ParameterList, default_generic_parameter_trailing_separator, format_where_clause,
+    parameter_is_variadic, should_hug_function_parameters,
+    write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
+    write_generic_parameter_list, write_grouped_parameters_with_return_type,
+    write_signature_hug_parameter_list_with_this, write_signature_parameter_list_with_this,
+    write_signature_return_type,
 };
 use crate::declaration::statement::write_block_body;
+use crate::declaration::{
+    write_keyword_prefix, write_mutability_prefix, write_token_prefix, write_token_suffix,
+    write_visibility_prefix,
+};
 use crate::expression::write_expression_without_prefix_annotations;
 use crate::file::{node_has_ignore_directive, write_ignored_node, write_source_span};
 use crate::operator::{
@@ -21,11 +25,13 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::StringId;
 use destack_dir::{
-    BinaryOperator, Comment, Expression, FunctionSignature, Keyword, LocalNodeId,
-    MethodAbstraction, Mutability, Name, Node, NodeType, Parameter, Property, ScalarLiteral, Tree,
-    TreeStore, TypeExpression, Visibility, is_identifier_compat,
+    BinaryOperator, Comment, Expression, FunctionSignature, Keyword, LocalNodeId, Member,
+    MethodAbstraction, Name, Node, Parameter, Property, ScalarLiteral, Tree, TreeStore,
+    TypeExpression, Visibility, is_identifier_compat,
 };
-use destack_fir::format::{FormatLayout, FormatResult, Formatter as FirFormatter, text};
+use destack_fir::format::{
+    FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, text,
+};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_repository::{QuoteProperty, QuoteStyle};
@@ -150,9 +156,31 @@ where
 /// The assignment-like layout used for field initializers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FieldLikeLayout {
+    /// Indent the right side only when the left side breaks.
     Fluid,
+    /// Break and indent directly after the separator.
     BreakAfterOperator,
+    /// Keep the right side directly after the separator.
     NeverBreakAfterOperator,
+}
+
+/// The separator between one field name and value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FieldValueSeparator {
+    /// An object property separator.
+    Colon,
+    /// A field initializer separator.
+    Equal,
+}
+
+impl FieldValueSeparator {
+    /// Write this separator.
+    fn write<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            Self::Colon => write!(f, [token(":")]),
+            Self::Equal => write!(f, [space(), token("=")]),
+        }
+    }
 }
 
 /// Return whether one logical rhs can stay inline in the assignment-like layout.
@@ -216,117 +244,57 @@ fn field_like_layout<'ast>(
     Ok(FieldLikeLayout::Fluid)
 }
 
-/// Write one visibility prefix.
-fn write_visibility_prefix<'ast>(
+/// Write one captured field left side and its value.
+fn write_field_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    visibility: Option<Visibility>,
+    left_instructions: InstructionTape<'ast>,
+    right_id: LocalNodeId<Expression>,
+    separator: FieldValueSeparator,
 ) -> FormatResult<()> {
-    // visibility
-    if let Some(visibility) = visibility {
-        let keyword = match visibility {
-            Visibility::Public => Keyword::Public,
-            Visibility::Protected => Keyword::Protected,
-            Visibility::Private => Keyword::Private,
-        };
-        write!(f, [keyword, space()])?;
-    }
+    let left_may_break = left_instructions.will_break();
+    let is_left_short = left_instructions
+        .single_line_width()
+        .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
+    let layout = field_like_layout(f, right_id, is_left_short, left_may_break)?;
+    let left = left_instructions.collapse();
 
-    Ok(())
-}
-
-/// Write one is_ambient prefix.
-fn write_ambient_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_ambient: bool,
-) -> FormatResult<()> {
-    // is_ambient
-    if is_ambient {
-        write!(f, [Keyword::Declare, space()])?;
-    }
-
-    Ok(())
-}
-
-/// Write one static prefix.
-fn write_static_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_static: bool,
-) -> FormatResult<()> {
-    // static
-    if is_static {
-        write!(f, [Keyword::Static, space()])?;
-    }
-
-    Ok(())
-}
-
-/// Write one readonly prefix.
-fn write_readonly_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_readonly: bool,
-) -> FormatResult<()> {
-    // readonly
-    if is_readonly {
-        write!(f, [Keyword::Readonly, space()])?;
-    }
-
-    Ok(())
-}
-
-/// Write one mutability prefix.
-fn write_mutability_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    mutability: Option<Mutability>,
-) -> FormatResult<()> {
-    // mutability
-    if let Some(mutability) = mutability {
-        match mutability {
-            Mutability::Immutable => write!(f, [token("readonly"), space()])?,
-            Mutability::Exclusive => write!(f, [token("exclusive"), space()])?,
-            Mutability::Mutable => {}
+    let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        if let Some(left) = &left {
+            f.write_element(*left);
         }
-    }
 
-    Ok(())
-}
+        Ok(())
+    });
+    let right = format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [right_id]));
+    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if left_may_break {
+            write!(f, [left])?;
+        } else {
+            write!(f, [group(&left)])?;
+        }
 
-/// Write one accessor prefix.
-fn write_accessor_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_accessor: bool,
-) -> FormatResult<()> {
-    // accessor
-    if is_accessor {
-        write!(f, [token("accessor"), space()])?;
-    }
+        separator.write(f)?;
 
-    Ok(())
-}
+        match layout {
+            FieldLikeLayout::Fluid => {
+                let group_id = f.group_id();
+                write!(
+                    f,
+                    [
+                        group(&indent(&soft_line_break_or_space())).with_id(Some(group_id)),
+                        line_suffix_boundary(),
+                        indent_if_group_breaks(&right, group_id)
+                    ]
+                )
+            }
+            FieldLikeLayout::BreakAfterOperator => {
+                write!(f, [group(&soft_line_indent_or_space(&right))])
+            }
+            FieldLikeLayout::NeverBreakAfterOperator => write!(f, [space(), right]),
+        }
+    });
 
-/// Write one optional suffix.
-fn write_optional_suffix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_optional: bool,
-) -> FormatResult<()> {
-    // optional
-    if is_optional {
-        write!(f, [token("?")])?;
-    }
-
-    Ok(())
-}
-
-/// Write one definite suffix.
-fn write_definite_suffix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_definite: bool,
-) -> FormatResult<()> {
-    // definite
-    if is_definite {
-        write!(f, [token("!")])?;
-    }
-
-    Ok(())
+    write!(f, [group(&content)])
 }
 
 /// Return whether one property container should quote all eligible keys.
@@ -338,14 +306,10 @@ fn property_should_force_quotes<'ast>(
         return false;
     }
 
-    let Some((parent_id, parent_type)) = f.context().parent(node_id) else {
+    let Some(parent_id) = f.context().expression_parent(node_id) else {
         return false;
     };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
 
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
     let (Expression::ObjectExpression { properties, .. }
     | Expression::StructExpression { properties, .. }) = f.context().tree.get(parent_id)
     else {
@@ -362,7 +326,6 @@ fn property_should_force_quotes<'ast>(
 /// Format one runtime object property value using the assignment-like layout.
 fn format_object_property_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Property>,
     name: Name,
     value: LocalNodeId<Expression>,
     is_shorthand: bool,
@@ -375,270 +338,100 @@ fn format_object_property_value<'ast>(
 
     // left side
     let mut formatter = FirFormatter::new(f.state_mut());
-    write_field_like_left(
-        &mut formatter,
-        node_id,
-        name,
-        None,
-        None,
-        false,
-        false,
-        false,
-        false,
-        false,
-        None,
-        false,
-        false,
-        false,
-        force_quotes,
-    )?;
+    format_name_with_quotes(&mut formatter, name, force_quotes)?;
     let left_instructions = formatter.into_tape();
-    let left_may_break = left_instructions.will_break();
-    let is_left_short = left_instructions
-        .single_line_width()
-        .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
-    let layout = field_like_layout(f, value, is_left_short, left_may_break)?;
 
-    let left = left_instructions.collapse();
-    let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-        if let Some(left) = &left {
-            f.write_element(*left);
-        }
-
-        Ok(())
-    });
-
-    let right = format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [value]));
-    let inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if left_may_break {
-            write!(f, [left])?;
-        } else {
-            write!(f, [group(&left)])?;
-        }
-
-        write!(f, [token(":")])?;
-
-        match layout {
-            FieldLikeLayout::Fluid => {
-                let group_id = f.group_id();
-                write!(
-                    f,
-                    [
-                        group(&indent(&soft_line_break_or_space())).with_id(Some(group_id)),
-                        line_suffix_boundary(),
-                        indent_if_group_breaks(&right, group_id)
-                    ]
-                )
-            }
-            FieldLikeLayout::BreakAfterOperator => {
-                write!(f, [group(&soft_line_indent_or_space(&right))])
-            }
-            FieldLikeLayout::NeverBreakAfterOperator => {
-                write!(f, [space(), right])
-            }
-        }
-    });
-
-    write!(f, [group(&inner_content)])?;
-
-    Ok(())
+    write_field_value(f, left_instructions, value, FieldValueSeparator::Colon)
 }
 
-/// Write the shared left side of one field-like assignment layout.
-fn write_field_like_left<'ast, T>(
+/// Write one member field before its initializer.
+fn write_member_field_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<T>,
-    name: Name,
-    value: Option<LocalNodeId<TypeExpression>>,
-    visibility: Option<Visibility>,
-    is_ambient: bool,
-    is_static: bool,
-    is_abstract: bool,
-    is_override: bool,
-    is_readonly: bool,
-    mutability: Option<Mutability>,
-    is_accessor: bool,
-    is_optional: bool,
-    is_definite: bool,
+    node_id: LocalNodeId<Member>,
+    member: &Member,
     force_quotes: bool,
-) -> FormatResult<()>
-where
-    T: Node + Clone + 'ast,
-    Tree: TreeStore<T>,
-{
-    let force_quotes =
-        force_quotes || should_preserve_class_field_quote(f.context(), node_id, name);
+) -> FormatResult<()> {
+    let Member::Field {
+        name,
+        declared_type,
+        is_optional,
+        is_readonly,
+        mutability,
+        visibility,
+        is_ambient,
+        is_abstract,
+        is_override,
+        is_static,
+        is_accessor,
+        is_definite,
+        ..
+    } = member
+    else {
+        return Err(FormatError::SyntaxError {
+            message: "member field formatter requires a field",
+        });
+    };
+    let force_quotes = force_quotes || matches!(name, Name::String(_));
 
     // prefixes
-    write_ambient_prefix(f, is_ambient)?;
-    write_visibility_prefix(f, visibility)?;
-    write_static_prefix(f, is_static)?;
+    write_keyword_prefix(f, Keyword::Declare, *is_ambient)?;
+    write_visibility_prefix(f, *visibility)?;
+    write_keyword_prefix(f, Keyword::Static, *is_static)?;
 
     // abstraction
-    if is_abstract {
+    if *is_abstract {
         write!(f, [Keyword::Abstract, space()])?;
     }
 
     // override
-    if is_override {
+    if *is_override {
         write!(f, [Keyword::Override, space()])?;
     }
 
     // storage and accessor
-    write_readonly_prefix(f, is_readonly)?;
-    write_mutability_prefix(f, mutability)?;
-    write_accessor_prefix(f, is_accessor)?;
+    write_keyword_prefix(f, Keyword::Readonly, *is_readonly)?;
+    write_mutability_prefix(f, *mutability)?;
+    write_token_prefix(f, "accessor", *is_accessor)?;
 
     // name
-    format_name_with_quotes(f, name, force_quotes)?;
+    format_name_with_quotes(f, *name, force_quotes)?;
 
     // name suffixes
-    write_optional_suffix(f, is_optional)?;
-    write_definite_suffix(f, is_definite)?;
+    write_token_suffix(f, "?", *is_optional)?;
+    write_token_suffix(f, "!", *is_definite)?;
 
-    // value
-    if let Some(value) = value {
-        write_field_type_annotation(f, node_id, value)?;
+    // declared type
+    if let Some(declared_type) = declared_type {
+        write_field_type_annotation(f, node_id, *declared_type)?;
     }
 
     Ok(())
 }
 
-/// Return whether a class field string name should preserve quotes.
-fn should_preserve_class_field_quote<T>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    name: Name,
-) -> bool
-where
-    T: Node + Clone,
-    Tree: TreeStore<T>,
-{
-    if !matches!(name, Name::String(_)) {
-        return false;
-    }
-
-    let Some((_, parent_type)) = context.parent(node_id) else {
-        return false;
+/// Format one member field.
+pub(crate) fn format_member_field<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Member>,
+    member: &Member,
+    force_quotes: bool,
+) -> FormatResult<()> {
+    let Member::Field { default, .. } = member else {
+        return Err(FormatError::SyntaxError {
+            message: "member field formatter requires a field",
+        });
     };
 
-    parent_type == NodeType::Declaration
-}
-
-/// Format shared property or member field output.
-pub(crate) fn format_field_like<'ast, T>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<T>,
-    name: Name,
-    value: Option<LocalNodeId<TypeExpression>>,
-    visibility: Option<Visibility>,
-    is_ambient: bool,
-    is_static: bool,
-    is_abstract: bool,
-    is_override: bool,
-    is_readonly: bool,
-    mutability: Option<Mutability>,
-    is_accessor: bool,
-    is_optional: bool,
-    is_definite: bool,
-    default: Option<LocalNodeId<Expression>>,
-    force_quotes: bool,
-) -> FormatResult<()>
-where
-    T: Node + Clone + 'ast,
-    Tree: TreeStore<T>,
-{
     // no initializer
-    let Some(default) = default else {
-        write_field_like_left(
-            f,
-            node_id,
-            name,
-            value,
-            visibility,
-            is_ambient,
-            is_static,
-            is_abstract,
-            is_override,
-            is_readonly,
-            mutability,
-            is_accessor,
-            is_optional,
-            is_definite,
-            force_quotes,
-        )?;
-        return Ok(());
+    let Some(default) = *default else {
+        return write_member_field_left(f, node_id, member, force_quotes);
     };
 
     // left side
     let mut formatter = FirFormatter::new(f.state_mut());
-    write_field_like_left(
-        &mut formatter,
-        node_id,
-        name,
-        value,
-        visibility,
-        is_ambient,
-        is_static,
-        is_abstract,
-        is_override,
-        is_readonly,
-        mutability,
-        is_accessor,
-        is_optional,
-        is_definite,
-        force_quotes,
-    )?;
+    write_member_field_left(&mut formatter, node_id, member, force_quotes)?;
     let left_instructions = formatter.into_tape();
-    let left_may_break = left_instructions.will_break();
-    let is_left_short = left_instructions
-        .single_line_width()
-        .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
-    let layout = field_like_layout(f, default, is_left_short, left_may_break)?;
 
-    let left = left_instructions.collapse();
-    let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-        if let Some(left) = &left {
-            f.write_element(*left);
-        }
-
-        Ok(())
-    });
-
-    let right = format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [default]));
-    let inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if left_may_break {
-            write!(f, [left])?;
-        } else {
-            write!(f, [group(&left)])?;
-        }
-
-        write!(f, [space(), token("=")])?;
-
-        match layout {
-            FieldLikeLayout::Fluid => {
-                let group_id = f.group_id();
-                write!(
-                    f,
-                    [
-                        group(&indent(&soft_line_break_or_space())).with_id(Some(group_id)),
-                        line_suffix_boundary(),
-                        indent_if_group_breaks(&right, group_id)
-                    ]
-                )
-            }
-            FieldLikeLayout::BreakAfterOperator => {
-                write!(f, [group(&soft_line_indent_or_space(&right))])
-            }
-            FieldLikeLayout::NeverBreakAfterOperator => {
-                write!(f, [space(), right])
-            }
-        }
-    });
-
-    write!(f, [group(&inner_content)])?;
-
-    Ok(())
+    write_field_value(f, left_instructions, default, FieldValueSeparator::Equal)
 }
 
 /// Format shared property or member method output.
@@ -660,16 +453,16 @@ where
     N: Node + Clone + 'ast,
     Tree: TreeStore<N>,
 {
-    let parameters = method_parameters(signature);
+    let parameters = ParameterList::from_signature(signature);
 
     // prefixes
-    write_ambient_prefix(f, is_ambient)?;
+    write_keyword_prefix(f, Keyword::Declare, is_ambient)?;
     write_visibility_prefix(f, visibility)?;
-    write_static_prefix(f, is_static)?;
+    write_keyword_prefix(f, Keyword::Static, is_static)?;
     if abstraction == MethodAbstraction::Virtual {
         write!(f, [Keyword::Virtual, space()])?;
     }
-    write_accessor_prefix(f, is_accessor)?;
+    write_token_prefix(f, "accessor", is_accessor)?;
 
     // shared function header prefix
     write_function_header_prefix(f, signature, false, name.is_some())?;
@@ -680,7 +473,7 @@ where
     }
 
     // optional
-    write_optional_suffix(f, is_optional)?;
+    write_token_suffix(f, "?", is_optional)?;
 
     // generic parameters
     if !signature.generic_parameters.is_empty() {
@@ -706,18 +499,6 @@ where
     }
 
     Ok(())
-}
-
-/// Collect method parameters, including `this`.
-fn method_parameters(signature: &FunctionSignature) -> Vec<LocalNodeId<Parameter>> {
-    let mut parameters = Vec::with_capacity(signature.parameters.len() + 1);
-
-    if let Some(this_parameter) = signature.this_parameter {
-        parameters.push(this_parameter);
-    }
-
-    parameters.extend(signature.parameters.iter().copied());
-    parameters
 }
 
 /// Write one method parameter list and return type.
@@ -767,7 +548,6 @@ where
         });
 
         let format_parameter_head = format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(()));
-        let should_break_parameters = should_break_function_parameters(f.context(), parameters);
         write_grouped_parameters_with_return_type(
             f,
             &signature.generic_parameters,
@@ -776,7 +556,7 @@ where
             format_parameter_head,
             format_parameters,
             format_return_type,
-            should_break_parameters,
+            false,
             false,
         )?;
 
@@ -851,9 +631,7 @@ fn write_method_body<'ast>(
         return write!(f, [body]);
     }
 
-    if expression_body_requires_head_space(f.context(), body) {
-        write!(f, [space()])?;
-    }
+    write!(f, [space()])?;
 
     if let Some(block_id) = body_block_id {
         write_block_body(f, block_id)?;
@@ -946,14 +724,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     value,
                     is_shorthand,
                 } => {
-                    format_object_property_value(
-                        f,
-                        node_id,
-                        *name,
-                        *value,
-                        *is_shorthand,
-                        force_quotes,
-                    )?;
+                    format_object_property_value(f, *name, *value, *is_shorthand, force_quotes)?;
                 }
                 Property::Spread { value } => {
                     // keyword

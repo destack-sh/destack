@@ -1,9 +1,13 @@
+use std::ops::Deref;
+
 use crate::annotation::{
     FormatLeadingComments, block_infix_annotations, infix_or_postfix_annotations,
     prefix_annotations,
 };
+use crate::collection::pattern::pattern_is_destructuring;
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
 use crate::context::CapturedFormat;
+use crate::declaration::write_token_suffix;
 use crate::expression::{TypeExpressionLayout, write_type_expression_node};
 use crate::file::write_source_span;
 use crate::operator::{
@@ -15,24 +19,14 @@ use destack_core::StringId;
 use destack_dir::{
     Asynchrony, Expression, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
     GenericParameter, Keyword, LocalNodeId, Node, Parameter, Pattern, ThisForm, TokenType, Tree,
-    TreeStore, TypeExpression, VarianceModifier, Visibility, WhereClause, WhereRelation,
+    TreeStore, TypeExpression, VarianceModifier, WhereClause, WhereRelation,
 };
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
 use destack_source::{NodeSpanRegion, NodeSpanType};
-
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Visibility {
-    #[inline]
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        match self {
-            Visibility::Public => write!(f, [Keyword::Public]),
-            Visibility::Protected => write!(f, [Keyword::Protected]),
-            Visibility::Private => write!(f, [Keyword::Private]),
-        }
-    }
-}
+use smallvec::SmallVec;
 
 /// Write one variance prefix.
 fn write_variance_prefix<'ast>(
@@ -52,17 +46,32 @@ fn write_variance_prefix<'ast>(
     Ok(())
 }
 
-/// Write one optional suffix.
-fn write_optional_suffix<'ast>(
+/// Write one generic parameter list when present.
+pub(crate) fn write_declaration_generic_parameters<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    is_optional: bool,
+    generic_parameters: &[LocalNodeId<GenericParameter>],
 ) -> FormatResult<()> {
-    // optional
-    if is_optional {
-        write!(f, [token("?")])?;
+    if generic_parameters.is_empty() {
+        return Ok(());
     }
 
-    Ok(())
+    write_generic_parameter_list(
+        f,
+        generic_parameters,
+        default_generic_parameter_trailing_separator(f),
+    )
+}
+
+/// Write one where-clause list when present.
+pub(crate) fn write_declaration_where_clauses<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    where_clauses: &[LocalNodeId<WhereClause>],
+) -> FormatResult<()> {
+    if where_clauses.is_empty() {
+        return Ok(());
+    }
+
+    format_where_clause_continuation(f, where_clauses)
 }
 
 /// Write one type-parameter-like `extends` and `=` trailer sequence.
@@ -85,7 +94,9 @@ pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
             .context()
             .tree
             .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
-            .expect("generic parameter constraint should have a type span");
+            .ok_or(FormatError::SyntaxError {
+                message: "generic parameter constraint requires a type span",
+            })?;
         let group_id = f.group_id();
         let leading_comments = f
             .context()
@@ -263,26 +274,7 @@ fn parameter_pattern_is_destructuring(
         }
     };
 
-    pattern_is_destructuring(context, pattern_id)
-}
-
-/// Return whether one pattern is destructuring through transparent wrappers.
-fn pattern_is_destructuring(
-    context: &DestackFormatContext<'_>,
-    pattern_id: LocalNodeId<Pattern>,
-) -> bool {
-    match context.tree.get(pattern_id) {
-        Pattern::Object { .. }
-        | Pattern::NominalObject { .. }
-        | Pattern::Sequence { .. }
-        | Pattern::Tuple { .. }
-        | Pattern::NominalTuple { .. } => true,
-        Pattern::Must(inner)
-        | Pattern::BorrowOf { right: inner, .. }
-        | Pattern::MoveOf { right: inner, .. }
-        | Pattern::DereferenceOf { right: inner } => pattern_is_destructuring(context, *inner),
-        _ => false,
-    }
+    pattern_is_destructuring(context.tree, pattern_id)
 }
 
 /// Return whether one parameter default is simple enough to hug.
@@ -509,7 +501,7 @@ fn write_named_parameter<'ast>(
         format_with(|f: &mut DestackFormatter<'ast, '_>| {
             // name
             write!(f, [name])?;
-            write_optional_suffix(f, is_optional)?;
+            write_token_suffix(f, "?", is_optional)?;
 
             // trailers
             write_parameter_type(f, parameter_id, declared_type)
@@ -547,7 +539,7 @@ fn write_pattern_parameter<'ast>(
         format_with(|f: &mut DestackFormatter<'ast, '_>| {
             // pattern
             write!(f, [pattern])?;
-            write_optional_suffix(f, is_optional)?;
+            write_token_suffix(f, "?", is_optional)?;
 
             // trailers
             write_parameter_type(f, parameter_id, declared_type)
@@ -647,6 +639,41 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     }
 }
 
+/// One function parameter list including its optional receiver.
+pub(crate) struct ParameterList {
+    /// The receiver followed by ordinary parameters.
+    parameters: SmallVec<[LocalNodeId<Parameter>; 4]>,
+}
+
+impl ParameterList {
+    /// Collect one receiver and ordinary parameter slice.
+    pub(crate) fn new(
+        this_parameter: Option<LocalNodeId<Parameter>>,
+        parameters: &[LocalNodeId<Parameter>],
+    ) -> Self {
+        let mut collected = SmallVec::with_capacity(parameters.len() + 1);
+        collected.extend(this_parameter);
+        collected.extend_from_slice(parameters);
+
+        Self {
+            parameters: collected,
+        }
+    }
+
+    /// Collect one function signature's complete parameter list.
+    pub(crate) fn from_signature(signature: &FunctionSignature) -> Self {
+        Self::new(signature.this_parameter, &signature.parameters)
+    }
+}
+
+impl Deref for ParameterList {
+    type Target = [LocalNodeId<Parameter>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.parameters
+    }
+}
+
 /// Return whether one parameter is variadic.
 pub(crate) fn parameter_is_variadic(
     context: &DestackFormatContext<'_>,
@@ -656,14 +683,6 @@ pub(crate) fn parameter_is_variadic(
         context.tree.get(parameter_id),
         Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
     )
-}
-
-/// Return whether one parameter list should prefer a multi-line layout.
-pub(crate) fn should_break_function_parameters(
-    _context: &DestackFormatContext<'_>,
-    _parameters: &[LocalNodeId<Parameter>],
-) -> bool {
-    false
 }
 
 /// Return whether one single-parameter list should hug.
@@ -786,14 +805,6 @@ pub(crate) fn write_function_header_prefix(
     Ok(())
 }
 
-/// Return whether one following expression should receive one separating space.
-pub(crate) fn expression_body_requires_head_space(
-    _context: &DestackFormatContext<'_>,
-    _body: LocalNodeId<Expression>,
-) -> bool {
-    true
-}
-
 /// Write one grouped parameter list with an optional receiver.
 pub(crate) fn write_signature_parameter_list_with_this<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -811,37 +822,8 @@ pub(crate) fn write_signature_parameter_list_with_this<'ast>(
         return write_signature_parameter_list_without_this(f, parameters, trailing_separator);
     }
 
-    let combined_parameters = this_parameter
-        .into_iter()
-        .chain(parameters.iter().copied())
-        .collect::<Vec<_>>();
+    let combined_parameters = ParameterList::new(this_parameter, parameters);
     let parameter_count = combined_parameters.len();
-
-    if should_break_function_parameters(f.context(), &combined_parameters) {
-        let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            for (index, parameter_id) in combined_parameters.iter().copied().enumerate() {
-                let is_last = index + 1 == parameter_count;
-
-                write_signature_parameter_entry(f, this_form, this_parameter, parameter_id)?;
-
-                if !is_last {
-                    write!(f, [token(","), hard_line_break()])?;
-                    continue;
-                }
-
-                match trailing_separator {
-                    TrailingSeparator::Allowed | TrailingSeparator::Mandatory => {
-                        write!(f, [token(",")])?;
-                    }
-                    TrailingSeparator::Omit => {}
-                }
-            }
-
-            Ok(())
-        });
-
-        return write!(f, [token("("), block_indent(&body), token(")")]);
-    }
 
     let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         for (index, parameter_id) in combined_parameters.iter().copied().enumerate() {
@@ -882,24 +864,6 @@ fn write_signature_parameter_list_without_this<'ast>(
     parameters: &[LocalNodeId<Parameter>],
     trailing_separator: TrailingSeparator,
 ) -> FormatResult<()> {
-    if should_break_function_parameters(f.context(), parameters) {
-        let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            for (index, parameter_id) in parameters.iter().copied().enumerate() {
-                let is_last = index + 1 == parameters.len();
-
-                write!(f, [parameter_id])?;
-
-                if !is_last {
-                    write!(f, [token(","), hard_line_break()])?;
-                }
-            }
-
-            Ok(())
-        });
-
-        return write!(f, [token("("), block_indent(&body), token(")")]);
-    }
-
     let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let entries = FormatSeparatedIter::new(parameters.iter().copied(), ",")
             .with_trailing_separator(trailing_separator);
@@ -935,10 +899,7 @@ pub(crate) fn write_signature_hug_parameter_list_with_this<'ast>(
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameters: &[LocalNodeId<Parameter>],
 ) -> FormatResult<()> {
-    let combined_parameters = this_parameter
-        .into_iter()
-        .chain(parameters.iter().copied())
-        .collect::<Vec<_>>();
+    let combined_parameters = ParameterList::new(this_parameter, parameters);
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         for (index, parameter_id) in combined_parameters.iter().copied().enumerate() {
             if index > 0 {

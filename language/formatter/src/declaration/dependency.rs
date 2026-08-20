@@ -18,6 +18,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_repository::{ImportSortOrder, QuoteProperty, TrailingComma};
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use std::borrow::Cow;
 use std::cmp::Ordering;
 
 /// The import group category for declaration ordering.
@@ -55,15 +56,6 @@ impl ImportGroup {
 
         Self::Package
     }
-}
-
-/// One import declaration key for ordering.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct ImportDeclarationKey<'a> {
-    /// The import target string.
-    pub(crate) target: &'a str,
-    /// Whether this declaration is a side effect only import.
-    pub(crate) is_side_effect: bool,
 }
 
 /// Format a dependency item name.
@@ -194,26 +186,35 @@ pub(crate) fn sort_imports(
     tree: &Tree,
     strings: &StringPool,
 ) -> Vec<LocalNodeId<Expression>> {
-    let mut expression_ids = Vec::new();
-    let mut order_keys = Vec::new();
+    let mut imports = imports
+        .iter()
+        .copied()
+        .filter_map(|expression_id| {
+            let Expression::Import { items, target, .. } = import_expression(expression_id, tree)?
+            else {
+                return None;
+            };
 
-    // collect sortable declaration keys
-    for &expr_id in imports {
-        if let Some(Expression::Import { items, target, .. }) = import_expression(expr_id, tree) {
-            let target_str = strings.get(*target);
-            expression_ids.push(expr_id);
-            order_keys.push(ImportDeclarationKey {
-                target: target_str,
-                is_side_effect: items.is_none(),
-            });
-        }
-    }
+            Some((expression_id, strings.get(*target), items.is_none()))
+        })
+        .collect::<Vec<_>>();
 
-    // map declaration order back to expression ids
-    let order = sort_import_declaration_indices(&order_keys);
-    order
+    // preserve side effects first, then order regular targets canonically
+    imports.sort_by(
+        |(_, left_target, left_is_side_effect), (_, right_target, right_is_side_effect)| match (
+            *left_is_side_effect,
+            *right_is_side_effect,
+        ) {
+            (true, true) => Ordering::Equal,
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            (false, false) => compare_import_targets(left_target, right_target),
+        },
+    );
+
+    imports
         .into_iter()
-        .map(|index| expression_ids[index])
+        .map(|(expression_id, _, _)| expression_id)
         .collect()
 }
 
@@ -228,36 +229,6 @@ pub(crate) fn compare_import_targets(left: &str, right: &str) -> Ordering {
         Ordering::Equal => left.cmp(right),
         ordering => ordering,
     }
-}
-
-/// Return declaration indices ordered by canonical import order.
-pub(crate) fn sort_import_declaration_indices(keys: &[ImportDeclarationKey<'_>]) -> Vec<usize> {
-    let mut side_effect_indices = Vec::new();
-    let mut regular_indices = Vec::new();
-
-    // split side effect and regular imports
-    for (index, key) in keys.iter().enumerate() {
-        if key.is_side_effect {
-            side_effect_indices.push(index);
-        } else {
-            regular_indices.push(index);
-        }
-    }
-
-    // sort regular imports by canonical target order
-    regular_indices.sort_by(|left, right| {
-        let left_target = keys[*left].target;
-        let right_target = keys[*right].target;
-
-        compare_import_targets(left_target, right_target)
-    });
-
-    // put side effects first
-    let mut result = Vec::with_capacity(keys.len());
-    result.extend(side_effect_indices);
-    result.extend(regular_indices);
-
-    result
 }
 
 /// Sort dependency items by kind and configured key order.
@@ -585,62 +556,61 @@ fn write_import_attribute_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value: &ImportAttributeValue,
 ) -> FormatResult<()> {
-    // scalar literal
-    if let ImportAttributeValue::ScalarLiteral(value) = value {
-        let span = Span::empty(f.context().file.id);
-        return format_scalar_literal(value, span, f);
-    }
+    match value {
+        // scalar
+        ImportAttributeValue::ScalarLiteral(value) => {
+            let span = Span::empty(f.context().file.id);
+            format_scalar_literal(value, span, f)
+        }
+        // array
+        ImportAttributeValue::Array(values) => {
+            write!(f, [token("[")])?;
 
-    // array
-    if let ImportAttributeValue::Array(values) = value {
-        write!(f, [token("[")])?;
+            for (index, value) in values.iter().enumerate() {
+                // separator
+                if index > 0 {
+                    write!(f, [token(","), space()])?;
+                }
 
-        for (index, value) in values.iter().enumerate() {
-            // separator
-            if index > 0 {
-                write!(f, [token(","), space()])?;
+                // value
+                write_import_attribute_value(f, value)?;
             }
 
-            // value
-            write_import_attribute_value(f, value)?;
+            write!(f, [token("]")])
         }
+        // object
+        ImportAttributeValue::Object(attributes) => {
+            let use_inner_space = f.context().options.bracket_spacing && !attributes.is_empty();
+            let force_quote_keys = f.context().options.quote_props == QuoteProperty::Consistent
+                && attributes
+                    .iter()
+                    .any(|attribute| import_attribute_key_requires_quotes(f.context(), attribute));
 
-        write!(f, [token("]")])?;
-        return Ok(());
-    }
-
-    // object
-    if let ImportAttributeValue::Object(attributes) = value {
-        let force_quote_keys = f.context().options.quote_props == QuoteProperty::Consistent
-            && attributes
-                .iter()
-                .any(|attribute| import_attribute_key_requires_quotes(f.context(), attribute));
-
-        write!(f, [token("{")])?;
-
-        if f.context().options.bracket_spacing && !attributes.is_empty() {
-            write!(f, [space()])?;
-        }
-
-        for (index, attribute) in attributes.iter().enumerate() {
-            // separator
-            if index > 0 {
-                write!(f, [token(","), space()])?;
+            write!(f, [token("{")])?;
+            if use_inner_space {
+                write!(f, [space()])?;
             }
 
-            // attribute
-            format_import_attribute(f, attribute, force_quote_keys)?;
-        }
+            for (index, attribute) in attributes.iter().enumerate() {
+                // separator
+                if index > 0 {
+                    write!(f, [token(","), space()])?;
+                }
 
-        if f.context().options.bracket_spacing && !attributes.is_empty() {
-            write!(f, [space()])?;
-        }
+                // attribute
+                format_import_attribute(f, attribute, force_quote_keys)?;
+            }
 
-        write!(f, [token("}")])?;
-        return Ok(());
+            if use_inner_space {
+                write!(f, [space()])?;
+            }
+            write!(f, [token("}")])
+        }
+        // invalid parser node
+        ImportAttributeValue::Error => Err(FormatError::SyntaxError {
+            message: "import attribute value contains a parser error",
+        }),
     }
-
-    Ok(())
 }
 
 /// Write one import attribute entry.
@@ -882,7 +852,11 @@ fn dependency_item_collection_has_interior_signal(
             || context.has_newline(interior_span);
     }
 
-    let first_item_span = context.span(*items.first().expect("items is not empty"));
+    let Some((&first_item, remaining_items)) = items.split_first() else {
+        return false;
+    };
+    let last_item = remaining_items.last().copied().unwrap_or(first_item);
+    let first_item_span = context.span(first_item);
     let leading_span = Span::new(
         open_brace.span.file,
         open_brace.span.end,
@@ -895,10 +869,7 @@ fn dependency_item_collection_has_interior_signal(
     let trailing_start = context
         .previous_token_before_span(close_brace.span)
         .filter(|token| token.token.ty() == TokenType::Comma)
-        .map_or_else(
-            || context.span(*items.last().expect("items is not empty")).end,
-            |token| token.span.end,
-        );
+        .map_or_else(|| context.span(last_item).end, |token| token.span.end);
     let trailing_span = Span::new(
         close_brace.span.file,
         trailing_start,
@@ -909,20 +880,28 @@ fn dependency_item_collection_has_interior_signal(
 }
 
 /// Return dependency items in output order with optional organize-imports sorting.
-fn dependency_items_for_output(
-    ctx: &DestackFormatContext<'_>,
-    items: &[LocalNodeId<DependencyItem>],
-    organize_imports: bool,
-    sort_order: ImportSortOrder,
+fn dependency_items_for_output<'a>(
+    context: &DestackFormatContext<'_>,
+    items: &'a [LocalNodeId<DependencyItem>],
     has_item_annotations: bool,
-) -> Vec<LocalNodeId<DependencyItem>> {
-    let has_separator_signal = dependency_items_have_separator_signal(ctx, items);
+) -> Cow<'a, [LocalNodeId<DependencyItem>]> {
+    let has_separator_signal = dependency_items_have_separator_signal(context, items);
+    let should_sort = context.options.organize_imports.is_enabled()
+        && !has_item_annotations
+        && !has_separator_signal;
 
-    if organize_imports && !has_item_annotations && !has_separator_signal {
-        return sort_dependency_items(items, ctx.tree, ctx.strings, sort_order);
+    if should_sort {
+        let sorted_items = sort_dependency_items(
+            items,
+            context.tree,
+            context.strings,
+            context.options.import_sort_order,
+        );
+
+        return Cow::Owned(sorted_items);
     }
 
-    items.to_vec()
+    Cow::Borrowed(items)
 }
 
 /// Write one dependency item list body with preserved separator comments.
@@ -1120,29 +1099,22 @@ fn write_dependency_item_collection<'ast>(
 }
 
 /// Write one dependency item collection using shared output ordering options.
-fn write_dependency_items_for_output<'ast>(
+fn write_dependency_items<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
-    organize_imports: bool,
-    sort_order: ImportSortOrder,
-    has_item_annotations: bool,
 ) -> FormatResult<()> {
+    let has_item_annotations = dependency_items_have_annotations(f.context(), items);
     let has_separator_signal = dependency_items_have_separator_signal(f.context(), items);
     let has_interior_signal =
         dependency_item_collection_has_interior_signal(f.context(), node_id, items);
-    let sorted_items = dependency_items_for_output(
-        f.context(),
-        items,
-        organize_imports,
-        sort_order,
-        has_item_annotations,
-    );
+    let output_items = dependency_items_for_output(f.context(), items, has_item_annotations);
+
     write_dependency_item_collection(
         f,
         node_id,
         items,
-        &sorted_items,
+        output_items.as_ref(),
         has_item_annotations || has_separator_signal || has_interior_signal,
     )
 }
@@ -1243,9 +1215,6 @@ fn write_default_import_clause<'ast>(
     node_id: LocalNodeId<Expression>,
     first_item: &DependencyItem,
     rest_items: &[LocalNodeId<DependencyItem>],
-    organize_imports: bool,
-    sort_order: ImportSortOrder,
-    has_item_annotations: bool,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let default_alias = dependency_item_alias(first_item).ok_or(FormatError::SyntaxError {
@@ -1282,14 +1251,7 @@ fn write_default_import_clause<'ast>(
     }
 
     write!(f, [token(",")])?;
-    write_dependency_items_for_output(
-        f,
-        node_id,
-        rest_items,
-        organize_imports,
-        sort_order,
-        has_item_annotations,
-    )
+    write_dependency_items(f, node_id, rest_items)
 }
 
 /// Write one normal import clause after the `import` keyword.
@@ -1297,9 +1259,6 @@ fn write_import_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
-    organize_imports: bool,
-    sort_order: ImportSortOrder,
-    has_item_annotations: bool,
     has_item_clause: bool,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -1322,26 +1281,11 @@ fn write_import_clause<'ast>(
     if let Some(first_item) = first_item
         && dependency_item_mode(first_item) == Some(DependencyBinding::Default)
     {
-        return write_default_import_clause(
-            f,
-            node_id,
-            first_item,
-            &items[1..],
-            organize_imports,
-            sort_order,
-            has_item_annotations,
-        );
+        return write_default_import_clause(f, node_id, first_item, &items[1..]);
     }
 
     if !items.is_empty() || import_empty_items {
-        return write_dependency_items_for_output(
-            f,
-            node_id,
-            items,
-            organize_imports,
-            sort_order,
-            has_item_annotations,
-        );
+        return write_dependency_items(f, node_id, items);
     }
 
     Ok(())
@@ -1353,9 +1297,6 @@ fn write_export_clause<'ast>(
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
     target: Option<StringId>,
-    organize_imports: bool,
-    sort_order: ImportSortOrder,
-    has_item_annotations: bool,
 ) -> FormatResult<bool> {
     let tree = f.context().tree;
     let export_empty_items_with_target = items.is_empty() && target.is_some();
@@ -1448,14 +1389,7 @@ fn write_export_clause<'ast>(
     }
 
     if !items.is_empty() || target.is_none() || export_empty_items_with_target {
-        write_dependency_items_for_output(
-            f,
-            node_id,
-            items,
-            organize_imports,
-            sort_order,
-            has_item_annotations,
-        )?;
+        write_dependency_items(f, node_id, items)?;
     }
 
     Ok(false)
@@ -1469,21 +1403,9 @@ fn write_import_declaration_expression<'ast>(
     has_item_clause: bool,
     attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
-    let has_item_annotations = dependency_items_have_annotations(f.context(), items);
-    let organize_imports = f.context().options.organize_imports.is_enabled();
-    let sort_order = f.context().options.import_sort_order;
-
     write!(f, [Keyword::Import])?;
 
-    write_import_clause(
-        f,
-        node_id,
-        items,
-        organize_imports,
-        sort_order,
-        has_item_annotations,
-        has_item_clause,
-    )?;
+    write_import_clause(f, node_id, items, has_item_clause)?;
 
     if has_item_clause {
         write_dependency_from_target_clause(f, node_id, target)?;
@@ -1518,21 +1440,9 @@ fn write_export_declaration_expression<'ast>(
     items: &[LocalNodeId<DependencyItem>],
     attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
-    let has_item_annotations = dependency_items_have_annotations(f.context(), items);
-    let organize_imports = f.context().options.organize_imports.is_enabled();
-    let sort_order = f.context().options.import_sort_order;
-
     write!(f, [Keyword::Export])?;
 
-    let needs_trailing_semicolon = write_export_clause(
-        f,
-        node_id,
-        items,
-        target,
-        organize_imports,
-        sort_order,
-        has_item_annotations,
-    )?;
+    let needs_trailing_semicolon = write_export_clause(f, node_id, items, target)?;
 
     if let Some(target) = target {
         write_dependency_from_target_clause(f, node_id, target)?;

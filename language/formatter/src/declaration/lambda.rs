@@ -1,25 +1,27 @@
 use super::function::{
     FormatContentWithCacheMode, function_can_omit_lambda_parameter_parentheses,
-    function_parameter_container_span, function_parameters, write_cached_function_return_type,
-    write_function_ambient_prefix, write_function_export_prefix, write_function_generic_parameters,
+    function_parameter_container_span, write_function_ambient_prefix,
+    write_function_generic_parameters,
 };
 use crate::annotation::{
     FormatTrailingComments, block_infix_annotations, format_leading_comments, postfix_annotations,
 };
 use crate::chain::{is_lambda_expression, transparent_inner_expression};
+use crate::declaration::declaration::format_declaration_export_modifier;
 use crate::declaration::signature::{
-    expression_body_requires_head_space, format_where_clause, write_function_header_prefix,
-    write_grouped_parameters_with_return_type,
+    ParameterList, format_where_clause, write_function_header_prefix,
 };
 use crate::declaration::statement::format_block;
-use crate::expression::ExpressionLeftPath;
+use crate::expression::{
+    ExpressionLeftPath, expression_is_multiline_template_starting_on_same_line,
+};
 use crate::operator::AssignmentLikeLayout;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Declaration, ExportKind, Expression, FunctionDeclaration, FunctionForm, FunctionSignature,
     IfForm, LocalNodeId, Name, NodeType, Parameter, TemplateLiteral, TreeAttribute, TreeChild,
 };
-use destack_fir::format::{FormatResult, without_soft_lines};
+use destack_fir::format::{FormatError, FormatResult, without_soft_lines};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
@@ -129,48 +131,6 @@ pub(crate) fn write_lambda_arrow_with_infix_annotations<'ast>(
 
     write!(f, [token("=>")])
 }
-/// Write one lambda parameter list and return type.
-fn write_lambda_parameters_and_return_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    signature: &FunctionSignature,
-    body: &Option<LocalNodeId<Expression>>,
-    parameters: &[LocalNodeId<Parameter>],
-    can_omit_parens: bool,
-    cache_mode: FunctionCacheMode,
-) -> FormatResult<()> {
-    let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        super::function::write_function_parameters(
-            f,
-            node_id,
-            signature,
-            parameters,
-            can_omit_parens,
-        )
-    });
-    let format_parameters = FormatContentWithCacheMode::new(
-        function_parameter_container_span(f.context(), node_id),
-        format_parameters,
-        cache_mode,
-    );
-    let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write_cached_function_return_type(f, node_id, signature, body, parameters, cache_mode)
-    });
-    let format_parameter_head = format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(()));
-
-    write_grouped_parameters_with_return_type(
-        f,
-        &signature.generic_parameters,
-        parameters.len(),
-        signature.return_type,
-        format_parameter_head,
-        format_parameters,
-        format_return_type,
-        false,
-        false,
-    )
-}
-
 /// Return whether one lambda declaration needs a trailing semicolon.
 fn lambda_declaration_needs_trailing_semicolon(
     context: &DestackFormatContext<'_>,
@@ -180,38 +140,16 @@ fn lambda_declaration_needs_trailing_semicolon(
     export.is_some() || lambda_declaration_is_statement_context(context, node_id)
 }
 
-/// Return whether one expression is a multiline template that starts on the same line.
-fn expression_is_multiline_template_starting_on_same_line(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression = context.tree.get(expression_id);
-    let expression_span = context.span(expression_id);
-
-    if !matches!(
-        expression,
-        Expression::TemplateExpression { .. } | Expression::TaggedTemplateExpression { .. }
-    ) {
-        return false;
-    }
-
-    context.source_text().contains_newline(expression_span)
-        && !context
-            .source_text()
-            .has_newline_before(expression_span.start)
-}
-
 /// Return the lambda declaration for one declaration id.
 fn lambda_declaration<'ast>(
     context: &'ast DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
-) -> &'ast FunctionDeclaration {
+) -> Option<&'ast FunctionDeclaration> {
     let Declaration::Function(function) = context.tree.get(node_id) else {
-        unreachable!();
+        return None;
     };
 
-    debug_assert_eq!(function.signature.form, FunctionForm::Lambda);
-    function
+    (function.signature.form == FunctionForm::Lambda).then_some(function)
 }
 
 /// Return whether one parameter is simple enough for inline arrow chains.
@@ -270,7 +208,7 @@ fn next_lambda_chain_declaration(
         return None;
     }
 
-    let function = lambda_declaration(context, declaration_id);
+    let function = lambda_declaration(context, declaration_id)?;
     let body_id = function.body?;
     let body_expression_id = transparent_inner_expression(context, body_id);
     let Expression::Declaration(next_id) = context.tree.get(body_expression_id) else {
@@ -345,12 +283,10 @@ fn lambda_declaration_tree_node_span(
         return None;
     }
 
-    match tree_node_type {
-        NodeType::TreeAttribute => {
-            Some(context.span(LocalNodeId::<TreeAttribute>::new(tree_node_id)))
-        }
-        NodeType::TreeChild => Some(context.span(LocalNodeId::<TreeChild>::new(tree_node_id))),
-        _ => unreachable!("tree node should be tree attribute or tree child"),
+    if tree_node_type == NodeType::TreeAttribute {
+        Some(context.span(LocalNodeId::<TreeAttribute>::new(tree_node_id)))
+    } else {
+        Some(context.span(LocalNodeId::<TreeChild>::new(tree_node_id)))
     }
 }
 
@@ -455,7 +391,9 @@ fn lambda_chain_tail_body_is_separate_line(
     context: &DestackFormatContext<'_>,
     tail_id: LocalNodeId<Declaration>,
 ) -> bool {
-    let function = lambda_declaration(context, tail_id);
+    let Some(function) = lambda_declaration(context, tail_id) else {
+        return false;
+    };
     let Some(body_id) = function.body else {
         return false;
     };
@@ -487,15 +425,23 @@ impl LambdaLayout {
         context: &DestackFormatContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         options: FormatLambdaDeclarationOptions,
-    ) -> Self {
+    ) -> FormatResult<Self> {
         let mut head = None;
         let mut middle = Vec::new();
         let mut current = declaration_id;
         let mut expand_signatures = false;
 
         while let Some(next_id) = next_lambda_chain_declaration(context, current, options) {
-            let function = lambda_declaration(context, current);
-            let next_function = lambda_declaration(context, next_id);
+            let Some(function) = lambda_declaration(context, current) else {
+                return Err(FormatError::SyntaxError {
+                    message: "lambda chain requires lambda declarations",
+                });
+            };
+            let Some(next_function) = lambda_declaration(context, next_id) else {
+                return Err(FormatError::SyntaxError {
+                    message: "lambda chain requires lambda declarations",
+                });
+            };
 
             expand_signatures |= lambda_chain_should_break(context, &function.signature);
             expand_signatures |= lambda_chain_should_break(context, &next_function.signature);
@@ -509,7 +455,7 @@ impl LambdaLayout {
             current = next_id;
         }
 
-        match head {
+        let layout = match head {
             Some(head) => Self::Chain(LambdaChain {
                 head,
                 middle,
@@ -518,7 +464,9 @@ impl LambdaLayout {
                 options,
             }),
             None => Self::Single(declaration_id),
-        }
+        };
+
+        Ok(layout)
     }
 }
 
@@ -546,7 +494,11 @@ fn write_single_lambda_layout<'ast>(
     declaration_id: LocalNodeId<Declaration>,
     options: FormatLambdaDeclarationOptions,
 ) -> FormatResult<()> {
-    let function = lambda_declaration(f.context(), declaration_id);
+    let Some(function) = lambda_declaration(f.context(), declaration_id) else {
+        return Err(FormatError::SyntaxError {
+            message: "lambda layout requires a lambda declaration",
+        });
+    };
     let signature = function.signature.clone();
     let body = function.body;
 
@@ -570,9 +522,7 @@ fn write_single_lambda_layout<'ast>(
     if matches!(body_expression, Expression::Block(_)) {
         write!(f, [formatted_signature])?;
 
-        if expression_body_requires_head_space(f.context(), body_id) {
-            write!(f, [space()])?;
-        }
+        write!(f, [space()])?;
 
         return write!(f, [format_body]);
     }
@@ -626,7 +576,11 @@ fn write_lambda_chain_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     chain: &LambdaChain,
 ) -> FormatResult<()> {
-    let tail_function = lambda_declaration(f.context(), chain.tail);
+    let Some(tail_function) = lambda_declaration(f.context(), chain.tail) else {
+        return Err(FormatError::SyntaxError {
+            message: "lambda chain tail requires a lambda declaration",
+        });
+    };
     let tail_body = tail_function.body;
     let is_grouped_call_argument = chain.options.call_argument_layout.is_some();
     let is_callee = lambda_declaration_is_call_like_callee(f.context(), chain.head);
@@ -649,7 +603,11 @@ fn write_lambda_chain_layout<'ast>(
             let mut is_first = true;
 
             for declaration_id in chain.declarations() {
-                let function = lambda_declaration(f.context(), declaration_id);
+                let Some(function) = lambda_declaration(f.context(), declaration_id) else {
+                    return Err(FormatError::SyntaxError {
+                        message: "lambda chain requires lambda declarations",
+                    });
+                };
                 let signature = function.signature.clone();
                 let body = function.body;
                 let formatted_signature = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -823,7 +781,7 @@ fn write_lambda_body_and_terminator<'ast>(
 ) -> FormatResult<()> {
     // body
     if body.is_some() {
-        match LambdaLayout::for_declaration(f.context(), node_id, options) {
+        match LambdaLayout::for_declaration(f.context(), node_id, options)? {
             LambdaLayout::Single(declaration_id) => {
                 write_single_lambda_layout(f, declaration_id, options)?;
             }
@@ -852,7 +810,7 @@ fn write_lambda_head<'ast>(
     options: FormatLambdaDeclarationOptions,
     is_first_in_chain: bool,
 ) -> FormatResult<()> {
-    let parameters = function_parameters(signature);
+    let parameters = ParameterList::from_signature(signature);
     let parameter_container_span = function_parameter_container_span(f.context(), node_id);
     let has_generic_parameters = !signature.generic_parameters.is_empty();
     let can_omit_parens = function_can_omit_lambda_parameter_parentheses(
@@ -869,7 +827,7 @@ fn write_lambda_head<'ast>(
         }
 
         write_function_generic_parameters(f, signature)?;
-        write_lambda_parameters_and_return_type(
+        super::function::write_function_parameters_and_return_type(
             f,
             node_id,
             signature,
@@ -955,7 +913,7 @@ pub(crate) fn format_lambda_declaration_with_options<'ast>(
     debug_assert_eq!(signature.form, FunctionForm::Lambda);
     debug_assert!(name.is_none());
 
-    write_function_export_prefix(f, node_id, export)?;
+    format_declaration_export_modifier(f, node_id, export)?;
     write_function_ambient_prefix(f, is_ambient)?;
 
     if body.is_none() {

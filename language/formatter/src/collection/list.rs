@@ -50,8 +50,7 @@ where
                 .first_token_in_span(next_element_span)
                 .map_or(next_element_span.start, |token| token.span.start)
         });
-        let element_following_start =
-            next_element_start.unwrap_or_else(|| f.context().following_span_start());
+        let element_following_start = next_element_start.or(f.context().following_span_start());
 
         with_following_span_start(f, element_following_start, |f| write!(f, [self.element]))?;
 
@@ -590,7 +589,7 @@ fn list_element_following_span_start<T>(
     context: &DestackFormatContext<'_>,
     elements: &[LocalNodeId<T>],
     element_id: &LocalNodeId<T>,
-) -> u32
+) -> Option<u32>
 where
     T: Node + Clone,
     Tree: TreeStore<T>,
@@ -601,7 +600,7 @@ where
         .copied()
         .find(|next_element_id| context.span(*next_element_id).start > element_span.start);
 
-    next_element.map_or(0, |next_element_id| {
+    next_element.map(|next_element_id| {
         let next_span = context.span(next_element_id);
 
         context

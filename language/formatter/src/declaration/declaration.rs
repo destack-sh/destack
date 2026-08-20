@@ -1,14 +1,15 @@
 use crate::annotation::{
     DanglingIndentMode, FormatDanglingComments, FormatLeadingComments, format_comment,
-    infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
+    format_dangling_comments, infix_or_postfix_annotations, postfix_annotations,
+    prefix_annotations,
 };
 use crate::collection::member::format_block_of_members;
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::declaration::function::format_function_declaration;
 use crate::declaration::sequence::format_block_statement_sequence;
 use crate::declaration::signature::{
-    default_generic_parameter_trailing_separator, format_where_clause_continuation,
-    function_grouping_generic_parameter_is_plain, write_generic_parameter_list,
+    function_grouping_generic_parameter_is_plain, write_declaration_generic_parameters,
+    write_declaration_where_clauses,
 };
 use crate::declaration::r#type::{
     format_class_declaration, format_enum_declaration, format_interface_declaration,
@@ -16,7 +17,7 @@ use crate::declaration::r#type::{
 };
 use crate::declaration::{
     FunctionCacheMode, empty_block_with_infix_annotations, format_lambda_declaration,
-    write_statement_terminator_after_anchor,
+    write_keyword_prefix, write_statement_terminator_after_anchor,
 };
 use crate::expression::{format_declarator, write_control_branch_after_head};
 use crate::operator::{
@@ -26,9 +27,9 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     Asynchrony, Comment, Declaration, Declarator, ExportKind, Expression, ExtensionDeclaration,
-    FunctionDeclaration, FunctionForm, GenericParameter, GlobalDeclaration, Keyword, LetKind,
-    LocalNodeId, Member, ModuleDeclaration, Mutability, NodeType, PlaceModifier, TokenSpan,
-    TypeDeclaration, TypeExpression, WhereClause,
+    FunctionDeclaration, FunctionForm, GlobalDeclaration, Keyword, LetKind, LocalNodeId,
+    ModuleDeclaration, Mutability, Node, NodeType, PlaceModifier, TokenSpan, TypeDeclaration,
+    TypeExpression,
 };
 use destack_fir::format::{
     FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, GroupId, InstructionTape,
@@ -166,19 +167,6 @@ pub(crate) fn format_declaration_export_modifier<'ast>(
     Ok(())
 }
 
-/// Write one is_ambient prefix.
-fn write_ambient_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_ambient: bool,
-) -> FormatResult<()> {
-    // is_ambient
-    if is_ambient {
-        write!(f, [Keyword::Declare, space()])?;
-    }
-
-    Ok(())
-}
-
 /// Write one explicit placement prefix.
 pub(crate) fn write_place_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -186,36 +174,6 @@ pub(crate) fn write_place_prefix<'ast>(
 ) -> FormatResult<()> {
     if let Some(place) = place {
         write!(f, [place.keyword(), space()])?;
-    }
-
-    Ok(())
-}
-
-/// Write one declaration generic parameter list.
-fn write_declaration_generic_parameters<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    generic_parameters: &[LocalNodeId<GenericParameter>],
-) -> FormatResult<()> {
-    // generic parameters
-    if !generic_parameters.is_empty() {
-        write_generic_parameter_list(
-            f,
-            generic_parameters,
-            default_generic_parameter_trailing_separator(f),
-        )?;
-    }
-
-    Ok(())
-}
-
-/// Write one declaration where clause list.
-fn write_declaration_where_clauses<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    where_clauses: &[LocalNodeId<WhereClause>],
-) -> FormatResult<()> {
-    // where clauses
-    if !where_clauses.is_empty() {
-        format_where_clause_continuation(f, where_clauses)?;
     }
 
     Ok(())
@@ -231,7 +189,7 @@ fn capture_type_declaration_left<'ast>(
 
     // prefixes
     format_declaration_export_modifier(&mut formatter, node_id, declaration.export)?;
-    write_ambient_prefix(&mut formatter, declaration.is_ambient)?;
+    write_keyword_prefix(&mut formatter, Keyword::Declare, declaration.is_ambient)?;
     write_place_prefix(&mut formatter, declaration.place)?;
 
     // modifiers
@@ -462,13 +420,31 @@ fn write_expression_declaration_body<'ast>(
 }
 
 /// Write one declaration member block without its leading separator.
-fn write_member_block<'ast>(
+pub(crate) fn write_member_block<'ast, T, F>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    members: &[LocalNodeId<Member>],
-) -> FormatResult<()> {
+    members: &[LocalNodeId<T>],
+    write_members: F,
+) -> FormatResult<()>
+where
+    T: Node,
+    F: Copy + Fn(&mut DestackFormatter<'ast, '_>, &[LocalNodeId<T>]) -> FormatResult<()>,
+{
     // empty body
     if members.is_empty() {
+        let node_span = f.context().span(node_id);
+
+        if f.context().comments().has_comment_in_span(node_span) {
+            return write!(
+                f,
+                [
+                    token("{"),
+                    format_dangling_comments(node_span).with_block_indent(),
+                    token("}")
+                ]
+            );
+        }
+
         return write!(f, [empty_block_with_infix_annotations(node_id)]);
     }
 
@@ -477,7 +453,7 @@ fn write_member_block<'ast>(
     write!(
         f,
         [group(&block_indent(&format_with(move |f| {
-            format_block_of_members(f, members)
+            write_members(f, members)
         })))]
     )?;
     write!(f, [hard_line_break(), token("}")])
@@ -580,7 +556,7 @@ pub(crate) fn format_let_statement_expression<'ast>(
                 None => {}
             }
 
-            write_ambient_prefix(f, is_ambient)?;
+            write_keyword_prefix(f, Keyword::Declare, is_ambient)?;
             write_place_prefix(f, place)?;
 
             // binding keyword
@@ -719,7 +695,7 @@ pub(crate) fn format_using_statement_expression<'ast>(
                 None => {}
             }
 
-            write_ambient_prefix(f, is_ambient)?;
+            write_keyword_prefix(f, Keyword::Declare, is_ambient)?;
 
             if asynchrony == Asynchrony::Async {
                 write!(f, [Keyword::Await, space()])?;
@@ -742,7 +718,7 @@ fn format_global_declaration<'ast>(
     let should_declare =
         declaration.is_ambient && !f.context().options.language_type.is_declaration();
     if should_declare {
-        write_ambient_prefix(f, true)?;
+        write_keyword_prefix(f, Keyword::Declare, true)?;
     }
 
     // head
@@ -838,7 +814,7 @@ fn format_extension_declaration<'ast>(
     let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         // prefixes
         format_declaration_export_modifier(f, node_id, declaration.export)?;
-        write_ambient_prefix(f, declaration.is_ambient)?;
+        write_keyword_prefix(f, Keyword::Declare, declaration.is_ambient)?;
 
         // head
         write!(f, [Keyword::Extension])?;
@@ -875,7 +851,7 @@ fn format_extension_declaration<'ast>(
     write_declaration_body_separator(f, header_group_id)?;
 
     // body
-    write_member_block(f, node_id, &declaration.members)?;
+    write_member_block(f, node_id, &declaration.members, format_block_of_members)?;
 
     // postfix annotations
     write!(f, [postfix_annotations(f.context(), node_id)])

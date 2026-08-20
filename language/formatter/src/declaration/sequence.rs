@@ -1,9 +1,11 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 
 use crate::annotation::{
     FormatLeadingComments, block_infix_annotations, format_comment, infix_or_postfix_annotations,
     prefix_comment_nodes, statement_prefix_annotations, write_annotation_sequence,
 };
+use crate::declaration::dependency::{is_import, should_insert_blank_between, sort_imports};
 use crate::declaration::statement::{
     block_leading_line_comment_nodes, block_trailing_comment_nodes,
 };
@@ -12,21 +14,18 @@ use crate::declaration::{
     write_semicolonless_statement_comments, write_statement_terminator,
     write_statement_terminator_with_following_start,
 };
-use crate::expression::format_expression;
-use crate::file::{
-    ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_source_span,
-};
+use crate::expression::{expression_is_lambda_declaration, format_expression};
+use crate::file::{ignore_ranges_for_nodes, node_has_ignore_directive, write_source_span};
 use destack_dir::{
-    Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionForm,
-    FunctionRole, FunctionSignature, IfForm, LocalNodeId, Member, NodeType, Property, Tree,
-    TypeExpression, TypeLiteral,
+    Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionRole,
+    FunctionSignature, IfForm, LocalNodeId, Member, NodeType, Property, TypeExpression,
+    TypeLiteral,
 };
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::{format_with, *};
 use destack_fir::{format_args, write};
 use destack_source::{FileId, Span};
 
-use crate::declaration::dependency as imports;
 use crate::{DestackFormatContext, DestackFormatter};
 
 /// Return whether one expression has a source blank line before it.
@@ -103,24 +102,10 @@ fn expression_prefix_start(
             start = start.min(comment.span.start);
         }
 
-        for annotation_id in context.annotation_ids(*declaration_id).iter().copied() {
-            if matches!(
-                context.annotation(annotation_id).position,
-                DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
-            ) {
-                start = start.min(context.annotation_span(annotation_id).start);
-            }
-        }
+        start = context.prefix_annotation_start(*declaration_id, start);
     }
 
-    for annotation_id in context.annotation_ids(expression_id).iter().copied() {
-        if matches!(
-            context.annotation(annotation_id).position,
-            DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
-        ) {
-            start = start.min(context.annotation_span(annotation_id).start);
-        }
-    }
+    start = context.prefix_annotation_start(expression_id, start);
 
     let semantic_head_start = match context.tree.get(expression_id) {
         Expression::Member { left, .. }
@@ -148,24 +133,10 @@ fn expression_following_span_start(
     let mut start = expression_span.start;
 
     if let Expression::Declaration(declaration_id) = context.tree.get(expression_id) {
-        for annotation_id in context.annotation_ids(*declaration_id).iter().copied() {
-            if matches!(
-                context.annotation(annotation_id).position,
-                DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
-            ) {
-                start = start.min(context.annotation_span(annotation_id).start);
-            }
-        }
+        start = context.prefix_annotation_start(*declaration_id, start);
     }
 
-    for annotation_id in context.annotation_ids(expression_id).iter().copied() {
-        if matches!(
-            context.annotation(annotation_id).position,
-            DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
-        ) {
-            start = start.min(context.annotation_span(annotation_id).start);
-        }
-    }
+    start = context.prefix_annotation_start(expression_id, start);
 
     start
 }
@@ -308,19 +279,6 @@ fn write_expression_postfix_annotations<'ast>(
     )
 }
 
-/// Return whether one expression is a lambda declaration expression.
-fn expression_is_lambda_declaration(tree: &Tree, expression: &Expression) -> bool {
-    matches!(
-        expression,
-        Expression::Declaration(declaration_id)
-            if matches!(
-                tree.get(*declaration_id),
-                Declaration::Function(function)
-                    if function.signature.form == FunctionForm::Lambda
-            )
-    )
-}
-
 /// Write prefix annotations for one statement-sequence expression.
 fn write_statement_sequence_expression_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -332,7 +290,7 @@ fn write_statement_sequence_expression_prefix<'ast>(
         return Ok(());
     }
 
-    if expression_is_lambda_declaration(f.context().tree, expression) {
+    if expression_is_lambda_declaration(f.context(), expression_id) {
         let mut prefix_items = Vec::new();
 
         for annotation_id in f.context().annotation_ids(expression_id).iter().copied() {
@@ -438,7 +396,9 @@ pub(crate) fn format_block_body_narrow<'ast>(
     if block.is_empty() {
         write!(f, [token("{"), token("}")])?;
     } else {
-        let expression_id = block.first_expression().expect("single-expression block");
+        let expression_id = block.first_expression().ok_or(FormatError::SyntaxError {
+            message: "nonempty narrow block requires one expression",
+        })?;
         let expression = f.context().tree.get(expression_id);
         let allow_value_tail = block_allows_value_tail(f.context(), block_id);
         let is_expression_context_tail = block
@@ -551,49 +511,199 @@ pub(crate) fn format_block_body_wide<'ast>(
     write!(f, [hard_line_break(), token("}")])
 }
 
-/// Collect ignore ranges for block expressions without building another list.
-fn ignore_ranges_for_block_expressions(
-    ctx: &DestackFormatContext<'_>,
-    block: &Block,
-    source_comments: &[Comment],
-) -> std::collections::HashMap<u32, Span> {
-    let mut ignore_ranges = std::collections::HashMap::new();
+/// The enclosing form of one statement sequence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StatementSequenceKind {
+    /// A source file program.
+    Program,
+    /// A parsed block body.
+    Block,
+    /// A statement slice without an enclosing source node.
+    Detached,
+}
 
-    for expression_id in block.iter_expressions() {
-        if let Some(range_span) = ignore_range_for_node(ctx, expression_id, source_comments) {
-            ignore_ranges.insert(expression_id.id, range_span);
+impl StatementSequenceKind {
+    /// Return whether imports at the sequence head should be organized.
+    const fn organizes_imports(self) -> bool {
+        matches!(self, Self::Program | Self::Block)
+    }
+
+    /// Return whether comments before the first expression belong to the sequence.
+    const fn writes_file_prefix(self) -> bool {
+        matches!(self, Self::Program)
+    }
+
+    /// Return whether every statement needs an initial hard break.
+    const fn always_breaks_statements(self) -> bool {
+        matches!(self, Self::Program)
+    }
+}
+
+/// The source positions and enclosing form of one statement sequence.
+#[derive(Debug, Clone, Copy)]
+struct StatementSequence {
+    /// The enclosing form.
+    kind: StatementSequenceKind,
+    /// The expression that supplies the sequence value.
+    tail_expression: Option<LocalNodeId<Expression>>,
+    /// The source position immediately before the first expression.
+    source_start: Option<(FileId, u32)>,
+    /// The final leading comment already emitted by the enclosing block.
+    first_prefix_comment_end: Option<u32>,
+}
+
+impl StatementSequence {
+    /// Create one program statement sequence.
+    const fn program() -> Self {
+        Self {
+            kind: StatementSequenceKind::Program,
+            tail_expression: None,
+            source_start: None,
+            first_prefix_comment_end: None,
         }
     }
 
-    ignore_ranges
+    /// Create one block statement sequence.
+    fn block(
+        context: &DestackFormatContext<'_>,
+        block_id: LocalNodeId<Block>,
+        allow_value_tail: bool,
+        first_prefix_comment_end: Option<u32>,
+    ) -> Self {
+        let block = context.tree.get(block_id);
+        let tail_expression = if allow_value_tail {
+            block.tail_expression
+        } else {
+            None
+        };
+        let block_span = context.span(block_id);
+        let source_start = context
+            .first_token_in_span(block_span)
+            .map(|token| (token.span.file, token.span.end));
+
+        Self {
+            kind: StatementSequenceKind::Block,
+            tail_expression,
+            source_start,
+            first_prefix_comment_end,
+        }
+    }
+
+    /// Create one detached statement sequence.
+    fn detached(expressions: &[LocalNodeId<Expression>], allow_value_tail: bool) -> Self {
+        let tail_expression = if allow_value_tail {
+            expressions.last().copied()
+        } else {
+            None
+        };
+
+        Self {
+            kind: StatementSequenceKind::Detached,
+            tail_expression,
+            source_start: None,
+            first_prefix_comment_end: None,
+        }
+    }
 }
 
-/// Format one block statement sequence with spacing and ignore handling.
-pub(crate) fn format_block_statement_sequence<'ast>(
+/// Collect ignore ranges for one statement sequence.
+fn statement_ignore_ranges(
+    context: &DestackFormatContext<'_>,
+    expressions: &[LocalNodeId<Expression>],
+) -> HashMap<u32, Span> {
+    if !context.has_ignore_directive_markers() {
+        return HashMap::new();
+    }
+
+    ignore_ranges_for_nodes(context, expressions, context.source_comments())
+}
+
+/// Organize the import section at the head of one statement sequence.
+fn organize_statement_imports<'a>(
+    context: &DestackFormatContext<'_>,
+    expressions: &'a [LocalNodeId<Expression>],
+    sequence: StatementSequence,
+    has_ignore_ranges: bool,
+) -> Cow<'a, [LocalNodeId<Expression>]> {
+    if !sequence.kind.organizes_imports()
+        || !context.options.organize_imports.is_enabled()
+        || has_ignore_ranges
+    {
+        return Cow::Borrowed(expressions);
+    }
+
+    let import_count = expressions
+        .iter()
+        .take_while(|&&expression_id| is_import(expression_id, context.tree))
+        .count();
+    if import_count <= 1 {
+        return Cow::Borrowed(expressions);
+    }
+
+    let mut organized = sort_imports(&expressions[..import_count], context.tree, context.strings);
+    organized.extend_from_slice(&expressions[import_count..]);
+
+    Cow::Owned(organized)
+}
+
+/// Return whether a blank line belongs before one statement.
+fn statement_has_blank_line_before(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    expression_span: Span,
+    ignore_range: Option<Span>,
+    previous_expression_id: LocalNodeId<Expression>,
+    previous_output_end: Option<(FileId, u32)>,
+) -> bool {
+    let Some(ignore_range) = ignore_range else {
+        return expression_has_lines_before(context, expression_id);
+    };
+
+    let previous_end = previous_output_end
+        .filter(|(file, _)| *file == expression_span.file)
+        .map(|(_, end)| end)
+        .or_else(|| {
+            let previous_span = context.span(previous_expression_id);
+            (previous_span.file == expression_span.file).then_some(previous_span.end)
+        });
+    let Some(previous_end) = previous_end else {
+        return false;
+    };
+
+    has_blank_line_between_offsets(
+        context,
+        expression_span.file,
+        previous_end,
+        ignore_range.start,
+    )
+}
+
+/// Format one statement sequence with shared spacing, import, and ignore handling.
+fn format_statement_sequence<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expressions: &[LocalNodeId<Expression>],
-    allow_value_tail: bool,
+    sequence: StatementSequence,
 ) -> FormatResult<()> {
-    // ignore ranges: only compute when the file may contain ignore directives
-    let ignore_ranges = if f.context().has_ignore_directive_markers() {
-        let source_comments = f.context().source_comments();
-        ignore_ranges_for_nodes(f.context(), expressions, source_comments)
-    } else {
-        std::collections::HashMap::new()
-    };
-    let effective_expressions = expressions;
-    let mut previous_output_end: Option<(FileId, u32)> = None;
+    let ignore_ranges = statement_ignore_ranges(f.context(), expressions);
+    let expressions = organize_statement_imports(
+        f.context(),
+        expressions,
+        sequence,
+        !ignore_ranges.is_empty(),
+    );
+
+    let mut previous_expression_id = None;
+    let mut previous_output_end = sequence.source_start;
     let mut previous_output_was_ignored = false;
-    let mut skip_until: Option<u32> = None;
+    let mut previous_import_id = None;
+    let mut skip_until = None;
 
-    for (i, &expression_id) in effective_expressions.iter().enumerate() {
+    for (index, expression_id) in expressions.iter().copied().enumerate() {
         let expression = f.context().tree.get(expression_id);
-        let ignore_range = ignore_ranges.get(&expression_id.id).copied();
-        let has_ignore_range = ignore_range.is_some();
-        let is_ignored = node_has_ignore_directive(f.context(), expression_id);
-
         let expression_span = f.context().span(expression_id);
+        let ignore_range = ignore_ranges.get(&expression_id.id).copied();
 
+        // skip statements already covered by one raw ignore range
         if let Some(skip_end) = skip_until {
             if expression_span.start < skip_end {
                 continue;
@@ -601,63 +711,42 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             skip_until = None;
         }
 
-        // blank line between expressions
-        if i > 0 {
-            let previous_expression_id = effective_expressions[i - 1];
-            let source_has_blank_line_between = if has_ignore_range {
-                if let Some((previous_file, previous_end)) = previous_output_end {
-                    if previous_file != expression_span.file {
-                        false
-                    } else {
-                        let range_start =
-                            ignore_range.map_or(expression_span.start, |span| span.start);
-                        has_blank_line_between_offsets(
-                            f.context(),
-                            expression_span.file,
-                            previous_end,
-                            range_start,
-                        )
-                    }
-                } else {
-                    let previous_span = f.context().span(previous_expression_id);
-                    if previous_span.file != expression_span.file {
-                        false
-                    } else {
-                        let range_start =
-                            ignore_range.map_or(expression_span.start, |span| span.start);
-                        has_blank_line_between_offsets(
-                            f.context(),
-                            expression_span.file,
-                            previous_span.end,
-                            range_start,
-                        )
-                    }
-                }
-            } else {
-                expression_has_lines_before(f.context(), expression_id)
-            };
-            if !has_ignore_range {
-                if !source_has_blank_line_between {
+        // preserve statement and import-group spacing
+        let is_import = is_import(expression_id, f.context().tree);
+        if let Some(previous_expression_id) = previous_expression_id {
+            let has_blank_line = statement_has_blank_line_before(
+                f.context(),
+                expression_id,
+                expression_span,
+                ignore_range,
+                previous_expression_id,
+                previous_output_end,
+            );
+
+            if ignore_range.is_none() {
+                if sequence.kind.always_breaks_statements() || !has_blank_line {
                     write!(f, [hard_line_break()])?;
                 }
 
-                // determine if we need an extra blank line
-                let needs_blank = source_has_blank_line_between;
-
-                if needs_blank {
+                let separate_imports = previous_import_id.is_some_and(|previous_import_id| {
+                    sequence.kind.organizes_imports()
+                        && f.context().options.organize_imports.is_enabled()
+                        && is_import
+                        && should_insert_blank_between(
+                            previous_import_id,
+                            expression_id,
+                            f.context().tree,
+                            f.context().strings,
+                        )
+                });
+                if separate_imports || has_blank_line {
                     write!(f, [empty_line()])?;
                 }
             }
         }
 
-        if let Some(range_span) = ignore_range {
-            // the first ignored statement has no previous source sibling
-            let previous_expression_id = if i > 0 {
-                Some(effective_expressions[i - 1])
-            } else {
-                None
-            };
-
+        // preserve one ignored source range verbatim
+        if let Some(ignore_range) = ignore_range {
             let prefix_start = ignored_range_prefix_start(
                 f.context(),
                 previous_output_end,
@@ -666,52 +755,75 @@ pub(crate) fn format_block_statement_sequence<'ast>(
                 expression_id,
                 expression_span,
             );
-            if prefix_start < range_span.start {
-                let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
+            if prefix_start < ignore_range.start {
+                let prefix_span = Span::new(ignore_range.file, prefix_start, ignore_range.start);
                 write_source_span(f, prefix_span)?;
             }
 
-            write_source_span(f, range_span)?;
-            skip_until = Some(range_span.end);
-            previous_output_end = Some((range_span.file, range_span.end));
+            write_source_span(f, ignore_range)?;
+            skip_until = Some(ignore_range.end);
+            previous_expression_id = Some(expression_id);
+            previous_output_end = Some((ignore_range.file, ignore_range.end));
             previous_output_was_ignored = true;
+            previous_import_id = None;
             continue;
         }
 
-        // separator comments
-        if i > 0 {
+        // write comments between the previous output and this statement
+        if sequence.kind.writes_file_prefix() && previous_expression_id.is_none() {
+            write_expression_gap_comments(f, 0, expression_id)?;
+        } else if previous_expression_id.is_some() || previous_output_end.is_some() {
             let gap_start = previous_output_end
                 .filter(|(file, _)| *file == expression_span.file)
-                .map_or_else(
-                    || f.context().span(effective_expressions[i - 1]).end,
-                    |(_, previous_end)| previous_end,
-                );
+                .map(|(_, end)| end)
+                .or_else(|| {
+                    previous_expression_id
+                        .map(|previous_expression_id| f.context().span(previous_expression_id).end)
+                })
+                .unwrap_or(expression_span.start);
             write_expression_gap_comments(f, gap_start, expression_id)?;
         }
 
-        let is_expression_context_tail = allow_value_tail && i + 1 == effective_expressions.len();
-        let following_expression_start = effective_expressions
-            .get(i + 1)
+        let first_prefix_comment_end = previous_expression_id
+            .is_none()
+            .then_some(sequence.first_prefix_comment_end)
+            .flatten();
+        let following_expression_start = expressions
+            .get(index + 1)
             .map(|expression_id| expression_following_span_start(f.context(), *expression_id));
-        let expression_output_end = format_statement_sequence_expression(
+        let output_end = format_statement_sequence_expression(
             f,
             expression_id,
             expression,
-            is_ignored,
-            allow_value_tail,
-            is_expression_context_tail,
-            None,
+            node_has_ignore_directive(f.context(), expression_id),
+            sequence.tail_expression.is_some(),
+            sequence.tail_expression == Some(expression_id),
+            first_prefix_comment_end,
             following_expression_start,
         )?;
 
         f.context_mut()
             .comments_mut()
-            .skip_comments_before(expression_span.end);
+            .skip_comments_before(output_end);
 
-        previous_output_end = Some((expression_span.file, expression_output_end));
+        previous_expression_id = Some(expression_id);
+        previous_output_end = Some((expression_span.file, output_end));
         previous_output_was_ignored = false;
+        previous_import_id = is_import.then_some(expression_id);
     }
+
     Ok(())
+}
+
+/// Format one block statement sequence with spacing and ignore handling.
+pub(crate) fn format_block_statement_sequence<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expressions: &[LocalNodeId<Expression>],
+    allow_value_tail: bool,
+) -> FormatResult<()> {
+    let sequence = StatementSequence::detached(expressions, allow_value_tail);
+
+    format_statement_sequence(f, expressions, sequence)
 }
 
 /// Format one block statement sequence with spacing and ignore handling.
@@ -721,209 +833,20 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
     allow_value_tail: bool,
     leading_prefix_comment_start: Option<u32>,
 ) -> FormatResult<()> {
-    let block = f.context().tree.get(block_id);
-    let expressions: Vec<_> = block.iter_expressions().collect();
-
-    // ignore ranges: only compute when the file may contain ignore directives
-    let ignore_ranges = if f.context().has_ignore_directive_markers() {
-        let source_comments = f.context().source_comments();
-        ignore_ranges_for_block_expressions(f.context(), block, source_comments)
-    } else {
-        std::collections::HashMap::new()
-    };
-    let has_ignore_ranges = !ignore_ranges.is_empty();
-    let tree = f.context().tree;
-    let strings = f.context().strings;
-
-    // block body source cursor
-    let block_body_start = f
+    let expressions = f
         .context()
-        .first_token_in_span(f.context().span(block_id))
-        .map(|token| (token.span.file, token.span.end));
+        .tree
+        .get(block_id)
+        .iter_expressions()
+        .collect::<Vec<_>>();
+    let sequence = StatementSequence::block(
+        f.context(),
+        block_id,
+        allow_value_tail,
+        leading_prefix_comment_start,
+    );
 
-    // import section at the block head
-    let import_count = expressions
-        .iter()
-        .take_while(|&&expr_id| imports::is_import(expr_id, tree))
-        .count();
-
-    // organized import section when enabled
-    let sorted_imports: Vec<LocalNodeId<Expression>>;
-    let effective_expressions: Cow<'_, [LocalNodeId<Expression>]> =
-        if f.context().options.organize_imports.is_enabled()
-            && import_count > 1
-            && !has_ignore_ranges
-        {
-            sorted_imports = imports::sort_imports(&expressions[..import_count], tree, strings);
-            Cow::Owned(
-                sorted_imports
-                    .iter()
-                    .copied()
-                    .chain(expressions[import_count..].iter().copied())
-                    .collect(),
-            )
-        } else {
-            Cow::Borrowed(&expressions)
-        };
-
-    let mut prev_was_import = false;
-    let mut prev_import_id: Option<LocalNodeId<Expression>> = None;
-    let mut previous_output_end = block_body_start;
-    let mut previous_output_was_ignored = false;
-    let mut previous_expression_id: Option<LocalNodeId<Expression>> = None;
-    let mut skip_until: Option<u32> = None;
-
-    for (i, expression_id) in effective_expressions.iter().copied().enumerate() {
-        let expression = f.context().tree.get(expression_id);
-        let is_import_expr = imports::is_import(expression_id, tree);
-        let ignore_range = ignore_ranges.get(&expression_id.id).copied();
-        let has_ignore_range = ignore_range.is_some();
-        let is_ignored = node_has_ignore_directive(f.context(), expression_id);
-
-        let expression_span = f.context().span(expression_id);
-
-        if let Some(skip_end) = skip_until {
-            if expression_span.start < skip_end {
-                continue;
-            }
-            skip_until = None;
-        }
-
-        // blank line between expressions
-        if let Some(previous_expression_id) = previous_expression_id {
-            let source_has_blank_line_between = if has_ignore_range {
-                if let Some((previous_file, previous_end)) = previous_output_end {
-                    if previous_file != expression_span.file {
-                        false
-                    } else {
-                        let range_start =
-                            ignore_range.map_or(expression_span.start, |span| span.start);
-                        has_blank_line_between_offsets(
-                            f.context(),
-                            expression_span.file,
-                            previous_end,
-                            range_start,
-                        )
-                    }
-                } else {
-                    let previous_span = f.context().span(previous_expression_id);
-                    if previous_span.file != expression_span.file {
-                        false
-                    } else {
-                        let range_start =
-                            ignore_range.map_or(expression_span.start, |span| span.start);
-                        has_blank_line_between_offsets(
-                            f.context(),
-                            expression_span.file,
-                            previous_span.end,
-                            range_start,
-                        )
-                    }
-                }
-            } else {
-                expression_has_lines_before(f.context(), expression_id)
-            };
-            if !has_ignore_range {
-                if !source_has_blank_line_between {
-                    write!(f, [hard_line_break()])?;
-                }
-
-                // import section spacing and explicit source blank lines
-                let needs_blank = if f.context().options.organize_imports.is_enabled()
-                    && prev_was_import
-                    && is_import_expr
-                {
-                    prev_import_id.is_some_and(|prev_id| {
-                        imports::should_insert_blank_between(
-                            prev_id,
-                            expression_id,
-                            f.context().tree,
-                            f.context().strings,
-                        )
-                    })
-                } else {
-                    source_has_blank_line_between
-                };
-
-                if needs_blank {
-                    write!(f, [empty_line()])?;
-                }
-            }
-        }
-
-        if let Some(range_span) = ignore_range {
-            let prefix_start = ignored_range_prefix_start(
-                f.context(),
-                previous_output_end,
-                previous_output_was_ignored,
-                previous_expression_id,
-                expression_id,
-                expression_span,
-            );
-            if prefix_start < range_span.start {
-                let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
-                write_source_span(f, prefix_span)?;
-            }
-
-            write_source_span(f, range_span)?;
-            skip_until = Some(range_span.end);
-            prev_was_import = false;
-            prev_import_id = None;
-            previous_output_end = Some((range_span.file, range_span.end));
-            previous_output_was_ignored = true;
-            continue;
-        }
-
-        // separator comments
-        if previous_expression_id.is_some() || previous_output_end.is_some() {
-            let gap_start = previous_output_end
-                .filter(|(file, _)| *file == expression_span.file)
-                .map_or_else(
-                    || f.context().span(effective_expressions[i - 1]).end,
-                    |(_, previous_end)| previous_end,
-                );
-            write_expression_gap_comments(f, gap_start, expression_id)?;
-        }
-
-        let is_expression_context_tail = allow_value_tail
-            && block
-                .tail_expression
-                .is_some_and(|tail| tail == expression_id);
-        let prefix_after_offset = if previous_expression_id.is_none() {
-            leading_prefix_comment_start
-        } else {
-            None
-        };
-        let following_expression_start = effective_expressions
-            .get(i + 1)
-            .map(|expression_id| expression_following_span_start(f.context(), *expression_id));
-        let expression_output_end = format_statement_sequence_expression(
-            f,
-            expression_id,
-            expression,
-            is_ignored,
-            allow_value_tail,
-            is_expression_context_tail,
-            prefix_after_offset,
-            following_expression_start,
-        )?;
-
-        f.context_mut()
-            .comments_mut()
-            .skip_comments_before(expression_output_end);
-
-        prev_was_import = is_import_expr;
-        if is_import_expr {
-            prev_import_id = Some(expression_id);
-        } else {
-            prev_import_id = None;
-        }
-
-        previous_output_end = Some((expression_span.file, expression_output_end));
-        previous_output_was_ignored = false;
-        previous_expression_id = Some(expression_id);
-    }
-    Ok(())
+    format_statement_sequence(f, &expressions, sequence)
 }
 
 /// Format one program statement sequence with spacing, import organization, and ignore handling.
@@ -931,196 +854,7 @@ fn format_program_statement_sequence<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
-    let tree = f.context().tree;
-    let strings = f.context().strings;
-
-    // ignore ranges: only compute when the file may contain ignore directives
-    let ignore_ranges = if f.context().has_ignore_directive_markers() {
-        let source_comments = f.context().source_comments();
-        ignore_ranges_for_nodes(f.context(), expressions, source_comments)
-    } else {
-        std::collections::HashMap::new()
-    };
-    let has_ignore_ranges = !ignore_ranges.is_empty();
-
-    // import section at the program head
-    let import_count = expressions
-        .iter()
-        .take_while(|&&expr_id| imports::is_import(expr_id, tree))
-        .count();
-
-    // organized import section when enabled
-    let sorted_imports: Vec<LocalNodeId<Expression>>;
-    let effective_expressions: Cow<'_, [LocalNodeId<Expression>]> =
-        if f.context().options.organize_imports.is_enabled()
-            && import_count > 1
-            && !has_ignore_ranges
-        {
-            sorted_imports = imports::sort_imports(&expressions[..import_count], tree, strings);
-            Cow::Owned(
-                sorted_imports
-                    .iter()
-                    .copied()
-                    .chain(expressions[import_count..].iter().copied())
-                    .collect(),
-            )
-        } else {
-            Cow::Borrowed(expressions)
-        };
-
-    let mut prev_was_import = false;
-    let mut prev_import_id: Option<LocalNodeId<Expression>> = None;
-    let mut previous_output_end: Option<(FileId, u32)> = None;
-    let mut previous_output_was_ignored = false;
-    let mut skip_until: Option<u32> = None;
-
-    for (i, &expression_id) in effective_expressions.iter().enumerate() {
-        let expression = f.context().tree.get(expression_id);
-        let is_import_expr = imports::is_import(expression_id, tree);
-        let ignore_range = ignore_ranges.get(&expression_id.id).copied();
-        let has_ignore_range = ignore_range.is_some();
-        let is_ignored = node_has_ignore_directive(f.context(), expression_id);
-
-        let expression_span = f.context().span(expression_id);
-
-        if let Some(skip_end) = skip_until {
-            if expression_span.start < skip_end {
-                continue;
-            }
-            skip_until = None;
-        }
-
-        // blank line between expressions
-        if i > 0 {
-            let previous_expression_id = effective_expressions[i - 1];
-            let source_has_blank_line_between = if has_ignore_range {
-                if let Some((previous_file, previous_end)) = previous_output_end {
-                    if previous_file != expression_span.file {
-                        false
-                    } else {
-                        let range_start =
-                            ignore_range.map_or(expression_span.start, |span| span.start);
-                        has_blank_line_between_offsets(
-                            f.context(),
-                            expression_span.file,
-                            previous_end,
-                            range_start,
-                        )
-                    }
-                } else {
-                    let previous_span = f.context().span(previous_expression_id);
-                    if previous_span.file != expression_span.file {
-                        false
-                    } else {
-                        let range_start =
-                            ignore_range.map_or(expression_span.start, |span| span.start);
-                        has_blank_line_between_offsets(
-                            f.context(),
-                            expression_span.file,
-                            previous_span.end,
-                            range_start,
-                        )
-                    }
-                }
-            } else {
-                expression_has_lines_before(f.context(), expression_id)
-            };
-            if !has_ignore_range {
-                write!(f, [hard_line_break()])?;
-
-                // import section spacing and explicit source blank lines
-                let needs_blank = if f.context().options.organize_imports.is_enabled()
-                    && prev_was_import
-                    && is_import_expr
-                {
-                    prev_import_id.is_some_and(|prev_id| {
-                        imports::should_insert_blank_between(
-                            prev_id,
-                            expression_id,
-                            f.context().tree,
-                            f.context().strings,
-                        )
-                    })
-                } else {
-                    source_has_blank_line_between
-                };
-
-                if needs_blank {
-                    write!(f, [empty_line()])?;
-                }
-            }
-        }
-
-        if let Some(range_span) = ignore_range {
-            // the first ignored statement has no previous source sibling
-            let previous_expression_id = if i > 0 {
-                Some(effective_expressions[i - 1])
-            } else {
-                None
-            };
-
-            let prefix_start = ignored_range_prefix_start(
-                f.context(),
-                previous_output_end,
-                previous_output_was_ignored,
-                previous_expression_id,
-                expression_id,
-                expression_span,
-            );
-            if prefix_start < range_span.start {
-                let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
-                write_source_span(f, prefix_span)?;
-            }
-
-            write_source_span(f, range_span)?;
-            skip_until = Some(range_span.end);
-            prev_was_import = false;
-            prev_import_id = None;
-            previous_output_end = Some((range_span.file, range_span.end));
-            previous_output_was_ignored = true;
-            continue;
-        }
-
-        // raw file header comments
-        if i == 0 && previous_output_end.is_none() {
-            write_expression_gap_comments(f, 0, expression_id)?;
-        } else if i > 0 {
-            // separator comments
-            let gap_start = previous_output_end
-                .filter(|(file, _)| *file == expression_span.file)
-                .map_or_else(
-                    || f.context().span(effective_expressions[i - 1]).end,
-                    |(_, previous_end)| previous_end,
-                );
-            write_expression_gap_comments(f, gap_start, expression_id)?;
-        }
-
-        prev_was_import = is_import_expr;
-        if is_import_expr {
-            prev_import_id = Some(expression_id);
-        }
-        let expression_output_end = format_statement_sequence_expression(
-            f,
-            expression_id,
-            expression,
-            is_ignored,
-            false,
-            false,
-            None,
-            effective_expressions
-                .get(i + 1)
-                .map(|expression_id| f.context().span(*expression_id).start),
-        )?;
-
-        f.context_mut()
-            .comments_mut()
-            .skip_comments_before(expression_output_end);
-
-        previous_output_end = Some((expression_span.file, expression_output_end));
-        previous_output_was_ignored = false;
-    }
-
-    Ok(())
+    format_statement_sequence(f, expressions, StatementSequence::program())
 }
 
 /// Return true when the final expression in this block is value-position.

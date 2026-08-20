@@ -2,10 +2,10 @@ use super::lambda::{FunctionCacheMode, write_lambda_arrow_with_infix_annotations
 use crate::annotation::{block_infix_annotations, postfix_annotations};
 use crate::call::expression_is_test_call;
 use crate::collection::TrailingSeparator;
-use crate::declaration::declaration::write_declaration_export_head_comments;
+use crate::declaration::declaration::format_declaration_export_modifier;
 use crate::declaration::signature::{
-    default_generic_parameter_trailing_separator, expression_body_requires_head_space,
-    format_where_clause, parameter_is_variadic, should_hug_function_parameters,
+    ParameterList, default_generic_parameter_trailing_separator, format_where_clause,
+    parameter_is_variadic, should_hug_function_parameters,
     write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
     write_generic_parameter_list, write_grouped_parameters_with_return_type,
     write_signature_hug_parameter_list_with_this, write_signature_parameter_list_with_this,
@@ -73,30 +73,6 @@ where
     }
 }
 
-/// Write one declaration export prefix.
-pub(crate) fn write_function_export_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    export: Option<ExportKind>,
-) -> FormatResult<()> {
-    match export {
-        // named export
-        Some(ExportKind::Named) => {
-            write!(f, [Keyword::Export, space()])?;
-            write_declaration_export_head_comments(f, node_id, ExportKind::Named)?;
-        }
-        // default export
-        Some(ExportKind::Default) => {
-            write!(f, [Keyword::Export, space(), Keyword::Default, space()])?;
-            write_declaration_export_head_comments(f, node_id, ExportKind::Default)?;
-        }
-        // local declaration
-        None => {}
-    }
-
-    Ok(())
-}
-
 /// Write one declaration is_ambient prefix.
 pub(crate) fn write_function_ambient_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -154,22 +130,6 @@ pub(crate) fn function_parameter_container_span(
         .tree
         .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Parameters))
         .unwrap_or_else(|| context.span(node_id))
-}
-
-/// Collect parameters, including `this`.
-pub(crate) fn function_parameters(signature: &FunctionSignature) -> Vec<LocalNodeId<Parameter>> {
-    // allocate the combined list
-    let mut parameters = Vec::with_capacity(signature.parameters.len() + 1);
-
-    // include `this` first
-    if let Some(this_parameter) = signature.this_parameter {
-        parameters.push(this_parameter);
-    }
-
-    // append ordinary parameters
-    parameters.extend(signature.parameters.iter().copied());
-
-    parameters
 }
 
 /// Return whether one lambda can omit parentheses around its single parameter.
@@ -347,7 +307,7 @@ pub(crate) fn write_cached_function_return_type<'ast>(
 }
 
 /// Write one function parameter list and return type.
-fn write_function_parameters_and_return_type<'ast>(
+pub(crate) fn write_function_parameters_and_return_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     signature: &FunctionSignature,
@@ -391,9 +351,7 @@ fn write_function_body<'ast>(
 ) -> FormatResult<()> {
     let body_span = f.context().span(body);
     let body_content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-        if expression_body_requires_head_space(f.context(), body) {
-            write!(f, [space()])?;
-        }
+        write!(f, [space()])?;
 
         if let Expression::Block(block_id) = f.context().tree.get(body) {
             return format_block(f, *block_id);
@@ -437,7 +395,7 @@ fn write_function_head<'ast>(
     body: &Option<LocalNodeId<Expression>>,
     cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
-    let parameters = function_parameters(signature);
+    let parameters = ParameterList::from_signature(signature);
 
     // head prefix
     let head_prefix = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -499,7 +457,7 @@ pub(crate) fn format_function_declaration<'ast>(
 ) -> FormatResult<()> {
     debug_assert_eq!(signature.form, FunctionForm::Function);
 
-    write_function_export_prefix(f, node_id, export)?;
+    format_declaration_export_modifier(f, node_id, export)?;
     write_function_ambient_prefix(f, is_ambient)?;
     write_function_head(f, node_id, name, signature, body, cache_mode)?;
     write_function_body_and_terminator(f, node_id, signature, body, cache_mode)

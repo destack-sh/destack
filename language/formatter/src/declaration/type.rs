@@ -1,61 +1,30 @@
 use crate::annotation::{
     FormatLeadingComments, FormatTrailingComments, decorator_prefix_annotations,
-    format_dangling_comments, format_trailing_comments, infix_or_postfix_annotations,
-    postfix_annotations, prefix_annotations, prefix_comments_before_decorators,
-    write_vertical_prefix_annotations,
+    format_trailing_comments, infix_or_postfix_annotations, postfix_annotations,
+    prefix_annotations, prefix_comments_before_decorators, write_vertical_prefix_annotations,
 };
 use crate::collection::member::format_block_of_members;
 use crate::context::{CapturedFormat, FormatNodeWithoutTrailingComments};
 use crate::declaration::declaration::{
     declaration_export_token, format_declaration_export_modifier, format_super_type_clause,
-    write_declaration_body_separator, write_place_prefix,
+    write_declaration_body_separator, write_member_block, write_place_prefix,
 };
 use crate::declaration::empty_block_with_infix_annotations;
 use crate::declaration::signature::{
-    default_generic_parameter_trailing_separator, format_where_clause_continuation,
-    write_generic_parameter_list,
+    write_declaration_generic_parameters, write_declaration_where_clauses,
 };
 use crate::expression::{expression_needs_parentheses_in_parent, format_type_member_block_list};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     ClassDeclaration, Declaration, Decorator, EnumDeclaration, EnumField, EnumKind, Expression,
-    GenericParameter, InterfaceDeclaration, Keyword, LocalNodeId, LocalNodeIdAny, Member, NodeType,
-    StructDeclaration, TokenSpan, TokenType, TypeExpression, TypeMember, WhereClause,
+    InterfaceDeclaration, Keyword, LocalNodeId, LocalNodeIdAny, Member, NodeType,
+    StructDeclaration, TokenSpan, TokenType, TypeExpression,
 };
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
-
-/// Write one declaration generic parameter list.
-fn write_declaration_generic_parameters<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    generic_parameters: &[LocalNodeId<GenericParameter>],
-) -> FormatResult<()> {
-    // generic parameters
-    if !generic_parameters.is_empty() {
-        write_generic_parameter_list(
-            f,
-            generic_parameters,
-            default_generic_parameter_trailing_separator(f),
-        )?;
-    }
-
-    Ok(())
-}
-
-/// Write one declaration where clause list.
-fn write_declaration_where_clauses<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    where_clauses: &[LocalNodeId<WhereClause>],
-) -> FormatResult<()> {
-    // where clauses
-    if !where_clauses.is_empty() {
-        format_where_clause_continuation(f, where_clauses)?;
-    }
-
-    Ok(())
-}
+use smallvec::SmallVec;
 
 /// Write one class or interface heritage type list.
 fn write_heritage_type_list<'ast>(
@@ -83,7 +52,7 @@ fn write_heritage_type_list<'ast>(
                 [format_trailing_comments(
                     enclosing_span,
                     comma_token.span,
-                    next_type_start
+                    Some(next_type_start)
                 )]
             )?;
             write!(f, [soft_line_break_or_space()])?;
@@ -93,41 +62,6 @@ fn write_heritage_type_list<'ast>(
     }
 
     Ok(())
-}
-
-/// Write one declaration member block without its leading separator.
-fn write_member_block<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    members: &[LocalNodeId<Member>],
-) -> FormatResult<()> {
-    // empty body
-    if members.is_empty() {
-        let node_span = f.context().span(node_id);
-
-        if f.context().comments().has_comment_in_span(node_span) {
-            return write!(
-                f,
-                [
-                    token("{"),
-                    format_dangling_comments(node_span).with_block_indent(),
-                    token("}")
-                ]
-            );
-        }
-
-        return write!(f, [empty_block_with_infix_annotations(node_id)]);
-    }
-
-    // member body
-    write!(f, [token("{"), hard_line_break()])?;
-    write!(
-        f,
-        [group(&block_indent(&format_with(move |f| {
-            format_block_of_members(f, members)
-        })))]
-    )?;
-    write!(f, [hard_line_break(), token("}")])
 }
 
 /// Return the opening brace token for one class body.
@@ -185,41 +119,6 @@ fn write_class_body_leading_comments<'ast>(
     }
 
     Ok(())
-}
-
-/// Write one declaration type-member block without its leading separator.
-fn write_type_member_block<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    members: &[LocalNodeId<TypeMember>],
-) -> FormatResult<()> {
-    // empty body
-    if members.is_empty() {
-        let node_span = f.context().span(node_id);
-
-        if f.context().comments().has_comment_in_span(node_span) {
-            return write!(
-                f,
-                [
-                    token("{"),
-                    format_dangling_comments(node_span).with_block_indent(),
-                    token("}")
-                ]
-            );
-        }
-
-        return write!(f, [empty_block_with_infix_annotations(node_id)]);
-    }
-
-    // member body
-    write!(f, [token("{"), hard_line_break()])?;
-    write!(
-        f,
-        [group(&block_indent(&format_with(move |f| {
-            format_type_member_block_list(f, members)
-        })))]
-    )?;
-    write!(f, [hard_line_break(), token("}")])
 }
 
 /// Return whether one type expression contains generic arguments.
@@ -330,42 +229,29 @@ fn class_heritage_should_group(
     false
 }
 
-/// Return class decorators that appear before one export token.
-fn class_decorators_before_export(
+/// Split class decorators around one export token.
+fn split_class_decorators(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
     export_start: u32,
-) -> Vec<LocalNodeId<Decorator>> {
-    let mut annotation_ids = Vec::new();
+) -> (
+    SmallVec<[LocalNodeId<Decorator>; 4]>,
+    SmallVec<[LocalNodeId<Decorator>; 4]>,
+) {
+    let mut before = SmallVec::new();
+    let mut after = SmallVec::new();
 
     for annotation_id in context.annotation_ids(node_id).iter().copied() {
         let annotation_span = context.annotation_span(annotation_id);
 
         if annotation_span.end < export_start {
-            annotation_ids.push(annotation_id);
+            before.push(annotation_id);
+        } else if annotation_span.start > export_start {
+            after.push(annotation_id);
         }
     }
 
-    annotation_ids
-}
-
-/// Return class decorators that appear after one export token.
-fn class_decorators_after_export(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Declaration>,
-    export_start: u32,
-) -> Vec<LocalNodeId<Decorator>> {
-    let mut annotation_ids = Vec::new();
-
-    for annotation_id in context.annotation_ids(node_id).iter().copied() {
-        let annotation_span = context.annotation_span(annotation_id);
-
-        if annotation_span.start > export_start {
-            annotation_ids.push(annotation_id);
-        }
-    }
-
-    annotation_ids
+    (before, after)
 }
 
 /// Return whether one interface heritage layout should use group mode.
@@ -437,7 +323,7 @@ pub(crate) fn format_struct_declaration<'ast>(
 
     // body
     write_declaration_body_separator(f, header_group_id)?;
-    write_member_block(f, node_id, &declaration.members)?;
+    write_member_block(f, node_id, &declaration.members, format_block_of_members)?;
 
     // postfix annotations
     write!(f, [postfix_annotations(f.context(), node_id)])
@@ -536,10 +422,11 @@ fn write_class_header<'ast>(
                             write!(f, [FormatTrailingComments::Comments(&extends_comments)])?;
                         }
                     } else {
-                        let [first_implements_type, ..] = declaration.implements_types.as_slice()
-                        else {
-                            unreachable!("implements types are not empty");
-                        };
+                        let first_implements_type = declaration.implements_types.first().ok_or(
+                            FormatError::SyntaxError {
+                                message: "implements clause requires at least one type",
+                            },
+                        )?;
                         let following_span_start = f.context().span(*first_implements_type).start;
 
                         write!(f, [FormatNodeWithoutTrailingComments(extends_type)])?;
@@ -548,7 +435,7 @@ fn write_class_header<'ast>(
                             [format_trailing_comments(
                                 f.context().span(node_id),
                                 f.context().span(extends_type),
-                                following_span_start,
+                                Some(following_span_start),
                             )]
                         )?;
                     }
@@ -676,13 +563,15 @@ pub(crate) fn format_class_declaration<'ast>(
                     Expression::Assign { .. }
                 )
         });
+
+    // split decorators around export
     let export_start = declaration_export_token(f.context(), node_id).map(|token| token.span.start);
-    let decorators_before_export = export_start.map_or_else(Vec::new, |export_start| {
-        class_decorators_before_export(f.context(), node_id, export_start)
-    });
-    let decorators_after_export = export_start.map_or_else(Vec::new, |export_start| {
-        class_decorators_after_export(f.context(), node_id, export_start)
-    });
+    let (decorators_before_export, decorators_after_export) =
+        if let Some(export_start) = export_start {
+            split_class_decorators(f.context(), node_id, export_start)
+        } else {
+            (SmallVec::new(), SmallVec::new())
+        };
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         // decorator and export prefixes
         if declaration.export.is_some() {
@@ -733,7 +622,7 @@ pub(crate) fn format_class_declaration<'ast>(
         // body
         write_class_body_leading_comments(f, node_id, &declaration.members)?;
         write_declaration_body_separator(f, header_group_id)?;
-        write_member_block(f, node_id, &declaration.members)
+        write_member_block(f, node_id, &declaration.members, format_block_of_members)
     });
 
     // decorated class expressions own their grouped parentheses
@@ -962,7 +851,12 @@ pub(crate) fn format_interface_declaration<'ast>(
 
         // body
         write_declaration_body_separator(f, header_group_id)?;
-        write_type_member_block(f, node_id, &declaration.members)
+        write_member_block(
+            f,
+            node_id,
+            &declaration.members,
+            format_type_member_block_list,
+        )
     });
 
     write!(f, [group(&content)])?;

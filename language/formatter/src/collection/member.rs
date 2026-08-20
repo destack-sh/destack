@@ -1,5 +1,5 @@
 use super::property::{
-    format_field_like, format_method_like, format_node_with_directive, name_requires_quote_group,
+    format_member_field, format_method_like, format_node_with_directive, name_requires_quote_group,
 };
 use crate::annotation::{
     decorator_prefix_annotations, infix_or_postfix_annotations, prefix_comments_before_decorators,
@@ -8,15 +8,15 @@ use crate::collection::format_block_nodes_with_ignore_ranges_after;
 use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, format_where_clause, write_generic_parameter_list,
 };
-use crate::declaration::write_statement_terminator_after_anchor;
+use crate::declaration::{
+    write_keyword_prefix, write_statement_terminator_after_anchor, write_visibility_prefix,
+};
 use crate::file::{
     node_has_ignore_directive, node_has_trailing_ignore_directive, write_ignored_node,
     write_source_span,
 };
 use crate::{DestackFormatter, FormatNode};
-use destack_dir::{
-    Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression, Visibility,
-};
+use destack_dir::{Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
@@ -94,63 +94,6 @@ fn class_member_should_force_quotes<'ast>(
 
         name.is_some_and(|name| name_requires_quote_group(f.context(), name))
     })
-}
-
-/// Write one visibility prefix.
-fn write_visibility_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    visibility: Option<Visibility>,
-) -> FormatResult<()> {
-    // visibility
-    if let Some(visibility) = visibility {
-        let keyword = match visibility {
-            Visibility::Public => Keyword::Public,
-            Visibility::Protected => Keyword::Protected,
-            Visibility::Private => Keyword::Private,
-        };
-        write!(f, [keyword, space()])?;
-    }
-
-    Ok(())
-}
-
-/// Write one is_ambient prefix.
-fn write_ambient_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_ambient: bool,
-) -> FormatResult<()> {
-    // is_ambient
-    if is_ambient {
-        write!(f, [Keyword::Declare, space()])?;
-    }
-
-    Ok(())
-}
-
-/// Write one abstract prefix.
-fn write_abstract_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_abstract: bool,
-) -> FormatResult<()> {
-    // abstract
-    if is_abstract {
-        write!(f, [Keyword::Abstract, space()])?;
-    }
-
-    Ok(())
-}
-
-/// Write one override prefix.
-fn write_override_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_override: bool,
-) -> FormatResult<()> {
-    // override
-    if is_override {
-        write!(f, [Keyword::Override, space()])?;
-    }
-
-    Ok(())
 }
 
 /// Write one type annotation.
@@ -258,10 +201,10 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     is_override,
                 } => {
                     // prefixes
-                    write_ambient_prefix(f, *is_ambient)?;
+                    write_keyword_prefix(f, Keyword::Declare, *is_ambient)?;
                     write_visibility_prefix(f, *visibility)?;
-                    write_abstract_prefix(f, *is_abstract)?;
-                    write_override_prefix(f, *is_override)?;
+                    write_keyword_prefix(f, Keyword::Abstract, *is_abstract)?;
+                    write_keyword_prefix(f, Keyword::Override, *is_override)?;
 
                     // head
                     write!(f, [Keyword::Type, space(), *name])?;
@@ -298,10 +241,10 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     is_override,
                 } => {
                     // prefixes
-                    write_ambient_prefix(f, *is_ambient)?;
+                    write_keyword_prefix(f, Keyword::Declare, *is_ambient)?;
                     write_visibility_prefix(f, *visibility)?;
-                    write_abstract_prefix(f, *is_abstract)?;
-                    write_override_prefix(f, *is_override)?;
+                    write_keyword_prefix(f, Keyword::Abstract, *is_abstract)?;
+                    write_keyword_prefix(f, Keyword::Override, *is_override)?;
 
                     // keyword and name
                     write!(f, [Keyword::Const, space(), *name])?;
@@ -312,42 +255,10 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                         write!(f, [space(), token("="), space(), *value])?;
                     }
                 }
-                Member::Field {
-                    name,
-                    declared_type,
-                    default,
-                    is_optional,
-                    is_readonly,
-                    mutability,
-                    visibility,
-                    is_ambient,
-                    is_abstract,
-                    is_override,
-                    is_static,
-                    is_accessor,
-                    is_definite,
-                    ..
-                } => {
+                Member::Field { .. } => {
                     let force_quotes = class_member_should_force_quotes(f, node_id);
 
-                    format_field_like(
-                        f,
-                        node_id,
-                        *name,
-                        *declared_type,
-                        *visibility,
-                        *is_ambient,
-                        *is_static,
-                        *is_abstract,
-                        *is_override,
-                        *is_readonly,
-                        *mutability,
-                        *is_accessor,
-                        *is_optional,
-                        *is_definite,
-                        *default,
-                        force_quotes,
-                    )?;
+                    format_member_field(f, node_id, self, force_quotes)?;
                 }
                 Member::StaticBlock { body } => {
                     // keyword

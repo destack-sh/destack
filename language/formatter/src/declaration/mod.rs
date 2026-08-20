@@ -1,6 +1,7 @@
 mod declaration;
 mod function;
 mod lambda;
+mod modifier;
 mod semicolon;
 pub(crate) mod sequence;
 mod r#type;
@@ -17,6 +18,10 @@ pub(crate) use self::function::format_function_declaration;
 pub(crate) use self::lambda::{
     FormatLambdaDeclarationOptions, FunctionCacheMode, GroupedCallArgumentLayout,
     format_lambda_declaration, format_lambda_declaration_with_options,
+};
+pub(crate) use self::modifier::{
+    write_keyword_prefix, write_mutability_prefix, write_token_prefix, write_token_suffix,
+    write_visibility_prefix,
 };
 pub(crate) use self::semicolon::{
     expression_needs_statement_terminator, statement_trailing_comment_anchor_end,

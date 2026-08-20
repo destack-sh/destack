@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 
 use crate::annotation::{
     FormatLeadingComments, block_infix_annotations, format_dangling_comments,
@@ -29,27 +29,259 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Mutability {
     }
 }
 
-/// Return object-pattern fields to render, normalizing out parser elision artifacts.
-fn object_pattern_render_fields<'a>(
-    tree: &Tree,
-    fields: &'a [LocalNodeId<PatternField>],
-) -> Cow<'a, [LocalNodeId<PatternField>]> {
-    let has_elision = fields
-        .iter()
-        .copied()
-        .any(|field_id| matches!(tree.get(field_id), PatternField::Elision));
+/// One object destructuring pattern.
+enum ObjectPattern<'a> {
+    /// One binding pattern with optional nominal type.
+    Binding {
+        /// The pattern node.
+        node_id: LocalNodeId<Pattern>,
+        /// The nominal type prefix.
+        ty: Option<LocalNodeId<TypeExpression>>,
+        /// The fields rendered inside the object.
+        fields: Cow<'a, [LocalNodeId<PatternField>]>,
+    },
+    /// One assignment target pattern.
+    Assignment {
+        /// The pattern node.
+        node_id: LocalNodeId<AssignPattern>,
+        /// The fields rendered inside the object.
+        fields: &'a [LocalNodeId<AssignPatternField>],
+    },
+}
 
-    if !has_elision {
-        return Cow::Borrowed(fields);
-    }
+/// One object pattern layout.
+#[derive(Clone, Copy, Debug)]
+enum ObjectPatternLayout {
+    /// Keep the fields on the current line.
+    Inline,
+    /// Group the fields and optionally force expansion.
+    Group {
+        /// Whether the group must expand.
+        expand: bool,
+    },
+}
 
-    Cow::Owned(
-        fields
+impl<'a> ObjectPattern<'a> {
+    /// Create one binding object pattern and discard parser elision nodes.
+    fn binding(
+        tree: &Tree,
+        node_id: LocalNodeId<Pattern>,
+        ty: Option<LocalNodeId<TypeExpression>>,
+        fields: &'a [LocalNodeId<PatternField>],
+    ) -> Self {
+        let has_elision = fields
             .iter()
             .copied()
-            .filter(|field_id| !matches!(tree.get(*field_id), PatternField::Elision))
-            .collect(),
-    )
+            .any(|field_id| matches!(tree.get(field_id), PatternField::Elision));
+        let fields = if has_elision {
+            Cow::Owned(
+                fields
+                    .iter()
+                    .copied()
+                    .filter(|field_id| !matches!(tree.get(*field_id), PatternField::Elision))
+                    .collect(),
+            )
+        } else {
+            Cow::Borrowed(fields)
+        };
+
+        Self::Binding {
+            node_id,
+            ty,
+            fields,
+        }
+    }
+
+    /// Create one assignment object pattern.
+    fn assignment(
+        node_id: LocalNodeId<AssignPattern>,
+        fields: &'a [LocalNodeId<AssignPatternField>],
+    ) -> Self {
+        Self::Assignment { node_id, fields }
+    }
+
+    /// Return whether the pattern has no rendered fields.
+    fn is_empty(&self) -> bool {
+        match self {
+            Self::Binding { fields, .. } => fields.is_empty(),
+            Self::Assignment { fields, .. } => fields.is_empty(),
+        }
+    }
+
+    /// Return whether the last field forbids a trailing separator.
+    fn forbids_trailing_separator(&self, tree: &Tree) -> bool {
+        match self {
+            Self::Binding { fields, .. } => {
+                pattern_fields_disallow_trailing_separator(tree, fields)
+            }
+            Self::Assignment { fields, .. } => {
+                assign_pattern_fields_disallow_trailing_separator(tree, fields)
+            }
+        }
+    }
+
+    /// Return whether one field directly contains another destructuring pattern.
+    fn has_nested_pattern(&self, tree: &Tree) -> bool {
+        match self {
+            Self::Binding { fields, .. } => fields.iter().copied().any(|field_id| {
+                let pattern = match tree.get(field_id) {
+                    PatternField::Named { pattern, .. } => *pattern,
+                    PatternField::Computed { pattern, .. }
+                    | PatternField::Positional { pattern } => Some(*pattern),
+                    PatternField::Rest { .. } | PatternField::Elision => None,
+                };
+
+                pattern.is_some_and(|pattern| pattern_is_destructuring(tree, pattern))
+            }),
+            Self::Assignment { fields, .. } => fields.iter().copied().any(|field_id| {
+                let pattern = match tree.get(field_id) {
+                    AssignPatternField::Named { pattern, .. }
+                    | AssignPatternField::Computed { pattern, .. }
+                    | AssignPatternField::Positional { pattern } => Some(*pattern),
+                    AssignPatternField::Rest { .. } | AssignPatternField::Elision => None,
+                };
+
+                pattern.is_some_and(|pattern| assign_pattern_is_destructuring(tree, pattern))
+            }),
+        }
+    }
+
+    /// Return whether adjacent fields have source comments between them.
+    fn has_separator_comments(&self, context: &DestackFormatContext<'_>) -> bool {
+        match self {
+            Self::Binding { fields, .. } => fields
+                .windows(2)
+                .any(|fields| object_field_gap_has_comments(context, fields[0], fields[1])),
+            Self::Assignment { fields, .. } => fields
+                .windows(2)
+                .any(|fields| object_field_gap_has_comments(context, fields[0], fields[1])),
+        }
+    }
+
+    /// Return whether a defaulting pattern owns this object pattern.
+    fn has_default_parent(&self, context: &DestackFormatContext<'_>) -> bool {
+        match self {
+            Self::Binding { node_id, .. } => {
+                let Some((parent_id, NodeType::Pattern)) = context.parent(*node_id) else {
+                    return false;
+                };
+
+                matches!(
+                    context.tree.get(LocalNodeId::<Pattern>::new(parent_id)),
+                    Pattern::Default { .. }
+                )
+            }
+            Self::Assignment { node_id, .. } => {
+                let Some((parent_id, NodeType::AssignPattern)) = context.parent(*node_id) else {
+                    return false;
+                };
+
+                matches!(
+                    context
+                        .tree
+                        .get(LocalNodeId::<AssignPattern>::new(parent_id)),
+                    AssignPattern::Default { .. }
+                )
+            }
+        }
+    }
+
+    /// Return whether the parent requires this pattern to stay inline.
+    fn is_inline(&self, context: &DestackFormatContext<'_>) -> bool {
+        match self {
+            Self::Binding { node_id, .. } => binding_object_is_inline(context, *node_id),
+            Self::Assignment { node_id, .. } => assignment_object_is_inline(context, *node_id),
+        }
+    }
+
+    /// Select the object field layout.
+    fn layout(&self, context: &DestackFormatContext<'_>) -> ObjectPatternLayout {
+        let should_expand = !self.has_default_parent(context)
+            && (self.has_nested_pattern(context.tree) || self.has_separator_comments(context));
+
+        if should_expand {
+            ObjectPatternLayout::Group { expand: true }
+        } else if self.is_inline(context) {
+            ObjectPatternLayout::Inline
+        } else {
+            ObjectPatternLayout::Group { expand: false }
+        }
+    }
+
+    /// Format an empty object with its interior annotations.
+    fn format_empty<'ast>(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            Self::Binding { node_id, .. } => {
+                format_empty_pattern_delimiter_with_interior_annotations(f, *node_id, "{", "}")
+            }
+            Self::Assignment { node_id, .. } => {
+                format_empty_pattern_delimiter_with_interior_annotations(f, *node_id, "{", "}")
+            }
+        }
+    }
+
+    /// Write the object fields.
+    fn write_fields<'ast>(
+        &self,
+        f: &mut DestackFormatter<'ast, '_>,
+        trailing_separator: TrailingSeparator,
+    ) -> FormatResult<()> {
+        match self {
+            Self::Binding { fields, .. } => write!(
+                f,
+                [separated_entries(
+                    ",",
+                    fields.as_ref(),
+                    trailing_separator,
+                    None
+                )]
+            ),
+            Self::Assignment { fields, .. } => {
+                write!(
+                    f,
+                    [separated_entries(",", fields, trailing_separator, None)]
+                )
+            }
+        }
+    }
+
+    /// Format the complete object pattern.
+    fn format<'ast>(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        if let Self::Binding { ty: Some(ty), .. } = self {
+            write!(f, [ty, space()])?;
+        }
+
+        if self.is_empty() {
+            return self.format_empty(f);
+        }
+
+        let trailing_separator = if self.forbids_trailing_separator(f.context().tree)
+            || f.context().options.trailing_comma == TrailingComma::None
+        {
+            TrailingSeparator::Omit
+        } else {
+            TrailingSeparator::Allowed
+        };
+        let fields = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            self.write_fields(f, trailing_separator)
+        });
+        let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if f.context().options.bracket_spacing {
+                write!(f, [soft_space_or_block_indent(&fields)])
+            } else {
+                write!(f, [soft_block_indent(&fields)])
+            }
+        });
+
+        write!(f, [token("{")])?;
+        match self.layout(f.context()) {
+            ObjectPatternLayout::Inline => write!(f, [body])?,
+            ObjectPatternLayout::Group { expand } => {
+                write!(f, [group(&body).should_expand(expand)])?;
+            }
+        }
+        write!(f, [token("}")])
+    }
 }
 
 /// Return whether trailing separators are invalid for the current pattern field list.
@@ -322,141 +554,65 @@ where
     Ok(())
 }
 
-/// Return whether one object-like pattern is inline in its parent.
-fn object_pattern_is_inline(
+/// Return whether one binding object must stay inline in its parent.
+fn binding_object_is_inline(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Pattern>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
-    if parent_type != NodeType::Parameter {
-        return false;
-    }
+    match parent_type {
+        NodeType::Parameter => {
+            let parameter = context.tree.get(LocalNodeId::<Parameter>::new(parent_id));
+            let pattern = match parameter {
+                Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
+                    Some(*pattern)
+                }
+                Parameter::Named { .. } | Parameter::VariadicNamed { .. } | Parameter::Error => {
+                    None
+                }
+            };
 
-    let parameter = context.tree.get(LocalNodeId::<Parameter>::new(parent_id));
-    let parameter_pattern = match parameter {
-        Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
-            Some(*pattern)
+            pattern.is_some_and(|pattern| pattern == node_id)
         }
-        Parameter::Named { .. } | Parameter::VariadicNamed { .. } | Parameter::Error => None,
-    };
+        NodeType::Declarator => {
+            let declarator = context.tree.get(LocalNodeId::<Declarator>::new(parent_id));
 
-    parameter_pattern.is_some_and(|pattern_id| pattern_id.id == node_id.id)
-}
-
-/// Return whether one object-like pattern is in assignment form.
-fn object_pattern_is_in_assignment_like(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Pattern>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Declarator {
-        return false;
+            declarator.pattern == node_id
+        }
+        _ => false,
     }
-
-    let declarator = context.tree.get(LocalNodeId::<Declarator>::new(parent_id));
-    declarator.pattern.id == node_id.id
 }
 
-/// Return whether one object-like pattern should break its properties.
-fn object_pattern_should_break_properties(
+/// Return whether one assignment object is the direct target of an assignment.
+fn assignment_object_is_inline(
     context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Pattern>,
-    fields: &[LocalNodeId<PatternField>],
+    node_id: LocalNodeId<AssignPattern>,
 ) -> bool {
-    // assignment wrappers keep nested object patterns flat
-    if object_pattern_has_assignment_wrapper_parent(context, node_id) {
-        return false;
-    }
-
-    // direct nested destructuring
-    let has_direct_nested_pattern = fields
-        .iter()
-        .copied()
-        .any(|field_id| object_pattern_field_has_direct_nested_pattern(context.tree, field_id));
-
-    // separator comments
-    let has_separator_comments = object_pattern_has_separator_comments(context, fields);
-
-    has_direct_nested_pattern || has_separator_comments
-}
-
-/// Return whether one object-like pattern is wrapped by a defaulting pattern.
-fn object_pattern_has_assignment_wrapper_parent(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Pattern>,
-) -> bool {
-    // parent kind
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+    let Some((parent_id, NodeType::Expression)) = context.parent(node_id) else {
         return false;
     };
 
-    if parent_type != NodeType::Pattern {
-        return false;
-    }
+    let expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
 
-    // assignment wrapper
-    matches!(
-        context.tree.get(LocalNodeId::<Pattern>::new(parent_id)),
-        Pattern::Default { .. }
-    )
+    matches!(expression, Expression::Assign { left, .. } if *left == node_id)
 }
 
-/// Return whether one pattern field contains a direct nested object or sequence pattern.
-fn object_pattern_field_has_direct_nested_pattern(
-    tree: &Tree,
-    field_id: LocalNodeId<PatternField>,
-) -> bool {
-    match tree.get(field_id) {
-        // nested value
-        PatternField::Named {
-            pattern: Some(pattern_id),
-            ..
-        }
-        | PatternField::Computed {
-            pattern: pattern_id,
-            ..
-        }
-        | PatternField::Positional {
-            pattern: pattern_id,
-        } => pattern_is_direct_object_or_array_like(tree, *pattern_id),
-
-        // flat field
-        PatternField::Named { pattern: None, .. }
-        | PatternField::Rest { .. }
-        | PatternField::Elision => false,
-    }
-}
-
-/// Return whether one pattern is directly object-like or array-like.
-fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<Pattern>) -> bool {
+/// Return whether one binding pattern directly destructures an object or sequence.
+pub(crate) fn pattern_is_destructuring(tree: &Tree, pattern_id: LocalNodeId<Pattern>) -> bool {
     match tree.get(pattern_id) {
-        // direct nested destructuring
         Pattern::Object { .. }
         | Pattern::NominalObject { .. }
         | Pattern::Sequence { .. }
         | Pattern::NominalTuple { .. }
         | Pattern::Tuple { .. } => true,
-
-        // assignment wrappers stay owned by assignment-like layout
-        Pattern::Default { .. } => false,
-
-        // transparent wrappers
         Pattern::Must(pattern)
         | Pattern::BorrowOf { right: pattern, .. }
         | Pattern::MoveOf { right: pattern, .. }
-        | Pattern::DereferenceOf { right: pattern } => {
-            pattern_is_direct_object_or_array_like(tree, *pattern)
-        }
-
-        // non-destructuring patterns
-        Pattern::Binding { pattern: None, .. }
-        | Pattern::Binding {
-            pattern: Some(_), ..
-        }
+        | Pattern::DereferenceOf { right: pattern } => pattern_is_destructuring(tree, *pattern),
+        Pattern::Binding { .. }
+        | Pattern::Default { .. }
         | Pattern::Wildcard
         | Pattern::Expression { .. }
         | Pattern::Range { .. }
@@ -464,341 +620,33 @@ fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<P
     }
 }
 
-/// Return whether field separators have comments.
-fn object_pattern_has_separator_comments(
-    context: &DestackFormatContext<'_>,
-    fields: &[LocalNodeId<PatternField>],
-) -> bool {
-    fields.windows(2).any(|pair| {
-        let [left_id, right_id] = pair else {
-            return false;
-        };
-
-        let left_span = context.span(*left_id);
-        let right_span = context.span(*right_id);
-
-        !context
-            .comments()
-            .comments_in_range(left_span.end, right_span.start)
-            .is_empty()
-    })
-}
-
-#[derive(Clone, Copy, Debug)]
-enum ObjectPatternLayout {
-    Empty,
-    Inline,
-    Group { expand: bool },
-}
-
-/// Return the layout for one object-like pattern.
-fn object_pattern_layout(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Pattern>,
-    fields: &[LocalNodeId<PatternField>],
-) -> ObjectPatternLayout {
-    // empty pattern
-    if fields.is_empty() {
-        return ObjectPatternLayout::Empty;
-    }
-
-    // inline parameter pattern
-    if object_pattern_is_inline(context, node_id) {
-        return ObjectPatternLayout::Inline;
-    }
-
-    // expanded nested destructuring
-    if object_pattern_should_break_properties(context, node_id, fields) {
-        return ObjectPatternLayout::Group { expand: true };
-    }
-
-    // assignment-like layout
-    if object_pattern_is_in_assignment_like(context, node_id) {
-        return ObjectPatternLayout::Inline;
-    }
-
-    ObjectPatternLayout::Group { expand: false }
-}
-
-/// Format one object-like pattern, optionally prefixed with a type expression.
-fn format_object_pattern_like<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Pattern>,
-    ty: Option<LocalNodeId<TypeExpression>>,
-    fields: &[LocalNodeId<PatternField>],
-) -> FormatResult<()> {
-    // tagged prefix
-    if let Some(ty) = ty {
-        write!(f, [ty, space()])?;
-    }
-
-    // layout
-    let render_fields = object_pattern_render_fields(f.context().tree, fields);
-    let layout = object_pattern_layout(f.context(), node_id, render_fields.as_ref());
-
-    if matches!(layout, ObjectPatternLayout::Empty) {
-        return format_empty_pattern_delimiter_with_interior_annotations(f, node_id, "{", "}");
-    }
-
-    // separator policy
-    let allow_trailing_separator =
-        !pattern_fields_disallow_trailing_separator(f.context().tree, render_fields.as_ref());
-    let trailing_separator =
-        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
-            TrailingSeparator::Omit
-        } else {
-            TrailingSeparator::Allowed
-        };
-
-    // field writers
-    let format_fields = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write!(
-            f,
-            [separated_entries(
-                ",",
-                render_fields.as_ref(),
-                trailing_separator,
-                None,
-            )]
-        )?;
-        Ok(())
-    });
-
-    // bracket spacing
-    let format_properties = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if f.context().options.bracket_spacing {
-            write!(f, [soft_space_or_block_indent(&format_fields)])?;
-        } else {
-            write!(f, [soft_block_indent(&format_fields)])?;
-        }
-        Ok(())
-    });
-
-    // layout
-    write!(f, [token("{")])?;
-
-    match layout {
-        ObjectPatternLayout::Empty => unreachable!(),
-        ObjectPatternLayout::Inline => write!(f, [format_properties])?,
-        ObjectPatternLayout::Group { expand } => {
-            write!(f, [group(&format_properties).should_expand(expand)])?;
-        }
-    }
-    write!(f, [token("}")])?;
-
-    Ok(())
-}
-
-/// Return whether one assign-pattern is wrapped by a defaulting target.
-fn object_assign_pattern_has_assignment_wrapper_parent(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<AssignPattern>,
-) -> bool {
-    // parent kind
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-
-    if parent_type != NodeType::AssignPattern {
-        return false;
-    }
-
-    // assignment wrapper
-    matches!(
-        context
-            .tree
-            .get(LocalNodeId::<AssignPattern>::new(parent_id)),
-        AssignPattern::Default { .. }
-    )
-}
-
-/// Return whether one object-like assign-pattern is the direct target of an assignment.
-fn object_assign_pattern_is_assignment_target(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<AssignPattern>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
-    matches!(expression, Expression::Assign { left, .. } if *left == node_id)
-}
-
-/// Return whether one assign-pattern field contains a direct nested object or sequence pattern.
-fn object_assign_pattern_field_has_direct_nested_pattern(
-    tree: &Tree,
-    field_id: LocalNodeId<AssignPatternField>,
-) -> bool {
-    match tree.get(field_id) {
-        // nested value
-        AssignPatternField::Named {
-            pattern: pattern_id,
-            ..
-        }
-        | AssignPatternField::Computed {
-            pattern: pattern_id,
-            ..
-        }
-        | AssignPatternField::Positional {
-            pattern: pattern_id,
-        } => assign_pattern_is_direct_object_or_array_like(tree, *pattern_id),
-
-        // flat field
-        AssignPatternField::Rest { .. } | AssignPatternField::Elision => false,
-    }
-}
-
-/// Return whether one assign-pattern is directly object-like or array-like.
-fn assign_pattern_is_direct_object_or_array_like(
-    tree: &Tree,
-    pattern_id: LocalNodeId<AssignPattern>,
-) -> bool {
+/// Return whether one assignment pattern directly destructures an object or sequence.
+fn assign_pattern_is_destructuring(tree: &Tree, pattern_id: LocalNodeId<AssignPattern>) -> bool {
     match tree.get(pattern_id) {
-        // direct nested destructuring
         AssignPattern::Object { .. }
         | AssignPattern::Sequence { .. }
         | AssignPattern::Tuple { .. } => true,
-
-        // assignment wrappers stay owned by assignment-like layout
-        AssignPattern::Default { .. } => false,
-
-        // simple target
-        AssignPattern::Place { .. } => false,
+        AssignPattern::Default { .. } | AssignPattern::Place { .. } => false,
     }
 }
 
-/// Return whether assign-pattern field separators have comments.
-fn object_assign_pattern_has_separator_comments(
+/// Return whether two object fields have comments between them.
+fn object_field_gap_has_comments<T>(
     context: &DestackFormatContext<'_>,
-    fields: &[LocalNodeId<AssignPatternField>],
-) -> bool {
-    fields.windows(2).any(|pair| {
-        let [left_id, right_id] = pair else {
-            return false;
-        };
+    left_id: LocalNodeId<T>,
+    right_id: LocalNodeId<T>,
+) -> bool
+where
+    T: Node + Clone,
+    Tree: TreeStore<T>,
+{
+    let left_span = context.span(left_id);
+    let right_span = context.span(right_id);
 
-        let left_span = context.span(*left_id);
-        let right_span = context.span(*right_id);
-
-        !context
-            .comments()
-            .comments_in_range(left_span.end, right_span.start)
-            .is_empty()
-    })
-}
-
-/// Return whether one object-like assign-pattern should break its properties.
-fn object_assign_pattern_should_break_properties(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<AssignPattern>,
-    fields: &[LocalNodeId<AssignPatternField>],
-) -> bool {
-    // assignment wrappers keep nested object patterns flat
-    if object_assign_pattern_has_assignment_wrapper_parent(context, node_id) {
-        return false;
-    }
-
-    // direct nested destructuring
-    let has_direct_nested_pattern = fields.iter().copied().any(|field_id| {
-        object_assign_pattern_field_has_direct_nested_pattern(context.tree, field_id)
-    });
-
-    // separator comments
-    let has_separator_comments = object_assign_pattern_has_separator_comments(context, fields);
-
-    has_direct_nested_pattern || has_separator_comments
-}
-
-#[derive(Clone, Copy, Debug)]
-enum ObjectAssignPatternLayout {
-    Empty,
-    Inline,
-    Group { expand: bool },
-}
-
-/// Return the layout for one object-like assign-pattern.
-fn object_assign_pattern_layout(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<AssignPattern>,
-    fields: &[LocalNodeId<AssignPatternField>],
-) -> ObjectAssignPatternLayout {
-    // empty pattern
-    if fields.is_empty() {
-        return ObjectAssignPatternLayout::Empty;
-    }
-
-    // expanded nested destructuring
-    if object_assign_pattern_should_break_properties(context, node_id, fields) {
-        return ObjectAssignPatternLayout::Group { expand: true };
-    }
-
-    // assignment-like layout
-    if object_assign_pattern_is_assignment_target(context, node_id) {
-        return ObjectAssignPatternLayout::Inline;
-    }
-
-    ObjectAssignPatternLayout::Group { expand: false }
-}
-
-/// Format one object-like assign-pattern.
-fn format_object_assign_pattern_like<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<AssignPattern>,
-    fields: &[LocalNodeId<AssignPatternField>],
-) -> FormatResult<()> {
-    // layout
-    let layout = object_assign_pattern_layout(f.context(), node_id, fields);
-
-    if matches!(layout, ObjectAssignPatternLayout::Empty) {
-        return format_empty_pattern_delimiter_with_interior_annotations(f, node_id, "{", "}");
-    }
-
-    // separator policy
-    let allow_trailing_separator =
-        !assign_pattern_fields_disallow_trailing_separator(f.context().tree, fields);
-    let trailing_separator =
-        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
-            TrailingSeparator::Omit
-        } else {
-            TrailingSeparator::Allowed
-        };
-
-    // field writers
-    let format_fields = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write!(
-            f,
-            [separated_entries(",", fields, trailing_separator, None)]
-        )?;
-        Ok(())
-    });
-
-    // bracket spacing
-    let format_properties = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if f.context().options.bracket_spacing {
-            write!(f, [soft_space_or_block_indent(&format_fields)])?;
-        } else {
-            write!(f, [soft_block_indent(&format_fields)])?;
-        }
-        Ok(())
-    });
-
-    // layout
-    write!(f, [token("{")])?;
-
-    match layout {
-        ObjectAssignPatternLayout::Empty => unreachable!(),
-        ObjectAssignPatternLayout::Inline => write!(f, [format_properties])?,
-        ObjectAssignPatternLayout::Group { expand } => {
-            write!(f, [group(&format_properties).should_expand(expand)])?;
-        }
-    }
-    write!(f, [token("}")])?;
-
-    Ok(())
+    !context
+        .comments()
+        .comments_in_range(left_span.end, right_span.start)
+        .is_empty()
 }
 
 /// Format one binding assignment pattern in assignment-pattern order.
@@ -875,7 +723,11 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             Pattern::Wildcard => write!(f, [token("_")])?,
             Pattern::Must(unwrap) => write!(f, [unwrap, token("!")])?,
 
-            Pattern::Default { .. } => unreachable!("assignment pattern is formatted above"),
+            Pattern::Default { .. } => {
+                return Err(FormatError::SyntaxError {
+                    message: "default pattern reached ordinary pattern formatting",
+                });
+            }
 
             Pattern::BorrowOf { right, mutability } => {
                 format_prefixed_pattern(f, node_id, "&", *right, *mutability)?;
@@ -927,11 +779,11 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             }
 
             Pattern::Object { fields } => {
-                format_object_pattern_like(f, node_id, None, fields)?;
+                ObjectPattern::binding(f.context().tree, node_id, None, fields).format(f)?;
             }
 
             Pattern::NominalObject { ty, fields } => {
-                format_object_pattern_like(f, node_id, Some(*ty), fields)?;
+                ObjectPattern::binding(f.context().tree, node_id, Some(*ty), fields).format(f)?;
             }
 
             Pattern::Union { patterns } => write!(
@@ -965,7 +817,9 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
             } => {
                 // expanded field
                 if !is_shorthand {
-                    let pattern = pattern.expect("expanded named pattern field");
+                    let pattern = pattern.ok_or(FormatError::SyntaxError {
+                        message: "expanded named pattern field requires a pattern",
+                    })?;
                     write!(f, [name, token(":"), space(), pattern])?;
                 }
                 // shorthand assignment field
@@ -1028,7 +882,11 @@ impl<'ast> FormatNode<'ast, AssignPattern> for AssignPattern {
                 write!(f, [value])?;
             }
 
-            AssignPattern::Default { .. } => unreachable!("assignment pattern is formatted above"),
+            AssignPattern::Default { .. } => {
+                return Err(FormatError::SyntaxError {
+                    message: "default assignment pattern reached ordinary pattern formatting",
+                });
+            }
 
             AssignPattern::Sequence { fields } => {
                 format_assign_pattern_field_list(f, node_id, "[", "]", fields, false, false)?;
@@ -1039,7 +897,7 @@ impl<'ast> FormatNode<'ast, AssignPattern> for AssignPattern {
             }
 
             AssignPattern::Object { fields } => {
-                format_object_assign_pattern_like(f, node_id, fields)?;
+                ObjectPattern::assignment(node_id, fields).format(f)?;
             }
         }
 
@@ -1120,7 +978,9 @@ fn write_shorthand_assignment_value(
     let pattern = f.context().tree.get(pattern_id);
 
     let Pattern::Default { value, .. } = pattern else {
-        unreachable!("expected shorthand assignment pattern");
+        return Err(FormatError::SyntaxError {
+            message: "shorthand assignment requires a default pattern",
+        });
     };
 
     write!(f, [space(), token("="), space(), value])
@@ -1135,7 +995,9 @@ fn write_shorthand_assign_pattern_value(
     let pattern = f.context().tree.get(pattern_id);
 
     let AssignPattern::Default { value, .. } = pattern else {
-        unreachable!("expected shorthand assignment target");
+        return Err(FormatError::SyntaxError {
+            message: "shorthand assignment target requires a default pattern",
+        });
     };
 
     write!(f, [space(), token("="), space(), value])

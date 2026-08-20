@@ -7,8 +7,8 @@ use crate::annotation::{
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
 use crate::declaration::signature::{
-    default_generic_parameter_trailing_separator, format_where_clause, parameter_is_variadic,
-    should_hug_function_parameters, write_function_abstraction_prefix,
+    ParameterList, default_generic_parameter_trailing_separator, format_where_clause,
+    parameter_is_variadic, should_hug_function_parameters, write_function_abstraction_prefix,
     write_function_header_prefix, write_generic_parameter_list,
     write_grouped_parameters_with_return_type, write_signature_hug_parameter_list_with_this,
     write_signature_parameter_list_with_this, write_signature_return_type,
@@ -31,7 +31,7 @@ use destack_dir::{
     TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm, TypeExpression, TypeLiteral,
     TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
-use destack_fir::format::{FormatElement as FirElement, FormatLayout, FormatResult};
+use destack_fir::format::{FormatElement as FirElement, FormatError, FormatLayout, FormatResult};
 use destack_fir::prelude::{space, token, *};
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
@@ -661,7 +661,7 @@ fn write_intersection_member<'ast>(
                 format_with(move |f: &mut DestackFormatter<'ast, '_>| {
                     write_type_expression_without_trailing_comments(f, element_id, layout)
                 }),
-                format_trailing_comments(enclosing_span, element_span, following_span_start)
+                format_trailing_comments(enclosing_span, element_span, Some(following_span_start))
             ]
         );
     }
@@ -806,57 +806,16 @@ fn parameter_has_default_value(
     }
 }
 
-/// Return whether one signature should hug a parameter-owned object type.
-fn signature_should_hug_parameter_type(
+/// Return whether one callable should hug a parameter-owned object type.
+fn parameters_should_hug_type(
     context: &DestackFormatContext<'_>,
-    signature: &FunctionSignature,
+    parameters: ParameterList,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
-    let mut parameters = Vec::with_capacity(signature.parameters.len() + 1);
-
-    if let Some(this_parameter) = signature.this_parameter {
-        parameters.push(this_parameter);
-    }
-
-    parameters.extend(signature.parameters.iter().copied());
-
     parameters
         .iter()
         .any(|current| current.id == parameter_id.id)
         && should_hug_function_parameters(context, &parameters, false)
-}
-
-/// Return whether one type callable should hug a parameter-owned object type.
-fn function_type_should_hug_parameter_type(
-    context: &DestackFormatContext<'_>,
-    function: &FunctionTypeExpression,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    let mut parameters = Vec::with_capacity(function.parameters.len() + 1);
-
-    if let Some(this_parameter) = function.this_parameter {
-        parameters.push(this_parameter);
-    }
-
-    parameters.extend(function.parameters.iter().copied());
-
-    parameters
-        .iter()
-        .any(|current| current.id == parameter_id.id)
-        && should_hug_function_parameters(context, &parameters, false)
-}
-
-/// Return whether one constructor type should hug a parameter-owned object type.
-fn constructor_type_should_hug_parameter_type(
-    context: &DestackFormatContext<'_>,
-    function: &ConstructorType,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    function
-        .parameters
-        .iter()
-        .any(|current| current.id == parameter_id.id)
-        && should_hug_function_parameters(context, &function.parameters, false)
 }
 
 /// Return whether one object type should use parameter hugging layout.
@@ -883,20 +842,23 @@ fn type_object_should_hug(
         NodeType::Declaration => {
             match context.tree.get(LocalNodeId::<Declaration>::new(owner_id)) {
                 Declaration::Function(function) => {
-                    signature_should_hug_parameter_type(context, &function.signature, parameter_id)
+                    let parameters = ParameterList::from_signature(&function.signature);
+                    parameters_should_hug_type(context, parameters, parameter_id)
                 }
                 _ => false,
             }
         }
         NodeType::Property => match context.tree.get(LocalNodeId::<Property>::new(owner_id)) {
             Property::Method { signature, .. } => {
-                signature_should_hug_parameter_type(context, signature, parameter_id)
+                let parameters = ParameterList::from_signature(signature);
+                parameters_should_hug_type(context, parameters, parameter_id)
             }
             _ => false,
         },
         NodeType::Member => match context.tree.get(LocalNodeId::<Member>::new(owner_id)) {
             Member::Method { signature, .. } => {
-                signature_should_hug_parameter_type(context, signature, parameter_id)
+                let parameters = ParameterList::from_signature(signature);
+                parameters_should_hug_type(context, parameters, parameter_id)
             }
             _ => false,
         },
@@ -906,23 +868,30 @@ fn type_object_should_hug(
                 .get(LocalNodeId::<TypeExpression>::new(owner_id))
             {
                 TypeExpression::Function(function) => {
-                    function_type_should_hug_parameter_type(context, function, parameter_id)
+                    let parameters =
+                        ParameterList::new(function.this_parameter, &function.parameters);
+                    parameters_should_hug_type(context, parameters, parameter_id)
                 }
                 TypeExpression::Constructor(function) => {
-                    constructor_type_should_hug_parameter_type(context, function, parameter_id)
+                    let parameters = ParameterList::new(None, &function.parameters);
+                    parameters_should_hug_type(context, parameters, parameter_id)
                 }
                 _ => false,
             }
         }
         NodeType::TypeMember => match context.tree.get(LocalNodeId::<TypeMember>::new(owner_id)) {
             TypeMember::Method { signature, .. } => {
-                signature_should_hug_parameter_type(context, signature, parameter_id)
+                let parameters = ParameterList::from_signature(signature);
+                parameters_should_hug_type(context, parameters, parameter_id)
             }
             TypeMember::CallSignature { signature } => {
-                function_type_should_hug_parameter_type(context, signature, parameter_id)
+                let parameters =
+                    ParameterList::new(signature.this_parameter, &signature.parameters);
+                parameters_should_hug_type(context, parameters, parameter_id)
             }
             TypeMember::ConstructSignature { signature } => {
-                constructor_type_should_hug_parameter_type(context, signature, parameter_id)
+                let parameters = ParameterList::new(None, &signature.parameters);
+                parameters_should_hug_type(context, parameters, parameter_id)
             }
             _ => false,
         },
@@ -1159,21 +1128,18 @@ struct UnionChainHead {
     element_count: usize,
 }
 
-/// Return the union node and elements that carry the printable arms.
-fn union_print_chain(
+/// Return the union node that carries the printable arms.
+fn union_print_node(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
     elements: &[LocalNodeId<TypeExpression>],
-) -> (
-    LocalNodeId<TypeExpression>,
-    Vec<LocalNodeId<TypeExpression>>,
-) {
+) -> LocalNodeId<TypeExpression> {
     let mut current_id = node_id;
-    let mut current_elements = elements.to_vec();
+    let mut current_elements = elements;
 
     loop {
         if current_elements.len() != 1 {
-            return (current_id, current_elements);
+            return current_id;
         }
 
         let inner_id = current_elements[0];
@@ -1181,11 +1147,11 @@ fn union_print_chain(
             elements: inner_elements,
         } = context.tree.get(inner_id)
         else {
-            return (current_id, current_elements);
+            return current_id;
         };
 
         current_id = inner_id;
-        current_elements = inner_elements.clone();
+        current_elements = inner_elements;
     }
 }
 
@@ -1301,8 +1267,15 @@ pub(crate) fn write_union_type<'ast>(
         node_id,
         NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
     );
-    let (format_node_id, format_elements) = union_print_chain(f.context(), node_id, elements);
-    let format_elements = format_elements.as_slice();
+    let format_node_id = union_print_node(f.context(), node_id, elements);
+    let TypeExpression::Union {
+        elements: format_elements,
+    } = f.context().tree.get(format_node_id)
+    else {
+        return Err(FormatError::SyntaxError {
+            message: "union print node is not a union expression",
+        });
+    };
     let union_content_start = type_expression_content_start(f.context(), node_id);
     let leading_separator_comments = {
         let comments = f.context().comments();
@@ -2019,13 +1992,7 @@ fn write_value_parameters<'ast>(
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameter_ids: &[LocalNodeId<Parameter>],
 ) -> FormatResult<()> {
-    let mut parameters = Vec::with_capacity(parameter_ids.len() + 1);
-
-    if let Some(this_parameter) = this_parameter {
-        parameters.push(this_parameter);
-    }
-
-    parameters.extend(parameter_ids.iter().copied());
+    let parameters = ParameterList::new(this_parameter, parameter_ids);
 
     if parameters.is_empty() {
         return write!(f, [token("("), token(")")]);
@@ -2053,10 +2020,11 @@ fn write_value_parameters<'ast>(
     )
 }
 
-/// Write value parameters and return type in type position.
-fn write_value_callable_parameters_with_return_type<'ast, H, R>(
+/// Write one complete callable declaration in type position.
+fn write_type_callable<'ast, H, R>(
     f: &mut DestackFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
+    where_clauses: &[LocalNodeId<WhereClause>],
     this_form: Option<destack_dir::ThisForm>,
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameters: &[LocalNodeId<Parameter>],
@@ -2069,22 +2037,28 @@ where
     H: Format<'ast, DestackFormatContext<'ast>>,
     R: Format<'ast, DestackFormatContext<'ast>>,
 {
-    let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write_value_parameters(f, this_form, this_parameter, parameters)
+    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_value_parameters(f, this_form, this_parameter, parameters)
+        });
+
+        let parameter_count = parameters.len() + usize::from(this_parameter.is_some());
+        write_grouped_parameters_with_return_type(
+            f,
+            generic_parameters,
+            parameter_count,
+            return_type,
+            &format_parameter_head,
+            format_parameters,
+            &format_return_type,
+            false,
+            should_group_return_type,
+        )?;
+
+        write_type_callable_where_clauses(f, where_clauses)
     });
 
-    let parameter_count = parameters.len() + usize::from(this_parameter.is_some());
-    write_grouped_parameters_with_return_type(
-        f,
-        generic_parameters,
-        parameter_count,
-        return_type,
-        format_parameter_head,
-        format_parameters,
-        format_return_type,
-        false,
-        should_group_return_type,
-    )
+    write!(f, [group(&content)])
 }
 
 /// Write generic parameters for one type-space callable.
@@ -2211,80 +2185,63 @@ fn write_type_callable_where_clauses<'ast>(
 /// Write one function-like type declaration directly in type space.
 fn write_function_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _node_id: LocalNodeId<TypeExpression>,
+    node_id: LocalNodeId<TypeExpression>,
     function: &FunctionTypeExpression,
 ) -> FormatResult<()> {
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            write_type_callable_generic_parameters(f, &function.generic_parameters, false)
-        });
-
-        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            write_type_callable_arrow_return(f, _node_id, function.return_type)
-        });
-
-        write_value_callable_parameters_with_return_type(
-            f,
-            &function.generic_parameters,
-            function.this_form,
-            function.this_parameter,
-            &function.parameters,
-            function.return_type,
-            format_generic_parameters,
-            format_return_type,
-            false,
-        )?;
-
-        write_type_callable_where_clauses(f, &function.where_clauses)?;
-
-        Ok(())
+    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_type_callable_generic_parameters(f, &function.generic_parameters, false)
+    });
+    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_type_callable_arrow_return(f, node_id, function.return_type)
     });
 
-    write!(f, [group(&content)])
+    write_type_callable(
+        f,
+        &function.generic_parameters,
+        &function.where_clauses,
+        function.this_form,
+        function.this_parameter,
+        &function.parameters,
+        function.return_type,
+        generic_parameters,
+        return_type,
+        false,
+    )
 }
 
 /// Write one constructor type declaration directly in type space.
 fn write_constructor_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _node_id: LocalNodeId<TypeExpression>,
+    node_id: LocalNodeId<TypeExpression>,
     function: &ConstructorType,
 ) -> FormatResult<()> {
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        // constructor type prefix
+    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_function_abstraction_prefix(f, function.is_abstract, false)?;
         write!(f, [Keyword::New])?;
+        write_type_callable_generic_parameters(f, &function.generic_parameters, true)?;
 
-        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            write_type_callable_generic_parameters(f, &function.generic_parameters, true)?;
-            if function.generic_parameters.is_empty() {
-                write_constructor_type_parameter_boundary(f, _node_id)?;
-            }
-
-            Ok(())
-        });
-
-        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            write_type_callable_arrow_return(f, _node_id, function.return_type)
-        });
-
-        write_value_callable_parameters_with_return_type(
-            f,
-            &function.generic_parameters,
-            None,
-            None,
-            &function.parameters,
-            function.return_type,
-            format_generic_parameters,
-            format_return_type,
-            false,
-        )?;
-
-        write_type_callable_where_clauses(f, &function.where_clauses)?;
+        if function.generic_parameters.is_empty() {
+            write_constructor_type_parameter_boundary(f, node_id)?;
+        }
 
         Ok(())
     });
+    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_type_callable_arrow_return(f, node_id, function.return_type)
+    });
 
-    write!(f, [group(&content)])
+    write_type_callable(
+        f,
+        &function.generic_parameters,
+        &function.where_clauses,
+        None,
+        None,
+        &function.parameters,
+        function.return_type,
+        generic_parameters,
+        return_type,
+        false,
+    )
 }
 
 /// Write one type-space function signature.
@@ -2295,79 +2252,32 @@ fn write_type_signature<'ast>(
     name: Name,
     is_optional: bool,
 ) -> FormatResult<()> {
-    let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        // header
+    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_function_header_prefix(f, signature, false, true)?;
-
-        // name
         write!(f, [name])?;
 
-        // optional
         if is_optional {
-            let name_end = f
-                .context()
-                .tree
-                .get_main_span(node_id)
-                .map_or_else(|| f.context().span(node_id).start, |span| span.end);
-            let parameter_start = function_like_parameters_span(f.context(), node_id)
-                .map_or_else(|| f.context().span(node_id).end, |span| span.start);
-            let optional_token = f
-                .context()
-                .first_token_between(name_end, parameter_start)
-                .filter(|token| token.token.ty() == TokenType::Maybe);
-
-            if let Some(optional_token) = optional_token {
-                write_generated_boundary_comments(f, name_end, optional_token.span.start)?;
-            }
-
-            write!(f, [token("?")])?;
-
-            if let Some(optional_token) = optional_token {
-                write_generated_boundary_comments(f, optional_token.span.end, parameter_start)?;
-            }
+            write_optional_method_marker(f, node_id)?;
         }
 
-        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if !signature.generic_parameters.is_empty() {
-                write_generic_parameter_list(
-                    f,
-                    &signature.generic_parameters,
-                    default_generic_parameter_trailing_separator(f),
-                )?;
-            }
-
-            Ok(())
-        });
-
-        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if let Some(return_type) = signature.return_type {
-                write_signature_return_type(f, node_id, return_type)?;
-            }
-
-            Ok(())
-        });
-
-        write_value_callable_parameters_with_return_type(
-            f,
-            &signature.generic_parameters,
-            signature.this_form,
-            signature.this_parameter,
-            &signature.parameters,
-            signature.return_type,
-            format_generic_parameters,
-            format_return_type,
-            true,
-        )?;
-
-        // where clauses
-        if !signature.where_clauses.is_empty() {
-            format_where_clause(f, &signature.where_clauses)?;
-        }
-
-        Ok(())
+        write_type_callable_generic_parameters(f, &signature.generic_parameters, false)
+    });
+    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_type_member_return(f, node_id, signature.return_type)
     });
 
-    write!(f, [group(&signature_content)])
+    write_type_callable(
+        f,
+        &signature.generic_parameters,
+        &signature.where_clauses,
+        signature.this_form,
+        signature.this_parameter,
+        &signature.parameters,
+        signature.return_type,
+        generic_parameters,
+        return_type,
+        true,
+    )
 }
 
 /// Write one call signature declaration in type position.
@@ -2376,37 +2286,25 @@ fn write_call_signature<'ast>(
     node_id: LocalNodeId<TypeMember>,
     signature: &FunctionTypeExpression,
 ) -> FormatResult<()> {
-    let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            write_type_callable_generic_parameters(f, &signature.generic_parameters, false)
-        });
-
-        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if let Some(return_type) = signature.return_type {
-                write_signature_return_type(f, node_id, return_type)?;
-            }
-
-            Ok(())
-        });
-
-        write_value_callable_parameters_with_return_type(
-            f,
-            &signature.generic_parameters,
-            signature.this_form,
-            signature.this_parameter,
-            &signature.parameters,
-            signature.return_type,
-            format_generic_parameters,
-            format_return_type,
-            false,
-        )?;
-
-        write_type_callable_where_clauses(f, &signature.where_clauses)?;
-
-        Ok(())
+    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_type_callable_generic_parameters(f, &signature.generic_parameters, false)
+    });
+    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_type_member_return(f, node_id, signature.return_type)
     });
 
-    write!(f, [group(&signature_content)])
+    write_type_callable(
+        f,
+        &signature.generic_parameters,
+        &signature.where_clauses,
+        signature.this_form,
+        signature.this_parameter,
+        &signature.parameters,
+        signature.return_type,
+        generic_parameters,
+        return_type,
+        false,
+    )
 }
 
 /// Write one construct signature declaration in type position.
@@ -2415,46 +2313,76 @@ fn write_construct_signature<'ast>(
     node_id: LocalNodeId<TypeMember>,
     signature: &ConstructorType,
 ) -> FormatResult<()> {
-    let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        // constructor prefix
+    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_function_abstraction_prefix(f, signature.is_abstract, false)?;
         write!(f, [Keyword::New])?;
+        write_type_callable_generic_parameters(f, &signature.generic_parameters, true)?;
 
-        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            write_type_callable_generic_parameters(f, &signature.generic_parameters, true)?;
-            if signature.generic_parameters.is_empty() {
-                write!(f, [space()])?;
-            }
-
-            Ok(())
-        });
-
-        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if let Some(return_type) = signature.return_type {
-                write_signature_return_type(f, node_id, return_type)?;
-            }
-
-            Ok(())
-        });
-
-        write_value_callable_parameters_with_return_type(
-            f,
-            &signature.generic_parameters,
-            None,
-            None,
-            &signature.parameters,
-            signature.return_type,
-            format_generic_parameters,
-            format_return_type,
-            false,
-        )?;
-
-        write_type_callable_where_clauses(f, &signature.where_clauses)?;
+        if signature.generic_parameters.is_empty() {
+            write!(f, [space()])?;
+        }
 
         Ok(())
     });
+    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_type_member_return(f, node_id, signature.return_type)
+    });
 
-    write!(f, [group(&signature_content)])
+    write_type_callable(
+        f,
+        &signature.generic_parameters,
+        &signature.where_clauses,
+        None,
+        None,
+        &signature.parameters,
+        signature.return_type,
+        generic_parameters,
+        return_type,
+        false,
+    )
+}
+
+/// Write the optional marker and adjacent comments for one method.
+fn write_optional_method_marker<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeMember>,
+) -> FormatResult<()> {
+    let name_end = f
+        .context()
+        .tree
+        .get_main_span(node_id)
+        .map_or_else(|| f.context().span(node_id).start, |span| span.end);
+    let parameter_start = function_like_parameters_span(f.context(), node_id)
+        .map_or_else(|| f.context().span(node_id).end, |span| span.start);
+    let optional_token = f
+        .context()
+        .first_token_between(name_end, parameter_start)
+        .filter(|token| token.token.ty() == TokenType::Maybe);
+
+    if let Some(optional_token) = optional_token {
+        write_generated_boundary_comments(f, name_end, optional_token.span.start)?;
+    }
+
+    write!(f, [token("?")])?;
+
+    if let Some(optional_token) = optional_token {
+        write_generated_boundary_comments(f, optional_token.span.end, parameter_start)?;
+    }
+
+    Ok(())
+}
+
+/// Write an optional type-member return annotation.
+fn write_type_member_return<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeMember>,
+    return_type: Option<LocalNodeId<TypeExpression>>,
+) -> FormatResult<()> {
+    if let Some(return_type) = return_type {
+        write_signature_return_type(f, node_id, return_type)?;
+    }
+
+    Ok(())
 }
 
 /// Write one mapped-type modifier prefix.
@@ -2506,7 +2434,7 @@ impl<'ast> FormatNode<'ast, TypeMappedParameter> for TypeMappedParameter {
                 format_node_with_trailing_comments(
                     f.context().span(node_id),
                     self.source_type,
-                    source_type_comment_end
+                    Some(source_type_comment_end)
                 )
             ]
         )?;
@@ -2595,7 +2523,9 @@ fn write_mapped_value_type_annotation<'ast>(
         .context()
         .tree
         .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
-        .expect("mapped type should own its value type span");
+        .ok_or(FormatError::SyntaxError {
+            message: "mapped type value requires a type span",
+        })?;
     let separator_comments = f
         .context()
         .comments()
@@ -3094,7 +3024,7 @@ fn write_type_expression_body_inner<'ast>(
                             format_node_with_trailing_comments(
                                 f.context().span(node_id),
                                 parameter.source_type,
-                                source_type_comment_end
+                                Some(source_type_comment_end)
                             )
                         ]
                     )?;
