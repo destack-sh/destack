@@ -29,14 +29,9 @@ impl Compiler {
 
     /// Return the manifest loader string for one emitted file.
     pub(crate) fn build_manifest_loader(&self, file: &BundleFile) -> BuildManifestLoader {
-        let is_typescript = file
-            .uri
-            .last_segment()
-            .is_some_and(|name| name.ends_with(".ts"));
-
         match file.file_type {
-            FileType::Script if is_typescript => BuildManifestLoader::Ts,
-            FileType::Script => BuildManifestLoader::Js,
+            FileType::JavaScript => BuildManifestLoader::Js,
+            FileType::Css => BuildManifestLoader::Css,
             FileType::SourceMap => BuildManifestLoader::Map,
             FileType::Json => BuildManifestLoader::Json,
             FileType::Wasm => BuildManifestLoader::Wasm,

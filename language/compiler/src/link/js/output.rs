@@ -261,7 +261,7 @@ impl JsLinker<'_> {
                 .put_output_file(
                     section,
                     Uri::from_path(output_path),
-                    FileType::Script,
+                    FileType::JavaScript,
                     &bytes,
                     None,
                 )

@@ -41,7 +41,7 @@ impl Asset {
         let file = self.file();
 
         // encode binary bytes as base64
-        if file.ty.is_binary() {
+        if !file.is_text() {
             let encoded = base64::engine::general_purpose::STANDARD.encode(file.bytes());
 
             format!("data:{};base64,{}", self.media_type(), encoded)
@@ -96,7 +96,7 @@ fn explicit_media_type(file_type: FileType) -> Option<&'static str> {
         FileType::Json => Some("application/json"),
         FileType::Toml => Some("application/toml"),
         FileType::Yaml => Some("application/yaml"),
-        FileType::Text | FileType::Env => Some("text/plain"),
+        FileType::Text | FileType::Dotenv => Some("text/plain"),
         FileType::Markdown => Some("text/markdown"),
         FileType::Wasm => Some("application/wasm"),
         FileType::SourceMap => Some("application/json"),
@@ -112,12 +112,12 @@ fn uses_utf8_charset(file_type: FileType) -> bool {
             | FileType::Toml
             | FileType::Yaml
             | FileType::Json
-            | FileType::Env
+            | FileType::Dotenv
             | FileType::Html
             | FileType::Markdown
             | FileType::Css
             | FileType::Svg
-            | FileType::Script
+            | FileType::JavaScript
             | FileType::SourceMap
     )
 }

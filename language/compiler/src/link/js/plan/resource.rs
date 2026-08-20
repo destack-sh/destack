@@ -378,7 +378,7 @@ impl<'a> JsLinker<'a> {
 
         if module.loader == Loader::Base64 {
             let file = self.file(module.file_id)?;
-            if !file.ty.is_binary() {
+            if file.is_text() {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
@@ -397,7 +397,7 @@ impl<'a> JsLinker<'a> {
 
         if module.loader.is_text() {
             let file = self.file(module.file_id)?;
-            if file.ty.is_binary() {
+            if !file.is_text() {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
@@ -419,7 +419,7 @@ impl<'a> JsLinker<'a> {
 
         if module.loader == Loader::Binary {
             let file = self.file(module.file_id)?;
-            if !file.ty.is_binary() {
+            if file.is_text() {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
