@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_dir::{ExportResolution, GlobalSymbolId, LanguageItem, PrimitiveType, StaticKey};
+use destack_dir::{ExportResolution, GlobalSymbolId, LanguageItem, StaticKey, TypeRoot};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -17,6 +17,14 @@ pub struct LanguageEnvironment {
 }
 
 impl LanguageEnvironment {
+    /// Return the package declaring the language items.
+    pub fn package(&self) -> Option<destack_source::PackageId> {
+        self.symbol_by_item
+            .values()
+            .next()
+            .map(|symbol| symbol.module_id.package_id)
+    }
+
     /// Return one language item symbol.
     pub fn symbol(&self, item: LanguageItem) -> Option<GlobalSymbolId> {
         self.symbol_by_item.get(&item).copied()
@@ -50,9 +58,7 @@ pub struct EnvironmentBound {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct EnvironmentDeclared {
     /// Extension declarations keyed by their resolved target root.
-    pub extensions_by_root: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
-    /// Ground extension declarations keyed by their primitive target.
-    pub extensions_by_primitive: IndexMap<PrimitiveType, Vec<GlobalSymbolId>>,
+    pub extensions_by_root: IndexMap<TypeRoot, Vec<GlobalSymbolId>>,
     /// Blanket extension declarations over open parameter targets.
     pub blanket_extensions: Vec<GlobalSymbolId>,
     /// Implementing declarations keyed by their implemented interface.
