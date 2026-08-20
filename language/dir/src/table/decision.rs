@@ -11,8 +11,8 @@ use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, BindingUse, Call,
     CallDecision, ConstructDecision, Expression, FunctionDecision, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, GuardDecision, MemberAccess, MemberDecision, OperationResolution,
-    OperatorDecision, PatternDecision, PlaceResolution, ReceiverDecision, SegmentView,
-    SubscriptDecision, SubscriptTarget, TreeDecision, TypeFold, WalkSelections,
+    OperatorDecision, Pattern, PatternDecision, PlaceResolution, ReceiverDecision, SegmentView,
+    Selection, SubscriptDecision, SubscriptTarget, TreeDecision, TypeFold, WalkSelections,
 };
 
 /// The one decision inference made for a DIR node.
@@ -26,6 +26,10 @@ pub enum Decision {
     Function(FunctionDecision),
     /// Resolved control transfer target.
     Transfer(GlobalNodeId<Expression>),
+    /// Resolved try residual transfer.
+    Residual(ResidualDecision),
+    /// Resolved pattern coverage proof.
+    Coverage(CoverageDecision),
     /// Resolved operator application.
     Operator(OperatorDecision),
     /// Resolved call.
@@ -50,6 +54,61 @@ pub enum Decision {
     Rejected,
     /// Poisoned node with an already-reported error.
     Poisoned,
+}
+
+/// One decided try residual transfer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ResidualDecision {
+    /// The transfer target.
+    pub target: ResidualTarget,
+    /// The transferred residual type.
+    pub residual: GlobalTypeId,
+}
+
+/// One residual transfer target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum ResidualTarget {
+    /// The enclosing try expression.
+    Try(GlobalNodeId<Expression>),
+    /// The enclosing callable's return.
+    Callable,
+}
+
+impl WalkSelections for ResidualDecision {
+    fn for_each_selection(&self, _visit: &mut dyn FnMut(&Selection)) {}
+}
+
+impl TypeFold for ResidualDecision {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.residual.map_types(map)
+    }
+}
+
+/// One decided pattern coverage proof.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct CoverageDecision {
+    /// Whether the unguarded arms cover the scrutinee.
+    pub is_exhaustive: bool,
+    /// Whether every arm pair accepts disjoint values.
+    pub is_disjoint: bool,
+    /// Arms covered entirely by their preceding arms.
+    pub redundant: Vec<GlobalNodeId<Pattern>>,
+}
+
+impl WalkSelections for CoverageDecision {
+    fn for_each_selection(&self, _visit: &mut dyn FnMut(&Selection)) {}
+}
+
+impl TypeFold for CoverageDecision {
+    fn map_types<E>(
+        &mut self,
+        _map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        Ok(())
+    }
 }
 
 impl Decision {
@@ -89,6 +148,8 @@ impl Decision {
             Self::Receiver(_)
             | Self::Function(_)
             | Self::Transfer(_)
+            | Self::Residual(_)
+            | Self::Coverage(_)
             | Self::Operator(_)
             | Self::Call(_)
             | Self::Subscript(_)
