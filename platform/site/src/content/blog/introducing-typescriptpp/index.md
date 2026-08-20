@@ -227,6 +227,7 @@ author: "Florian"
 - no `Object.isOwnProperty`, `Object.assign`, ...
 - no "truthiness"; conditionals always take booleans
 - no sequence expressions, who needs sequence expressions
+- no symbol / string keyed duck typing (proper traits)
 
 - the more interesting question is how much of TS can we make sound, predictable, and fast.
 
@@ -250,7 +251,7 @@ author: "Florian"
 - tuples, slices, inline arrays and the rest
 - no more array tuples (need to free up `[T]` and `[T; N]`, arbitrary `[X, Y, ...]` is an error)
 - slices are just fat pointers
-- `&[T]` is also a fat pointer, `[T]` is an owned slice
+- `&[T]` is also a fat pointer, `[T]` is a managed slice, `^[T]` is an owned slice
 - fixed arrays `[T; N]`
 - `[T]` is managed by default (just like `Function` and `Dynamic` are managed fat pointers by default)
 
@@ -342,11 +343,17 @@ export type Record<K: PropertyKey, V> = {
 - trivial syntactic cleanup: `T extends string` -> `T: string`
 - stay the same basically
 - in, out, in out, measured variance
-- generalised `const` parameter for value generics (literal types!)
+- generalised `const` parameter for value generics (literal types with a fixed cardinality of one, measured by usage like with variance)
+
 - monomorph or not to monomorph
 - how far? do we monomorph refs?
 - JVM / CLR -> Go -> Rust / C++
 - build vs release mode
+
+- where clauses
+- where clauses on members and extensions
+- any statically decidable test
+- `foo<const T: isize>() where T > 5`
 
 ### Narrowing
 
@@ -427,7 +434,9 @@ export type Record<K: PropertyKey, V> = {
 - `extension E of T`
 - `export extension of T`
 - `export extension E of T`
+
 - `extension<T> of T`: blanket extension
+- rustc coherence
 
 ### Operator Overloading
 
