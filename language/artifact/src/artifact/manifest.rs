@@ -53,8 +53,6 @@ pub enum BuildManifestLoader {
     Js,
     /// CSS output.
     Css,
-    /// TypeScript output.
-    Ts,
     /// Source map output.
     Map,
     /// JSON output.
@@ -135,7 +133,6 @@ impl BuildManifestLoader {
         match self {
             Self::Js => "js",
             Self::Css => "css",
-            Self::Ts => "ts",
             Self::Map => "map",
             Self::Json => "json",
             Self::Wasm => "wasm",
