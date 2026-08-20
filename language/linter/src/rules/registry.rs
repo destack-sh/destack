@@ -78,7 +78,6 @@ static LINTS: &[&Lint] = &[
     &performance::PREFER_SINGLE_CALL,
     &performance::PREFER_SLICE_PARAMETER,
     &performance::PREFER_SOME,
-    &performance::PREFER_UNSTABLE_SORT,
     &performance::PREFER_WITH_CAPACITY,
     &performance::REDUNDANT_ALLOCATION,
     &performance::REDUNDANT_CLONE,
@@ -97,7 +96,6 @@ static LINTS: &[&Lint] = &[
     &performance::UNUSED_PEEKABLE,
 
     // security
-    &security::HARDCODED_SECRET,
     &security::NO_INVISIBLE_CHARACTER,
     &security::NO_PERMISSIVE_FILE_PERMISSION,
     &security::NO_SUPER_LINEAR_REGEX,
@@ -309,7 +307,6 @@ static LINTS: &[&Lint] = &[
     &suspicious::NONMINIMAL_BOOL,
     &suspicious::NONSENSICAL_OPEN_OPTIONS,
     &suspicious::ONLY_USED_IN_RECURSION,
-    &suspicious::PANIC_IN_PUBLIC_API,
     &suspicious::REDUNDANT_PATTERN_MATCHING,
     &suspicious::SIGNIFICANT_DROP_IN_SCRUTINEE,
     &suspicious::SUSPICIOUS_OPERAND_GROUPING,
