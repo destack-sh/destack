@@ -316,7 +316,6 @@ impl Matcher<'_, '_> {
     ) -> Result<bool, MatchError> {
         if pattern.export != candidate.export
             || pattern.place != candidate.place
-            || pattern.kind != candidate.kind
             || pattern.is_ambient != candidate.is_ambient
             || !self.match_optional_name(
                 nodes,

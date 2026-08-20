@@ -1795,7 +1795,6 @@ module.exports = grammar(JavaScript, {
     enum_declaration: $ => seq(
       repeat(field('decorator', $.decorator)),
       field('place', optional($.placement_modifier)),
-      optional('const'),
       'enum',
       field('name', optional($.identifier)),
       field('type_parameters', optional($.type_parameters)),

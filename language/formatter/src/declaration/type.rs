@@ -16,7 +16,7 @@ use crate::declaration::signature::{
 use crate::expression::{expression_needs_parentheses_in_parent, format_type_member_block_list};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
-    ClassDeclaration, Declaration, Decorator, EnumDeclaration, EnumField, EnumKind, Expression,
+    ClassDeclaration, Declaration, Decorator, EnumDeclaration, EnumField, Expression,
     InterfaceDeclaration, Keyword, LocalNodeId, LocalNodeIdAny, Member, NodeType,
     StructDeclaration, TokenSpan, TokenType, TypeExpression,
 };
@@ -734,10 +734,6 @@ pub(crate) fn format_enum_declaration<'ast>(
             write!(f, [Keyword::Declare, space()])?;
         }
         write_place_prefix(f, declaration.place)?;
-
-        if declaration.kind == EnumKind::Const {
-            write!(f, [Keyword::Const, space()])?;
-        }
 
         // head
         write!(f, [Keyword::Enum])?;

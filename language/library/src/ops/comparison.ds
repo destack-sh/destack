@@ -2,7 +2,7 @@ import { Equal, PartialEqual } from "./equality.ds";
 
 /// Result of a comparison operation.
 @languageItem("ops.Ordering")
-export const enum Ordering {
+export enum Ordering {
     Less = -1,
     Equal = 0,
     Greater = 1,

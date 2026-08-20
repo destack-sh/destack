@@ -3,7 +3,7 @@ use crate::parse::lookahead::DelimiterDepth;
 use crate::parse::{DeclarationHeader, TypeKeywordHeader};
 use crate::{ParseStart, Parser, ParserError, ParserResult, TokenProbe};
 use destack_dir::{
-    Asynchrony, Declaration, EnumKind, ExportKind, Expression, Keyword, LocalNodeId, PlaceModifier,
+    Asynchrony, Declaration, ExportKind, Expression, Keyword, LocalNodeId, PlaceModifier,
     TokenType, TypeKind,
 };
 
@@ -183,12 +183,6 @@ impl Parser {
                     None
                 };
                 match const_noun {
-                    Some(Keyword::Enum) => {
-                        self.bump();
-                        let declaration =
-                            self.parse_enum(start, EnumKind::Const, header, context.function)?;
-                        self.insert_declaration_expression(start, declaration)
-                    }
                     // const heads the const function form
                     Some(Keyword::Function) => {
                         let declaration = self.parse_function(start, header, context)?;
@@ -212,8 +206,7 @@ impl Parser {
                 self.insert_declaration_expression(start, declaration)
             }
             Keyword::Enum => {
-                let declaration =
-                    self.parse_enum(start, EnumKind::Enum, header, context.function)?;
+                let declaration = self.parse_enum(start, header, context.function)?;
                 self.insert_declaration_expression(start, declaration)
             }
             Keyword::Interface => {
@@ -311,10 +304,8 @@ impl TokenProbe<'_> {
     fn scan_const_declaration(&mut self, is_statement: bool) -> bool {
         self.bump();
 
-        // const enum and const function declare their own nouns
-        if self.peek_keyword() == Some(Keyword::Enum)
-            || self.peek_keyword() == Some(Keyword::Function) && !self.peek_token().is_on_new_line()
-        {
+        // const functions declare their own noun
+        if self.peek_keyword() == Some(Keyword::Function) && !self.peek_token().is_on_new_line() {
             return true;
         }
 

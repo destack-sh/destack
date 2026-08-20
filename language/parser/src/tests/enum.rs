@@ -1,7 +1,7 @@
 use destack_dir::{
-    CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField, EnumKind,
-    Expression, GenericParameter, NodeType, PlaceModifier, ScalarLiteral, TokenType,
-    TypeExpression, WhereClause,
+    CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField, Expression,
+    GenericParameter, NodeType, PlaceModifier, ScalarLiteral, TokenType, TypeExpression,
+    WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -21,12 +21,7 @@ enum Foo extends Day {}
 
     let start = parser.mark_parse_start();
     let enum_id = parser
-        .parse_enum(
-            &start,
-            EnumKind::Enum,
-            DeclarationHeader::default(),
-            Default::default(),
-        )
+        .parse_enum(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, generic_parameters, implements_types, fields, members, .. }) => {
         assert_string!(parser, name.unwrap().string(), "Foo");
@@ -53,25 +48,6 @@ fn test_parse_shared_enum_declaration() {
         assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { name, place, fields, .. }) => {
             assert_string!(parser, name.expect("expected name").string(), "Result");
             assert_eq!(*place, Some(PlaceModifier::Shared));
-            assert_eq!(fields.len(), 2);
-        });
-    });
-}
-
-#[test]
-fn test_parse_local_const_enum_declaration() {
-    let test = TestParser::new("local const enum Result { Ok; Error }");
-    let mut parser = test.prepare();
-    let expressions = parser.parse();
-
-    test.assert_no_errors(&parser);
-    assert_eq!(expressions.len(), 1);
-
-    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { kind, name, place, fields, .. }) => {
-            assert_eq!(*kind, EnumKind::Const);
-            assert_string!(parser, name.expect("expected name").string(), "Result");
-            assert_eq!(*place, Some(PlaceModifier::Local));
             assert_eq!(fields.len(), 2);
         });
     });
@@ -124,12 +100,7 @@ enum {
 
     let start = parser.mark_parse_start();
     let enum_id = parser
-        .parse_enum(
-            &start,
-            EnumKind::Enum,
-            DeclarationHeader::default(),
-            Default::default(),
-        )
+        .parse_enum(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, fields, .. }) => {
         assert!(name.is_none());
@@ -163,12 +134,7 @@ enum Foo extends Day {
 
     let start = parser.mark_parse_start();
     let enum_id = parser
-        .parse_enum(
-            &start,
-            EnumKind::Enum,
-            DeclarationHeader::default(),
-            Default::default(),
-        )
+        .parse_enum(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, fields, generic_parameters, implements_types, .. }) => {
         // Foo
@@ -212,12 +178,7 @@ enum CHAR {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let enum_id = parser
-        .parse_enum(
-            &start,
-            EnumKind::Enum,
-            DeclarationHeader::default(),
-            Default::default(),
-        )
+        .parse_enum(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
         assert_eq!(fields.len(), 3);
@@ -252,12 +213,7 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
 
     let start = parser.mark_parse_start();
     let enum_id = parser
-        .parse_enum(
-            &start,
-            EnumKind::Enum,
-            DeclarationHeader::default(),
-            Default::default(),
-        )
+        .parse_enum(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, generic_parameters, fields, .. }) => {
         // Machine
@@ -303,12 +259,7 @@ enum Foo where Requirement: Interface {
 
     let start = parser.mark_parse_start();
     let enum_id = parser
-        .parse_enum(
-            &start,
-            EnumKind::Enum,
-            DeclarationHeader::default(),
-            Default::default(),
-        )
+        .parse_enum(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { where_clauses, fields, .. }) => {
         assert_eq!(where_clauses.len(), 1);

@@ -466,14 +466,14 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
         start: usize,
     ) -> CompilerResult<mir::AtomicAccess> {
-        let ordering = match self.const_case(resolution, start, "an atomic ordering")? {
+        let ordering = match self.enum_argument_ordinal(resolution, start, "an atomic ordering")? {
             0 => mir::MemoryOrdering::Relaxed,
             1 => mir::MemoryOrdering::Acquire,
             2 => mir::MemoryOrdering::Release,
             3 => mir::MemoryOrdering::AcquireRelease,
             _ => mir::MemoryOrdering::SequentiallyConsistent,
         };
-        let scope = match self.const_case(resolution, start + 1, "an atomic scope")? {
+        let scope = match self.enum_argument_ordinal(resolution, start + 1, "an atomic scope")? {
             0 => mir::ExecutionScope::Invocation,
             1 => mir::ExecutionScope::Subgroup,
             2 => mir::ExecutionScope::Workgroup,
@@ -632,8 +632,8 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_expression(source)
     }
 
-    /// Read one const enum argument as its declared case ordinal.
-    fn const_case(
+    /// Read one enum-valued const argument as its declared case ordinal.
+    fn enum_argument_ordinal(
         &mut self,
         resolution: &dir::Call,
         index: usize,

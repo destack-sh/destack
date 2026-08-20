@@ -44,7 +44,7 @@ export default local class Deferred<T>{}
 shared struct Channel<T>{}
 local newtype interface Awaitable<T> {}
 shared enum Result { Ok; Error }
-local const enum Mode { Read; Write }
+local enum Mode { Read; Write }
 local newtype TaskId = uint64
 "#,
         r#"local class Promise<T> {}
@@ -55,7 +55,7 @@ shared enum Result {
     Ok,
     Error,
 }
-local const enum Mode {
+local enum Mode {
     Read,
     Write,
 }

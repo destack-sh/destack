@@ -121,16 +121,6 @@ pub struct ClassDeclaration {
     pub is_final: bool,
 }
 
-/// The kind of an enum declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
-pub enum EnumKind {
-    /// A regular enum.
-    #[default]
-    Enum,
-    /// A const enum.
-    Const,
-}
-
 /// An enum declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct EnumDeclaration {
@@ -140,8 +130,6 @@ pub struct EnumDeclaration {
     pub export: Option<ExportKind>,
     /// The explicit placement modifier.
     pub place: Option<PlaceModifier>,
-    /// The enum kind.
-    pub kind: EnumKind,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.

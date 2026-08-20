@@ -7,7 +7,7 @@ local class Promise<T> where T: Send {}
 export local class ExportedPromise {}
 export default local class DefaultPromise {}
 shared struct Channel<T> where T: Sync {}
-local const enum Result<T> implements Copy where T: Copy { Ok; Err }
+local enum Result<T> implements Copy where T: Copy { Ok; Err }
 shared newtype interface Awaitable<T> where T: Send {}
 local newtype TaskId = uint64;
 

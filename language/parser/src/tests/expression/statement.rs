@@ -1,9 +1,8 @@
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
-    BinaryOperator, Block, Declaration, Declarator, EnumDeclaration, EnumField, EnumKind,
-    ExportKind, Expression, GenericArgument, Pattern, ScalarLiteral, TypeDeclaration,
-    TypeExpression, TypeLiteral,
+    BinaryOperator, Block, Declaration, Declarator, ExportKind, Expression, GenericArgument,
+    Pattern, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
@@ -393,30 +392,6 @@ fn test_parse_const_call_initializer() {
             assert_node!(parser.tree, *body, Expression::Call { left, arguments, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "factorial");
                 assert_eq!(arguments.len(), 1);
-            });
-        });
-    });
-}
-
-/// Test const enum declaration.
-#[test]
-fn test_parse_const_enum() {
-    let test = TestParser::new("const enum Foo { A, B }");
-    let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
-    // const enum Foo { A, B }
-    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Enum(EnumDeclaration { name, kind, fields, .. }) => {
-            assert_string!(parser, name.unwrap().string(), "Foo");
-            assert_eq!(*kind, EnumKind::Const);
-            assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-                assert_string!(parser, name.string(), "A");
-                assert!(value.is_none());
-            });
-            assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-                assert_string!(parser, name.string(), "B");
-                assert!(value.is_none());
             });
         });
     });

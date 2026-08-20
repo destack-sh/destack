@@ -492,8 +492,6 @@ export type EnumDeclaration = {
     readonly export?: ExportKind;
     /** The explicit placement modifier. */
     readonly place?: PlaceModifier;
-    /** The enum kind. */
-    readonly kind: EnumKind;
     /** The generic parameters of the declaration. */
     readonly genericParameters: ReadonlyArray<LocalNodeId>;
     /** The where clauses of the declaration. */
@@ -541,26 +539,25 @@ export function encodeEnumDeclaration(writer: BinaryWriter, value: EnumDeclarati
     writer.writeOption(value.place, (value2) => {
         encodePlaceModifier(writer, value2);
     });
-    encodeEnumKind(writer, value.kind);
     writer.writeUnsigned(value.genericParameters.length);
-    for (const item4 of value.genericParameters) {
-        encodeLocalNodeId(writer, item4);
+    for (const item3 of value.genericParameters) {
+        encodeLocalNodeId(writer, item3);
     }
     writer.writeUnsigned(value.whereClauses.length);
-    for (const item5 of value.whereClauses) {
-        encodeLocalNodeId(writer, item5);
+    for (const item4 of value.whereClauses) {
+        encodeLocalNodeId(writer, item4);
     }
     writer.writeUnsigned(value.implementsTypes.length);
-    for (const item6 of value.implementsTypes) {
-        encodeLocalNodeId(writer, item6);
+    for (const item5 of value.implementsTypes) {
+        encodeLocalNodeId(writer, item5);
     }
     writer.writeUnsigned(value.fields.length);
-    for (const item7 of value.fields) {
-        encodeLocalNodeId(writer, item7);
+    for (const item6 of value.fields) {
+        encodeLocalNodeId(writer, item6);
     }
     writer.writeUnsigned(value.members.length);
-    for (const item8 of value.members) {
-        encodeLocalNodeId(writer, item8);
+    for (const item7 of value.members) {
+        encodeLocalNodeId(writer, item7);
     }
     writer.writeBool(value.isAmbient);
 }
@@ -570,19 +567,17 @@ export function decodeEnumDeclaration(reader: BinaryReader): EnumDeclaration {
     const name = reader.readOption(() => decodeName(reader));
     const export_ = reader.readOption(() => decodeExportKind(reader));
     const place = reader.readOption(() => decodePlaceModifier(reader));
-    const kind = decodeEnumKind(reader);
-    const genericParameters = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
-    const whereClauses = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
-    const implementsTypes = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
-    const fields = (() => { const length7 = reader.readNumber(); const items7: Array<LocalNodeId> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeLocalNodeId(reader)); } return items7; })();
-    const members = (() => { const length8 = reader.readNumber(); const items8: Array<LocalNodeId> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeLocalNodeId(reader)); } return items8; })();
+    const genericParameters = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
+    const whereClauses = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
+    const implementsTypes = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
+    const fields = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
+    const members = (() => { const length7 = reader.readNumber(); const items7: Array<LocalNodeId> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeLocalNodeId(reader)); } return items7; })();
     const isAmbient = reader.readBool();
 
     return {
         ...(name === undefined ? {} : { name }),
         ...(export_ === undefined ? {} : { export: export_ }),
         ...(place === undefined ? {} : { place }),
-        kind,
         genericParameters,
         whereClauses,
         implementsTypes,
@@ -598,7 +593,6 @@ export function toJsonEnumDeclaration(value: EnumDeclaration): Json {
         ...(value.name === undefined ? {} : { name: toJsonName(value.name) }),
         ...(value.export === undefined ? {} : { export: toJsonExportKind(value.export) }),
         ...(value.place === undefined ? {} : { place: toJsonPlaceModifier(value.place) }),
-        kind: toJsonEnumKind(value.kind),
         genericParameters: value.genericParameters.map((item0) => toJsonLocalNodeId(item0)),
         whereClauses: value.whereClauses.map((item0) => toJsonLocalNodeId(item0)),
         implementsTypes: value.implementsTypes.map((item0) => toJsonLocalNodeId(item0)),
@@ -616,7 +610,6 @@ export function fromJsonEnumDeclaration(value: Json): EnumDeclaration {
         name: jsonOptional(object, "name", (value) => fromJsonName(value)),
         export: jsonOptional(object, "export", (value) => fromJsonExportKind(value)),
         place: jsonOptional(object, "place", (value) => fromJsonPlaceModifier(value)),
-        kind: fromJsonEnumKind(jsonField(object, "kind")),
         genericParameters: jsonArray(jsonField(object, "genericParameters")).map((item0) => fromJsonLocalNodeId(item0)),
         whereClauses: jsonArray(jsonField(object, "whereClauses")).map((item0) => fromJsonLocalNodeId(item0)),
         implementsTypes: jsonArray(jsonField(object, "implementsTypes")).map((item0) => fromJsonLocalNodeId(item0)),
@@ -691,78 +684,6 @@ export function fromJsonEnumField(value: Json): EnumField {
         name: fromJsonName(jsonField(object, "name")),
         value: jsonOptional(object, "value", (value) => fromJsonLocalNodeId(value)),
     };
-}
-
-/** The kind of an enum declaration. */
-export type EnumKind = "enum" | "const";
-
-export const EnumKind = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: EnumKind): void {
-        encodeEnumKind(writer, value);
-    },
-
-    /** Decode one EnumKind. */
-    decode(reader: BinaryReader): EnumKind {
-        return decodeEnumKind(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: EnumKind): Json {
-        return toJsonEnumKind(value);
-    },
-
-    /** Return one EnumKind from one JSON value. */
-    fromJson(value: Json): EnumKind {
-        return fromJsonEnumKind(value);
-    },
-};
-
-/** Encode one EnumKind. */
-export function encodeEnumKind(writer: BinaryWriter, value: EnumKind): void {
-    switch (value) {
-        case "enum":
-            writer.writeUnsigned(0);
-            return;
-        case "const":
-            writer.writeUnsigned(1);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one EnumKind. */
-export function decodeEnumKind(reader: BinaryReader): EnumKind {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "enum";
-        case 1:
-            return "const";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one EnumKind. */
-export function toJsonEnumKind(value: EnumKind): Json {
-    return value;
-}
-
-/** Return one EnumKind from one JSON value. */
-export function fromJsonEnumKind(value: Json): EnumKind {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "enum":
-            return "enum";
-        case "const":
-            return "const";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
 /** An extension declaration. */

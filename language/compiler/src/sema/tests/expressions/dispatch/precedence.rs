@@ -247,7 +247,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
 }
 
 #[test]
-fn test_const_enum_arguments_prove_by_member_value() {
+fn test_prove_enum_arguments_by_member_value() {
     let session = TestSession::single(
         r#"
 enum Mode {

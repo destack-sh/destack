@@ -4,8 +4,8 @@ use crate::parse::error::ParserResultExt;
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
-    Declaration, EnumDeclaration, EnumField, EnumKind, Keyword, LocalNodeId, Member, Name,
-    NodeType, TemplateLiteral, TokenLiteral, TokenType,
+    Declaration, EnumDeclaration, EnumField, Keyword, LocalNodeId, Member, Name, NodeType,
+    TemplateLiteral, TokenLiteral, TokenType,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
@@ -27,7 +27,6 @@ impl Parser {
     pub(crate) fn parse_enum(
         &mut self,
         start: &ParseStart,
-        kind: EnumKind,
         header: DeclarationHeader,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
@@ -87,7 +86,6 @@ impl Parser {
                 export: header.export,
                 place: header.place,
                 is_ambient: header.is_ambient,
-                kind,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses,
                 implements_types: implements_types.or(extends_types).unwrap_or_default(),
