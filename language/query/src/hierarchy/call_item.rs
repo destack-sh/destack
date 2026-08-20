@@ -627,8 +627,12 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<String> {
         let name = match definition {
             dir::Definition::Extension(extension) => match extension.target {
-                dir::ExtensionTarget::Rooted { root, .. } => program.symbol_name(root),
-                dir::ExtensionTarget::Blanket { ty: type_id, .. } => {
+                dir::ExtensionTarget::Rooted {
+                    root: dir::TypeRoot::Declaration(root),
+                    ..
+                } => program.symbol_name(root),
+                dir::ExtensionTarget::Rooted { ty: type_id, .. }
+                | dir::ExtensionTarget::Blanket { ty: type_id, .. } => {
                     Ok(Some(Formatter::new(self, program).global_type(type_id)?))
                 }
             },

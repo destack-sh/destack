@@ -66,8 +66,8 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
                 self.collect_implements(symbol, symbol, &definition.implements, 0)?;
             }
             dir::Definition::Extension(extension) => {
-                // blanket extensions have no single derived nominal
-                let Some(root) = extension.target.root() else {
+                // index extensions rooted in a declaration
+                let Some(root) = extension.target.declaration() else {
                     return Ok(());
                 };
 
