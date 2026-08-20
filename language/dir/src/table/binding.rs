@@ -328,10 +328,18 @@ impl<'a> BindingTable<'a> {
         None
     }
 
+    /// Return the scope one global node introduces.
+    pub fn introduced_scope(&self, node_id: GlobalNodeIdAny) -> Option<LocalScopeId> {
+        for segment in self.segments.iter().rev() {
+            if let Some(scope) = segment.introduced_scope(node_id) {
+                return Some(scope);
+            }
+        }
+
+        None
+    }
+
     /// Look up one symbol visible at a source node.
-    ///
-    /// Resolves through the scope in effect at the node, so it works even at
-    /// nodes that own no scope themselves, such as decorator targets.
     pub fn lookup_symbol_at(
         &self,
         view: &View<'_>,
@@ -344,11 +352,6 @@ impl<'a> BindingTable<'a> {
     }
 
     /// Return the scope in effect at a source node.
-    ///
-    /// Walks to the nearest ancestor that owns a scope, falling back to the
-    /// module scope when none does. A node that owns no scope of its own —
-    /// a decorator target, for one — resolves through its enclosing
-    /// declaration this way.
     pub fn scope_at(&self, view: &View<'_>, node: LocalNodeIdAny) -> LocalScope {
         let mut current = Some(node);
         while let Some(node) = current {
@@ -460,8 +463,10 @@ pub struct BindingSegment {
     pub(crate) symbol_by_declaration: IndexMap<GlobalNodeIdAny, LocalSymbolId>,
     /// Implicit receiver symbols keyed by their owner node.
     pub(crate) implicit_receiver_by_node: IndexMap<GlobalNodeIdAny, LocalSymbolId>,
-    /// Scopes keyed by their owner or member node.
+    /// The scope in effect at each bound node.
     pub(crate) scope_by_node: IndexMap<GlobalNodeIdAny, LocalScope>,
+    /// Scopes keyed by the node introducing them.
+    pub(crate) scope_by_introducer: IndexMap<GlobalNodeIdAny, LocalScopeId>,
     /// Scopes keyed by their owner symbol.
     pub(crate) scope_by_owner: IndexMap<LocalSymbolId, LocalScopeId>,
 
@@ -484,6 +489,7 @@ impl BindingSegment {
             symbol_by_declaration: IndexMap::default(),
             implicit_receiver_by_node: IndexMap::default(),
             scope_by_node: IndexMap::default(),
+            scope_by_introducer: IndexMap::default(),
             scope_by_owner: IndexMap::default(),
             replaced_symbol_by_id: IndexMap::default(),
             replaced_scope_by_id: IndexMap::default(),
@@ -501,6 +507,7 @@ impl BindingSegment {
             symbol_by_declaration: IndexMap::default(),
             implicit_receiver_by_node: IndexMap::default(),
             scope_by_node: IndexMap::default(),
+            scope_by_introducer: IndexMap::default(),
             scope_by_owner: IndexMap::default(),
             replaced_symbol_by_id: IndexMap::default(),
             replaced_scope_by_id: IndexMap::default(),
@@ -518,6 +525,7 @@ impl BindingSegment {
             symbol_by_declaration: IndexMap::default(),
             implicit_receiver_by_node: IndexMap::default(),
             scope_by_node: IndexMap::default(),
+            scope_by_introducer: IndexMap::default(),
             scope_by_owner: IndexMap::default(),
             replaced_symbol_by_id: IndexMap::default(),
             replaced_scope_by_id: IndexMap::default(),
@@ -661,6 +669,19 @@ impl BindingSegment {
     #[inline]
     pub fn scope_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalScope> {
         self.scope_by_node.get(&node_id).copied()
+    }
+
+    /// Record one node as the introducer of a scope.
+    pub fn introduce_scope(&mut self, node_id: LocalNodeIdAny, scope_id: LocalScopeId) {
+        let node_id = node_id.into_global(self.module_id);
+
+        self.scope_by_introducer.insert(node_id, scope_id);
+    }
+
+    /// Return the scope one global node introduces.
+    #[inline]
+    pub fn introduced_scope(&self, node_id: GlobalNodeIdAny) -> Option<LocalScopeId> {
+        self.scope_by_introducer.get(&node_id).copied()
     }
 
     /// Return the owned scope for one local symbol.

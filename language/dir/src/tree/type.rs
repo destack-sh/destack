@@ -145,11 +145,14 @@ impl TypeMember {
         }
     }
 
-    /// Return the owned scope kind for this type member symbol.
-    pub fn symbol_scope_kind(&self) -> Option<ScopeKind> {
+    /// Return the kind of scope this member introduces, if any.
+    pub fn scope_kind(&self) -> Option<ScopeKind> {
         match self {
             Self::AssociatedType { .. } => Some(ScopeKind::Type),
             Self::Method { .. } => Some(ScopeKind::Function),
+            Self::CallSignature { .. }
+            | Self::ConstructSignature { .. }
+            | Self::IndexSignature { .. } => Some(ScopeKind::Type),
             _ => None,
         }
     }
