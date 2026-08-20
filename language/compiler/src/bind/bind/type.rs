@@ -297,8 +297,15 @@ impl Compiler {
     ) {
         state.bind_node(id.into_any());
 
-        // visit scoped type member body
-        if let Some(scope_id) = self.bind_type_member_symbol(state, id, type_member) {
+        // visit the member body in the scope it introduces, anonymous for signatures
+        let scope_id = self
+            .bind_type_member_symbol(state, id, type_member)
+            .or_else(|| {
+                type_member
+                    .scope_kind()
+                    .map(|kind| state.insert_child_scope(kind))
+            });
+        if let Some(scope_id) = scope_id {
             state.bind_node_to_scope(id.into_any(), scope_id);
             state.push_scope(scope_id);
             self.bind_type_member_body(state, tree, id, type_member);
@@ -322,7 +329,7 @@ impl Compiler {
         let kind = type_member.symbol_kind()?;
 
         // declare scoped or plain type member symbol
-        let (symbol_id, scope_id) = if let Some(scope_kind) = type_member.symbol_scope_kind() {
+        let (symbol_id, scope_id) = if let Some(scope_kind) = type_member.scope_kind() {
             let (symbol_id, scope_id) = state.insert_symbol_with_scope(
                 dir::SymbolRole::Item,
                 kind,

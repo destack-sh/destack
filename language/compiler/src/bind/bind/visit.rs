@@ -49,7 +49,7 @@ impl dir::NodeVisitor for BindState<'_> {
         // route global blocks into the package global scope
         if matches!(declaration, dir::Declaration::Global(_)) {
             self.attach_global_scope();
-            self.bind_node_to_scope(id.into_any(), self.global_scope);
+            self.attach_node_to_scope(id.into_any(), self.global_scope);
             self.push_scope(self.global_scope);
 
             // visit global declarations

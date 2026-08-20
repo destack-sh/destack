@@ -150,8 +150,18 @@ impl<'a> BindState<'a> {
         self.bindings.insert_scope(kind, Some(self.scope()), None)
     }
 
-    /// Bind one erased node to a scope at its full mark.
+    /// Bind one node to the scope it introduces, at that scope's full mark.
     pub(in crate::bind) fn bind_node_to_scope(
+        &mut self,
+        node_id: dir::LocalNodeIdAny,
+        scope_id: dir::LocalScopeId,
+    ) {
+        self.attach_node_to_scope(node_id, scope_id);
+        self.bindings.introduce_scope(node_id, scope_id);
+    }
+
+    /// Bind one node to a scope it shares, at that scope's full mark.
+    pub(in crate::bind) fn attach_node_to_scope(
         &mut self,
         node_id: dir::LocalNodeIdAny,
         scope_id: dir::LocalScopeId,
