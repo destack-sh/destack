@@ -3,7 +3,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::str;
 
-use destack_source::{FileId, FileMetadata, FileType, matches};
+use destack_source::{FileId, FileMetadata, FileType, Loader, matches};
 
 use crate::{Dependency, DestackFile, Edit, Repository, RepositoryError, Revision};
 
@@ -74,12 +74,10 @@ impl<'a> Scan<'a> {
             return true;
         }
 
-        // import recognized source file classes
-        let Some(file_type) = FileType::from_path(path) else {
-            return false;
-        };
-
-        file_type.is_code() || file_type.is_data() || file_type.is_text() || file_type.is_binary()
+        // import recognized formats with a default module interpretation
+        FileType::from_path(path).is_some_and(|file_type| {
+            file_type != FileType::Binary && Loader::try_from(file_type).is_ok()
+        })
     }
 
     /// Return whether one path is a destack manifest.
@@ -379,7 +377,9 @@ impl<'a> Scan<'a> {
             })?;
 
         // require text files to contain valid UTF-8 before publishing their binding
-        if !FileType::from_path_or_unknown(path).is_binary() {
+        let requires_utf8 =
+            FileType::from_path(path).is_some_and(|file_type| !file_type.is_opaque());
+        if requires_utf8 {
             let memory = self
                 .repository
                 .blob_store()

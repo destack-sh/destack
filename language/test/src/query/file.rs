@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use destack_source::FileType;
+use destack_source::{FileType, LanguageType};
 use indexmap::IndexMap;
 
 use super::FixturePositionEdge;
@@ -34,8 +34,8 @@ impl QueryFile {
         validate_query_path(&path)?;
 
         // preserve non-code workspace files exactly
-        let file_type = FileType::from_path_or_unknown(&path);
-        if !file_type.is_code() {
+        let language_type = LanguageType::from_path(&path);
+        if language_type.is_none() {
             return Ok(Self {
                 path,
                 annotated_source: annotated_source.to_string(),
@@ -134,20 +134,20 @@ impl QueryFile {
 
     /// Return whether this fixture file is a source module.
     pub(super) fn is_code(&self) -> bool {
-        FileType::from_path_or_unknown(&self.path).is_code()
+        LanguageType::from_path(&self.path).is_some()
     }
 
     /// Return whether one fixture language denotes this file type.
     pub(super) fn accepts_language(&self, language: &str) -> bool {
-        match FileType::from_path_or_unknown(&self.path) {
-            FileType::Destack | FileType::DestackDeclaration => {
+        match FileType::from_path(&self.path) {
+            Some(FileType::Destack | FileType::DestackDeclaration) => {
                 matches!(language, "ds" | "destack")
             }
-            FileType::Text => matches!(language, "text" | "txt"),
-            FileType::Toml => language == "toml",
-            FileType::Yaml => matches!(language, "yaml" | "yml"),
-            FileType::Json => language == "json",
-            FileType::Env => language == "env",
+            Some(FileType::Text) => matches!(language, "text" | "txt"),
+            Some(FileType::Toml) => language == "toml",
+            Some(FileType::Yaml) => matches!(language, "yaml" | "yml"),
+            Some(FileType::Json) => language == "json",
+            Some(FileType::Dotenv) => language == "env",
             _ => false,
         }
     }

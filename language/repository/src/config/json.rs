@@ -30,7 +30,7 @@ pub fn parse_jsonc_text(content: &str) -> Result<Value, serde_json::Error> {
 
 /// Parse one file as strict file text.
 pub fn parse_json_file(file: &File) -> Result<Value, serde_json::Error> {
-    if file.ty.is_binary() {
+    if !file.is_text() {
         return Err(json_content_error("file is not text"));
     }
 
@@ -39,7 +39,7 @@ pub fn parse_json_file(file: &File) -> Result<Value, serde_json::Error> {
 
 /// Parse one file as fileC text.
 pub fn parse_jsonc_file(file: &File) -> Result<Value, serde_json::Error> {
-    if file.ty.is_binary() {
+    if !file.is_text() {
         return Err(json_content_error("file is not text"));
     }
 

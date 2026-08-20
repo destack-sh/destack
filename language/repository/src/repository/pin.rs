@@ -344,7 +344,7 @@ mod tests {
             vec![BundleFile::new(
                 BundleSection::Entry,
                 Uri::from_string("memory:/out.js"),
-                FileType::Script,
+                FileType::JavaScript,
                 blob,
                 None,
             )],
@@ -558,7 +558,7 @@ mod tests {
             vec![BundleFile::new(
                 BundleSection::Entry,
                 Uri::from_string("memory:/out.js"),
-                FileType::Script,
+                FileType::JavaScript,
                 output_blob,
                 None,
             )],

@@ -237,14 +237,16 @@ impl Repository {
             .map_err(|error| RepositoryError::Blob {
                 message: error.to_string(),
             })?;
-        let logical_path = self.logical_path_text(entry.logical_path);
         let path = self.file_entry_path(&entry);
         let uri = Uri::from_path(&path);
-        let name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| logical_path.to_string());
-        let file_type = FileType::from_path_or_unknown(&path);
+        let name_and_type = path.file_name().zip(FileType::from_path(&path));
+        let Some((name, file_type)) = name_and_type else {
+            return Err(RepositoryError::InvalidFile {
+                file: file_id,
+                message: format!("repository path must name a file: {}", path.display()),
+            });
+        };
+        let name = name.to_string_lossy().into_owned();
         let file = source::File::from_blob(file_id, name, uri, Some(path), file_type, memory)
             .map_err(|error| RepositoryError::InvalidFile {
                 file: file_id,

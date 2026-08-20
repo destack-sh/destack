@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use destack_artifact::SourceDependency;
 use destack_source::{
-    CODE_FILE_TYPES, FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri,
+    DESTACK_FILE_TYPES, FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri,
 };
 use im::OrdMap;
 use indexmap::IndexMap;
@@ -145,7 +145,10 @@ impl Repository {
         packages: &PackageIndex,
         known_aliases: &mut FxHashMap<PackageId, IndexMap<String, ConditionGate>>,
     ) -> Result<Option<ModuleFileCandidate>, RepositoryError> {
-        let file_type = FileType::from_path_or_unknown(&path);
+        let file_type = FileType::from_path(&path).ok_or_else(|| RepositoryError::InvalidFile {
+            file: file_id,
+            message: format!("module path must name a file: {}", path.display()),
+        })?;
         let Ok(loader) = Loader::try_from(file_type) else {
             return Ok(None);
         };
@@ -285,7 +288,7 @@ impl Repository {
         known_aliases: &IndexMap<String, ConditionGate>,
     ) -> Vec<ConditionFileAlias> {
         // skip files that cannot compose source modules
-        if !file_type.is_code() {
+        if LanguageType::try_from(file_type).is_err() {
             return Vec::new();
         }
 
@@ -568,9 +571,9 @@ fn module_candidate_paths(path: PathBuf, loader: Option<Loader>) -> Vec<PathBuf>
     }
     // try each source extension
     else {
-        CODE_FILE_TYPES
+        DESTACK_FILE_TYPES
             .iter()
-            .filter_map(FileType::extension)
+            .filter_map(|file_type| file_type.extension())
             .map(|extension| append_extension(&path, extension))
             .collect()
     }

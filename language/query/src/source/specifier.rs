@@ -4,7 +4,7 @@ use destack_artifact::{ExportTarget, PackageNode};
 use destack_repository::{
     ModulePathOutcome, ModulePathResolution, Repository, Revision, normalize_workspace_path,
 };
-use destack_source::{CODE_FILE_TYPES, FileId, FileType, ModuleId, PackageId};
+use destack_source::{DESTACK_FILE_TYPES, FileId, ModuleId, PackageId};
 
 use crate::source::path_text;
 use crate::{QueryError, QueryResult};
@@ -230,9 +230,9 @@ fn strip_module_extension_path(path: &Path) -> PathBuf {
     let Some(extension) = path.extension().and_then(|extension| extension.to_str()) else {
         return path.to_path_buf();
     };
-    let is_source = CODE_FILE_TYPES
+    let is_source = DESTACK_FILE_TYPES
         .iter()
-        .filter_map(FileType::extension)
+        .filter_map(|file_type| file_type.extension())
         .any(|candidate| candidate == extension);
     if !is_source {
         return path.to_path_buf();
