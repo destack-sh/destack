@@ -6,10 +6,24 @@ author: "Florian"
 ---
 
 - how do we build correct, optimal, integrated software?
+- there is a lot of software, and there is about to be a whole lot more
+- with exciting new capabilities that are even harder to get right
+- and the software we already have isn't working that great yet either
+- slow, buggy, clunky, doesn't work together well without weird middle man services
+- some good languages, but 
+- supply chain attacks
+- very hard to run software locally
+- not really hackable
+- most of it not open source
+- not beautiful
+- honor the machine
+
 - We need a new _universal_ programming system to write all the world's software: a language that compiles very fast, runs very fast (ideally at machine speed), supports deep static and dynamic analysis, runs seamlssly everywhere (incl. on the web), can run systems software at machine speed, and is legible to humans and agents alike.
 - above all, we need a complete system, a unified method of software production, to reliably produce correct, optimal, integrated software in one standardized way
 - fully integrated infrastructure, from the bottom to the top of the "stack". 
 - at the centre of it must sit a universal language and runtime.
+
+---
 
 - If we squint a little, TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language
 - If we could get something _like_ TypeScript to run like a native systems language - or at least like a "serious managed" language a la JVM / CLR - that would get us predictable systems-ish performance,  while writing and reading the same language we already like! 
@@ -21,6 +35,7 @@ author: "Florian"
 - now that the cost of writing and rewriting code is nearly zero, what can we do
 - how can we build better, correct, integrated software systems
 - homoiconic software
+- put the "engineering" into "software engineering"
 - "unreal engine for software production"?
 - what are the decisions we can fix and freeze, sort of like how the advent of opinionated formatters put an end to a whole series of unproductive discussions?
 - the world is going to run on software, even more so than now, how do we make sure that software is doing what we want?
@@ -54,6 +69,8 @@ author: "Florian"
 ## Why Care About Code
 
 - why should we even think about code at all if it can all be AI written anyway
+- what is the point of code? why did we ever write any code? 
+- nobody really wants _code_ much like nobody wants _computers_ per-se
 - feels much like asking why think about materials when a crane will assemble your house anyway
 - or why think in numbers when calculators exist
 - idea of just generating bytecode _directly and only_ is fanciful and basically a meme
@@ -226,13 +243,16 @@ author: "Florian"
 
 - enums are reasonably simple
 - string and integer
-- auto enum
+- auto incrementing enum (starts at 0, int64, signed)
 
 ### Arrays, Slices and Tuples
 
 - tuples, slices, inline arrays and the rest
 - no more array tuples (need to free up `[T]` and `[T; N]`, arbitrary `[X, Y, ...]` is an error)
+- slices are just fat pointers
+- `&[T]` is also a fat pointer, `[T]` is an owned slice
 - fixed arrays `[T; N]`
+- `[T]` is managed by default (just like `Function` and `Dynamic` are managed fat pointers by default)
 
 ### Classes
 
@@ -241,10 +261,12 @@ author: "Florian"
 - zero overhead? vtable pointers? explicit or implicit virtual?
 - allocation metadata sidetable on the heap / runtime
 - classes are reference types by default, alias freely
+- abstract, final classes
+- virtual, override methods
 
 ### This
 
-- in TS, like in many managed languages, we can just omit "this" in a method and it will just default to the aliasing managed reference
+- in TS, like in many managed languages, we can just omit the "self" parameter in a method and the receiver will just default to the aliasing managed reference "this"
 - we support this ofc as well:
 - `this` = `&exclusive T` for value types
 - `this` = `Managed<T>` for reference types
@@ -299,7 +321,13 @@ author: "Florian"
 - declaration exprsesions
 - dynamic prototypes
 - all sorts of JS hacks that everyone hates anyway
-- `Record` is read-only
+- `Record` is read-only (type Record<K, V> = { readonly [K]: V })
+
+```ds
+export type Record<K: PropertyKey, V> = {
+    [P in K]: V;
+};
+```
 
 ### Funky Signatures
 
@@ -383,9 +411,12 @@ author: "Florian"
 
 ### Using
 
-- using / async using
+- using / async using (like TC39 proposal)
 - Dispose / AsyncDIspose
 - vs Drop
+- Drop is for "infallible" memory management, using is for actual resources
+- Drop also runs as a "finaliser" 
+- (e.g. Drop on an Array deallocates the memory)
 
 ### Extensions
 
@@ -425,6 +456,7 @@ author: "Florian"
 - keep familiar Promise for aliased async
 - introduce Task for structured affine concurrency (same async/await model)
 - (Promise = managed class, Task = value type, Promise requires aliasable / copyable type)
+
 - *fiber*-based execution (e.g. JVM's new model)
 
 ### Context, ContextVars
@@ -438,14 +470,6 @@ author: "Florian"
 - overflows / underflows
 - out of bounds
 - deliberate unreachable
-
-### Style and Documentation
-
-- one of the perks of owning the whole toolchain is we can make the parser (and formatter and linter and such) do whatever we want
-- doc comments on expressions too, why not
-- colored regions?
-- logic blocks
-- neurotic code styles
 
 ## Memory
 
@@ -579,6 +603,14 @@ author: "Florian"
 
 - Generalised Module
 - x.ds, x.test.ds, x.whatever.ds
+
+### Style
+
+- one of the perks of owning the whole toolchain is we can make the parser (and formatter and linter and such) do whatever we want
+- doc comments on expressions too, why not
+- colored regions?
+- logic blocks
+- neurotic code styles
 
 ### Documentation
 
