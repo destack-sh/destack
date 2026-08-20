@@ -1,7 +1,4 @@
 /// Contextual builder for tree literals.
-///
-/// The compiler resolves the expected or configured builder, validates tags against `Tags`, and
-/// calls `element` or `fragment`.
 @languageItem("tree.Builder")
 export newtype interface TreeBuilder {
     /// The lowercase tags this builder accepts, with their attribute rows.

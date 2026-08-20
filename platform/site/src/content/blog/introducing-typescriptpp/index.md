@@ -7,31 +7,43 @@ author: "Florian"
 
 - how do we build correct, optimal, integrated software?
 - there is a lot of software, and there is about to be a whole lot more
-- with exciting new capabilities that are even harder to get right
-- and the software we already have isn't working that great yet either
+<!--- with exciting new capabilities that are even harder to get right-->
+- unfortunately, regurgutitating the software we already have isn't going to be _great_
 - slow, buggy, clunky, doesn't work together well without weird middle man services
 - some good languages, but 
 - supply chain attacks
+- slop forks
+- dependency sprawl
 - very hard to run software locally
 - not really hackable
 - most of it not open source
-- not beautiful
-- honor the machine
+- decidedly not correct or optimal
 
+- produce much more software than any one could ever meaningfully review
 - what does higher order programming look like?
 - what should higher order progrmaming _feel_ like?
 - if code is so cheap, why can't we make it really good?
 - if software is so cheap, why can't we make _that_ really good?
 
-- We need a new _universal_ programming system to write all the world's software: a language that compiles very fast, runs very fast (ideally at machine speed), supports deep static and dynamic analysis, runs seamlssly everywhere (incl. on the web), can run systems software at machine speed, and is legible to humans and agents alike.
+- will soon hasve the capbility to rewrite software from and to any language
+- so what is the final destination?
+- where do we want to end up?
+- what characteristics would the final language have?
+- would it look like an existing one, or something totally different?
+
+<!--- We need a new _universal_ programming system to write all the world's software-->
+- well, ideally:
+- a language that compiles fast, runs fast, supports analysis, runs everywhere
+- ideally we want something that can run at the web properly *and* can run systems software at machine speed, and is legible to humans and agents alike.
 - above all, we need a complete system, a unified method of software production, to reliably produce correct, optimal, integrated software in one standardized way
 - fully integrated infrastructure, from the bottom to the top of the "stack". 
 - at the centre of it must sit a universal language and runtime.
 
 ---
 
-- If we squint a little, TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language
+- TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language
 - If we could get something _like_ TypeScript to run like a native systems language - or at least like a "serious managed" language a la JVM / CLR - that would get us predictable systems-ish performance,  while writing and reading the same language we already like! 
+- the dichotomy between "scripting languages" and "systems languages" no longer makes much sense
 - begone with the need for a separate language and stack to run "backend" or "compute heavy" tasks once we "outgrow" node.js or whatever.
 - .. TypeScript also happens to be the very same language that runs the web, the biggest software platform in the world!
 - but of course, it would have to really *feel* like TypeScript, not just "look" like TypeScript! as much as possible, TypeScript semantics - far beyond the surface syntax - should be preserved for this to really be a day one language.
@@ -52,14 +64,14 @@ author: "Florian"
 # Why
 
 - the history of programming is one of rising levels of abstraction, from literally wiring up vacuum tubes to punch cards to machine code to assembly to C to Java to TypeScript
-- climbing the ladder of abstraction is broadly attractive, as we remove ourselves from the troubling burden of having to actually spell out what _exactly_ it is we want the machine to be doing
+- climbing the ladder of abstraction is generally productive, as we remove ourselves from the troubling burden of having to actually spell out what _exactly_ it is we want the machine to be doing
 - it follows then, that we might want to go all the way, that the ultimate sophistication of programming is not programming at all, but like "talking to a colleague"? 
-- oh, how great software could be, how magnificient, how accessible, if only we could make programming as simple as natural language?
+- oh, how great software could be, how magnificient, how accessible, if only we could make programming as simple and unconstraint as natural language?
 - if we didn't have to write code at all, nor trouble ourselves with any of the nuances and rigor imposed by formal languages
 
 - and.. amazingly, dropping code, doing something higher level, this sorta kinda works, sometimes, actually!
 - spreadsheets have worked for decades, game dev people have been doing this for a while, we have now figured out a new way to prompt simple software into existence
-- (historically, when some more "accessible" programming-ish becomes too common, the "real" programmers no longer consider it programming. thus, excel is not "programming", just like image classification is not AI)
+- (historically, when some more "accessible" programming-ish becomes too common, the "real" programmers no longer consider it programming. thus, excel is not "programming", just like image classification is not "AI")
 
 - the trouble is, in software, there is no meaningful separation of the system and its specification, - and thus there is no magic abstraction on top of code that will solve all our problems - if the job is solving novel problems.
 - (the granularity of the specification to care about depends strongly on how standardized the solution is. fine tuning a character controller? better control every bit of entropy. building an email sender? just plop in a framework, we already do this.)
@@ -140,6 +152,14 @@ author: "Florian"
 - Go and generics, Java / C# and unsafe / structs / ref, ...
 - JVM/CLR by default, Rust on demand
 
+## Why Care About Performance
+
+- hardware is getting *more* expensive
+
+- we're going to get a lot more software
+
+- simulating software is 
+
 ## Why Not Reinvent _Everything_
 
 - there is already wide range of prior art in the realm of "TS ergonomics with systems performance", but that is just one aspect of what we'Re trying to do here
@@ -173,7 +193,7 @@ author: "Florian"
 - so you know, colored functions are fine, and nice and familiar, it's just an effect
 - Promises are fine actually. microtasks a little weird but whatever
 - number is okay as a type actually, it's convenient
-- bigint and string are fine, not ideal, but fine
+- bigint and string as lowercase primitives are fine, not ideal, but fine
 
 - all in all, it's fine, and most importantly: it's familiar
 - (... and it's how the web works!)
@@ -202,16 +222,20 @@ author: "Florian"
 - the obvious first cut is to remove any express soundness holes from TS
 - then we figure out how to map the type system to something we can actually compile for real
 - and what we need to add to the types and expressions and runtime to make this a serious systems language
+- the procedure then is not one of starting with zero, it is minimally subtractive:
+- what do we _need_ to remove because it is unsound / legacy / strictly superseded by something clearly better?
+
+---
 
 ## Types
 
-- types are great, type systems are fantastic
-- keep muscle memory
-- make it strict and sound
-- no footguns, remove weirdness
-- stable and deterministic, incrementally compilable
-- strict boundaries
-- make it fast
+- types are great, strict type systems are fantastic
+- I actually like the TS type system for the most part
+- we just need to make it strict and sound
+- remove some footguns, remove weirdness
+- we get to keep muscle memory
+
+- and ofc need to be stable and deterministic, incrementally compilable, strict boundaries, make it fast
 - cover as much as possible with type algebra
 - (TS algebra and generics are much faster than macros since it's essentially a very constrained macro system)
 
@@ -244,12 +268,13 @@ author: "Florian"
 - variable sized integers
 - isize / usize
 - (sequence collections default to isize instead of number)
+- keep null and undefined, no strong reason not to
 
 ### Enums
 
 - enums are reasonably simple
 - no const enum needed?
-- string and integer
+- integer and string..?
 - auto incrementing enum (starts at 0, int64, signed)
 
 ### Arrays, Slices and Tuples
@@ -264,8 +289,8 @@ author: "Florian"
 ### Classes
 
 - classes are generally pretty straightforward, it's just about which tradeoffs do we want?
-- JVM? C++? Go?
-- zero overhead? vtable pointers? explicit or implicit virtual?
+- about a dozen way of doing classes, from decent to okay to weird JVM? C++? Go?
+- "zero overhead"? vtable pointers? explicit or implicit virtual?
 - allocation metadata sidetable on the heap / runtime
 - classes are reference types by default, alias freely
 - abstract, final classes
@@ -275,7 +300,7 @@ author: "Florian"
 
 - in TS, like in many managed languages, we can just omit the "self" parameter in a method and the receiver will just default to the aliasing managed reference "this"
 - we support this ofc as well:
-- `this` = `&exclusive T` for value types
+- `this` = `&exclusive T` for value types (more on that soon)
 - `this` = `Managed<T>` for reference types
 - implicit and explicit this
 - value and borrowed forms
@@ -370,6 +395,8 @@ export type Record<K: PropertyKey, V> = {
 - instanceof for classes
 - match narrowing
 
+---
+
 ## Expressions
 
 - keep all the ergonomics and muscle memory
@@ -382,7 +409,10 @@ export type Record<K: PropertyKey, V> = {
 - there are other ways of doing UI, but this is a pretty good one, and it's *very* familiar
 - trees, generalised tree litearls,
 - lowercase tree builders, ..?
+- support both "elements" and "fragments"
 - (unfortunately this also means keeping TS ambiguity around..)
+
+- contextual TreeBuilder interface incl. string tags
 
 ### Patterns and Match
 
@@ -390,27 +420,35 @@ export type Record<K: PropertyKey, V> = {
 - match
 - catch match
 - `Sequence` type
-- No Computed Keys
-- no `obj[expr]` where `expr` is dynamic
 - ... except for dynamic index signatures where it types as `V | undefined` (via dynamic.find)
 - ranges: `..`
 - switch still works but match encouraged
 
+- No Computed Keys
+- no `obj[expr]` where `expr` is dynamic
+- destructure dynamically with `{ [key]: value }`?
+
 ### Decorators
 
-- TS already sorta kinda has decorators, sometimes
+- JS/TS already sorta kinda has decorators, sometimes
 - extended placement
 - decorators on expressions
 - newtypes as decorators
 - incl. union newtypes
+
 - queryable
 - `@if` static gating
+- taint/tag system
 
 ### No Exceptions, Only Results
 
-- basically all changes from TS++ to TS are about soundness and strictness, this one is a little more subjective, but given the pain caused.. exceptions most die. we cannot have an invisible side channel infecting everything in the last computing stack
+- Most subtractions and additions between from TS++ to TS are about soundness, but there is nothing intrinsically unsound about exceptions. 
+- if there is one really bad error in modern managed languages, it's exceptions
+- this one is a little more subjective, but given the pain caused.. exceptions most die. we cannot have an invisible side channel infecting everything in the last computing stack
+- checked exceptions are even worse
+
+- honestly, nobody has figured out a *great* way to do error handling (looking at Go here in particular), but Swift and Rust's Result-shaped error values with Try operators `?` are pretty good
 - panic/unwind still exists like in rust but that's worker-scoped, not normal recovery
-- most subjective of the bunch
 - Try operator, ? ambiguity because TS
 - but exceptions have proven troubling over and over and over again
 - checked exceptions are even worse
@@ -447,7 +485,9 @@ export type Record<K: PropertyKey, V> = {
 ### Operator Overloading
 
 - serious math-y applications want operator overloading
-- `Add`, `Subtract`, `Multiply`, `Divide`, etc.
+- newtype interfaces ("traits")
+- binary `Add`, `Subtract`, `Multiply`, `Divide`, etc.
+- unary `Plus`, `Minus`
 - `Vector2<float32> + Vector2<float32>`
 
 ### Const Evaluation
@@ -455,7 +495,7 @@ export type Record<K: PropertyKey, V> = {
 - originally envisioned something closer to Zig's comptime (or even Jai's version of it)
 - originally had a comptime keyword here but was kinda confusing
 - `const <expr>` and `const { ... }` for comptime evaluation
-- `const function` for comptime functions
+- `const function` for comptime functions that can only be called at comptile time
 - cardinality is measured by usage (sort of like how variance and )
 
 ### Functions, Lambdas and Captures
@@ -486,9 +526,12 @@ export type Record<K: PropertyKey, V> = {
 - out of bounds
 - deliberate unreachable
 
+---
+
 ## Memory
 
-- TS, following JS, has no real direct way to control memory shapes or allocations
+- TypeScript, exactly like JS, has no real direct way to control memory shapes or allocations
+- (asm.js, yes, but, no.)
 - (though this doesn't stop serious TS programmers to think about hidden class caches and all the brilliantly engineered details of the popular JS engines to keep their software reasonably fast)
 - we can trivially restrict to closed shapes, which buys us predictable layouts
 - but sometimes we want even more
@@ -561,6 +604,8 @@ export type Record<K: PropertyKey, V> = {
 - PlaceOf
 - ...
 
+---
+
 ## Runtime
 
 - again keep conceptual muscle memory
@@ -588,6 +633,10 @@ export type Record<K: PropertyKey, V> = {
 - oh what is the theoretically ideally package format? toml? txt? magic setup.py? just kidding
 - combine electron, expo, package.json, Cargo.toml, ...
 
+### import.meta
+
+-
+
 ### ESM Modules
 
 - strictly ESM imports and exports
@@ -597,22 +646,18 @@ export type Record<K: PropertyKey, V> = {
 - no CommonJS
 - no export type / import type
 
-### Worker-first
+### Workers
 
 - retain local / worker isolation as the primary model
 - use Workers for structured concurrency
 - (maps to threads N:M)
 
-### Effects / Bindings
+### Bindings
 
 - proper colored functions
 - stdlib based on explicit @bindings
 - effect tracking
 - @binding
-
-### import.meta
-
--
 
 ### Conditions
 
