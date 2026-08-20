@@ -21,7 +21,6 @@
     ],
     "files": [
         "dist",
-        "README.md",
         "Cargo.toml"
     ],
     "main": "./dist/index.js",

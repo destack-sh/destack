@@ -24,7 +24,6 @@
         "loader.d.ts",
         "loader.js",
         "scripts",
-        "README.md",
         "Cargo.toml"
     ],
     "main": "./loader.js",

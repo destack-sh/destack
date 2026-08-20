@@ -24,8 +24,7 @@
     },
     "files": [
         "bin",
-        "templates",
-        "README.md"
+        "templates"
     ],
     "scripts": {
         "build": "node ./bin/create-destack.mjs --help",

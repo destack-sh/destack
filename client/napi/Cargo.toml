@@ -6,7 +6,6 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
-readme = "README.md"
 repository = "https://github.com/destack-sh/destack"
 homepage = "https://github.com/destack-sh/destack"
 documentation = "https://docs.rs/destack_napi"
