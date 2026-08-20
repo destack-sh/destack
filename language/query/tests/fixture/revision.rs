@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use destack_query::QueryMethod;
 use indexmap::IndexMap;
 
-use crate::mdtest::{MdTestCase, RawCodeBlock};
+use crate::{MarkdownCase, QueryBlock};
 
 use super::{
     QueryAssertion, QueryFile, QueryPatch, parse_marked_file_tag, require_query_file,
@@ -40,14 +40,10 @@ pub(super) enum QueryChange {
 impl QueryRevision {
     /// Parse every workspace revision and its exact query responses.
     pub(super) fn parse(
-        markdown: &MdTestCase,
+        markdown: &MarkdownCase,
         files: &IndexMap<PathBuf, QueryFile>,
         method: QueryMethod,
     ) -> Result<Vec<Self>, String> {
-        if !markdown.bullet_items.is_empty() {
-            return Err("query fixture has unsupported bullet expectations".to_string());
-        }
-
         let mut files = files.clone();
         let mut revisions = Vec::new();
         let mut revision = Self {
@@ -58,10 +54,10 @@ impl QueryRevision {
         let mut index = 0;
 
         // consume assertions and workspace changes in declaration order
-        while let Some(block) = markdown.extra_blocks.get(index) {
+        while let Some(block) = markdown.blocks.get(index) {
             if block.language.starts_with("query ") {
                 let (assertion, applied_files, next_index) =
-                    QueryAssertion::parse(&markdown.extra_blocks, index, &files, method)?;
+                    QueryAssertion::parse(&markdown.blocks, index, &files, method)?;
                 revision.assertions.push(assertion);
                 is_change_group_open = false;
                 index = next_index;
@@ -114,7 +110,7 @@ impl QueryRevision {
 
 impl QueryChange {
     /// Return whether one raw block declares a workspace change.
-    fn matches(block: &RawCodeBlock) -> bool {
+    fn matches(block: &QueryBlock) -> bool {
         change_file_tag(&block.language).is_some()
             || add_file_tag(&block.language).is_some()
             || block.language.starts_with("diff ")
@@ -123,7 +119,7 @@ impl QueryChange {
     }
 
     /// Parse one exact workspace change.
-    fn parse(block: &RawCodeBlock, files: &IndexMap<PathBuf, QueryFile>) -> Result<Self, String> {
+    fn parse(block: &QueryBlock, files: &IndexMap<PathBuf, QueryFile>) -> Result<Self, String> {
         // replace one complete existing file
         if let Some((language, path)) = change_file_tag(&block.language) {
             let path = PathBuf::from(path);

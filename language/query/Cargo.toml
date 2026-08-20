@@ -25,5 +25,21 @@ parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
+[dev-dependencies]
+# language
+destack_session = { workspace = true, features = ["native"] }
+destack_workspace = { workspace = true, features = ["native"] }
+
+# general
+futures = { workspace = true, features = ["executor"] }
+indexmap = { workspace = true }
+libtest-mimic = { workspace = true }
+pulldown-cmark = { workspace = true }
+
+[[test]]
+name = "fixture"
+path = "tests/fixture/main.rs"
+harness = false
+
 [lints]
 workspace = true

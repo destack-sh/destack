@@ -3,47 +3,57 @@ use std::path::{Path, PathBuf};
 use destack_query::QueryMethod;
 use indexmap::IndexMap;
 
-use crate::core::MarkdownSuiteEntry;
-use crate::mdtest::MdTestCase;
+use crate::MarkdownCase;
 
-use super::{QueryFile, QueryFixtureResult, QueryRevision, QueryRun, QueryWorkspace};
+use super::{QueryFile, QueryResult, QueryRevision, QueryRun, QueryWorkspace};
 
-/// One Markdown query fixture and its executable case.
+/// One executable query case parsed from a Markdown fixture.
 #[derive(Debug, Clone)]
-pub(super) struct QueryFixture {
+pub(super) struct QueryCase {
+    /// The Markdown document containing the fixture.
+    pub(super) document: PathBuf,
     /// The Markdown section name.
     section: String,
     /// The case name.
     name: String,
-    /// Whether the case is ignored by default.
-    is_ignored: bool,
     /// The workspace files in declaration order.
     pub(super) files: IndexMap<PathBuf, QueryFile>,
     /// The workspace revisions in execution order.
     pub(super) revisions: Vec<QueryRevision>,
 }
 
-impl QueryFixture {
-    /// Parse one Markdown case into the query fixture language.
-    pub(super) fn parse(path: &Path, markdown: MdTestCase) -> Result<Self, String> {
-        if !markdown.options.is_empty() {
-            return Err("query fixture has unsupported test options".to_string());
-        }
-        if markdown.skip {
-            return Err("query fixtures cannot be skipped".to_string());
-        }
-        let (name, is_ignored) = Self::parse_name(&markdown.name)?;
+impl QueryCase {
+    /// Parse one Markdown case into an executable query case.
+    pub(super) fn parse(path: &Path, markdown: MarkdownCase) -> Result<Self, String> {
         let method = Self::parse_method(path)?;
         let files = Self::index_files(Self::parse_files(&markdown)?)?;
         let revisions = QueryRevision::parse(&markdown, &files, method)?;
 
         Ok(Self {
+            document: path.to_path_buf(),
             section: markdown.section,
-            name,
-            is_ignored,
+            name: markdown.name,
             files,
             revisions,
         })
+    }
+
+    /// Return the stable test name for this fixture.
+    pub(super) fn test_name(&self, root: &Path) -> Result<String, String> {
+        let document = self.document.strip_prefix(root).map_err(|error| {
+            format!(
+                "query fixture '{}' is outside '{}': {error}",
+                self.document.display(),
+                root.display()
+            )
+        })?;
+
+        Ok(format!(
+            "{}/{}/{}",
+            document.display(),
+            slug(&self.section),
+            slug(&self.name)
+        ))
     }
 
     /// Execute and verify this fixture.
@@ -51,7 +61,7 @@ impl QueryFixture {
         &self,
         workspace: &QueryWorkspace,
         is_blessing: bool,
-    ) -> Result<QueryFixtureResult, String> {
+    ) -> Result<QueryResult, String> {
         QueryRun::open(&self.files, workspace)?.run(&self.revisions, is_blessing)
     }
 
@@ -71,36 +81,12 @@ impl QueryFixture {
         Ok(method)
     }
 
-    /// Parse one fixture name and its optional ignored annotation.
-    fn parse_name(name: &str) -> Result<(String, bool), String> {
-        let Some(name) = name.strip_prefix("[ignored]") else {
-            return Ok((name.to_string(), false));
-        };
-        let Some(name) = name.strip_prefix(' ') else {
-            return Err("query fixture '[ignored]' annotation must precede a name".to_string());
-        };
-        if name.is_empty() {
-            return Err("query fixture '[ignored]' annotation must precede a name".to_string());
-        }
-
-        Ok((name.to_string(), true))
-    }
-
     /// Parse every initial workspace file.
-    fn parse_files(markdown: &MdTestCase) -> Result<Vec<QueryFile>, String> {
+    fn parse_files(markdown: &MarkdownCase) -> Result<Vec<QueryFile>, String> {
         markdown
             .files
             .iter()
-            .map(|file| {
-                if !file.options.is_empty() {
-                    return Err(format!(
-                        "query file '{}' has unsupported options",
-                        file.path
-                    ));
-                }
-
-                QueryFile::parse(&file.path, &file.content)
-            })
+            .map(|file| QueryFile::parse(&file.path, &file.content))
             .collect()
     }
 
@@ -131,19 +117,15 @@ impl QueryFixture {
     }
 }
 
-impl MarkdownSuiteEntry for QueryFixture {
-    /// Return the fixture section.
-    fn section(&self) -> &str {
-        &self.section
-    }
-
-    /// Return the fixture name.
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Return whether the fixture is skipped by default.
-    fn is_skipped(&self) -> bool {
-        self.is_ignored
-    }
+/// Convert one Markdown heading into a stable test path segment.
+fn slug(name: &str) -> String {
+    name.chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
+        .collect()
 }

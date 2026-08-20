@@ -38,16 +38,16 @@ pub(super) struct QueryRun<'a> {
     files: QueryFiles,
 }
 
-/// The verified output and timings of one query fixture.
-pub(super) struct QueryFixtureResult {
+/// The verified output and timings of one query case.
+pub(super) struct QueryResult {
     /// Canonical response updates produced while blessing.
     pub(super) response_updates: Vec<ResponseUpdate>,
     /// Query traces in execution order.
-    pub(super) traces: Vec<QueryFixtureTrace>,
+    pub(super) traces: Vec<QueryTrace>,
 }
 
 /// One named query operation trace.
-pub(super) struct QueryFixtureTrace {
+pub(super) struct QueryTrace {
     /// The trace row name within its fixture.
     pub(super) name: String,
     /// The complete operation trace.
@@ -97,7 +97,7 @@ impl<'a> QueryRun<'a> {
         mut self,
         revisions: &[QueryRevision],
         is_blessing: bool,
-    ) -> Result<QueryFixtureResult, String> {
+    ) -> Result<QueryResult, String> {
         let mut updates = Vec::new();
         let mut traces = Vec::new();
 
@@ -106,7 +106,7 @@ impl<'a> QueryRun<'a> {
             if !revision.changes.is_empty()
                 && let Some(trace) = self.advance(&revision.changes)?
             {
-                traces.push(QueryFixtureTrace {
+                traces.push(QueryTrace {
                     name: format!("revision {} change", revision_index + 1),
                     trace,
                 });
@@ -119,7 +119,7 @@ impl<'a> QueryRun<'a> {
                 for (repeat, trace) in result.traces.into_iter().enumerate() {
                     let method = result.method.name();
                     let repeat = if repeat == 0 { "" } else { " warm" };
-                    traces.push(QueryFixtureTrace {
+                    traces.push(QueryTrace {
                         name: format!(
                             "revision {}.{} {method}{repeat}",
                             revision_index + 1,
@@ -131,7 +131,7 @@ impl<'a> QueryRun<'a> {
             }
         }
 
-        Ok(QueryFixtureResult {
+        Ok(QueryResult {
             response_updates: updates,
             traces,
         })

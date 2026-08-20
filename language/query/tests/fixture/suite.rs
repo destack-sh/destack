@@ -2,16 +2,13 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use destack_query::QueryMethod;
 use destack_repository::TraceReport;
+use libtest_mimic::{Failed, Trial};
 
-use super::{QueryFixture, QueryFixtureTrace, QueryWorkspace};
-use crate::core::{
-    Case, CaseResult, MarkdownSuiteIndex, RunContext, RunOptions, Suite, discover_markdown_suite,
-    fixtures_dir,
-};
+use crate::{QueryCase, QueryTrace, QueryWorkspace, parse_query_document};
 
 /// Environment variable enabling exact response replacement.
 const BLESS_ENV: &str = "DESTACK_BLESS";
@@ -22,13 +19,11 @@ const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
 
 /// Query fixtures executed through one shared workspace.
 #[derive(Debug)]
-pub struct QuerySuite {
-    /// The workspace shared by isolated case revisions.
+pub(super) struct QuerySuite {
+    /// The workspace shared by isolated fixture revisions.
     workspace: QueryWorkspace,
-    /// The parsed fixtures keyed by full case name.
-    fixtures: HashMap<String, QueryFixture>,
-    /// The discovered runnable cases.
-    cases: Vec<Case>,
+    /// The parsed cases keyed by test name.
+    cases: HashMap<String, QueryCase>,
     /// Whether mismatched response rows should be replaced.
     is_blessing: bool,
     /// Earlier response length changes in each Markdown file.
@@ -57,22 +52,78 @@ struct ResponseDelta {
 
 impl QuerySuite {
     /// Load every query fixture.
-    pub fn load() -> Result<Self, String> {
-        let query_directory = fixtures_dir().join("query");
-        Self::require_method_files(&query_directory)?;
-        let MarkdownSuiteIndex { cases, entries } =
-            discover_markdown_suite(&query_directory, "destack_test::query", |path, markdown| {
-                QueryFixture::parse(path, markdown).map(Some)
-            })?;
+    pub(super) fn load() -> Result<Arc<Self>, String> {
+        let fixture_directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixture");
+        Self::require_method_files(&fixture_directory)?;
+        let cases = Self::parse_cases(&fixture_directory)?;
         let workspace = QueryWorkspace::new("/query")?;
 
-        Ok(Self {
+        Ok(Arc::new(Self {
             workspace,
-            fixtures: entries,
             cases,
-            is_blessing: Self::is_blessing(),
+            is_blessing: Self::read_blessing(),
             response_deltas: Mutex::new(HashMap::new()),
-        })
+        }))
+    }
+
+    /// Return whether mismatched response rows are replaced.
+    pub(super) fn is_blessing(&self) -> bool {
+        self.is_blessing
+    }
+
+    /// Build one test trial for every parsed fixture.
+    pub(super) fn trials(self: &Arc<Self>) -> Vec<Trial> {
+        let mut names = self.cases.keys().cloned().collect::<Vec<_>>();
+        names.sort();
+
+        names
+            .into_iter()
+            .map(|name| {
+                let suite = self.clone();
+                Trial::test(name.clone(), move || suite.run(&name).map_err(Failed::from))
+            })
+            .collect()
+    }
+
+    /// Parse every Markdown fixture into one exact index.
+    fn parse_cases(directory: &Path) -> Result<HashMap<String, QueryCase>, String> {
+        let mut paths = std::fs::read_dir(directory)
+            .map_err(|error| format!("failed to read '{}': {error}", directory.display()))?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("failed to read '{}': {error}", directory.display()))?;
+        paths
+            .retain(|path| path.extension().and_then(|extension| extension.to_str()) == Some("md"));
+        paths.sort();
+        let mut cases = HashMap::new();
+
+        // index every parsed test by its stable fixture name
+        for path in paths {
+            let markdown_cases = parse_query_document(&path)
+                .map_err(|error| format!("failed to parse '{}': {error}", path.display()))?;
+            for markdown_case in markdown_cases {
+                let case = QueryCase::parse(&path, markdown_case)
+                    .map_err(|error| format!("failed to parse '{}': {error}", path.display()))?;
+                let name = case.test_name(directory)?;
+                if cases.insert(name.clone(), case).is_some() {
+                    return Err(format!("query fixture repeats test '{name}'"));
+                }
+            }
+        }
+
+        Ok(cases)
+    }
+
+    /// Execute and verify one named query fixture.
+    fn run(&self, name: &str) -> Result<(), String> {
+        let case = self
+            .cases
+            .get(name)
+            .ok_or_else(|| format!("query fixture '{name}' is missing"))?;
+        let result = case.run(&self.workspace, self.is_blessing)?;
+        Self::print_traces(name, result.traces)?;
+
+        self.bless(&case.document, result.response_updates)
     }
 
     /// Replace canonical response rows for one fixture case.
@@ -145,53 +196,12 @@ impl QuerySuite {
 
         Ok(())
     }
-}
 
-impl Suite for QuerySuite {
-    /// Return the suite name.
-    fn name(&self) -> &'static str {
-        "query"
-    }
-
-    /// Return whether cases can execute in parallel.
-    fn runs_in_parallel(&self) -> bool {
-        !self.is_blessing
-    }
-
-    /// Return the discovered query cases.
-    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
-        self.cases.clone()
-    }
-
-    /// Run one query fixture.
-    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
-        let Some(fixture) = self.fixtures.get(&case.full_name()) else {
-            return CaseResult::Failed {
-                message: format!("query fixture '{}' is missing", case.full_name()),
-            };
-        };
-
-        let result = fixture
-            .run(&self.workspace, self.is_blessing)
-            .and_then(|result| {
-                Self::print_traces(case, result.traces)?;
-                self.bless(&case.path, result.response_updates)
-            });
-
-        match result {
-            Ok(()) => CaseResult::Passed,
-            Err(message) => CaseResult::Failed { message },
-        }
-    }
-}
-
-impl QuerySuite {
     /// Print complete query operation traces as one report.
-    fn print_traces(case: &Case, traces: Vec<QueryFixtureTrace>) -> Result<(), String> {
+    fn print_traces(name: &str, traces: Vec<QueryTrace>) -> Result<(), String> {
         if traces.is_empty() {
             return Ok(());
         }
-
         let slow_attempts = match std::env::var(TRACE_SLOW_ARTIFACTS_ENV) {
             Ok(value) => value.parse::<usize>().map_err(|error| {
                 format!("invalid {TRACE_SLOW_ARTIFACTS_ENV} value '{value}': {error}")
@@ -209,56 +219,52 @@ impl QuerySuite {
         for trace in traces {
             report = report.row(trace.name, trace.trace);
         }
-        let output = format!("\ntimings {}\n{}", case.full_name(), report.render());
-        let mut stdout = io::stdout().lock();
-        stdout
+        let output = format!("\ntimings {name}\n{}", report.render());
+        io::stdout()
+            .lock()
             .write_all(output.as_bytes())
             .map_err(|error| format!("failed to print query timings: {error}"))
     }
 
-    /// Return whether query response rows should be blessed.
-    fn is_blessing() -> bool {
+    /// Read whether query response rows should be blessed.
+    fn read_blessing() -> bool {
         std::env::var_os(BLESS_ENV).is_some_and(|value| !value.is_empty() && value != "0")
     }
 
     /// Require one fixture file for every registered query method.
     fn require_method_files(directory: &Path) -> Result<(), String> {
-        // collect the canonical method files
         let mut expected = QueryMethod::ALL
             .iter()
             .map(|method| format!("{}.md", method.name()))
             .collect::<Vec<_>>();
         expected.sort();
-
-        // collect the declared fixture files
         let entries = std::fs::read_dir(directory)
             .map_err(|error| format!("failed to read '{}': {error}", directory.display()))?;
         let mut actual = Vec::new();
+
+        // require an exact one-to-one file mapping
         for entry in entries {
             let entry = entry
                 .map_err(|error| format!("failed to read '{}': {error}", directory.display()))?;
             let path = entry.path();
-            let file_type = entry.file_type().map_err(|error| {
-                format!(
-                    "failed to inspect query fixture '{}': {error}",
-                    path.display()
-                )
-            })?;
-            if !file_type.is_file() {
+            if !entry
+                .file_type()
+                .map_err(|error| format!("failed to inspect '{}': {error}", path.display()))?
+                .is_file()
+            {
                 return Err(format!(
-                    "query fixture directory contains non-file entry '{}'",
+                    "query fixture directory contains non-file '{}'",
                     path.display()
                 ));
             }
-            let name = entry
-                .file_name()
-                .into_string()
-                .map_err(|_| format!("query fixture path '{}' is not UTF-8", path.display()))?;
-            actual.push(name);
+            actual.push(
+                entry
+                    .file_name()
+                    .into_string()
+                    .map_err(|_| format!("query fixture path '{}' is not UTF-8", path.display()))?,
+            );
         }
         actual.sort();
-
-        // require an exact one-to-one registry mapping
         if actual != expected {
             return Err(format!(
                 "query fixture files differ from registered methods\nexpected: {expected:?}\nactual: {actual:?}"

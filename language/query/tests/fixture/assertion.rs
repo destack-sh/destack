@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use destack_query::QueryMethod;
 use indexmap::IndexMap;
 
-use crate::mdtest::RawCodeBlock;
+use crate::QueryBlock;
 
 use super::{
     FixturePosition, FixtureRange, QueryCall, QueryDecoratorScope, QueryFile, ResponseRows,
@@ -39,7 +39,7 @@ pub(super) enum QueryExpectation {
 impl QueryAssertion {
     /// Parse one query call and its exact expected response.
     pub(super) fn parse(
-        blocks: &[RawCodeBlock],
+        blocks: &[QueryBlock],
         index: usize,
         files: &IndexMap<PathBuf, QueryFile>,
         method: QueryMethod,
@@ -213,13 +213,13 @@ fn split_request_response(source: &str) -> (&str, Option<(usize, &str)>) {
 }
 
 /// Return whether one raw block is a complete edited file.
-fn is_after_file(block: &RawCodeBlock) -> bool {
+fn is_after_file(block: &QueryBlock) -> bool {
     after_file_tag(&block.language).is_some()
 }
 
 /// Parse one exact edited output file.
 fn parse_after_file(
-    block: &RawCodeBlock,
+    block: &QueryBlock,
     files: &IndexMap<PathBuf, QueryFile>,
 ) -> Result<QueryFile, String> {
     let Some((language, path)) = after_file_tag(&block.language) else {
