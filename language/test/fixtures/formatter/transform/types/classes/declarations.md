@@ -44,7 +44,8 @@ export class ClassTest extends Modal<
 export class ClassTest extends Modal<
     // comment
     string | number | undefined
-> {}
+>
+{}
 ```
 
 ### class with implements
@@ -468,7 +469,8 @@ class Container<
     VeryLongType,
     AnotherType,
     ThirdType,
-> {}
+>
+{}
 ```
 
 ### class with long implements breaks
@@ -484,7 +486,8 @@ class MyClass
     implements
         FirstInterface,
         SecondInterface,
-        ThirdInterface {}
+        ThirdInterface
+{}
 ```
 
 ## Class Members

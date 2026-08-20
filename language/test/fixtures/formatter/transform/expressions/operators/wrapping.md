@@ -55,12 +55,11 @@ const x = a + b + c + d + e
 ```
 
 ```ds expected
-const x =
-    a +
-    b +
-    c +
-    d +
-    e;
+const x = a
+    + b
+    + c
+    + d
+    + e;
 ```
 
 ### logical chain with calls
@@ -72,10 +71,9 @@ const valid = isActive() && hasPermission() && !isBlocked()
 ```
 
 ```ds expected
-const valid =
-    isActive() &&
-    hasPermission() &&
-    !isBlocked();
+const valid = isActive()
+    && hasPermission()
+    && !isBlocked();
 ```
 
 ### comparison chain
@@ -125,9 +123,8 @@ const x = veryLongA + veryLongB * veryLongC
 ```
 
 ```ds expected
-const x =
-    veryLongA +
-    veryLongB * veryLongC;
+const x = veryLongA
+    + veryLongB * veryLongC;
 ```
 
 ## Optional Chains
@@ -179,8 +176,13 @@ const sum = a + b + c + d + e + f + g
 ```
 
 ```ds expected
-const sum =
-    a + b + c + d + e + f + g;
+const sum = a
+    + b
+    + c
+    + d
+    + e
+    + f
+    + g;
 ```
 
 ### mixed logical operators
@@ -192,8 +194,9 @@ const ok = a && b || c && d || e && f
 ```
 
 ```ds expected
-const ok =
-    (a && b) || (c && d) || (e && f);
+const ok = (a && b)
+    || (c && d)
+    || (e && f);
 ```
 
 ### nullish chain
@@ -205,12 +208,11 @@ const value = first ?? second ?? third ?? fourth ?? fallback
 ```
 
 ```ds expected
-const value =
-    first ??
-    second ??
-    third ??
-    fourth ??
-    fallback;
+const value = first
+    ?? second
+    ?? third
+    ?? fourth
+    ?? fallback;
 ```
 
 ### comparison chain with logical
@@ -222,9 +224,8 @@ const inBounds = x >= 0 && x < width && y >= 0 && y < height
 ```
 
 ```ds expected
-const inBounds =
-    x >= 0 &&
-    x < width &&
-    y >= 0 &&
-    y < height;
+const inBounds = x >= 0
+    && x < width
+    && y >= 0
+    && y < height;
 ```

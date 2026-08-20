@@ -1,8 +1,30 @@
 use crate::{
-    DestackFormatOptions, assert_format_program_reference_widths,
+    DestackFormatOptions, assert_format_program, assert_format_program_reference_widths,
     assert_format_program_roundtrip_with_file_type,
 };
 use destack_source::FileType;
+
+/// Struct literals should flow directly into postfix member calls.
+#[test]
+fn test_format_struct_literal_member_call() {
+    assert_format_program!(
+        r#"Quaternion {
+    x: opposed.x,
+    y: opposed.y,
+    z: opposed.z,
+    w: T.zero(),
+}.normalized()
+"#,
+        r#"Quaternion {
+    x: opposed.x,
+    y: opposed.y,
+    z: opposed.z,
+    w: T.zero(),
+}.normalized();
+"#,
+        FileType::Destack,
+    );
+}
 
 /// Nested helper calls in broken tuples should still stay flat when they fit.
 #[test]

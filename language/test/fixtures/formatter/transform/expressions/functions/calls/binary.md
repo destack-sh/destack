@@ -35,10 +35,9 @@ result = aLongVariableName + anotherLongName + thirdLongName
 ```
 
 ```ds expected
-result =
-    aLongVariableName +
-    anotherLongName +
-    thirdLongName;
+result = aLongVariableName
+    + anotherLongName
+    + thirdLongName;
 ```
 
 ### long binary declarator breaks after equals
@@ -50,10 +49,9 @@ const sum = aLongVariableName + anotherLongName + thirdLongName
 ```
 
 ```ds expected
-const sum =
-    aLongVariableName +
-    anotherLongName +
-    thirdLongName;
+const sum = aLongVariableName
+    + anotherLongName
+    + thirdLongName;
 ```
 
 ### binary with logical operators
@@ -65,8 +63,7 @@ const isValid = hasPermission && isActive && !isDisabled
 ```
 
 ```ds expected
-const isValid =
-    hasPermission &&
-    isActive &&
-    !isDisabled;
+const isValid = hasPermission
+    && isActive
+    && !isDisabled;
 ```

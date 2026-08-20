@@ -47,7 +47,8 @@ extension<T> of Deque<T>
         IndexSet<number, T>,
         Iterable<T>,
         Iterable<&readonly T>,
-        Extend<T, "exclusive"> {
+        Extend<T, "exclusive">
+{
     index(index: number): T;
 }
 ```
@@ -64,7 +65,8 @@ extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of T
 
 ```ds expected
 extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of
-    Tensor<T, Rank, F, Sharding<...Axes>> {
+    Tensor<T, Rank, F, Sharding<...Axes>>
+{
     get mesh(): Mesh;
 }
 ```
@@ -85,7 +87,8 @@ extension<T: int | float, const Rank: int, F: TensorFormat, P: Placement> of
     implements
         Add<Tensor<T, Rank, F, P>>,
         Subtract<Tensor<T, Rank, F, P>>,
-        Multiply<Tensor<T, Rank, F, P>> {
+        Multiply<Tensor<T, Rank, F, P>>
+{
     type Output = Tensor<T, Rank, F, P>;
 }
 ```
@@ -102,8 +105,9 @@ extension<T, const N: number, R: RangeBounds<usize>> of FixedArray<T, N> impleme
 
 ```ds expected
 extension<T, const N: number, R: RangeBounds<usize>> of FixedArray<T, N>
-    implements
-        IndexSet<R, Slice<T>> where T: Copy {
+    implements IndexSet<R, Slice<T>>
+    where T: Copy
+{
     indexSet(&exclusive this, range: R, source: Slice<T>): void;
 }
 ```
@@ -136,7 +140,8 @@ extension<T, U, V> of Table<T, U, V> where T: Copy, U: Clone, V: Comparable {
 
 ```ds expected
 extension<T, U, V> of Table<T, U, V>
-    where T: Copy, U: Clone, V: Comparable {
+    where T: Copy, U: Clone, V: Comparable
+{
     compare(left: T, right: U): V;
 }
 ```

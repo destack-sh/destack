@@ -310,7 +310,8 @@ fn test_format_extension_getter_ternary_tail_without_semicolon() {
         Extend<T, "exclusive">,
         Default,
         From<Array<T>>,
-        From<FixedArray<T, N>> {
+        From<FixedArray<T, N>>
+{
     get capacity(): usize {
         this.spillStorage == undefined ? (N as usize) : this.spillCapacity
     }

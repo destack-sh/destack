@@ -7,7 +7,7 @@ use crate::context::FormatNodeWithoutTrailingComments;
 use crate::declaration::function::format_function_declaration;
 use crate::declaration::sequence::format_block_statement_sequence;
 use crate::declaration::signature::{
-    default_generic_parameter_trailing_separator, format_where_clause_with_break,
+    default_generic_parameter_trailing_separator, format_where_clause_continuation,
     function_grouping_generic_parameter_is_plain, write_generic_parameter_list,
 };
 use crate::declaration::r#type::{
@@ -215,7 +215,7 @@ fn write_declaration_where_clauses<'ast>(
 ) -> FormatResult<()> {
     // where clauses
     if !where_clauses.is_empty() {
-        format_where_clause_with_break(f, where_clauses)?;
+        format_where_clause_continuation(f, where_clauses)?;
     }
 
     Ok(())
@@ -461,37 +461,19 @@ fn write_expression_declaration_body<'ast>(
     write!(f, [hard_line_break(), token("}")])
 }
 
-/// Write one body made from declaration members.
-fn write_member_body<'ast>(
+/// Write one declaration member block without its leading separator.
+fn write_member_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     members: &[LocalNodeId<Member>],
-    break_before_body: bool,
 ) -> FormatResult<()> {
     // empty body
     if members.is_empty() {
-        if break_before_body {
-            write!(
-                f,
-                [
-                    hard_line_break(),
-                    empty_block_with_infix_annotations(node_id)
-                ]
-            )?;
-        } else {
-            write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
-        }
-
-        return Ok(());
+        return write!(f, [empty_block_with_infix_annotations(node_id)]);
     }
 
     // member body
-    if break_before_body {
-        write!(f, [hard_line_break(), token("{"), hard_line_break()])?;
-    } else {
-        write!(f, [space(), token("{"), hard_line_break()])?;
-    }
-
+    write!(f, [token("{"), hard_line_break()])?;
     write!(
         f,
         [group(&block_indent(&format_with(move |f| {
@@ -501,22 +483,25 @@ fn write_member_body<'ast>(
     write!(f, [hard_line_break(), token("}")])
 }
 
+/// Write the separator between one grouped declaration header and its body.
+pub(crate) fn write_declaration_body_separator<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    header_group_id: GroupId,
+) -> FormatResult<()> {
+    write!(
+        f,
+        [
+            if_group_fits_on_line(&space()).with_group_id(Some(header_group_id)),
+            if_group_breaks(&hard_line_break()).with_group_id(Some(header_group_id))
+        ]
+    )
+}
+
 /// Format one super-type clause.
 pub(crate) fn format_super_type_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     keyword: Keyword,
     types: &[LocalNodeId<TypeExpression>],
-) -> FormatResult<()> {
-    format_super_type_clause_with_expand(f, keyword, types, false, false)
-}
-
-/// Format one super-type clause and optionally force expansion.
-pub(crate) fn format_super_type_clause_with_expand<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    keyword: Keyword,
-    types: &[LocalNodeId<TypeExpression>],
-    force_expand: bool,
-    start_on_new_line: bool,
 ) -> FormatResult<()> {
     // empty clause
     if types.is_empty() {
@@ -524,116 +509,22 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
     }
 
     let entries = format_with(move |f| {
-        // entries
-        if start_on_new_line || force_expand {
-            f.join_with(&format_args![token(","), hard_line_break()])
-                .entries(types.iter().copied().map(|type_id| {
-                    format_with(move |f| {
-                        write_type_expression_with_inline_prefix_annotations(f, type_id)
-                    })
-                }))
-                .finish()
-        } else {
-            f.join_with(&format_args![token(","), soft_line_break_or_space()])
-                .entries(types.iter().copied().map(|type_id| {
-                    format_with(move |f| {
-                        write_type_expression_with_inline_prefix_annotations(f, type_id)
-                    })
-                }))
-                .finish()
-        }
-    });
-    let clause = format_with(move |f| {
-        // separator
-        if start_on_new_line {
-            write!(f, [hard_line_break()])?;
-        } else if force_expand {
-            write!(f, [soft_line_break_or_space()])?;
-        } else {
-            write!(f, [space()])?;
-        }
-
-        // expanded head
-        if start_on_new_line || force_expand {
-            write!(f, [keyword, hard_line_break(), entries])
-        } else {
-            write!(
-                f,
-                [
-                    keyword,
-                    group(&indent(&format_args![soft_line_break_or_space(), entries]))
-                ]
-            )
-        }
-    });
-
-    if start_on_new_line || force_expand {
-        write!(f, [group(&indent(&clause))])
-    } else {
-        write!(f, [group(&clause)])
-    }
-}
-
-/// Format one extension declaration implements type list.
-fn format_extension_implements_types<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    types: &[LocalNodeId<TypeExpression>],
-) -> FormatResult<()> {
-    f.join_with(&format_args![token(","), soft_line_break_or_space()])
-        .entries(types.iter().copied().map(|type_id| {
-            format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                write_type_expression_with_inline_prefix_annotations(f, type_id)
-            })
-        }))
-        .finish()
-}
-
-/// Format one extension declaration implements clause after one target group.
-fn format_extension_implements_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    types: &[LocalNodeId<TypeExpression>],
-    target_group_id: GroupId,
-) -> FormatResult<()> {
-    // empty clause
-    if types.is_empty() {
-        return Ok(());
-    }
-
-    let target_fits_clause = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-        let entries = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-            format_extension_implements_types(f, types)
-        });
-
-        write!(
-            f,
-            [group(&indent(&format_args![
-                soft_line_break_or_space(),
-                Keyword::Implements,
-                indent(&format_args![soft_line_break_or_space(), entries])
-            ]))]
-        )
-    });
-    let target_breaks_clause = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-        let entries = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-            format_extension_implements_types(f, types)
-        });
-
-        write!(
-            f,
-            [indent(&format_args![
-                hard_line_break(),
-                Keyword::Implements,
-                group(&soft_line_indent_or_space(&entries))
-            ])]
-        )
+        f.join_with(&format_args![token(","), soft_line_break_or_space()])
+            .entries(types.iter().copied().map(|type_id| {
+                format_with(move |f| {
+                    write_type_expression_with_inline_prefix_annotations(f, type_id)
+                })
+            }))
+            .finish()
     });
 
     write!(
         f,
-        [
-            if_group_fits_on_line(&target_fits_clause).with_group_id(Some(target_group_id)),
-            if_group_breaks(&target_breaks_clause).with_group_id(Some(target_group_id))
-        ]
+        [indent(&format_args![
+            soft_line_break_or_space(),
+            keyword,
+            group(&indent(&format_args![soft_line_break_or_space(), entries]))
+        ])]
     )
 }
 
@@ -944,18 +835,19 @@ fn format_extension_declaration<'ast>(
     node_id: LocalNodeId<Declaration>,
     declaration: &ExtensionDeclaration,
 ) -> FormatResult<()> {
-    // prefixes
-    format_declaration_export_modifier(f, node_id, declaration.export)?;
-    write_ambient_prefix(f, declaration.is_ambient)?;
+    let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        // prefixes
+        format_declaration_export_modifier(f, node_id, declaration.export)?;
+        write_ambient_prefix(f, declaration.is_ambient)?;
 
-    // head
-    write!(f, [Keyword::Extension])?;
+        // head
+        write!(f, [Keyword::Extension])?;
 
-    if let Some(name) = declaration.name {
-        write!(f, [space(), name])?;
-    }
+        if let Some(name) = declaration.name {
+            write!(f, [space(), name])?;
+        }
 
-    let extension_target = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        // target
         write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
         write!(f, [space(), Keyword::Of])?;
 
@@ -968,26 +860,22 @@ fn format_extension_declaration<'ast>(
                 soft_line_break_or_space(),
                 group(&target_type)
             ]))]
-        )
+        )?;
+
+        // implements clause
+        format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;
+
+        // where clause
+        write_declaration_where_clauses(f, &declaration.where_clauses)
     });
-    let extension_target_group_id = f.group_id();
-    write!(
-        f,
-        [group(&extension_target).with_id(Some(extension_target_group_id))]
-    )?;
+    let header_group_id = f.group_id();
+    write!(f, [group(&header).with_id(Some(header_group_id))])?;
 
-    // heritage
-    format_extension_implements_clause(
-        f,
-        &declaration.implements_types,
-        extension_target_group_id,
-    )?;
-
-    // where clauses
-    write_declaration_where_clauses(f, &declaration.where_clauses)?;
+    // body separator
+    write_declaration_body_separator(f, header_group_id)?;
 
     // body
-    write_member_body(f, node_id, &declaration.members, false)?;
+    write_member_block(f, node_id, &declaration.members)?;
 
     // postfix annotations
     write!(f, [postfix_annotations(f.context(), node_id)])

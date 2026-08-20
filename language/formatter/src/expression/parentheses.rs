@@ -1,7 +1,6 @@
 use super::ternary::{expression_is_ternary_branch, ternary_branch_is_tree_like};
 use crate::DestackFormatContext;
 use crate::declaration::expression_is_in_statement_context;
-use crate::operator::should_flatten_binary;
 use destack_dir::{
     Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionForm, IfForm,
     LocalNodeId, MatchArm, NodeType, OperatorPrecedence, Property, TypeExpression,
@@ -487,8 +486,12 @@ fn expression_binary_like_needs_parentheses_in_parent(
         }
 
         let is_right = *right == node_id;
-        if is_right && parent_precedence == precedence {
-            return true;
+        if parent_precedence == precedence {
+            if parent_precedence.is_right_associative() {
+                return !is_right;
+            }
+
+            return is_right;
         }
 
         if binary_operator_is_bitwise_or_shift(*parent_operator) {
@@ -502,8 +505,7 @@ fn expression_binary_like_needs_parentheses_in_parent(
             return true;
         }
 
-        return parent_precedence == precedence
-            && !should_flatten_binary(*parent_operator, *operator);
+        return false;
     }
 
     parent_requires_primary_expression(parent_expression, parent_child_id)

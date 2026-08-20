@@ -208,6 +208,18 @@ const literalUnion = type string | User;
     );
 }
 
+/// Const generic type values should omit markers already implied by the parameter.
+#[test]
+fn test_format_const_generic_type_value_marker() {
+    assert_format_program!(
+        r#"export newtype WithOwnership<Q, const L: Lifetime = type LifetimeOr<Q, 'static>> = intrinsic
+"#,
+        r#"export newtype WithOwnership<Q, const L: Lifetime = LifetimeOr<Q, 'static>> = intrinsic;
+"#,
+        FileType::Destack,
+    );
+}
+
 /// Construct signatures should keep a space before parameters.
 #[test]
 fn test_format_type_construct_signature_spacing() {
@@ -1368,7 +1380,8 @@ console.log(
 export class ClassTest extends Modal<
   // comment
   string | number | undefined
-> {}
+>
+{}
 
 Math.random<
   // comment
@@ -1398,7 +1411,8 @@ console.log(
 export class ClassTest extends Modal<
   // comment
   string | number | undefined
-> {}
+>
+{}
 
 Math.random<
   // comment

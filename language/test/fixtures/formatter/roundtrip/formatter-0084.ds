@@ -24,32 +24,32 @@ class Foo {
         (o === null || o === undefined
             ? undefined
             : (_o$Foo3 = o.Foo).m.bind(_o$Foo3))().toString();
-        ((_o$Foo4 = o.Foo) === null ||
-            _o$Foo4 === undefined ||
-            (_o$Foo4 = _o$Foo4.self.getSelf()) === null ||
-            _o$Foo4 === undefined
+        ((_o$Foo4 = o.Foo) === null
+            || _o$Foo4 === undefined
+            || (_o$Foo4 = _o$Foo4.self.getSelf()) === null
+            || _o$Foo4 === undefined
             ? undefined
             : _o$Foo4.m.bind(_o$Foo4))();
-        ((_o$Foo$self = o.Foo.self) === null ||
-            _o$Foo$self === undefined ||
-            (_o$Foo$self = _o$Foo$self.getSelf()) === null ||
-            _o$Foo$self === undefined
+        ((_o$Foo$self = o.Foo.self) === null
+            || _o$Foo$self === undefined
+            || (_o$Foo$self = _o$Foo$self.getSelf()) === null
+            || _o$Foo$self === undefined
             ? undefined
             : _o$Foo$self.m.bind(_o$Foo$self))();
-        ((_fn = fn()) === null ||
-            _fn === undefined ||
-            (_fn = _fn.Foo) === null ||
-            _fn === undefined ||
-            (_fn = _fn.self.getSelf()) === null ||
-            _fn === undefined
+        ((_fn = fn()) === null
+            || _fn === undefined
+            || (_fn = _fn.Foo) === null
+            || _fn === undefined
+            || (_fn = _fn.self.getSelf()) === null
+            || _fn === undefined
             ? undefined
             : _fn.m.bind(_fn))();
-        (fn === null ||
-            fn === undefined ||
-            (_fn$Foo$self = fn().Foo.self) === null ||
-            _fn$Foo$self === undefined ||
-            (_fn$Foo$self = _fn$Foo$self.getSelf()) === null ||
-            _fn$Foo$self === undefined
+        (fn === null
+            || fn === undefined
+            || (_fn$Foo$self = fn().Foo.self) === null
+            || _fn$Foo$self === undefined
+            || (_fn$Foo$self = _fn$Foo$self.getSelf()) === null
+            || _fn$Foo$self === undefined
             ? undefined
             : _fn$Foo$self.m.bind(_fn$Foo$self))();
     }

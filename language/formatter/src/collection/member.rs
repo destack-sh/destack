@@ -6,8 +6,7 @@ use crate::annotation::{
 };
 use crate::collection::format_block_nodes_with_ignore_ranges_after;
 use crate::declaration::signature::{
-    default_generic_parameter_trailing_separator, format_where_clause_with_break,
-    write_generic_parameter_list,
+    default_generic_parameter_trailing_separator, format_where_clause, write_generic_parameter_list,
 };
 use crate::declaration::write_statement_terminator_after_anchor;
 use crate::file::{
@@ -278,7 +277,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
                     // where clauses
                     if !where_clauses.is_empty() {
-                        format_where_clause_with_break(f, where_clauses)?;
+                        format_where_clause(f, where_clauses)?;
                     }
 
                     // type bound

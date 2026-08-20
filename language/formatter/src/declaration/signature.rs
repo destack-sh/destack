@@ -1025,21 +1025,32 @@ where
     )
 }
 
-/// Format one where-clause list with break support.
-pub(crate) fn format_where_clause_with_break<'ast>(
+/// Format one where-clause list as an independent group.
+pub(crate) fn format_where_clause<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    where_clauses: &[LocalNodeId<WhereClause>],
+) -> FormatResult<()> {
+    let clause = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        format_where_clause_continuation(f, where_clauses)
+    });
+
+    write!(f, [group(&clause)])
+}
+
+/// Format one where-clause list inside its declaration header group.
+pub(crate) fn format_where_clause_continuation<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     let body = separated_entries(",", where_clauses, TrailingSeparator::Omit, None);
 
-    // indent `where` when the head is full
     write!(
         f,
-        [group(&indent(&format_args![
+        [indent(&format_args![
             soft_line_break_or_space(),
             Keyword::Where,
             group(&indent(&format_args![soft_line_break_or_space(), body]))
-        ]))]
+        ])]
     )
 }
 

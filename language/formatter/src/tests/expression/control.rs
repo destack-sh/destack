@@ -63,6 +63,25 @@ fn test_format_for_assignment_slots() {
     );
 }
 
+/// Keep a short for-loop condition independent from expanded neighboring slots.
+#[test]
+fn test_format_for_condition_groups_independently() {
+    assert_format_program_reference_widths(
+        r#"for (let lane: usize = firstLaneOffsetThatForcesTheInitializerToBreak(); lane < N; lane += strideThatForcesTheUpdateToBreak()) {}
+"#,
+        FileType::Destack,
+        &[(
+            80,
+            r#"for (
+  let lane: usize = firstLaneOffsetThatForcesTheInitializerToBreak();
+  lane < N;
+  lane += strideThatForcesTheUpdateToBreak()
+) {}
+"#,
+        )],
+    );
+}
+
 /// Format one while binding condition as a logical operand sequence.
 #[test]
 fn test_format_while_binding_condition() {

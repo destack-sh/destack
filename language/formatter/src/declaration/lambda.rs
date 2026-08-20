@@ -8,8 +8,8 @@ use crate::annotation::{
 };
 use crate::chain::{is_lambda_expression, transparent_inner_expression};
 use crate::declaration::signature::{
-    expression_body_requires_head_space, format_where_clause_with_break,
-    write_function_header_prefix, write_grouped_parameters_with_return_type,
+    expression_body_requires_head_space, format_where_clause, write_function_header_prefix,
+    write_grouped_parameters_with_return_type,
 };
 use crate::declaration::statement::format_block;
 use crate::expression::ExpressionLeftPath;
@@ -881,7 +881,7 @@ fn write_lambda_head<'ast>(
 
         let where_clauses = signature.where_clauses.as_slice();
         if !where_clauses.is_empty() {
-            format_where_clause_with_break(f, where_clauses)?;
+            format_where_clause(f, where_clauses)?;
         }
 
         Ok(())

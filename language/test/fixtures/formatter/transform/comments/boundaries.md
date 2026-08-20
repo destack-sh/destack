@@ -557,8 +557,9 @@ const value = left + /* plus-note */ right + next
 ```
 
 ```ds expected
-const value =
-    left + /* plus-note */ right + next;
+const value = left
+    + /* plus-note */ right
+    + next;
 ```
 
 ### assignment right side comment

@@ -5,14 +5,14 @@ use crate::annotation::{
     write_vertical_prefix_annotations,
 };
 use crate::collection::member::format_block_of_members;
-use crate::context::FormatNodeWithoutTrailingComments;
+use crate::context::{CapturedFormat, FormatNodeWithoutTrailingComments};
 use crate::declaration::declaration::{
     declaration_export_token, format_declaration_export_modifier, format_super_type_clause,
-    write_place_prefix,
+    write_declaration_body_separator, write_place_prefix,
 };
 use crate::declaration::empty_block_with_infix_annotations;
 use crate::declaration::signature::{
-    default_generic_parameter_trailing_separator, format_where_clause_with_break,
+    default_generic_parameter_trailing_separator, format_where_clause_continuation,
     write_generic_parameter_list,
 };
 use crate::expression::{expression_needs_parentheses_in_parent, format_type_member_block_list};
@@ -51,7 +51,7 @@ fn write_declaration_where_clauses<'ast>(
 ) -> FormatResult<()> {
     // where clauses
     if !where_clauses.is_empty() {
-        format_where_clause_with_break(f, where_clauses)?;
+        format_where_clause_continuation(f, where_clauses)?;
     }
 
     Ok(())
@@ -128,22 +128,6 @@ fn write_member_block<'ast>(
         })))]
     )?;
     write!(f, [hard_line_break(), token("}")])
-}
-
-/// Write one declaration member body.
-fn write_member_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    members: &[LocalNodeId<Member>],
-    break_before_body: bool,
-) -> FormatResult<()> {
-    if break_before_body {
-        write!(f, [hard_line_break()])?;
-    } else {
-        write!(f, [space()])?;
-    }
-
-    write_member_block(f, node_id, members)
 }
 
 /// Return the opening brace token for one class body.
@@ -430,28 +414,246 @@ pub(crate) fn format_struct_declaration<'ast>(
     node_id: LocalNodeId<Declaration>,
     declaration: &StructDeclaration,
 ) -> FormatResult<()> {
-    // prefixes
-    format_declaration_export_modifier(f, node_id, declaration.export)?;
-    if declaration.is_ambient {
-        write!(f, [Keyword::Declare, space()])?;
-    }
-    write_place_prefix(f, declaration.place)?;
+    let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        // prefixes
+        format_declaration_export_modifier(f, node_id, declaration.export)?;
+        if declaration.is_ambient {
+            write!(f, [Keyword::Declare, space()])?;
+        }
+        write_place_prefix(f, declaration.place)?;
 
-    // head
-    write!(f, [Keyword::Struct, space(), declaration.name])?;
-    write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
+        // head
+        write!(f, [Keyword::Struct, space(), declaration.name])?;
+        write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
 
-    // heritage
-    format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;
+        // heritage
+        format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;
 
-    // where clauses
-    write_declaration_where_clauses(f, &declaration.where_clauses)?;
+        // where clauses
+        write_declaration_where_clauses(f, &declaration.where_clauses)
+    });
+    let header_group_id = f.group_id();
+    write!(f, [group(&header).with_id(Some(header_group_id))])?;
 
     // body
-    write_member_body(f, node_id, &declaration.members, false)?;
+    write_declaration_body_separator(f, header_group_id)?;
+    write_member_block(f, node_id, &declaration.members)?;
 
     // postfix annotations
     write!(f, [postfix_annotations(f.context(), node_id)])
+}
+
+/// Write one class declaration header.
+fn write_class_header<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    declaration: &ClassDeclaration,
+    heritage_group_mode: bool,
+    parent_is_assignment: bool,
+) -> FormatResult<()> {
+    // head
+    write!(f, [Keyword::Class])?;
+    let head = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if let Some(name) = declaration.name {
+            write!(f, [space(), name])?;
+        }
+
+        write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
+
+        let following_span_start = declaration
+            .extends_type
+            .map(|type_id| f.context().span(type_id).start)
+            .or_else(|| {
+                declaration
+                    .implements_types
+                    .first()
+                    .copied()
+                    .map(|type_id| f.context().span(type_id).start)
+            });
+
+        if let (Some(name_span), Some(following_span_start)) = (
+            f.context().tree.get_main_span(node_id),
+            following_span_start,
+        ) {
+            let generic_parameter_comments = {
+                let comments = f.context().comments();
+                comments
+                    .comments_in_range(name_span.end, following_span_start)
+                    .to_vec()
+            };
+
+            if !generic_parameter_comments.is_empty() {
+                write!(
+                    f,
+                    [FormatTrailingComments::Comments(
+                        &generic_parameter_comments
+                    )]
+                )?;
+            }
+        }
+
+        if let Some(extends_type) = declaration.extends_type {
+            let comments = f
+                .context()
+                .comments()
+                .comments_before(f.context().span(extends_type).start);
+
+            if comments.iter().any(|comment| comment.preceded_by_newline()) {
+                write!(
+                    f,
+                    [indent(&format_with(
+                        |f: &mut DestackFormatter<'ast, '_>| {
+                            write!(f, [FormatTrailingComments::Comments(comments)])
+                        }
+                    ))]
+                )?;
+            }
+        }
+
+        Ok(())
+    });
+    let heritage = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if let Some(extends_type) = declaration.extends_type {
+            let extends_comments = if !declaration.implements_types.is_empty() {
+                Vec::new()
+            } else {
+                let body_start = class_body_open_brace_token(f, node_id, &declaration.members)
+                    .map_or_else(|| f.context().span(node_id).end, |token| token.span.start);
+
+                f.context()
+                    .comments()
+                    .comments_in_range(f.context().span(extends_type).end, body_start)
+                    .to_vec()
+            };
+            let has_trailing_line_comments =
+                extends_comments.iter().any(|comment| comment.is_line());
+            let format_super = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    if declaration.implements_types.is_empty() {
+                        write!(f, [FormatNodeWithoutTrailingComments(extends_type)])?;
+
+                        if !has_trailing_line_comments {
+                            write!(f, [FormatTrailingComments::Comments(&extends_comments)])?;
+                        }
+                    } else {
+                        let [first_implements_type, ..] = declaration.implements_types.as_slice()
+                        else {
+                            unreachable!("implements types are not empty");
+                        };
+                        let following_span_start = f.context().span(*first_implements_type).start;
+
+                        write!(f, [FormatNodeWithoutTrailingComments(extends_type)])?;
+                        write!(
+                            f,
+                            [format_trailing_comments(
+                                f.context().span(node_id),
+                                f.context().span(extends_type),
+                                following_span_start,
+                            )]
+                        )?;
+                    }
+
+                    Ok(())
+                });
+
+                if parent_is_assignment {
+                    let content = CapturedFormat::new(f, content)?;
+
+                    write!(
+                        f,
+                        [group(&format_args![
+                            if_group_breaks(&format_args![
+                                token("("),
+                                soft_block_indent(&content),
+                                token(")")
+                            ]),
+                            if_group_fits_on_line(&content)
+                        ])]
+                    )
+                } else {
+                    write!(f, [content])
+                }
+            });
+            let format_extends = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [Keyword::Extends, space(), format_super])
+            });
+
+            if heritage_group_mode {
+                write!(f, [soft_line_break_or_space(), group(&format_extends)])?;
+            } else {
+                write!(f, [space(), format_extends])?;
+            }
+        }
+
+        if let Some(first_implements) = declaration.implements_types.first().copied() {
+            let leading_comments = f
+                .context()
+                .comments()
+                .comments_before(f.context().span(first_implements).start);
+
+            if usize::from(declaration.extends_type.is_some()) + declaration.implements_types.len()
+                > 1
+            {
+                write!(
+                    f,
+                    [
+                        soft_line_break_or_space(),
+                        format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                            write!(f, [FormatLeadingComments::Comments(leading_comments)])
+                        }),
+                        (!leading_comments.is_empty()).then_some(hard_line_break()),
+                        Keyword::Implements,
+                        group(&soft_line_indent_or_space(&format_with(
+                            |f: &mut DestackFormatter<'ast, '_>| {
+                                write_heritage_type_list(
+                                    f,
+                                    f.context().span(node_id),
+                                    &declaration.implements_types,
+                                )
+                            }
+                        )))
+                    ]
+                )?;
+            } else {
+                let format_implements = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    write!(
+                        f,
+                        [
+                            format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                write!(f, [FormatLeadingComments::Comments(leading_comments)])
+                            }),
+                            Keyword::Implements,
+                            space()
+                        ]
+                    )?;
+
+                    write_heritage_type_list(
+                        f,
+                        f.context().span(node_id),
+                        &declaration.implements_types,
+                    )
+                });
+
+                if heritage_group_mode {
+                    write!(f, [soft_line_break_or_space(), group(&format_implements)])?;
+                } else {
+                    write!(f, [space(), format_implements])?;
+                }
+            }
+        }
+
+        Ok(())
+    });
+
+    // heritage
+    if heritage_group_mode {
+        write!(f, [head, indent(&heritage)])?;
+    } else {
+        write!(f, [head, heritage])?;
+    }
+
+    // where clauses
+    write_declaration_where_clauses(f, &declaration.where_clauses)
 }
 
 /// Format one class declaration.
@@ -516,245 +718,21 @@ pub(crate) fn format_class_declaration<'ast>(
             write!(f, [Keyword::Final, space()])?;
         }
 
-        // head
-        write!(f, [Keyword::Class])?;
-
-        let head = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if let Some(name) = declaration.name {
-                write!(f, [space(), name])?;
-            }
-
-            write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
-
-            let following_span_start = declaration
-                .extends_type
-                .map(|type_id| f.context().span(type_id).start)
-                .or_else(|| {
-                    declaration
-                        .implements_types
-                        .first()
-                        .copied()
-                        .map(|type_id| f.context().span(type_id).start)
-                });
-
-            if let (Some(name_span), Some(following_span_start)) = (
-                f.context().tree.get_main_span(node_id),
-                following_span_start,
-            ) {
-                let generic_parameter_comments = {
-                    let comments = f.context().comments();
-                    comments
-                        .comments_in_range(name_span.end, following_span_start)
-                        .to_vec()
-                };
-
-                if !generic_parameter_comments.is_empty() {
-                    write!(
-                        f,
-                        [FormatTrailingComments::Comments(
-                            &generic_parameter_comments
-                        )]
-                    )?;
-                }
-            }
-
-            if let Some(extends_type) = declaration.extends_type {
-                let comments = f
-                    .context()
-                    .comments()
-                    .comments_before(f.context().span(extends_type).start);
-
-                if comments.iter().any(|comment| comment.preceded_by_newline()) {
-                    write!(
-                        f,
-                        [indent(&format_with(
-                            |f: &mut DestackFormatter<'ast, '_>| {
-                                write!(f, [FormatTrailingComments::Comments(comments)])
-                            }
-                        ))]
-                    )?;
-                }
-            }
-
-            Ok(())
-        });
-        let heritage = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if let Some(extends_type) = declaration.extends_type {
-                let extends_comments = if !declaration.implements_types.is_empty() {
-                    Vec::new()
-                } else {
-                    let body_start = class_body_open_brace_token(f, node_id, &declaration.members)
-                        .map_or_else(|| f.context().span(node_id).end, |token| token.span.start);
-
-                    f.context()
-                        .comments()
-                        .comments_in_range(f.context().span(extends_type).end, body_start)
-                        .to_vec()
-                };
-                let has_trailing_line_comments =
-                    extends_comments.iter().any(|comment| comment.is_line());
-                let format_super = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        if declaration.implements_types.is_empty() {
-                            write!(f, [FormatNodeWithoutTrailingComments(extends_type)])?;
-
-                            if !has_trailing_line_comments {
-                                write!(f, [FormatTrailingComments::Comments(&extends_comments)])?;
-                            }
-                        } else {
-                            let [first_implements_type, ..] =
-                                declaration.implements_types.as_slice()
-                            else {
-                                unreachable!("implements types are not empty");
-                            };
-                            let following_span_start =
-                                f.context().span(*first_implements_type).start;
-
-                            write!(f, [FormatNodeWithoutTrailingComments(extends_type)])?;
-                            write!(
-                                f,
-                                [format_trailing_comments(
-                                    f.context().span(node_id),
-                                    f.context().span(extends_type),
-                                    following_span_start,
-                                )]
-                            )?;
-                        }
-
-                        Ok(())
-                    });
-
-                    if parent_is_assignment {
-                        let Some(content) = f.capture(&content)? else {
-                            return Ok(());
-                        };
-                        let flat_content =
-                            format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                                f.write_element(content);
-
-                                Ok(())
-                            });
-                        let expanded_content =
-                            format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                                f.write_element(content);
-
-                                Ok(())
-                            });
-
-                        write!(
-                            f,
-                            [group(&format_args![
-                                if_group_breaks(&format_args![
-                                    token("("),
-                                    soft_block_indent(&expanded_content),
-                                    token(")")
-                                ]),
-                                if_group_fits_on_line(&flat_content)
-                            ])]
-                        )
-                    } else {
-                        write!(f, [content])
-                    }
-                });
-                let format_extends = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    write!(f, [Keyword::Extends, space(), format_super])
-                });
-
-                if heritage_group_mode {
-                    write!(f, [soft_line_break_or_space(), group(&format_extends)])?;
-                } else {
-                    write!(f, [space(), format_extends])?;
-                }
-            }
-
-            if let Some(first_implements) = declaration.implements_types.first().copied() {
-                let leading_comments = f
-                    .context()
-                    .comments()
-                    .comments_before(f.context().span(first_implements).start);
-
-                if usize::from(declaration.extends_type.is_some())
-                    + declaration.implements_types.len()
-                    > 1
-                {
-                    write!(
-                        f,
-                        [
-                            soft_line_break_or_space(),
-                            format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                write!(f, [FormatLeadingComments::Comments(leading_comments)])
-                            }),
-                            (!leading_comments.is_empty()).then_some(hard_line_break()),
-                            Keyword::Implements,
-                            group(&soft_line_indent_or_space(&format_with(
-                                |f: &mut DestackFormatter<'ast, '_>| {
-                                    write_heritage_type_list(
-                                        f,
-                                        f.context().span(node_id),
-                                        &declaration.implements_types,
-                                    )
-                                }
-                            )))
-                        ]
-                    )?;
-                } else {
-                    let format_implements = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write!(
-                            f,
-                            [
-                                format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                    write!(f, [FormatLeadingComments::Comments(leading_comments)])
-                                }),
-                                Keyword::Implements,
-                                space()
-                            ]
-                        )?;
-
-                        write_heritage_type_list(
-                            f,
-                            f.context().span(node_id),
-                            &declaration.implements_types,
-                        )
-                    });
-
-                    if heritage_group_mode {
-                        write!(f, [soft_line_break_or_space(), group(&format_implements)])?;
-                    } else {
-                        write!(f, [space(), format_implements])?;
-                    }
-                }
-            }
-
-            Ok(())
-        });
-
-        if heritage_group_mode {
-            let indented = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [head, indent(&heritage)])
-            });
-            let heritage_group_id = f.group_id();
-
-            write!(
+        let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_class_header(
                 f,
-                [group(&indented).with_id(Some(heritage_group_id)), space()]
-            )?;
+                node_id,
+                declaration,
+                heritage_group_mode,
+                parent_is_assignment,
+            )
+        });
+        let header_group_id = f.group_id();
+        write!(f, [group(&header).with_id(Some(header_group_id))])?;
 
-            if !declaration.members.is_empty() {
-                write!(
-                    f,
-                    [if_group_breaks(&hard_line_break()).with_group_id(Some(heritage_group_id))]
-                )?;
-            }
-        } else {
-            write!(f, [head, heritage, space()])?;
-        }
-
-        write_declaration_where_clauses(f, &declaration.where_clauses)?;
-        if !declaration.where_clauses.is_empty() {
-            write!(f, [space()])?;
-        }
-
+        // body
         write_class_body_leading_comments(f, node_id, &declaration.members)?;
+        write_declaration_body_separator(f, header_group_id)?;
         write_member_block(f, node_id, &declaration.members)
     });
 
@@ -823,12 +801,11 @@ fn write_enum_body<'ast>(
 
     // empty body
     if nodes.is_empty() {
-        write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
-        return Ok(());
+        return write!(f, [empty_block_with_infix_annotations(node_id)]);
     }
 
     // body
-    write!(f, [space(), token("{"), hard_line_break()])?;
+    write!(f, [token("{"), hard_line_break()])?;
 
     write!(
         f,
@@ -861,28 +838,33 @@ pub(crate) fn format_enum_declaration<'ast>(
     node_id: LocalNodeId<Declaration>,
     declaration: &EnumDeclaration,
 ) -> FormatResult<()> {
-    // prefixes
-    format_declaration_export_modifier(f, node_id, declaration.export)?;
-    if declaration.is_ambient {
-        write!(f, [Keyword::Declare, space()])?;
-    }
-    write_place_prefix(f, declaration.place)?;
+    let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        // prefixes
+        format_declaration_export_modifier(f, node_id, declaration.export)?;
+        if declaration.is_ambient {
+            write!(f, [Keyword::Declare, space()])?;
+        }
+        write_place_prefix(f, declaration.place)?;
 
-    if declaration.kind == EnumKind::Const {
-        write!(f, [Keyword::Const, space()])?;
-    }
+        if declaration.kind == EnumKind::Const {
+            write!(f, [Keyword::Const, space()])?;
+        }
 
-    // head
-    write!(f, [Keyword::Enum])?;
-    if let Some(name) = declaration.name {
-        write!(f, [space(), name])?;
-    }
+        // head
+        write!(f, [Keyword::Enum])?;
+        if let Some(name) = declaration.name {
+            write!(f, [space(), name])?;
+        }
 
-    write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
-    format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;
-    write_declaration_where_clauses(f, &declaration.where_clauses)?;
+        write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
+        format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;
+        write_declaration_where_clauses(f, &declaration.where_clauses)
+    });
+    let header_group_id = f.group_id();
+    write!(f, [group(&header).with_id(Some(header_group_id))])?;
 
     // body
+    write_declaration_body_separator(f, header_group_id)?;
     write_enum_body(f, node_id, &declaration.fields, &declaration.members)?;
 
     // postfix annotations
@@ -909,79 +891,77 @@ pub(crate) fn format_interface_declaration<'ast>(
             write!(f, [Keyword::Newtype, space()])?;
         }
 
-        let head = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            write!(f, [Keyword::Interface])?;
-            if let Some(name) = declaration.name {
-                write!(f, [space(), name])?;
-            }
-
-            write_declaration_generic_parameters(f, &declaration.generic_parameters)
-        });
-
-        let heritage = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            let Some(first_extends) = declaration.extends_types.first().copied() else {
-                return Ok(());
-            };
-
-            let leading_comments = f
-                .context()
-                .comments()
-                .comments_before(f.context().span(first_extends).start);
-
-            if declaration.extends_types.len() > 1 {
-                write!(
-                    f,
-                    [
-                        soft_line_break_or_space(),
-                        Keyword::Extends,
-                        group(&soft_line_indent_or_space(&format_with(
-                            |f: &mut DestackFormatter<'ast, '_>| {
-                                write_heritage_type_list(
-                                    f,
-                                    f.context().span(node_id),
-                                    &declaration.extends_types,
-                                )
-                            }
-                        )))
-                    ]
-                )
-            } else {
-                let format_extends = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    if !leading_comments.is_empty() {
-                        write!(f, [FormatTrailingComments::Comments(leading_comments)])?;
-                    }
-
-                    write!(f, [Keyword::Extends, space()])?;
-                    write!(f, [first_extends])
-                });
-
-                if heritage_group_mode {
-                    write!(f, [soft_line_break_or_space(), group(&format_extends)])
-                } else {
-                    write!(f, [space(), format_extends])
+        let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            // head
+            let head = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [Keyword::Interface])?;
+                if let Some(name) = declaration.name {
+                    write!(f, [space(), name])?;
                 }
-            }
-        });
 
-        if heritage_group_mode {
-            let indented = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [head, indent(&heritage)])
+                write_declaration_generic_parameters(f, &declaration.generic_parameters)
             });
-            let heritage_group_id = f.group_id();
 
-            write!(
-                f,
-                [group(&indented).with_id(Some(heritage_group_id)), space()]
-            )?;
-        } else {
-            write!(f, [head, heritage, space()])?;
-        }
+            let heritage = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let Some(first_extends) = declaration.extends_types.first().copied() else {
+                    return Ok(());
+                };
 
-        write_declaration_where_clauses(f, &declaration.where_clauses)?;
-        if !declaration.where_clauses.is_empty() {
-            write!(f, [space()])?;
-        }
+                let leading_comments = f
+                    .context()
+                    .comments()
+                    .comments_before(f.context().span(first_extends).start);
 
+                if declaration.extends_types.len() > 1 {
+                    write!(
+                        f,
+                        [
+                            soft_line_break_or_space(),
+                            Keyword::Extends,
+                            group(&soft_line_indent_or_space(&format_with(
+                                |f: &mut DestackFormatter<'ast, '_>| {
+                                    write_heritage_type_list(
+                                        f,
+                                        f.context().span(node_id),
+                                        &declaration.extends_types,
+                                    )
+                                }
+                            )))
+                        ]
+                    )
+                } else {
+                    let format_extends = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        if !leading_comments.is_empty() {
+                            write!(f, [FormatTrailingComments::Comments(leading_comments)])?;
+                        }
+
+                        write!(f, [Keyword::Extends, space()])?;
+                        write!(f, [first_extends])
+                    });
+
+                    if heritage_group_mode {
+                        write!(f, [soft_line_break_or_space(), group(&format_extends)])
+                    } else {
+                        write!(f, [space(), format_extends])
+                    }
+                }
+            });
+
+            // heritage
+            if heritage_group_mode {
+                write!(f, [head, indent(&heritage)])?;
+            } else {
+                write!(f, [head, heritage])?;
+            }
+
+            // where clauses
+            write_declaration_where_clauses(f, &declaration.where_clauses)
+        });
+        let header_group_id = f.group_id();
+        write!(f, [group(&header).with_id(Some(header_group_id))])?;
+
+        // body
+        write_declaration_body_separator(f, header_group_id)?;
         write_type_member_block(f, node_id, &declaration.members)
     });
 

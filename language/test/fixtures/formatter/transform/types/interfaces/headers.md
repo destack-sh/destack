@@ -132,7 +132,8 @@ interface Foo
     extends
         VeryLongBaseInterfaceNameOne,
         VeryLongBaseInterfaceNameTwo,
-        VeryLongBaseInterfaceNameThree {
+        VeryLongBaseInterfaceNameThree
+{
     value: string;
 }
 ```
@@ -152,7 +153,8 @@ interface Container<
     VeryLongType,
     AnotherType,
     ThirdType,
-> {}
+>
+{}
 ```
 
 ## Interface Members

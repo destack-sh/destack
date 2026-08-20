@@ -1,4 +1,3 @@
-use super::binary::is_logical_binary_operator;
 use super::r#type::write_type_expression_with_inline_prefix_annotations;
 use crate::annotation::{
     FormatTrailingComments, format_comment, prefix_annotations, write_comment_slice,
@@ -17,8 +16,8 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
     Declaration, Declarator, DecoratorPosition, Expression, FunctionDeclaration, FunctionForm,
-    GenericArgument, IfForm, LocalNodeId, NodeType, Pattern, PatternField, ScalarLiteral,
-    TemplateLiteral, TokenType, TypeExpression,
+    GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, ScalarLiteral, TemplateLiteral,
+    TokenType, TypeExpression,
 };
 use destack_fir::format::{
     Format, FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, InstructionTape,
@@ -1592,13 +1591,25 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
     is_left_short: bool,
 ) -> FormatResult<bool> {
     let context = f.context();
+    let outer_span = context.span(right);
+    let leading_expression = ExpressionLeftPath::new(right).leftmost(context);
+    let token_start = context.expression_token_start(leading_expression.expression_id());
     let right = transparent_inner_expression(context, right);
+    let inner_span = context.span(right);
 
-    // comments
-    for comment in context
-        .comments()
-        .comments_before_iter(context.span(right).start)
-    {
+    // grouped leading comments
+    if outer_span.start < token_start {
+        let leading_comments = context.source_comments_in_range(outer_span.start, token_start);
+        let has_line_ending_comment = leading_comments
+            .iter()
+            .any(|comment| comment.is_line() || context.has_newline(comment.span));
+        if has_line_ending_comment {
+            return Ok(true);
+        }
+    }
+
+    // own-line comments
+    for comment in context.comments().comments_before_iter(inner_span.start) {
         if comment.preceded_by_newline() && comment.followed_by_newline() {
             return Ok(true);
         }
@@ -1615,46 +1626,6 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
                 .get(transparent_inner_expression(context, *nested_right)),
             Expression::Assign { .. }
         ),
-
-        // binary-like rhs values first break after `=`
-        Expression::Binary { .. } => true,
-
-        // ternary rhs values only break after `=` when the test is binary-like
-        Expression::If {
-            form: IfForm::Ternary,
-            condition,
-            ..
-        } => {
-            if let Some(condition) = condition.as_expression() {
-                let condition = transparent_inner_expression(context, condition);
-
-                match context.tree.get(condition) {
-                    Expression::Binary {
-                        operator, right, ..
-                    } => {
-                        if !is_logical_binary_operator(*operator) {
-                            return Ok(true);
-                        }
-
-                        let logical_right = transparent_inner_expression(context, *right);
-                        let right_stays_inline = match context.tree.get(logical_right) {
-                            Expression::ObjectExpression { properties, .. }
-                            | Expression::StructExpression { properties, .. } => {
-                                !properties.is_empty()
-                            }
-                            Expression::ArrayExpression { elements } => !elements.is_empty(),
-                            Expression::TreeExpression { .. } => true,
-                            _ => false,
-                        };
-
-                        !right_stays_inline
-                    }
-                    _ => false,
-                }
-            } else {
-                false
-            }
-        }
 
         _ if matches!(
             assignment_rhs_innermost_expression(context, right),

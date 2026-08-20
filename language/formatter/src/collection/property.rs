@@ -5,7 +5,7 @@ use crate::annotation::{
 use crate::chain::transparent_inner_expression;
 use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, expression_body_requires_head_space,
-    format_where_clause_with_break, parameter_is_variadic, should_break_function_parameters,
+    format_where_clause, parameter_is_variadic, should_break_function_parameters,
     should_hug_function_parameters, write_empty_parameter_list_with_interior_comments,
     write_function_header_prefix, write_generic_parameter_list,
     write_grouped_parameters_with_return_type, write_signature_hug_parameter_list_with_this,
@@ -697,7 +697,7 @@ where
 
     // where clauses
     if !signature.where_clauses.is_empty() {
-        format_where_clause_with_break(f, &signature.where_clauses)?;
+        format_where_clause(f, &signature.where_clauses)?;
     }
 
     // body

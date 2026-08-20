@@ -28,7 +28,8 @@ use destack_dir::{
 use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::{
     block_indent, empty_line, expand_parent, format_with, group, hard_line_break,
-    line_suffix_boundary, soft_block_indent, soft_line_indent_or_space, space, token,
+    line_suffix_boundary, soft_block_indent, soft_line_break_or_space, soft_line_indent_or_space,
+    space, token,
 };
 use destack_fir::{best_fitting, format_args, write};
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
@@ -1270,26 +1271,32 @@ pub(crate) fn format_for_expression<'ast>(
     increment: Option<LocalNodeId<Expression>>,
     body: LocalNodeId<Block>,
 ) -> FormatResult<()> {
-    write!(
-        f,
-        [
-            Keyword::For,
-            space(),
-            token("("),
-            initialization,
-            token(";"),
-            space(),
-            condition,
-            token(";"),
-            space(),
-            increment,
-            format_with(|f| write_comments_for_empty_statement_body(f, body)),
-            token(")")
-        ]
-    )?;
+    let head = format_with(|f| {
+        write!(
+            f,
+            [
+                group(&initialization),
+                token(";"),
+                soft_line_break_or_space(),
+                group(&condition),
+                token(";"),
+                soft_line_break_or_space(),
+                group(&increment),
+                format_with(|f| write_comments_for_empty_statement_body(f, body)),
+            ]
+        )
+    });
+
+    // grouped header
+    write!(f, [Keyword::For, space(), token("(")])?;
+    write_grouped_control_head(f, &head)?;
+    write!(f, [token(")")])?;
+
+    // body
     if statement_body_requires_head_space(f.context(), body) {
         write!(f, [space()])?;
     }
+
     format_statement_body_block(f, body)
 }
 

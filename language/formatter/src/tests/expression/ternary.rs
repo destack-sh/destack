@@ -1,5 +1,23 @@
-use crate::{DestackFormatOptions, assert_format_program_roundtrip_with_file_type};
+use crate::{
+    DestackFormatOptions, assert_format_program, assert_format_program_roundtrip_with_file_type,
+};
 use destack_source::FileType;
+
+/// Binary ternary conditions should stay beside their assignment when they fit.
+#[test]
+fn test_format_binary_ternary_condition_stays_with_assignment() {
+    assert_format_program!(
+        r#"let opposed = from.x.abs() > from.z.abs()
+    ? Vector3 { x: -from.y, y: from.x, z: T.zero() }
+    : Vector3 { x: T.zero(), y: -from.z, z: from.y }
+"#,
+        r#"let opposed = from.x.abs() > from.z.abs()
+    ? Vector3 { x: -from.y, y: from.x, z: T.zero() }
+    : Vector3 { x: T.zero(), y: -from.z, z: from.y };
+"#,
+        FileType::Destack,
+    );
+}
 
 /// Ternary branch separator comments should stay on the consequent line.
 #[test]

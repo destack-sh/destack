@@ -15,9 +15,7 @@ pub(crate) fn needs_parens_in_postfix_position(
 ) -> bool {
     if matches!(
         tree.get(expr_id),
-        Expression::ObjectExpression { .. }
-            | Expression::StructExpression { .. }
-            | Expression::TreeExpression { .. }
+        Expression::ObjectExpression { .. } | Expression::TreeExpression { .. }
     ) {
         return true;
     }

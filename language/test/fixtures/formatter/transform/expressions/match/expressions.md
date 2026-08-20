@@ -247,9 +247,8 @@ const enabled = flag && (match (mode) { Fast => fastEnabled; Slow => slowEnabled
 ```
 
 ```ds expected
-const enabled =
-    flag &&
-    (match (mode) {
+const enabled = flag
+    && (match (mode) {
         Fast => fastEnabled
         Slow => slowEnabled
         _ => fallbackEnabled

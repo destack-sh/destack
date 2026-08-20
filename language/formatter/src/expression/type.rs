@@ -7,8 +7,8 @@ use crate::annotation::{
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
 use crate::declaration::signature::{
-    default_generic_parameter_trailing_separator, format_where_clause_with_break,
-    parameter_is_variadic, should_hug_function_parameters, write_function_abstraction_prefix,
+    default_generic_parameter_trailing_separator, format_where_clause, parameter_is_variadic,
+    should_hug_function_parameters, write_function_abstraction_prefix,
     write_function_header_prefix, write_generic_parameter_list,
     write_grouped_parameters_with_return_type, write_signature_hug_parameter_list_with_this,
     write_signature_parameter_list_with_this, write_signature_return_type,
@@ -2202,7 +2202,7 @@ fn write_type_callable_where_clauses<'ast>(
     where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     if !where_clauses.is_empty() {
-        format_where_clause_with_break(f, where_clauses)?;
+        format_where_clause(f, where_clauses)?;
     }
 
     Ok(())
@@ -2361,7 +2361,7 @@ fn write_type_signature<'ast>(
 
         // where clauses
         if !signature.where_clauses.is_empty() {
-            format_where_clause_with_break(f, &signature.where_clauses)?;
+            format_where_clause(f, &signature.where_clauses)?;
         }
 
         Ok(())
@@ -3310,7 +3310,7 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 }
 
                 if !where_clauses.is_empty() {
-                    format_where_clause_with_break(f, where_clauses)?;
+                    format_where_clause(f, where_clauses)?;
                 }
 
                 if let Some(constraint) = constraint {

@@ -581,10 +581,11 @@ xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx" && (
 ```
 
 ```ds expected
-xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx" && (
-    // test
-    <div></div>
-);
+xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx"
+    && (
+        // test
+        <div></div>
+    );
 ```
 
 ## Fragments

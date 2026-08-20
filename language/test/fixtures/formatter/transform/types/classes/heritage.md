@@ -22,7 +22,8 @@ B // impl-tail
 class Derived
     extends Base // base-tail
     // impl-head
-    implements A, B {
+    implements A, B
+{
     // impl-tail
 }
 ```

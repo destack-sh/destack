@@ -277,21 +277,26 @@ class LongAnnotation {
 }
 
 export class longlonglonglonglonglonglonglonglonglonglongclassname
-  extends someobjectsomepropertysomeotherproperty.SomeClass {}
+  extends someobjectsomepropertysomeotherproperty.SomeClass
+{}
 
 export interface longlonglonglonglonglonglonglonglonglonglongclassname
-  extends someobjectsomepropertysomeotherproperty.SomeClass {}
+  extends someobjectsomepropertysomeotherproperty.SomeClass
+{}
 
 letlonglongRunningProvider = class
-  implements languages.SignatureHelpProvider {};
+  implements languages.SignatureHelpProvider
+{};
 
 letlonglongRunningProvider2 = class extends languages.SignatureHelpProvider {};
 
 letlonglongRunningProvider3 = class extends (
   languages.SignatureHelpProvider<Hello>
-) {};
+)
+{};
 
-letlonglongRunningProvider4 = class implements languages.SignatureHelpProvider<Hello> {};
+letlonglongRunningProvider4 = class implements languages.SignatureHelpProvider<Hello>
+{};
 "#,
             ),
             (
@@ -333,10 +338,12 @@ class LongAnnotation {
 }
 
 export class longlonglonglonglonglonglonglonglonglonglongclassname
-  extends someobjectsomepropertysomeotherproperty.SomeClass {}
+  extends someobjectsomepropertysomeotherproperty.SomeClass
+{}
 
 export interface longlonglonglonglonglonglonglonglonglonglongclassname
-  extends someobjectsomepropertysomeotherproperty.SomeClass {}
+  extends someobjectsomepropertysomeotherproperty.SomeClass
+{}
 
 letlonglongRunningProvider = class implements languages.SignatureHelpProvider {};
 
@@ -375,7 +382,8 @@ fn test_format_extension_implements_list_layout() {
     IndexSet<number, T>,
     Iterable<T>,
     Iterable<&readonly T>,
-    Extend<T, "exclusive"> {
+    Extend<T, "exclusive">
+{
   index(index: number): T;
 }
 "#,
@@ -404,8 +412,9 @@ fn test_format_extension_implements_generic_item_layout() {
             (
                 80,
                 r#"extension<R> of X
-  implements
-    IndexSet<VeryLongCoordinateName<R>, VeryLongSliceName<R>> where R: Copy {
+  implements IndexSet<VeryLongCoordinateName<R>, VeryLongSliceName<R>>
+  where R: Copy
+{
   indexSet(
     coordinate: VeryLongCoordinateName<R>,
     value: VeryLongSliceName<R>,
@@ -436,7 +445,8 @@ fn test_format_extension_target_type_layout() {
             (
                 100,
                 r#"extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of
-  Tensor<T, Rank, F, Sharding<...Axes>> {}
+  Tensor<T, Rank, F, Sharding<...Axes>>
+{}
 "#,
             ),
             (

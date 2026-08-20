@@ -11,9 +11,8 @@ const valid = isActive() && /* must have permission */ hasPermission()
 ```
 
 ```ds expected
-const valid =
-    isActive() &&
-    /* must have permission */ hasPermission();
+const valid = isActive()
+    && /* must have permission */ hasPermission();
 ```
 
 ### comments in multiline logical chain
@@ -25,10 +24,9 @@ const valid = isActive() && /* perm */ hasPermission() && /* not blocked */ !isB
 ```
 
 ```ds expected
-const valid =
-    isActive() &&
-    /* perm */ hasPermission() &&
-    /* not blocked */ !isBlocked();
+const valid = isActive()
+    && /* perm */ hasPermission()
+    && /* not blocked */ !isBlocked();
 ```
 
 ### comment in nullish coalescing

@@ -1,15 +1,16 @@
-use crate::context::with_following_span_start;
+use crate::chain::transparent_inner_expression;
+use crate::context::{DestackFormatterSpeculationExt, with_following_span_start};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, BinaryOperator, Expression, IfForm, LocalNodeId, Member, NodeType, Property,
 };
 use destack_fir::format::{Format, FormatResult, Formatter as FirFormatter};
 use destack_fir::prelude::{
-    format_with, group, indent, soft_block_indent, soft_line_break_or_space,
-    soft_line_indent_or_space, space,
+    format_with, group, soft_block_indent, soft_line_break_or_space, soft_line_indent_or_space,
+    space,
 };
 use destack_fir::write;
-use destack_source::Span;
+use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
 use smallvec::SmallVec;
 
 type BinarySideList = SmallVec<[BinarySide; 8]>;
@@ -72,6 +73,50 @@ fn binary_expression_has_inline_block_postfix_comment(
         .any(|comment| comment.is_block())
 }
 
+/// Return whether an internal line comment should keep the operator beside the left operand.
+fn binary_left_keeps_operator_inline(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if matches!(context.tree.get(expression_id), Expression::Binary { .. }) {
+        return false;
+    }
+
+    let Some(leading_span) = context.tree.get_side_span(
+        expression_id,
+        NodeSpanType::Boundary(NodeSpanBoundary::Leading),
+    ) else {
+        return false;
+    };
+    let expression_start = context.expression_token_start(expression_id);
+
+    context
+        .source_comments_in_range(leading_span.start, expression_start)
+        .iter()
+        .any(|comment| comment.is_line())
+}
+
+/// Return whether one operand is a control expression with an expanded body.
+fn binary_operand_is_control(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    matches!(
+        context.tree.get(expression_id),
+        Expression::Match { .. }
+            | Expression::Switch { .. }
+            | Expression::If { .. }
+            | Expression::Loop { .. }
+            | Expression::Try { .. }
+            | Expression::Block { .. }
+            | Expression::ForEach { .. }
+            | Expression::For { .. }
+            | Expression::While { .. }
+    )
+}
+
 /// Return whether one operator belongs to the equality family.
 #[inline]
 fn binary_operator_is_equality(operator: BinaryOperator) -> bool {
@@ -110,10 +155,7 @@ fn binary_operator_is_remainder(operator: BinaryOperator) -> bool {
 
 /// Return whether nested binaries should flatten into one chain.
 #[inline]
-pub(crate) fn should_flatten_binary(
-    parent_operator: BinaryOperator,
-    operator: BinaryOperator,
-) -> bool {
+fn should_flatten_binary(parent_operator: BinaryOperator, operator: BinaryOperator) -> bool {
     let parent_precedence = parent_operator.precedence();
     let precedence = operator.precedence();
 
@@ -167,25 +209,25 @@ fn expression_is_same_binary_kind(expression: &Expression, operator: BinaryOpera
     )
 }
 
-/// Write one separating space after the left operand when no postfix trivia exists.
-pub(crate) fn write_space_after_binary_left_if_needed<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+/// Return whether an infix operator needs its own separator after the left operand.
+fn binary_operator_needs_separator(
+    context: &DestackFormatContext<'_>,
     left: LocalNodeId<Expression>,
     operator: BinaryOperator,
-) -> FormatResult<()> {
+) -> bool {
     let allow_inline_block_postfix_space =
-        binary_expression_has_inline_block_postfix_comment(f.context(), left);
+        binary_expression_has_inline_block_postfix_comment(context, left);
     let allow_logical_space_after_line_comment = is_logical_binary_operator(operator)
-        && binary_expression_has_line_suffix_comment(f.context(), left);
+        && binary_expression_has_line_suffix_comment(context, left);
 
-    if f.context().has_postfix_annotation(left)
+    if context.has_postfix_annotation(left)
         && !allow_logical_space_after_line_comment
         && !allow_inline_block_postfix_space
     {
-        return Ok(());
+        return false;
     }
 
-    write!(f, [space()])
+    true
 }
 
 /// One binary-like expression wrapper.
@@ -471,32 +513,30 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
                     )
                 };
 
-                // separator space after left side
-                write_space_after_binary_left_if_needed(f, parent.left(f.context()), operator)?;
-
+                let left = parent.left(f.context());
+                let right_will_break = f.speculate_will_break_after(
+                    f.context().expression_token_start(right),
+                    &right,
+                )?;
+                let right_is_control = binary_operand_is_control(f.context(), right);
+                let needs_separator = binary_operator_needs_separator(f.context(), left, operator);
+                let separator_can_break = !binary_left_keeps_operator_inline(f.context(), left);
                 let operator_and_right = format_with(|f: &mut DestackFormatter<'a, '_>| {
-                    write!(f, [operator])?;
+                    write!(f, [operator, space()])?;
 
                     // inline logical rhs
-                    if parent.should_inline_logical_expression(f.context()) {
-                        write!(f, [space()])?;
-
-                        if !matches!(
+                    let should_inline = parent.should_inline_logical_expression(f.context())
+                        && !matches!(
                             f.context().tree.get(right),
                             Expression::TreeExpression { .. }
-                        ) && f
-                            .context()
+                        )
+                        && f.context()
                             .comments()
-                            .has_leading_own_line_comment(f.context().span(right).start)
-                        {
-                            write!(f, [soft_line_indent_or_space(&right)])?;
+                            .has_leading_own_line_comment(f.context().span(right).start);
+                    if should_inline {
+                        write!(f, [soft_line_indent_or_space(&right)])?;
 
-                            return Ok(());
-                        }
-                    }
-                    // standard separator
-                    else {
-                        write!(f, [soft_line_break_or_space()])?;
+                        return Ok(());
                     }
 
                     write!(f, [right])
@@ -510,7 +550,26 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
 
                 // grouped operator layout
                 if should_group {
-                    return write!(f, [group(&operator_and_right).should_expand(should_break)]);
+                    let operator_and_right = group(&operator_and_right)
+                        .should_expand(should_break || right_will_break || right_is_control);
+
+                    if needs_separator && separator_can_break {
+                        return write!(f, [soft_line_indent_or_space(&operator_and_right)]);
+                    }
+
+                    if needs_separator {
+                        return write!(f, [space(), operator_and_right]);
+                    }
+
+                    return write!(f, [operator_and_right]);
+                }
+
+                if needs_separator && separator_can_break {
+                    return write!(f, [soft_line_indent_or_space(&operator_and_right)]);
+                }
+
+                if needs_separator {
+                    return write!(f, [space(), operator_and_right]);
                 }
 
                 write!(f, [operator_and_right])
@@ -699,19 +758,8 @@ pub(crate) fn format_binary_expression<'ast>(
             [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 write!(f, [first])?;
 
-                if !tail.is_empty() {
-                    write!(
-                        f,
-                        [indent(&format_with(
-                            |f: &mut DestackFormatter<'ast, '_>| {
-                                for part in tail {
-                                    write!(f, [*part])?;
-                                }
-
-                                Ok(())
-                            }
-                        ))]
-                    )?;
+                for part in tail {
+                    write!(f, [*part])?;
                 }
 
                 Ok(())

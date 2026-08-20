@@ -58,15 +58,30 @@ fn documentation_for_comment<'a>(
     Ok(Some(documentation))
 }
 
-/// Return the documentation width available at one source indentation.
+/// Return the documentation width available at its canonical indentation.
 fn documentation_width(context: &DestackFormatContext<'_>, comment: Comment) -> usize {
-    let source = context.source_text();
+    // find the source line and its leading indentation
+    let source = context.source_text().slice_to(comment.span.start);
+    let line_start = match source.rfind(['\n', '\r']) {
+        Some(index) => index + 1,
+        None => 0,
+    };
+    let line = &source[line_start..];
     let tab_width = usize::from(context.options.indent_width);
-    let indentation = source
-        .bytes_to(comment.span.start)
+    let indentation = line
+        .bytes()
         .take_while(|byte| matches!(byte, b' ' | b'\t'))
         .map(|byte| if byte == b'\t' { tab_width } else { 1 })
         .sum::<usize>();
 
-    usize::from(context.options.line_width).saturating_sub(indentation + 4)
+    // reserve one indentation step when moving inline documentation onto its own line
+    let is_inline = line.bytes().any(|byte| !matches!(byte, b' ' | b'\t'));
+    let output_indentation = if is_inline {
+        indentation + tab_width
+    } else {
+        indentation
+    };
+
+    // reserve the documentation marker width
+    usize::from(context.options.line_width).saturating_sub(output_indentation + 4)
 }
