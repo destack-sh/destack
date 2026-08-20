@@ -53,29 +53,13 @@ async fn test_initialize_workspace_client() {
                 method: "workspace/didChangeWatchedFiles".to_string(),
                 register_options: Some(
                     to_value(lsp::DidChangeWatchedFilesRegistrationOptions {
-                        watchers: [
-                            "**/*.ds",
-                            "**/*.d.ds",
-                            "**/*.txt",
-                            "**/*.toml",
-                            "**/*.yaml",
-                            "**/*.yml",
-                            "**/*.json",
-                            "**/*.env",
-                            "**/*.md",
-                            "**/*.html",
-                            "**/*.htm",
-                            "**/*.css",
-                            "**/*.svg",
-                            "**/*.map",
-                            "**/destack.json",
-                        ]
-                        .into_iter()
-                        .map(|pattern| lsp::FileSystemWatcher {
-                            glob_pattern: pattern.to_string().into(),
-                            kind: None,
-                        })
-                        .collect(),
+                        watchers: ["**/*"]
+                            .into_iter()
+                            .map(|pattern| lsp::FileSystemWatcher {
+                                glob_pattern: pattern.to_string().into(),
+                                kind: None,
+                            })
+                            .collect(),
                     })
                     .unwrap(),
                 ),

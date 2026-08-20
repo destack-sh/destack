@@ -7,7 +7,7 @@ use destack_lsp_server::{Client, LanguageServer, LspService, Server, UriExt, jso
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{Revision, Trace, TraceReport, TraceView};
-use destack_source::{FileId, PatchSet, TextRange, WATCHABLE_FILE_TYPES};
+use destack_source::{FileId, PatchSet, TextRange};
 use destack_workspace::{
     DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, QueryFile, QueryRun,
     RevisionPolicy, RunQueryInput, RunQueryResponse, Workspace,
@@ -23,8 +23,8 @@ use crate::query::{
 /// Slow artifact attempts included in verbose LSP traces.
 const TRACE_SLOW_ATTEMPTS: usize = 12;
 
-/// Configuration files tracked by the language server.
-const CONFIGURATION_GLOBS: [&str; 1] = ["**/destack.json"];
+/// Files tracked by the language server.
+const TRACKED_FILE_GLOBS: [&str; 1] = ["**/*"];
 
 /// The Destack language server.
 #[derive(Debug)]
@@ -314,23 +314,7 @@ impl DestackLanguageServer {
 
     /// Return file globs tracked by the language server.
     fn tracked_file_globs() -> Vec<&'static str> {
-        let mut patterns = Vec::new();
-        for file_type in WATCHABLE_FILE_TYPES {
-            for pattern in file_type.globs() {
-                if !patterns.contains(pattern) {
-                    patterns.push(pattern);
-                }
-            }
-        }
-
-        // append configuration globs
-        for pattern in CONFIGURATION_GLOBS {
-            if !patterns.contains(&pattern) {
-                patterns.push(pattern);
-            }
-        }
-
-        patterns
+        TRACKED_FILE_GLOBS.to_vec()
     }
 
     /// Reload workspace source.
