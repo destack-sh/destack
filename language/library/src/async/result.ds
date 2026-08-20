@@ -104,12 +104,11 @@ export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<
 
         result.unwrapOrElse(f)
     }
-
 }
 
 export extension PromiseResult<T: Copy, E: Copy> of Promise<Result<T, E>>
-    implements
-        FromResidual<E> {
+    implements FromResidual<E>
+{
     /// Create a failed result promise from a propagated residual.
     static fromResidual(residual: E): Promise<Result<T, E>> {
         Promise.resolve(Result.err(residual))

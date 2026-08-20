@@ -45,9 +45,8 @@ export shared class ConcurrentMap<K, V> {
 }
 
 export extension<K: Hash, V> of ConcurrentMapRead<K, V>
-    implements
-        Dispose,
-        Dereference<"readonly"> {
+    implements Dispose, Dereference<"readonly">
+{
     /// The projected result form.
     type Output = V;
 
@@ -73,9 +72,8 @@ export extension<K: Hash, V> of ConcurrentMapRead<K, V>
 }
 
 export extension<K: Hash, V> of ConcurrentMapWrite<K, V>
-    implements
-        Dispose,
-        Dereference<"exclusive"> {
+    implements Dispose, Dereference<"exclusive">
+{
     /// The projected result form.
     type Output = V;
 
@@ -290,9 +288,8 @@ export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V), "m
 }
 
 export extension<K: Hash, V> of ConcurrentMap<K, V>
-    implements
-        From<Iterable<(K, V)>>,
-        FromIterator<(K, V)> {
+    implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
+{
     /// Create a managed concurrent map from `entries`.
     static from(entries: Iterable<(K, V)>): ConcurrentMap<K, V> {
         ConcurrentMap.from(entries)
@@ -305,9 +302,8 @@ export extension<K: Hash, V> of ConcurrentMap<K, V>
 }
 
 export extension<K: Hash, V> of ^ConcurrentMap<K, V>
-    implements
-        From<Iterable<(K, V)>>,
-        FromIterator<(K, V)> {
+    implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
+{
     /// Create an owned concurrent map from entries.
     static from(entries: Iterable<(K, V)>): ^ConcurrentMap<K, V> {
         ConcurrentMap.from(entries)

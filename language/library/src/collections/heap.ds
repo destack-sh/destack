@@ -27,8 +27,8 @@ export extension<T: Compare<T>> of BinaryHeap<T> where T: Copy {
 }
 
 export extension<T: Compare<T>, 'a> of Borrowed<BinaryHeap<T>, 'a, "readonly">
-    implements
-        Iterable<Borrowed<T, 'a, "readonly">> {
+    implements Iterable<Borrowed<T, 'a, "readonly">>
+{
     /// Borrow the greatest element.
     peek(): Borrowed<T, 'a, "readonly"> | undefined {
         todo("BinaryHeap.peek")
@@ -58,10 +58,8 @@ export extension<T> of BinaryHeap<T> implements Default {
 }
 
 export extension<T: Compare<T>> of BinaryHeap<T>
-    implements
-        From<Iterable<T>>,
-        FromIterator<T>,
-        Extend<T, "exclusive"> {
+    implements From<Iterable<T>>, FromIterator<T>, Extend<T, "exclusive">
+{
     /// Create a binary heap from values.
     static from(values: Iterable<T>): BinaryHeap<T> {
         todo("BinaryHeap.from")

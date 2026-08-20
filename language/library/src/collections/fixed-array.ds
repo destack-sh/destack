@@ -25,11 +25,8 @@ export extension<T: Copy, const N: usize> of FixedArray<T, N> {
 }
 
 export extension<T, const N: usize> of FixedArray<T, N>
-    implements
-        Sequence,
-        Index<isize>,
-        IndexSet<isize, T>,
-        Iterable<T> {
+    implements Sequence, Index<isize>, IndexSet<isize, T>, Iterable<T>
+{
     /// The indexed output type.
     type Output = T;
 
@@ -85,9 +82,8 @@ export extension<T, const N: usize> of FixedArray<T, N>
 }
 
 export extension<T, const N: usize, 'a, const A: Access> of Borrowed<FixedArray<T, N>, 'a, A>
-    implements
-        Iterable<Borrowed<T, 'a, A>>,
-        Sequence {
+    implements Iterable<Borrowed<T, 'a, A>>, Sequence
+{
     /// The borrowed sequence produced by a rest pattern.
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
@@ -118,9 +114,8 @@ export extension<T, const N: usize, 'a, const A: Access> of Borrowed<FixedArray<
 }
 
 export extension<T, const N: usize, const A: Access = "readonly"> of FixedArray<T, N>
-    implements
-        As<[T], A>,
-        Borrow<[T], A> {
+    implements As<[T], A>, Borrow<[T], A>
+{
     /// Borrow this fixed array as a slice.
     as(this: WithAccess<&[T; N], A>): WithAccess<&[T], A> {
         todo("FixedArray.as")
@@ -134,7 +129,8 @@ export extension<T, const N: usize, const A: Access = "readonly"> of FixedArray<
 
 export extension<T, const N: usize, R: RangeBounds<isize>, const A: Access = "readonly"> of
     FixedArray<T, N>
-    implements Index<R, A> {
+    implements Index<R, A>
+{
     /// The indexed output type.
     type Output = [T];
 
@@ -145,8 +141,9 @@ export extension<T, const N: usize, R: RangeBounds<isize>, const A: Access = "re
 }
 
 export extension<T, const N: usize, R: RangeBounds<isize>> of FixedArray<T, N>
-    implements
-        IndexSet<R, [T]> where T: Copy {
+    implements IndexSet<R, [T]>
+    where T: Copy
+{
     /// Copy `source` into the selected range.
     indexSet(&exclusive this, range: R, source: [T]): void {
         todo("FixedArray.indexSetRange");
@@ -154,8 +151,9 @@ export extension<T, const N: usize, R: RangeBounds<isize>> of FixedArray<T, N>
 }
 
 export extension<T, const N: usize, R: RangeBounds<isize>> of FixedArray<T, N>
-    implements
-        IndexSet<R, &readonly [T]> where T: Copy {
+    implements IndexSet<R, &readonly [T]>
+    where T: Copy
+{
     /// Copy `source` into the selected range.
     indexSet(&exclusive this, range: R, source: &readonly [T]): void {
         todo("FixedArray.indexSetRange");

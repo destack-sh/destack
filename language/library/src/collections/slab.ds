@@ -67,8 +67,8 @@ export extension<T> of Slab<T> implements Iterable<(SlabKey, T)> {
 }
 
 export extension<T, 'a, const A: Access> of Borrowed<Slab<T>, 'a, A>
-    implements
-        Iterable<(SlabKey, Borrowed<T, 'a, A>)> {
+    implements Iterable<(SlabKey, Borrowed<T, 'a, A>)>
+{
     /// Borrow the value for `key`.
     get(key: SlabKey): Borrowed<T, 'a, A> | undefined {
         todo("Slab.get")
@@ -97,7 +97,8 @@ export extension<T> of Slab<T>
         From<Iterable<T>>,
         FromIterator<T>,
         Extend<T, "exclusive">,
-        Default {
+        Default
+{
     /// The indexed output type.
     type Output = T;
 

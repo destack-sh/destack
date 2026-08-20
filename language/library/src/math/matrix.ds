@@ -74,10 +74,8 @@ export type Matrix3i = Matrix3<int32>;
 export type Matrix4i = Matrix4<int32>;
 
 export extension<T: Numeric> of Matrix2<T>
-    implements
-        Add<Matrix2<T>>,
-        Subtract<Matrix2<T>>,
-        Multiply<Matrix2<T>> {
+    implements Add<Matrix2<T>>, Subtract<Matrix2<T>>, Multiply<Matrix2<T>>
+{
     /// The arithmetic result type.
     type Output = Matrix2<T>;
 
@@ -160,10 +158,8 @@ export extension<T: Float> of Matrix2<T> {
 }
 
 export extension<T: Numeric> of Matrix3<T>
-    implements
-        Add<Matrix3<T>>,
-        Subtract<Matrix3<T>>,
-        Multiply<Matrix3<T>> {
+    implements Add<Matrix3<T>>, Subtract<Matrix3<T>>, Multiply<Matrix3<T>>
+{
     /// The arithmetic result type.
     type Output = Matrix3<T>;
 
@@ -281,10 +277,8 @@ export extension<T: Float> of Matrix3<T> {
 }
 
 export extension<T: Numeric> of Matrix4<T>
-    implements
-        Add<Matrix4<T>>,
-        Subtract<Matrix4<T>>,
-        Multiply<Matrix4<T>> {
+    implements Add<Matrix4<T>>, Subtract<Matrix4<T>>, Multiply<Matrix4<T>>
+{
     /// The arithmetic result type.
     type Output = Matrix4<T>;
 
@@ -499,7 +493,10 @@ export extension<T: Float> of Matrix4<T> {
         let bottomZW = this.z.z * this.w.w - this.z.w * this.w.z;
 
         let scale = T.one()
-            / (topXY * bottomZW - topXZ * bottomYW + topXW * bottomYZ + topYZ * bottomXW
+            / (topXY * bottomZW
+                - topXZ * bottomYW
+                + topXW * bottomYZ
+                + topYZ * bottomXW
                 - topYW * bottomXZ
                 + topZW * bottomXY);
 

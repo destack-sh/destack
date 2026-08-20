@@ -68,8 +68,8 @@ export extension<T: Compare<T>> of SortedSet<T> implements Iterable<T> where T: 
 }
 
 export extension<T: Compare<T>, 'a> of Borrowed<SortedSet<T>, 'a, "readonly">
-    implements
-        Iterable<Borrowed<T, 'a, "readonly">> {
+    implements Iterable<Borrowed<T, 'a, "readonly">>
+{
     /// Return an iterator over borrowed values.
     iterator(): Iterator<Borrowed<T, 'a, "readonly">> {
         todo("SortedSet.iterator")

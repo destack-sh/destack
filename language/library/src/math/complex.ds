@@ -27,7 +27,8 @@ export extension<T: Float> of Complex<T>
         Divide<Complex<T>>,
         Power<Complex<T>>,
         Negate,
-        Equal<Complex<T>> {
+        Equal<Complex<T>>
+{
     /// The arithmetic result type.
     type Output = Complex<T>;
 

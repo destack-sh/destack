@@ -241,9 +241,8 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
 }
 
 export extension<T, 'a, const A: Access> of Borrowed<Array<T>, 'a, A>
-    implements
-        Iterable<Borrowed<T, 'a, A>>,
-        Sequence {
+    implements Iterable<Borrowed<T, 'a, A>>, Sequence
+{
     /// The borrowed sequence produced by a rest pattern.
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
@@ -374,11 +373,8 @@ export extension<T, 'a, const A: Access> of Borrowed<Array<T>, 'a, A>
 }
 
 export extension<T> of Array<T>
-    implements
-        Default,
-        Index<isize>,
-        IndexSet<isize, T>,
-        Extend<T, "exclusive"> {
+    implements Default, Index<isize>, IndexSet<isize, T>, Extend<T, "exclusive">
+{
     /// The indexed output type.
     type Output = T;
 
@@ -718,9 +714,8 @@ export extension<T> of Array<T>
 }
 
 export extension<T, const A: Access = "readonly"> of Array<T>
-    implements
-        As<[T], A>,
-        Borrow<[T], A> {
+    implements As<[T], A>, Borrow<[T], A>
+{
     /// Borrow the initialized storage as a slice.
     as(this: WithAccess<&Array<T>, A>): WithAccess<&[T], A> {
         todo("Array.as")
@@ -733,8 +728,8 @@ export extension<T, const A: Access = "readonly"> of Array<T>
 }
 
 export extension<T, R: RangeBounds<isize>, const A: Access = "readonly"> of Array<T>
-    implements
-        Index<R, A> {
+    implements Index<R, A>
+{
     /// The indexed output type.
     type Output = [T];
 

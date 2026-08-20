@@ -100,12 +100,8 @@ export extension of CStringSlice implements ToOwned, As<[uint8], "readonly">, Ha
 }
 
 export extension of CString
-    implements
-        Clone,
-        Default,
-        As<CStringSlice>,
-        Borrow<CStringSlice>,
-        Hash {
+    implements Clone, Default, As<CStringSlice>, Borrow<CStringSlice>, Hash
+{
     /// Create an empty C string.
     static new(): ^CString {
         todo("CString.new")
@@ -255,9 +251,8 @@ export extension<S: Borrow<CStringSlice>> of S {
 }
 
 export extension<S: Borrow<CStringSlice>, Q: Borrow<CStringSlice>> of S
-    implements
-        Equal<Q>,
-        Compare<Q> {
+    implements Equal<Q>, Compare<Q>
+{
     /// Return whether this C string equals `other` byte for byte.
     equal(&readonly this, other: &readonly Q): boolean {
         todo("CString.equal")

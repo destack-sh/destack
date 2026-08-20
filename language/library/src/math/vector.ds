@@ -43,10 +43,7 @@ export declare function shuffle<
     const N: usize,
     const M: usize,
     const Pattern: [uint32; M],
->(
-    a: Vector<T, N>,
-    b: Vector<T, N>,
-): Vector<T, M>;
+>(a: Vector<T, N>, b: Vector<T, N>): Vector<T, M>;
 
 /// Select `a[i]` when `mask[i]` is true and `b[i]` otherwise.
 @intrinsic("math.vector.select")

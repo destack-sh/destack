@@ -84,7 +84,8 @@ export extension of bigint
         ShiftLeft<usize>,
         ShiftRight<usize>,
         Subtract<bigint>,
-        Xor<bigint> {
+        Xor<bigint>
+{
     /// The arithmetic result type.
     type Output = bigint;
 

@@ -57,8 +57,10 @@ export extension<K: Hash, V> of ^Map<K, V> implements Iterable<(K, V)> where K: 
     }
 }
 
-export extension<K: Hash, V> of Map<K, V> implements Iterable<(K, V)>
-    where K: Copy, K: Equal<K>, V: Copy {
+export extension<K: Hash, V> of Map<K, V>
+    implements Iterable<(K, V)>
+    where K: Copy, K: Equal<K>, V: Copy
+{
     /// Return an iterator over copied entries.
     iterator(): Iterator<(K, V)> {
         todo("Map.iterator")
@@ -95,8 +97,9 @@ export extension<K: Hash, V> of Map<K, V> where K: Equal<K>, V: Copy {
 }
 
 export extension<K: Hash, V, 'a, const A: Access> of Borrowed<Map<K, V>, 'a, A>
-    implements
-        Iterable<MapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> where K: Equal<K> {
+    implements Iterable<MapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>>
+    where K: Equal<K>
+{
     /// Return an iterator over borrowed entries.
     iterator(): Iterator<MapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> {
         todo("Map.iterator")
@@ -202,10 +205,9 @@ export extension<K, V> of Map<K, V> implements Default {
 }
 
 export extension<K: Hash, V> of Map<K, V>
-    implements
-        Index<K>,
-        IndexSet<K, V>,
-        Extend<(K, V), "exclusive"> where K: Equal<K> {
+    implements Index<K>, IndexSet<K, V>, Extend<(K, V), "exclusive">
+    where K: Equal<K>
+{
     /// The indexed output type.
     type Output = V;
 
@@ -325,8 +327,10 @@ export extension<K: Hash, V> of Map<K, V>
     }
 }
 
-export extension<K: Hash, V> of Map<K, V> implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
-    where K: Equal<K> {
+export extension<K: Hash, V> of Map<K, V>
+    implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
+    where K: Equal<K>
+{
     /// Create a managed map from `entries`.
     static from(entries: Iterable<(K, V)>): Map<K, V> {
         Map.from(entries)
@@ -338,8 +342,10 @@ export extension<K: Hash, V> of Map<K, V> implements From<Iterable<(K, V)>>, Fro
     }
 }
 
-export extension<K: Hash, V> of ^Map<K, V> implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
-    where K: Equal<K> {
+export extension<K: Hash, V> of ^Map<K, V>
+    implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
+    where K: Equal<K>
+{
     /// Create an owned map from entries.
     static from(entries: Iterable<(K, V)>): ^Map<K, V> {
         Map.from(entries)

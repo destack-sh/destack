@@ -73,8 +73,9 @@ export extension<T: Hash> of Set<T> implements Iterable<T> where T: Copy, T: Equ
 }
 
 export extension<T: Hash, 'a> of Borrowed<Set<T>, 'a, "readonly">
-    implements
-        Iterable<Borrowed<T, 'a, "readonly">> where T: Equal<T> {
+    implements Iterable<Borrowed<T, 'a, "readonly">>
+    where T: Equal<T>
+{
     /// Return an iterator over borrowed values.
     iterator(): Iterator<Borrowed<T, 'a, "readonly">> {
         todo("Set.iterator")
@@ -239,8 +240,10 @@ export extension<T: Hash> of Set<T> implements Extend<T, "exclusive"> where T: E
     }
 }
 
-export extension<T: Hash> of Set<T> implements From<Iterable<T>>, FromIterator<T>
-    where T: Equal<T> {
+export extension<T: Hash> of Set<T>
+    implements From<Iterable<T>>, FromIterator<T>
+    where T: Equal<T>
+{
     /// Create a managed set from `values`.
     static from(values: Iterable<T>): Set<T> {
         Set.from(values)
@@ -252,8 +255,10 @@ export extension<T: Hash> of Set<T> implements From<Iterable<T>>, FromIterator<T
     }
 }
 
-export extension<T: Hash> of ^Set<T> implements From<Iterable<T>>, FromIterator<T>
-    where T: Equal<T> {
+export extension<T: Hash> of ^Set<T>
+    implements From<Iterable<T>>, FromIterator<T>
+    where T: Equal<T>
+{
     /// Create an owned set from values.
     static from(values: Iterable<T>): ^Set<T> {
         Set.from(values)

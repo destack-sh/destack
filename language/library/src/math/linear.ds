@@ -67,12 +67,8 @@ export type Vector3i = Vector3<int32>;
 export type Vector4i = Vector4<int32>;
 
 export extension<T: Numeric> of Vector2<T>
-    implements
-        Add<Vector2<T>>,
-        Subtract<Vector2<T>>,
-        Multiply<T>,
-        Divide<T>,
-        Negate {
+    implements Add<Vector2<T>>, Subtract<Vector2<T>>, Multiply<T>, Divide<T>, Negate
+{
     /// The arithmetic result type.
     type Output = Vector2<T>;
 
@@ -278,12 +274,8 @@ export extension<T: Float> of Vector2<T> {
 }
 
 export extension<T: Numeric> of Vector3<T>
-    implements
-        Add<Vector3<T>>,
-        Subtract<Vector3<T>>,
-        Multiply<T>,
-        Divide<T>,
-        Negate {
+    implements Add<Vector3<T>>, Subtract<Vector3<T>>, Multiply<T>, Divide<T>, Negate
+{
     /// The arithmetic result type.
     type Output = Vector3<T>;
 
@@ -521,12 +513,8 @@ export extension<T: Float> of Vector3<T> {
 }
 
 export extension<T: Numeric> of Vector4<T>
-    implements
-        Add<Vector4<T>>,
-        Subtract<Vector4<T>>,
-        Multiply<T>,
-        Divide<T>,
-        Negate {
+    implements Add<Vector4<T>>, Subtract<Vector4<T>>, Multiply<T>, Divide<T>, Negate
+{
     /// The arithmetic result type.
     type Output = Vector4<T>;
 

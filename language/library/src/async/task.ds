@@ -152,14 +152,14 @@ local class TaskState<T> {
                     waiter.wake();
                 });
             }
-            TaskCancelled { } => {
+            TaskCancelled {} => {
                 this.phase.set(TaskCancelled { kind: "cancelled" });
                 queueMicrotask(() => {
                     waiter.cancel();
                 });
             }
-            TaskPending { } => trap("task already has a consumer")
-            TaskTaken { } => trap("task result was already consumed")
+            TaskPending {} => trap("task already has a consumer")
+            TaskTaken {} => trap("task result was already consumed")
         }
     }
 
@@ -212,10 +212,10 @@ local class TaskState<T> {
             TaskDone { value } => {
                 this.phase.set(TaskDone { kind: "done", value });
             }
-            TaskCancelled { } => {
+            TaskCancelled {} => {
                 this.phase.set(TaskCancelled { kind: "cancelled" });
             }
-            TaskTaken { } => trap("task producer dropped during a state transition")
+            TaskTaken {} => trap("task producer dropped during a state transition")
         }
     }
 

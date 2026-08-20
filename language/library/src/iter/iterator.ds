@@ -207,10 +207,7 @@ export newtype interface Iterator<T> {
     }
 
     /// Observe each yielded value without changing the sequence.
-    inspect(
-        this,
-        observe: (value: &readonly T, index: isize) => void,
-    ): InspectIterator<this, T> {
+    inspect(this, observe: (value: &readonly T, index: isize) => void): InspectIterator<this, T> {
         todo("Iterator.inspect")
     }
 
@@ -264,9 +261,7 @@ export struct EnumeratedIterator<I, out T> {
     private index: isize = 0;
 }
 
-export extension<T, I: Iterator<T>> of EnumeratedIterator<I, T>
-    implements
-        Iterator<(isize, T)> {
+export extension<T, I: Iterator<T>> of EnumeratedIterator<I, T> implements Iterator<(isize, T)> {
     /// The source iterator's completion value.
     type Return = I.Return;
 
@@ -424,8 +419,10 @@ export struct FlatMapIterator<I, T, V, J, out U> {
     private index: isize = 0;
 }
 
-export extension<T, U, I, J, V> of FlatMapIterator<I, T, V, J, U> implements Iterator<U>
-    where I: Iterator<T>, V: Iterable<U, type Iterator = J> {
+export extension<T, U, I, J, V> of FlatMapIterator<I, T, V, J, U>
+    implements Iterator<U>
+    where I: Iterator<T>, V: Iterable<U, type Iterator = J>
+{
     /// Advance through the current nested iterator or map the next source value.
     next(): IteratorResult<U> {
         todo("FlatMapIterator.next")
@@ -441,8 +438,10 @@ export struct FlattenIterator<I, J, out T> {
     private nested?: J;
 }
 
-export extension<T, I, J> of FlattenIterator<I, J, T> implements Iterator<T>
-    where I: Iterator<Iterable<T, type Iterator = J>> {
+export extension<T, I, J> of FlattenIterator<I, J, T>
+    implements Iterator<T>
+    where I: Iterator<Iterable<T, type Iterator = J>>
+{
     /// Advance through the current nested iterator or the next iterable.
     next(): IteratorResult<T> {
         todo("FlattenIterator.next")
@@ -462,8 +461,8 @@ export struct ChainIterator<I, J, out T> {
 }
 
 export extension<T, I: Iterator<T>, J: Iterator<T>> of ChainIterator<I, J, T>
-    implements
-        Iterator<T> {
+    implements Iterator<T>
+{
     /// Advance through the first source and then the second.
     next(): IteratorResult<T> {
         todo("ChainIterator.next")
@@ -480,8 +479,8 @@ export struct ZipIterator<I, J, out T, out U> {
 }
 
 export extension<T, U, I: Iterator<T>, J: Iterator<U>> of ZipIterator<I, J, T, U>
-    implements
-        Iterator<(T, U)> {
+    implements Iterator<(T, U)>
+{
     /// Advance both sources and return their next pair.
     next(): IteratorResult<(T, U)> {
         todo("ZipIterator.next")
@@ -587,9 +586,7 @@ export struct CopyIterator<I, out T> {
     private iterator: I;
 }
 
-export extension<T: Copy, I: Iterator<&readonly T>> of CopyIterator<I, T>
-    implements
-        Iterator<T> {
+export extension<T: Copy, I: Iterator<&readonly T>> of CopyIterator<I, T> implements Iterator<T> {
     /// The source iterator's completion value.
     type Return = I.Return;
 
@@ -605,9 +602,7 @@ export struct CloneIterator<I, out T> {
     private iterator: I;
 }
 
-export extension<T: Clone, I: Iterator<&readonly T>> of CloneIterator<I, T>
-    implements
-        Iterator<T> {
+export extension<T: Clone, I: Iterator<&readonly T>> of CloneIterator<I, T> implements Iterator<T> {
     /// The source iterator's completion value.
     type Return = I.Return;
 

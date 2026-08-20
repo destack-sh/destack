@@ -45,8 +45,8 @@ export newtype interface RangeBounds<T> {
         };
 
         // inspect the end only when the start admits the value
-        isAfterStart &&
-            (match (this.endBound()) {
+        isAfterStart
+            && (match (this.endBound()) {
                 { kind: "included", value: bound } => *value <= *bound
                 { kind: "excluded", value: bound } => *value < *bound
                 { kind: "unbounded" } => true

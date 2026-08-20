@@ -101,12 +101,8 @@ export extension of OsStringSlice implements ToOwned, As<[uint8], "readonly">, H
 }
 
 export extension of OsString
-    implements
-        Clone,
-        Default,
-        As<OsStringSlice>,
-        Borrow<OsStringSlice>,
-        Hash {
+    implements Clone, Default, As<OsStringSlice>, Borrow<OsStringSlice>, Hash
+{
     /// Create an empty native string.
     static new(): ^OsString {
         todo("OsString.new")
@@ -202,11 +198,8 @@ export extension of OsString
 }
 
 export extension of OsStringBuilder
-    implements
-        Default,
-        As<OsStringSlice>,
-        Borrow<OsStringSlice>,
-        Hash {
+    implements Default, As<OsStringSlice>, Borrow<OsStringSlice>, Hash
+{
     /// Return the allocated encoded byte count.
     get capacity(): usize {
         todo("OsStringBuilder.capacity")
@@ -356,9 +349,8 @@ export extension<S: Borrow<OsStringSlice>> of S {
 }
 
 export extension<S: Borrow<OsStringSlice>, Q: Borrow<OsStringSlice>> of S
-    implements
-        Equal<Q>,
-        Compare<Q> {
+    implements Equal<Q>, Compare<Q>
+{
     /// Return whether this native string has the same encoded bytes as `other`.
     equal(&readonly this, other: &readonly Q): boolean {
         todo("OsString.equal")

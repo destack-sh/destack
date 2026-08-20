@@ -27,10 +27,8 @@ extension<T> of Unique<Owned<T>> {
 }
 
 export extension<T, const A: Access = "readonly"> of Box<T>
-    implements
-        Dereference<A>,
-        As<T, A>,
-        Borrow<T, A> {
+    implements Dereference<A>, As<T, A>, Borrow<T, A>
+{
     /// The projected result form.
     type Output = T;
 

@@ -208,11 +208,13 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
         let pitchSin = (this.w * this.y - this.x * this.z) * 2;
 
         Vector3 {
-            x: ((this.w * this.x + this.y * this.z) * 2)
-                .atan2(T.one() - (this.x * this.x + this.y * this.y) * 2),
+            x: ((this.w * this.x + this.y * this.z) * 2).atan2(
+                T.one() - (this.x * this.x + this.y * this.y) * 2,
+            ),
             y: pitchSin.min(T.one()).max(-T.one()).asin(),
-            z: ((this.w * this.z + this.x * this.y) * 2)
-                .atan2(T.one() - (this.y * this.y + this.z * this.z) * 2),
+            z: ((this.w * this.z + this.x * this.y) * 2).atan2(
+                T.one() - (this.y * this.y + this.z * this.z) * 2,
+            ),
         }
     }
 

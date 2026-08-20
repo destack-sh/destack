@@ -104,7 +104,7 @@ export newtype WithBase<Q, T> = intrinsic;
 export newtype WithOwnership<
     Q,
     const O: Ownership,
-    const L: Lifetime = type LifetimeOr<Q, 'static>,
+    const L: Lifetime = LifetimeOr<Q, 'static>,
 > = intrinsic;
 
 /// Replace placement of `Q` with place `P`.

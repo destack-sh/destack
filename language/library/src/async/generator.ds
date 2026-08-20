@@ -55,7 +55,7 @@ export local class Generator<Y, R = void, N = void> {
             let producer = GeneratorProducer { state };
             let request = state.begin();
             let result = match (request) {
-                GeneratorNext { } => body(producer)
+                GeneratorNext {} => body(producer)
                 GeneratorReturn { value } => value
             };
             state.complete(result);
@@ -124,17 +124,17 @@ local class GeneratorState<Y, R, N> {
     /// Submit one consumer request and run the producer synchronously.
     advance(&readonly this, request: GeneratorRequest<R, N>): GeneratorResult<Y, R> {
         match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
-            GeneratorStart { } | GeneratorSuspended { } => {
+            GeneratorStart {} | GeneratorSuspended {} => {
                 this.phase.set(GeneratorRequested {
                     kind: "requested",
                     request,
                 });
             }
-            GeneratorExhausted { } => {
+            GeneratorExhausted {} => {
                 this.phase.set(GeneratorExhausted { kind: "exhausted" });
 
                 return match (request) {
-                    GeneratorNext { } => IteratorResult(IteratorReturn { value: undefined })
+                    GeneratorNext {} => IteratorResult(IteratorReturn { value: undefined })
                     GeneratorReturn { value } => IteratorResult(IteratorReturn { value })
                 };
             }
@@ -161,7 +161,7 @@ local class GeneratorState<Y, R, N> {
     /// Publish one yielded value and suspend the producer.
     yield(&readonly this, value: Y): GeneratorRequest<R, N> {
         match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
-            GeneratorRunning { } => {
+            GeneratorRunning {} => {
                 this.phase.set(GeneratorYielded { kind: "yielded", value });
             }
             phase => {
@@ -177,7 +177,7 @@ local class GeneratorState<Y, R, N> {
     /// Publish the producer's return value.
     complete(&readonly this, value: R): void {
         match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
-            GeneratorRunning { } => {
+            GeneratorRunning {} => {
                 this.phase.set(GeneratorReturned { kind: "returned", value });
             }
             phase => {
@@ -247,7 +247,7 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
             let producer = AsyncGeneratorProducer { state };
             let request = state.begin();
             let result = match (request) {
-                GeneratorNext { } => body(producer)
+                GeneratorNext {} => body(producer)
                 GeneratorReturn { value } => value
             };
             state.complete(result);
@@ -347,8 +347,8 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
 
         // schedule suspended producer execution once
         if (
-            this.phase.get() == AsyncGeneratorPhase.Start ||
-            this.phase.get() == AsyncGeneratorPhase.Suspended
+            this.phase.get() == AsyncGeneratorPhase.Start
+                || this.phase.get() == AsyncGeneratorPhase.Suspended
         ) {
             this.phase.set(AsyncGeneratorPhase.Scheduled);
             this.wake();
@@ -440,7 +440,7 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     /// Return the result of one request after producer completion.
     private completedResult(operation: GeneratorRequest<R, N>): GeneratorResult<Y, R> {
         return match (operation) {
-            GeneratorNext { } => IteratorResult(IteratorReturn { value: undefined })
+            GeneratorNext {} => IteratorResult(IteratorReturn { value: undefined })
             GeneratorReturn { value } => IteratorResult(IteratorReturn { value })
         };
     }
