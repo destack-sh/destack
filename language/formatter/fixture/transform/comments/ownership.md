@@ -151,7 +151,7 @@ declare const PAGE_PATH: string
 
 ```ds expected
 declare const PAGE_PATH: string;
-    //<- keep-marker
+//<- keep-marker
 (() => {})();
 ```
 

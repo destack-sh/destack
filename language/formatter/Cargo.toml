@@ -31,8 +31,14 @@ rustc-hash = { workspace = true }
 smallvec = { workspace = true }
 
 [dev-dependencies]
-clap = { workspace = true }
+libtest-mimic = { workspace = true }
+pulldown-cmark = { workspace = true }
 serde_json = { workspace = true }
+
+[[test]]
+name = "fixture"
+path = "tests/fixture/main.rs"
+harness = false
 
 [lints]
 workspace = true

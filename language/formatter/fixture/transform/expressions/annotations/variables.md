@@ -54,7 +54,7 @@ declare const PAGE_PATH: string
 
 ```ds expected
 declare const PAGE_PATH: string;
-    //<- marker
+//<- marker
 (() => {})();
 ```
 
