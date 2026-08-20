@@ -6922,19 +6922,9 @@
           }
         ]
       },
-      "name": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
       "pattern": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "pattern",
@@ -7595,23 +7585,9 @@
           }
         ]
       },
-      "name": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          },
-          {
-            "type": "rest_pattern",
-            "named": true
-          }
-        ]
-      },
       "pattern": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "pattern",
@@ -9084,14 +9060,6 @@
       "multiple": true,
       "required": false,
       "types": [
-        {
-          "type": "optional_parameter",
-          "named": true
-        },
-        {
-          "type": "required_parameter",
-          "named": true
-        },
         {
           "type": "rest_type",
           "named": true

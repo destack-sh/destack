@@ -15015,68 +15015,6 @@
         }
       ]
     },
-    "tuple_parameter": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "name",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "identifier"
-              },
-              {
-                "type": "SYMBOL",
-                "name": "rest_pattern"
-              }
-            ]
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "type",
-          "content": {
-            "type": "SYMBOL",
-            "name": "type_annotation"
-          }
-        }
-      ]
-    },
-    "optional_tuple_parameter": {
-      "type": "PREC_DYNAMIC",
-      "value": 1,
-      "content": {
-        "type": "SEQ",
-        "members": [
-          {
-            "type": "FIELD",
-            "name": "name",
-            "content": {
-              "type": "SYMBOL",
-              "name": "identifier"
-            }
-          },
-          {
-            "type": "IMMEDIATE_TOKEN",
-            "content": {
-              "type": "STRING",
-              "value": "?"
-            }
-          },
-          {
-            "type": "FIELD",
-            "name": "type",
-            "content": {
-              "type": "SYMBOL",
-              "name": "type_annotation"
-            }
-          }
-        ]
-      }
-    },
     "optional_type": {
       "type": "PREC_RIGHT",
       "value": 0,
@@ -15136,37 +15074,6 @@
       }
     },
     "_tuple_type_member": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "tuple_parameter"
-          },
-          "named": true,
-          "value": "required_parameter"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "optional_tuple_parameter"
-          },
-          "named": true,
-          "value": "optional_parameter"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "type"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "rest_type"
-        }
-      ]
-    },
-    "_parenthesized_tuple_type_member": {
       "type": "CHOICE",
       "members": [
         {
@@ -17775,90 +17682,6 @@
           "members": [
             {
               "type": "STRING",
-              "value": "["
-            },
-            {
-              "type": "STRING",
-              "value": "]"
-            }
-          ]
-        },
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "STRING",
-              "value": "["
-            },
-            {
-              "type": "SYMBOL",
-              "name": "_tuple_type_member"
-            },
-            {
-              "type": "STRING",
-              "value": ","
-            },
-            {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "SEQ",
-                  "members": [
-                    {
-                      "type": "SEQ",
-                      "members": [
-                        {
-                          "type": "SYMBOL",
-                          "name": "_tuple_type_member"
-                        },
-                        {
-                          "type": "REPEAT",
-                          "content": {
-                            "type": "SEQ",
-                            "members": [
-                              {
-                                "type": "STRING",
-                                "value": ","
-                              },
-                              {
-                                "type": "SYMBOL",
-                                "name": "_tuple_type_member"
-                              }
-                            ]
-                          }
-                        }
-                      ]
-                    },
-                    {
-                      "type": "CHOICE",
-                      "members": [
-                        {
-                          "type": "STRING",
-                          "value": ","
-                        },
-                        {
-                          "type": "BLANK"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "BLANK"
-                }
-              ]
-            },
-            {
-              "type": "STRING",
-              "value": "]"
-            }
-          ]
-        },
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "STRING",
               "value": "("
             },
             {
@@ -17893,7 +17716,7 @@
             },
             {
               "type": "SYMBOL",
-              "name": "_parenthesized_tuple_type_member"
+              "name": "_tuple_type_member"
             },
             {
               "type": "STRING",
@@ -17914,7 +17737,7 @@
             },
             {
               "type": "SYMBOL",
-              "name": "_parenthesized_tuple_type_member"
+              "name": "_tuple_type_member"
             },
             {
               "type": "STRING",
@@ -17925,7 +17748,7 @@
               "members": [
                 {
                   "type": "SYMBOL",
-                  "name": "_parenthesized_tuple_type_member"
+                  "name": "_tuple_type_member"
                 },
                 {
                   "type": "REPEAT",
@@ -17938,7 +17761,7 @@
                       },
                       {
                         "type": "SYMBOL",
-                        "name": "_parenthesized_tuple_type_member"
+                        "name": "_tuple_type_member"
                       }
                     ]
                   }
@@ -18635,11 +18458,6 @@
     ],
     [
       "_try_propagation_argument",
-      "optional_tuple_parameter",
-      "primary_type"
-    ],
-    [
-      "_try_propagation_argument",
       "type_query"
     ],
     [
@@ -18692,25 +18510,8 @@
       "object_type"
     ],
     [
-      "array",
-      "tuple_type"
-    ],
-    [
-      "array",
-      "array_pattern",
-      "tuple_type"
-    ],
-    [
-      "array_pattern",
-      "tuple_type"
-    ],
-    [
       "tuple_expression",
       "tuple_type"
-    ],
-    [
-      "optional_tuple_parameter",
-      "primary_type"
     ],
     [
       "template_literal_type",
