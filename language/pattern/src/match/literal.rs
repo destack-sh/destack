@@ -156,20 +156,20 @@ impl Matcher<'_, '_> {
     ) -> Result<bool, MatchError> {
         match (pattern, candidate) {
             (
-                dir::TemplateLiteral::String { string: pattern },
-                dir::TemplateLiteral::String { string: candidate },
+                dir::TemplateLiteral::String { chunk: pattern },
+                dir::TemplateLiteral::String { chunk: candidate },
             ) => Ok(pattern == candidate),
             (
                 dir::TemplateLiteral::InterpolatedString {
-                    strings: pattern_strings,
+                    chunks: pattern_chunks,
                     arguments: pattern_arguments,
                 },
                 dir::TemplateLiteral::InterpolatedString {
-                    strings: candidate_strings,
+                    chunks: candidate_chunks,
                     arguments: candidate_arguments,
                 },
             ) => {
-                if pattern_strings != candidate_strings {
+                if pattern_chunks != candidate_chunks {
                     return Ok(false);
                 }
 
