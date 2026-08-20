@@ -13,6 +13,7 @@ mod range;
 mod scalar;
 mod source;
 mod symbol;
+mod test;
 
 pub(crate) use callable::*;
 pub use comment::*;

@@ -58,6 +58,32 @@ impl MemberCall<'_> {
 }
 
 impl DirModule<'_> {
+    /// Return the call that directly receives one argument value.
+    pub(crate) fn argument_call(
+        &self,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        // select the direct argument containing the value
+        let view = self.view();
+        let argument: dir::LocalNodeId<dir::Argument> =
+            view.get_parent_for(value)?.try_into_typed().ok()?;
+        if view.get(argument).value() != Some(value) {
+            return None;
+        }
+
+        // require the argument to belong directly to one call
+        let expression: dir::LocalNodeId<dir::Expression> =
+            view.get_parent_for(argument)?.try_into_typed().ok()?;
+        let dir::Expression::Call { arguments, .. } = view.get(expression) else {
+            return None;
+        };
+        if !arguments.contains(&argument) {
+            return None;
+        }
+
+        Some(expression)
+    }
+
     /// Select one exact test that distinguishes every possible nullish value.
     pub(crate) fn nullish_test(
         &self,
