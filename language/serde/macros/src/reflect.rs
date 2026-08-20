@@ -107,7 +107,7 @@ fn ty(attributes: &[syn::Attribute], data: &Data) -> syn::Result<proc_macro2::To
                 .filter_map(|variant| active_variant(variant).transpose())
                 .map(|variant| {
                     let variant = variant?;
-                    let name = variant.ident.to_string();
+                    let name = serde_name(&variant.attrs, variant.ident.to_string())?;
                     let docs = docs(&variant.attrs);
                     let payload = payload(&variant.fields)?;
 
@@ -186,7 +186,7 @@ fn named_fields(fields: &syn::FieldsNamed) -> syn::Result<proc_macro2::TokenStre
             let Some(ident) = field.ident.as_ref() else {
                 return Err(syn::Error::new_spanned(field, "expected named field"));
             };
-            let name = field_name(ident);
+            let name = serde_name(&field.attrs, field_name(ident))?;
 
             field_schema(field, name)
         })
@@ -318,6 +318,31 @@ fn is_serde_skip(attributes: &[syn::Attribute]) -> syn::Result<bool> {
     }
 
     Ok(is_skipped)
+}
+
+/// Return an explicit serde name or its Rust fallback.
+fn serde_name(attributes: &[syn::Attribute], fallback: String) -> syn::Result<String> {
+    let mut name = None;
+
+    // read an explicit serialized name
+    for attribute in attributes {
+        if !attribute.path().is_ident("serde") {
+            continue;
+        }
+
+        attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("rename") {
+                let value = meta.value()?;
+                name = Some(value.parse::<LitStr>()?.value());
+
+                Ok(())
+            } else {
+                consume_serde_option(meta)
+            }
+        })?;
+    }
+
+    Ok(name.unwrap_or(fallback))
 }
 
 /// Reject serde options that are not represented by the reflected wire schema.

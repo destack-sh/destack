@@ -3,7 +3,8 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Error, Name, Payload, Reflect, Schema, Type, Value, encoded_len, from_slice, to_slice, to_vec,
+    Error, Field, Name, Payload, Reflect, Schema, Type, Value, Variant, encoded_len, from_slice,
+    to_slice, to_vec,
 };
 
 /// Example value used by roundtrip tests.
@@ -56,6 +57,24 @@ struct SchemaSkippedField {
     /// Internal field.
     #[serde(skip)]
     hidden: String,
+}
+
+/// Reflect item with renamed serialized members.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct SchemaRenamed {
+    /// Renamed field.
+    #[serde(rename = "publicField")]
+    field: String,
+    /// Renamed choice.
+    choice: SchemaRenamedChoice,
+}
+
+/// Reflect enum with a renamed serialized variant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+enum SchemaRenamedChoice {
+    /// Renamed variant.
+    #[serde(rename = "publicVariant")]
+    Variant,
 }
 
 /// Enum item used by schema tests.
@@ -259,6 +278,39 @@ fn test_build_schema_omits_skipped_fields() {
 
     assert_eq!(fields.len(), 1);
     assert_eq!(fields[0].name, "visible");
+}
+
+#[test]
+fn test_build_schema_preserves_serde_names() {
+    let mut schema = Schema::default();
+    schema.register::<SchemaRenamed>();
+
+    let item = Name::new(module_path!(), "SchemaRenamed");
+    let choice = Name::new(module_path!(), "SchemaRenamedChoice");
+
+    assert_eq!(
+        schema.items[&item].ty,
+        Type::Struct(vec![
+            Field {
+                name: "publicField".to_string(),
+                docs: vec!["Renamed field.".to_string()],
+                ty: Type::String,
+            },
+            Field {
+                name: "choice".to_string(),
+                docs: vec!["Renamed choice.".to_string()],
+                ty: Type::Named(choice.clone()),
+            },
+        ])
+    );
+    assert_eq!(
+        schema.items[&choice].ty,
+        Type::Enum(vec![Variant {
+            name: "publicVariant".to_string(),
+            docs: vec!["Renamed variant.".to_string()],
+            payload: Payload::Unit,
+        }])
+    );
 }
 
 #[test]
