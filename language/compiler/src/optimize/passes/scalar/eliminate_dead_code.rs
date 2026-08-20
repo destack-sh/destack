@@ -1,6 +1,7 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate::optimize::declare_pass;
+use destack_core::FxIndexSet;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
@@ -75,7 +76,7 @@ fn run_dead_code_elimination(
     let definitions = DefinitionTable::build(function, tree);
 
     // seed live roots and worklist
-    let mut live: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut live: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
     let mut worklist: VecDeque<mir::LocalNodeId<mir::Instruction>> = VecDeque::new();
 
     let block_ids = function.blocks().to_vec();
@@ -160,7 +161,7 @@ fn remove_dead_stores(
     memory: &MemoryTable,
 ) -> bool {
     // collect locals that are read anywhere
-    let mut locals_read = HashSet::new();
+    let mut locals_read = FxIndexSet::default();
     let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         let block = tree.get(block_id);
@@ -172,7 +173,7 @@ fn remove_dead_stores(
     }
 
     // find dead store instructions
-    let mut dead_stores = HashSet::new();
+    let mut dead_stores = FxIndexSet::default();
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let instruction_ids = block.instructions.clone();

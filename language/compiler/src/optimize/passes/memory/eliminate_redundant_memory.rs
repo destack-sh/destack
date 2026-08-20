@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -169,7 +169,7 @@ fn run_eliminate_redundant_memory(
     let mut equivalence = ValueEquivalence::new(function, tree, &definitions, constants);
 
     // collect redundant stores
-    let mut redundant = HashSet::new();
+    let mut redundant = FxIndexSet::default();
 
     // evaluate candidates for redundancy
     for candidate in candidates {

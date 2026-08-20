@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -113,7 +113,7 @@ struct DeleteCandidate {
     /// Arguments to pass to the exit block (initial values).
     exit_arguments: Vec<mir::Value>,
     /// All blocks in the loop (will become dead).
-    loop_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
 }
 
 /// Check if a loop can be deleted and gather necessary information.
@@ -145,7 +145,7 @@ fn find_deletable_loop(
     }
 
     // collect all values defined in the loop
-    let mut loop_defined_values: HashSet<mir::Value> = HashSet::new();
+    let mut loop_defined_values: FxIndexSet<mir::Value> = FxIndexSet::default();
     for &block_id in &lp.blocks {
         let block = tree.get(block_id);
 
@@ -264,7 +264,7 @@ fn find_constant_exit(
 
     // map header parameters to their initial values from preheader
     let preheader_args = preheader_to_header_args(preheader, lp.header, tree)?;
-    let mut initial_values: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut initial_values: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
     for (param, arg) in header_block.parameters.iter().zip(preheader_args.iter()) {
         let parameter = param.value;
 

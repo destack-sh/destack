@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -1137,7 +1137,7 @@ fn value_is_loop_invariant(
 /// Find the loop preheader and its header arguments.
 fn find_preheader(
     header: mir::LocalNodeId<mir::Block>,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     cfg: &ControlTable,
     tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
@@ -1210,7 +1210,7 @@ fn preheader_induction_start(
 /// Extract a loop guard from the header terminator.
 fn guard_from_header(
     header: mir::LocalNodeId<mir::Block>,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     function: &mir::Function,
     tree: &mir::Tree,
     definitions: &DefinitionTable,

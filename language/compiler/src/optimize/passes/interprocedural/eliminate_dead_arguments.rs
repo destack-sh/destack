@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -74,9 +74,9 @@ enum DirectCallSite {
 #[derive(Debug, Default)]
 struct CallData {
     /// Direct callsites keyed by callee function id.
-    direct_calls: HashMap<mir::LocalNodeId<mir::Function>, Vec<DirectCallSite>>,
+    direct_calls: FxIndexMap<mir::LocalNodeId<mir::Function>, Vec<DirectCallSite>>,
     /// Signatures that may be targeted by indirect calls.
-    indirect_signatures: HashSet<SignatureKey>,
+    indirect_signatures: FxIndexSet<SignatureKey>,
 }
 
 /// Run dead argument elimination over the module.

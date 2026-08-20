@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -170,7 +170,7 @@ fn run_peel_loops(
 /// Find the loop preheader and its header arguments.
 fn find_preheader(
     header: mir::LocalNodeId<mir::Block>,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     cfg: &ControlTable,
     domtree: &DominatorTable,
     tree: &mir::Tree,

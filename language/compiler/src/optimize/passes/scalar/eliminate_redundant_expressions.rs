@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -96,7 +96,7 @@ fn run_eliminate_redundant_expressions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
-    dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasTable,
     memory: &MemoryTable,
     constants: &ConstantTable,
@@ -129,9 +129,9 @@ fn run_eliminate_redundant_expressions(
 fn build_dominator_children(
     function: &mir::Function,
     domtree: &DominatorTable,
-) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
     // allocate the child map
-    let mut children: HashMap<_, Vec<_>> = HashMap::new();
+    let mut children: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
 
     // initialize all blocks with empty children lists
     for &block_id in function.blocks() {
@@ -155,13 +155,13 @@ fn build_dominator_children(
 /// Lookups search from innermost to outermost scope.
 struct ScopedValueTable {
     /// Stack of scopes, each mapping expression keys to values.
-    scopes: Vec<HashMap<PureExpression, mir::Value>>,
+    scopes: Vec<FxIndexMap<PureExpression, mir::Value>>,
     /// Stack of scopes for aggregate operands (value -> operand list).
-    aggregate_scopes: Vec<HashMap<mir::Value, Vec<mir::Value>>>,
+    aggregate_scopes: Vec<FxIndexMap<mir::Value, Vec<mir::Value>>>,
     /// Stack of scopes for load forwarding.
     memory_scopes: Vec<Vec<MemoryEntry>>,
     /// Stack of scopes for local forwarding.
-    local_scopes: Vec<HashMap<mir::LocalNodeId<mir::Local>, mir::Value>>,
+    local_scopes: Vec<FxIndexMap<mir::LocalNodeId<mir::Local>, mir::Value>>,
 }
 
 /// Memory entry tracked for load forwarding.
@@ -180,20 +180,20 @@ impl ScopedValueTable {
     fn new() -> Self {
         // seed each scope stack with a root entry
         Self {
-            scopes: vec![HashMap::new()],
-            aggregate_scopes: vec![HashMap::new()],
+            scopes: vec![FxIndexMap::default()],
+            aggregate_scopes: vec![FxIndexMap::default()],
             memory_scopes: vec![Vec::new()],
-            local_scopes: vec![HashMap::new()],
+            local_scopes: vec![FxIndexMap::default()],
         }
     }
 
     /// Push a new scope (entering a dominated subtree).
     fn push_scope(&mut self) {
         // push a new scope for each tracked category
-        self.scopes.push(HashMap::new());
-        self.aggregate_scopes.push(HashMap::new());
+        self.scopes.push(FxIndexMap::default());
+        self.aggregate_scopes.push(FxIndexMap::default());
         self.memory_scopes.push(Vec::new());
-        self.local_scopes.push(HashMap::new());
+        self.local_scopes.push(FxIndexMap::default());
     }
 
     /// Pop the current scope (leaving a dominated subtree).
@@ -349,18 +349,18 @@ fn find_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     tree: &mir::Tree,
-    dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasTable,
     memory: &MemoryTable,
     constants: &ConstantTable,
     target_layout: TargetLayout,
 ) -> (
-    HashMap<mir::Value, mir::Value>,
-    HashSet<mir::LocalNodeId<mir::Instruction>>,
+    FxIndexMap<mir::Value, mir::Value>,
+    FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
     // initialize substitution state
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
-    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
+    let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
     let mut value_table = ScopedValueTable::new();
 
     // work stack for dominator tree traversal
@@ -424,8 +424,8 @@ fn process_block(
     _constants: &ConstantTable,
     _target_layout: TargetLayout,
     value_table: &mut ScopedValueTable,
-    substitutions: &mut HashMap<mir::Value, mir::Value>,
-    to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
+    substitutions: &mut FxIndexMap<mir::Value, mir::Value>,
+    to_remove: &mut FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
     // load the block for inspection
     let block = tree.get(block_id);

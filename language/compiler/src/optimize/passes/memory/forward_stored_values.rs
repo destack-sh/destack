@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -110,7 +110,7 @@ fn run_forward_stored_values(
     accesses: &mut mir::AccessTable,
     aa: &AliasTable,
     memory: &MemoryTable,
-    dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     target_layout: TargetLayout,
 ) -> bool {
     // run forwarding using dominator tree traversal
@@ -142,9 +142,9 @@ fn run_forward_stored_values(
 fn build_dominator_children(
     function: &mir::Function,
     domtree: &DominatorTable,
-) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
     // prepare the child mapping
-    let mut children: HashMap<_, Vec<_>> = HashMap::new();
+    let mut children: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
 
     // initialize all blocks with empty children lists
     for &block_id in function.blocks() {
@@ -284,15 +284,15 @@ fn find_forwardable_loads(
     tree: &mir::Tree,
     aa: &AliasTable,
     memory: &MemoryTable,
-    dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     target_layout: TargetLayout,
 ) -> (
-    HashMap<mir::Value, mir::Value>,
-    HashSet<mir::LocalNodeId<mir::Instruction>>,
+    FxIndexMap<mir::Value, mir::Value>,
+    FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
     // initialize substitution state
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
-    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
+    let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
     let mut available = AvailableMemory::new();
 
     // work stack for dominator tree traversal
@@ -350,8 +350,8 @@ fn process_block(
     memory: &MemoryTable,
     _target_layout: TargetLayout,
     available: &mut AvailableMemory,
-    substitutions: &mut HashMap<mir::Value, mir::Value>,
-    to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
+    substitutions: &mut FxIndexMap<mir::Value, mir::Value>,
+    to_remove: &mut FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
     // read the block
     let block = tree.get(block_id);
@@ -522,7 +522,7 @@ fn use_access_id(
 /// Resolve trivial memory phi nodes to a single clobbering access.
 fn resolve_trivial_clobber(memory: &MemoryTable, access: MemoryAccessId) -> Option<MemoryAccessId> {
     let mut current = access;
-    let mut visited = HashSet::new();
+    let mut visited = FxIndexSet::default();
 
     loop {
         if !visited.insert(current) {

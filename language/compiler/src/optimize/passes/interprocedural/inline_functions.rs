@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -139,7 +139,8 @@ fn run_inline(
         inline_budget_for_module(tree, ctx.profile(), inline_budget_scale_percent);
     let mut component_budgets =
         inline_component_budgets(tree, &callgraph, ctx.profile(), inline_budget_scale_percent);
-    let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionCache> = HashMap::new();
+    let mut function_analyses: FxIndexMap<mir::FunctionId, mir::FunctionCache> =
+        FxIndexMap::default();
 
     // collect function ids for stable iteration
     let function_ids: Vec<_> = tree
@@ -286,8 +287,8 @@ fn find_inline_site(
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     definitions: &DefinitionTable,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
-    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    function_analyses: &mut FxIndexMap<mir::FunctionId, mir::FunctionCache>,
+    block_counts: &FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
     inline_budget: u64,
 ) -> Option<InlineFunctionsCandidate> {
     let mut best: Option<InlineFunctionsCandidate> = None;
@@ -360,8 +361,8 @@ fn inline_candidate(
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     definitions: &DefinitionTable,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
-    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    function_analyses: &mut FxIndexMap<mir::FunctionId, mir::FunctionCache>,
+    block_counts: &FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
     site: InlineFunctionsSite,
 ) -> Option<InlineFunctionsCandidate> {
     let block_count = block_counts.get(&site.block_id).copied().unwrap_or(0);
@@ -421,7 +422,7 @@ fn inline_score(
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     definitions: &DefinitionTable,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
+    function_analyses: &mut FxIndexMap<mir::FunctionId, mir::FunctionCache>,
     block_count: u64,
     arguments: &[mir::Value],
 ) -> Option<InlineFunctionsScore> {
@@ -624,7 +625,7 @@ fn inline_callsite(
     }
 
     // build the parameter to argument mapping
-    let mut argument_map = HashMap::new();
+    let mut argument_map = FxIndexMap::default();
     for (param, arg) in callee.parameters.iter().zip(site.arguments.iter()) {
         let param_value = param.value;
 
@@ -705,9 +706,9 @@ fn clone_locals(
     caller: &mut mir::Function,
     tree: &mut mir::Tree,
     callee: &mir::Function,
-) -> HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>> {
     // allocate new locals in the caller
-    let mut local_map = HashMap::new();
+    let mut local_map = FxIndexMap::default();
     for local_id in callee.locals() {
         let local = tree.get(*local_id).clone();
         let new_local = tree.insert(local);
@@ -723,14 +724,14 @@ fn clone_callee_blocks(
     caller: &mut mir::Function,
     tree: &mut mir::Tree,
     callee: &mir::Function,
-    argument_map: &HashMap<mir::Value, mir::Value>,
+    argument_map: &FxIndexMap<mir::Value, mir::Value>,
 ) -> (
-    HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    HashMap<mir::Value, mir::Value>,
+    FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    FxIndexMap<mir::Value, mir::Value>,
 ) {
     // seed value mappings with function arguments
     let mut value_map = argument_map.clone();
-    let mut block_map = HashMap::new();
+    let mut block_map = FxIndexMap::default();
 
     // clone each callee block and allocate new values
     for block_id in callee.blocks() {
@@ -789,7 +790,7 @@ fn split_block_for_inline(
     return_type: mir::LocalNodeId<mir::Type>,
     destination: Option<mir::Value>,
     entry_params: &[mir::BlockParameter],
-    argument_map: &HashMap<mir::Value, mir::Value>,
+    argument_map: &FxIndexMap<mir::Value, mir::Value>,
 ) -> Option<InlineFunctionsSplit> {
     // load the call block for editing
     let mut block = tree.get(block_id).clone();
@@ -864,7 +865,7 @@ fn substitute_value_in_function(
     to: mir::Value,
 ) {
     // build substitution map for a single replacement
-    let mut substitutions = HashMap::new();
+    let mut substitutions = FxIndexMap::default();
     substitutions.insert(from, to);
 
     // update instructions and terminators across all blocks
@@ -890,9 +891,9 @@ fn remap_inline_blocks(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     callee: &mir::Function,
-    block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    value_map: &HashMap<mir::Value, mir::Value>,
-    local_map: &HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
+    block_map: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    value_map: &FxIndexMap<mir::Value, mir::Value>,
+    local_map: &FxIndexMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
     call_source: Option<u32>,
 ) {
     // clone instruction bodies and remap terminators for each block
@@ -940,7 +941,7 @@ fn remap_inline_blocks(
 /// Rewrite return terminators in inlined blocks to jump to the continuation.
 fn rewrite_inlined_returns(
     tree: &mut mir::Tree,
-    block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    block_map: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     continuation: mir::LocalNodeId<mir::Block>,
     expects_value: bool,
 ) {
@@ -1007,7 +1008,7 @@ fn function_cost_for(
     function_id: mir::FunctionId,
     function: &mir::Function,
     ctx: &PipelineContext<'_>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionCache>,
+    function_analyses: &mut FxIndexMap<mir::FunctionId, mir::FunctionCache>,
 ) -> mir::OperationCost {
     let analyses = function_analyses
         .entry(function_id)
@@ -1167,9 +1168,9 @@ fn inline_component_budgets(
     callgraph: &CallTable,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
-) -> HashMap<usize, u64> {
-    let mut component_entry_counts: HashMap<usize, u64> = HashMap::new();
-    let mut components = HashSet::new();
+) -> FxIndexMap<usize, u64> {
+    let mut component_entry_counts: FxIndexMap<usize, u64> = FxIndexMap::default();
+    let mut components = FxIndexSet::default();
 
     for (function_id, _) in tree.iter_nodes::<mir::Function>() {
         let component = callgraph.component(function_id);
@@ -1183,7 +1184,7 @@ fn inline_component_budgets(
         *total = total.saturating_add(entry);
     }
 
-    let mut budgets = HashMap::new();
+    let mut budgets = FxIndexMap::default();
     for component in components {
         let entry_count = component_entry_counts.get(&component).copied().unwrap_or(0);
         let bonus = entry_count / INLINE_COMPONENT_BUDGET_ENTRY_DIVISOR;

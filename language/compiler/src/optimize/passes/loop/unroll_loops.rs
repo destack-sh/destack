@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -217,7 +217,7 @@ struct UnrollCandidate {
     /// True when the in loop edge is the then branch.
     in_loop_is_then: bool,
     /// Loop blocks (original iteration).
-    loop_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
     /// True when the guard is located in the latch.
     guard_at_latch: bool,
     /// Trip count for the loop.
@@ -232,7 +232,7 @@ struct JamCandidate {
     /// Outer loop latch block.
     outer_latch: mir::LocalNodeId<mir::Block>,
     /// All blocks in the outer loop.
-    outer_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    outer_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
     /// Inner loop header block.
     inner_header: mir::LocalNodeId<mir::Block>,
     /// Inner loop latch block.
@@ -313,7 +313,7 @@ fn run_unroll_loops(
 
     // track loop unrolling progress in this pass
     let mut changed = false;
-    let mut unrolled_headers = HashSet::new();
+    let mut unrolled_headers = FxIndexSet::default();
     let mut iterations = 0usize;
 
     loop {
@@ -427,7 +427,7 @@ fn run_unroll_loops_and_jam(
 
     // track loop unroll and jam progress in this pass
     let mut changed = false;
-    let mut jammed_headers = HashSet::new();
+    let mut jammed_headers = FxIndexSet::default();
     let mut iterations = 0usize;
 
     loop {
@@ -999,7 +999,7 @@ fn outer_is_perfectly_nested(
     inner_preheader: Option<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // collect outer blocks not in the inner loop
-    let mut extras: HashSet<_> = outer
+    let mut extras: FxIndexSet<_> = outer
         .blocks
         .iter()
         .copied()
@@ -1008,13 +1008,13 @@ fn outer_is_perfectly_nested(
 
     // drop the optional inner preheader from the extras
     if let Some(preheader) = inner_preheader {
-        extras.remove(&preheader);
+        extras.swap_remove(&preheader);
     }
 
     // drop the outer header and latch from the extras
-    extras.remove(&outer.header);
+    extras.swap_remove(&outer.header);
     if let Some(latch) = outer.latches.first() {
-        extras.remove(latch);
+        extras.swap_remove(latch);
     }
 
     extras.is_empty()
@@ -1040,7 +1040,7 @@ fn outer_equivalent_values(
     // resolve canonical forwarding roots
     let outer_root = forwarding.resolve(outer_induction);
     let inner_root = forwarding.resolve(inner_outer_param);
-    let mut values = HashSet::new();
+    let mut values = FxIndexSet::default();
 
     // collect forwarded parameters in the inner loop
     for &block_id in &inner.blocks {
@@ -1206,10 +1206,10 @@ fn inner_body_is_jammable(
     let definitions = DefinitionTable::build(function, tree);
 
     // cache outer block parameters for dependency checks
-    let outer_block_params: HashSet<_> = outer
+    let outer_block_params: FxIndexSet<_> = outer
         .blocks
         .iter()
-        .filter(|block_id| !inner.blocks.contains(block_id))
+        .filter(|block_id| !inner.blocks.contains(*block_id))
         .flat_map(|block_id| {
             tree.get(*block_id)
                 .parameters
@@ -1293,7 +1293,7 @@ fn inner_uses_are_safe(
     inner: &Loop,
     inner_induction: Option<mir::Value>,
     inner_outer_param: Option<mir::Value>,
-    outer_block_params: &HashSet<mir::Value>,
+    outer_block_params: &FxIndexSet<mir::Value>,
     definitions: &DefinitionTable,
     outer_induction: mir::Value,
     tree: &mir::Tree,
@@ -1354,7 +1354,7 @@ fn inner_uses_are_safe(
             inner_outer_param,
             definitions,
             tree,
-            &mut HashSet::new(),
+            &mut FxIndexSet::default(),
         ) {
             return false;
         }
@@ -1378,7 +1378,7 @@ fn value_depends_on(
     inner_outer_param: Option<mir::Value>,
     definitions: &DefinitionTable,
     tree: &mir::Tree,
-    visiting: &mut HashSet<mir::Value>,
+    visiting: &mut FxIndexSet<mir::Value>,
 ) -> bool {
     // treat the outer induction as a dependency root
     if value == outer_induction {
@@ -1718,7 +1718,7 @@ fn inner_update_info(
                     Some(candidate.inner_outer_param),
                     definitions,
                     tree,
-                    &mut HashSet::new(),
+                    &mut FxIndexSet::default(),
                 ) {
                     return None;
                 }
@@ -1736,7 +1736,7 @@ fn inner_update_info(
                         Some(candidate.inner_outer_param),
                         definitions,
                         tree,
-                        &mut HashSet::new(),
+                        &mut FxIndexSet::default(),
                     ) {
                         return None;
                     }
@@ -1872,7 +1872,7 @@ fn jam_inner_body(
         new_instructions.push(offset_add_id);
 
         // clone body instructions with remapped values
-        let mut value_map = HashMap::new();
+        let mut value_map = FxIndexMap::default();
         for &value in &candidate.outer_equivalents {
             value_map.insert(value, offset_value);
         }
@@ -1953,7 +1953,7 @@ fn scaled_step_constant(
 /// Compute unroll limits based on block hotness.
 fn unroll_limits_for_loop(
     header: mir::LocalNodeId<mir::Block>,
-    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    block_counts: &FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
     entry_count: u64,
     unroll_threshold: usize,
     hotness: mir::HotnessThresholds,

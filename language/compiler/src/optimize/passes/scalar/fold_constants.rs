@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -71,8 +71,8 @@ fn run_fold_constants(
 ) -> bool {
     // track pass state and pending rewrites
     let mut changed = false;
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
-    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
+    let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
 
     // fold instructions with local constants
     for &block_id in function.blocks() {

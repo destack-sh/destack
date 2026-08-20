@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate::optimize::declare_pass;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
@@ -129,11 +130,11 @@ fn run_sink_stores(
     let use_blocks_by_def = collect_use_blocks_by_def(function, tree, memory.as_ref(), &alias);
 
     // track modifications
-    let mut edge_blocks: HashMap<
+    let mut edge_blocks: FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
         mir::LocalNodeId<mir::Block>,
-    > = HashMap::new();
-    let mut to_remove = HashSet::new();
+    > = FxIndexMap::default();
+    let mut to_remove = FxIndexSet::default();
     let mut changed = false;
 
     // evaluate candidates for sinking
@@ -322,9 +323,9 @@ fn collect_use_blocks_by_def(
     tree: &mir::Tree,
     memory: &MemoryTable,
     alias: &AliasTable,
-) -> HashMap<MemoryAccessId, HashSet<mir::LocalNodeId<mir::Block>>> {
+) -> FxIndexMap<MemoryAccessId, FxIndexSet<mir::LocalNodeId<mir::Block>>> {
     // collect clobbering use blocks
-    let mut blocks_by_def: HashMap<_, HashSet<_>> = HashMap::new();
+    let mut blocks_by_def: FxIndexMap<_, FxIndexSet<_>> = FxIndexMap::default();
 
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
@@ -352,11 +353,11 @@ fn collect_use_blocks_by_def(
 fn successor_reaches_use(
     tree: &mir::Tree,
     start: mir::LocalNodeId<mir::Block>,
-    use_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    use_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // use a queue for breadth first traversal
     let mut queue = VecDeque::new();
-    let mut visited = HashSet::new();
+    let mut visited = FxIndexSet::default();
 
     queue.push_back(start);
     visited.insert(start);

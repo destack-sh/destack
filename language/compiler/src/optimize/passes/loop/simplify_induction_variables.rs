@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -127,13 +127,13 @@ fn run_simplify_induction_variables(
     cfg: &ControlTable,
 ) -> bool {
     // collect substitutions for redundant induction variables
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
 
     // collect header instruction insertions
-    let mut header_inserts: HashMap<
+    let mut header_inserts: FxIndexMap<
         mir::LocalNodeId<mir::Block>,
         Vec<mir::LocalNodeId<mir::Instruction>>,
-    > = HashMap::new();
+    > = FxIndexMap::default();
 
     // build forwarding information for header parameters
     let forwarding = BlockParamForwarding::build(function, tree, cfg);
@@ -274,7 +274,7 @@ fn run_simplify_induction_variables(
         headers.sort();
 
         for header_id in headers {
-            let inserts = header_inserts.remove(&header_id).unwrap_or_default();
+            let inserts = header_inserts.swap_remove(&header_id).unwrap_or_default();
             if inserts.is_empty() {
                 continue;
             }
@@ -294,7 +294,8 @@ fn run_simplify_induction_variables(
     let substitutions = resolve_substitution_chains(substitutions);
 
     // collect removed parameter indices
-    let mut removed_indices: HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>> = HashMap::new();
+    let mut removed_indices: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<usize>> =
+        FxIndexMap::default();
     for &block_id in function.blocks() {
         // collect indices for parameters that will be removed
         let block = tree.get(block_id).clone();
@@ -421,7 +422,7 @@ fn insert_offset_value(
     header: mir::LocalNodeId<mir::Block>,
     base_value: mir::Value,
     offset: mir::Constant,
-    header_inserts: &mut HashMap<
+    header_inserts: &mut FxIndexMap<
         mir::LocalNodeId<mir::Block>,
         Vec<mir::LocalNodeId<mir::Instruction>>,
     >,
@@ -456,7 +457,7 @@ fn insert_offset_value(
 fn remove_arguments_at_indices(
     tree: &mut mir::Tree,
     terminator: &mir::Terminator,
-    removed_indices: &HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
+    removed_indices: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
 ) -> mir::Terminator {
     // rewrite terminators that target blocks with removed parameters
     match terminator {
@@ -540,7 +541,7 @@ fn remove_arguments_at_indices(
 fn filter_target_arguments(
     tree: &mut mir::Tree,
     target: &mir::BlockTarget,
-    removed_indices: &HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
+    removed_indices: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
 ) -> mir::BlockTarget {
     let Some(indices) = removed_indices.get(&target.block) else {
         return target.clone();

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -98,19 +98,20 @@ fn eliminate_common_subexpressions_in_block(
     memory: &MemoryTable,
 ) -> bool {
     // expression table: key -> defining value
-    let mut expression_table: HashMap<PureExpression, mir::Value> = HashMap::new();
+    let mut expression_table: FxIndexMap<PureExpression, mir::Value> = FxIndexMap::default();
 
     // substitutions to apply: old value -> new value
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
 
     // instructions to remove (now redundant)
-    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
 
     // track redundant loads within the block
     let mut load_table: Vec<LoadEntry> = Vec::new();
 
     // track local values
-    let mut local_values: HashMap<mir::LocalNodeId<mir::Local>, mir::Value> = HashMap::new();
+    let mut local_values: FxIndexMap<mir::LocalNodeId<mir::Local>, mir::Value> =
+        FxIndexMap::default();
 
     // scan instructions for redundant expressions
     let block = tree.get(block_id).clone();

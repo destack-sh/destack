@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -68,8 +68,8 @@ fn run_propagate_copies(
     accesses: &mut mir::AccessTable,
 ) -> bool {
     // collect incoming argument lists by target block
-    let mut predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<Vec<mir::Value>>> =
-        HashMap::new();
+    let mut predecessors: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<Vec<mir::Value>>> =
+        FxIndexMap::default();
 
     // initialize all blocks with empty predecessor lists
     for &block_id in function.blocks() {
@@ -152,8 +152,8 @@ fn run_propagate_copies(
     }
 
     // find copy parameters
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
-    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
+    let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
     for &block_id in function.blocks() {
         // skip entry block parameters
         if function.entry() == Some(block_id) {
@@ -224,7 +224,8 @@ fn run_propagate_copies(
     let substitutions = resolve_substitution_chains(substitutions);
 
     // collect removed indices
-    let mut removed_indices: HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>> = HashMap::new();
+    let mut removed_indices: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<usize>> =
+        FxIndexMap::default();
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let indices: Vec<usize> = block
@@ -311,7 +312,7 @@ fn run_propagate_copies(
 fn remove_arguments_at_indices(
     tree: &mut mir::Tree,
     terminator: &mir::Terminator,
-    removed_indices: &HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
+    removed_indices: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
 ) -> mir::Terminator {
     match terminator {
         mir::Terminator::Jump { target } => {
@@ -438,7 +439,7 @@ fn remove_arguments_at_indices(
 fn filter_target_arguments(
     tree: &mut mir::Tree,
     target: &mir::BlockTarget,
-    removed_indices: &HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
+    removed_indices: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
 ) -> (mir::ValueSlice, bool) {
     let Some(indices) = removed_indices.get(&target.block) else {
         return (target.arguments, false);

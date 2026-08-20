@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -69,7 +69,7 @@ fn run_optimize_globals(
 ) -> bool {
     // collect global address definitions and pointer uses
     let addr_info = collect_global_addr_info(tree);
-    let use_tables: HashMap<_, _> = tree
+    let use_tables: FxIndexMap<_, _> = tree
         .iter_nodes::<mir::Function>()
         .filter(|(_, function)| function.entry().is_some())
         .map(|(function_id, function)| (function_id, UseTable::build(function, tree)))
@@ -145,9 +145,9 @@ struct GlobalAddrEntry {
 #[derive(Debug, Default)]
 struct GlobalAddrInfo {
     /// Map from global id to its address instructions.
-    by_global: HashMap<mir::LocalNodeId<mir::Global>, Vec<GlobalAddrEntry>>,
+    by_global: FxIndexMap<mir::LocalNodeId<mir::Global>, Vec<GlobalAddrEntry>>,
     /// Map from reference value to global id.
-    by_value: HashMap<mir::Value, mir::LocalNodeId<mir::Global>>,
+    by_value: FxIndexMap<mir::Value, mir::LocalNodeId<mir::Global>>,
 }
 
 /// Collect global.address instructions for the module.
@@ -198,9 +198,9 @@ fn collect_written_globals(
     effects: &mir::EffectTable,
     resolution: &mir::ResolutionTable,
     function_effects: &EffectTable,
-) -> HashSet<mir::LocalNodeId<mir::Global>> {
+) -> FxIndexSet<mir::LocalNodeId<mir::Global>> {
     // prepare the written set
-    let mut written = HashSet::new();
+    let mut written = FxIndexSet::default();
 
     // scan each function for writes
     for (_function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -338,7 +338,7 @@ fn globals_from_arguments(
     definitions: &DefinitionTable,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
-) -> HashSet<mir::LocalNodeId<mir::Global>> {
+) -> FxIndexSet<mir::LocalNodeId<mir::Global>> {
     globals_from_values(tree.get_values(*arguments), definitions, addr_info, tree)
 }
 
@@ -348,8 +348,8 @@ fn globals_from_values(
     definitions: &DefinitionTable,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
-) -> HashSet<mir::LocalNodeId<mir::Global>> {
-    let mut globals = HashSet::new();
+) -> FxIndexSet<mir::LocalNodeId<mir::Global>> {
+    let mut globals = FxIndexSet::default();
 
     for value in values.iter().copied() {
         if let Some(global_id) = global_addr_base(value, definitions, addr_info, tree) {
@@ -369,7 +369,7 @@ fn global_addr_base(
 ) -> Option<mir::LocalNodeId<mir::Global>> {
     // walk reference definitions to find the base address
     let mut current = value;
-    let mut visited = HashSet::new();
+    let mut visited = FxIndexSet::default();
 
     loop {
         if !visited.insert(current) {

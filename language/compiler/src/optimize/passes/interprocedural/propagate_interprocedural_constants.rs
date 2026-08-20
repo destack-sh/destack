@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -85,9 +85,9 @@ struct DirectCallArgs {
 #[derive(Debug, Default)]
 struct CallData {
     /// Direct call arguments keyed by callee.
-    direct_calls: HashMap<mir::LocalNodeId<mir::Function>, Vec<DirectCallArgs>>,
+    direct_calls: FxIndexMap<mir::LocalNodeId<mir::Function>, Vec<DirectCallArgs>>,
     /// Signatures that may be targeted by indirect calls.
-    indirect_signatures: HashSet<SignatureKey>,
+    indirect_signatures: FxIndexSet<SignatureKey>,
 }
 
 /// Run interprocedural constant propagation over the module.
@@ -224,9 +224,9 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 /// Build definition tables for functions with bodies.
 fn build_definition_cache(
     tree: &mir::Tree,
-) -> HashMap<mir::LocalNodeId<mir::Function>, DefinitionTable> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Function>, DefinitionTable> {
     // prepare the cache container
-    let mut cache = HashMap::new();
+    let mut cache = FxIndexMap::default();
 
     // build one definition table per function
     for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -244,7 +244,7 @@ fn build_definition_cache(
 fn constant_parameters(
     function: &mir::Function,
     callsites: &[DirectCallArgs],
-    definitions_by_function: &HashMap<mir::LocalNodeId<mir::Function>, DefinitionTable>,
+    definitions_by_function: &FxIndexMap<mir::LocalNodeId<mir::Function>, DefinitionTable>,
     tree: &mir::Tree,
     pointer_width_bits: u16,
 ) -> Vec<Option<mir::Constant>> {

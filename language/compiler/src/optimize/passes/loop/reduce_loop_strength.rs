@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -125,7 +125,7 @@ struct StrengthReductionCandidate {
     /// Type of the value being replaced.
     value_type: mir::LocalNodeId<mir::Type>,
     /// Blocks inside the loop.
-    loop_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
 }
 
 /// Plan item for rewriting a loop value.
@@ -373,10 +373,10 @@ fn run_reduce_loop_strength(
     function.recompute_next_value_id(tree);
 
     // group candidates by loop header
-    let mut candidates_by_header: HashMap<
+    let mut candidates_by_header: FxIndexMap<
         mir::LocalNodeId<mir::Block>,
         Vec<StrengthReductionCandidate>,
-    > = HashMap::new();
+    > = FxIndexMap::default();
     for candidate in candidates {
         candidates_by_header
             .entry(candidate.header)
@@ -385,14 +385,16 @@ fn run_reduce_loop_strength(
     }
 
     // apply transformations and collect substitutions
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
     let mut headers: Vec<_> = candidates_by_header.keys().copied().collect();
     headers.sort();
 
     // process candidates header by header
     for header in headers {
         // gather candidates for the header
-        let mut loop_candidates = candidates_by_header.remove(&header).unwrap_or_default();
+        let mut loop_candidates = candidates_by_header
+            .swap_remove(&header)
+            .unwrap_or_default();
         loop_candidates.sort_by_key(|candidate| candidate.value);
 
         // apply loop specific rewrites
@@ -835,7 +837,7 @@ fn signed_min_for_width(width: u16) -> Option<i128> {
 /// Check if all uses are dominated by the loop header.
 fn uses_within_loop(
     value: mir::Value,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     uses: &UseTable,
 ) -> bool {
     // require at least one use
@@ -1046,7 +1048,7 @@ struct ScevMaterializer<'a> {
     /// Preheader block id.
     preheader: mir::LocalNodeId<mir::Block>,
     /// Blocks inside the loop.
-    loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &'a FxIndexSet<mir::LocalNodeId<mir::Block>>,
     /// Value definitions for the function.
     definitions: &'a DefinitionTable,
     /// Range analysis for invariant checks.
@@ -1058,11 +1060,11 @@ struct ScevMaterializer<'a> {
     /// Cached scev to value mappings.
     scev_cache: Vec<(Scev, mir::Value)>,
     /// Cached value mappings for cloned invariants.
-    value_cache: HashMap<mir::Value, mir::Value>,
+    value_cache: FxIndexMap<mir::Value, mir::Value>,
     /// Values currently being materialized.
-    value_in_progress: HashSet<mir::Value>,
+    value_in_progress: FxIndexSet<mir::Value>,
     /// Cached integer types by width and signedness.
-    type_cache: HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
+    type_cache: FxIndexMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
@@ -1073,7 +1075,7 @@ impl<'a> ScevMaterializer<'a> {
         tree: &'a mut mir::Tree,
         accesses: &'a mut mir::AccessTable,
         preheader: mir::LocalNodeId<mir::Block>,
-        loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
+        loop_blocks: &'a FxIndexSet<mir::LocalNodeId<mir::Block>>,
         definitions: &'a DefinitionTable,
         ranges: &'a RangeTable,
         domtree: &'a DominatorTable,
@@ -1105,9 +1107,9 @@ impl<'a> ScevMaterializer<'a> {
             domtree,
             constant_cache,
             scev_cache: Vec::new(),
-            value_cache: HashMap::new(),
-            value_in_progress: HashSet::new(),
-            type_cache: HashMap::new(),
+            value_cache: FxIndexMap::default(),
+            value_in_progress: FxIndexSet::default(),
+            type_cache: FxIndexMap::default(),
             target_layout,
         }
     }
@@ -1381,7 +1383,7 @@ impl<'a> ScevMaterializer<'a> {
         // require a definition for the value
         let definition = self.definitions.definition(value);
         let Some(definition) = definition else {
-            self.value_in_progress.remove(&value);
+            self.value_in_progress.swap_remove(&value);
             return None;
         };
 
@@ -1408,7 +1410,7 @@ impl<'a> ScevMaterializer<'a> {
         };
 
         // record completion for recursion tracking
-        self.value_in_progress.remove(&value);
+        self.value_in_progress.swap_remove(&value);
 
         // cache successful clones
         if let Some(materialized) = new_value {
@@ -1430,7 +1432,7 @@ impl<'a> ScevMaterializer<'a> {
         let destination = function.next_typed_value_like(original);
 
         // map the destination and operands to preheader values
-        let mut value_map = HashMap::new();
+        let mut value_map = FxIndexMap::default();
         value_map.insert(original, destination);
 
         // materialize inline operands

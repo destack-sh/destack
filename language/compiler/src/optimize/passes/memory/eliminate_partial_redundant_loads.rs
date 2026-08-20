@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -137,12 +137,12 @@ fn run_eliminate_partial_redundant_loads(
     function.recompute_next_value_id(tree);
 
     // track modifications
-    let mut substitutions = HashMap::new();
-    let mut to_remove = HashSet::new();
-    let mut edge_blocks: HashMap<
+    let mut substitutions = FxIndexMap::default();
+    let mut to_remove = FxIndexSet::default();
+    let mut edge_blocks: FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
         mir::LocalNodeId<mir::Block>,
-    > = HashMap::new();
+    > = FxIndexMap::default();
     let mut changed = false;
 
     // scan each block for eligible loads
@@ -155,7 +155,7 @@ fn run_eliminate_partial_redundant_loads(
             .iter()
             .enumerate()
             .map(|(index, param)| (param.value, index))
-            .collect::<HashMap<_, _>>();
+            .collect::<FxIndexMap<_, _>>();
 
         // scan block instructions for load candidates
         for &instruction_id in &block.instructions {
@@ -381,7 +381,7 @@ fn collect_edge_insertions(
     domtree: &DominatorTable,
     tree: &mir::Tree,
     definitions: &DefinitionTable,
-    param_indices: &HashMap<mir::Value, usize>,
+    param_indices: &FxIndexMap<mir::Value, usize>,
     memory: &MemoryTable,
     alias: &AliasTable,
 ) -> Option<Vec<EdgeInsertion>> {
@@ -398,7 +398,7 @@ fn collect_edge_insertions(
     let MemoryNode::Phi(phi) = memory.access(access_info.phi_access) else {
         return None;
     };
-    let incoming_by_pred: HashMap<_, _> = phi
+    let incoming_by_pred: FxIndexMap<_, _> = phi
         .incoming
         .iter()
         .map(|(block, access)| (*block, *access))

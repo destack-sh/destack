@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -91,11 +91,12 @@ fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &Range
 
         // initialize per block caches
         let mut new_instructions = Vec::new();
-        let mut cast_cache: HashMap<(mir::Value, u16, bool), mir::Value> = HashMap::new();
-        let mut type_cache: HashMap<(u16, bool), mir::LocalNodeId<mir::Type>> = HashMap::new();
+        let mut cast_cache: FxIndexMap<(mir::Value, u16, bool), mir::Value> = FxIndexMap::default();
+        let mut type_cache: FxIndexMap<(u16, bool), mir::LocalNodeId<mir::Type>> =
+            FxIndexMap::default();
 
         // reuse the widest cast per value within this block
-        let mut value_cast_width: HashMap<mir::Value, u16> = HashMap::new();
+        let mut value_cast_width: FxIndexMap<mir::Value, u16> = FxIndexMap::default();
 
         // rewrite instructions with narrower operands
         for &instruction_id in &block.instructions {
@@ -303,9 +304,9 @@ fn narrow_pair(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
-    cast_cache: &mut HashMap<(mir::Value, u16, bool), mir::Value>,
-    type_cache: &mut HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
-    value_cast_width: &mut HashMap<mir::Value, u16>,
+    cast_cache: &mut FxIndexMap<(mir::Value, u16, bool), mir::Value>,
+    type_cache: &mut FxIndexMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
+    value_cast_width: &mut FxIndexMap<mir::Value, u16>,
     ranges: &RangeState,
 ) -> Option<(mir::Value, mir::Value)> {
     // compute range info for both operands
@@ -366,8 +367,8 @@ fn narrow_value_to_width(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
-    cast_cache: &mut HashMap<(mir::Value, u16, bool), mir::Value>,
-    type_cache: &mut HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
+    cast_cache: &mut FxIndexMap<(mir::Value, u16, bool), mir::Value>,
+    type_cache: &mut FxIndexMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
 ) -> mir::Value {
     // reuse any existing cast for this value and width
     let cache_key = (value, width, signed);

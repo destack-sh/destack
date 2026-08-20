@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate::optimize::declare_pass;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
@@ -127,7 +128,7 @@ fn run_promote_memory_to_registers(
     );
 
     // remove promoted locals from the function
-    let promoted_set: HashSet<_> = promotable.keys().copied().collect();
+    let promoted_set: FxIndexSet<_> = promotable.keys().copied().collect();
     function.retain_locals(|local| !promoted_set.contains(&local));
 
     true
@@ -155,9 +156,9 @@ type RenameWorklistEntry = (
 fn find_promotable_locals(
     function: &mir::Function,
     tree: &mir::Tree,
-) -> HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Local>, PromotableLocal> {
     // collect locals with address taken
-    let mut address_taken = HashSet::new();
+    let mut address_taken = FxIndexSet::default();
     let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         let block = tree.get(block_id);
@@ -171,7 +172,7 @@ fn find_promotable_locals(
     function
         .locals()
         .iter()
-        .filter(|local_id| !address_taken.contains(local_id))
+        .filter(|local_id| !address_taken.contains(*local_id))
         .map(|&local_id| {
             let local = tree.get(local_id);
             let ty = local.ty;
@@ -183,14 +184,17 @@ fn find_promotable_locals(
 
 /// Find which blocks contain definitions (LocalSet) for each promotable local.
 fn find_definition_blocks(
-    promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
+    promotable: &FxIndexMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
     function: &mir::Function,
     tree: &mir::Tree,
-) -> HashMap<mir::LocalNodeId<mir::Local>, HashSet<mir::LocalNodeId<mir::Block>>> {
-    let mut def_blocks: HashMap<
+) -> FxIndexMap<mir::LocalNodeId<mir::Local>, FxIndexSet<mir::LocalNodeId<mir::Block>>> {
+    let mut def_blocks: FxIndexMap<
         mir::LocalNodeId<mir::Local>,
-        HashSet<mir::LocalNodeId<mir::Block>>,
-    > = promotable.keys().map(|&k| (k, HashSet::new())).collect();
+        FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    > = promotable
+        .keys()
+        .map(|&k| (k, FxIndexSet::default()))
+        .collect();
 
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
@@ -213,20 +217,23 @@ fn find_definition_blocks(
 /// A block needs a parameter for a local when it is in the dominance frontier
 /// of a definition and the local is live in to that block.
 fn compute_parameter_placements(
-    promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
-    def_blocks: &HashMap<mir::LocalNodeId<mir::Local>, HashSet<mir::LocalNodeId<mir::Block>>>,
-    frontiers: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
-    local_liveness: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>>,
-    function: &mir::Function,
-) -> HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> {
-    // initialize block parameter placement map
-    let mut param_placements: HashMap<
+    promotable: &FxIndexMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
+    def_blocks: &FxIndexMap<mir::LocalNodeId<mir::Local>, FxIndexSet<mir::LocalNodeId<mir::Block>>>,
+    frontiers: &FxIndexMap<mir::LocalNodeId<mir::Block>, FxIndexSet<mir::LocalNodeId<mir::Block>>>,
+    local_liveness: &FxIndexMap<
         mir::LocalNodeId<mir::Block>,
-        HashSet<mir::LocalNodeId<mir::Local>>,
+        FxIndexSet<mir::LocalNodeId<mir::Local>>,
+    >,
+    function: &mir::Function,
+) -> FxIndexMap<mir::LocalNodeId<mir::Block>, FxIndexSet<mir::LocalNodeId<mir::Local>>> {
+    // initialize block parameter placement map
+    let mut param_placements: FxIndexMap<
+        mir::LocalNodeId<mir::Block>,
+        FxIndexSet<mir::LocalNodeId<mir::Local>>,
     > = function
         .blocks()
         .iter()
-        .map(|&b| (b, HashSet::new()))
+        .map(|&b| (b, FxIndexSet::default()))
         .collect();
 
     // add block parameters at dominance frontiers pruned by liveness
@@ -264,26 +271,26 @@ fn compute_parameter_placements(
 
 /// Compute local liveness for promotable locals.
 fn compute_local_liveness(
-    promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
+    promotable: &FxIndexMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
     function: &mir::Function,
     tree: &mir::Tree,
-) -> HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Block>, FxIndexSet<mir::LocalNodeId<mir::Local>>> {
     // initialize per block use and def sets
-    let mut block_use: HashMap<
+    let mut block_use: FxIndexMap<
         mir::LocalNodeId<mir::Block>,
-        HashSet<mir::LocalNodeId<mir::Local>>,
-    > = HashMap::new();
-    let mut block_def: HashMap<
+        FxIndexSet<mir::LocalNodeId<mir::Local>>,
+    > = FxIndexMap::default();
+    let mut block_def: FxIndexMap<
         mir::LocalNodeId<mir::Block>,
-        HashSet<mir::LocalNodeId<mir::Local>>,
-    > = HashMap::new();
+        FxIndexSet<mir::LocalNodeId<mir::Local>>,
+    > = FxIndexMap::default();
 
     // compute local use and def sets
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
-        let mut seen_defs: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
-        let mut uses: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
-        let mut defs: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
+        let mut seen_defs: FxIndexSet<mir::LocalNodeId<mir::Local>> = FxIndexSet::default();
+        let mut uses: FxIndexSet<mir::LocalNodeId<mir::Local>> = FxIndexSet::default();
+        let mut defs: FxIndexSet<mir::LocalNodeId<mir::Local>> = FxIndexSet::default();
 
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
@@ -307,14 +314,18 @@ fn compute_local_liveness(
     }
 
     // initialize liveness state
-    let mut live_in: HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> =
-        HashMap::new();
-    let mut live_out: HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> =
-        HashMap::new();
+    let mut live_in: FxIndexMap<
+        mir::LocalNodeId<mir::Block>,
+        FxIndexSet<mir::LocalNodeId<mir::Local>>,
+    > = FxIndexMap::default();
+    let mut live_out: FxIndexMap<
+        mir::LocalNodeId<mir::Block>,
+        FxIndexSet<mir::LocalNodeId<mir::Local>>,
+    > = FxIndexMap::default();
 
     for &block_id in function.blocks() {
-        live_in.insert(block_id, HashSet::new());
-        live_out.insert(block_id, HashSet::new());
+        live_in.insert(block_id, FxIndexSet::default());
+        live_out.insert(block_id, FxIndexSet::default());
     }
 
     // run backward dataflow to fixed point
@@ -329,7 +340,7 @@ fn compute_local_liveness(
             let terminator = tree.get(block.terminator);
 
             // live_out is union of successor live_in sets
-            let mut new_live_out: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
+            let mut new_live_out: FxIndexSet<mir::LocalNodeId<mir::Local>> = FxIndexSet::default();
             for successor in terminator.successors(tree) {
                 if let Some(successor_live_in) = live_in.get(&successor) {
                     new_live_out.extend(successor_live_in.iter().copied());
@@ -339,7 +350,7 @@ fn compute_local_liveness(
             // live_in = use ∪ (live_out - def)
             let block_uses = block_use.get(&block_id).expect("block use missing");
             let block_defs = block_def.get(&block_id).expect("block def missing");
-            let mut new_live_in: HashSet<mir::LocalNodeId<mir::Local>> =
+            let mut new_live_in: FxIndexSet<mir::LocalNodeId<mir::Local>> =
                 new_live_out.difference(block_defs).copied().collect();
             new_live_in.extend(block_uses.iter().copied());
 
@@ -363,12 +374,15 @@ fn compute_local_liveness(
 /// Insert block parameters for promoted locals.
 /// Returns a mapping from (block, local) => parameter value.
 fn insert_block_parameters(
-    param_placements: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>>,
-    promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
+    param_placements: &FxIndexMap<
+        mir::LocalNodeId<mir::Block>,
+        FxIndexSet<mir::LocalNodeId<mir::Local>>,
+    >,
+    promotable: &FxIndexMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-) -> HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>), mir::Value> {
-    let mut block_params = HashMap::new();
+) -> FxIndexMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>), mir::Value> {
+    let mut block_params = FxIndexMap::default();
 
     // sort blocks for deterministic value allocation order
     let mut sorted_blocks: Vec<_> = param_placements.keys().copied().collect();
@@ -406,8 +420,8 @@ fn insert_block_parameters(
 
 /// Rename variables: replace LocalGet with SSA values, LocalSet with assignments.
 fn rename_variables(
-    promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
-    block_params: &HashMap<
+    promotable: &FxIndexMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
+    block_params: &FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
         mir::Value,
     >,
@@ -419,14 +433,15 @@ fn rename_variables(
     entry: mir::LocalNodeId<mir::Block>,
 ) {
     // current value for each local during renaming (stack for each local)
-    let mut value_stacks: HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>> =
+    let mut value_stacks: FxIndexMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>> =
         promotable.keys().map(|&k| (k, Vec::new())).collect();
 
     // track instructions to remove (LocalGet/LocalSet for promoted locals)
-    let mut instructions_to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut instructions_to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> =
+        FxIndexSet::default();
 
     // track value substitutions (LocalGet destination -> actual value)
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
 
     // dfs in dominator tree order
     let mut worklist: Vec<RenameWorklistEntry> = vec![(entry, Vec::new())];
@@ -554,7 +569,10 @@ fn rename_variables(
 }
 
 /// Resolve a value through substitution chains.
-fn resolve_value(value: mir::Value, substitutions: &HashMap<mir::Value, mir::Value>) -> mir::Value {
+fn resolve_value(
+    value: mir::Value,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
+) -> mir::Value {
     let mut current = value;
     while let Some(&next) = substitutions.get(&current) {
         if next == current {
@@ -568,7 +586,7 @@ fn resolve_value(value: mir::Value, substitutions: &HashMap<mir::Value, mir::Val
 /// Resolve a value reference through substitution chains when concrete.
 fn remap_value_reference(
     value: mir::Value,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> mir::Value {
     resolve_value(value, substitutions)
 }
@@ -578,12 +596,12 @@ fn update_terminator_arguments(
     tree: &mut mir::Tree,
     terminator: &mir::Terminator,
     _block_id: mir::LocalNodeId<mir::Block>,
-    block_params: &HashMap<
+    block_params: &FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
         mir::Value,
     >,
-    value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    value_stacks: &FxIndexMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> mir::Terminator {
     match terminator {
         mir::Terminator::Error => {
@@ -845,12 +863,12 @@ fn update_terminator_arguments(
 fn extend_target(
     tree: &mut mir::Tree,
     target: &mir::BlockTarget,
-    block_params: &HashMap<
+    block_params: &FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
         mir::Value,
     >,
-    value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    value_stacks: &FxIndexMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> mir::BlockTarget {
     let arguments = extend_arguments(
         target.block,
@@ -867,7 +885,7 @@ fn extend_target(
 fn remap_call(
     tree: &mut mir::Tree,
     call: &mir::Call,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> mir::Call {
     let arguments: Vec<_> = tree
         .get_values(call.arguments)
@@ -886,12 +904,12 @@ fn remap_call(
 fn extend_arguments(
     target: mir::BlockId,
     existing: &[mir::Value],
-    block_params: &HashMap<
+    block_params: &FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
         mir::Value,
     >,
-    value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    value_stacks: &FxIndexMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> Vec<mir::Value> {
     let mut args: Vec<_> = existing
         .iter()

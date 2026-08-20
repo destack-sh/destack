@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -96,7 +96,7 @@ fn run_sink(
     memory: &MemoryTable,
 ) -> bool {
     // collect all blocks that are in any loop
-    let loop_blocks: HashSet<mir::LocalNodeId<mir::Block>> = loops
+    let loop_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>> = loops
         .loops()
         .iter()
         .flat_map(|loop_info| loop_info.blocks.iter().copied())
@@ -260,8 +260,8 @@ fn run_sink(
     work.sort_by_key(|item| std::cmp::Reverse(item.instruction_idx));
 
     // group by source block
-    let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<SinkInstructionsWork>> =
-        HashMap::new();
+    let mut by_block: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<SinkInstructionsWork>> =
+        FxIndexMap::default();
     for w in work {
         by_block.entry(w.from_block).or_default().push(w);
     }

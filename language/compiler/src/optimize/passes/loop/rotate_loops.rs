@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -173,8 +173,8 @@ fn find_rotation_candidate(
         .iter()
         .map(|param| param.value)
         .collect();
-    let header_param_set: std::collections::HashSet<_> = header_params.iter().copied().collect();
-    let passed_to_body: std::collections::HashSet<_> = body_arguments.iter().copied().collect();
+    let header_param_set: FxIndexSet<_> = header_params.iter().copied().collect();
+    let passed_to_body: FxIndexSet<_> = body_arguments.iter().copied().collect();
     if !header_param_set.is_subset(&passed_to_body) {
         return None;
     }
@@ -241,24 +241,24 @@ fn rotate_loop(
     };
 
     // build value mappings: header params -> actual args
-    let preheader_value_map: HashMap<mir::Value, mir::Value> = header_params
+    let preheader_value_map: FxIndexMap<mir::Value, mir::Value> = header_params
         .iter()
         .zip(preheader_args.iter())
         .map(|(param, arg)| (*param, *arg))
         .collect();
 
-    let latch_value_map: HashMap<mir::Value, mir::Value> = header_params
+    let latch_value_map: FxIndexMap<mir::Value, mir::Value> = header_params
         .iter()
         .zip(latch_args.iter())
         .map(|(param, arg)| (*param, *arg))
         .collect();
 
-    let remap = |v: mir::Value, map: &HashMap<mir::Value, mir::Value>| -> mir::Value {
+    let remap = |v: mir::Value, map: &FxIndexMap<mir::Value, mir::Value>| -> mir::Value {
         *map.get(&v).unwrap_or(&v)
     };
 
     let remap_args = |args: &[mir::Value],
-                      map: &HashMap<mir::Value, mir::Value>|
+                      map: &FxIndexMap<mir::Value, mir::Value>|
      -> Vec<mir::Value> { args.iter().map(|v| remap(*v, map)).collect() };
 
     // update preheader: jump -> guard branch

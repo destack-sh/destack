@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -122,7 +122,7 @@ fn order_blocks(
     let entry_count = block_counts.get(&entry).copied().unwrap_or(0);
     let mut cold_blocks =
         classify_cold_blocks(&block_counts, entry_count, ctx.hotness_thresholds());
-    cold_blocks.remove(&entry);
+    cold_blocks.swap_remove(&entry);
 
     // fetch required analyses
     let domtree = analyses.dominator(function, tree).clone();
@@ -145,14 +145,14 @@ fn order_blocks(
 
     // record reachability for stable layout
     let reachable = collect_reachable_blocks(function, tree, entry);
-    let reachable_set: HashSet<_> = reachable.iter().copied().collect();
+    let reachable_set: FxIndexSet<_> = reachable.iter().copied().collect();
 
     // compute edge weights
     let edge_weights =
         compute_edge_weights(function, tree, execution_counts.edges(), &block_counts);
 
     // build a hot trace layout
-    let mut placed = HashSet::new();
+    let mut placed = FxIndexSet::default();
     let mut hot_order = Vec::new();
     let start_blocks = layout_start_blocks(entry, &reachable, &cold_blocks, &block_counts);
 
@@ -237,12 +237,12 @@ fn order_blocks(
 
 /// Classify cold blocks using profile counts.
 fn classify_cold_blocks(
-    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    block_counts: &FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
     entry_count: u64,
     hotness: mir::HotnessThresholds,
-) -> HashSet<mir::LocalNodeId<mir::Block>> {
+) -> FxIndexSet<mir::LocalNodeId<mir::Block>> {
     // collect blocks classified as cold
-    let mut cold = HashSet::new();
+    let mut cold = FxIndexSet::default();
     for (&block, &count) in block_counts {
         // record blocks below cold thresholds
         if matches!(hotness.classify(count, entry_count), Hotness::Cold) {
@@ -258,11 +258,11 @@ fn outline_cold_edges(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     cfg: &ControlTable,
-    cold_blocks: &mut HashSet<mir::LocalNodeId<mir::Block>>,
-    block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    cold_blocks: &mut FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    block_counts: &mut FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
     // track newly created edge blocks and changes
-    let mut edge_blocks = HashMap::new();
+    let mut edge_blocks = FxIndexMap::default();
     let mut changed = false;
 
     // scan edges from warm to cold blocks
@@ -314,17 +314,17 @@ fn duplicate_hot_edges(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
-    edge_counts: &HashMap<mir::Edge, u64>,
+    edge_counts: &FxIndexMap<mir::Edge, u64>,
     domtree: &DominatorTable,
-    block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    block_counts: &mut FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
     // snapshot value definitions and uses
     let definitions = DefinitionTable::build(function, tree);
     let uses = UseTable::build(function, tree);
 
     // collect edge predecessors keyed by target
-    let mut predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<EdgePredecessor>> =
-        HashMap::new();
+    let mut predecessors: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<EdgePredecessor>> =
+        FxIndexMap::default();
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
@@ -476,7 +476,7 @@ fn duplicate_hot_edges(
             }
 
             // build value map for parameters and new instruction values
-            let mut value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
+            let mut value_map: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
             for (param, arg) in block.parameters.iter().zip(pred.arguments.iter()) {
                 let parameter = param.value;
                 value_map.insert(parameter, *arg);
@@ -684,8 +684,8 @@ fn rewrite_hot_edge_target(
 fn layout_start_blocks(
     entry: mir::LocalNodeId<mir::Block>,
     reachable: &[mir::LocalNodeId<mir::Block>],
-    cold_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    cold_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    block_counts: &FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> Vec<mir::LocalNodeId<mir::Block>> {
     // collect non cold reachable candidates
     let mut candidates: Vec<_> = reachable
@@ -708,11 +708,11 @@ fn layout_start_blocks(
 fn select_hot_successor(
     block: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
-    edge_weights: &HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64>,
-    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
-    cold_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    placed: &HashSet<mir::LocalNodeId<mir::Block>>,
-    reachable: &HashSet<mir::LocalNodeId<mir::Block>>,
+    edge_weights: &FxIndexMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64>,
+    block_counts: &FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
+    cold_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    placed: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    reachable: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
 ) -> Option<mir::LocalNodeId<mir::Block>> {
     // scan successors for the hottest candidate
     let block_id = block;
@@ -749,7 +749,7 @@ fn select_hot_successor(
 /// Sort blocks by execution count and id.
 fn sort_blocks_by_hotness(
     blocks: &mut [mir::LocalNodeId<mir::Block>],
-    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    block_counts: &FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
 ) {
     // order by descending count with id as a tie breaker
     blocks.sort_by(|left, right| {
@@ -766,10 +766,10 @@ fn sort_blocks_by_hotness(
 fn compute_edge_weights(
     function: &mir::Function,
     tree: &mir::Tree,
-    edge_counts: &HashMap<mir::Edge, u64>,
-    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
-) -> HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64> {
-    let mut weights = HashMap::new();
+    edge_counts: &FxIndexMap<mir::Edge, u64>,
+    block_counts: &FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
+) -> FxIndexMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64> {
+    let mut weights = FxIndexMap::default();
 
     // compute a weight per edge using profile data when possible
     for &block_id in function.blocks() {

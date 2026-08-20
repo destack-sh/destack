@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -181,14 +181,16 @@ fn hoist_common_prefix(
         build_param_rewrites(&then_data, &else_data, then_arguments, else_arguments);
 
     // build substitution maps for both sides
-    let mut then_substitutions = HashMap::new();
-    let mut else_substitutions = HashMap::new();
+    let mut then_substitutions = FxIndexMap::default();
+    let mut else_substitutions = FxIndexMap::default();
     let mut new_header_instructions = tree.get(header).instructions.clone();
 
     // track which values are hoisted already
-    let mut hoisted_values: HashSet<mir::Value> = HashSet::new();
-    let mut hoisted_then_ids: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
-    let mut hoisted_else_ids: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut hoisted_values: FxIndexSet<mir::Value> = FxIndexSet::default();
+    let mut hoisted_then_ids: FxIndexSet<mir::LocalNodeId<mir::Instruction>> =
+        FxIndexSet::default();
+    let mut hoisted_else_ids: FxIndexSet<mir::LocalNodeId<mir::Instruction>> =
+        FxIndexSet::default();
 
     // hoist candidates while dependencies are available
     let mut progress = true;
@@ -320,12 +322,12 @@ fn build_param_rewrites(
     then_arguments: &[mir::Value],
     else_arguments: &[mir::Value],
 ) -> (
-    HashMap<mir::Value, mir::Value>,
-    HashMap<mir::Value, mir::Value>,
+    FxIndexMap<mir::Value, mir::Value>,
+    FxIndexMap<mir::Value, mir::Value>,
 ) {
     // prepare empty mappings
-    let mut then_rewrites = HashMap::new();
-    let mut else_rewrites = HashMap::new();
+    let mut then_rewrites = FxIndexMap::default();
+    let mut else_rewrites = FxIndexMap::default();
 
     // require matching parameter arity
     if then_block.parameters.len() != then_arguments.len()
@@ -357,7 +359,7 @@ fn instruction_operands_available(
     header: mir::LocalNodeId<mir::Block>,
     definitions: &DefinitionTable,
     domtree: &DominatorTable,
-    hoisted_values: &HashSet<mir::Value>,
+    hoisted_values: &FxIndexSet<mir::Value>,
 ) -> bool {
     // scan all operands
     for value in instruction.uses() {
@@ -387,7 +389,7 @@ fn instruction_operands_available(
 /// Remove specific instructions from a block.
 fn drop_instructions(
     block: &mir::Block,
-    removed: &HashSet<mir::LocalNodeId<mir::Instruction>>,
+    removed: &FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // retain instructions not removed
     let mut instructions = block.instructions.clone();
@@ -423,12 +425,12 @@ struct HoistCandidate {
 /// Build an expression index for a block.
 fn build_expression_index(
     block: &mir::Block,
-    value_rewrites: &HashMap<mir::Value, mir::Value>,
+    value_rewrites: &FxIndexMap<mir::Value, mir::Value>,
     function: &mir::Function,
     tree: &mut mir::Tree,
-) -> HashMap<PureExpression, ExpressionEntry> {
+) -> FxIndexMap<PureExpression, ExpressionEntry> {
     // allocate the index map
-    let mut index = HashMap::new();
+    let mut index = FxIndexMap::default();
 
     // scan instructions in test order
     for &instruction_id in &block.instructions {

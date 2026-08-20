@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use destack_mir as mir;
 
@@ -344,7 +344,7 @@ fn insert_preheader(
 fn parameter_substitutions(
     from: &[mir::BlockParameter],
     to: &[mir::BlockParameter],
-) -> HashMap<mir::Value, mir::Value> {
+) -> FxIndexMap<mir::Value, mir::Value> {
     from.iter()
         .zip(to.iter())
         .map(|(from, to)| (from.value, to.value))
@@ -354,7 +354,7 @@ fn parameter_substitutions(
 /// Substitute values inside the selected blocks.
 fn substitute_values_in_blocks(
     blocks: &[mir::LocalNodeId<mir::Block>],
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
     tree: &mut mir::Tree,
 ) {
     if substitutions.is_empty() {

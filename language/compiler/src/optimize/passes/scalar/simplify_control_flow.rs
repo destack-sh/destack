@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -113,7 +113,8 @@ fn run_simplify_control_flow(
     let mut changed = false;
 
     // keep track of profile guided tail duplication targets
-    let mut profiled_tail_dup_targets: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+    let mut profiled_tail_dup_targets: FxIndexSet<mir::LocalNodeId<mir::Block>> =
+        FxIndexSet::default();
 
     // invalidate cached analysis state after each internal rewrite
     let rewrite_mutation = Mutation::CONTROL | Mutation::VALUE;
@@ -132,7 +133,7 @@ fn run_simplify_control_flow(
                     .loops()
                     .iter()
                     .flat_map(|loop_info| loop_info.blocks.iter().copied())
-                    .collect::<HashSet<_>>(),
+                    .collect::<FxIndexSet<_>>(),
             )
         };
 
@@ -241,7 +242,7 @@ fn fold_branches(
     tree: &mut mir::Tree,
     constants: &ConstantTable,
     ranges: &RangeTable,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // track whether any changes were made
     let mut changed = false;
@@ -411,7 +412,7 @@ fn thread_edge_conditions(
     constants: &ConstantTable,
     ranges: &RangeTable,
     domtree: &DominatorTable,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // snapshot value definitions and uses before rewriting edges
     let definitions = DefinitionTable::build(function, tree);
@@ -556,7 +557,7 @@ fn resolve_edge_target(
     }
 
     // build parameter substitutions for this edge
-    let mut param_substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut param_substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
     for (param, arg) in block
         .parameters
         .iter()
@@ -1288,7 +1289,7 @@ fn lower_single_case_switch(
 fn remap_return_edge_arguments(
     tree: &mir::Tree,
     target: &mir::BlockTarget,
-    return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
     is_void_return: bool,
 ) -> Option<Vec<mir::Value>> {
     // lookup return block tables
@@ -1322,8 +1323,8 @@ fn remap_return_edge_arguments(
 
 /// Record a return block that could not be remapped.
 fn record_kept_return(
-    return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
-    kept_returns: &mut HashSet<mir::LocalNodeId<mir::Block>>,
+    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    kept_returns: &mut FxIndexSet<mir::LocalNodeId<mir::Block>>,
     target: mir::BlockId,
 ) {
     // record the target when it is a return block
@@ -1336,7 +1337,7 @@ fn record_kept_return(
 fn function_has_remappable_return_edges(
     function: &mir::Function,
     tree: &mir::Tree,
-    return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
     is_void_return: bool,
 ) -> bool {
     // scan blocks for return targets that can be remapped
@@ -1413,7 +1414,8 @@ fn function_has_remappable_return_edges(
 /// Canonicalize empty return blocks by routing them to one return block.
 fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
     // collect candidate return and unreachable blocks
-    let mut return_blocks: HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo> = HashMap::new();
+    let mut return_blocks: FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo> =
+        FxIndexMap::default();
     let mut unreachable_blocks: Vec<mir::LocalNodeId<mir::Block>> = Vec::new();
     let mut changed = false;
 
@@ -1464,7 +1466,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
     // merge unreachable blocks into one canonical block
     if unreachable_blocks.len() > 1 {
         let canonical_unreachable = unreachable_blocks[0];
-        let redirects: HashMap<_, _> = unreachable_blocks
+        let redirects: FxIndexMap<_, _> = unreachable_blocks
             .iter()
             .skip(1)
             .map(|block_id| (*block_id, canonical_unreachable))
@@ -1507,11 +1509,11 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
     };
 
     // redirect edges into canonical return
-    let mut kept_returns: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
-    let mut referenced_returns: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+    let mut kept_returns: FxIndexSet<mir::LocalNodeId<mir::Block>> = FxIndexSet::default();
+    let mut referenced_returns: FxIndexSet<mir::LocalNodeId<mir::Block>> = FxIndexSet::default();
 
     // snapshot return block ids for later filtering
-    let return_ids: HashSet<_> = return_blocks.keys().copied().collect();
+    let return_ids: FxIndexSet<_> = return_blocks.keys().copied().collect();
 
     // rewrite terminators to target the canonical return block
     for &block_id in function.blocks() {
@@ -1582,10 +1584,10 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
 fn rewrite_return_targets(
     tree: &mut mir::Tree,
     terminator: &mir::Terminator,
-    return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
     canonical_return: mir::LocalNodeId<mir::Block>,
     is_void_return: bool,
-    kept_returns: &mut HashSet<mir::LocalNodeId<mir::Block>>,
+    kept_returns: &mut FxIndexSet<mir::LocalNodeId<mir::Block>>,
 ) -> mir::Terminator {
     // rewrite return block targets based on the terminator kind
     match terminator {
@@ -1753,11 +1755,11 @@ fn rewrite_return_targets(
 fn remap_block_targets(
     function: &mir::Function,
     tree: &mut mir::Tree,
-    redirects: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    redirects: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // track whether any changes were made
     let mut changed = false;
-    let value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let value_map: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
 
     for &block_id in function.blocks() {
         if redirects.contains_key(&block_id) {
@@ -1943,7 +1945,7 @@ fn tail_duplicate_blocks(
     profile: Option<&mir::Profile>,
     analyses: &mut mir::FunctionCache,
     domtree: &DominatorTable,
-    profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
+    profiled_targets: &mut FxIndexSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // snapshot value definitions and uses before duplicating blocks
     let definitions = DefinitionTable::build(function, tree);
@@ -1951,9 +1953,10 @@ fn tail_duplicate_blocks(
     let execution_counts = mir::ExecutionCounts::new(function, tree, profile, analyses);
 
     // collect predecessor counts and jump predecessors
-    let mut predecessor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
-    let mut jump_predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<JumpPredecessor>> =
-        HashMap::new();
+    let mut predecessor_counts: FxIndexMap<mir::LocalNodeId<mir::Block>, usize> =
+        FxIndexMap::default();
+    let mut jump_predecessors: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<JumpPredecessor>> =
+        FxIndexMap::default();
 
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
@@ -2092,7 +2095,7 @@ fn tail_duplicate_blocks(
             }
 
             // build value map for parameters and new instruction values
-            let mut value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
+            let mut value_map: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
             for (param, arg) in block.parameters.iter().zip(pred.arguments.iter()) {
                 value_map.insert(param.value, *arg);
             }
@@ -2157,11 +2160,11 @@ fn values_available_in_block(
 fn select_tail_dup_predecessors(
     block_id: mir::LocalNodeId<mir::Block>,
     jump_predecessors: &[JumpPredecessor],
-    edge_counts: &HashMap<mir::Edge, u64>,
+    edge_counts: &FxIndexMap<mir::Edge, u64>,
 ) -> Vec<JumpPredecessor> {
     // collect edge counts for jump predecessors
     let mut total_count = 0_u64;
-    let mut counts: HashMap<mir::LocalNodeId<mir::Block>, u64> = HashMap::new();
+    let mut counts: FxIndexMap<mir::LocalNodeId<mir::Block>, u64> = FxIndexMap::default();
     for pred in jump_predecessors {
         let edge = mir::Edge::new(pred.pred, mir::Successor::Jump, block_id);
         let count = edge_counts.get(&edge).copied().unwrap_or(0);
@@ -2234,18 +2237,19 @@ fn insert_block_after(
 /// Split critical edges into their own blocks.
 fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
     // collect predecessor sets for each block
-    let mut predecessors: HashMap<
+    let mut predecessors: FxIndexMap<
         mir::LocalNodeId<mir::Block>,
-        HashSet<mir::LocalNodeId<mir::Block>>,
-    > = HashMap::new();
-    let mut successor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
+        FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    > = FxIndexMap::default();
+    let mut successor_counts: FxIndexMap<mir::LocalNodeId<mir::Block>, usize> =
+        FxIndexMap::default();
 
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
         // record unique successors for the block
-        let mut unique_successors = HashSet::new();
+        let mut unique_successors = FxIndexSet::default();
         for successor in terminator.successors(tree) {
             unique_successors.insert(successor);
         }
@@ -2263,10 +2267,10 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::Tree) -> b
     let original_blocks = function.blocks().to_vec();
 
     // track split blocks and changes
-    let mut split_cache: HashMap<
+    let mut split_cache: FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
         mir::LocalNodeId<mir::Block>,
-    > = HashMap::new();
+    > = FxIndexMap::default();
     let mut changed = false;
 
     for &block_id in &original_blocks {
@@ -2428,8 +2432,11 @@ fn split_critical_edge_target(
     tree: &mut mir::Tree,
     source: mir::LocalNodeId<mir::Block>,
     target: &mir::BlockTarget,
-    predecessors: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
-    split_cache: &mut HashMap<
+    predecessors: &FxIndexMap<
+        mir::LocalNodeId<mir::Block>,
+        FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    >,
+    split_cache: &mut FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
         mir::LocalNodeId<mir::Block>,
     >,
@@ -2437,7 +2444,9 @@ fn split_critical_edge_target(
     let target_block_id = target.block;
 
     // require multiple predecessors to be critical
-    let target_preds = predecessors.get(&target_block_id).map_or(0, HashSet::len);
+    let target_preds = predecessors
+        .get(&target_block_id)
+        .map_or(0, FxIndexSet::len);
     if target_preds <= 1 {
         return None;
     }
@@ -2497,7 +2506,8 @@ fn merge_blocks(
     let definitions = DefinitionTable::build(function, tree);
 
     // build predecessor count for each block
-    let mut predecessor_count: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
+    let mut predecessor_count: FxIndexMap<mir::LocalNodeId<mir::Block>, usize> =
+        FxIndexMap::default();
     for &block_id in function.blocks() {
         predecessor_count.entry(block_id).or_insert(0);
         let block = tree.get(block_id);
@@ -2508,7 +2518,7 @@ fn merge_blocks(
     }
 
     let mut changed = false;
-    let mut merged_away: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+    let mut merged_away: FxIndexSet<mir::LocalNodeId<mir::Block>> = FxIndexSet::default();
 
     // iterate until no more merges possible
     loop {
@@ -2579,7 +2589,7 @@ fn merge_blocks(
                 }
 
                 // build parameter substitutions for the merge
-                let param_to_arg: HashMap<mir::Value, mir::Value> = target_block
+                let param_to_arg: FxIndexMap<mir::Value, mir::Value> = target_block
                     .parameters
                     .iter()
                     .zip(arguments.iter())
@@ -2648,7 +2658,7 @@ fn eliminate_unreachable_blocks(
     entry: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // find all reachable blocks via BFS from entry
-    let mut reachable = HashSet::new();
+    let mut reachable = FxIndexSet::default();
     let mut worklist = vec![entry];
 
     while let Some(block_id) = worklist.pop() {
@@ -3740,7 +3750,7 @@ b4(v5: int32):
 
         // run tail duplication with the profile data
         function.recompute_next_value_id(&test.optimized.tree);
-        let mut profiled_targets = HashSet::new();
+        let mut profiled_targets = FxIndexSet::default();
         let changed = tail_duplicate_blocks(
             &mut function,
             &mut test.optimized.tree,
@@ -4312,7 +4322,7 @@ entry:
     }
 
     fn collect_undefined_uses(function: &mir::Function, tree: &mir::Tree) -> Vec<String> {
-        let mut defined_values: HashSet<mir::Value> = HashSet::new();
+        let mut defined_values: FxIndexSet<mir::Value> = FxIndexSet::default();
 
         for &block_id in function.blocks() {
             let block = tree.get(block_id);

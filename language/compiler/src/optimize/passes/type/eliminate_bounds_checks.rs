@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -266,7 +266,7 @@ impl BoundsConstraint {
 #[derive(Debug, Default)]
 struct BlockConstraints {
     /// Constraints available at block exit.
-    exit: HashMap<mir::LocalNodeId<mir::Block>, Vec<BoundsConstraint>>,
+    exit: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<BoundsConstraint>>,
 }
 
 impl BlockConstraints {
@@ -280,7 +280,7 @@ impl BlockConstraints {
 #[derive(Debug, Default)]
 struct ReachabilityCache {
     /// Reachable blocks keyed by start block.
-    reachable: HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
+    reachable: FxIndexMap<mir::LocalNodeId<mir::Block>, FxIndexSet<mir::LocalNodeId<mir::Block>>>,
 }
 
 impl ReachabilityCache {
@@ -299,7 +299,7 @@ impl ReachabilityCache {
         // compute reachability for this start block
         let entry = self.reachable.entry(start).or_insert_with(|| {
             // collect reachable blocks with a depth first walk
-            let mut visited = HashSet::new();
+            let mut visited = FxIndexSet::default();
             let mut stack = vec![start];
             while let Some(block_id) = stack.pop() {
                 // skip blocks that are already visited
@@ -427,8 +427,8 @@ fn build_block_constraints(
     domtree: &DominatorTable,
 ) -> BlockConstraints {
     // create dominator tree children map
-    let mut children: HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> =
-        HashMap::new();
+    let mut children: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> =
+        FxIndexMap::default();
     for &block in function.blocks() {
         children.insert(block, Vec::new());
     }
@@ -446,7 +446,7 @@ fn build_block_constraints(
 
     // walk the dominator tree and accumulate constraints
     let mut constraints = BlockConstraints::default();
-    let mut visited = HashSet::new();
+    let mut visited = FxIndexSet::default();
     let mut stack = Vec::new();
     stack.push((entry, Vec::new()));
     while let Some((block_id, entry_constraints)) = stack.pop() {

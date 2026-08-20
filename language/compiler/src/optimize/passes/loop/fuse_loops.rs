@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -147,7 +147,7 @@ struct LoopBody {
     /// Loop guard information.
     guard: GuardInfo,
     /// Instructions used to compute latch jump arguments.
-    control_instructions: HashSet<mir::LocalNodeId<mir::Instruction>>,
+    control_instructions: FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
     /// Ordered body instructions in the latch.
     body_instructions: Vec<mir::LocalNodeId<mir::Instruction>>,
 }
@@ -605,7 +605,7 @@ fn latch_is_speculatable(
     }
 
     // check memory effects for volatility
-    let mut blocks = HashSet::new();
+    let mut blocks = FxIndexSet::default();
     blocks.insert(latch);
     collect_loop_effects(
         &blocks,
@@ -622,14 +622,14 @@ fn latch_is_speculatable(
 fn latch_body_instructions(
     latch: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
-    control: &HashSet<mir::LocalNodeId<mir::Instruction>>,
+    control: &FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // return instructions that are not part of control
     let block = tree.get(latch);
     block
         .instructions
         .iter()
-        .filter(|id| !control.contains(id))
+        .filter(|id| !control.contains(*id))
         .copied()
         .collect()
 }
@@ -756,7 +756,7 @@ fn apply_fusion(
     }
 
     // build the value remap for parameters
-    let mut value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut value_map: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
     for (first_param, second_param) in first_header
         .parameters
         .iter()
@@ -896,7 +896,7 @@ fn apply_fusion(
     tree.set(tree.get(candidate.first.header).terminator, new_terminator);
 
     // drop loop2 blocks from the function
-    let mut to_remove = HashSet::new();
+    let mut to_remove = FxIndexSet::default();
     to_remove.insert(candidate.second.header);
     to_remove.insert(candidate.second.latch);
     if cfg.predecessors(candidate.second.preheader).len() == 1 {

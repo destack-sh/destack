@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use crate::optimize::passes::scalar::{
@@ -106,7 +106,7 @@ struct CallData {
     /// Direct callsites in the module.
     callsites: Vec<DirectCallSite>,
     /// Signatures that may be targeted by indirect calls.
-    indirect_signatures: HashSet<SignatureKey>,
+    indirect_signatures: FxIndexSet<SignatureKey>,
 }
 
 /// Key used to deduplicate specializations.
@@ -169,13 +169,17 @@ fn run_specialize_arguments(
         let constants_by_function = build_constant_maps(tree, ctx.target_layout());
 
         let mut changed = false;
-        let mut specialization_cache: HashMap<SpecializationKey, mir::LocalNodeId<mir::Function>> =
-            HashMap::new();
-        let mut specialization_counts: HashMap<mir::LocalNodeId<mir::Function>, usize> =
-            HashMap::new();
+        let mut specialization_cache: FxIndexMap<
+            SpecializationKey,
+            mir::LocalNodeId<mir::Function>,
+        > = FxIndexMap::default();
+        let mut specialization_counts: FxIndexMap<mir::LocalNodeId<mir::Function>, usize> =
+            FxIndexMap::default();
         let mut total_specializations = 0usize;
-        let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionCache> = HashMap::new();
-        let mut caller_counts: HashMap<mir::FunctionId, mir::ExecutionCounts> = HashMap::new();
+        let mut function_analyses: FxIndexMap<mir::FunctionId, mir::FunctionCache> =
+            FxIndexMap::default();
+        let mut caller_counts: FxIndexMap<mir::FunctionId, mir::ExecutionCounts> =
+            FxIndexMap::default();
 
         // process callsites for specialization
         for callsite in &call_data.callsites {
@@ -328,9 +332,9 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 fn build_constant_maps(
     tree: &mir::Tree,
     target_layout: mir::TargetLayout,
-) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantTable> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Function>, ConstantTable> {
     // prepare the constants map
-    let mut maps = HashMap::new();
+    let mut maps = FxIndexMap::default();
 
     // build a constant propagation analysis per function
     for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -338,8 +342,12 @@ fn build_constant_maps(
             continue;
         }
 
-        let constants =
-            ConstantTable::with_parameter_constants(function, tree, target_layout, &HashMap::new());
+        let constants = ConstantTable::with_parameter_constants(
+            function,
+            tree,
+            target_layout,
+            &FxIndexMap::default(),
+        );
         maps.insert(function_id, constants);
     }
 
@@ -349,7 +357,7 @@ fn build_constant_maps(
 /// Resolve constant arguments for a callsite.
 fn callsite_constants(
     callsite: &DirectCallSite,
-    constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
+    constants_by_function: &FxIndexMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
     tree: &mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> Option<Vec<Option<mir::Constant>>> {
@@ -487,7 +495,7 @@ fn clone_function(
     let original = tree.get(function_id).clone();
 
     // clone locals for the function
-    let mut local_map = HashMap::new();
+    let mut local_map = FxIndexMap::default();
     let mut new_locals = Vec::new();
     for local_id in original.locals() {
         let local = tree.get(*local_id).clone();
@@ -497,7 +505,7 @@ fn clone_function(
     }
 
     // create block placeholders
-    let mut block_map = HashMap::new();
+    let mut block_map = FxIndexMap::default();
     for block_id in original.blocks() {
         let block = tree.get(*block_id);
         let parameters = block.parameters.clone();
@@ -513,7 +521,7 @@ fn clone_function(
     }
 
     // clone instructions into new blocks
-    let value_map = HashMap::new();
+    let value_map = FxIndexMap::default();
     for block_id in original.blocks() {
         let new_block_id = block_map[block_id];
         let instruction_ids = tree.get(*block_id).instructions.clone();

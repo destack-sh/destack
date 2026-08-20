@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -172,7 +172,7 @@ fn run_eliminate_loop_bounds_checks(
     forwarding: &BlockParamForwarding,
 ) -> bool {
     // collect guards for each loop
-    let mut loop_guards: HashMap<usize, LoopGuards> = HashMap::new();
+    let mut loop_guards: FxIndexMap<usize, LoopGuards> = FxIndexMap::default();
 
     for (loop_index, lp) in loops.loops().iter().enumerate() {
         // derive guards from exiting blocks

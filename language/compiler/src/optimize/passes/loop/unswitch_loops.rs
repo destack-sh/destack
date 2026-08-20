@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -98,8 +98,8 @@ fn run_unswitch_loops(
     // track progress and exclusions
     let mut changed = false;
     let mut unswitched = 0;
-    let mut unswitched_headers: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
-    let mut unswitched_blocks: Vec<HashSet<mir::LocalNodeId<mir::Block>>> = Vec::new();
+    let mut unswitched_headers: FxIndexSet<mir::LocalNodeId<mir::Block>> = FxIndexSet::default();
+    let mut unswitched_blocks: Vec<FxIndexSet<mir::LocalNodeId<mir::Block>>> = Vec::new();
 
     // iterate unswitch attempts within the limit
     while unswitched < MAX_UNSWITCHES_PER_FUNCTION {
@@ -166,7 +166,7 @@ fn run_unswitch_loops(
 }
 
 /// Return true when a loop is disjoint from previously unswitched blocks.
-fn loop_is_disjoint(lp: &Loop, unswitched: &[HashSet<mir::LocalNodeId<mir::Block>>]) -> bool {
+fn loop_is_disjoint(lp: &Loop, unswitched: &[FxIndexSet<mir::LocalNodeId<mir::Block>>]) -> bool {
     // check all prior unswitched block sets
     unswitched
         .iter()
@@ -176,8 +176,8 @@ fn loop_is_disjoint(lp: &Loop, unswitched: &[HashSet<mir::LocalNodeId<mir::Block
 /// Return true when a loop can be unswitched given prior transformations.
 fn loop_is_candidate(
     lp: &Loop,
-    unswitched_headers: &HashSet<mir::LocalNodeId<mir::Block>>,
-    unswitched_blocks: &[HashSet<mir::LocalNodeId<mir::Block>>],
+    unswitched_headers: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    unswitched_blocks: &[FxIndexSet<mir::LocalNodeId<mir::Block>>],
 ) -> bool {
     // reject overlap with previously unswitched blocks
     if !loop_is_disjoint(lp, unswitched_blocks) {
@@ -217,7 +217,7 @@ struct UnswitchCandidate {
     /// Arguments passed to else_target.
     else_arguments: Vec<mir::Value>,
     /// All blocks in the loop.
-    loop_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
     /// Arguments passed from preheader to header.
     preheader_to_header_args: Vec<mir::Value>,
 }
@@ -231,13 +231,13 @@ struct HoistedCondition {
     /// Instruction id for tables cloning.
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     /// Remapping for invariant operands.
-    value_map: HashMap<mir::Value, mir::Value>,
+    value_map: FxIndexMap<mir::Value, mir::Value>,
 }
 
 /// Profile driven heuristics for unswitch selection.
 struct UnswitchHeuristics {
     /// Execution counts for blocks in the function.
-    block_counts: HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    block_counts: FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
     /// Entry count for the function.
     entry_count: u64,
     /// Profile hotness thresholds.
@@ -459,8 +459,8 @@ fn collect_base_invariant_values(
     lp: &Loop,
     function: &mir::Function,
     tree: &mir::Tree,
-) -> HashSet<mir::Value> {
-    let mut invariant = HashSet::new();
+) -> FxIndexSet<mir::Value> {
+    let mut invariant = FxIndexSet::default();
 
     // function parameters
     for param in &function.parameters {
@@ -493,8 +493,8 @@ fn collect_base_invariant_values(
 fn try_hoist_invariant_condition(
     condition: mir::Value,
     definitions: &DefinitionTable,
-    header_param_rewrites: &HashMap<mir::Value, mir::Value>,
-    invariant_values: &HashSet<mir::Value>,
+    header_param_rewrites: &FxIndexMap<mir::Value, mir::Value>,
+    invariant_values: &FxIndexSet<mir::Value>,
     function: &mir::Function,
     tree: &mir::Tree,
 ) -> Option<HoistedCondition> {
@@ -506,7 +506,7 @@ fn try_hoist_invariant_condition(
     }
 
     // seed the value map with header rewrites
-    let mut value_map = HashMap::new();
+    let mut value_map = FxIndexMap::default();
     for (from, to) in header_param_rewrites {
         value_map.insert(*from, *to);
     }
@@ -534,22 +534,22 @@ fn collect_header_param_rewrites(
     lp: &Loop,
     tree: &mir::Tree,
     cfg: &ControlTable,
-    invariant_values: &HashSet<mir::Value>,
+    invariant_values: &FxIndexSet<mir::Value>,
     preheader_args: &[mir::Value],
-) -> HashMap<mir::Value, mir::Value> {
+) -> FxIndexMap<mir::Value, mir::Value> {
     // skip when there are no header parameters
     let header_block = tree.get(lp.header);
     if header_block.parameters.is_empty() {
-        return HashMap::new();
+        return FxIndexMap::default();
     }
 
     // verify preheader argument count matches
     if preheader_args.len() != header_block.parameters.len() {
-        return HashMap::new();
+        return FxIndexMap::default();
     }
 
     // build rewrite mapping for invariant parameters
-    let mut rewrites = HashMap::new();
+    let mut rewrites = FxIndexMap::default();
     for (index, param) in header_block.parameters.iter().enumerate() {
         let param_value = param.value;
         let preheader_arg = preheader_args[index];
@@ -568,13 +568,13 @@ fn collect_header_param_rewrites(
             let args = match pred_terminator.successor_arguments(tree, lp.header) {
                 EdgeArguments::Found(args) => args,
                 EdgeArguments::Missing | EdgeArguments::Conflict => {
-                    return HashMap::new();
+                    return FxIndexMap::default();
                 }
             };
 
             // reject mismatched argument counts
             if args.len() != header_block.parameters.len() {
-                return HashMap::new();
+                return FxIndexMap::default();
             }
 
             // check for variant argument values
@@ -650,7 +650,7 @@ fn unswitch_loop(
         let mut value_map = hoisted.value_map.clone();
         let new_value = function.next_typed_value_like(hoisted.destination);
         value_map.insert(hoisted.destination, new_value);
-        let local_map = HashMap::new();
+        let local_map = FxIndexMap::default();
         let hoisted_inst =
             instruction_map_with_locals(&hoisted.instruction, &value_map, &local_map, tree);
         let hoisted_id = tree.insert(hoisted_inst);

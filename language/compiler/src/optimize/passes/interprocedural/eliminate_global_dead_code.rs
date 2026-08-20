@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -88,9 +88,9 @@ pub(crate) fn run_eliminate_global_dead_code(tree: &mut mir::Tree) -> bool {
 }
 
 /// Collect globals referenced by instructions in the module.
-fn collect_used_globals(tree: &mir::Tree) -> HashSet<mir::LocalNodeId<mir::Global>> {
+fn collect_used_globals(tree: &mir::Tree) -> FxIndexSet<mir::LocalNodeId<mir::Global>> {
     // scan the module for global references
-    let mut used = HashSet::new();
+    let mut used = FxIndexSet::default();
 
     for (_, function) in tree.iter_nodes::<mir::Function>() {
         if function.entry().is_none() {

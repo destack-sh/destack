@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -249,7 +249,7 @@ fn reassociate_binary(
     // collect operands for the full associative chain
     let mut non_constants = Vec::new();
     let mut constant_values = Vec::new();
-    let mut constant_cache = HashMap::new();
+    let mut constant_cache = FxIndexMap::default();
     let context = CollectContext {
         operator,
         block_id,
@@ -297,7 +297,7 @@ fn collect_associative_operands(
     value: mir::Value,
     non_constants: &mut Vec<mir::Value>,
     constant_values: &mut Vec<mir::Constant>,
-    constant_cache: &mut HashMap<mir::Value, bool>,
+    constant_cache: &mut FxIndexMap<mir::Value, bool>,
 ) {
     // capture constants immediately
     if let Some(constant) = context.constants.get(value) {
@@ -367,7 +367,7 @@ fn collect_associative_operands(
 fn associative_subtree_contains_constant(
     context: &CollectContext<'_>,
     value: mir::Value,
-    constant_cache: &mut HashMap<mir::Value, bool>,
+    constant_cache: &mut FxIndexMap<mir::Value, bool>,
 ) -> bool {
     // reuse cached results when possible
     if let Some(has_constant) = constant_cache.get(&value) {

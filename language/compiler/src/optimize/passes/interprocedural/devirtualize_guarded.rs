@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -89,7 +89,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
     }
 
     /// Return functions keyed by stable symbol.
-    fn functions_by_symbol(tree: &mir::Tree) -> HashMap<mir::Symbol, mir::FunctionId> {
+    fn functions_by_symbol(tree: &mir::Tree) -> FxIndexMap<mir::Symbol, mir::FunctionId> {
         tree.iter_nodes::<mir::Function>()
             .map(|(function_id, function)| (function.symbol, function_id))
             .collect()
@@ -100,7 +100,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
         &self,
         tree: &mut mir::Tree,
         function_id: mir::FunctionId,
-        functions_by_symbol: &HashMap<mir::Symbol, mir::FunctionId>,
+        functions_by_symbol: &FxIndexMap<mir::Symbol, mir::FunctionId>,
     ) -> bool {
         let function = tree.get(function_id);
         if !function.is_defined() {
@@ -144,7 +144,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
         function: &mir::Function,
         function_profile: &mir::FunctionProfile,
         profile_map: &mir::FunctionProfileTable,
-        functions_by_symbol: &HashMap<mir::Symbol, mir::FunctionId>,
+        functions_by_symbol: &FxIndexMap<mir::Symbol, mir::FunctionId>,
     ) -> Option<Promotion> {
         for &block in function.blocks() {
             let node = tree.get(block);
@@ -186,7 +186,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
         node: CallNode,
         function_profile: &mir::FunctionProfile,
         profile_map: &mir::FunctionProfileTable,
-        functions_by_symbol: &HashMap<mir::Symbol, mir::FunctionId>,
+        functions_by_symbol: &FxIndexMap<mir::Symbol, mir::FunctionId>,
     ) -> Option<Promotion> {
         let callsite = node.callsite();
         let function = self.profiled_call_target(
@@ -215,7 +215,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
         function_profile: &mir::FunctionProfile,
         profile_map: &mir::FunctionProfileTable,
         callsite: mir::CallSite,
-        functions_by_symbol: &HashMap<mir::Symbol, mir::FunctionId>,
+        functions_by_symbol: &FxIndexMap<mir::Symbol, mir::FunctionId>,
     ) -> Option<mir::FunctionId> {
         let sampler = profile_map.sampler(&SampleSite::CallTarget(callsite))?;
         let value_profile = function_profile.values.get(&sampler)?;

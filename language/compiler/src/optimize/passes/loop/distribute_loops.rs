@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate::optimize::declare_pass;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
@@ -134,7 +135,7 @@ struct DistributeCandidate {
     /// True when the in loop edge is the then branch.
     in_loop_is_then: bool,
     /// Instructions required for loop control.
-    control_instructions: HashSet<mir::LocalNodeId<mir::Instruction>>,
+    control_instructions: FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
     /// Store groups to distribute.
     groups: Vec<StoreGroup>,
 }
@@ -286,12 +287,12 @@ fn collect_store_groups(
     memory: &MemoryTable,
     alias: &AliasTable,
     definitions: &DefinitionTable,
-    control_instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
+    control_instructions: &FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<Vec<StoreGroup>> {
     // set up latch scanning state
     let latch_block = tree.get(latch);
     let mut groups = Vec::new();
-    let mut assigned: HashMap<mir::LocalNodeId<mir::Instruction>, usize> = HashMap::new();
+    let mut assigned: FxIndexMap<mir::LocalNodeId<mir::Instruction>, usize> = FxIndexMap::default();
 
     // reject side effects in the latch body
     for &instruction_id in &latch_block.instructions {
@@ -411,8 +412,8 @@ fn collect_group_instructions(
     function: &mir::Function,
     tree: &mir::Tree,
     definitions: &DefinitionTable,
-    control_instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
-) -> Option<HashSet<mir::LocalNodeId<mir::Instruction>>> {
+    control_instructions: &FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
+) -> Option<FxIndexSet<mir::LocalNodeId<mir::Instruction>>> {
     // seed the worklist with store operands
     let mut worklist = VecDeque::new();
     worklist.push_back(value);
@@ -421,7 +422,7 @@ fn collect_group_instructions(
     }
 
     // walk operand definitions within the latch
-    let mut instructions = HashSet::new();
+    let mut instructions = FxIndexSet::default();
     instructions.insert(anchor);
 
     while let Some(next_value) = worklist.pop_front() {
@@ -466,7 +467,7 @@ fn collect_group_instructions(
 
 /// Collect memory effects for a group.
 fn collect_group_effects(
-    instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
+    instructions: &FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
     tree: &mir::Tree,
     accesses: &mir::AccessTable,
     memory: &MemoryTable,
@@ -518,13 +519,13 @@ fn collect_group_effects(
 /// Order instructions based on their position in the latch block.
 fn ordered_group_instructions(
     latch_block: &mir::Block,
-    group: &HashSet<mir::LocalNodeId<mir::Instruction>>,
+    group: &FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // preserve the original order
     latch_block
         .instructions
         .iter()
-        .filter(|id| group.contains(id))
+        .filter(|id| group.contains(*id))
         .copied()
         .collect()
 }
@@ -570,7 +571,7 @@ fn apply_distribution(
 
     // clone loops for each extra group
     for _ in 1..candidate.groups.len() {
-        let loop_blocks: HashSet<_> = [candidate.header, candidate.latch].into_iter().collect();
+        let loop_blocks: FxIndexSet<_> = [candidate.header, candidate.latch].into_iter().collect();
         let (block_map, value_map, instruction_map) =
             clone_loop_blocks_with_instructions(&loop_blocks, function, tree, accesses);
 
@@ -650,23 +651,23 @@ struct LoopInstance {
     latch: mir::LocalNodeId<mir::Block>,
     /// Instruction id mapping for cloned loops.
     instruction_map:
-        Option<HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>>,
+        Option<FxIndexMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>>,
 }
 
 /// Map a keep set through an optional instruction mapping.
 fn map_keep_set(
-    keep: &HashSet<mir::LocalNodeId<mir::Instruction>>,
+    keep: &FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
     instruction_map: Option<
-        &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>,
+        &FxIndexMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>,
     >,
-) -> Option<HashSet<mir::LocalNodeId<mir::Instruction>>> {
+) -> Option<FxIndexSet<mir::LocalNodeId<mir::Instruction>>> {
     // return original set for the original loop
     let Some(instruction_map) = instruction_map else {
         return Some(keep.clone());
     };
 
     // map instruction ids for cloned loops
-    let mut mapped = HashSet::new();
+    let mut mapped = FxIndexSet::default();
     for instruction_id in keep {
         let mapped_id = instruction_map.get(instruction_id)?;
         mapped.insert(*mapped_id);
@@ -681,7 +682,7 @@ fn prune_latch_instructions(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     latch: mir::LocalNodeId<mir::Block>,
-    keep: &HashSet<mir::LocalNodeId<mir::Instruction>>,
+    keep: &FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
     // filter instruction ids
     let instruction_ids = tree.get(latch).instructions.clone();

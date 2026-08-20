@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate::optimize::declare_pass;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
@@ -139,10 +140,12 @@ fn run_pre(
     }
 
     // collect expression occurrences and templates
-    let mut occurrences: HashMap<PureExpression, Vec<ExpressionOccurrence>> = HashMap::new();
-    let mut templates: HashMap<PureExpression, ExpressionTemplate> = HashMap::new();
-    let mut key_types: HashMap<PureExpression, mir::LocalNodeId<mir::Type>> = HashMap::new();
-    let mut speculatable_keys: HashMap<PureExpression, bool> = HashMap::new();
+    let mut occurrences: FxIndexMap<PureExpression, Vec<ExpressionOccurrence>> =
+        FxIndexMap::default();
+    let mut templates: FxIndexMap<PureExpression, ExpressionTemplate> = FxIndexMap::default();
+    let mut key_types: FxIndexMap<PureExpression, mir::LocalNodeId<mir::Type>> =
+        FxIndexMap::default();
+    let mut speculatable_keys: FxIndexMap<PureExpression, bool> = FxIndexMap::default();
 
     let mut order = 0usize;
     for &block_id in function.blocks() {
@@ -204,7 +207,8 @@ fn run_pre(
     // build maps for value availability checks
     let definitions = DefinitionTable::build(function, tree);
     // plan phi placements per block
-    let mut phi_map: HashMap<mir::LocalNodeId<mir::Block>, Vec<PhiPlacement>> = HashMap::new();
+    let mut phi_map: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<PhiPlacement>> =
+        FxIndexMap::default();
     let mut changed = false;
 
     // ensure value ids are fresh before inserting parameters
@@ -220,7 +224,7 @@ fn run_pre(
         }
 
         // collect definition blocks for this expression
-        let mut def_blocks: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+        let mut def_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>> = FxIndexSet::default();
         for occ in occs {
             def_blocks.insert(occ.block);
         }
@@ -228,7 +232,7 @@ fn run_pre(
         // compute iterated dominance frontier for phi placements
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> =
             def_blocks.iter().copied().collect();
-        let mut phi_blocks: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+        let mut phi_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>> = FxIndexSet::default();
 
         while let Some(block) = worklist.pop_front() {
             let Some(frontier) = frontiers.get(&block) else {
@@ -288,18 +292,18 @@ fn run_pre(
 
     // compute substitutions, exit values, and edge blocks
     let dom_children = build_dominator_children(function, domtree);
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
-    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
-    let mut exit_values: HashMap<
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
+    let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
+    let mut exit_values: FxIndexMap<
         mir::LocalNodeId<mir::Block>,
-        HashMap<PureExpression, mir::Value>,
-    > = HashMap::new();
-    let mut edge_blocks: HashMap<
+        FxIndexMap<PureExpression, mir::Value>,
+    > = FxIndexMap::default();
+    let mut edge_blocks: FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
         mir::LocalNodeId<mir::Block>,
-    > = HashMap::new();
+    > = FxIndexMap::default();
 
-    let mut current: HashMap<PureExpression, Vec<mir::Value>> = HashMap::new();
+    let mut current: FxIndexMap<PureExpression, Vec<mir::Value>> = FxIndexMap::default();
     rename_block(
         entry,
         tree,
@@ -495,8 +499,8 @@ fn operands_available_in_block(
 fn build_dominator_children(
     function: &mir::Function,
     domtree: &DominatorTable,
-) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
-    let mut children: HashMap<_, Vec<_>> = HashMap::new();
+) -> FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
+    let mut children: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
 
     // initialize child lists
     for &block_id in function.blocks() {
@@ -517,12 +521,15 @@ fn build_dominator_children(
 fn rename_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
-    phi_map: &HashMap<mir::LocalNodeId<mir::Block>, Vec<PhiPlacement>>,
-    dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    current: &mut HashMap<PureExpression, Vec<mir::Value>>,
-    substitutions: &mut HashMap<mir::Value, mir::Value>,
-    to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
-    exit_values: &mut HashMap<mir::LocalNodeId<mir::Block>, HashMap<PureExpression, mir::Value>>,
+    phi_map: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<PhiPlacement>>,
+    dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    current: &mut FxIndexMap<PureExpression, Vec<mir::Value>>,
+    substitutions: &mut FxIndexMap<mir::Value, mir::Value>,
+    to_remove: &mut FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
+    exit_values: &mut FxIndexMap<
+        mir::LocalNodeId<mir::Block>,
+        FxIndexMap<PureExpression, mir::Value>,
+    >,
 ) {
     // track pushed keys to pop on exit
     let mut pushed_keys: Vec<PureExpression> = Vec::new();
@@ -565,7 +572,7 @@ fn rename_block(
     }
 
     // record exit values for this block
-    let mut exit_map = HashMap::new();
+    let mut exit_map = FxIndexMap::default();
     for (key, stack) in current.iter() {
         if let Some(value) = stack.last() {
             exit_map.insert(key.clone(), *value);
@@ -594,7 +601,7 @@ fn rename_block(
         if let Some(stack) = current.get_mut(&key) {
             stack.pop();
             if stack.is_empty() {
-                current.remove(&key);
+                current.shift_remove(&key);
             }
         }
     }

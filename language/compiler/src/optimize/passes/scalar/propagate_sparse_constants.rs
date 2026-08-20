@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate::optimize::declare_pass;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
@@ -153,9 +154,9 @@ struct ExecutableEdge {
 #[derive(Debug)]
 struct PropagateSparseConstantsResult {
     /// Executable blocks discovered by the analysis.
-    executable_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    executable_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
     /// Lattice states for SSA values.
-    value_states: HashMap<mir::Value, LatticeValue>,
+    value_states: FxIndexMap<mir::Value, LatticeValue>,
 }
 
 impl PropagateSparseConstantsResult {
@@ -191,17 +192,17 @@ struct PropagateSparseConstantsState<'a> {
     /// The entry block.
     entry: mir::LocalNodeId<mir::Block>,
     /// Current lattice values for SSA values.
-    value_states: HashMap<mir::Value, LatticeValue>,
+    value_states: FxIndexMap<mir::Value, LatticeValue>,
     /// Blocks marked executable.
-    executable_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+    executable_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
     /// Executable edges with their arguments.
-    executable_edges: HashSet<ExecutableEdge>,
+    executable_edges: FxIndexSet<ExecutableEdge>,
     /// Blocks that use a value as an edge argument.
-    edge_use_blocks: HashMap<mir::Value, HashSet<mir::LocalNodeId<mir::Block>>>,
+    edge_use_blocks: FxIndexMap<mir::Value, FxIndexSet<mir::LocalNodeId<mir::Block>>>,
     /// Worklist of blocks to process.
     block_worklist: VecDeque<mir::LocalNodeId<mir::Block>>,
     /// Blocks already in the worklist.
-    in_worklist: HashSet<mir::LocalNodeId<mir::Block>>,
+    in_worklist: FxIndexSet<mir::LocalNodeId<mir::Block>>,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
@@ -219,12 +220,12 @@ impl<'a> PropagateSparseConstantsState<'a> {
             tree,
             uses,
             entry,
-            value_states: HashMap::new(),
-            executable_blocks: HashSet::new(),
-            executable_edges: HashSet::new(),
-            edge_use_blocks: HashMap::new(),
+            value_states: FxIndexMap::default(),
+            executable_blocks: FxIndexSet::default(),
+            executable_edges: FxIndexSet::default(),
+            edge_use_blocks: FxIndexMap::default(),
             block_worklist: VecDeque::new(),
-            in_worklist: HashSet::new(),
+            in_worklist: FxIndexSet::default(),
             target_layout,
         }
     }
@@ -240,7 +241,7 @@ impl<'a> PropagateSparseConstantsState<'a> {
         // process blocks to a fixed point
         while let Some(block_id) = self.block_worklist.pop_front() {
             // drop block from worklist set
-            self.in_worklist.remove(&block_id);
+            self.in_worklist.swap_remove(&block_id);
 
             // skip non executable blocks
             if !self.executable_blocks.contains(&block_id) {
@@ -870,7 +871,7 @@ fn apply_propagate_sparse_constants_result(
     function.recompute_next_value_id(tree);
 
     // insert consts for constant block params and build substitutions
-    let mut substitutions = HashMap::new();
+    let mut substitutions = FxIndexMap::default();
     value_changed |=
         function_insert_block_param_constants(function, tree, result, &mut substitutions);
 
@@ -955,7 +956,7 @@ fn function_insert_block_param_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     result: &PropagateSparseConstantsResult,
-    substitutions: &mut HashMap<mir::Value, mir::Value>,
+    substitutions: &mut FxIndexMap<mir::Value, mir::Value>,
 ) -> bool {
     // track whether any updates occurred
     let mut changed = false;
@@ -1033,7 +1034,7 @@ fn function_substitute_constant_uses(
     function: &mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> bool {
     // track whether any substitutions occur
     let mut changed = false;
@@ -1085,7 +1086,7 @@ fn function_substitute_constant_uses(
 fn instruction_needs_substitution(
     instruction: &mir::Instruction,
     tree: &mir::Tree,
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> bool {
     // check inline operands
     if instruction

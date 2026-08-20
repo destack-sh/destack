@@ -1,9 +1,7 @@
-use std::collections::{HashMap, HashSet};
-
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use destack_core::StringPool;
+use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{DefinitionTable, Mutation, clone_instruction_tables};
@@ -124,7 +122,7 @@ struct FunctionClone {
     /// The cloned entry block.
     entry: mir::LocalNodeId<mir::Block>,
     /// The cloned block ids by original block id.
-    blocks: HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    blocks: FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
 }
 
 /// Try to transform a non-tail-recursive function into tail-recursive form.
@@ -210,7 +208,7 @@ fn try_accumulator_transform(
     layouts.copy_type_entries(patterns[0].call_signature, signature);
 
     // update all external call sites to pass the identity constant
-    let mut call_sites_by_function: HashMap<_, Vec<_>> = HashMap::new();
+    let mut call_sites_by_function: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
     for call_site in call_sites {
         call_sites_by_function
             .entry(call_site.function_id)
@@ -347,8 +345,8 @@ fn clone_function(
     accesses: &mut mir::AccessTable,
     impl_name: destack_core::StringId,
 ) -> FunctionClone {
-    let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>> =
-        HashMap::new();
+    let mut block_map: FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>> =
+        FxIndexMap::default();
 
     // clone all blocks
     for &old_block_id in original.blocks() {
@@ -360,7 +358,13 @@ fn clone_function(
         for &old_instr_id in &old_block.instructions {
             let old_instr = tree.get(old_instr_id).clone();
             let new_instr_id = tree.insert(old_instr);
-            clone_instruction_tables(tree, accesses, old_instr_id, new_instr_id, &HashMap::new());
+            clone_instruction_tables(
+                tree,
+                accesses,
+                old_instr_id,
+                new_instr_id,
+                &FxIndexMap::default(),
+            );
             new_instructions.push(new_instr_id);
         }
 
@@ -419,10 +423,7 @@ fn clone_function(
 fn remap_terminator_blocks(
     tree: &mut mir::Tree,
     terminator: &mir::Terminator,
-    block_map: &std::collections::HashMap<
-        mir::LocalNodeId<mir::Block>,
-        mir::LocalNodeId<mir::Block>,
-    >,
+    block_map: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
 ) -> mir::Terminator {
     let remap_block = |block| block_map.get(&block).copied().unwrap_or(block);
     let clone_target = |target: &mir::BlockTarget| {
@@ -854,7 +855,7 @@ fn detect_accumulator_pattern(
     let (binary_idx, (operator, left, right)) = binary_index.zip(binary_info)?;
 
     // collect recursive call results
-    let mut recursive_call_results: HashSet<mir::Value> = HashSet::new();
+    let mut recursive_call_results: FxIndexSet<mir::Value> = FxIndexSet::default();
     for &instr_id in &block.instructions {
         let instr = tree.get(instr_id);
         if let mir::Instruction::Call {

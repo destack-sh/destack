@@ -1,7 +1,6 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_core::StringPool;
+use destack_core::{FxIndexMap, StringPool};
 use destack_mir as mir;
 use destack_mir::{AnalysisCache, FunctionCache};
 use destack_source::{File, FileId, FileType, ModuleId, PackageId, ProfileId, TargetId, Uri};
@@ -462,9 +461,9 @@ impl TestProgram {
             mir::FunctionProfile {
                 hash: mir::FunctionHash(0),
                 entry: mir::Count::new(count),
-                edges: HashMap::new(),
+                edges: FxIndexMap::default(),
                 counts: Vec::new(),
-                values: HashMap::new(),
+                values: FxIndexMap::default(),
             },
         );
     }

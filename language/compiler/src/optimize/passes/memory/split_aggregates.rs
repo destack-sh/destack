@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -211,7 +211,7 @@ fn find_candidates(
 
     // count address materializations per local
     let block_ids = function.blocks().to_vec();
-    let mut address_counts = HashMap::new();
+    let mut address_counts = FxIndexMap::default();
     for &block_id in &block_ids {
         for &instruction_id in &tree.get(block_id).instructions {
             if let mir::Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
@@ -348,7 +348,7 @@ fn analyze_uses(
     let mut uses = Vec::new();
     let mut base_loads = Vec::new();
     let mut base_stores = Vec::new();
-    let mut seen_values: HashSet<mir::Value> = HashSet::new();
+    let mut seen_values: FxIndexSet<mir::Value> = FxIndexSet::default();
     let mut worklist: Vec<mir::Value> = vec![local_address];
 
     while let Some(value) = worklist.pop() {
@@ -540,11 +540,11 @@ fn split_local(
     }
 
     // build mapping from field/element index to new value
-    let index_to_value: HashMap<usize, mir::Value> =
+    let index_to_value: FxIndexMap<usize, mir::Value> =
         addresses.iter().enumerate().map(|(i, &v)| (i, v)).collect();
 
     // replace projections with scalar local addresses
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
 
     for use_info in &candidate.uses {
         if let Some(&new_value) = index_to_value.get(&use_info.index) {
@@ -556,7 +556,7 @@ fn split_local(
     apply_substitutions(&substitutions, function, tree, accesses);
 
     // remove the original local address and its derived projections
-    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
     to_remove.insert(candidate.address_instruction);
 
     for use_info in &candidate.uses {
@@ -564,8 +564,8 @@ fn split_local(
     }
 
     // rewrite base reference loads and stores
-    let base_loads: HashSet<_> = candidate.base_loads.iter().copied().collect();
-    let base_stores: HashSet<_> = candidate.base_stores.iter().copied().collect();
+    let base_loads: FxIndexSet<_> = candidate.base_loads.iter().copied().collect();
+    let base_stores: FxIndexSet<_> = candidate.base_stores.iter().copied().collect();
 
     // rewrite instructions per block
     let block_ids = function.blocks().to_vec();
@@ -619,7 +619,7 @@ fn rewrite_base_load(
     candidate: &SplitCandidate,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    index_to_value: &HashMap<usize, mir::Value>,
+    index_to_value: &FxIndexMap<usize, mir::Value>,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // extract load destination
@@ -665,7 +665,7 @@ fn rewrite_base_store(
     candidate: &SplitCandidate,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    index_to_value: &HashMap<usize, mir::Value>,
+    index_to_value: &FxIndexMap<usize, mir::Value>,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // extract stored value
@@ -729,7 +729,7 @@ fn build_aggregate_instruction(
 
 /// Apply value substitutions to all instructions and terminators.
 fn apply_substitutions(
-    substitutions: &HashMap<mir::Value, mir::Value>,
+    substitutions: &FxIndexMap<mir::Value, mir::Value>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,

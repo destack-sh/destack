@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -105,9 +105,9 @@ fn run_combine_instructions(
     target_layout: TargetLayout,
 ) -> bool {
     let definitions = DefinitionTable::build(function, tree);
-    let mut aggregate_operands: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
-    let mut field_sets: HashMap<mir::Value, FieldSetEntry> = HashMap::new();
-    let mut field_gets: HashMap<mir::Value, FieldGetEntry> = HashMap::new();
+    let mut aggregate_operands: FxIndexMap<mir::Value, Vec<mir::Value>> = FxIndexMap::default();
+    let mut field_sets: FxIndexMap<mir::Value, FieldSetEntry> = FxIndexMap::default();
+    let mut field_gets: FxIndexMap<mir::Value, FieldGetEntry> = FxIndexMap::default();
 
     // scan all blocks for aggregate definitions and value maps
     for &block_id in function.blocks() {
@@ -171,7 +171,7 @@ fn run_combine_instructions(
     }
 
     // track substitutions and removals
-    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
     let mut to_remove: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
     let mut changed = false;
 
@@ -726,8 +726,8 @@ fn simplify_unary_operator(
 fn simplify_field_get(
     aggregate: mir::Value,
     index: u32,
-    aggregate_operands: &HashMap<mir::Value, Vec<mir::Value>>,
-    field_sets: &HashMap<mir::Value, FieldSetEntry>,
+    aggregate_operands: &FxIndexMap<mir::Value, Vec<mir::Value>>,
+    field_sets: &FxIndexMap<mir::Value, FieldSetEntry>,
 ) -> Option<Simplification> {
     let mut current = aggregate;
 
@@ -767,7 +767,7 @@ fn simplify_field_set(
     aggregate: mir::Value,
     index: u32,
     value: mir::Value,
-    field_gets: &HashMap<mir::Value, FieldGetEntry>,
+    field_gets: &FxIndexMap<mir::Value, FieldGetEntry>,
 ) -> Option<Simplification> {
     // check if value comes from a field.get on the same aggregate with same index
     if let Some(get_entry) = field_gets.get(&value)

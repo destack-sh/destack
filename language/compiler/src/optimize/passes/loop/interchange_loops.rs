@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -302,7 +302,7 @@ fn is_perfectly_nested(outer: &mir::Loop, inner: &mir::Loop, cfg: &ControlTable)
     }
 
     // collect blocks that are outside the inner loop
-    let mut extras: HashSet<_> = outer
+    let mut extras: FxIndexSet<_> = outer
         .blocks
         .iter()
         .copied()
@@ -311,12 +311,12 @@ fn is_perfectly_nested(outer: &mir::Loop, inner: &mir::Loop, cfg: &ControlTable)
 
     // drop the inner preheader and outer control blocks
     if let Some(preheader) = inner_preheader {
-        extras.remove(&preheader);
+        extras.swap_remove(&preheader);
     }
 
-    extras.remove(&outer.header);
+    extras.swap_remove(&outer.header);
     if let Some(latch) = outer.latches.first() {
-        extras.remove(latch);
+        extras.swap_remove(latch);
     }
 
     // require no extra blocks

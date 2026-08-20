@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -152,7 +152,7 @@ fn run_propagate_correlated_values(
                     && canonical != replace
                 {
                     // apply substitutions in dominated blocks
-                    let mut substitutions = HashMap::new();
+                    let mut substitutions = FxIndexMap::default();
                     substitutions.insert(replace, canonical);
                     let applied = apply_substitutions_in_dominated_blocks(
                         function,

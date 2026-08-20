@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -297,7 +297,7 @@ fn run_version_loops(
 /// Find the loop preheader and its header arguments.
 fn find_preheader(
     header: mir::LocalNodeId<mir::Block>,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     cfg: &ControlTable,
     tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
@@ -331,7 +331,7 @@ fn find_preheader(
 /// Extract a loop guard from the header terminator.
 fn guard_from_header(
     header: mir::LocalNodeId<mir::Block>,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     function: &mir::Function,
     tree: &mir::Tree,
     definitions: &DefinitionTable,
@@ -582,7 +582,7 @@ fn preheader_guard_bound(
 
 /// Remove bounds checks from cloned loop blocks.
 fn strip_bounds_checks(
-    block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    block_map: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     induction: mir::Value,
     length: mir::Value,
     collection: mir::Value,

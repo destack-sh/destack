@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -110,7 +110,7 @@ impl ConvertBranchesCandidate {
     }
 
     /// Return whether this candidate overlaps already converted blocks.
-    fn overlaps(&self, converted: &HashSet<mir::BlockId>) -> bool {
+    fn overlaps(&self, converted: &FxIndexSet<mir::BlockId>) -> bool {
         self.consumed_blocks()
             .iter()
             .any(|block| converted.contains(block))
@@ -146,7 +146,7 @@ fn run_convert_branches(
 
     let cost = analyses.cost(function, tree);
     let execution_counts = mir::ExecutionCounts::new(function, tree, ctx.profile(), analyses);
-    let mut converted_blocks = HashSet::new();
+    let mut converted_blocks = FxIndexSet::default();
 
     function.recompute_next_value_id(tree);
     let mut changed = false;
@@ -269,7 +269,7 @@ fn apply_convert_branches(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
-    edge_counts: &HashMap<mir::Edge, u64>,
+    edge_counts: &FxIndexMap<mir::Edge, u64>,
     cost: &mir::CostTable,
 ) -> bool {
     // build value maps for each branch
@@ -369,7 +369,7 @@ fn apply_convert_branches(
 fn should_convert(
     candidate: &ConvertBranchesCandidate,
     merge_args: usize,
-    edge_counts: &HashMap<mir::Edge, u64>,
+    edge_counts: &FxIndexMap<mir::Edge, u64>,
     cost: &mir::CostTable,
 ) -> bool {
     // compute instruction costs for each branch
@@ -419,7 +419,7 @@ fn should_convert(
 /// Read branch profile counts when available.
 fn branch_profile_counts(
     candidate: &ConvertBranchesCandidate,
-    edge_counts: &HashMap<mir::Edge, u64>,
+    edge_counts: &FxIndexMap<mir::Edge, u64>,
 ) -> Option<(u64, u64)> {
     let then_edge = mir::Edge::new(
         candidate.header,
@@ -444,14 +444,14 @@ fn build_value_map(
     tree: &mir::Tree,
     block: &mir::Block,
     arguments: &[mir::Value],
-) -> Option<HashMap<mir::Value, mir::Value>> {
+) -> Option<FxIndexMap<mir::Value, mir::Value>> {
     // validate parameter arity
     if block.parameters.len() != arguments.len() {
         return None;
     }
 
     // map parameters to incoming arguments
-    let mut value_map = HashMap::new();
+    let mut value_map = FxIndexMap::default();
     for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
         value_map.insert(param.value, *arg);
     }
@@ -473,7 +473,7 @@ fn clone_block_instructions(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     block: &mir::Block,
-    value_map: &HashMap<mir::Value, mir::Value>,
+    value_map: &FxIndexMap<mir::Value, mir::Value>,
     target: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
 ) {
     // clone instructions in order
@@ -512,7 +512,7 @@ fn jump_arguments(tree: &mir::Tree, terminator: &mir::Terminator) -> Option<Vec<
 }
 
 /// Remap a value through a value map.
-fn remap_value(value: mir::Value, value_map: &HashMap<mir::Value, mir::Value>) -> mir::Value {
+fn remap_value(value: mir::Value, value_map: &FxIndexMap<mir::Value, mir::Value>) -> mir::Value {
     value_map.get(&value).copied().unwrap_or(value)
 }
 

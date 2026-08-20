@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -260,11 +260,11 @@ fn run_hoist_loop_invariants(
     });
 
     // build insertion and removal sets
-    let mut insertion_by_preheader: HashMap<
+    let mut insertion_by_preheader: FxIndexMap<
         mir::LocalNodeId<mir::Block>,
         Vec<mir::LocalNodeId<mir::Instruction>>,
-    > = HashMap::new();
-    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    > = FxIndexMap::default();
+    let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
 
     for work in insertion_order {
         to_remove.insert(work.instruction_id);
@@ -322,9 +322,9 @@ fn collect_loop_blocks(
 fn collect_invariant_seed_values(
     function: &mir::Function,
     tree: &mir::Tree,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-) -> HashSet<mir::Value> {
-    let mut invariant_values = HashSet::new();
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
+) -> FxIndexSet<mir::Value> {
+    let mut invariant_values = FxIndexSet::default();
 
     // include function parameters
     for param in &function.parameters {
@@ -362,8 +362,8 @@ fn collect_invariant_seed_values(
 fn compute_guaranteed_blocks(
     lp: &Loop,
     domtree: &DominatorTable,
-) -> HashSet<mir::LocalNodeId<mir::Block>> {
-    let mut guaranteed = HashSet::new();
+) -> FxIndexSet<mir::LocalNodeId<mir::Block>> {
+    let mut guaranteed = FxIndexSet::default();
 
     // select blocks that dominate all latches and exits
     for &block_id in &lp.blocks {
@@ -394,9 +394,9 @@ fn build_dominator_preorder(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     domtree: &DominatorTable,
-) -> HashMap<mir::LocalNodeId<mir::Block>, usize> {
-    let mut children: HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> =
-        HashMap::new();
+) -> FxIndexMap<mir::LocalNodeId<mir::Block>, usize> {
+    let mut children: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> =
+        FxIndexMap::default();
 
     // prepare empty child lists
     for &block_id in function.blocks() {
@@ -416,7 +416,7 @@ fn build_dominator_preorder(
     }
 
     // traverse dominator tree in preorder
-    let mut order = HashMap::new();
+    let mut order = FxIndexMap::default();
     let mut stack = vec![entry];
     let mut index = 0;
 
@@ -445,8 +445,8 @@ fn instruction_is_hoistable(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
     function: &mir::Function,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    guaranteed_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    guaranteed_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
     effects: &mir::EffectTable,
     alias: &AliasTable,
@@ -505,7 +505,7 @@ fn instruction_is_hoistable(
 fn load_is_hoistable(
     load_id: mir::LocalNodeId<mir::Instruction>,
     function: &mir::Function,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
     alias: &AliasTable,
     memory: &MemoryTable,
@@ -571,7 +571,7 @@ fn load_is_hoistable(
 fn loop_clobbers_access(
     origin_instruction: mir::LocalNodeId<mir::Instruction>,
     use_access: MemoryAccessId,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
     memory: &MemoryTable,
     alias: &AliasTable,
@@ -614,7 +614,7 @@ fn loop_clobbers_access(
 fn read_only_access_is_hoistable(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     function: &mir::Function,
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
     alias: &AliasTable,
     memory: &MemoryTable,

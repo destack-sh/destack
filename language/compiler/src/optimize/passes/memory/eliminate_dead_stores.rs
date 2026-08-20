@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -105,7 +105,7 @@ fn run_eliminate_dead_stores(
     let live_defs = collect_live_defs(function, tree, memory, aa);
 
     // determine dead stores
-    let mut dead_stores = HashSet::new();
+    let mut dead_stores = FxIndexSet::default();
 
     // scan store candidates for removal
     for store in store_candidates {
@@ -289,9 +289,9 @@ fn collect_live_defs(
     tree: &mir::Tree,
     memory: &MemoryTable,
     aa: &AliasTable,
-) -> HashSet<MemoryAccessId> {
+) -> FxIndexSet<MemoryAccessId> {
     // collect MemoryTable defs that feed reads
-    let mut live_defs = HashSet::new();
+    let mut live_defs = FxIndexSet::default();
 
     // scan blocks for read accesses
     for &block_id in function.blocks() {
@@ -337,11 +337,11 @@ fn collect_live_defs(
 fn record_live_clobber(
     access_id: MemoryAccessId,
     memory: &MemoryTable,
-    live_defs: &mut HashSet<MemoryAccessId>,
+    live_defs: &mut FxIndexSet<MemoryAccessId>,
 ) {
     // seed the traversal state
     let mut worklist = vec![access_id];
-    let mut visited = HashSet::new();
+    let mut visited = FxIndexSet::default();
 
     // walk the access chain
     while let Some(current) = worklist.pop() {

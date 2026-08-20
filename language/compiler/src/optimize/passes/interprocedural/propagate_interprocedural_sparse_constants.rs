@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -142,7 +142,7 @@ struct CallData {
     /// Direct callsites in the module.
     callsites: Vec<DirectCallSite>,
     /// Signatures that may be targeted by indirect calls.
-    indirect_signatures: HashSet<SignatureKey>,
+    indirect_signatures: FxIndexSet<SignatureKey>,
 }
 
 /// Run interprocedural SCCP over the module.
@@ -152,7 +152,7 @@ fn run_interprocedural_sccp(
     effects: &mir::EffectTable,
     ctx: &PipelineContext<'_>,
     function_effects: &EffectTable,
-) -> (bool, HashSet<mir::FunctionId>) {
+) -> (bool, FxIndexSet<mir::FunctionId>) {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
 
@@ -197,7 +197,7 @@ fn run_interprocedural_sccp(
 
     // apply constant parameters to function bodies
     let mut changed = false;
-    let mut cleanup_functions = HashSet::new();
+    let mut cleanup_functions = FxIndexSet::default();
     for (function_id, _) in &function_ids {
         // skip missing state entries
         let Some(state) = states.get(function_id) else {
@@ -236,9 +236,9 @@ fn seed_function_states(
     tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
     call_data: &CallData,
-) -> HashMap<mir::LocalNodeId<mir::Function>, FunctionState> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState> {
     // build the state map
-    let mut states = HashMap::new();
+    let mut states = FxIndexMap::default();
 
     for (function_id, linkage) in function_ids {
         // read the function signature
@@ -276,16 +276,16 @@ fn update_parameter_states(
     tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
     call_data: &CallData,
-    constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
-    states: &mut HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
+    constants_by_function: &FxIndexMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
+    states: &mut FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
 ) -> bool {
     // track whether any state changed
     let mut changed = false;
 
     // build a per function list of callsites
-    let mut callsites_by_callee: HashMap<mir::LocalNodeId<mir::Function>, Vec<&DirectCallSite>> =
-        HashMap::new();
+    let mut callsites_by_callee: FxIndexMap<mir::LocalNodeId<mir::Function>, Vec<&DirectCallSite>> =
+        FxIndexMap::default();
 
     for callsite in &call_data.callsites {
         callsites_by_callee
@@ -378,8 +378,8 @@ fn merge_param_constants(constants: &[Option<mir::Constant>], states: &mut [Latt
 fn update_return_states(
     tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
-    constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
-    states: &mut HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
+    constants_by_function: &FxIndexMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
+    states: &mut FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
 ) -> bool {
     // track whether any state changed
@@ -480,11 +480,11 @@ fn return_state_for_function(
 /// Build constant propagation results for each function.
 fn build_constant_maps(
     tree: &mir::Tree,
-    states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
+    states: &FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
-) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantTable> {
+) -> FxIndexMap<mir::LocalNodeId<mir::Function>, ConstantTable> {
     // prepare the result map
-    let mut maps = HashMap::new();
+    let mut maps = FxIndexMap::default();
 
     // build a constant propagation analysis per function
     for (function_id, state) in states {
@@ -506,9 +506,9 @@ fn build_constant_maps(
 fn param_constants_for_function(
     function: &mir::Function,
     state: &FunctionState,
-) -> HashMap<mir::Value, mir::Constant> {
+) -> FxIndexMap<mir::Value, mir::Constant> {
     // collect constants for each parameter
-    let mut constants = HashMap::new();
+    let mut constants = FxIndexMap::default();
     for (param, param_state) in function.parameters.iter().zip(state.param_states.iter()) {
         // skip non constant parameter states
         if let LatticeConstant::Constant(constant) = param_state {
@@ -537,7 +537,7 @@ fn replace_constant_calls(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     call_data: &CallData,
-    states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
+    states: &FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
     effects: &mir::EffectTable,
     function_effects: &EffectTable,
