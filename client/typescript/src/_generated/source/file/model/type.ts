@@ -2,8 +2,8 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonString } from "../../../../protocol/serde.js";
 
-/** The format of a source file. */
-export type FileType = "destack" | "destackDeclaration" | "script" | "text" | "toml" | "yaml" | "json" | "env" | "html" | "markdown" | "css" | "svg" | "wasm" | "node" | "sourceMap" | "object" | "image" | "font" | "audio" | "video" | "model" | "neural" | "document" | "binary" | "unknown";
+/** The physical format of one file. */
+export type FileType = "destack" | "destackDeclaration" | "javascript" | "text" | "toml" | "yaml" | "json" | "dotenv" | "html" | "markdown" | "css" | "svg" | "wasm" | "sourceMap" | "object" | "binary";
 
 export const FileType = {
     /** Encode this value. */
@@ -36,7 +36,7 @@ export function encodeFileType(writer: BinaryWriter, value: FileType): void {
         case "destackDeclaration":
             writer.writeUnsigned(1);
             return;
-        case "script":
+        case "javascript":
             writer.writeUnsigned(2);
             return;
         case "text":
@@ -51,7 +51,7 @@ export function encodeFileType(writer: BinaryWriter, value: FileType): void {
         case "json":
             writer.writeUnsigned(6);
             return;
-        case "env":
+        case "dotenv":
             writer.writeUnsigned(7);
             return;
         case "html":
@@ -69,41 +69,14 @@ export function encodeFileType(writer: BinaryWriter, value: FileType): void {
         case "wasm":
             writer.writeUnsigned(12);
             return;
-        case "node":
+        case "sourceMap":
             writer.writeUnsigned(13);
             return;
-        case "sourceMap":
+        case "object":
             writer.writeUnsigned(14);
             return;
-        case "object":
-            writer.writeUnsigned(15);
-            return;
-        case "image":
-            writer.writeUnsigned(16);
-            return;
-        case "font":
-            writer.writeUnsigned(17);
-            return;
-        case "audio":
-            writer.writeUnsigned(18);
-            return;
-        case "video":
-            writer.writeUnsigned(19);
-            return;
-        case "model":
-            writer.writeUnsigned(20);
-            return;
-        case "neural":
-            writer.writeUnsigned(21);
-            return;
-        case "document":
-            writer.writeUnsigned(22);
-            return;
         case "binary":
-            writer.writeUnsigned(23);
-            return;
-        case "unknown":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(15);
             return;
     }
 
@@ -120,7 +93,7 @@ export function decodeFileType(reader: BinaryReader): FileType {
         case 1:
             return "destackDeclaration";
         case 2:
-            return "script";
+            return "javascript";
         case 3:
             return "text";
         case 4:
@@ -130,7 +103,7 @@ export function decodeFileType(reader: BinaryReader): FileType {
         case 6:
             return "json";
         case 7:
-            return "env";
+            return "dotenv";
         case 8:
             return "html";
         case 9:
@@ -142,29 +115,11 @@ export function decodeFileType(reader: BinaryReader): FileType {
         case 12:
             return "wasm";
         case 13:
-            return "node";
-        case 14:
             return "sourceMap";
-        case 15:
+        case 14:
             return "object";
-        case 16:
-            return "image";
-        case 17:
-            return "font";
-        case 18:
-            return "audio";
-        case 19:
-            return "video";
-        case 20:
-            return "model";
-        case 21:
-            return "neural";
-        case 22:
-            return "document";
-        case 23:
+        case 15:
             return "binary";
-        case 24:
-            return "unknown";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -184,8 +139,8 @@ export function fromJsonFileType(value: Json): FileType {
             return "destack";
         case "destackDeclaration":
             return "destackDeclaration";
-        case "script":
-            return "script";
+        case "javascript":
+            return "javascript";
         case "text":
             return "text";
         case "toml":
@@ -194,8 +149,8 @@ export function fromJsonFileType(value: Json): FileType {
             return "yaml";
         case "json":
             return "json";
-        case "env":
-            return "env";
+        case "dotenv":
+            return "dotenv";
         case "html":
             return "html";
         case "markdown":
@@ -206,30 +161,12 @@ export function fromJsonFileType(value: Json): FileType {
             return "svg";
         case "wasm":
             return "wasm";
-        case "node":
-            return "node";
         case "sourceMap":
             return "sourceMap";
         case "object":
             return "object";
-        case "image":
-            return "image";
-        case "font":
-            return "font";
-        case "audio":
-            return "audio";
-        case "video":
-            return "video";
-        case "model":
-            return "model";
-        case "neural":
-            return "neural";
-        case "document":
-            return "document";
         case "binary":
             return "binary";
-        case "unknown":
-            return "unknown";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
