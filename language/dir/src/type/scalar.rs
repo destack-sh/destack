@@ -23,6 +23,11 @@ impl ScalarFamily {
     fn is_integral(self) -> bool {
         matches!(self, Self::Domain(domain) if domain.is_integral())
     }
+
+    /// Return whether this family orders by machine value.
+    fn is_ordered(self) -> bool {
+        matches!(self, Self::Domain(domain) if domain.is_ordered())
+    }
 }
 
 /// Distinct runtime scalar families held by one type.
@@ -94,6 +99,11 @@ impl ScalarFamilySet {
     /// Return whether every family holds builtin numerics.
     pub fn is_numeric(&self) -> bool {
         !self.is_empty() && self.families.iter().all(|family| family.is_numeric())
+    }
+
+    /// Return whether every family orders by machine value.
+    pub fn is_ordered(&self) -> bool {
+        !self.is_empty() && self.families.iter().all(|family| family.is_ordered())
     }
 
     /// Return whether every family holds only integers.
@@ -184,6 +194,11 @@ impl ScalarDomain {
     /// Return whether this domain holds builtin numerics.
     pub fn is_numeric(self) -> bool {
         matches!(self, Self::Integer | Self::Float | Self::Bigint)
+    }
+
+    /// Return whether this domain orders by machine value.
+    pub fn is_ordered(self) -> bool {
+        matches!(self, Self::Integer | Self::Float | Self::Character)
     }
 
     /// Return whether this domain holds only integers.
