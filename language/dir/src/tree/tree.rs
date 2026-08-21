@@ -169,6 +169,14 @@ impl Tree {
         }
     }
 
+    /// Reserve additional node and expression capacity.
+    pub fn reserve(&mut self, capacity: TreeCapacity) {
+        self.node_index_by_node_id.reserve(capacity.nodes);
+        self.source_index.reserve(capacity.nodes);
+        self.expressions.reserve(capacity.expressions);
+        self.type_expressions.reserve(capacity.type_expressions);
+    }
+
     /// Create a new tail tree after one immutable base tree.
     pub fn from_base(base: &Tree, capacity: usize) -> Self {
         let mut tree = Self::with_capacity(base.module_id, capacity);
@@ -389,7 +397,7 @@ impl Tree {
     }
 
     /// Reserve a new placeholder node slot.
-    fn reserve(
+    fn reserve_node(
         &mut self,
         node_type: NodeType,
         parent_id: Option<LocalNodeIdAny>,
@@ -412,7 +420,7 @@ impl Tree {
         parent_id: Option<LocalNodeIdAny>,
         derivation: StringId,
     ) -> LocalNodeIdAny {
-        let node_id = self.reserve(node_type, parent_id);
+        let node_id = self.reserve_node(node_type, parent_id);
         self.set_origin(node_id.id, Origin::one(derivation, from));
         if self.has_node_id(from)
             && let Some(span) = self.get_span_by_id(from)
@@ -569,7 +577,7 @@ impl Tree {
         let original = self.get(id).clone();
 
         // preserve original at a detached tombstone, carrying its span
-        let preserved_id = self.reserve(T::TYPE, None);
+        let preserved_id = self.reserve_node(T::TYPE, None);
         if let Some(span) = self.get_span_by_id(id.id) {
             self.set_source_span(preserved_id.id, span);
         }
