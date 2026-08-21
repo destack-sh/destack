@@ -34,6 +34,8 @@ author: "Florian"
 <!--- We need a new _universal_ programming system to write all the world's software-->
 - well, ideally:
 - a language that compiles fast, runs fast, supports analysis, runs everywhere
+- above all, a language that is boring, "works as you would expect", so we can innovate in other places
+- I don't want to learn new stuff in this area, I want to make more of the stuff I already know
 - ideally we want something that can run at the web properly *and* can run systems software at machine speed, and is legible to humans and agents alike.
 - above all, we need a complete system, a unified method of software production, to reliably produce correct, optimal, integrated software in one standardized way
 - fully integrated infrastructure, from the bottom to the top of the "stack". 
@@ -41,8 +43,9 @@ author: "Florian"
 
 ---
 
-- TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language
-- If we could get something _like_ TypeScript to run like a native systems language - or at least like a "serious managed" language a la JVM / CLR - that would get us predictable systems-ish performance,  while writing and reading the same language we already like! 
+- TypeScript is tantalizingly close to being a serious, native, _universal_ programming language
+- Could we get something _like_ TypeScript to run like a "serious managed" language a la JVM or CLR or Go
+- that would get us predictable systems-ish performance,  while writing and reading the same language we already like! 
 - the dichotomy between "scripting languages" and "systems languages" no longer makes much sense
 - begone with the need for a separate language and stack to run "backend" or "compute heavy" tasks once we "outgrow" node.js or whatever.
 - .. TypeScript also happens to be the very same language that runs the web, the biggest software platform in the world!
@@ -567,17 +570,6 @@ export type Record<K: PropertyKey, V> = {
 - custom repr
 - @repr("C")
 
-### Local and Shared
-
-- generalise SharedArrayBuffer and friends?
-- worker-first, local-first, shared-nothing-first memory model
-- local and shared modifier on types
-- local and shared modifier on bindings
-- local and shared modifier on declarations
-
-- worker-local stuff is .. local (Promise, Task, etc.)
-- no need for Send and Sync, basically the 90 degree rotated version of that classic pair
-
 ### Structs
 
 - every serious programming language eventually cares about memory layout and allocations
@@ -595,6 +587,11 @@ export type Record<K: PropertyKey, V> = {
 - Managed<T>, Owned<T>, ...
 - references and pointers
 - arrghh yes seriously pointers in TypeScript let's go
+
+- managed vs owned bridge
+- classes are managed by default
+- even when the rvalue is owwned
+- this is to preserve the key feeling of e.g. Arrays and such, while enabling full owned no-managed where desired
 
 ### Borrowing and Lifetimes
 
@@ -624,6 +621,19 @@ export type Record<K: PropertyKey, V> = {
 - WithAccess
 - PlaceOf
 - ...
+
+### Local and Shared
+
+- generalise SharedArrayBuffer and friends?
+- worker-first, local-first, shared-nothing-first memory model
+- local and shared modifier on types
+- local and shared modifier on bindings
+- local and shared modifier on declarations
+
+- worker-local stuff is .. local (Promise, Task, etc.)
+- no need for Send and Sync, basically the 90 degree rotated version of that classic pair
+
+- local borrowing managed is sound except across suspension
 
 ---
 
