@@ -33,6 +33,35 @@ fn test_parse_type_conditional_with_infer_constraint() {
     });
 }
 
+/// Parse an infer constraint that ends at the template span boundary.
+#[test]
+fn test_parse_type_conditional_infer_constraint_inside_template_span() {
+    let test = TestParser::new("type Parse<T> = T extends `${infer N extends number}` ? N : never");
+    let mut parser = test.prepare();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
+        .unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Conditional { extends_type, then_type, .. } => {
+                assert_node!(parser.tree, *extends_type, TypeExpression::TemplateLiteral { spans, .. } => {
+                    assert_eq!(spans.len(), 1);
+                    assert_node!(parser.tree, spans[0], TypeExpression::Infer { name, constraint, .. } => {
+                        assert_string!(parser, name.expect("expected infer name"), "N");
+                        assert_node!(parser.tree, constraint.expect("expected infer constraint"), TypeExpression::Keyword { value } => {
+                            assert_eq!(*value, TypeLiteral::Number);
+                        });
+                    });
+                });
+                assert_expression_path!(parser, parser.tree.get(*then_type), "N");
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
+}
+
 /// Parse tuple types in conditional type branches.
 #[test]
 fn test_parse_type_conditional_tuple_then_branch() {

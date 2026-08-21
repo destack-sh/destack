@@ -125,6 +125,8 @@ impl TokenProbe<'_> {
                         | TokenType::CloseParenthesis
                         | TokenType::CloseBracket
                         | TokenType::CloseBrace
+                        | TokenType::TemplateStringMiddle
+                        | TokenType::TemplateStringEnd
                         | TokenType::End
                 )
             {
