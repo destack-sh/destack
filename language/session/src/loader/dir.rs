@@ -4,7 +4,7 @@ use destack_artifact::{
     ArtifactDependencySet, ArtifactPayload, DiagnosticRecord, DirParsed, DirParsedFile,
 };
 use destack_dir::{Expression, ScalarLiteral, Tree};
-use destack_parser::{CommentRetention, Parser};
+use destack_parser::{CommentRetention, ParseOptions, Parser};
 use destack_repository::{Module, ModuleFile, ProviderContext};
 use destack_source::{File, LanguageType, ModuleId, Span};
 
@@ -123,17 +123,21 @@ impl SessionState {
                 detail: format!("file type has no parser language: {:?}", file.ty),
             })?;
 
-        // parse and forward parser diagnostics
+        // parse the source into the shared module tree
         let tree_in = std::mem::replace(tree, Tree::new(tree.module_id));
-        let mut parser = Parser::lex_into_tree_with_comment_retention(
+        let parser = Parser::new(
             file.clone(),
             language_type,
-            CommentRetention::All,
-            repository.string_pool().clone(),
             tree_in,
+            ParseOptions {
+                comment_retention: CommentRetention::All,
+                ..ParseOptions::default()
+            },
         );
-        let roots = parser.parse();
-        let records = parser
+        let parse = parser.parse();
+
+        // forward parser diagnostics
+        let records = parse
             .diagnostics()
             .diagnostics
             .iter()
@@ -141,15 +145,16 @@ impl SessionState {
             .collect();
         attempt.emit_diagnostics(records);
 
-        // publish parsed strings to the repository
-        parser.publish_strings();
+        // intern parsed strings in the repository
+        repository.string_pool().extend(&parse.strings);
 
         // preserve semantic tokens in the artifact payload
-        let tokens = parser.take_tokens();
-        let comments = parser.take_comments();
+        let tokens = parse.tokens;
+        let comments = parse.comments;
+        let roots = parse.roots;
 
         // restore the shared tree
-        *tree = parser.tree;
+        *tree = parse.tree;
         let span = Span::empty(file.id);
         let anchor_expression = tree.insert(
             Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
