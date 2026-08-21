@@ -123,7 +123,7 @@ fn mutation_span(
     let view = module.view();
 
     // anchor mutable access at its explicit borrow operation
-    if occurrence.uses.contains(dir::BindingUse::MUTABLE)
+    if occurrence.uses.contains(dir::BindingUse::MUTATE)
         && let Some(expression) = view.ancestor::<dir::Expression>(occurrence.node)
         && matches!(view.get(expression), dir::Expression::BorrowOf { .. })
     {

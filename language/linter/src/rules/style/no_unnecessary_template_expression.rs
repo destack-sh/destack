@@ -41,17 +41,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect interpolated templates with no literal text
     for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::TemplateExpression {
-            value: dir::TemplateLiteral::InterpolatedString { strings, arguments },
+            value: dir::TemplateLiteral::InterpolatedString { chunks, arguments },
         } = node
         else {
             continue;
         };
 
         // require one interpolation and no authored text
-        let [before, after] = strings.as_slice() else {
+        let [before, after] = chunks.as_slice() else {
             continue;
         };
-        if !module.dir.strings.get(*before).is_empty() || !module.dir.strings.get(*after).is_empty()
+        if !module.dir.strings.get(before.raw).is_empty()
+            || !module.dir.strings.get(after.raw).is_empty()
         {
             continue;
         }

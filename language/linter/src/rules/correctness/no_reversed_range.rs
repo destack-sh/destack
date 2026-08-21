@@ -67,15 +67,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 }
 
 /// Compare exact constants from one discrete range domain.
-fn scalar_ordering(left: dir::ScalarLiteral, right: dir::ScalarLiteral) -> Option<Ordering> {
+fn scalar_ordering(left: dir::Literal, right: dir::Literal) -> Option<Ordering> {
     match (left, right) {
-        (dir::ScalarLiteral::Integer(left), dir::ScalarLiteral::Integer(right))
-        | (dir::ScalarLiteral::Bigint(left), dir::ScalarLiteral::Bigint(right)) => {
-            Some(left.cmp(&right))
-        }
-        (dir::ScalarLiteral::Character(left), dir::ScalarLiteral::Character(right)) => {
-            Some(left.cmp(&right))
-        }
+        (dir::Literal::Integer(left), dir::Literal::Integer(right))
+        | (dir::Literal::Bigint(left), dir::Literal::Bigint(right)) => Some(left.cmp(&right)),
+        (dir::Literal::Character(left), dir::Literal::Character(right)) => Some(left.cmp(&right)),
         _ => None,
     }
 }

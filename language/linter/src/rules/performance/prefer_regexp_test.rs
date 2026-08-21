@@ -41,7 +41,7 @@ struct MatchOperands {
     /// The searched string.
     input: dir::LocalNodeId<dir::Expression>,
     /// The value produced when no match exists.
-    absence: dir::ScalarLiteral,
+    absence: dir::Literal,
     /// Whether conversion to `RegExp.test` reverses evaluation order.
     is_reordered: bool,
 }
@@ -118,22 +118,22 @@ fn match_operands(
         return Ok(Some(MatchOperands {
             pattern: call.receiver,
             input: argument,
-            absence: dir::ScalarLiteral::Null,
+            absence: dir::Literal::Null,
             is_reordered: false,
         }));
     }
 
     // require a fresh literal because reusable regexes carry matching state
     let absence = if member == Some(dir::LanguageItem::String.member("match")) {
-        dir::ScalarLiteral::Null
+        dir::Literal::Null
     } else if member == Some(dir::LanguageItem::String.member("search")) {
-        dir::ScalarLiteral::Undefined
+        dir::Literal::Undefined
     } else {
         return Ok(None);
     };
     if !matches!(
         view.get(argument),
-        dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { .. })
+        dir::Expression::Literal(dir::Literal::RegexString { .. })
     ) {
         return Ok(None);
     }

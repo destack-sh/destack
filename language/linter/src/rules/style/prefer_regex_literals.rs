@@ -79,14 +79,14 @@ fn constant_arguments<'a>(
     let Some(pattern) = module.view().get(*pattern).value() else {
         return Ok(None);
     };
-    let Some(dir::ScalarLiteral::String(pattern)) = module.scalar_constant(pattern)? else {
+    let Some(dir::Literal::String(pattern)) = module.scalar_constant(pattern)? else {
         return Ok(None);
     };
     let flags = if let Some(flags) = flags {
         let Some(flags) = module.view().get(*flags).value() else {
             return Ok(None);
         };
-        let Some(dir::ScalarLiteral::String(flags)) = module.scalar_constant(flags)? else {
+        let Some(dir::Literal::String(flags)) = module.scalar_constant(flags)? else {
             return Ok(None);
         };
 

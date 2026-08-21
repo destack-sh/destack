@@ -89,7 +89,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require a constant offset not handled by prefer-first-last
-        let Some(dir::ScalarLiteral::Integer(value)) = module.scalar_constant(*offset)? else {
+        let Some(dir::Literal::Integer(value)) = module.scalar_constant(*offset)? else {
             continue;
         };
         if value <= 1 {

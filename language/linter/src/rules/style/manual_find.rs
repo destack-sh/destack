@@ -57,7 +57,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             else {
                 continue;
             };
-            if view.get(*undefined).as_scalar() != Some(dir::ScalarLiteral::Undefined) {
+            if view.get(*undefined).as_scalar() != Some(dir::Literal::Undefined) {
                 continue;
             }
             let Some(iteration) = module.for_of(*expression) else {

@@ -51,11 +51,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if !matches!(
             bounds,
             (
-                Some(dir::ScalarLiteral::Character('a')),
-                Some(dir::ScalarLiteral::Character('z'))
+                Some(dir::Literal::Character('a')),
+                Some(dir::Literal::Character('z'))
             ) | (
-                Some(dir::ScalarLiteral::Character('A')),
-                Some(dir::ScalarLiteral::Character('Z'))
+                Some(dir::Literal::Character('A')),
+                Some(dir::Literal::Character('Z'))
             )
         ) {
             continue;

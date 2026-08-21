@@ -54,8 +54,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let right = right_operand.source.local_id;
         let left_constant = module.scalar_constant(left)?;
         let right_constant = module.scalar_constant(right)?;
-        let has_zero = matches!(left_constant, Some(dir::ScalarLiteral::Float(value)) if value == 0.0)
-            || matches!(right_constant, Some(dir::ScalarLiteral::Float(value)) if value == 0.0);
+        let has_zero = matches!(left_constant, Some(dir::Literal::Float(value)) if value == 0.0)
+            || matches!(right_constant, Some(dir::Literal::Float(value)) if value == 0.0);
         let has_infinity = module.is_infinite(left)? || module.is_infinite(right)?;
         if has_zero || has_infinity {
             continue;

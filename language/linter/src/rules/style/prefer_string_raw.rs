@@ -43,9 +43,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect authored ordinary strings and untagged templates
     for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let suggestion = match node {
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_)) => {
-                string_fix(module, expression)?
-            }
+            dir::Expression::Literal(dir::Literal::String(_)) => string_fix(module, expression)?,
             dir::Expression::TemplateExpression { .. } => template_fix(module, expression)?,
             _ => None,
         };

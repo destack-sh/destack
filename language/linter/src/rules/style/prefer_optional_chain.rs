@@ -76,7 +76,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         } else {
             (else_expression, then_expression)
         };
-        if view.get(nullish).as_scalar() != Some(dir::ScalarLiteral::Undefined)
+        if view.get(nullish).as_scalar() != Some(dir::Literal::Undefined)
             || !module.is_repeatable_expression(test.value)?
         {
             continue;

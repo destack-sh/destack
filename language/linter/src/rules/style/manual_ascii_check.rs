@@ -352,19 +352,19 @@ fn ascii_range(
 ) -> Result<Option<AsciiRange>, ProviderError> {
     let bounds = (module.scalar_constant(start)?, module.scalar_constant(end)?);
     let range = match bounds {
-        (Some(dir::ScalarLiteral::Character('a')), Some(dir::ScalarLiteral::Character('z'))) => {
+        (Some(dir::Literal::Character('a')), Some(dir::Literal::Character('z'))) => {
             Some(AsciiRange::Lowercase)
         }
-        (Some(dir::ScalarLiteral::Character('A')), Some(dir::ScalarLiteral::Character('Z'))) => {
+        (Some(dir::Literal::Character('A')), Some(dir::Literal::Character('Z'))) => {
             Some(AsciiRange::Uppercase)
         }
-        (Some(dir::ScalarLiteral::Character('0')), Some(dir::ScalarLiteral::Character('9'))) => {
+        (Some(dir::Literal::Character('0')), Some(dir::Literal::Character('9'))) => {
             Some(AsciiRange::Digit)
         }
-        (Some(dir::ScalarLiteral::Character('a')), Some(dir::ScalarLiteral::Character('f'))) => {
+        (Some(dir::Literal::Character('a')), Some(dir::Literal::Character('f'))) => {
             Some(AsciiRange::LowerHex)
         }
-        (Some(dir::ScalarLiteral::Character('A')), Some(dir::ScalarLiteral::Character('F'))) => {
+        (Some(dir::Literal::Character('A')), Some(dir::Literal::Character('F'))) => {
             Some(AsciiRange::UpperHex)
         }
         _ => None,

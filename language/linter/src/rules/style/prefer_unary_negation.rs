@@ -83,14 +83,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 }
 
 /// Return whether one scalar constant is numeric negative one.
-fn is_negative_one(constant: Option<dir::ScalarLiteral>) -> bool {
+fn is_negative_one(constant: Option<dir::Literal>) -> bool {
     matches!(
         constant,
-        Some(
-            dir::ScalarLiteral::Integer(-1)
-                | dir::ScalarLiteral::Bigint(-1)
-                | dir::ScalarLiteral::Float(-1.0)
-        )
+        Some(dir::Literal::Integer(-1) | dir::Literal::Bigint(-1) | dir::Literal::Float(-1.0))
     )
 }
 

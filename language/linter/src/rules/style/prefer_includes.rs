@@ -55,7 +55,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let right = right.source.local_id;
         let mut membership = None;
         for (search, absence) in [(left, right), (right, left)] {
-            if view.get(absence).as_scalar() != Some(dir::ScalarLiteral::Undefined) {
+            if view.get(absence).as_scalar() != Some(dir::Literal::Undefined) {
                 continue;
             }
             let Some(call) = module.member_call(search) else {

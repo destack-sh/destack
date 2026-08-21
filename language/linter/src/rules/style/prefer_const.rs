@@ -70,7 +70,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         *binding_uses.entry(symbol).or_default() |= occurrence.uses;
 
         // retain every write site
-        if occurrence.uses.contains(dir::BindingUse::WRITTEN) {
+        if occurrence.uses.contains(dir::BindingUse::WRITE) {
             binding_writes
                 .entry(symbol)
                 .or_default()
@@ -137,7 +137,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let is_mutable = binding_uses
                 .get(&binding.symbol)
                 .copied()
-                .is_some_and(|uses| uses.contains(dir::BindingUse::MUTABLE));
+                .is_some_and(|uses| uses.contains(dir::BindingUse::MUTATE));
             if is_mutable {
                 continue;
             }
@@ -217,7 +217,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let is_mutable = binding_uses
                 .get(symbol)
                 .copied()
-                .is_some_and(|uses| uses.contains(dir::BindingUse::MUTABLE));
+                .is_some_and(|uses| uses.contains(dir::BindingUse::MUTATE));
             let is_written = binding_writes.contains_key(symbol);
 
             !is_mutable && !is_written

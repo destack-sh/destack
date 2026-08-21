@@ -122,13 +122,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
     // inspect authored floating-point literals
     for (expression, value) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::Float(value)) = value else {
+        let dir::Expression::Literal(dir::Literal::Float(value)) = value else {
             continue;
         };
         let adjusted_type = module.adjusted_type(expression.into_any())?;
         if !matches!(
             adjusted_type,
-            dir::Type::Literal(dir::ScalarLiteral::Float(_))
+            dir::Type::Literal(dir::Literal::Float(_))
                 | dir::Type::Primitive(dir::PrimitiveType::Float(dir::FloatType::Float64))
         ) {
             continue;

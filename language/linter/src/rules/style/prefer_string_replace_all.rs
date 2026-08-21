@@ -79,8 +79,7 @@ fn report_global_replace(
     let Some(pattern) = view.get(*pattern).value() else {
         return Ok(());
     };
-    let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { flags, .. }) =
-        view.get(pattern)
+    let dir::Expression::Literal(dir::Literal::RegexString { flags, .. }) = view.get(pattern)
     else {
         return Ok(());
     };
@@ -139,7 +138,7 @@ fn report_split_join(
     };
 
     // exclude an empty or runtime-varying separator
-    let Some(dir::ScalarLiteral::String(value)) = module.scalar_constant(separator)? else {
+    let Some(dir::Literal::String(value)) = module.scalar_constant(separator)? else {
         return Ok(());
     };
     if module.dir.strings.get(value).is_empty() {
@@ -187,7 +186,7 @@ fn split_join_fix(
     let replacement_source =
         module.expression_source(replacement, dir::OperatorPrecedence::Lowest)?;
     let replacement = match module.scalar_constant(replacement)? {
-        Some(dir::ScalarLiteral::String(value)) if !module.dir.strings.get(value).contains('$') => {
+        Some(dir::Literal::String(value)) if !module.dir.strings.get(value).contains('$') => {
             replacement_source.into_owned()
         }
         _ if module.is_repeatable_expression(replacement)? => {

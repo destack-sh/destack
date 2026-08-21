@@ -61,8 +61,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // recognize literal endpoint indices directly
         let name = match module.scalar_constant(index)? {
-            Some(dir::ScalarLiteral::Integer(0)) => "first",
-            Some(dir::ScalarLiteral::Integer(-1)) => "last",
+            Some(dir::Literal::Integer(0)) => "first",
+            Some(dir::Literal::Integer(-1)) => "last",
             _ => {
                 // recognize the canonical array length minus one
                 let dir::Expression::Binary {
@@ -82,7 +82,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 };
                 if module.language_member(*length)?
                     != Some(dir::LanguageItem::Array.member("length"))
-                    || module.scalar_constant(*offset)? != Some(dir::ScalarLiteral::Integer(1))
+                    || module.scalar_constant(*offset)? != Some(dir::Literal::Integer(1))
                     || !module.is_same_computation(receiver, *length_receiver)?
                 {
                     continue;

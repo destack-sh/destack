@@ -35,7 +35,7 @@ impl DirModule<'_> {
     pub fn scalar_constant(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<Option<dir::ScalarLiteral>, ProviderError> {
+    ) -> Result<Option<dir::Literal>, ProviderError> {
         // read authored scalar literals directly
         if let Some(value) = self.view().get(node).as_scalar() {
             return Ok(Some(value));
@@ -46,7 +46,7 @@ impl DirModule<'_> {
             && let Some(value) = self.dir.symbol_static(symbol)?
         {
             let value = match value {
-                dir::StaticTerm::ScalarLiteral { value } => Some(value),
+                dir::StaticTerm::Literal { value } => Some(value),
                 _ => None,
             };
             if value.is_some() {
@@ -180,7 +180,7 @@ impl DirModule<'_> {
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<f64>, ProviderError> {
         // recognize exact checked scalar constants
-        if let Some(dir::ScalarLiteral::Float(value)) = self.scalar_constant(node)?
+        if let Some(dir::Literal::Float(value)) = self.scalar_constant(node)?
             && value.is_infinite()
         {
             return Ok(Some(value));

@@ -268,7 +268,7 @@ fn declaration_owner(
             .ok_or_else(|| {
                 ProviderError::internal(format!("checked extension {symbol:?} has no definition"))
             })?;
-        let Some(root) = definition.target.root() else {
+        let Some(root) = definition.target.declaration() else {
             return Ok(None);
         };
         let owner = module.dir.module(root.module_id)?;

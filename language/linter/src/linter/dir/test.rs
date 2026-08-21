@@ -190,7 +190,7 @@ impl DirModule<'_> {
             if dir::StaticKey::from(*property_name) != dir::StaticKey::Name(expected) {
                 continue;
             }
-            if self.view().get(*value).as_scalar() != Some(dir::ScalarLiteral::Boolean(true)) {
+            if self.view().get(*value).as_scalar() != Some(dir::Literal::Boolean(true)) {
                 return None;
             }
 

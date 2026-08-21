@@ -79,8 +79,7 @@ fn is_constant_stateless_regex(
     let view = module.view();
 
     // recognize authored regular-expression literals directly
-    if let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { flags, .. }) =
-        view.get(expression)
+    if let dir::Expression::Literal(dir::Literal::RegexString { flags, .. }) = view.get(expression)
     {
         let flags = flags
             .map(|flags| module.dir.strings.get(flags))
@@ -106,7 +105,7 @@ fn is_constant_stateless_regex(
     };
     if !matches!(
         module.scalar_constant(pattern)?,
-        Some(dir::ScalarLiteral::String(_))
+        Some(dir::Literal::String(_))
     ) {
         return Ok(false);
     }
@@ -116,7 +115,7 @@ fn is_constant_stateless_regex(
     let Some(flags) = view.get(*flags).value() else {
         return Ok(false);
     };
-    let Some(dir::ScalarLiteral::String(flags)) = module.scalar_constant(flags)? else {
+    let Some(dir::Literal::String(flags)) = module.scalar_constant(flags)? else {
         return Ok(false);
     };
     let flags = module.dir.strings.get(flags);

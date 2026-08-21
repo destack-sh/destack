@@ -81,9 +81,7 @@ fn decimal_mask(
         dir::Expression::As {
             expression: value, ..
         } => return decimal_mask(module, *value),
-        dir::Expression::ScalarLiteral(
-            dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value),
-        ) => {
+        dir::Expression::Literal(dir::Literal::Integer(value) | dir::Literal::Bigint(value)) => {
             let magnitude = value.unsigned_abs();
             if magnitude <= 9
                 || magnitude.is_power_of_two()

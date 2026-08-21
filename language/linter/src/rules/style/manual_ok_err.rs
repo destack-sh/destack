@@ -120,7 +120,7 @@ fn projected_conditional(
     let Some(fallback) = module.sole_value_expression(*else_expression) else {
         return Ok(None);
     };
-    if view.get(fallback).as_scalar() != Some(dir::ScalarLiteral::Undefined) {
+    if view.get(fallback).as_scalar() != Some(dir::Literal::Undefined) {
         return Ok(None);
     }
 
@@ -155,7 +155,7 @@ fn projected_method(
     let Some((fallback_pattern, fallback_body)) = module.match_arm_value(fallback_arm) else {
         return Ok(None);
     };
-    if view.get(fallback_body).as_scalar() != Some(dir::ScalarLiteral::Undefined) {
+    if view.get(fallback_body).as_scalar() != Some(dir::Literal::Undefined) {
         return Ok(None);
     }
 

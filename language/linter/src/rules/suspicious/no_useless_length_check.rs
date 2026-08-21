@@ -120,7 +120,7 @@ fn length_guard(
             swapped_operator,
         ),
     ] {
-        let Some(dir::ScalarLiteral::Integer(bound)) = module.scalar_constant(bound)? else {
+        let Some(dir::Literal::Integer(bound)) = module.scalar_constant(bound)? else {
             continue;
         };
         let is_empty = match (operator, bound) {

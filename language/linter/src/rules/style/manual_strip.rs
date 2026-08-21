@@ -77,7 +77,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(else_expression) = module.sole_value_expression(*else_expression) else {
             continue;
         };
-        if view.get(else_expression).as_scalar() != Some(dir::ScalarLiteral::Undefined) {
+        if view.get(else_expression).as_scalar() != Some(dir::Literal::Undefined) {
             continue;
         }
         let Some((boundary, receiver, affix)) = strip_test(module, condition)? else {

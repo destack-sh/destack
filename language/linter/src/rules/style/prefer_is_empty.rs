@@ -59,7 +59,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             };
             if !matches!(
                 module.scalar_constant(zero)?,
-                Some(dir::ScalarLiteral::Integer(0))
+                Some(dir::Literal::Integer(0))
             ) {
                 continue;
             }

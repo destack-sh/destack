@@ -83,9 +83,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn select_identity_operand(
     operator: dir::BinaryOperator,
     left: dir::LocalNodeId<dir::Expression>,
-    left_constant: Option<dir::ScalarLiteral>,
+    left_constant: Option<dir::Literal>,
     right: dir::LocalNodeId<dir::Expression>,
-    right_constant: Option<dir::ScalarLiteral>,
+    right_constant: Option<dir::Literal>,
 ) -> Option<(
     dir::LocalNodeId<dir::Expression>,
     dir::LocalNodeId<dir::Expression>,

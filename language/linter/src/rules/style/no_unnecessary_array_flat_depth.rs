@@ -55,7 +55,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let dir::Argument::Positional { value } = view.get(*argument) else {
             continue;
         };
-        if module.scalar_constant(*value)? != Some(dir::ScalarLiteral::Integer(1)) {
+        if module.scalar_constant(*value)? != Some(dir::Literal::Integer(1)) {
             continue;
         }
 

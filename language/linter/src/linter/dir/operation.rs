@@ -156,13 +156,13 @@ impl DirModule<'_> {
         let right_literal = view.get(right.source.local_id).as_scalar();
         let (value, literal) = match (left_literal, right_literal) {
             (
-                Some(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined),
-                Some(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined),
+                Some(dir::Literal::Null | dir::Literal::Undefined),
+                Some(dir::Literal::Null | dir::Literal::Undefined),
             ) => return Ok(None),
-            (_, Some(literal @ (dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined))) => {
+            (_, Some(literal @ (dir::Literal::Null | dir::Literal::Undefined))) => {
                 (left.source.local_id, literal)
             }
-            (Some(literal @ (dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined)), _) => {
+            (Some(literal @ (dir::Literal::Null | dir::Literal::Undefined)), _) => {
                 (right.source.local_id, literal)
             }
             _ => return Ok(None),
@@ -171,8 +171,8 @@ impl DirModule<'_> {
         // loose nullish equality covers both singleton values
         let (checks_null, checks_undefined) = if operator.is_strict_equality() {
             (
-                literal == dir::ScalarLiteral::Null,
-                literal == dir::ScalarLiteral::Undefined,
+                literal == dir::Literal::Null,
+                literal == dir::Literal::Undefined,
             )
         } else {
             (true, true)

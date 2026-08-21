@@ -65,8 +65,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(pattern) = view.get(*pattern).value() else {
             continue;
         };
-        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { flags, .. }) =
-            view.get(pattern)
+        let dir::Expression::Literal(dir::Literal::RegexString { flags, .. }) = view.get(pattern)
         else {
             continue;
         };
@@ -114,7 +113,7 @@ fn is_only_tested(
     let is_test = [(*left, *right), (*right, *left)]
         .into_iter()
         .any(|(value, absence)| {
-            value == expression && view.get(absence).as_scalar() == Some(dir::ScalarLiteral::Null)
+            value == expression && view.get(absence).as_scalar() == Some(dir::Literal::Null)
         });
 
     Ok(is_test)

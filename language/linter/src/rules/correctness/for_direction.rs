@@ -61,10 +61,10 @@ impl Direction {
     }
 
     /// Return the direction of one nonzero scalar step.
-    fn from_step(value: dir::ScalarLiteral) -> Option<Self> {
+    fn from_step(value: dir::Literal) -> Option<Self> {
         let ordering = match value {
-            dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value) => value.cmp(&0),
-            dir::ScalarLiteral::Float(value) => value.partial_cmp(&0.0)?,
+            dir::Literal::Integer(value) | dir::Literal::Bigint(value) => value.cmp(&0),
+            dir::Literal::Float(value) => value.partial_cmp(&0.0)?,
             _ => return None,
         };
         let direction = match ordering {

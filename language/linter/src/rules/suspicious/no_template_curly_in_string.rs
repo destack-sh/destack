@@ -40,10 +40,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
     // inspect authored string literals containing interpolation syntax
     for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        if !matches!(
-            node,
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
-        ) {
+        if !matches!(node, dir::Expression::Literal(dir::Literal::String(_))) {
             continue;
         }
 

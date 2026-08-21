@@ -81,15 +81,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 }
 
 /// Compare exact constants from one numeric domain.
-fn numeric_ordering(left: dir::ScalarLiteral, right: dir::ScalarLiteral) -> Option<Ordering> {
+fn numeric_ordering(left: dir::Literal, right: dir::Literal) -> Option<Ordering> {
     match (left, right) {
-        (dir::ScalarLiteral::Integer(left), dir::ScalarLiteral::Integer(right))
-        | (dir::ScalarLiteral::Bigint(left), dir::ScalarLiteral::Bigint(right)) => {
-            Some(left.cmp(&right))
-        }
-        (dir::ScalarLiteral::Float(left), dir::ScalarLiteral::Float(right)) => {
-            left.partial_cmp(&right)
-        }
+        (dir::Literal::Integer(left), dir::Literal::Integer(right))
+        | (dir::Literal::Bigint(left), dir::Literal::Bigint(right)) => Some(left.cmp(&right)),
+        (dir::Literal::Float(left), dir::Literal::Float(right)) => left.partial_cmp(&right),
         _ => None,
     }
 }

@@ -119,7 +119,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         });
         let is_captured = uses
             .iter()
-            .any(|occurrence| occurrence.uses.contains(dir::BindingUse::CAPTURED));
+            .any(|occurrence| occurrence.uses.contains(dir::BindingUse::CAPTURE));
         let has_header_use = uses.iter().any(|occurrence| {
             view.is_inside(occurrence.node, expression.into_any())
                 && !view.is_inside(occurrence.node, iteration.body.into_any())

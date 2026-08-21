@@ -136,10 +136,10 @@ fn is_number(
     expected: f64,
 ) -> Result<bool, ProviderError> {
     let is_expected = match module.scalar_constant(expression)? {
-        Some(dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value)) => {
+        Some(dir::Literal::Integer(value) | dir::Literal::Bigint(value)) => {
             value as f64 == expected
         }
-        Some(dir::ScalarLiteral::Float(value)) => value == expected,
+        Some(dir::Literal::Float(value)) => value == expected,
         _ => false,
     };
 

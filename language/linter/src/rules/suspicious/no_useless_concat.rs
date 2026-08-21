@@ -48,14 +48,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        let is_left_string = matches!(
-            view.get(*left).as_scalar(),
-            Some(dir::ScalarLiteral::String(_))
-        );
-        let is_right_string = matches!(
-            view.get(*right).as_scalar(),
-            Some(dir::ScalarLiteral::String(_))
-        );
+        let is_left_string = matches!(view.get(*left).as_scalar(), Some(dir::Literal::String(_)));
+        let is_right_string = matches!(view.get(*right).as_scalar(), Some(dir::Literal::String(_)));
         if !is_left_string || !is_right_string {
             continue;
         }
