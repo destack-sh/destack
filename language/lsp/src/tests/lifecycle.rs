@@ -1,3 +1,5 @@
+use std::fs;
+
 use destack_lsp_types as lsp;
 use serde_json::{Value, json, to_value};
 
@@ -98,5 +100,31 @@ async fn test_initialize_workspace_client() {
         .await;
 
     initialized.wait().await;
+    server.assert_no_message();
+}
+
+/// Reconcile one removed path after its transient parent directories disappear.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_reconcile_removed_nested_path() {
+    let mut server = TestServer::new("removed-nested-path");
+    server.write("main.ds", "export const value: float64 = 1;\n");
+    let removed = server.write("target/debug/incremental/working/output", "transient");
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    // remove the complete transient directory before delivering its event
+    fs::remove_dir_all(server.root().join("target")).unwrap();
+    server
+        .notify::<lsp::notification::DidChangeWatchedFiles>(lsp::DidChangeWatchedFilesParams {
+            changes: vec![lsp::FileEvent {
+                uri: removed.uri().clone(),
+                typ: lsp::FileChangeType::DELETED,
+            }],
+        })
+        .await;
+
     server.assert_no_message();
 }

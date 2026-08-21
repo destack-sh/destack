@@ -344,19 +344,35 @@ impl ServerSession {
 
     /// Normalize one existing or newly removed source path.
     fn normalize(path: &Path) -> jsonrpc::Result<PathBuf> {
-        if let Ok(path) = fs::canonicalize(path) {
-            return Ok(path);
+        match fs::canonicalize(path) {
+            Ok(path) => return Ok(path),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(jsonrpc::Error::invalid_params(format!(
+                    "failed to canonicalize workspace path {}: {error}",
+                    path.display()
+                )));
+            }
         }
 
-        let Some(parent) = path.parent() else {
-            return Self::canonicalize(path);
-        };
-        let Some(file_name) = path.file_name() else {
-            return Self::canonicalize(path);
-        };
-        let parent = Self::canonicalize(parent)?;
+        // canonicalize the nearest ancestor retained by the filesystem
+        for ancestor in path.ancestors().skip(1) {
+            let canonical_ancestor = match fs::canonicalize(ancestor) {
+                Ok(ancestor) => ancestor,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => {
+                    return Err(jsonrpc::Error::invalid_params(format!(
+                        "failed to canonicalize workspace path {}: {error}",
+                        path.display()
+                    )));
+                }
+            };
+            let suffix = path.strip_prefix(ancestor).map_err(internal_error)?;
 
-        Ok(parent.join(file_name))
+            return Ok(canonical_ancestor.join(suffix));
+        }
+
+        Self::canonicalize(path)
     }
 }
 
