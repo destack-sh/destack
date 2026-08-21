@@ -1,4 +1,4 @@
-use crate::{CommentRetention, ParserError, ParserResult, PatternMarker, classify_keyword};
+use crate::{CommentRetention, ParserError, ParserResult, PatternMarker};
 use core::fmt::{self, Debug};
 use destack_core::{LocalStringPool, StringId, ensure_sufficient_stack};
 use destack_dir::{
@@ -134,7 +134,7 @@ impl Parser {
         self.cursor.peek().is_on_new_line()
     }
 
-    /// Return true when one ordinary offset token starts after a line break.
+    /// Return true when one relative token starts after a line break.
     #[inline]
     pub(crate) fn peek_token_at_is_on_new_line(&self, offset: usize) -> bool {
         self.peek_token_at(offset).is_on_new_line()
@@ -445,50 +445,45 @@ impl Parser {
             .collect()
     }
 
-    /// Return one ordinary token relative to the parser cursor.
+    /// Return one parser-visible token relative to the current token.
     #[inline(always)]
     pub(crate) fn peek_token_at(&self, offset: usize) -> Token {
         self.cursor.peek_token_at(offset)
     }
 
-    /// Return one ordinary token type relative to the parser cursor.
+    /// Return one parser-visible token type relative to the current token.
     #[inline(always)]
     pub(crate) fn peek_token_type_at(&self, offset: usize) -> TokenType {
         self.peek_token_at(offset).ty()
     }
 
-    /// Return one ordinary token as a keyword relative to the parser cursor.
+    /// Return one parser-visible token as a keyword.
+    #[inline]
+    pub(crate) fn token_keyword(&self, token: Token) -> Option<Keyword> {
+        self.cursor.classify_keyword(&self.file, token)
+    }
+
+    /// Return one parser-visible token as a keyword relative to the current token.
     #[inline]
     pub(crate) fn peek_keyword_at(&self, offset: usize) -> Option<Keyword> {
         let token = self.peek_token_at(offset);
 
-        // reject non-identifier tokens
-        if !token.is(TokenType::Identifier) {
-            return None;
-        }
-
-        // use the packed keyword classification when available
-        if let Some(keyword) = token.classified_keyword() {
-            return keyword;
-        }
-
-        // classify contextually produced identifiers from source text
-        classify_keyword(self.token_str(token))
+        self.token_keyword(token)
     }
 
-    /// Return the next ordinary token.
+    /// Return the next parser-visible token.
     #[inline(always)]
     pub(crate) fn peek_next_token(&self) -> Token {
         self.peek_token_at(1)
     }
 
-    /// Return the next ordinary token type.
+    /// Return the next parser-visible token type.
     #[inline(always)]
     pub(crate) fn peek_next_token_type(&self) -> TokenType {
         self.peek_token_type_at(1)
     }
 
-    /// Return the next ordinary token as a keyword.
+    /// Return the next parser-visible token as a keyword.
     #[inline(always)]
     pub(crate) fn peek_next_keyword(&self) -> Option<Keyword> {
         self.peek_keyword_at(1)
@@ -774,16 +769,7 @@ impl Parser {
     /// Return the current token as a keyword.
     #[inline]
     pub(crate) fn peek_keyword(&self) -> Option<Keyword> {
-        let current = self.cursor.peek();
-        if !current.is(TokenType::Identifier) {
-            return None;
-        }
-
-        if let Some(keyword) = current.classified_keyword() {
-            return keyword;
-        }
-
-        classify_keyword(self.peek_token_str())
+        self.peek_keyword_at(0)
     }
 
     /// Return the previous token.

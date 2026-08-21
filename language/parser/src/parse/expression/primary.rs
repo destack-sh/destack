@@ -440,6 +440,7 @@ impl Parser {
 
         // leave line-leading type to declaration parsing
         let next = self.peek_next_token();
+        let next_keyword = self.token_keyword(next);
         if keyword == Keyword::Type && next.is_on_new_line() {
             return false;
         }
@@ -447,7 +448,7 @@ impl Parser {
         // keep type as the binding identifier in for (type in|of value)
         if keyword == Keyword::Type
             && context.stops.contains(ExpressionStops::FOR_EACH)
-            && matches!(next.keyword(), Some(Keyword::In | Keyword::Of))
+            && matches!(next_keyword, Some(Keyword::In | Keyword::Of))
         {
             return false;
         }
@@ -455,7 +456,7 @@ impl Parser {
         // keep type extends|implements T as a relation unless an alias head follows
         let following = self.peek_token_type_at(2);
         if keyword == Keyword::Type
-            && matches!(next.keyword(), Some(Keyword::Extends | Keyword::Implements))
+            && matches!(next_keyword, Some(Keyword::Extends | Keyword::Implements))
             && !matches!(
                 following,
                 TokenType::Assign | TokenType::LessThan | TokenType::ShiftLeft
@@ -471,7 +472,7 @@ impl Parser {
 
         // keep type followed by any other value operator in expression grammar
         if keyword == Keyword::Type
-            && ExpressionOperator::from_token(next.ty(), next.keyword()).is_some()
+            && ExpressionOperator::from_token(next.ty(), next_keyword).is_some()
         {
             return false;
         }
@@ -673,6 +674,6 @@ impl Parser {
         }
 
         self.peek_token_after_group(1, TokenType::OpenBrace, TokenType::CloseBrace)
-            .is_none_or(|token| token.keyword() != Some(Keyword::While))
+            .is_none_or(|token| self.token_keyword(token) != Some(Keyword::While))
     }
 }

@@ -474,7 +474,7 @@ impl Parser {
         // declaration heads on a new line follow a completed instantiation statement
         if follow.is_on_new_line()
             && matches!(
-                follow.keyword(),
+                self.token_keyword(follow),
                 Some(
                     Keyword::Let
                         | Keyword::Const

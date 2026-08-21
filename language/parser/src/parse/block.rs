@@ -54,16 +54,13 @@ impl Parser {
 
         let target = self.peek_next_token();
 
-        Self::is_valid_label_target(target, context)
+        self.is_valid_label_target(target)
     }
 
     /// Return whether one token can begin a label body.
-    fn is_valid_label_target(target: Token, context: ExpressionContext) -> bool {
-        // labels apply to loops only
-        let _ = context;
-
+    fn is_valid_label_target(&self, target: Token) -> bool {
         matches!(
-            target.keyword(),
+            self.token_keyword(target),
             Some(Keyword::While | Keyword::Do | Keyword::For | Keyword::Loop)
         )
     }

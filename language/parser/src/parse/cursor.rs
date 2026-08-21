@@ -1,8 +1,10 @@
-use crate::{CommentRetention, Lexer, TokenProbe, Tokenizer};
-use destack_dir::{Comment, Token, TokenLiteral, TokenType};
+use crate::{CommentRetention, Lexer, Tokenizer};
+use destack_dir::{Comment, Keyword, Token, TokenLiteral, TokenType};
 use destack_source::{ByteRange, File};
 use std::mem;
 use std::sync::Arc;
+
+use super::TokenProbe;
 
 /// The tokenization mode used for the next parser-visible token.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -126,13 +128,13 @@ impl TokenCursor {
         &self.consumed
     }
 
-    /// Create a disposable indexed ordinary-token probe at the parser cursor.
+    /// Create a disposable lookahead probe at the current token.
     #[inline]
     pub(crate) fn probe<'source>(&'source self, file: &'source File) -> TokenProbe<'source> {
-        TokenProbe::new(file, &self.tokens, self.index, self.current, self.split)
+        TokenProbe::new(file, self)
     }
 
-    /// Return one ordinary token relative to the parser cursor.
+    /// Return one parser-visible token relative to the current token.
     #[inline(always)]
     pub(crate) fn peek_token_at(&self, offset: usize) -> Token {
         if offset == 0 {
@@ -148,6 +150,29 @@ impl TokenCursor {
         }
 
         self.peek_at_index(self.index + offset - 1)
+    }
+
+    /// Classify one parser-visible identifier token as a keyword.
+    #[inline]
+    pub(crate) fn classify_keyword(&self, file: &File, token: Token) -> Option<Keyword> {
+        // reject non-identifier tokens
+        if !token.is(TokenType::Identifier) {
+            return None;
+        }
+
+        // use the packed keyword classification when available
+        if let Some(keyword) = token.classified_keyword() {
+            return keyword;
+        }
+
+        // classify contextually produced identifiers from source text
+        crate::classify_keyword(file.span_str(token.span(file.id)))
+    }
+
+    /// Return whether one parser-visible token is the given identifier.
+    #[inline]
+    pub(crate) fn identifier_is(&self, file: &File, token: Token, expected: &str) -> bool {
+        token.is(TokenType::Identifier) && file.span_str(token.span(file.id)) == expected
     }
 
     /// Advance to the next regularly tokenized visible token.

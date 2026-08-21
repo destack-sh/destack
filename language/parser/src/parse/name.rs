@@ -97,14 +97,11 @@ impl Parser {
         }
     }
 
-    /// Return true when the next token is an identifier matching a string.
+    /// Return true when the current token is an identifier matching a string.
     #[inline]
     pub fn peek_identifier_is(&self, string: &str) -> bool {
-        if !self.peek_is(TokenType::Identifier) {
-            return false;
-        }
-
-        self.peek_token_str() == string
+        self.cursor
+            .identifier_is(&self.file, self.peek_token(), string)
     }
 
     /// Decode Unicode escapes in one identifier.
