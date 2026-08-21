@@ -159,9 +159,9 @@ const result = add(1, 2);
 ```
 
 ```query signature_help main.ds#argument
-@signature_help.signature index=0 label="add<float64>(left: float64, right: float64): float64" documentation="Add two values.\n\n## Type parameters\n\n- `Value`: The value type.\n\n## Examples\n\n```ds\nadd(1, 2);\n```" active=true
-@signature_help.parameter signature=0 index=0 label="left: float64" documentation="The first value." active=true
-@signature_help.parameter signature=0 index=1 label="right: float64" documentation="The second value."
+@signature_help.signature index=0 label="add<int64>(left: int64, right: int64): int64" documentation="Add two values.\n\n## Type parameters\n\n- `Value`: The value type.\n\n## Examples\n\n```ds\nadd(1, 2);\n```" active=true
+@signature_help.parameter signature=0 index=0 label="left: int64" documentation="The first value." active=true
+@signature_help.parameter signature=0 index=1 label="right: int64" documentation="The second value."
 ```
 
 ## Imported Functions

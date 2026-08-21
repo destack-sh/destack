@@ -1252,18 +1252,18 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 .ok_or(QueryError::missing(format!(
                     "semantic token span: {decorator_node:?}"
                 )))?;
+            // a rejected decorator carries no application and takes no modifiers
             let application = self
                 .module
                 .decorators()?
-                .application_for_decorator(decorator_id)
-                .ok_or(QueryError::missing(format!(
-                    "semantic token decorator: {decorator_node:?}"
-                )))?;
-            let modifiers = match application.resolution.target {
-                dir::DecoratorTarget::LanguageItem { symbol, .. }
-                | dir::DecoratorTarget::Symbol { symbol } => self.symbol_modifiers(symbol),
+                .application_for_decorator(decorator_id);
+            let modifiers = match application.map(|application| application.resolution.target) {
+                Some(
+                    dir::DecoratorTarget::LanguageItem { symbol, .. }
+                    | dir::DecoratorTarget::Symbol { symbol },
+                ) => self.symbol_modifiers(symbol)?,
+                None => SemanticTokenModifiers::default(),
             };
-            let modifiers = modifiers?;
 
             self.tokens.push(SemanticToken::new(
                 span,

@@ -712,7 +712,7 @@ newtype Marker = string;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 declaration="export newtype languageItem = (string,) | ()" documentation="Compiler language item marker.\n\n```\n@languageItem(\"memory.Unique\")\nexport newtype Unique<T> = intrinsic;\n```" location=destack://decorator/intrinsic:17:1-17:45 selection=destack://decorator/intrinsic:17:16-17:28 range=main.ds#reference
+@hover.item index=0 declaration="export newtype languageItem = (string,) | ()" documentation="Compiler language item marker." location=destack://decorator/intrinsic:7:1-7:45 selection=destack://decorator/intrinsic:7:16-7:28 range=main.ds#reference
 ```
 
 ## Empty Results

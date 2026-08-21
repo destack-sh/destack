@@ -326,7 +326,7 @@ interface IoControlBinding {
      ^^^^^^^ decorator
         provider: "host",
         effect: "external",
-        requires: ["host.io.control"],
+        requires: ["host.fs.metadata"],
         families: ["windows", "unix"],
     })
     executeIoControl(
@@ -403,7 +403,7 @@ export interface IoControlBinding {
      ^^^^^^^ decorator
         provider: "host",
         effect: "external",
-        requires: ["host.io.control"],
+        requires: ["host.fs.metadata"],
         families: ["windows", "unix"],
     })
     executeIoControl(

@@ -464,10 +464,10 @@ let count = 0;
 ```
 
 ```query outline main.ds
-@outline.symbol depth=0 name=pair kind=constant detail="{ left: float64; right: float64 }" range=main.ds#pair_range selection=main.ds#pair_selection
-@outline.symbol depth=0 name=left kind=constant detail=float64 range=main.ds#bindings_range selection=main.ds#left_selection
-@outline.symbol depth=0 name=vertical kind=constant detail=float64 range=main.ds#bindings_range selection=main.ds#vertical_selection
-@outline.symbol depth=0 name=count kind=variable detail=float64 range=main.ds#count_range selection=main.ds#count_selection
+@outline.symbol depth=0 name=pair kind=constant detail="{ left: int64; right: int64 }" range=main.ds#pair_range selection=main.ds#pair_selection
+@outline.symbol depth=0 name=left kind=constant detail=int64 range=main.ds#bindings_range selection=main.ds#left_selection
+@outline.symbol depth=0 name=vertical kind=constant detail=int64 range=main.ds#bindings_range selection=main.ds#vertical_selection
+@outline.symbol depth=0 name=count kind=variable detail=int64 range=main.ds#count_range selection=main.ds#count_selection
 ```
 
 ## Omitted Symbols

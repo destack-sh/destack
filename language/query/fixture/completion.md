@@ -104,7 +104,7 @@ const result = mutab;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=mutableValue kind=variable replace=main.ds#prefix suffix=": float64" declaration="let mutableValue: float64" preselect=true matches=0,1,2,3,4
+@completion.item label=mutableValue kind=variable replace=main.ds#prefix suffix=": int64" declaration="let mutableValue: int64" preselect=true matches=0,1,2,3,4
 ```
 
 ### Complete a function parameter
@@ -276,7 +276,9 @@ function read(point: Point): void {
 @completion.item label=x kind=field replace=main.ds#cursor suffix=": int32" declaration="Point.x: int32"
 @completion.item label=y kind=field replace=main.ds#cursor suffix=": int32" declaration="Point.y: int32"
 @completion.item label=toString kind=method replace=main.ds#cursor suffix="(): ^string" declaration="toString(): ^string" documentation="Return the owned user-facing string representation." insert="toString()"
-@completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): WithAccess<&'a Point, A>" declaration="borrow(): WithAccess<&T, A>" documentation="Borrow this value as itself." insert="borrow()"
+@completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): WithAccess<&'a Point, *>" declaration="borrow(): WithAccess<&T, A>" documentation="Borrow this value as itself." insert="borrow()"
+@completion.item label=into kind=method replace=main.ds#cursor suffix="(): *" declaration="into(): U" documentation="Convert this value through `U.from`." insert="into()"
+@completion.item label=tryInto kind=method replace=main.ds#cursor suffix="(): Result<*, *.Error>" declaration="tryInto(): Result<U, U.Error>" documentation="Convert this value through `U.tryFrom`." insert="tryInto()"
 ```
 
 ### Complete through generic borrow access
@@ -727,7 +729,9 @@ function identify(value: Named & Identified): int32 {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=id kind=field replace=main.ds#prefix suffix=": int32" declaration="Identified.id: int32" preselect=true matches=0
+@completion.item label=id kind=field replace=main.ds#prefix suffix=": int32" declaration="Identified.id: int32" matches=0
+@completion.item label=into kind=method replace=main.ds#prefix suffix="(): *" declaration="into(): U" documentation="Convert this value through `U.from`." insert="into()" matches=0
+@completion.item label=tryInto kind=method replace=main.ds#prefix suffix="(): Result<*, *.Error>" declaration="tryInto(): Result<U, U.Error>" documentation="Convert this value through `U.tryFrom`." insert="tryInto()" matches=3
 ```
 
 ### Complete an associated constant
@@ -761,7 +765,7 @@ function item<T: Collection>(): T.Ite;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=Item kind=associated_type replace=main.ds#prefix suffix=": T.Item" declaration=Collection.Item preselect=true matches=0,1,2
+@completion.item label=Item kind=associated_type replace=main.ds#prefix suffix=": Collection.Item" declaration=Collection.Item preselect=true matches=0,1,2
 ```
 
 ### Complete a static member through a type alias
@@ -928,7 +932,8 @@ function statusType(status: Status): string {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=type kind=field replace=main.ds#prefix suffix=": \"ok\" | \"error\"" preselect=true matches=0,1
+@completion.item label=type kind=field replace=main.ds#prefix suffix=": \"ok\" | \"error\"" matches=0,1
+@completion.item label=tryInto kind=method replace=main.ds#prefix suffix="(): Result<*, *.Error>" declaration="tryInto(): Result<U, U.Error>" documentation="Convert this value through `U.tryFrom`." insert="tryInto()" matches=0,2
 ```
 
 ## Constructors
