@@ -212,7 +212,7 @@ impl Compiler {
         target: dir::LocalNodeId<dir::TypeExpression>,
     ) -> bool {
         match tree.get(target) {
-            dir::TypeExpression::Literal { .. } | dir::TypeExpression::Literal { .. } => true,
+            dir::TypeExpression::Keyword { .. } | dir::TypeExpression::Literal { .. } => true,
             dir::TypeExpression::Reference {
                 generic_arguments, ..
             } => generic_arguments.iter().all(|argument| {
