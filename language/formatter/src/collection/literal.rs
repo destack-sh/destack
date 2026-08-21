@@ -7,7 +7,7 @@ use crate::tree::is_tree_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_dir::{
-    Argument, Expression, FloatType, IntegerType, LocalNodeId, Path, Literal, TemplateChunk,
+    Argument, Expression, FloatType, IntegerType, Literal, LocalNodeId, Path, TemplateChunk,
     TemplateLiteral, TokenLiteral, TypeLiteral,
 };
 use destack_fir::format::{Format, FormatLayout, FormatResult, token};
@@ -47,45 +47,56 @@ fn scalar_literal_source_info(
     )
 }
 
-/// Escape string content for one quote-delimited literal.
-fn escape_string_literal_content(content: &str, quote_char: char) -> String {
+/// Re-escape written string content for one quote-delimited literal, normalizing its quotes.
+fn escape_written_string_content(content: &str, quote_char: char) -> String {
     let mut escaped = String::with_capacity(content.len());
-    let mut characters = content.chars().peekable();
-
+    let mut characters = content.chars();
     while let Some(ch) = characters.next() {
+        // keep a written escape sequence, dropping the escape of the other quote
         if ch == '\\' {
-            let Some(next) = characters.next() else {
-                escaped.push('\\');
-                escaped.push('\\');
-                break;
-            };
-
             let alternate_quote = if quote_char == '"' { '\'' } else { '"' };
-            if next == alternate_quote {
-                escaped.push(next);
-                continue;
+            match characters.next() {
+                Some(next) if next == alternate_quote => escaped.push(next),
+                Some(next) => {
+                    escaped.push('\\');
+                    escaped.push(next);
+                }
+                None => escaped.push_str("\\\\"),
             }
 
-            escaped.push('\\');
-            escaped.push(next);
             continue;
         }
-
-        match ch {
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            '\u{08}' => escaped.push_str("\\b"),
-            '\u{0C}' => escaped.push_str("\\f"),
-            ch if ch == quote_char => {
-                escaped.push('\\');
-                escaped.push(ch);
-            }
-            _ => escaped.push(ch),
-        }
+        push_escaped_char(&mut escaped, ch, quote_char);
     }
 
     escaped
+}
+
+/// Escape decoded string content for one quote-delimited literal.
+fn escape_string_content(content: &str, quote_char: char) -> String {
+    let mut escaped = String::with_capacity(content.len());
+    for ch in content.chars() {
+        push_escaped_char(&mut escaped, ch, quote_char);
+    }
+
+    escaped
+}
+
+/// Push one decoded character as it is written inside a quote-delimited literal.
+fn push_escaped_char(escaped: &mut String, ch: char, quote_char: char) {
+    match ch {
+        '\\' => escaped.push_str("\\\\"),
+        '\n' => escaped.push_str("\\n"),
+        '\r' => escaped.push_str("\\r"),
+        '\t' => escaped.push_str("\\t"),
+        '\u{08}' => escaped.push_str("\\b"),
+        '\u{0C}' => escaped.push_str("\\f"),
+        ch if ch == quote_char => {
+            escaped.push('\\');
+            escaped.push(ch);
+        }
+        ch => escaped.push(ch),
+    }
 }
 
 /// Format a scalar literal.
@@ -129,7 +140,7 @@ pub(crate) fn format_scalar_literal<'ast>(
         }
         Literal::Character(value) => {
             let content = value.to_string();
-            let escaped_content = escape_string_literal_content(content.as_str(), '\'');
+            let escaped_content = escape_string_content(content.as_str(), '\'');
             write!(
                 f,
                 [
@@ -142,7 +153,15 @@ pub(crate) fn format_scalar_literal<'ast>(
         Literal::String(string_id) => {
             let content = f.context().strings.get(*string_id);
             let quote_char = '"';
-            let escaped_content = escape_string_literal_content(content, quote_char);
+
+            // re-escape the written content where the source carries it, else the decoded content
+            let written = source_lexeme
+                .strip_prefix(['"', '\''])
+                .and_then(|inner| inner.strip_suffix(['"', '\'']));
+            let escaped_content = match written {
+                Some(written) => escape_written_string_content(written, quote_char),
+                None => escape_string_content(content, quote_char),
+            };
 
             if is_tree_text {
                 // tree text content: normalize whitespace based on parsed tree text payload
