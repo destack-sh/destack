@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactBinding, ArtifactBindingId, ArtifactBindingPin, ArtifactDependency, ArtifactId,
@@ -227,7 +226,6 @@ impl<'a> ArtifactResolver<'a> {
 
         let mut frontier = Vec::new();
         let mut is_stale = false;
-        let mut dependencies = None;
 
         // compare only observations reached by the source edit
         for dependency in &state.dirty_dependencies {
@@ -282,15 +280,6 @@ impl<'a> ArtifactResolver<'a> {
                                     ),
                                 })?;
                             is_stale = fingerprint != projection.fingerprint();
-                            if !is_stale && current != projection.version() {
-                                let dependencies = dependencies
-                                    .get_or_insert_with(|| binding.dependencies.to_vec());
-                                dependencies[dependency] = ArtifactDependency::projection(
-                                    current,
-                                    projection.projection().key,
-                                    fingerprint,
-                                );
-                            }
                         }
                         ArtifactResolution::Pending {
                             frontier: dependency_frontier,
@@ -328,14 +317,10 @@ impl<'a> ArtifactResolver<'a> {
             ArtifactResolution::Pending { frontier }
         } else {
             let resolution = self.terminal(&binding)?;
-            let dependencies = match dependencies {
-                Some(dependencies) => Arc::from(dependencies),
-                None => binding.dependencies.clone(),
-            };
             let binding = self
                 .repository
                 .artifact_table()
-                .publish_binding(binding.version, dependencies)
+                .publish_binding(binding.version, binding.dependencies.clone())
                 .map_err(|error| RepositoryError::InvalidArtifact {
                     message: error.to_string(),
                 })?;
@@ -407,28 +392,20 @@ impl<'a> ArtifactResolver<'a> {
                     }
                     dependencies.push(dependency.clone());
                 }
-                // projections refresh onto any owner with the recorded fingerprint
+                // projections hold on any owner with the recorded fingerprint
                 ArtifactDependency::Projection(projection) => {
                     let owner = projection.projection().artifact;
                     let Some(current) = self.current_version(owner)? else {
                         return Ok(None);
                     };
-                    if current != projection.version() {
-                        let fingerprint = self
-                            .repository
-                            .artifact_table()
-                            .projection_fingerprint(&current, &projection.projection());
-                        if fingerprint != Some(projection.fingerprint()) {
-                            return Ok(None);
-                        }
-                        dependencies.push(ArtifactDependency::projection(
-                            current,
-                            projection.projection().key,
-                            projection.fingerprint(),
-                        ));
-                    } else {
-                        dependencies.push(dependency.clone());
+                    let fingerprint = self
+                        .repository
+                        .artifact_table()
+                        .projection_fingerprint(&current, &projection.projection());
+                    if fingerprint != Some(projection.fingerprint()) {
+                        return Ok(None);
                     }
+                    dependencies.push(dependency.clone());
                 }
             }
         }

@@ -168,8 +168,8 @@ impl ArtifactProjection {
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct ArtifactProjectionDependency {
-    /// The exact artifact version that supplied the projected value.
-    version: ArtifactVersion,
+    /// The artifact owning the projected value.
+    artifact: ArtifactKey,
     /// The projected value inside the artifact.
     key: ArtifactProjectionKey,
     /// The exact projection fingerprint read from the owner artifact.
@@ -179,25 +179,20 @@ pub struct ArtifactProjectionDependency {
 impl ArtifactProjectionDependency {
     /// Build one exact artifact projection dependency.
     pub const fn new(
-        version: ArtifactVersion,
+        artifact: ArtifactKey,
         key: ArtifactProjectionKey,
         fingerprint: ArtifactProjectionFingerprint,
     ) -> Self {
         Self {
-            version,
+            artifact,
             key,
             fingerprint,
         }
     }
 
-    /// Return the exact artifact version.
-    pub const fn version(self) -> ArtifactVersion {
-        self.version
-    }
-
     /// Return the observed artifact projection.
     pub const fn projection(self) -> ArtifactProjection {
-        ArtifactProjection::new(self.version.key, self.key)
+        ArtifactProjection::new(self.artifact, self.key)
     }
 
     /// Return the exact observed projection fingerprint.
@@ -383,18 +378,18 @@ impl ArtifactDependency {
 
     /// Build one exact artifact projection dependency.
     pub fn projection(
-        version: ArtifactVersion,
+        artifact: ArtifactKey,
         key: ArtifactProjectionKey,
         fingerprint: ArtifactProjectionFingerprint,
     ) -> Self {
-        Self::Projection(ArtifactProjectionDependency::new(version, key, fingerprint))
+        Self::Projection(ArtifactProjectionDependency::new(artifact, key, fingerprint))
     }
 
     /// Return the depended-on artifact key, excluding primitive sources.
     pub const fn artifact_key(&self) -> Option<ArtifactKey> {
         match self {
             Self::Artifact(version) => Some(version.key),
-            Self::Projection(dependency) => Some(dependency.version().key),
+            Self::Projection(dependency) => Some(dependency.artifact),
             Self::Source(_) => None,
         }
     }

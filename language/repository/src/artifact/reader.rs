@@ -128,21 +128,37 @@ impl<'a> ArtifactReader<'a> {
                     ArtifactDependency::Artifact(version) => Some(*version),
                     ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
                 });
-            let version = artifact.or_else(|| {
-                self.find_dependency(ArtifactRequirement::projection(projection))
-                    .and_then(|dependency| match dependency {
-                        ArtifactDependency::Projection(dependency) => Some(dependency.version()),
-                        ArtifactDependency::Artifact(_) | ArtifactDependency::Source(_) => None,
-                    })
-            });
-            if let Some(version) = version {
+            if let Some(version) = artifact {
                 return Ok(version);
+            }
+            // a declared projection reads its owner live, the selected binding holds its
+            //  fingerprint
+            if self
+                .find_dependency(ArtifactRequirement::projection(projection))
+                .is_some()
+            {
+                return self.live_owner_version(projection.artifact);
             }
 
             return self.tracked_projection_version(projection);
         }
 
         self.version(projection.artifact)
+    }
+
+    /// Resolve one projection owner's version at this revision, requiring a ready result.
+    fn live_owner_version(
+        &self,
+        artifact_key: ArtifactKey,
+    ) -> Result<ArtifactVersion, ProviderError> {
+        let version = self
+            .repository
+            .artifact_version(self.revision, &artifact_key)
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to resolve artifact version: {error}"))
+            })?;
+
+        self.require_ready_version(artifact_key, version)
     }
 
     /// Resolve one projection read beyond the frozen set, recording the observation.
@@ -156,20 +172,14 @@ impl<'a> ArtifactReader<'a> {
         let Some(context) = self.context else {
             return Err(self.undeclared_read(projection.artifact));
         };
-        let version = self
-            .repository
-            .artifact_version(self.revision, &projection.artifact)
-            .map_err(|error| {
-                ProviderError::internal(format!("failed to resolve artifact version: {error}"))
-            })?;
-        let version = self.require_ready_version(projection.artifact, version)?;
+        let version = self.live_owner_version(projection.artifact)?;
         let fingerprint = self
             .repository
             .artifact_table()
             .projection_fingerprint(&version, &projection)
             .ok_or(ProviderError::Corrupt { version })?;
         context.observe(ArtifactDependency::Projection(
-            ArtifactProjectionDependency::new(version, projection.key, fingerprint),
+            ArtifactProjectionDependency::new(projection.artifact, projection.key, fingerprint),
         ));
 
         Ok(version)
@@ -202,23 +212,13 @@ impl<'a> ArtifactReader<'a> {
                     ArtifactDependency::Artifact(version) => Some(*version),
                     ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
                 });
-            let version = artifact.or_else(|| self.find_projection_owner(artifact_key));
-            if let Some(version) = version {
+            if let Some(version) = artifact {
                 return Ok(version);
             }
 
-            // resolve the owner version live for recorded reads
-            if self.context.is_some() {
-                let version = self
-                    .repository
-                    .artifact_version(self.revision, &artifact_key)
-                    .map_err(|error| {
-                        ProviderError::internal(format!(
-                            "failed to resolve artifact version: {error}"
-                        ))
-                    })?;
-
-                return self.require_ready_version(artifact_key, version);
+            // resolve the owner live for a declared projection or a recorded read
+            if self.declares_projection_of(artifact_key) || self.context.is_some() {
+                return self.live_owner_version(artifact_key);
             }
 
             return Err(self.undeclared_read(artifact_key));
@@ -270,9 +270,11 @@ impl<'a> ArtifactReader<'a> {
         dependencies.get(index)
     }
 
-    /// Find any declared projection owned by one artifact.
-    fn find_projection_owner(&self, artifact_key: ArtifactKey) -> Option<ArtifactVersion> {
-        let dependencies = self.dependencies?;
+    /// Return whether the declared dependencies hold a projection owned by one artifact.
+    fn declares_projection_of(&self, artifact_key: ArtifactKey) -> bool {
+        let Some(dependencies) = self.dependencies else {
+            return false;
+        };
         let index = dependencies.partition_point(|dependency| match dependency {
             ArtifactDependency::Artifact(_) => true,
             ArtifactDependency::Projection(dependency) => {
@@ -280,15 +282,12 @@ impl<'a> ArtifactReader<'a> {
             }
             ArtifactDependency::Source(_) => false,
         });
-        let dependency = dependencies.get(index)?;
-        let ArtifactDependency::Projection(dependency) = dependency else {
-            return None;
-        };
-        if dependency.projection().artifact != artifact_key {
-            return None;
-        }
 
-        Some(dependency.version())
+        matches!(
+            dependencies.get(index),
+            Some(ArtifactDependency::Projection(dependency))
+                if dependency.projection().artifact == artifact_key
+        )
     }
 
     /// Read one artifact payload by its typed key.

@@ -238,7 +238,7 @@ impl Repository {
                         ))
                     })?;
                 dependencies.push(ArtifactDependency::projection(
-                    version,
+                    projection.artifact,
                     projection.key,
                     fingerprint,
                 ));

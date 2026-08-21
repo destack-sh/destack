@@ -787,7 +787,7 @@ mod tests {
             .projection_fingerprint(&first_owner, &projection)
             .expect("component projection should exist");
         let first_dependency =
-            ArtifactDependency::projection(first_owner, projection.key, fingerprint);
+            ArtifactDependency::projection(first_owner.key, projection.key, fingerprint);
         let dependent_key = ArtifactKey::environment_bound(profile);
         let dependent = ArtifactVersion::new(
             dependent_key,
@@ -866,8 +866,8 @@ mod tests {
         };
         assert_eq!(first_base.version, dependent);
         assert_eq!(second_base.version, dependent);
-        assert_eq!(first_projection.version(), first_owner);
-        assert_eq!(second_projection.version(), second_owner);
+        assert_eq!(first_projection.projection().artifact, first_owner.key);
+        assert_eq!(second_projection.projection().artifact, second_owner.key);
         assert_eq!(
             first_projection.fingerprint(),
             second_projection.fingerprint()

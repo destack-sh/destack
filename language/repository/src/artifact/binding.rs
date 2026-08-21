@@ -59,6 +59,7 @@ impl ArtifactBindingTable {
                         },
                     )?;
                     pending.push_back(ArtifactDependencyOwner::Artifact(binding.version));
+                    pending.push_back(ArtifactDependencyOwner::Projection(binding.version.key));
                 }
             }
         }

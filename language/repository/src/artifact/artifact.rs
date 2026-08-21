@@ -712,7 +712,7 @@ impl Repository {
             let ArtifactDependency::Projection(projection) = dependency else {
                 continue;
             };
-            if projection.version().key != declared_key {
+            if projection.projection().artifact != declared_key {
                 continue;
             }
 

@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -8,7 +9,7 @@ use destack_core::{Blob, StringPool};
 
 use crate::DiagnosticRecord;
 use parking_lot::RwLock;
-use rustc_hash::FxBuildHasher;
+use rustc_hash::{FxBuildHasher, FxHasher};
 
 use super::binding::ArtifactBindingIndex;
 use super::dependency::{ArtifactDependencyOwner, ArtifactDependent};
@@ -34,8 +35,8 @@ pub struct ArtifactTable {
 
     /// Immutable live bindings by compact id.
     bindings: ArtifactBindingIndex,
-    /// Exact binding ids grouped by reusable artifact version.
-    bindings_by_version: DashMap<ArtifactVersion, Vec<ArtifactBindingId>, FxBuildHasher>,
+    /// Exact binding ids grouped by reusable artifact version and dependency list hash.
+    bindings_by_version: DashMap<(ArtifactVersion, u64), Vec<ArtifactBindingId>, FxBuildHasher>,
     /// Every published binding of one artifact key, in publish order.
     bindings_by_artifact: DashMap<ArtifactId, Vec<ArtifactBindingId>, FxBuildHasher>,
 
@@ -409,7 +410,12 @@ impl ArtifactTable {
     ) -> Result<ArtifactBindingId, ArtifactError> {
         // intern the artifact selected by this binding
         let artifact = self.intern_artifact_key(version.key);
-        let mut bindings = self.bindings_by_version.entry(version).or_default();
+        let mut hasher = FxHasher::default();
+        dependencies.as_ref().hash(&mut hasher);
+        let mut bindings = self
+            .bindings_by_version
+            .entry((version, hasher.finish()))
+            .or_default();
 
         // reuse only a binding with the same exact dependency observations
         for binding_id in bindings.iter().copied() {
