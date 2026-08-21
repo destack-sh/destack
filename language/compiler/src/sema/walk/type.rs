@@ -312,7 +312,9 @@ impl WalkState<'_, '_> {
 
                 // distribute only naked parameter scrutinees over unions
                 let is_distributive = matches!(self.check.ty(left)?, dir::Type::Parameter(_));
+                self.extends_clauses += 1;
                 let right = self.walk_type_expression(extends_type)?;
+                self.extends_clauses -= 1;
 
                 // assume the parameter's extension inside the true branch, as a where clause would
                 if is_distributive {
@@ -424,6 +426,12 @@ impl WalkState<'_, '_> {
 
             // preserve named infer bindings for conditional matching
             dir::InferForm::Infer => {
+                if self.extends_clauses == 0 {
+                    self.check
+                        .report_infer_outside_conditional(self.module, source);
+
+                    return self.intern_type(dir::Type::Error);
+                }
                 let constraint = match constraint {
                     Some(constraint) => Some(self.walk_type_expression(constraint)?),
                     None => None,

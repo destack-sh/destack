@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_template_literal_has_string_type() {
+fn test_type_a_template_literal_with_interpolation_as_string() {
     let session = TestSession::single(
         r#"
 const name = "Ada";
@@ -36,7 +36,7 @@ const greeting = `hello ${name}`;
 }
 
 #[test]
-fn test_template_literal_is_assignable_to_string() {
+fn test_assign_a_template_literal_to_a_string_annotation() {
     let session = TestSession::single(
         r#"
 const greeting: string = `hello`;
@@ -54,13 +54,13 @@ const greeting: string = `hello`;
 const greeting: string = `hello`;
 /// @type.symbol symbol=greeting source=greeting type=string
 /// @resolution.pattern source=greeting kind=binding target=greeting
-/// @type.node source=`hello` type=string
+/// @type.node source=`hello` type="hello"
 "#,
     );
 }
 
 #[test]
-fn test_template_literal_rejects_number_context() {
+fn test_reject_a_template_literal_assigned_to_a_number() {
     let session = TestSession::single(
         r#"
 const value: number = `hello`;
@@ -78,10 +78,10 @@ const value: float64 = `hello`;
 const value: number = `hello`;
 /// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=`hello` type=string
+/// @type.node source=`hello` type="hello"
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'string' is not assignable to type 'float64'"
+/// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'float64'"
 /// @diagnostic.label line=2 column=23 span="`hello`" line_source="const value: number = `hello`;"
 /// @diagnostic.related line=2 column=14 span="number" line_source="const value: number = `hello`;" message="expected due to this annotation"
 "#,
@@ -211,6 +211,103 @@ function label(point: Point): string {
 
     session.assert_dir_diagnostics(
         "main.ds", r#"
+"#,
+    );
+}
+
+/// Give a template expression a literal type when it has no spans.
+#[test]
+fn test_give_a_spanless_template_expression_a_literal_type() {
+    let session = TestSession::single(
+        r#"
+declare const count: number;
+
+const text = `hello`;
+const rendered = `x${count}`;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const count: float64;
+
+const text: "hello" = `hello`;
+const rendered: string = `x${count}`;
+
+=== dir ===
+declare const count: number;
+/// @type.symbol symbol=count source=count type=float64
+/// @resolution.pattern source=count kind=binding target=count
+
+const text = `hello`;
+/// @type.symbol symbol=text source=text type="hello"
+/// @resolution.pattern source=text kind=binding target=text
+/// @type.node source=`hello` type="hello"
+
+const rendered = `x${count}`;
+/// @type.symbol symbol=rendered source=rendered type=string
+/// @resolution.pattern source=rendered kind=binding target=rendered
+/// @type.node source=`x${count}` type=string
+/// @type.node source=count type=float64
+/// @resolution.name source=count target=count
+/// @resolution.place source=count placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=count root=count
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Take a template literal type from the context or from a const assertion.
+#[test]
+fn test_take_a_contextual_template_literal_type() {
+    let session = TestSession::single(
+        r#"
+declare const count: number;
+
+const contextual: `x${number}` = `x${count}`;
+const asserted = `x${count}` as const;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const count: float64;
+
+const contextual: `x${float64}` = `x${count}`;
+const asserted: `x${float64}` = `x${count}` as const;
+
+=== dir ===
+declare const count: number;
+/// @type.symbol symbol=count source=count type=float64
+/// @resolution.pattern source=count kind=binding target=count
+
+const contextual: `x${number}` = `x${count}`;
+/// @type.symbol symbol=contextual source=contextual type=`x${float64}`
+/// @resolution.pattern source=contextual kind=binding target=contextual
+/// @type.node source=`x${count}` type=`x${float64}`
+/// @type.node source=count type=float64
+/// @resolution.name source=count target=count
+/// @resolution.place source=count placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=count root=count
+
+const asserted = `x${count}` as const;
+/// @type.symbol symbol=asserted source=asserted type=`x${float64}`
+/// @resolution.pattern source=asserted kind=binding target=asserted
+/// @type.node source="`x${count}` as const" type=`x${float64}`
+/// @type.node source=`x${count}` type=`x${float64}`
+/// @type.node source=count type=float64
+/// @resolution.name source=count target=count
+/// @resolution.place source=count placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=count root=count
+"#,
+        r#"
 "#,
     );
 }

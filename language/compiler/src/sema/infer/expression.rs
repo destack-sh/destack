@@ -90,7 +90,7 @@ impl BodyState<'_, '_> {
                 Ok(())
             }
             dir::Expression::TemplateExpression { value } => {
-                let ty = self.template_expression_type(site, value)?;
+                let ty = self.template_expression_type(site, value, mode == InferMode::Const)?;
                 self.commit_node_type(node.into_any(), ty)?;
                 self.check.fresh_nodes.insert(node.into_any(), None);
 
@@ -431,24 +431,111 @@ impl BodyState<'_, '_> {
     }
 
     /// Return the type of one template expression after checking its arguments.
+    ///
+    /// A template without substitutions reduces to a string literal. A template with substitutions
+    /// reduces to `string`, unless the expectation asks for a template literal, in which case it
+    /// keeps its text around the span types.
     pub(in crate::sema) fn template_expression_type(
         &mut self,
         site: FlowSite,
         value: dir::TemplateLiteral,
+        keeps_template: bool,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let dir::TemplateLiteral::InterpolatedString { arguments, .. } = value {
-            // walk the interpolation decorators, keeping the statically present arguments
-            let arguments = self.walk_body_arguments(site.node.module_id, &arguments)?;
-
-            // infer each interpolated value in source order
-            for argument in arguments {
-                self.infer_argument_type(site, argument)?;
+        let string = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
+        let (chunks, arguments) = match value {
+            dir::TemplateLiteral::String { chunk } => {
+                return match chunk.cooked {
+                    Some(text) => self.intern_type(dir::Type::Literal(dir::Literal::String(text))),
+                    None => Ok(string),
+                };
             }
+            dir::TemplateLiteral::InterpolatedString { chunks, arguments } => (chunks, arguments),
+        };
+
+        // walk the interpolation decorators, keeping the statically present arguments
+        let arguments = self.walk_body_arguments(site.node.module_id, &arguments)?;
+
+        // infer each interpolated value in source order
+        let mut spans = Vec::with_capacity(arguments.len());
+        for argument in arguments {
+            let span = self.infer_argument_type(site, argument)?;
+            spans.push(self.template_span_type(span, string)?);
+        }
+        if !keeps_template {
+            return Ok(string);
         }
 
-        let ty = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
+        // keep the template text around the spans
+        let mut strings = Vec::with_capacity(chunks.len());
+        for chunk in chunks {
+            let Some(text) = chunk.cooked else {
+                return Ok(string);
+            };
+            strings.push(text);
+        }
+        let strings = self.check.intern_strings(&strings)?;
+        let spans = self.check.intern_type_ids(&spans)?;
 
-        Ok(ty)
+        self.check
+            .intern_operation(dir::TypeOperation::TemplateLiteral(
+                dir::TemplateLiteralType { strings, spans },
+            ))
+    }
+
+    /// Return the type one interpolated value contributes to a template literal type.
+    fn template_span_type(
+        &mut self,
+        span: dir::GlobalTypeId,
+        string: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the printed value beneath ownership and access forms
+        let mut value = self.check.shallow_resolve(span)?;
+        while let dir::Type::Form(form) = self.check.ty(value)? {
+            value = self.check.shallow_resolve(form.value)?;
+        }
+
+        // print values outside the template span domain as plain strings
+        let prints = matches!(
+            self.check.ty(value)?,
+            dir::Type::Literal(_)
+                | dir::Type::Null
+                | dir::Type::Undefined
+                | dir::Type::Operation(_)
+                | dir::Type::Parameter(_)
+                | dir::Type::Variable(_)
+                | dir::Type::Union(_)
+                | dir::Type::Primitive(_)
+        );
+
+        Ok(if prints { value } else { string })
+    }
+
+    /// Return whether one expected type asks a template expression for its literal text.
+    pub(in crate::sema) fn contextualizes_template(
+        &mut self,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let target = self.check.shallow_resolve(target)?;
+        let contextualizes = match self.check.ty(target)? {
+            dir::Type::Literal(dir::Literal::String(_)) => true,
+            dir::Type::Operation(operation) => matches!(
+                self.check.type_operation(target.module_id, operation)?,
+                dir::TypeOperation::TemplateLiteral(_)
+            ),
+            dir::Type::Union(union) => {
+                let elements: SmallVec<[_; 4]> =
+                    SmallVec::from_slice(self.check.type_ids(target.module_id, union.elements)?);
+                let mut any = false;
+                for element in elements {
+                    any |= self.contextualizes_template(element)?;
+                }
+
+                any
+            }
+            _ => false,
+        };
+
+        Ok(contextualizes)
     }
 
     /// Reject expression inference that reached solve without a matching owner.

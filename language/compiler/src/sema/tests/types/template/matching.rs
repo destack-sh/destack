@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_template_literal_types_match_string_union_spans() {
+fn test_match_string_union_spans_against_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type Route = `api:${"users" | "posts"}`;
@@ -57,7 +57,7 @@ posts satisfies Route;
 }
 
 #[test]
-fn test_template_literal_types_cross_product_union_spans() {
+fn test_cross_product_union_spans_in_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type Route = `${"en" | "de"}-${"users" | "posts"}`;
@@ -114,7 +114,7 @@ const bad: Route = "fr-users";
 }
 
 #[test]
-fn test_template_literal_types_reject_non_member_string_spans() {
+fn test_reject_non_member_string_spans_in_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type Route = `api:${"users" | "posts"}`;
@@ -151,7 +151,7 @@ const bad: Route = "api:orders";
 }
 
 #[test]
-fn test_template_literal_types_match_stringifiable_primitive_spans() {
+fn test_match_stringifiable_primitive_spans_against_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type PrimitiveText = `${boolean}-${null}-${undefined}`;
@@ -168,26 +168,27 @@ const bad: PrimitiveText = "yes-null-undefined";
 === annotated ===
 type PrimitiveText = `${boolean}-${null}-${undefined}`;
 
-const ok: PrimitiveText = "true-null-undefined";
-const bad: PrimitiveText = "yes-null-undefined";
+const ok: "false-null-undefined" | "true-null-undefined" =
+    "true-null-undefined" as "false-null-undefined" | "true-null-undefined";
+const bad: "false-null-undefined" | "true-null-undefined" = "yes-null-undefined";
 
 === dir ===
 type PrimitiveText = `${boolean}-${null}-${undefined}`;
-/// @type.symbol symbol=PrimitiveText source="type PrimitiveText = `${boolean}-${null}-${undefined}`" type=`${boolean}-${null}-${undefined}`
-/// @definition.type symbol=PrimitiveText source="type PrimitiveText = `${boolean}-${null}-${undefined}`" value=`${boolean}-${null}-${undefined}`
+/// @type.symbol symbol=PrimitiveText source="type PrimitiveText = `${boolean}-${null}-${undefined}`" type="false-null-undefined" | "true-null-undefined"
+/// @definition.type symbol=PrimitiveText source="type PrimitiveText = `${boolean}-${null}-${undefined}`" value="false-null-undefined" | "true-null-undefined"
 
 const ok: PrimitiveText = "true-null-undefined";
-/// @type.symbol symbol=ok source=ok type=`${boolean}-${null}-${undefined}`
+/// @type.symbol symbol=ok source=ok type="false-null-undefined" | "true-null-undefined"
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=PrimitiveText target=PrimitiveText
 
 const bad: PrimitiveText = "yes-null-undefined";
-/// @type.symbol symbol=bad source=bad type=`${boolean}-${null}-${undefined}`
+/// @type.symbol symbol=bad source=bad type="false-null-undefined" | "true-null-undefined"
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=PrimitiveText target=PrimitiveText
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"yes-null-undefined\"' is not assignable to type '`${boolean}-${null}-${undefined}`'"
+/// @diagnostic.error id=not-assignable message="type '\"yes-null-undefined\"' is not assignable to type '\"false-null-undefined\" | \"true-null-undefined\"'"
 /// @diagnostic.label line=5 column=28 span="\"yes-null-undefined\"" line_source="const bad: PrimitiveText = \"yes-null-undefined\";"
 /// @diagnostic.related line=5 column=12 span="PrimitiveText" line_source="const bad: PrimitiveText = \"yes-null-undefined\";" message="expected due to this annotation"
 "#,
@@ -195,7 +196,7 @@ const bad: PrimitiveText = "yes-null-undefined";
 }
 
 #[test]
-fn test_template_literal_types_reduce_never_span_to_never() {
+fn test_reduce_a_never_span_to_never_in_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type Nothing = `id:${never}`;
@@ -232,7 +233,7 @@ const bad: Nothing = "id:anything";
 }
 
 #[test]
-fn test_template_literal_types_accept_broad_string_spans() {
+fn test_accept_broad_string_spans_in_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type AnyString = `${string}${string}`;
@@ -250,7 +251,7 @@ const ok: AnyString = value;
 type AnyString = `${string}${string}`;
 
 declare const value: string;
-const ok: AnyString = value;
+const ok: `${string}${string}` = value;
 
 === dir ===
 type AnyString = `${string}${string}`;
@@ -273,7 +274,7 @@ const ok: AnyString = value;
 }
 
 #[test]
-fn test_template_literal_types_match_numeric_spans() {
+fn test_match_numeric_spans_against_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type NumericRoute = `item:${number}`;
@@ -291,7 +292,7 @@ item satisfies `item:${number}`;
 === annotated ===
 type NumericRoute = `item:${number}`;
 
-const item: NumericRoute = "item:42";
+const item: `item:${float64}` = "item:42";
 
 item satisfies `item:${number}`;
 
@@ -314,7 +315,7 @@ item satisfies `item:${number}`;
 }
 
 #[test]
-fn test_template_literal_types_reject_non_numeric_spans() {
+fn test_reject_non_numeric_spans_in_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type NumericRoute = `item:${number}`;
@@ -330,7 +331,7 @@ const bad: NumericRoute = "item:abc";
 === annotated ===
 type NumericRoute = `item:${number}`;
 
-const bad: NumericRoute = "item:abc";
+const bad: `item:${float64}` = "item:abc";
 
 === dir ===
 type NumericRoute = `item:${number}`;
@@ -351,7 +352,7 @@ const bad: NumericRoute = "item:abc";
 }
 
 #[test]
-fn test_template_literal_types_match_nested_templates() {
+fn test_match_nested_templates_in_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type Nested = `prefix-${`id-${number}`}`;
@@ -367,15 +368,15 @@ const value: Nested = "prefix-id-1";
 === annotated ===
 type Nested = `prefix-${`id-${number}`}`;
 
-const value: Nested = "prefix-id-1";
+const value: `prefix-id-${float64}` = "prefix-id-1";
 
 === dir ===
 type Nested = `prefix-${`id-${number}`}`;
-/// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-${`id-${float64}`}`
-/// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-${`id-${float64}`}`
+/// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-id-${float64}`
+/// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-id-${float64}`
 
 const value: Nested = "prefix-id-1";
-/// @type.symbol symbol=value source=value type=`prefix-${`id-${float64}`}`
+/// @type.symbol symbol=value source=value type=`prefix-id-${float64}`
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Nested target=Nested
 "#,
@@ -383,7 +384,7 @@ const value: Nested = "prefix-id-1";
 }
 
 #[test]
-fn test_template_literal_types_reject_nested_template_mismatches() {
+fn test_reject_nested_template_mismatches_in_a_template_literal_type() {
     let session = TestSession::single(
         r#"
 type Nested = `prefix-${`id-${number}`}`;
@@ -399,22 +400,92 @@ const value: Nested = "prefix-id-a";
 === annotated ===
 type Nested = `prefix-${`id-${number}`}`;
 
-const value: Nested = "prefix-id-a";
+const value: `prefix-id-${float64}` = "prefix-id-a";
 
 === dir ===
 type Nested = `prefix-${`id-${number}`}`;
-/// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-${`id-${float64}`}`
-/// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-${`id-${float64}`}`
+/// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-id-${float64}`
+/// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-id-${float64}`
 
 const value: Nested = "prefix-id-a";
-/// @type.symbol symbol=value source=value type=`prefix-${`id-${float64}`}`
+/// @type.symbol symbol=value source=value type=`prefix-id-${float64}`
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Nested target=Nested
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"prefix-id-a\"' is not assignable to type '`prefix-${`id-${float64}`}`'"
+/// @diagnostic.error id=not-assignable message="type '\"prefix-id-a\"' is not assignable to type '`prefix-id-${float64}`'"
 /// @diagnostic.label line=4 column=23 span="\"prefix-id-a\"" line_source="const value: Nested = \"prefix-id-a\";"
 /// @diagnostic.related line=4 column=14 span="Nested" line_source="const value: Nested = \"prefix-id-a\";" message="expected due to this annotation"
+"#,
+    );
+}
+
+/// Reduce a boolean span to the two strings it can spell.
+#[test]
+fn test_reduce_a_boolean_span_to_two_strings() {
+    let session = TestSession::single(
+        r#"
+type Flag = `${boolean}`;
+
+declare const flag: Flag;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Flag = `${boolean}`;
+
+declare const flag: "false" | "true";
+
+=== dir ===
+type Flag = `${boolean}`;
+/// @type.symbol symbol=Flag source="type Flag = `${boolean}`" type="false" | "true"
+/// @definition.type symbol=Flag source="type Flag = `${boolean}`" value="false" | "true"
+
+declare const flag: Flag;
+/// @type.symbol symbol=flag source=flag type="false" | "true"
+/// @resolution.pattern source=flag kind=binding target=flag
+/// @resolution.name source=Flag target=Flag
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Flatten a template span that holds another template into one template.
+#[test]
+fn test_flatten_a_nested_template_span_into_one_template() {
+    let session = TestSession::single(
+        r#"
+type Nested = `a${`b${string}`}c`;
+
+declare const value: Nested;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Nested = `a${`b${string}`}c`;
+
+declare const value: `ab${string}c`;
+
+=== dir ===
+type Nested = `a${`b${string}`}c`;
+/// @type.symbol symbol=Nested source="type Nested = `a${`b${string}`}c`" type=`ab${string}c`
+/// @definition.type symbol=Nested source="type Nested = `a${`b${string}`}c`" value=`ab${string}c`
+
+declare const value: Nested;
+/// @type.symbol symbol=value source=value type=`ab${string}c`
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=Nested target=Nested
+"#,
+        r#"
 "#,
     );
 }

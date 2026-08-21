@@ -166,6 +166,39 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Type instantiation nests past the depth the checker follows.
+    ///
+    /// ```ds
+    /// type Grow<T> = T extends [] ? never : Grow<[...T, T]>;
+    /// type Forever = Grow<[1]>;
+    /// ```
+    #[diagnostic(
+        id = "excessive-type-instantiation",
+        message = "type instantiation is excessively deep and possibly infinite"
+    )]
+    ExcessiveTypeInstantiation {
+        /// Report the instantiated type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// An `infer` declaration appears outside the extends clause of a conditional type.
+    ///
+    /// ```ds
+    /// type Loose = infer T;
+    /// ```
+    #[diagnostic(
+        id = "infer-outside-conditional",
+        message = "'infer' declarations are only permitted in the 'extends' clause of a conditional type"
+    )]
+    InferOutsideConditional {
+        /// Report the infer declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Parsed type form is not part of the language model.
     ///
     /// ```ds

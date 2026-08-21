@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_uppercase_converts_literal() {
+fn test_uppercase_a_string_literal() {
     let session = TestSession::single(
         r#"
 type Value = Uppercase<"hello">;
@@ -34,7 +34,7 @@ const ok: Value = "HELLO";
 }
 
 #[test]
-fn test_uppercase_distributes_over_union() {
+fn test_distribute_uppercase_over_a_union() {
     let session = TestSession::single(
         r#"
 type Method = Uppercase<"get" | "post">;
@@ -76,7 +76,7 @@ method satisfies "GET" | "POST";
 }
 
 #[test]
-fn test_uppercase_rejects_original_casing() {
+fn test_reject_the_original_casing_for_an_uppercase_literal_type() {
     let session = TestSession::single(
         r#"
 type Value = Uppercase<"hello">;
@@ -109,6 +109,42 @@ const bad: Value = "hello";
 /// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type '\"HELLO\"'"
 /// @diagnostic.label line=4 column=20 span="\"hello\"" line_source="const bad: Value = \"hello\";"
 /// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = \"hello\";" message="expected due to this annotation"
+"#,
+    );
+}
+
+/// Map an uppercase intrinsic through the spans of a template.
+#[test]
+fn test_map_an_uppercase_intrinsic_through_template_spans() {
+    let session = TestSession::single(
+        r#"
+type Shout = Uppercase<`a${string}`>;
+
+declare const shout: Shout;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Shout = Uppercase<`a${string}`>;
+
+declare const shout: Shout;
+
+=== dir ===
+type Shout = Uppercase<`a${string}`>;
+/// @type.symbol symbol=Shout source="type Shout = Uppercase<`a${string}`>" type=`A${Uppercase<string>}`
+/// @definition.type symbol=Shout source="type Shout = Uppercase<`a${string}`>" value=`A${Uppercase<string>}`
+/// @resolution.name source=Uppercase target=types.string.Uppercase
+
+declare const shout: Shout;
+/// @type.symbol symbol=shout source=shout type=`A${Uppercase<string>}`
+/// @resolution.pattern source=shout kind=binding target=shout
+/// @resolution.name source=Shout target=Shout
+"#,
+        r#"
 "#,
     );
 }

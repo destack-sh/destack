@@ -718,8 +718,8 @@ impl CheckState<'_> {
 
         // require each target index signature from the source
         for signature in index_signatures {
-            verdict =
-                verdict.and(self.relate_index_signature(origin, relation, source, &signature)?);
+            verdict = verdict
+                .and(self.relate_index_signature(origin, cause, relation, source, &signature)?);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }

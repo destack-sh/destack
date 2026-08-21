@@ -21,6 +21,8 @@ pub(in crate::sema) struct WalkState<'check, 'state> {
     pub(in crate::sema) imposes_requirements: bool,
     /// Elided borrow lifetimes tracked by the active return type.
     return_borrow_lifetimes: Vec<dir::TypeVariableId>,
+    /// Conditional extends clauses enclosing the active type position.
+    pub(in crate::sema) extends_clauses: u32,
 }
 
 /// How elided borrow lifetimes are handled while walking types.
@@ -64,6 +66,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             borrow_lifetime_elision: BorrowLifetimeElision::Generate,
             imposes_requirements: true,
             return_borrow_lifetimes: Vec::new(),
+            extends_clauses: 0,
         }
     }
 

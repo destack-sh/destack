@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_template_literal_type_assigns_to_broader_template() {
+fn test_assign_a_template_literal_type_to_a_broader_template() {
     let session = TestSession::single(
         r#"
 type Loose = `${string}-id`;
@@ -20,8 +20,8 @@ const loose: Loose = tight;
 type Loose = `${string}-id`;
 type Tight = `user-${string}-id`;
 
-declare const tight: Tight;
-const loose: Loose = tight;
+declare const tight: `user-${string}-id`;
+const loose: `${string}-id` = tight;
 
 === dir ===
 type Loose = `${string}-id`;
@@ -49,7 +49,7 @@ const loose: Loose = tight;
 }
 
 #[test]
-fn test_template_literal_type_rejects_assignment_to_narrower_template() {
+fn test_reject_a_template_literal_type_assigned_to_a_narrower_template() {
     let session = TestSession::single(
         r#"
 type Loose = `${string}-id`;
@@ -68,8 +68,8 @@ const tight: Tight = loose;
 type Loose = `${string}-id`;
 type Tight = `user-${string}-id`;
 
-declare const loose: Loose;
-const tight: Tight = loose;
+declare const loose: `${string}-id`;
+const tight: `user-${string}-id` = loose;
 
 === dir ===
 type Loose = `${string}-id`;
@@ -102,7 +102,7 @@ const tight: Tight = loose;
 }
 
 #[test]
-fn test_template_literal_numeric_span_assigns_to_string_span() {
+fn test_assign_a_numeric_template_span_to_a_string_span() {
     let session = TestSession::single(
         r#"
 type NumericId = `id-${number}`;
@@ -121,8 +121,8 @@ const id: StringId = numeric;
 type NumericId = `id-${number}`;
 type StringId = `id-${string}`;
 
-declare const numeric: NumericId;
-const id: StringId = numeric;
+declare const numeric: `id-${float64}`;
+const id: `id-${string}` = numeric;
 
 === dir ===
 type NumericId = `id-${number}`;
@@ -150,7 +150,7 @@ const id: StringId = numeric;
 }
 
 #[test]
-fn test_template_literal_string_span_rejects_numeric_span_target() {
+fn test_reject_a_string_template_span_assigned_to_a_numeric_span() {
     let session = TestSession::single(
         r#"
 type NumericId = `id-${number}`;
@@ -169,8 +169,8 @@ const numeric: NumericId = id;
 type NumericId = `id-${number}`;
 type StringId = `id-${string}`;
 
-declare const id: StringId;
-const numeric: NumericId = id;
+declare const id: `id-${string}`;
+const numeric: `id-${float64}` = id;
 
 === dir ===
 type NumericId = `id-${number}`;
@@ -198,6 +198,51 @@ const numeric: NumericId = id;
 /// @diagnostic.error id=not-assignable message="type '`id-${string}`' is not assignable to type '`id-${float64}`'"
 /// @diagnostic.label line=6 column=28 span="id" line_source="const numeric: NumericId = id;"
 /// @diagnostic.related line=6 column=16 span="NumericId" line_source="const numeric: NumericId = id;" message="expected due to this annotation"
+"#,
+    );
+}
+
+/// Assign a string literal into a matching template and reject a mismatched one.
+#[test]
+fn test_assign_a_string_literal_into_a_matching_template() {
+    let session = TestSession::single(
+        r#"
+type Route = `/${string}`;
+
+const ok: Route = "/users";
+const bad: Route = "users";
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Route = `/${string}`;
+
+const ok: `/${string}` = "/users";
+const bad: `/${string}` = "users";
+
+=== dir ===
+type Route = `/${string}`;
+/// @type.symbol symbol=Route source="type Route = `/${string}`" type=`/${string}`
+/// @definition.type symbol=Route source="type Route = `/${string}`" value=`/${string}`
+
+const ok: Route = "/users";
+/// @type.symbol symbol=ok source=ok type=`/${string}`
+/// @resolution.pattern source=ok kind=binding target=ok
+/// @resolution.name source=Route target=Route
+
+const bad: Route = "users";
+/// @type.symbol symbol=bad source=bad type=`/${string}`
+/// @resolution.pattern source=bad kind=binding target=bad
+/// @resolution.name source=Route target=Route
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '\"users\"' is not assignable to type '`/${string}`'"
+/// @diagnostic.label line=5 column=20 span="\"users\"" line_source="const bad: Route = \"users\";"
+/// @diagnostic.related line=5 column=12 span="Route" line_source="const bad: Route = \"users\";" message="expected due to this annotation"
 "#,
     );
 }

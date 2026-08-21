@@ -274,6 +274,8 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) walking_declarations: Vec<dir::GlobalNodeIdAny>,
     /// Whether writeback is settling declared-form member bindings.
     pub(in crate::sema) is_settling: bool,
+    /// Conditional reductions nested on the stack.
+    pub(in crate::sema) instantiation_depth: u32,
 
     // body driver state
     /// Named function bodies keyed by their declaration symbol.
@@ -385,6 +387,7 @@ impl<'a> CheckState<'a> {
             scalar_families: FxIndexMap::default(),
             aliased: FxIndexMap::default(),
             is_settling: false,
+            instantiation_depth: 0,
             conformances: FxIndexMap::default(),
             heritages: FxIndexMap::default(),
             deriving: FxIndexSet::default(),
@@ -1061,6 +1064,19 @@ impl CheckState<'_> {
         values: &[dir::TypeElement],
     ) -> CompilerResult<dir::TypeListId> {
         Ok(self.module.types_tail.intern_elements(values))
+    }
+
+    /// Intern one tuple type over its element rows.
+    pub(in crate::sema) fn intern_tuple(
+        &mut self,
+        elements: &[dir::TypeElement],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let elements = self.intern_elements(elements)?;
+
+        self.intern_type(dir::Type::Tuple(dir::TupleType {
+            form: dir::TupleForm::Tuple,
+            elements,
+        }))
     }
 
     /// Intern one function parameter list into a module's working segment.

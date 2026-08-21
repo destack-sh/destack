@@ -175,9 +175,10 @@ impl CheckState<'_> {
                 continue;
             }
 
+            let scope = self.template_at_node(source);
             self.push_obligation(
                 Obligation::WellFormedType(WellFormedTypeObligation { source, ty }),
-                None,
+                scope,
             )?;
         }
 

@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_nullish_guard_preserves_template_literal_constraint() {
+fn test_preserve_a_template_literal_constraint_through_a_nullish_guard() {
     let session = TestSession::single(
         r#"
 type Route = `api:${string}`;
@@ -55,7 +55,7 @@ if (route != undefined) {
 }
 
 #[test]
-fn test_equality_guard_keeps_template_literal_constraint() {
+fn test_keep_a_template_literal_constraint_through_an_equality_guard() {
     let session = TestSession::single(
         r#"
 type Route = `api:${string}`;
@@ -77,7 +77,7 @@ if (route == "api:users") {
 === annotated ===
 type Route = `api:${string}`;
 
-declare const route: Route;
+declare const route: `api:${string}`;
 
 if (route == "api:users") {
     route satisfies Route;
@@ -120,7 +120,7 @@ if (route == "api:users") {
 }
 
 #[test]
-fn test_match_over_template_literal_type_union_is_exhaustive() {
+fn test_treat_a_match_over_a_template_literal_type_union_as_exhaustive() {
     let session = TestSession::single(
         r#"
 type Route = `api:${"users" | "posts"}`;

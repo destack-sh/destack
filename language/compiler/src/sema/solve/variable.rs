@@ -12,6 +12,8 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::sema) enum VariableRole {
     /// Ordinary inference variable.
     Regular,
+    /// Conditional `infer` binder, taking its covariant candidates over contravariant ones.
+    Binder,
     /// Contextually typed parameter slot, received by assignment.
     Parameter,
     /// Variable inferred from a callable body return.
@@ -57,6 +59,7 @@ impl VariableRole {
         match self {
             Self::Instantiation { parameter } => Some(parameter),
             Self::Regular
+            | Self::Binder
             | Self::Parameter
             | Self::Return
             | Self::Memory { .. }

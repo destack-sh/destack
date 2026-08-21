@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_number_template_span_accepts_numeric_string_forms() {
+fn test_accept_numeric_string_forms_in_a_number_template_span() {
     let session = TestSession::single(
         r#"
 type Numeric = `${number}`;
@@ -19,9 +19,9 @@ const hexadecimal: Numeric = "0x1";
 === annotated ===
 type Numeric = `${number}`;
 
-const decimal: Numeric = "42";
-const exponent: Numeric = "1e3";
-const hexadecimal: Numeric = "0x1";
+const decimal: `${float64}` = "42";
+const exponent: `${float64}` = "1e3";
+const hexadecimal: `${float64}` = "0x1";
 
 === dir ===
 type Numeric = `${number}`;
@@ -47,7 +47,7 @@ const hexadecimal: Numeric = "0x1";
 }
 
 #[test]
-fn test_number_template_span_rejects_invalid_number_strings() {
+fn test_reject_invalid_number_strings_in_a_number_template_span() {
     let session = TestSession::single(
         r#"
 type Numeric = `${number}`;
@@ -63,7 +63,7 @@ const bad: Numeric = "NaN";
 === annotated ===
 type Numeric = `${number}`;
 
-const bad: Numeric = "NaN";
+const bad: `${float64}` = "NaN";
 
 === dir ===
 type Numeric = `${number}`;
@@ -84,7 +84,7 @@ const bad: Numeric = "NaN";
 }
 
 #[test]
-fn test_bigint_template_span_matches_bigint_literals() {
+fn test_match_bigint_literals_in_a_bigint_template_span() {
     let session = TestSession::single(
         r#"
 type Big = `${bigint}`;
@@ -102,9 +102,9 @@ const hexadecimal: Big = "0x1";
 === annotated ===
 type Big = `${bigint}`;
 
-const decimal: Big = "900";
-const negative: Big = "-1";
-const hexadecimal: Big = "0x1";
+const decimal: `${bigint}` = "900";
+const negative: `${bigint}` = "-1";
+const hexadecimal: `${bigint}` = "0x1";
 
 === dir ===
 type Big = `${bigint}`;
@@ -130,7 +130,7 @@ const hexadecimal: Big = "0x1";
 }
 
 #[test]
-fn test_int_template_span_rejects_out_of_range_strings() {
+fn test_reject_out_of_range_strings_in_an_int_template_span() {
     let session = TestSession::single(
         r#"
 type Small = `${int8}`;
@@ -146,7 +146,7 @@ const bad: Small = "128";
 === annotated ===
 type Small = `${int8}`;
 
-const bad: Small = "128";
+const bad: `${int8}` = "128";
 
 === dir ===
 type Small = `${int8}`;
@@ -167,7 +167,7 @@ const bad: Small = "128";
 }
 
 #[test]
-fn test_number_template_call_infers_non_canonical_number() {
+fn test_infer_a_non_canonical_number_through_a_number_template_call() {
     let session = TestSession::single(
         r#"
 declare function parse<T: number>(value: `${T}`): T;
@@ -213,7 +213,7 @@ value satisfies number;
 }
 
 #[test]
-fn test_int_template_call_rejects_out_of_range_span() {
+fn test_reject_an_out_of_range_span_in_an_int_template_call() {
     let session = TestSession::single(
         r#"
 declare function parse<T: int8>(value: `${T}`): T;
@@ -254,7 +254,7 @@ parse("128");
 }
 
 #[test]
-fn test_bigint_template_call_infers_bigint_literal() {
+fn test_infer_a_bigint_literal_through_a_bigint_template_call() {
     let session = TestSession::single(
         r#"
 declare function parse<T: bigint>(value: `${T}`): T;
@@ -300,7 +300,7 @@ value satisfies -1n;
 }
 
 #[test]
-fn test_number_template_typed_binding_accepts_equivalent_spelling() {
+fn test_accept_an_equivalent_spelling_for_a_number_template_typed_binding() {
     // a closed numeric span admits every spelling of its value
     let session = TestSession::single(
         r#"
@@ -330,7 +330,7 @@ const exponent: `${1000}` = "1e3";
 }
 
 #[test]
-fn test_number_template_typed_binding_rejects_other_value() {
+fn test_reject_another_value_for_a_number_template_typed_binding() {
     let session = TestSession::single(
         r#"
 const wrong: `${1000}` = "1001";
@@ -353,6 +353,55 @@ const wrong: `${1000}` = "1001";
 /// @diagnostic.error id=not-assignable message="type '\"1001\"' is not assignable to type '`${1000}`'"
 /// @diagnostic.label line=2 column=26 span="\"1001\"" line_source="const wrong: `${1000}` = \"1001\";"
 /// @diagnostic.related line=2 column=14 span="`${1000}`" line_source="const wrong: `${1000}` = \"1001\";" message="expected due to this annotation"
+"#,
+    );
+}
+
+/// Keep integer spans matching every integer spelling in the domain.
+#[test]
+fn test_keep_integer_domain_spans_for_prefixed_numeric_strings() {
+    let session = TestSession::single(
+        r#"
+type Count = `${int32}`;
+
+const decimal: Count = "10";
+const binary: Count = "0b1010";
+const octal: Count = "0o12";
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Count = `${int32}`;
+
+const decimal: `${int32}` = "10";
+const binary: `${int32}` = "0b1010";
+const octal: `${int32}` = "0o12";
+
+=== dir ===
+type Count = `${int32}`;
+/// @type.symbol symbol=Count source="type Count = `${int32}`" type=`${int32}`
+/// @definition.type symbol=Count source="type Count = `${int32}`" value=`${int32}`
+
+const decimal: Count = "10";
+/// @type.symbol symbol=decimal source=decimal type=`${int32}`
+/// @resolution.pattern source=decimal kind=binding target=decimal
+/// @resolution.name source=Count target=Count
+
+const binary: Count = "0b1010";
+/// @type.symbol symbol=binary source=binary type=`${int32}`
+/// @resolution.pattern source=binary kind=binding target=binary
+/// @resolution.name source=Count target=Count
+
+const octal: Count = "0o12";
+/// @type.symbol symbol=octal source=octal type=`${int32}`
+/// @resolution.pattern source=octal kind=binding target=octal
+/// @resolution.name source=Count target=Count
+"#,
+        r#"
 "#,
     );
 }

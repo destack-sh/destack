@@ -1,164 +1,34 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{CandidateOutcome, CheckState, Origin, Relation, Variance};
+use crate::sema::solve::VariableRole;
+use crate::sema::{CandidateOutcome, Cause, CauseKind, CheckState, Origin, Relation, Verdict};
 
 use super::substitute::InferSubstitution;
 
-/// One binder declared by a conditional `infer` pattern.
-#[derive(Debug, Clone, Copy)]
+/// Nested conditional reductions tolerated before an instantiation is judged infinite.
+const INSTANTIATION_DEPTH_LIMIT: u32 = 100;
+
+/// Tail conditionals evaluated in place before an instantiation is judged infinite.
+const TAIL_CONDITIONAL_LIMIT: u32 = 1000;
+
+/// One `infer` binder declared by a conditional extends pattern.
 struct InferBinder {
-    /// The infer pattern type.
-    ty: dir::GlobalTypeId,
-    /// The symbol referenced by the matched branch.
+    /// The declared binder symbol, absent for anonymous binders.
     symbol: Option<dir::GlobalSymbolId>,
+    /// The binder's declared constraint.
+    constraint: Option<dir::GlobalTypeId>,
+    /// Every infer type that spells this binder inside the pattern.
+    occurrences: SmallVec<[dir::GlobalTypeId; 2]>,
 }
 
-/// Captures produced by one conditional `infer` pattern.
-#[derive(Debug)]
-struct InferMatch {
-    /// The binders declared by the pattern in first-seen order.
-    binders: SmallVec<[InferBinder; 2]>,
-    /// The captured candidates for each binder.
-    captures: SmallVec<[InferCapture; 2]>,
-}
-
-/// Candidates captured for one conditional `infer` binder.
-#[derive(Debug, Clone, Default)]
-struct InferCapture {
-    /// Candidates captured from covariant positions.
-    covariant: SmallVec<[dir::GlobalTypeId; 2]>,
-    /// Candidates captured from contravariant positions.
-    contravariant: SmallVec<[dir::GlobalTypeId; 2]>,
-}
-
-impl InferMatch {
-    /// Create an empty capture table for one binder list.
-    fn new(binders: &[InferBinder]) -> Self {
-        let captures = binders.iter().map(|_| InferCapture::default()).collect();
-
-        Self {
-            binders: SmallVec::from_slice(binders),
-            captures,
-        }
-    }
-
-    /// Return the capture position for one binder type.
-    fn binder_index_by_type(&self, binder: dir::GlobalTypeId) -> Option<usize> {
-        self.binders
-            .iter()
-            .position(|candidate| candidate.ty == binder)
-    }
-
-    /// Return the capture position for one binder symbol.
-    fn binder_index_by_symbol(&self, symbol: dir::GlobalSymbolId) -> Option<usize> {
-        self.binders
-            .iter()
-            .position(|candidate| candidate.symbol == Some(symbol))
-    }
-
-    /// Return the capture position for one binder occurrence.
-    fn binder_index(
-        &self,
-        binder: dir::GlobalTypeId,
-        symbol: Option<dir::GlobalSymbolId>,
-    ) -> Option<usize> {
-        self.binder_index_by_type(binder)
-            .or_else(|| symbol.and_then(|symbol| self.binder_index_by_symbol(symbol)))
-    }
-
-    /// Record one inferred candidate.
-    fn bind(
-        &mut self,
-        binder: dir::GlobalTypeId,
-        symbol: Option<dir::GlobalSymbolId>,
-        captured: dir::GlobalTypeId,
-        variance: Variance,
-    ) -> bool {
-        let Some(index) = self.binder_index(binder, symbol) else {
-            return false;
-        };
-
-        self.captures[index].push(variance, captured);
-
-        true
-    }
-
-    /// Return the covariant candidates already captured for one binder.
-    fn captured(
-        &self,
-        pattern: dir::GlobalTypeId,
-        symbol: Option<dir::GlobalSymbolId>,
-    ) -> &[dir::GlobalTypeId] {
-        match self.binder_index(pattern, symbol) {
-            Some(index) => &self.captures[index].covariant,
-            None => &[],
-        }
-    }
-
-    /// Return the substitutions represented by captured binders.
-    fn substitutions(
-        &self,
-        state: &mut CheckState<'_>,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-    ) -> CompilerResult<SmallVec<[InferSubstitution; 2]>> {
-        let mut substitutions = SmallVec::new();
-        for (binder, capture) in self
-            .binders
-            .iter()
-            .copied()
-            .zip(self.captures.iter().cloned())
-        {
-            if let Some(symbol) = binder.symbol {
-                let ty = capture.inferred_type(state, module, source)?;
-                substitutions.push(InferSubstitution { symbol, ty });
-            }
-        }
-
-        Ok(substitutions)
-    }
-}
-
-impl InferCapture {
-    /// Record one candidate from the active variance position.
-    fn push(&mut self, variance: Variance, ty: dir::GlobalTypeId) {
-        match variance {
-            Variance::Bivariant | Variance::Covariant => self.covariant.push(ty),
-            Variance::Contravariant => self.contravariant.push(ty),
-            Variance::Invariant => {
-                self.covariant.push(ty);
-                self.contravariant.push(ty);
-            }
-        }
-    }
-
-    /// Return the inferred type produced by the recorded candidates.
-    fn inferred_type(
-        self,
-        state: &mut CheckState<'_>,
-        _module: ModuleId,
-        _source: dir::LocalNodeIdAny,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        match self.covariant.as_slice() {
-            [single] => return Ok(*single),
-            [_, ..] => return state.normalized_union_type(self.covariant),
-            [] => {}
-        }
-
-        match self.contravariant.as_slice() {
-            [single] => Ok(*single),
-            [_, ..] => {
-                let elements = self.contravariant.into_iter().collect::<Vec<_>>();
-                let elements = state.intern_type_ids(&elements)?;
-
-                state.intern_type(dir::Type::Intersection(dir::IntersectionType { elements }))
-            }
-            [] => state.intern_type(dir::Type::Never),
-        }
-    }
+/// Why one conditional arm did not select its then branch.
+enum InferRejection {
+    /// The element fails the pattern.
+    Else,
+    /// The match stays open on an inference variable.
+    Open,
 }
 
 impl CheckState<'_> {
@@ -168,6 +38,89 @@ impl CheckState<'_> {
         origin: Origin,
         conditional: dir::ConditionalType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // judge an instantiation that keeps nesting as infinite
+        if self.instantiation_depth >= INSTANTIATION_DEPTH_LIMIT {
+            self.report_excessive_type_instantiation(origin)?;
+
+            return Ok(Some(self.intern_type(dir::Type::Error)?));
+        }
+
+        self.instantiation_depth += 1;
+        let reduced = self.reduce_conditional_chain(origin, conditional);
+        self.instantiation_depth -= 1;
+
+        reduced
+    }
+
+    /// Evaluate one conditional and every conditional its chosen branch tails into, in place.
+    fn reduce_conditional_chain(
+        &mut self,
+        origin: Origin,
+        mut conditional: dir::ConditionalType,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let mut steps = 0;
+        loop {
+            let Some(branches) = self.select_conditional_branches(origin, conditional)? else {
+                return Ok(None);
+            };
+
+            // continue with a sole branch that heads straight into another conditional
+            if let [branch] = branches.as_slice()
+                && let Some(next) = self.conditional_head(origin, *branch)?
+            {
+                if steps >= TAIL_CONDITIONAL_LIMIT {
+                    self.report_excessive_type_instantiation(origin)?;
+
+                    return Ok(Some(self.intern_type(dir::Type::Error)?));
+                }
+                conditional = next;
+                steps += 1;
+                continue;
+            }
+
+            return Ok(Some(self.join_conditional_branches(origin, &branches)?));
+        }
+    }
+
+    /// Return the conditional one type heads into through alias applications, if any.
+    fn conditional_head(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::ConditionalType>> {
+        let mut current = self.shallow_resolve(id)?;
+        let mut expanded = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        loop {
+            match self.ty(current)? {
+                // expand alias applications, leaving circular chains to normalization
+                dir::Type::Application(instance) => {
+                    if expanded.contains(&current) {
+                        return Ok(None);
+                    }
+                    expanded.push(current);
+                    match self.type_alias_body(origin, current.module_id, &instance)? {
+                        Some(value) => current = self.shallow_resolve(value)?,
+                        None => return Ok(None),
+                    }
+                }
+                dir::Type::Operation(operation) => {
+                    return Ok(match self.type_operation(current.module_id, operation)? {
+                        dir::TypeOperation::Conditional(conditional) => Some(conditional),
+                        _ => None,
+                    });
+                }
+                _ => return Ok(None),
+            }
+        }
+    }
+
+    /// Choose each distributed element's branch with the element substituted in, or none while
+    /// the conditional stays open.
+    fn select_conditional_branches(
+        &mut self,
+        origin: Origin,
+        conditional: dir::ConditionalType,
+    ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
         let left = self.normalize(origin, conditional.left)?;
 
         // distribute over union-valued checked types
@@ -175,7 +128,16 @@ impl CheckState<'_> {
             dir::Type::Union(union) if conditional.is_distributive => {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(left.module_id, union.elements)?)
             }
+            dir::Type::Never if conditional.is_distributive => return Ok(Some(SmallVec::new())),
             dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(None),
+            // leave an enclosing conditional's own binder open
+            dir::Type::Application(instance)
+                if instance.arguments.is_empty()
+                    && self.symbol_kind(instance.symbol)?
+                        == dir::SymbolKind::GenericTypeParameter =>
+            {
+                return Ok(None);
+            }
             _ => SmallVec::from_slice(&[left]),
         };
 
@@ -187,39 +149,28 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // collect infer binders declared by the extends pattern
         let binders = self.collect_infer_binders(conditional.right)?;
-
-        // choose each element's branch with the element substituted in
         let module = origin.module();
-        let mut branches = Vec::with_capacity(elements.len());
-        for element in elements {
-            let branch = if binders.is_empty() {
-                self.conditional_branch(
-                    origin,
-                    element,
-                    conditional.right,
-                    conditional.then_type,
-                    conditional.else_type,
-                )?
-            } else {
-                self.inferred_conditional_branch(
-                    origin,
-                    element,
-                    conditional.right,
-                    conditional.then_type,
-                    conditional.else_type,
-                    &binders,
-                )?
+        let mut branches = SmallVec::with_capacity(elements.len());
+        for &element in &elements {
+            let Some(branch) = self.conditional_arm(origin, element, conditional, &binders)? else {
+                return Ok(None);
             };
 
-            let branch = self.replace_type(module, branch, conditional.left, element)?;
-            branches.push(branch);
+            branches.push(self.replace_type(module, branch, conditional.left, element)?);
         }
 
-        // rebuild the distributed result, dropping never like any union
+        Ok(Some(branches))
+    }
+
+    /// Normalize and join the chosen branches, dropping never like any union.
+    fn join_conditional_branches(
+        &mut self,
+        origin: Origin,
+        branches: &[dir::GlobalTypeId],
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let mut kept = Vec::with_capacity(branches.len());
-        for branch in branches {
+        for &branch in branches {
             let branch = self.normalize(origin, branch)?;
             if matches!(self.ty(branch)?, dir::Type::Never) {
                 continue;
@@ -228,52 +179,137 @@ impl CheckState<'_> {
                 kept.push(branch);
             }
         }
-        let joined = match kept.as_slice() {
-            [] => self.intern_type(dir::Type::Never)?,
-            [single] => *single,
-            _ => self.normalized_union_type(kept)?,
-        };
 
-        Ok(Some(joined))
+        match kept.as_slice() {
+            [] => self.intern_type(dir::Type::Never),
+            [single] => Ok(*single),
+            _ => self.normalized_union_type(kept),
+        }
     }
 
-    /// Return the chosen branch for a conditional arm without binders.
-    fn conditional_branch(
+    /// Return the branch one element selects, or none while the match stays open.
+    fn conditional_arm(
         &mut self,
         origin: Origin,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-        then_type: dir::GlobalTypeId,
-        else_type: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let extends = self
-            .evaluate_relation(origin, Relation::Extends, left, right)?
-            .holds();
-
-        Ok(if extends { then_type } else { else_type })
-    }
-
-    /// Return the chosen branch for a conditional arm with infer binders.
-    fn inferred_conditional_branch(
-        &mut self,
-        origin: Origin,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-        then_type: dir::GlobalTypeId,
-        else_type: dir::GlobalTypeId,
+        element: dir::GlobalTypeId,
+        conditional: dir::ConditionalType,
         binders: &[InferBinder],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let matched = self.confirm_candidate(|state| {
-            match state.match_infer_pattern(origin, right, then_type, binders, left)? {
-                Some(branch) => Ok(CandidateOutcome::Accepted(branch)),
-                None => Ok(CandidateOutcome::Rejected(())),
-            }
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        if binders.is_empty() {
+            let verdict =
+                self.evaluate_relation(origin, Relation::Extends, element, conditional.right)?;
+
+            return Ok(match verdict {
+                Verdict::Holds => Some(conditional.then_type),
+                Verdict::Fails => Some(conditional.else_type),
+                Verdict::Ambiguous => None,
+            });
+        }
+
+        let outcome = self.decide_candidate(|state| {
+            state.match_infer_pattern(origin, element, conditional, binders)
         })?;
 
-        match matched {
-            Some(branch) => Ok(branch),
-            None => Ok(else_type),
+        Ok(match outcome {
+            CandidateOutcome::Accepted(branch) => Some(branch),
+            CandidateOutcome::Rejected(InferRejection::Else) => Some(conditional.else_type),
+            CandidateOutcome::Rejected(InferRejection::Open) => None,
+        })
+    }
+
+    /// Match one element against the extends pattern with its binders as inference variables.
+    fn match_infer_pattern(
+        &mut self,
+        origin: Origin,
+        element: dir::GlobalTypeId,
+        conditional: dir::ConditionalType,
+        binders: &[InferBinder],
+    ) -> CompilerResult<CandidateOutcome<dir::GlobalTypeId, InferRejection>> {
+        let module = origin.module();
+
+        // open one variable per binder and spell the pattern with them
+        let mut variables = SmallVec::<[_; 2]>::with_capacity(binders.len());
+        let mut pattern = conditional.right;
+        for binder in binders {
+            let variable = self.allocate_variable(origin, VariableRole::Binder);
+            let variable_type = self.variable_type(variable)?;
+            for &occurrence in &binder.occurrences {
+                pattern = self.replace_type(module, pattern, occurrence, variable_type)?;
+            }
+            variables.push(variable);
         }
+
+        // relate the element to the pattern, inferring the binders from the relation
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        match self.constrain_type(origin, cause, Relation::Extends, element, pattern)? {
+            Verdict::Holds => {}
+            Verdict::Fails => return Ok(CandidateOutcome::Rejected(InferRejection::Else)),
+            Verdict::Ambiguous => return Ok(CandidateOutcome::Rejected(InferRejection::Open)),
+        }
+        self.resolve_variables(&variables)?;
+
+        // read the binder solutions back under their declared constraints
+        let mut captures = SmallVec::<[InferSubstitution; 2]>::new();
+        for (binder, &variable) in binders.iter().zip(&variables) {
+            let solution = match self.infer.solution(variable)? {
+                Some(solution) => self.deeply_resolve(origin, solution)?,
+                None => self.intern_type(dir::Type::Unknown)?,
+            };
+            if !self.open_type_variables([solution])?.is_empty() {
+                return Ok(CandidateOutcome::Rejected(InferRejection::Open));
+            }
+            let solution = match binder.constraint {
+                Some(constraint) => match self.constrain_binder(origin, solution, constraint)? {
+                    Some(solution) => solution,
+                    None => return Ok(CandidateOutcome::Rejected(InferRejection::Else)),
+                },
+                None => solution,
+            };
+            if let Some(symbol) = binder.symbol {
+                captures.push(InferSubstitution {
+                    symbol,
+                    ty: solution,
+                });
+            }
+        }
+
+        // substitute the solved binders into the chosen branch, instantiating it in full
+        // unless it tails into another conditional
+        let tails = self
+            .conditional_head(origin, conditional.then_type)?
+            .is_some();
+        let instantiation = (!tails).then_some(origin);
+        let branch = self.substitute_infer_captures(
+            instantiation,
+            module,
+            conditional.then_type,
+            &captures,
+        )?;
+
+        Ok(CandidateOutcome::Accepted(branch))
+    }
+
+    /// Hold one binder solution to its declared constraint, reading captured text as the
+    /// constraint's literal kind.
+    fn constrain_binder(
+        &mut self,
+        origin: Origin,
+        solution: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // retype text captured under a numeric or boolean constraint
+        if let dir::Type::Literal(dir::Literal::String(text)) = self.ty(solution)? {
+            let text = self.strings().get(text).to_string();
+            if let Some(retyped) = self.retype_template_capture(origin, constraint, &text)? {
+                return Ok(Some(retyped));
+            }
+        }
+
+        let holds = self
+            .evaluate_relation(origin, Relation::Extends, solution, constraint)?
+            .holds();
+
+        Ok(holds.then_some(solution))
     }
 
     /// Collect the infer binders declared by one extends pattern.
@@ -281,7 +317,7 @@ impl CheckState<'_> {
         &self,
         pattern: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[InferBinder; 2]>> {
-        let mut binders = SmallVec::new();
+        let mut binders = SmallVec::<[InferBinder; 2]>::new();
         let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         pending.push(pattern);
 
@@ -291,21 +327,22 @@ impl CheckState<'_> {
                     if let dir::TypeOperation::Infer(infer) =
                         self.type_operation(id.module_id, operation)? =>
                 {
-                    match infer.symbol {
-                        Some(symbol)
-                            if !binders
-                                .iter()
-                                .any(|binder: &InferBinder| binder.symbol == Some(symbol)) =>
-                        {
-                            binders.push(InferBinder {
-                                ty: id,
-                                symbol: Some(symbol),
-                            });
+                    let known = infer.symbol.and_then(|symbol| {
+                        binders
+                            .iter_mut()
+                            .find(|binder| binder.symbol == Some(symbol))
+                    });
+                    match known {
+                        Some(binder) => {
+                            binder.occurrences.push(id);
+                            if binder.constraint.is_none() {
+                                binder.constraint = infer.constraint;
+                            }
                         }
-                        Some(_) => {}
                         None => binders.push(InferBinder {
-                            ty: id,
-                            symbol: None,
+                            symbol: infer.symbol,
+                            constraint: infer.constraint,
+                            occurrences: SmallVec::from_slice(&[id]),
                         }),
                     }
                 }
@@ -320,647 +357,5 @@ impl CheckState<'_> {
         }
 
         Ok(binders)
-    }
-
-    /// Match one element against an extends pattern with infer binders.
-    fn match_infer_pattern(
-        &mut self,
-        origin: Origin,
-        pattern: dir::GlobalTypeId,
-        then_type: dir::GlobalTypeId,
-        binders: &[InferBinder],
-        element: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-        let mut captures = InferMatch::new(binders);
-
-        // match the actual type against the pattern and capture binders
-        if !self.match_infer_type(origin, &mut captures, Variance::Covariant, pattern, element)? {
-            return Ok(None);
-        }
-
-        // substitute captured binders into the chosen branch
-        let substitutions = captures.substitutions(self, module, source)?;
-        let branch =
-            self.substitute_infer_captures(origin, origin.module(), then_type, &substitutions)?;
-
-        Ok(Some(branch))
-    }
-
-    /// Match one actual type against a conditional `infer` pattern.
-    fn match_infer_type(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        pattern: dir::GlobalTypeId,
-        actual: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let pattern = self.normalize(origin, pattern)?;
-        let mut actual = self.normalize(origin, actual)?;
-
-        // match a static type term through the type it holds
-        if let dir::Type::Static(value) = self.ty(actual)?
-            && let dir::StaticTerm::Type { ty } = self.r#static(value)
-        {
-            actual = *ty;
-        }
-
-        // capture direct infer binders
-        if let Some(dir::TypeOperation::Infer(infer)) = self.operation_head(pattern)?
-            && captures.binder_index(pattern, infer.symbol).is_some()
-        {
-            let symbol = infer.symbol;
-            let constraint = infer.constraint;
-
-            if let Some(constraint) = constraint
-                && !self
-                    .evaluate_relation(origin, Relation::Extends, actual, constraint)?
-                    .holds()
-            {
-                return Ok(false);
-            }
-
-            return Ok(captures.bind(pattern, symbol, actual, variance));
-        }
-
-        if pattern == actual {
-            return Ok(true);
-        }
-
-        let pattern_module = pattern.module_id;
-        let actual_module = actual.module_id;
-        let pattern_type = self.ty(pattern)?;
-        let actual_type = self.ty(actual)?;
-
-        // admit a mutable actual under a readonly pattern through the identity view
-        if let dir::Type::Form(pattern_form) = pattern_type
-            && pattern_form.form == dir::Form::Readonly
-            && !matches!(
-                actual_type,
-                dir::Type::Form(actual_form) if actual_form.form == dir::Form::Readonly
-            )
-        {
-            return self.match_infer_type(origin, captures, variance, pattern_form.value, actual);
-        }
-
-        match (pattern_type, actual_type) {
-            // template patterns split the actual text into span captures
-            (
-                dir::Type::Operation(operation),
-                dir::Type::Literal(dir::Literal::String(_))
-                | dir::Type::Key(dir::StaticKey::Name(_)),
-            ) if let dir::TypeOperation::TemplateLiteral(template) =
-                self.type_operation(pattern_module, operation)? =>
-            {
-                let text = match actual_type {
-                    dir::Type::Literal(dir::Literal::String(text))
-                    | dir::Type::Key(dir::StaticKey::Name(text)) => {
-                        self.strings().get(text).to_string()
-                    }
-                    _ => unreachable!(),
-                };
-                let Some(parts) =
-                    self.split_template_captures(origin, &text, pattern_module, &template)?
-                else {
-                    return Ok(false);
-                };
-                for (span, captured) in parts {
-                    // fixed spans already matched during the split
-                    if self.template_piece_text(span)?.is_some() {
-                        continue;
-                    }
-                    match self.operation_head(span)? {
-                        Some(dir::TypeOperation::Infer(infer)) => {
-                            let captured = self.template_captured_type(
-                                origin,
-                                pattern_module,
-                                span,
-                                &captured,
-                            )?;
-
-                            // repeated binders must capture identical text
-                            let previous = captures.captured(span, infer.symbol);
-                            if !previous.is_empty() && previous != [captured] {
-                                return Ok(false);
-                            }
-                            if !self.match_infer_type(
-                                origin,
-                                captures,
-                                Variance::Covariant,
-                                span,
-                                captured,
-                            )? {
-                                return Ok(false);
-                            }
-                        }
-                        _ => {
-                            if !self.match_template_span(origin, &captured, span)? {
-                                return Ok(false);
-                            }
-                        }
-                    }
-                }
-
-                Ok(true)
-            }
-            (dir::Type::Application(pattern), dir::Type::Application(actual))
-                if pattern.symbol == actual.symbol =>
-            {
-                let pattern_arguments: SmallVec<[_; 8]> =
-                    self.type_ids(pattern_module, pattern.arguments)?.into();
-                let actual_arguments: SmallVec<[_; 8]> =
-                    self.type_ids(actual_module, actual.arguments)?.into();
-
-                self.match_infer_instance_arguments(
-                    origin,
-                    captures,
-                    variance,
-                    pattern.symbol,
-                    &pattern_arguments,
-                    &actual_arguments,
-                )
-            }
-            (dir::Type::Slice(pattern), dir::Type::Slice(actual)) => {
-                self.match_infer_type(origin, captures, variance, pattern.element, actual.element)
-            }
-            (dir::Type::FixedArray(pattern), dir::Type::FixedArray(actual)) => {
-                let pattern = [pattern.element, pattern.count];
-                let actual = [actual.element, actual.count];
-
-                self.match_infer_arguments(origin, captures, variance, &pattern, &actual)
-            }
-            (dir::Type::Tuple(pattern), dir::Type::Tuple(actual))
-                if pattern.form == actual.form
-                    && pattern.elements.len() == actual.elements.len() =>
-            {
-                let pattern_elements: SmallVec<[_; 4]> = self
-                    .tuple_elements(pattern_module, pattern.elements)?
-                    .into();
-                let actual_elements: SmallVec<[_; 4]> =
-                    self.tuple_elements(actual_module, actual.elements)?.into();
-
-                self.match_infer_tuple(
-                    origin,
-                    captures,
-                    variance,
-                    &pattern_elements,
-                    &actual_elements,
-                )
-            }
-            // class names match constructor patterns by their construct signatures
-            (
-                dir::Type::FunctionSignature(_),
-                dir::Type::Reference(dir::TypeReference { symbol })
-                | dir::Type::Application(dir::GenericApplication { symbol, .. }),
-            ) => {
-                let reference = dir::TypeReference { symbol };
-                let candidates = self.reference_construct_signatures(reference)?;
-                let mut matched = false;
-                for candidate in candidates {
-                    matched = matched
-                        || (self
-                            .match_infer_type(origin, captures, variance, pattern, candidate)?);
-                    if matched {
-                        break;
-                    }
-                }
-
-                Ok(matched)
-            }
-            (dir::Type::Object(pattern), dir::Type::Object(actual)) => self.match_infer_shape(
-                origin,
-                captures,
-                variance,
-                pattern_module,
-                pattern,
-                actual_module,
-                actual,
-            ),
-            (dir::Type::FunctionSignature(pattern), dir::Type::FunctionSignature(actual)) => {
-                let pattern = self.type_signature(pattern_module, pattern)?;
-                let actual = self.type_signature(actual_module, actual)?;
-
-                self.match_infer_function(
-                    origin,
-                    captures,
-                    variance,
-                    pattern_module,
-                    &pattern,
-                    actual_module,
-                    &actual,
-                )
-            }
-            (dir::Type::Function(pattern), dir::Type::Function(actual)) => self.match_infer_type(
-                origin,
-                captures,
-                variance,
-                pattern.signature,
-                actual.signature,
-            ),
-            (dir::Type::FunctionPointer(pattern), dir::Type::FunctionPointer(actual)) => self
-                .match_infer_type(
-                    origin,
-                    captures,
-                    variance,
-                    pattern.signature,
-                    actual.signature,
-                ),
-            (dir::Type::Form(pattern), dir::Type::Form(actual)) if pattern.form == actual.form => {
-                self.match_infer_type(origin, captures, variance, pattern.value, actual.value)
-            }
-            _ => {
-                let verdict = self.evaluate_relation(origin, Relation::Extends, actual, pattern)?;
-
-                Ok(verdict.holds())
-            }
-        }
-    }
-
-    /// Match positional type arguments inside a conditional `infer` pattern.
-    fn match_infer_arguments(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        pattern: &[dir::GlobalTypeId],
-        actual: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
-        if pattern.len() != actual.len() {
-            return Ok(false);
-        }
-
-        for (pattern, actual) in pattern.iter().copied().zip(actual.iter().copied()) {
-            if !self.match_infer_type(origin, captures, variance, pattern, actual)? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Match structural shapes inside a conditional `infer` pattern.
-    fn match_infer_shape(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        pattern_module: ModuleId,
-        pattern: dir::ShapeType,
-        actual_module: ModuleId,
-        actual: dir::ShapeType,
-    ) -> CompilerResult<bool> {
-        let pattern_fields: SmallVec<[_; 4]> = self
-            .shape_properties(pattern_module, pattern.properties)?
-            .into();
-        let actual_fields: SmallVec<[_; 4]> = self
-            .shape_properties(actual_module, actual.properties)?
-            .into();
-        let fields = self.match_infer_shape_fields(
-            origin,
-            captures,
-            variance,
-            &pattern_fields,
-            &actual_fields,
-        )?;
-        if !fields {
-            return Ok(fields);
-        }
-
-        let pattern_calls: SmallVec<[_; 8]> = self
-            .type_ids(pattern_module, pattern.call_signatures)?
-            .into();
-        let actual_calls: SmallVec<[_; 8]> =
-            self.type_ids(actual_module, actual.call_signatures)?.into();
-        let calls =
-            self.match_infer_arguments(origin, captures, variance, &pattern_calls, &actual_calls)?;
-        if !calls {
-            return Ok(calls);
-        }
-
-        let pattern_constructs: SmallVec<[_; 8]> = self
-            .type_ids(pattern_module, pattern.construct_signatures)?
-            .into();
-        let actual_constructs: SmallVec<[_; 8]> = self
-            .type_ids(actual_module, actual.construct_signatures)?
-            .into();
-        let constructs = self.match_infer_arguments(
-            origin,
-            captures,
-            variance,
-            &pattern_constructs,
-            &actual_constructs,
-        )?;
-        if !constructs {
-            return Ok(constructs);
-        }
-
-        let pattern_indexes: SmallVec<[_; 4]> = self
-            .shape_index_signatures(pattern_module, pattern.index_signatures)?
-            .into();
-        let actual_indexes: SmallVec<[_; 4]> = self
-            .shape_index_signatures(actual_module, actual.index_signatures)?
-            .into();
-        self.match_infer_index_signatures(
-            origin,
-            captures,
-            variance,
-            &pattern_indexes,
-            &actual_indexes,
-        )
-    }
-
-    /// Match structural fields inside a conditional `infer` pattern.
-    fn match_infer_shape_fields(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        pattern: &[dir::TypeProperty],
-        actual: &[dir::TypeProperty],
-    ) -> CompilerResult<bool> {
-        for pattern_field in pattern {
-            let actual_field = actual.iter().find(|field| field.key == pattern_field.key);
-            let Some(actual_field) = actual_field else {
-                if pattern_field.is_optional {
-                    continue;
-                }
-
-                return Ok(false);
-            };
-            if actual_field.is_optional && !pattern_field.is_optional {
-                return Ok(false);
-            }
-
-            if !self.match_infer_type(
-                origin,
-                captures,
-                variance,
-                pattern_field.access.store(),
-                actual_field.access.store(),
-            )? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Match index signatures inside a conditional `infer` pattern.
-    fn match_infer_index_signatures(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        pattern: &[dir::TypeIndexSignature],
-        actual: &[dir::TypeIndexSignature],
-    ) -> CompilerResult<bool> {
-        if pattern.len() != actual.len() {
-            return Ok(false);
-        }
-
-        for (pattern, actual) in pattern.iter().zip(actual) {
-            if pattern.is_optional != actual.is_optional
-                || pattern.is_readonly != actual.is_readonly
-            {
-                return Ok(false);
-            }
-
-            if !self.match_infer_type(
-                origin,
-                captures,
-                variance,
-                pattern.key_type,
-                actual.key_type,
-            )? {
-                return Ok(false);
-            }
-
-            if !self.match_infer_type(
-                origin,
-                captures,
-                variance,
-                pattern.value_type,
-                actual.value_type,
-            )? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Match generic arguments inside a same-symbol application pattern.
-    fn match_infer_instance_arguments(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        symbol: dir::GlobalSymbolId,
-        pattern: &[dir::GlobalTypeId],
-        actual: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
-        if pattern.len() != actual.len() {
-            return Ok(false);
-        }
-        let parameters = match self.symbol_template(symbol)? {
-            Some(template) => Some(self.generic_template_parameters(template)?),
-            None => None,
-        };
-        for (index, (pattern, actual)) in pattern
-            .iter()
-            .copied()
-            .zip(actual.iter().copied())
-            .enumerate()
-        {
-            let argument_variance = match &parameters {
-                Some(parameters) => match parameters.get(index) {
-                    Some(parameter) => {
-                        let form = self.default_variance_form(symbol)?;
-                        variance.compose(self.parameter_variance(*parameter, form)?)
-                    }
-                    None => Variance::Invariant,
-                },
-                None => Variance::Invariant,
-            };
-
-            if !self.match_infer_type(origin, captures, argument_variance, pattern, actual)? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Match tuple elements inside a conditional `infer` pattern.
-    fn match_infer_tuple(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        pattern: &[dir::TypeElement],
-        actual: &[dir::TypeElement],
-    ) -> CompilerResult<bool> {
-        for (pattern, actual) in pattern.iter().zip(actual) {
-            if pattern.is_optional != actual.is_optional
-                || pattern.is_readonly != actual.is_readonly
-                || pattern.is_rest != actual.is_rest
-            {
-                return Ok(false);
-            }
-            if !self.match_infer_type(origin, captures, variance, pattern.ty, actual.ty)? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Match function signatures inside a conditional `infer` pattern.
-    fn match_infer_function(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        pattern_module: ModuleId,
-        pattern: &dir::FunctionSignatureType,
-        actual_module: ModuleId,
-        actual: &dir::FunctionSignatureType,
-    ) -> CompilerResult<bool> {
-        if pattern.asynchrony != actual.asynchrony || pattern.is_generator != actual.is_generator {
-            return Ok(false);
-        }
-
-        // match explicit receiver when the pattern names one
-        let receiver = match (pattern.this_parameter, actual.this_parameter) {
-            (Some(pattern), Some(actual)) => {
-                self.match_infer_type(origin, captures, variance.flip(), pattern, actual)?
-            }
-            (Some(_), None) => return Ok(false),
-            (None, _) => true,
-        };
-        if !receiver {
-            return Ok(receiver);
-        }
-
-        // match runtime parameters, including tuple capture from rest patterns
-        let pattern_parameters: SmallVec<[_; 4]> = self
-            .signature_parameters(pattern_module, pattern.parameters)?
-            .into();
-        let actual_parameters: SmallVec<[_; 4]> = self
-            .signature_parameters(actual_module, actual.parameters)?
-            .into();
-        let parameters = self.match_infer_function_parameters(
-            origin,
-            captures,
-            variance.flip(),
-            &pattern_parameters,
-            &actual_parameters,
-        )?;
-        if !parameters {
-            return Ok(parameters);
-        }
-
-        match (pattern.return_type, actual.return_type) {
-            (Some(pattern), Some(actual)) => {
-                self.match_infer_type(origin, captures, variance, pattern, actual)
-            }
-            (Some(_), None) => Ok(false),
-            (None, _) => Ok(true),
-        }
-    }
-
-    /// Match function parameters inside a conditional `infer` pattern.
-    fn match_infer_function_parameters(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        pattern: &[dir::FunctionParameterType],
-        actual: &[dir::FunctionParameterType],
-    ) -> CompilerResult<bool> {
-        // span the full actual parameter tuple with one rest parameter pattern
-        if let [rest] = pattern
-            && rest.is_rest
-        {
-            return self.match_infer_rest_parameter(origin, captures, variance, *rest, actual);
-        }
-
-        if pattern.len() != actual.len() {
-            return Ok(false);
-        }
-
-        for (pattern, actual) in pattern.iter().zip(actual) {
-            if pattern.is_optional != actual.is_optional || pattern.is_rest != actual.is_rest {
-                return Ok(false);
-            }
-            if !self.match_infer_type(origin, captures, variance, pattern.ty, actual.ty)? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Match a rest parameter pattern against a full parameter list.
-    fn match_infer_rest_parameter(
-        &mut self,
-        origin: Origin,
-        captures: &mut InferMatch,
-        variance: Variance,
-        pattern: dir::FunctionParameterType,
-        actual: &[dir::FunctionParameterType],
-    ) -> CompilerResult<bool> {
-        let pattern_type = self.normalize(origin, pattern.ty)?;
-
-        // infer rest parameters capture the actual parameter tuple
-        if let Some(dir::TypeOperation::Infer(infer)) = self.operation_head(pattern_type)?
-            && captures.binder_index(pattern_type, infer.symbol).is_some()
-        {
-            let symbol = infer.symbol;
-            let captured = self.function_parameter_tuple(actual)?;
-
-            return Ok(captures.bind(pattern_type, symbol, captured, variance));
-        }
-
-        // non-infer rest parameters check every actual parameter
-        for parameter in actual {
-            let expected = if parameter.is_rest {
-                pattern_type
-            } else {
-                self.spread_element_type(pattern_type)?
-            };
-            if !self.match_infer_type(origin, captures, variance, expected, parameter.ty)? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Return the tuple type represented by one function parameter list.
-    fn function_parameter_tuple(
-        &mut self,
-        parameters: &[dir::FunctionParameterType],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut elements = Vec::with_capacity(parameters.len());
-        for parameter in parameters {
-            elements.push(dir::TypeElement {
-                label: None,
-                ty: parameter.ty,
-                is_optional: parameter.is_optional,
-                is_readonly: false,
-                is_rest: parameter.is_rest,
-            });
-        }
-
-        let elements = self.intern_elements(&elements)?;
-        let tuple = self.intern_type(dir::Type::Tuple(dir::TupleType {
-            form: dir::TupleForm::Tuple,
-            elements,
-        }))?;
-
-        Ok(tuple)
     }
 }

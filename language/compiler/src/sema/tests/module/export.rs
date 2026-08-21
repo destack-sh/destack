@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_star_export_exposes_reexported_binding() {
+fn test_expose_a_reexported_binding_through_a_star_export() {
     let session = TestSession::builder()
         .module(
             "source.ds",
@@ -48,7 +48,7 @@ const direct = value;
 }
 
 #[test]
-fn test_namespace_export_exposes_member_binding() {
+fn test_expose_a_member_binding_through_a_namespace_export() {
     let session = TestSession::builder()
         .module(
             "source.ds",
@@ -95,7 +95,7 @@ const namespaced = source.value;
 }
 
 #[test]
-fn test_unresolved_reference_names_the_declaring_sibling() {
+fn test_name_the_declaring_module_for_an_unresolved_reference() {
     let session = TestSession::builder()
         .module(
             "util.ds",
@@ -167,7 +167,7 @@ export const config = { retries: 3, name: "job" };
 === annotated ===
 export const flag: true = true;
 export const count: -3 = -3;
-export const label: string = `name`;
+export const label: "name" = `name`;
 export const pair: int64[] = [1, 2];
 export const config: { retries: int64; name: string } = { retries: 3, name: "job" };
 
@@ -182,7 +182,7 @@ export const count = -3;
 /// @resolution.operator source=-3 type=-3 operator="-" kind=builtin operands=[3 as 3 families=(integer)]
 
 export const label = `name`;
-/// @type.symbol symbol=label source=label type=string
+/// @type.symbol symbol=label source=label type="name"
 /// @resolution.pattern source=label kind=binding target=label
 
 export const pair = [1, 2];

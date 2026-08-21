@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_let_array_widens_element_literals() {
+fn test_widen_element_literals_in_a_let_array() {
     let session = TestSession::single(
         r#"
 let values = [1, 2];
@@ -51,7 +51,7 @@ const first = values[0];
 }
 
 #[test]
-fn test_contextual_array_preserves_union_element_type() {
+fn test_preserve_a_union_element_type_in_a_contextual_array() {
     let session = TestSession::single(
         r#"
 const values: (1 | 2)[] = [1, 2];
@@ -101,7 +101,7 @@ const first = values[0];
 }
 
 #[test]
-fn test_contextual_literal_requires_coercion_for_mixed_union() {
+fn test_require_coercion_for_a_contextual_literal_in_a_mixed_union() {
     let session = TestSession::single(
         r#"
 const value: number | boolean = 1;
@@ -129,7 +129,7 @@ const value: number | boolean = 1;
 }
 
 #[test]
-fn test_union_coercion_records_case_adjustments() {
+fn test_record_case_adjustments_for_a_union_coercion() {
     let session = TestSession::single(
         r#"
 newtype Flag = boolean;
@@ -178,7 +178,7 @@ function widen(value: 1 | Flag): int32 | Flag {
 }
 
 #[test]
-fn test_union_members_coerce_to_common_target() {
+fn test_coerce_union_members_to_a_common_target() {
     let session = TestSession::single(
         r#"
 function widen(value: 1 | 2): int32 {
@@ -217,7 +217,7 @@ function widen(value: 1 | 2): int32 {
 }
 
 #[test]
-fn test_const_conditional_preserves_literal_union() {
+fn test_preserve_a_literal_union_in_a_const_conditional() {
     let session = TestSession::single(
         r#"
 const value = true ? 1 : 2;
@@ -248,7 +248,7 @@ const value = true ? 1 : 2;
 }
 
 #[test]
-fn test_let_conditional_widens_literal_union() {
+fn test_widen_a_literal_union_in_a_let_conditional() {
     let session = TestSession::single(
         r#"
 let value = true ? 1 : 2;
@@ -274,6 +274,101 @@ let value = true ? 1 : 2;
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
 /// @diagnostic.label line=2 column=13 span="true" line_source="let value = true ? 1 : 2;"
+"#,
+    );
+}
+
+/// Widen the literal result a closure returns without an annotation.
+#[test]
+fn test_widen_the_literal_result_of_an_unannotated_closure() {
+    let session = TestSession::single(
+        r#"
+const label = () => "ready";
+const exact = (): "ready" => "ready";
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+const label: () => string = (): string => "ready";
+const exact: () => "ready" = (): "ready" => "ready";
+
+=== dir ===
+const label = () => "ready";
+/// @type.symbol symbol=label source=label type=Function<(), string>
+/// @resolution.pattern source=label kind=binding target=label
+/// @type.symbol symbol=symbol1 source="() => \"ready\"" type=Function<(), string>
+/// @type.node source="() => \"ready\"" type=Function<(), string>
+/// @type.node source="\"ready\"" type="ready"
+
+const exact = (): "ready" => "ready";
+/// @type.symbol symbol=exact source=exact type=Function<(), "ready">
+/// @resolution.pattern source=exact kind=binding target=exact
+/// @type.symbol symbol=symbol3 source="(): \"ready\" => \"ready\"" type=Function<(), "ready">
+/// @type.node source="(): \"ready\" => \"ready\"" type=Function<(), "ready">
+/// @type.node source="\"ready\"" type="ready"
+"#,
+        r#"
+
+"#,
+    );
+}
+
+/// Drop excess property checking once an object literal is read back through a binding.
+#[test]
+fn test_drop_excess_property_checking_through_a_widened_binding() {
+    let session = TestSession::single(
+        r#"
+const source = { name: "Ada", extra: 1 };
+const target: { name: string } = source;
+const direct: { name: string } = { name: "Ada", extra: 1 };
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+const source: { name: string; extra: int64 } = { name: "Ada", extra: 1 };
+const target: { name: string } = source;
+const direct: { name: string } = { name: "Ada", extra: 1 };
+
+=== dir ===
+const source = { name: "Ada", extra: 1 };
+/// @type.symbol symbol=source source=source type={ name: string; extra: int64 }
+/// @resolution.pattern source=source kind=binding target=source
+/// @type.node source={ name: "Ada", extra: 1 } type={ name: string; extra: int64 }
+/// @type.node source="\"Ada\"" type="Ada"
+/// @type.node source=1 type=1
+
+const target: { name: string } = source;
+/// @type.symbol symbol=target source=target type={ name: string }
+/// @resolution.pattern source=target kind=binding target=target
+/// @type.node source=source type={ name: string; extra: int64 }
+/// @resolution.name source=source target=source
+/// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=source root=source
+
+const direct: { name: string } = { name: "Ada", extra: 1 };
+/// @type.symbol symbol=direct source=direct type={ name: string }
+/// @resolution.pattern source=direct kind=binding target=direct
+/// @type.node source={ name: "Ada", extra: 1 } type={ name: string }
+/// @type.node source="\"Ada\"" type="Ada"
+/// @type.node source=1 type=1
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '{ name: string; extra: int64 }' is not assignable to type '{ name: string }'"
+/// @diagnostic.label line=3 column=34 span="source" line_source="const target: { name: string } = source;"
+/// @diagnostic.related line=3 column=15 span="{ name: string }" line_source="const target: { name: string } = source;" message="expected due to this annotation"
+/// @diagnostic.note message="'{ name: string }' stores its exact object type, declare an interface to accept structurally wider values"
+/// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type '{ name: string }'"
+/// @diagnostic.label line=4 column=34 span="{ name: \"Ada\", extra: 1 }" line_source="const direct: { name: string } = { name: \"Ada\", extra: 1 };"
+/// @diagnostic.related line=4 column=15 span="{ name: string }" line_source="const direct: { name: string } = { name: \"Ada\", extra: 1 };" message="expected due to this annotation"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }

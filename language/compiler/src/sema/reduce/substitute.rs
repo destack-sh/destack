@@ -140,10 +140,11 @@ enum SubstitutionRule<'a> {
     },
     /// Replace conditional-infer binders with captured types.
     SubstituteInfer {
-        /// The declaration whose computed entries settle.
-        origin: Origin,
         /// The captured types keyed by binder symbol.
         captures: &'a [InferSubstitution],
+        /// The origin closed rebuilt entries normalize under, absent for a branch that tails
+        /// into another conditional and evaluates in place.
+        origin: Option<Origin>,
     },
     /// Remove every inference barrier.
     EraseNoInfer,
@@ -643,7 +644,7 @@ impl CheckState<'_> {
     /// Substitute conditional-infer captures inside one branch type.
     pub(in crate::sema) fn substitute_infer_captures(
         &mut self,
-        origin: Origin,
+        origin: Option<Origin>,
         target: ModuleId,
         id: dir::GlobalTypeId,
         captures: &[InferSubstitution],
@@ -655,7 +656,7 @@ impl CheckState<'_> {
         self.substitute_graph(
             target,
             id,
-            SubstitutionRule::SubstituteInfer { origin, captures },
+            SubstitutionRule::SubstituteInfer { captures, origin },
         )
     }
 
@@ -893,7 +894,10 @@ impl CheckState<'_> {
 
         // normalize rebuilt entries that hold no parameter, this, or variable
         if let SubstitutionRule::Normalize { origin }
-        | SubstitutionRule::SubstituteInfer { origin, .. } = rule
+        | SubstitutionRule::SubstituteInfer {
+            origin: Some(origin),
+            ..
+        } = rule
         {
             let flags = self.type_flags(rebuilt)?;
             if !flags.has_parameter() && !flags.has_this() && !flags.has_variable() {

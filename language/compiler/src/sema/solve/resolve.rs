@@ -393,7 +393,7 @@ impl CheckState<'_> {
             }
             if matches!(
                 bound.relation,
-                Relation::Assignable | Relation::Widens | Relation::Subtype
+                Relation::Assignable | Relation::Widens | Relation::Subtype | Relation::Extends
             ) {
                 contextual_types.push(bound.ty);
             }
@@ -456,6 +456,12 @@ impl CheckState<'_> {
             Some(equation)
         } else if is_unconstrained_recursion {
             None
+        }
+        // take an infer binder's covariant candidates over its contravariant bounds
+        else if let Some(lower_solution) = lower_solution
+            && self.infer.variable_role(variable)? == VariableRole::Binder
+        {
+            Some(lower_solution)
         } else if let Some(lower_solution) = lower_solution {
             let verdict = self.solution_satisfies_bounds(
                 origin,

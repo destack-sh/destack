@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{
@@ -54,22 +55,22 @@ impl CheckState<'_> {
         };
         let reduction = self.reduce_index(origin, &index)?;
         let invalid = match reduction {
-            // index parameter receivers as their bound would, other rigid keys prove membership
+            // index parameter receivers as their bounds would, other rigid keys prove membership
             OperationReduction::Rigid => {
-                let bound = match self.ty(index.left)? {
-                    dir::Type::Parameter(parameter) => self
-                        .generic_parameter(parameter)
-                        .and_then(|binding| binding.constraint),
-                    _ => None,
+                let bounds = match self.ty(index.left)? {
+                    dir::Type::Parameter(parameter) => self.parameter_bounds(origin, parameter)?,
+                    _ => SmallVec::new(),
                 };
-                if let Some(bound) = bound {
-                    let bounded = dir::IndexType {
-                        left: bound,
-                        index: index.index,
-                    };
-                    match self.reduce_index(origin, &bounded)? {
-                        OperationReduction::Invalid(_) => {}
-                        _ => return Ok(ObligationCheck::holds()),
+                if !bounds.is_empty() {
+                    for bound in bounds {
+                        let bounded = dir::IndexType {
+                            left: bound,
+                            index: index.index,
+                        };
+                        match self.reduce_index(origin, &bounded)? {
+                            OperationReduction::Invalid(_) => {}
+                            _ => return Ok(ObligationCheck::holds()),
+                        }
                     }
                 } else {
                     let keys =

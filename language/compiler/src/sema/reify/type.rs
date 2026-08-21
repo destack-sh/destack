@@ -1,6 +1,6 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::CompilerResult;
 use crate::sema::CheckState;
@@ -624,7 +624,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
             dir::Type::Operation(operation) => {
                 let operation = self.check.type_operation(id.module_id, operation)?;
-                let Some(expression) = self.reify_operation(&operation, next)? else {
+                let Some(expression) = self.reify_operation(id.module_id, &operation, next)? else {
                     return Ok(None);
                 };
 
@@ -678,6 +678,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     /// Reify one preserved type operation.
     fn reify_operation(
         &mut self,
+        module: ModuleId,
         operation: &dir::TypeOperation,
         depth: usize,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
@@ -755,12 +756,27 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 name: infer.name,
                 constraint: None,
             },
+            dir::TypeOperation::TemplateLiteral(template) => {
+                let strings = self
+                    .check
+                    .template_strings(module, template.strings)?
+                    .to_vec();
+                let span_types = self.check.type_ids(module, template.spans)?.to_vec();
+                let mut spans = Vec::with_capacity(span_types.len());
+                for span in span_types {
+                    let Some(span) = self.reify_depth(span, depth)? else {
+                        return Ok(None);
+                    };
+                    spans.push(span);
+                }
+
+                dir::TypeExpression::TemplateLiteral { strings, spans }
+            }
             // skip the remaining operations, which have no faithful annotation form
             dir::TypeOperation::StringMapping { .. }
             | dir::TypeOperation::Narrow(_)
             | dir::TypeOperation::TypeOf(_)
             | dir::TypeOperation::Mapped(_)
-            | dir::TypeOperation::TemplateLiteral(_)
             | dir::TypeOperation::TryOutput { .. }
             | dir::TypeOperation::TryResidual { .. }
             | dir::TypeOperation::StaticBinary(_)

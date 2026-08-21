@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_closure_parameters_type_from_an_aliased_contextual_signature() {
+fn test_type_closure_parameters_from_an_aliased_contextual_signature() {
     let session = TestSession::single(
         r#"
 type Consume<T> = (value: T) => void;
@@ -133,7 +133,7 @@ function capture<T>(): void {
 }
 
 #[test]
-fn test_closure_parameters_type_from_the_contextual_signature() {
+fn test_type_closure_parameters_from_the_contextual_signature() {
     let session = TestSession::single(
         r#"
 class Cell<T> {
@@ -277,6 +277,381 @@ const callback: (value: int32) => int32 | undefined = (value) => value + 1;
 /// @resolution.access source=value root=symbol1.value
 "#,
         r#"
+"#,
+    );
+}
+
+/// Type closure parameters from the element type a sibling argument infers.
+#[test]
+fn test_type_closure_parameters_from_a_generic_call_argument() {
+    let session = TestSession::single(
+        r#"
+declare function map<T, U>(values: T[], callback: (value: T) => U): U[];
+
+declare const counts: int32[];
+
+const labels = map(counts, (count) => count > 0);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare function map<T, U>(values: T[], callback: (arg0: T) => U): U[];
+
+declare const counts: int32[];
+
+const labels: boolean[] = map<int32, boolean>(counts, (count: int32): boolean => count > 0);
+
+=== dir ===
+declare function map<T, U>(values: T[], callback: (value: T) => U): U[];
+/// @generic.template symbol=map parameters=(T, U)
+/// @type.symbol symbol=map source="declare function map<T, U>(values: T[], callback: (value: T) => U): U[]" type=<T, U>(T[], Function<(T,), U>) => U[]
+/// @type.symbol symbol=map.T source=T type=T
+/// @type.symbol symbol=map.U source=U type=U
+/// @type.symbol symbol=map.values source="values: T[]" type=T[]
+/// @resolution.name source=T target=map.T
+/// @type.symbol symbol=map.callback source="callback: (value: T) => U" type=Function<(T,), U>
+/// @type.symbol symbol=map.value source="value: T" type=T
+/// @resolution.name source=T target=map.T
+/// @resolution.name source=U target=map.U
+/// @resolution.name source=U target=map.U
+
+declare const counts: int32[];
+/// @type.symbol symbol=counts source=counts type=int32[]
+/// @resolution.pattern source=counts kind=binding target=counts
+
+const labels = map(counts, (count) => count > 0);
+/// @type.symbol symbol=labels source=labels type=boolean[]
+/// @resolution.pattern source=labels kind=binding target=labels
+/// @type.node source="map(counts, (count) => count > 0)" type=boolean[]
+/// @type.node source=map type=(int32[], Function<(int32,), boolean>) => boolean[]
+/// @resolution.name source=map target=map
+/// @resolution.call source="map(counts, (count) => count > 0)" parameters=(int32[], Function<(int32,), boolean>) arguments=(provided(counts) as int32[], provided((count) => count > 0) as Function<(int32,), boolean>) return=boolean[] kind=symbol target=map instance="map<int32, boolean>"
+/// @generic.instantiation id="map<int32, boolean>" template=map arguments=(int32, boolean)
+/// @type.node source=counts type=int32[]
+/// @resolution.name source=counts target=counts
+/// @resolution.place source=counts placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=counts root=counts
+/// @type.symbol symbol=symbol8 source="(count) => count > 0" type=Function<(int32,), boolean>
+/// @type.node source="(count) => count > 0" type=Function<(int32,), boolean>
+/// @type.symbol symbol=symbol8.count source=count type=int32
+/// @type.node source="count > 0" type=boolean
+/// @type.node source=count type=int32
+/// @resolution.name source=count target=symbol8.count
+/// @resolution.operator source="count > 0" type=boolean operator=">" kind=builtin operands=[count as int32 families=(integer), 0 as int32 families=(integer)]
+/// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=count root=symbol8.count
+/// @type.node source=0 type=0
+"#,
+        r#"
+
+"#,
+    );
+}
+
+/// Reject a closure that takes more parameters than its contextual signature.
+#[test]
+fn test_reject_a_closure_with_more_parameters_than_the_contextual_signature() {
+    let session = TestSession::single(
+        r#"
+declare function run(callback: (value: int32) => void): void;
+
+run((value, extra) => {
+    value;
+    extra;
+});
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare function run(callback: (arg0: int32) => void): void;
+
+run((value: int32, extra): void => {
+    value;
+    extra;
+});
+
+=== dir ===
+declare function run(callback: (value: int32) => void): void;
+/// @type.symbol symbol=run source="declare function run(callback: (value: int32) => void): void" type=(Function<(int32,), void>) => void
+/// @type.symbol symbol=run.callback source="callback: (value: int32) => void" type=Function<(int32,), void>
+/// @type.symbol symbol=run.value source="value: int32" type=int32
+
+run((value, extra) => {
+/// @type.node source=run type=(Function<(int32,), void>) => void
+/// @type.node type=void
+/// @resolution.name source=run target=run
+/// @resolution.call parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=void kind=symbol target=run
+/// @type.symbol symbol=symbol4 type=Function<(int32, <error>), void>
+/// @type.node type=Function<(int32, <error>), void>
+/// @type.symbol symbol=symbol4.value source=value type=int32
+/// @type.symbol symbol=symbol4.extra source=extra type=<error>
+
+    value;
+    extra;
+});
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: int32, extra: _) => void' is not assignable to parameter of type '(value: int32) => void'"
+/// @diagnostic.label line=4 column=5 span="(value, extra) => {\n    value;\n    extra;\n}" line_source="run((value, extra) => {"
+/// @diagnostic.related line=4 column=1 span="run((value, extra) => {\n    value;\n    extra;\n})" line_source="run((value, extra) => {" message="in this call"
+"#,
+    );
+}
+
+/// Keep a written closure parameter type over the contextual one and reject a mismatch.
+#[test]
+fn test_keep_a_written_closure_parameter_type_over_the_contextual_one() {
+    let session = TestSession::single(
+        r#"
+declare function run(callback: (value: int32 | string) => void): void;
+
+run((value: int32 | string) => {
+    value;
+});
+run((value: boolean) => {
+    value;
+});
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare function run(callback: (arg0: int32 | string) => void): void;
+
+run((value: int32 | string): void => {
+    value;
+});
+run((value: boolean) => {
+    value;
+});
+
+=== dir ===
+declare function run(callback: (value: int32 | string) => void): void;
+/// @type.symbol symbol=run source="declare function run(callback: (value: int32 | string) => void): void" type=(Function<(int32 | string,), void>) => void
+/// @type.symbol symbol=run.callback source="callback: (value: int32 | string) => void" type=Function<(int32 | string,), void>
+/// @type.symbol symbol=run.value source="value: int32 | string" type=int32 | string
+
+run((value: int32 | string) => {
+/// @type.node source=run type=(Function<(int32 | string,), void>) => void
+/// @type.node type=void
+/// @resolution.name source=run target=run
+/// @resolution.call parameters=(Function<(int32 | string,), void>) arguments=(provided(argument) as Function<(int32 | string,), void>) return=void kind=symbol target=run
+/// @type.symbol symbol=symbol4 type=Function<(int32 | string,), void>
+/// @type.node type=Function<(int32 | string,), void>
+/// @type.symbol symbol=symbol4.value source="value: int32 | string" type=int32 | string
+
+    value;
+    /// @type.node source=value type=int32 | string
+    /// @resolution.name source=value target=symbol4.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=symbol4.value
+
+});
+run((value: boolean) => {
+/// @type.node source=run type=(Function<(int32 | string,), void>) => void
+/// @type.node type=void
+/// @resolution.name source=run target=run
+/// @resolution.call parameters=(Function<(int32 | string,), void>) arguments=(provided(argument) as Function<(int32 | string,), void>) return=void kind=symbol target=run
+/// @type.symbol symbol=symbol6 type=Function<(boolean,), <error>>
+/// @type.node type=Function<(boolean,), <error>>
+/// @type.symbol symbol=symbol6.value source="value: boolean" type=boolean
+
+    value;
+});
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: boolean) => _' is not assignable to parameter of type '(value: int32 | string) => void'"
+/// @diagnostic.label line=7 column=5 span="(value: boolean) => {\n    value;\n}" line_source="run((value: boolean) => {"
+/// @diagnostic.related line=7 column=1 span="run((value: boolean) => {\n    value;\n})" line_source="run((value: boolean) => {" message="in this call"
+"#,
+    );
+}
+
+/// Union the result of a closure that returns from more than one branch.
+#[test]
+fn test_union_the_return_statements_of_a_closure() {
+    let session = TestSession::single(
+        r#"
+declare const flag: boolean;
+
+const choose = () => {
+    if (flag) {
+        return "text";
+    }
+
+    return 1;
+};
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const flag: boolean;
+
+const choose: () => string = (): string => {
+    if (flag) {
+        return "text";
+    }
+
+    return 1;
+};
+
+=== dir ===
+declare const flag: boolean;
+/// @type.symbol symbol=flag source=flag type=boolean
+/// @resolution.pattern source=flag kind=binding target=flag
+
+const choose = () => {
+/// @type.symbol symbol=choose source=choose type=Function<(), string>
+/// @resolution.pattern source=choose kind=binding target=choose
+/// @type.symbol symbol=symbol2 type=Function<(), string>
+/// @type.node type=Function<(), string>
+
+    if (flag) {
+    /// @type.node source=flag type=boolean
+    /// @resolution.name source=flag target=flag
+    /// @resolution.place source=flag placement="local" lifetime="static" access="readonly"
+    /// @resolution.access source=flag root=flag
+
+        return "text";
+        /// @type.node source="\"text\"" type="text"
+
+    }
+
+    return 1;
+    /// @type.node source=1 type=1
+
+};
+"#,
+        r#"
+/// @diagnostic.error id=return-not-assignable message="type '1' is not assignable to the declared result type 'string'"
+/// @diagnostic.label line=9 column=12 span="1" line_source="return 1;"
+"#,
+    );
+}
+
+/// Take the contextual signature through an optional callback type.
+#[test]
+fn test_take_the_contextual_signature_through_an_optional_callback_type() {
+    let session = TestSession::single(
+        r#"
+type Handler = ((value: int32) => void) | undefined;
+
+const handler: Handler = (value) => {
+    value;
+};
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+type Handler = ((value: int32) => void) | undefined;
+
+const handler: ((arg0: int32) => void) | undefined = ((value: int32): void => {
+    value;
+}) as ((arg0: int32) => void) | undefined;
+
+=== dir ===
+type Handler = ((value: int32) => void) | undefined;
+/// @type.symbol symbol=Handler source="type Handler = ((value: int32) => void) | undefined" type=Function<(int32,), void> | undefined
+/// @definition.type symbol=Handler source="type Handler = ((value: int32) => void) | undefined" value=Function<(int32,), void> | undefined
+/// @type.symbol symbol=Handler.value source="value: int32" type=int32
+
+const handler: Handler = (value) => {
+/// @type.symbol symbol=handler source=handler type=Function<(int32,), void> | undefined
+/// @resolution.pattern source=handler kind=binding target=handler
+/// @resolution.name source=Handler target=Handler
+/// @type.symbol symbol=symbol3 type=Function<(int32,), void>
+/// @type.node type=Function<(int32,), void>
+/// @type.symbol symbol=symbol3.value source=value type=int32
+
+    value;
+    /// @type.node source=value type=int32
+    /// @resolution.name source=value target=symbol3.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=symbol3.value
+
+};
+"#,
+        r#"
+
+"#,
+    );
+}
+
+/// Type a closure parameter from a type variable an earlier argument already fixed.
+#[test]
+fn test_type_a_closure_parameter_from_an_earlier_fixed_argument() {
+    let session = TestSession::single(
+        r#"
+declare function withValue<T>(value: T, callback: (value: T) => void): void;
+
+withValue("ready", (value) => {
+    value;
+});
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare function withValue<T>(value: T, callback: (arg0: T) => void): void;
+
+withValue<string>("ready", (value: string): void => {
+    value;
+});
+
+=== dir ===
+declare function withValue<T>(value: T, callback: (value: T) => void): void;
+/// @generic.template symbol=withValue parameters=(T)
+/// @type.symbol symbol=withValue source="declare function withValue<T>(value: T, callback: (value: T) => void): void" type=<T>(T, Function<(T,), void>) => void
+/// @type.symbol symbol=withValue.T source=T type=T
+/// @type.symbol symbol=withValue.value#1 source="value: T" type=T
+/// @resolution.name source=T target=withValue.T
+/// @type.symbol symbol=withValue.callback source="callback: (value: T) => void" type=Function<(T,), void>
+/// @type.symbol symbol=withValue.value#2 source="value: T" type=T
+/// @resolution.name source=T target=withValue.T
+
+withValue("ready", (value) => {
+/// @type.node source=withValue type=(string, Function<(string,), void>) => void
+/// @type.node type=void
+/// @resolution.name source=withValue target=withValue
+/// @resolution.call parameters=(string, Function<(string,), void>) arguments=(provided("ready") as string, provided(argument) as Function<(string,), void>) return=void kind=symbol target=withValue instance=withValue<string>
+/// @generic.instantiation id=withValue<string> template=withValue arguments=(string)
+/// @type.node source="\"ready\"" type="ready"
+/// @type.symbol symbol=symbol6 type=Function<(string,), void>
+/// @type.node type=Function<(string,), void>
+/// @type.symbol symbol=symbol6.value source=value type=string
+
+    value;
+    /// @type.node source=value type=string
+    /// @resolution.name source=value target=symbol6.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=symbol6.value
+
+});
+"#,
+        r#"
+
 "#,
     );
 }

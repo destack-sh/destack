@@ -31,9 +31,12 @@ impl CheckState<'_> {
             (dir::Type::Never, _) => Verdict::Holds,
 
             // string literals inhabit matching template literal patterns
-            (dir::Type::Literal(dir::Literal::String(text)), dir::Type::Operation(operation))
-                if let dir::TypeOperation::TemplateLiteral(template) =
-                    self.type_operation(target.module_id, operation)? =>
+            (
+                dir::Type::Literal(dir::Literal::String(text))
+                | dir::Type::Key(dir::StaticKey::Name(text)),
+                dir::Type::Operation(operation),
+            ) if let dir::TypeOperation::TemplateLiteral(template) =
+                self.type_operation(target.module_id, operation)? =>
             {
                 let text = self.strings().get(text).to_string();
 
@@ -372,7 +375,17 @@ impl CheckState<'_> {
                     .signature_head(target)?
                     .is_some_and(|head| head.is_construct) =>
             {
-                self.relate_reference_construct_assignable(origin, cause, source, target)?
+                self.relate_reference_construct_assignable(origin, cause, relation, source, target)?
+            }
+            // satisfy a bare construct signature from a class value's static side
+            (dir::Type::Static(value), dir::Type::FunctionSignature(_))
+                if self
+                    .signature_head(target)?
+                    .is_some_and(|head| head.is_construct)
+                    && let dir::StaticTerm::Type { ty } = self.r#static(value).clone()
+                    && matches!(self.ty(ty)?, dir::Type::Reference(_)) =>
+            {
+                self.relate_reference_construct_assignable(origin, cause, relation, ty, target)?
             }
             // satisfy a keyed object type from a nominal instance
             (dir::Type::Application(reference), dir::Type::Object(target_shape))

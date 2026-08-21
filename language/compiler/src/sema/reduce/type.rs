@@ -769,7 +769,7 @@ impl CheckState<'_> {
     }
 
     /// Return the substituted body of one transparent type alias application.
-    fn type_alias_body(
+    pub(super) fn type_alias_body(
         &mut self,
         _origin: Origin,
         instance_module: ModuleId,

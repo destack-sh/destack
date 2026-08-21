@@ -574,7 +574,7 @@ impl CheckState<'_> {
         // prove each required index signature from the source
         for signature in &requirements.index_signatures {
             let satisfied =
-                self.relate_index_signature(origin, relation, source, &signature.signature)?;
+                self.relate_index_signature(origin, cause, relation, source, &signature.signature)?;
             verdict = verdict.and(satisfied);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);

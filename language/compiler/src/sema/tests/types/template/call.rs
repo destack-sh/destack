@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_template_literal_calls_infer_captured_prefix_span() {
+fn test_infer_a_captured_prefix_span_through_a_template_literal_call() {
     let session = TestSession::single(
         r#"
 declare function parse<T: string>(value: `id:${T}`): T;
@@ -49,7 +49,7 @@ segment satisfies "users";
 }
 
 #[test]
-fn test_template_literal_calls_build_from_captured_span() {
+fn test_build_a_template_literal_from_a_captured_span() {
     let session = TestSession::single(
         r#"
 declare function build<T: string>(value: T): `id:${T}`;
@@ -97,7 +97,7 @@ key satisfies "id:users";
 }
 
 #[test]
-fn test_generic_template_literal_calls_accept_widened_string_inputs() {
+fn test_accept_widened_string_inputs_in_a_generic_template_literal_call() {
     let session = TestSession::single(
         r#"
 declare function identity<T: string>(value: `${T}`): T;
@@ -156,7 +156,7 @@ text satisfies string;
 }
 
 #[test]
-fn test_prefixed_template_literal_calls_reject_widened_string_inputs() {
+fn test_reject_widened_string_inputs_in_a_prefixed_template_literal_call() {
     let session = TestSession::single(
         r#"
 declare function parse<T: string>(value: `id:${T}`): T;
@@ -208,7 +208,7 @@ parse(key);
 }
 
 #[test]
-fn test_template_literal_calls_infer_empty_span_at_literal_boundary() {
+fn test_infer_an_empty_span_at_a_literal_boundary_through_a_template_literal_call() {
     let session = TestSession::single(
         r#"
 declare function parse<T: string>(value: `id:${T}`): T;
@@ -256,7 +256,7 @@ segment satisfies "";
 }
 
 #[test]
-fn test_template_literal_calls_infer_constrained_numeric_span() {
+fn test_infer_a_constrained_numeric_span_through_a_template_literal_call() {
     let session = TestSession::single(
         r#"
 declare function parse<T: number>(value: `${T}`): T;
@@ -304,7 +304,7 @@ value satisfies 42;
 }
 
 #[test]
-fn test_template_literal_calls_reject_invalid_numeric_span() {
+fn test_reject_an_invalid_numeric_span_in_a_template_literal_call() {
     let session = TestSession::single(
         r#"
 declare function parse<T: number>(value: `${T}`): T;
@@ -340,6 +340,54 @@ parse("no");
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"no\"' is not assignable to parameter of type '`${_}`'"
 /// @diagnostic.label line=4 column=7 span="\"no\"" line_source="parse(\"no\");"
 /// @diagnostic.related line=4 column=1 span="parse(\"no\")" line_source="parse(\"no\");" message="in this call"
+"#,
+    );
+}
+
+/// Block a template span capture behind NoInfer.
+#[test]
+fn test_block_a_template_span_capture_behind_noinfer() {
+    let session = TestSession::single(
+        r#"
+declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T;
+
+const segment = parse("id:users", "other");
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T;
+
+const segment: "other" = parse<"other">("id:users", "other");
+
+=== dir ===
+declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T;
+/// @generic.template symbol=parse parameters=(T: string)
+/// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T" type=<T: string>(`id:${NoInfer<T>}`, T) => T
+/// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${NoInfer<T>}`" type=`id:${NoInfer<T>}`
+/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=T target=parse.T
+/// @type.symbol symbol=parse.fallback source="fallback: T" type=T
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
+
+const segment = parse("id:users", "other");
+/// @type.symbol symbol=segment source=segment type="other"
+/// @resolution.pattern source=segment kind=binding target=segment
+/// @resolution.name source=parse target=parse
+/// @resolution.call source="parse(\"id:users\", \"other\")" parameters=(`id:${"other"}`, "other") arguments=(provided("id:users") as `id:${"other"}`, provided("other") as "other") return="other" kind=symbol target=parse instance="parse<\"other\">"
+/// @generic.instantiation id="parse<\"other\">" template=parse arguments=("other")
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"id:users\"' is not assignable to parameter of type '`id:${\"other\"}`'"
+/// @diagnostic.label line=4 column=23 span="\"id:users\"" line_source="const segment = parse(\"id:users\", \"other\");"
+/// @diagnostic.related line=4 column=17 span="parse(\"id:users\", \"other\")" line_source="const segment = parse(\"id:users\", \"other\");" message="in this call"
+/// @diagnostic.note message="'`id:${\"other\"}`' reduces to '\"id:other\"'"
 "#,
     );
 }

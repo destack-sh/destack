@@ -131,7 +131,7 @@ declare function id<T>(value: T): T;
 const tag: "users" = "users";
 let rebound: "users" = tag;
 const negative: -1 = id<-1>(-1);
-const text: string = id<string>(`users`);
+const text: "users" = id<"users">(`users`);
 const field: { name: "users" } = id<{ name: "users" }>({ name: tag });
 const fresh: { name: string } = id<{ name: string }>({ name: "users" });
 const list: string[] = id<string[]>([tag, "users"]);
@@ -164,11 +164,11 @@ const negative = id(-1);
 /// @resolution.operator source=-1 type=-1 operator="-" kind=builtin operands=[1 as 1 families=(integer)]
 
 const text = id(`users`);
-/// @type.symbol symbol=text source=text type=string
+/// @type.symbol symbol=text source=text type="users"
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=id target=id
-/// @resolution.call source=id(`users`) parameters=(string) arguments=(provided(`users`) as string) return=string kind=symbol target=id instance=id<string>
-/// @generic.instantiation id=id<string> template=id arguments=(string)
+/// @resolution.call source=id(`users`) parameters=("users") arguments=(provided(`users`) as "users") return="users" kind=symbol target=id instance="id<\"users\">"
+/// @generic.instantiation id="id<\"users\">" template=id arguments=("users")
 
 const field = id({ name: tag });
 /// @type.symbol symbol=field source=field type={ name: "users" }

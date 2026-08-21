@@ -562,6 +562,18 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report one `infer` declaration outside a conditional extends clause.
+    pub(in crate::sema) fn report_infer_outside_conditional(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::InferOutsideConditional { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
     /// Report one cast whose target equals its operand type.
     pub(in crate::sema) fn report_redundant_cast(
         &mut self,
@@ -2583,6 +2595,19 @@ impl CheckState<'_> {
     pub(in crate::sema) fn report_circular_type(&mut self, origin: Origin) -> CompilerResult<()> {
         let error = self.circular_type_error(origin)?;
         let module = origin.module();
+
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one type instantiation that nests past the followed depth.
+    pub(in crate::sema) fn report_excessive_type_instantiation(
+        &mut self,
+        origin: Origin,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::ExcessiveTypeInstantiation { anchor, module };
 
         self.report(module, error);
 

@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_template_literal_infer_extracts_segment() {
+fn test_capture_a_segment_through_a_template_infer_span() {
     let session = TestSession::single(
         r#"
 type Segment<T> = T extends `/${infer Name}` ? Name : never;
@@ -44,7 +44,7 @@ declare const name: Name;
 }
 
 #[test]
-fn test_template_literal_infer_can_ignore_unnamed_span() {
+fn test_ignore_an_unnamed_span_in_a_template_infer() {
     let session = TestSession::single(
         r#"
 type HasId<T> = T extends `id:${infer _}` ? true : false;
@@ -100,7 +100,7 @@ const no: No = false;
 }
 
 #[test]
-fn test_template_literal_infer_distributes_over_union_templates() {
+fn test_distribute_a_template_infer_over_union_templates() {
     let session = TestSession::single(
         r#"
 type Extract<T> = T extends `foo-${infer A}` ? A : never;
@@ -150,7 +150,7 @@ const b: Result = "b";
 }
 
 #[test]
-fn test_template_literal_infer_merges_repeated_spans() {
+fn test_merge_repeated_spans_in_a_template_infer() {
     let session = TestSession::single(
         r#"
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
@@ -193,7 +193,7 @@ const matched: Match = "foo";
 }
 
 #[test]
-fn test_template_literal_infer_falls_back_for_mismatched_repeated_spans() {
+fn test_fall_back_for_mismatched_repeated_spans_in_a_template_infer() {
     let session = TestSession::single(
         r#"
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
@@ -236,7 +236,7 @@ const matched: Match = "no";
 }
 
 #[test]
-fn test_template_literal_infer_splits_on_first_literal_boundary() {
+fn test_split_a_template_infer_on_the_first_literal_boundary() {
     let session = TestSession::single(
         r#"
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
@@ -280,7 +280,7 @@ const result: Result = ("foo", "bar-baz");
 }
 
 #[test]
-fn test_template_literal_infer_uses_earliest_literal_boundary() {
+fn test_use_the_earliest_literal_boundary_in_a_template_infer() {
     let session = TestSession::single(
         r#"
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
@@ -334,7 +334,7 @@ const bad: Result = ("foo-bar", "baz");
 }
 
 #[test]
-fn test_template_literal_infer_adjacent_spans_keep_first_span_nonempty() {
+fn test_keep_the_first_of_two_adjacent_infer_spans_nonempty() {
     let session = TestSession::single(
         r#"
 type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
@@ -395,7 +395,7 @@ const bad: Result = ("", "a");
 }
 
 #[test]
-fn test_template_literal_infer_literal_boundary_allows_empty_adjacent_spans() {
+fn test_allow_empty_adjacent_spans_at_a_literal_boundary_in_a_template_infer() {
     let session = TestSession::single(
         r#"
 type Split<T> = T extends `a${infer A}${infer B}` ? (A, B) : never;
@@ -434,6 +434,85 @@ const ok: Result = ("", "");
 /// @type.symbol symbol=ok source=ok type=("", "")
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Result target=Result
+"#,
+    );
+}
+
+/// Take the false branch when the subject holds none of the template's literal text.
+#[test]
+fn test_take_the_false_branch_when_no_literal_text_matches_the_template() {
+    let session = TestSession::single(
+        r#"
+type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
+
+declare const value: Pair<"abc">;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
+
+declare const value: never;
+
+=== dir ===
+type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
+/// @generic.template symbol=Pair parameters=(T)
+/// @type.symbol symbol=Pair source="type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never" type=T extends `${infer A}-${infer B}` ? (Pair.A, Pair.B) : never
+/// @definition.type symbol=Pair source="type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never" template=(T) value=T extends `${infer A}-${infer B}` ? (Pair.A, Pair.B) : never
+/// @type.symbol symbol=Pair.T source=T type=T
+/// @resolution.name source=T target=Pair.T
+/// @resolution.name source=A target=Pair.A
+/// @resolution.name source=B target=Pair.B
+
+declare const value: Pair<"abc">;
+/// @type.symbol symbol=value source=value type=never
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=Pair target=Pair
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Capture a numeric span as a number literal through its infer constraint.
+#[test]
+fn test_capture_a_numeric_span_as_a_number_literal() {
+    let session = TestSession::single(
+        r#"
+type Parse<T> = T extends `${infer N extends number}` ? N : never;
+
+declare const value: Parse<"42">;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Parse<T> = T extends `${infer N extends number}` ? N : never;
+
+declare const value: 42;
+
+=== dir ===
+type Parse<T> = T extends `${infer N extends number}` ? N : never;
+/// @generic.template symbol=Parse parameters=(T)
+/// @type.symbol symbol=Parse source="type Parse<T> = T extends `${infer N extends number}` ? N : never" type=T extends `${infer N extends float64}` ? Parse.N : never
+/// @definition.type symbol=Parse source="type Parse<T> = T extends `${infer N extends number}` ? N : never" template=(T) value=T extends `${infer N extends float64}` ? Parse.N : never
+/// @type.symbol symbol=Parse.T source=T type=T
+/// @resolution.name source=T target=Parse.T
+/// @resolution.name source=N target=Parse.N
+
+declare const value: Parse<"42">;
+/// @type.symbol symbol=value source=value type=42
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=Parse target=Parse
+"#,
+        r#"
 "#,
     );
 }

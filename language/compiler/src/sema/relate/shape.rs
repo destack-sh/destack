@@ -133,30 +133,66 @@ impl CheckState<'_> {
                 .tuple_elements(target.module_id, target_tuple.elements)?
                 .to_vec();
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
+
+            // consume source elements from the end for fixed targets after a rest
+            let rest_index = target_elements.iter().position(|target| target.is_rest);
+            let (target_elements, trailing_targets) = match rest_index {
+                Some(rest_index) => target_elements.split_at(rest_index + 1),
+                None => (target_elements.as_slice(), &[][..]),
+            };
+            let mut source_end = source_elements.len();
+            for target in trailing_targets.iter().rev() {
+                let Some(source) = source_end
+                    .checked_sub(1)
+                    .map(|index| &source_elements[index])
+                else {
+                    return Ok(Verdict::Fails);
+                };
+                if source.is_rest || source.is_optional || source.is_readonly && !target.is_readonly
+                {
+                    return Ok(Verdict::Fails);
+                }
+
+                pairs.push((source.ty, target.ty));
+                source_end -= 1;
+            }
+
             let mut source_index = 0usize;
             for target in target_elements {
                 // rest targets consume every remaining source element
                 if target.is_rest {
-                    let target_element = self.spread_element_type(target.ty)?;
-                    while let Some(source) = source_elements.get(source_index) {
-                        if source.is_readonly && !target.is_readonly {
-                            return Ok(Verdict::Fails);
-                        }
+                    let remaining = &source_elements[source_index.min(source_end)..source_end];
+                    if remaining
+                        .iter()
+                        .any(|source| source.is_readonly && !target.is_readonly)
+                    {
+                        return Ok(Verdict::Fails);
+                    }
 
+                    // bind the remaining elements as one tuple for an open rest binder
+                    let rest = self.shallow_resolve(target.ty)?;
+                    if matches!(self.ty(rest)?, dir::Type::Variable(_)) {
+                        let tuple = self.intern_tuple(remaining)?;
+                        pairs.push((tuple, rest));
+
+                        return self.relate_each(origin, cause, relation.interior(), &pairs);
+                    }
+
+                    let target_element = self.spread_element_type(target.ty)?;
+                    for source in remaining {
                         let target = if source.is_rest {
                             target.ty
                         } else {
                             target_element
                         };
                         pairs.push((source.ty, target));
-                        source_index += 1;
                     }
 
                     return self.relate_each(origin, cause, relation.interior(), &pairs);
                 }
 
                 // omitted source elements satisfy optional target elements
-                let Some(source) = source_elements.get(source_index) else {
+                let Some(source) = source_elements[..source_end].get(source_index) else {
                     if target.is_optional {
                         continue;
                     }
@@ -176,7 +212,7 @@ impl CheckState<'_> {
                 source_index += 1;
             }
 
-            if source_index != source_elements.len() {
+            if source_index != source_end {
                 return Ok(Verdict::Fails);
             }
 
@@ -410,8 +446,8 @@ impl CheckState<'_> {
 
         // require each target index signature from the source
         for signature in index_signatures {
-            verdict =
-                verdict.and(self.relate_index_signature(origin, relation, source, &signature)?);
+            verdict = verdict
+                .and(self.relate_index_signature(origin, cause, relation, source, &signature)?);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
@@ -628,6 +664,7 @@ impl CheckState<'_> {
             verdict = verdict.and(self.relate_reference_construct_assignable(
                 origin,
                 cause,
+                Relation::Assignable,
                 source,
                 target_signature,
             )?);
@@ -649,6 +686,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         cause: CauseId,
+        relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
@@ -660,13 +698,7 @@ impl CheckState<'_> {
         // satisfy the target from any one declared constructor
         let mut verdict = Verdict::Fails;
         for candidate in self.reference_construct_signatures(reference)? {
-            verdict = verdict.or(self.constrain_type(
-                origin,
-                cause,
-                Relation::Assignable,
-                candidate,
-                target,
-            )?);
+            verdict = verdict.or(self.constrain_type(origin, cause, relation, candidate, target)?);
             if verdict == Verdict::Holds {
                 return Ok(Verdict::Holds);
             }
@@ -704,6 +736,7 @@ impl CheckState<'_> {
             };
             signatures.push(self.intern_signature(dir::FunctionSignatureType {
                 is_construct: true,
+                return_type: head.return_type.or(Some(instance)),
                 ..head
             })?);
         }
@@ -715,6 +748,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn relate_index_signature(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: &dir::TypeIndexSignature,
@@ -729,7 +763,14 @@ impl CheckState<'_> {
                     relation => relation,
                 };
 
-                self.relate_shape_index_signature(origin, relation, source.module_id, shape, target)
+                self.relate_shape_index_signature(
+                    origin,
+                    cause,
+                    relation,
+                    source.module_id,
+                    shape,
+                    target,
+                )
             }
             _ => self
                 .body()
@@ -741,6 +782,7 @@ impl CheckState<'_> {
     fn relate_shape_index_signature(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         relation: Relation,
         module: ModuleId,
         source: dir::ShapeType,
@@ -771,8 +813,9 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                let value = self.evaluate_relation(
+                let value = self.constrain_type(
                     origin,
+                    cause,
                     value_relation,
                     source.value_type,
                     target.value_type,
@@ -808,7 +851,8 @@ impl CheckState<'_> {
             }
 
             let store = field.access.store();
-            let value = self.evaluate_relation(origin, value_relation, store, target.value_type)?;
+            let value =
+                self.constrain_type(origin, cause, value_relation, store, target.value_type)?;
             verdict = verdict.and(value.join_undecided(covered));
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
@@ -1217,6 +1261,24 @@ impl CheckState<'_> {
 
             // spread the target rest over every remaining source slot
             if target.is_rest {
+                // bind the remaining source slots as one tuple for an open rest binder
+                let rest = self.shallow_resolve(target.ty)?;
+                if matches!(self.ty(rest)?, dir::Type::Variable(_)) {
+                    let elements = source_slots[source_index..]
+                        .iter()
+                        .map(|slot| dir::TypeElement {
+                            label: None,
+                            ty: slot.ty,
+                            is_optional: slot.is_optional,
+                            is_readonly: false,
+                            is_rest: slot.is_rest,
+                        })
+                        .collect::<SmallVec<[_; 4]>>();
+                    let tuple = self.intern_tuple(&elements)?;
+                    pairs.push((cause, tuple, rest));
+                    break;
+                }
+
                 let element = self.rest_element_type(target.ty)?;
                 while let Some(source) = source_slots.get(source_index) {
                     let target = if source.is_rest { target.ty } else { element };

@@ -221,7 +221,9 @@ impl BodyState<'_, '_> {
                 Ok(CheckAttempt::Checked(check))
             }
             dir::Expression::TemplateExpression { value } => {
-                let source = self.template_expression_type(site, value)?;
+                let keeps_template = expectation.mode == InferMode::Const
+                    || self.contextualizes_template(expectation.target)?;
+                let source = self.template_expression_type(site, value, keeps_template)?;
                 self.commit_node_type(site.node, source)?;
                 self.check.fresh_nodes.insert(site.node, None);
                 let check = ValueCheck {

@@ -276,31 +276,30 @@ impl CheckState<'_> {
         Ok(Some(literal))
     }
 
-    /// Return the literal type captured by one template span.
-    pub(in crate::sema) fn template_captured_type(
+    /// Read one captured span text as the literal kind its constraint names.
+    pub(in crate::sema) fn retype_template_capture(
         &mut self,
         origin: Origin,
-        module: ModuleId,
-        span: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
         text: &str,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // numeric constraints capture numeric literals
-        let constraint = match self.operation_head(span)? {
-            Some(dir::TypeOperation::Infer(infer)) => infer.constraint,
-            _ => None,
-        };
-        if let Some(constraint) = constraint
-            && let Ok(head) = self.normalize(origin, constraint)
-            && let Ok(kind) = self.ty(head)
-            && let NumericCapture::Captured(literal) =
-                self.numeric_template_capture(module, &kind, text)?
-        {
-            return Ok(literal);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let head = self.normalize(origin, constraint)?;
+        let kind = self.ty(head)?;
+        if let dir::Type::Primitive(dir::PrimitiveType::Boolean) = kind {
+            return Ok(match text {
+                "true" | "false" => Some(
+                    self.intern_type(dir::Type::Literal(dir::Literal::Boolean(text == "true")))?,
+                ),
+                _ => None,
+            });
         }
 
-        let text = self.strings().intern(text);
-
-        self.intern_type(dir::Type::Literal(dir::Literal::String(text)))
+        Ok(
+            match self.numeric_template_capture(origin.module(), &kind, text)? {
+                NumericCapture::Captured(literal) => Some(literal),
+                NumericCapture::OutOfDomain | NumericCapture::NotNumeric => None,
+            },
+        )
     }
 
     /// Capture one numeric span text under a reduced constraint head.

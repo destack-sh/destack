@@ -50,9 +50,76 @@ impl CheckState<'_> {
                 Ok(Some(mapped))
             }
 
+            // map through a symbolic template, segment by segment
+            dir::Type::Operation(operation)
+                if let dir::TypeOperation::TemplateLiteral(template) =
+                    self.type_operation(target.module_id, operation)? =>
+            {
+                let mapped = self.map_template_literal(target, mapping, &template)?;
+
+                Ok(Some(mapped))
+            }
+
             // open values stay symbolic
             _ => Ok(None),
         }
+    }
+
+    /// Apply one string mapping through a template literal's segments and spans.
+    fn map_template_literal(
+        &mut self,
+        id: dir::GlobalTypeId,
+        mapping: dir::StringMapping,
+        template: &dir::TemplateLiteralType,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut strings: SmallVec<[_; 4]> = self
+            .template_strings(id.module_id, template.strings)?
+            .into();
+        let mut spans: SmallVec<[_; 4]> = self.type_ids(id.module_id, template.spans)?.into();
+
+        match mapping {
+            // reach every segment and span for a whole-string mapping
+            dir::StringMapping::Uppercase | dir::StringMapping::Lowercase => {
+                for string in &mut strings {
+                    *string = self.map_string(mapping, *string);
+                }
+                for span in &mut spans {
+                    *span = self.intern_operation(dir::TypeOperation::StringMapping {
+                        mapping,
+                        target: *span,
+                    })?;
+                }
+            }
+            // reach only the leading segment or span for a first-character mapping
+            dir::StringMapping::Capitalize | dir::StringMapping::Uncapitalize => {
+                let leads_with_text = strings
+                    .first()
+                    .is_some_and(|string| !self.strings().get(*string).is_empty());
+                if leads_with_text {
+                    strings[0] = self.map_string(mapping, strings[0]);
+                } else if let Some(span) = spans.first_mut() {
+                    *span = self.intern_operation(dir::TypeOperation::StringMapping {
+                        mapping,
+                        target: *span,
+                    })?;
+                }
+            }
+        }
+
+        let strings = self.intern_strings(&strings)?;
+        let spans = self.intern_type_ids(&spans)?;
+
+        self.intern_operation(dir::TypeOperation::TemplateLiteral(
+            dir::TemplateLiteralType { strings, spans },
+        ))
+    }
+
+    /// Apply one string mapping to interned text.
+    fn map_string(&mut self, mapping: dir::StringMapping, value: dir::StringId) -> dir::StringId {
+        let text = self.strings().get(value).to_string();
+        let mapped = mapping.apply(&text);
+
+        self.strings().intern(&mapped)
     }
 
     /// Concatenate one template literal type over closed spans.
@@ -67,38 +134,70 @@ impl CheckState<'_> {
             .into();
         let spans: SmallVec<[_; 8]> = self.type_ids(id.module_id, template.spans)?.into();
 
-        // close every interpolated span to its printable choices
-        let mut printed: Vec<Vec<String>> = Vec::with_capacity(spans.len());
-        for span in spans {
-            let span = self.normalize(origin, span)?;
+        // splice nested templates into one flat segment and span list
+        let mut segments = Vec::with_capacity(strings.len());
+        let mut flat_spans = Vec::with_capacity(spans.len());
+        let mut spliced = false;
+        let mut segment = self.strings().get(strings[0]).to_string();
+        for (index, span) in spans.iter().enumerate() {
+            let span = self.normalize(origin, *span)?;
+            match self.ty(span)? {
+                dir::Type::Operation(operation)
+                    if let dir::TypeOperation::TemplateLiteral(inner) =
+                        self.type_operation(span.module_id, operation)? =>
+                {
+                    let inner_strings: SmallVec<[_; 4]> =
+                        self.template_strings(span.module_id, inner.strings)?.into();
+                    let inner_spans: SmallVec<[_; 4]> =
+                        self.type_ids(span.module_id, inner.spans)?.into();
+                    segment.push_str(self.strings().get(inner_strings[0]));
+                    for (inner_index, inner_span) in inner_spans.iter().enumerate() {
+                        flat_spans.push(self.normalize(origin, *inner_span)?);
+                        segments.push(std::mem::take(&mut segment));
+                        segment = self
+                            .strings()
+                            .get(inner_strings[inner_index + 1])
+                            .to_string();
+                    }
+                    spliced = true;
+                }
+                _ => {
+                    flat_spans.push(span);
+                    segments.push(std::mem::take(&mut segment));
+                }
+            }
+            segment.push_str(self.strings().get(strings[index + 1]));
+        }
+        segments.push(segment);
 
+        // close every interpolated span to its printable choices
+        let mut printed: Vec<Vec<String>> = Vec::with_capacity(flat_spans.len());
+        for &span in &flat_spans {
             // empty the whole template on a never span
             if matches!(self.ty(span)?, dir::Type::Never) {
                 return Ok(Some(self.intern_type(dir::Type::Never)?));
             }
 
-            // union spans distribute their printable alternatives
-            let choices = match self.ty(span)? {
-                dir::Type::Union(union) => {
-                    let elements: SmallVec<[_; 8]> =
-                        self.type_ids(span.module_id, union.elements)?.into();
-                    let mut choices = Vec::with_capacity(elements.len());
-                    for element in elements {
-                        let element = self.normalize(origin, element)?;
-                        match self.template_piece_text(element)? {
-                            Some(text) => choices.push(text),
-                            None => return Ok(None),
-                        }
+            match self.template_span_choices(origin, span)? {
+                Some(choices) => printed.push(choices),
+                // keep the flattened template symbolic while a span stays open
+                None => {
+                    if !spliced {
+                        return Ok(None);
                     }
+                    let strings = segments
+                        .iter()
+                        .map(|segment| self.strings().intern(segment))
+                        .collect::<SmallVec<[_; 4]>>();
+                    let strings = self.intern_strings(&strings)?;
+                    let spans = self.intern_type_ids(&flat_spans)?;
+                    let flattened = self.intern_operation(dir::TypeOperation::TemplateLiteral(
+                        dir::TemplateLiteralType { strings, spans },
+                    ))?;
 
-                    choices
+                    return Ok(Some(flattened));
                 }
-                _ => match self.template_piece_text(span)? {
-                    Some(text) => vec![text],
-                    None => return Ok(None),
-                },
-            };
-            printed.push(choices);
+            }
         }
 
         // wide distributions stay symbolic
@@ -109,10 +208,9 @@ impl CheckState<'_> {
 
         // interleave literal segments with every printed alternative
         let mut joined = vec![String::new()];
-        for (index, segment) in strings.iter().enumerate() {
-            let segment = self.strings().get(*segment).to_string();
+        for (index, segment) in segments.iter().enumerate() {
             for text in &mut joined {
-                text.push_str(&segment);
+                text.push_str(segment);
             }
             if let Some(choices) = printed.get(index) {
                 let mut expanded = Vec::with_capacity(joined.len() * choices.len());
@@ -136,6 +234,41 @@ impl CheckState<'_> {
         };
 
         Ok(Some(reduced))
+    }
+
+    /// Return the printable alternatives of one closed template span.
+    fn template_span_choices(
+        &mut self,
+        origin: Origin,
+        span: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<Vec<String>>> {
+        let choices = match self.ty(span)? {
+            // distribute a union span's printable alternatives
+            dir::Type::Union(union) => {
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(span.module_id, union.elements)?.into();
+                let mut choices = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let element = self.normalize(origin, element)?;
+                    match self.template_span_choices(origin, element)? {
+                        Some(texts) => choices.extend(texts),
+                        None => return Ok(None),
+                    }
+                }
+
+                choices
+            }
+            // print both values for a boolean span
+            dir::Type::Primitive(dir::PrimitiveType::Boolean) => {
+                vec!["false".to_string(), "true".to_string()]
+            }
+            _ => match self.template_piece_text(span)? {
+                Some(text) => vec![text],
+                None => return Ok(None),
+            },
+        };
+
+        Ok(Some(choices))
     }
 
     /// Evaluate one static binary operation over literal operands.

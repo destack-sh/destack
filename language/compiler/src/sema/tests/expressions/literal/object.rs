@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_object_literal_infers_property_types() {
+fn test_infer_property_types_from_an_object_literal() {
     let session = TestSession::single(
         r#"
 const value = { a: 1, b: "two" };
@@ -27,7 +27,7 @@ const value = { a: 1, b: "two" };
 }
 
 #[test]
-fn test_object_literal_uses_shorthand_binding_types() {
+fn test_infer_property_types_from_shorthand_object_bindings() {
     let session = TestSession::single(
         r#"
 const name = "Ada";
@@ -73,7 +73,7 @@ const person = { name, age };
 }
 
 #[test]
-fn test_empty_object_literal_has_empty_shape() {
+fn test_infer_an_empty_shape_for_an_empty_object_literal() {
     let session = TestSession::single(
         r#"
 const value = {};
@@ -97,7 +97,7 @@ const value = {};
 }
 
 #[test]
-fn test_const_asserted_object_preserves_literal_properties() {
+fn test_preserve_literal_properties_in_a_const_asserted_object() {
     let session = TestSession::single(
         r#"
 const value = { a: 1, b: "two" } as const;
@@ -124,7 +124,7 @@ const value = { a: 1, b: "two" } as const;
 }
 
 #[test]
-fn test_contextual_object_literal_rejects_property_mismatch() {
+fn test_reject_a_property_mismatch_in_a_contextual_object_literal() {
     let session = TestSession::single(
         r#"
 const value: { a: number; b: string } = { a: 1, b: 2 };
@@ -156,7 +156,7 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 }
 
 #[test]
-fn test_contextual_object_literal_contextualizes_empty_array_field() {
+fn test_contextualize_an_empty_array_field_in_an_object_literal() {
     let session = TestSession::single(
         r#"
 const state: { reactions: int32[] } = { reactions: [] };
@@ -187,7 +187,7 @@ const state: { reactions: int32[] } = { reactions: [] };
 }
 
 #[test]
-fn test_contextual_object_literal_checks_index_signature_fields() {
+fn test_check_index_signature_fields_in_a_contextual_object_literal() {
     let session = TestSession::single(
         r#"
 type Counts = { [key: string]: int32 };
@@ -228,7 +228,7 @@ const counts: Counts = { apples: 1, oranges: 2 };
 }
 
 #[test]
-fn test_satisfies_preserves_object_literal_members() {
+fn test_preserve_object_literal_members_through_a_satisfies_expression() {
     let session = TestSession::single(
         r#"
 type Mode = "dev" | "prod";
@@ -283,7 +283,7 @@ const mode = config.mode;
 }
 
 #[test]
-fn test_object_spread_adds_fields() {
+fn test_add_fields_through_an_object_spread() {
     let session = TestSession::single(
         r#"
 const base = { a: 1, b: "two" };
@@ -320,7 +320,7 @@ const value = { ...base, c: true };
 }
 
 #[test]
-fn test_object_spread_overrides_fields() {
+fn test_override_fields_through_an_object_spread() {
     let session = TestSession::single(
         r#"
 const base = { a: 1, b: 2 };
@@ -357,7 +357,7 @@ const value = { ...base, b: "two" };
 }
 
 #[test]
-fn test_struct_update_spread_preserves_nominal_type() {
+fn test_preserve_nominal_type_through_a_struct_update_spread() {
     let session = TestSession::single(
         r#"
 struct Point {
@@ -421,7 +421,7 @@ const moved = Point { ...point, x: 3 };
 }
 
 #[test]
-fn test_object_spread_from_struct_erases_nominal_type() {
+fn test_erase_nominal_type_through_an_object_spread_from_a_struct() {
     let session = TestSession::single(
         r#"
 struct Point {
@@ -483,7 +483,7 @@ const object = { ...point, label: "origin" };
 }
 
 #[test]
-fn test_struct_spread_from_object_satisfies_nominal_fields() {
+fn test_satisfy_nominal_fields_through_a_struct_spread_from_an_object() {
     let session = TestSession::single(
         r#"
 struct Point {
@@ -545,7 +545,7 @@ const point: Point = _ { ...base };
 }
 
 #[test]
-fn test_object_spread_from_class_erases_nominal_type() {
+fn test_erase_nominal_type_through_an_object_spread_from_a_class() {
     let session = TestSession::single(
         r#"
 class User {
@@ -658,7 +658,7 @@ const value = { name: "Ada", name: "Grace" };
 
 /// Infer a getter as a readable object property.
 #[test]
-fn test_object_getter_infers_read_property() {
+fn test_infer_a_read_property_from_an_object_getter() {
     let session = TestSession::single(
         r#"
 const store = {
@@ -697,7 +697,7 @@ const store = {
 
 /// Infer a setter as a writable object property.
 #[test]
-fn test_object_setter_infers_write_property() {
+fn test_infer_a_write_property_from_an_object_setter() {
     let session = TestSession::single(
         r#"
 const store = {
@@ -734,7 +734,7 @@ const store = {
 
 /// Merge one getter and setter into one readable and writable object property.
 #[test]
-fn test_object_accessor_pair_infers_property_operations() {
+fn test_merge_a_getter_and_setter_into_one_property() {
     let session = TestSession::single(
         r#"
 const store = {
@@ -779,7 +779,7 @@ const store = {
 
 /// Accept an object accessor pair under a structural property expectation.
 #[test]
-fn test_object_accessor_pair_satisfies_property_expectation() {
+fn test_accept_an_object_accessor_pair_under_a_structural_property_expectation() {
     let session = TestSession::single(
         r#"
 interface Store {
@@ -847,7 +847,7 @@ const store: Store = {
 
 /// Reject an object getter incompatible with its property expectation.
 #[test]
-fn test_object_getter_rejects_incompatible_property_expectation() {
+fn test_reject_an_object_getter_incompatible_with_its_property_expectation() {
     let session = TestSession::single(
         r#"
 interface Store {
@@ -871,7 +871,7 @@ const store: Store = {
 
 /// Reject an object setter incompatible with its property expectation.
 #[test]
-fn test_object_setter_rejects_incompatible_property_expectation() {
+fn test_reject_an_object_setter_incompatible_with_its_property_expectation() {
     let session = TestSession::single(
         r#"
 interface Store {
@@ -895,7 +895,7 @@ const store: Store = {
 
 /// Reject object accessors missing the operation required by their interfaces.
 #[test]
-fn test_object_accessor_rejects_missing_property_operation() {
+fn test_reject_object_accessors_missing_a_required_property_operation() {
     let session = TestSession::single(
         r#"
 interface Readable {
@@ -1055,6 +1055,66 @@ const store = {
         r#"
 /// @diagnostic.error id=duplicate-member message="member 'value' is already declared"
 /// @diagnostic.label line=4 column=9 span="value" line_source="get value(): string { return \"waiting\"; },"
+"#,
+    );
+}
+
+/// Type a closure member of an object literal from the contextual member signature.
+#[test]
+fn test_type_a_member_closure_from_the_contextual_object_type() {
+    let session = TestSession::single(
+        r#"
+type Handlers = { onCount: (value: int32) => void };
+
+const handlers: Handlers = {
+    onCount: (value) => {
+        value;
+    },
+};
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+type Handlers = { onCount: (value: int32) => void };
+
+const handlers: { onCount: (arg0: int32) => void } = {
+    onCount: (value: int32): void => {
+        value;
+    },
+};
+
+=== dir ===
+type Handlers = { onCount: (value: int32) => void };
+/// @type.symbol symbol=Handlers source="type Handlers = { onCount: (value: int32) => void }" type={ onCount: Function<(int32,), void> }
+/// @definition.type symbol=Handlers source="type Handlers = { onCount: (value: int32) => void }" value={ onCount: Function<(int32,), void> }
+/// @type.symbol symbol=Handlers.value source="value: int32" type=int32
+
+const handlers: Handlers = {
+/// @type.symbol symbol=handlers source=handlers type={ onCount: Function<(int32,), void> }
+/// @resolution.pattern source=handlers kind=binding target=handlers
+/// @resolution.name source=Handlers target=Handlers
+/// @type.node type={ onCount: Function<(int32,), void> }
+
+    onCount: (value) => {
+    /// @type.symbol symbol=symbol5 type=Function<(int32,), void>
+    /// @type.node type=Function<(int32,), void>
+    /// @type.symbol symbol=symbol5.value source=value type=int32
+
+        value;
+        /// @type.node source=value type=int32
+        /// @resolution.name source=value target=symbol5.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=symbol5.value
+
+    },
+};
+"#,
+        r#"
+
 "#,
     );
 }

@@ -531,9 +531,12 @@ impl CheckState<'_> {
             }
 
             // scalar singleton and interval inclusion
-            (dir::Type::Literal(dir::Literal::String(text)), dir::Type::Operation(operation))
-                if let dir::TypeOperation::TemplateLiteral(template) =
-                    self.type_operation(target.module_id, operation)? =>
+            (
+                dir::Type::Literal(dir::Literal::String(text))
+                | dir::Type::Key(dir::StaticKey::Name(text)),
+                dir::Type::Operation(operation),
+            ) if let dir::TypeOperation::TemplateLiteral(template) =
+                self.type_operation(target.module_id, operation)? =>
             {
                 let text = self.strings().get(text).to_string();
 
