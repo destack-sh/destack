@@ -285,7 +285,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         | Expression::This
         | Expression::Super
         | Expression::PrivateIdentifier { .. }
-        | Expression::ScalarLiteral { .. }
+        | Expression::Literal { .. }
         | Expression::Error => {}
     }
 }

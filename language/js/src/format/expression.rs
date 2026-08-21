@@ -1,7 +1,7 @@
 use crate::tree::Precedence;
 use crate::{
     ArrayElement, ArrowFunctionBody, Asynchrony, BinaryOperator, Expression, Keyword, LocalNodeId,
-    ScalarLiteral, UnaryOperator,
+    Literal, UnaryOperator,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -104,7 +104,7 @@ fn format_expression_with_precedence<'ast>(
         Expression::PrivateIdentifier { name } => {
             write!(f, [token("#"), *name])?;
         }
-        Expression::ScalarLiteral { value } => {
+        Expression::Literal { value } => {
             format_scalar_literal(value, f)?;
         }
         Expression::TemplateLiteral { value } => {
@@ -248,8 +248,8 @@ fn format_expression_with_precedence<'ast>(
             write!(f, [token("import"), token("(")])?;
 
             // exact target literal span
-            if let Expression::ScalarLiteral {
-                value: ScalarLiteral::String(value),
+            if let Expression::Literal {
+                value: Literal::String(value),
             } = target_expression
             {
                 format_string_literal_with_source_span(*value, target_span, f)?;

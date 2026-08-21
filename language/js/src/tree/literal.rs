@@ -2,9 +2,9 @@ use crate::{Expression, LocalNodeId, Path, StringId};
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
-/// A ScalarLiteral is literal scalar value.
+/// A Literal is literal scalar value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum ScalarLiteral {
+pub enum Literal {
     /// Null value.
     Null,
     /// Undefined value.

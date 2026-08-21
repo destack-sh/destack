@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
-    LocalNodeId, Node, NodeType, Parameter, Path, Property, ScalarLiteral, StringId,
+    LocalNodeId, Node, NodeType, Parameter, Path, Property, Literal, StringId,
     TemplateLiteral, Tree, UnaryOperator,
 };
 use destack_source::ModuleId;
@@ -27,7 +27,7 @@ pub enum Expression {
     /// Private identifier.
     PrivateIdentifier { name: StringId },
     /// Scalar literal.
-    ScalarLiteral { value: ScalarLiteral },
+    Literal { value: Literal },
     /// Template literal.
     TemplateLiteral { value: TemplateLiteral },
     /// Array literal.
@@ -266,7 +266,7 @@ impl Expression {
             | Self::This
             | Self::Super
             | Self::PrivateIdentifier { .. }
-            | Self::ScalarLiteral { .. }
+            | Self::Literal { .. }
             | Self::TemplateLiteral { .. }
             | Self::ArrayLiteral { .. }
             | Self::ObjectLiteral { .. }

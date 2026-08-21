@@ -1,4 +1,4 @@
-use crate::{ScalarLiteral, TemplateLiteral};
+use crate::{Literal, TemplateLiteral};
 use destack_core::StringId;
 use destack_fir::format::{Format, FormatError, FormatResult, token};
 use destack_fir::prelude::*;
@@ -9,25 +9,25 @@ use crate::{Context, Formatter};
 
 /// Format a scalar literal.
 pub(crate) fn format_scalar_literal<'ast>(
-    scalar: &ScalarLiteral,
+    scalar: &Literal,
     f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
     match scalar {
-        ScalarLiteral::Null => token("null").format(f)?,
-        ScalarLiteral::Undefined => token("undefined").format(f)?,
-        ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
-        ScalarLiteral::Bigint(value) => {
+        Literal::Null => token("null").format(f)?,
+        Literal::Undefined => token("undefined").format(f)?,
+        Literal::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
+        Literal::Bigint(value) => {
             let value_str = value.to_string();
             write!(f, [copied_text(&value_str), token("n")])?;
         }
-        ScalarLiteral::Number(value) => {
+        Literal::Number(value) => {
             let value_str = value.to_string();
             write!(f, [copied_text(&value_str)])?;
         }
-        ScalarLiteral::String(value) => {
+        Literal::String(value) => {
             format_quoted_string_literal(*value, f)?;
         }
-        ScalarLiteral::RegexString { content, flags } => {
+        Literal::RegexString { content, flags } => {
             if let Some(flags) = flags {
                 write!(f, [token("/"), content, token("/"), flags])?;
             } else {
@@ -61,7 +61,7 @@ pub(crate) fn format_string_literal_with_source_span<'ast>(
         return Ok(());
     }
 
-    format_scalar_literal(&ScalarLiteral::String(value), f)
+    format_scalar_literal(&Literal::String(value), f)
 }
 
 /// Format a template literal.
@@ -114,7 +114,7 @@ pub(crate) fn format_template_literal<'ast>(
     Ok(())
 }
 
-impl<'ast> Format<'ast, Context<'ast>> for ScalarLiteral {
+impl<'ast> Format<'ast, Context<'ast>> for Literal {
     #[inline]
     fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         format_scalar_literal(self, f)
