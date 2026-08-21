@@ -81,14 +81,32 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                     continue;
                 };
 
-                LetElse::from_match(
+                let mut selected = LetElse::from_match(
                     module,
                     *first,
                     *second,
                     *value,
                     *declared_name,
                     &occurrences,
-                )?
+                )?;
+
+                // reorder a leading fallback only where the arms accept disjoint values
+                if selected.is_none()
+                    && module
+                        .match_coverage(initializer)
+                        .is_some_and(|coverage| coverage.is_disjoint)
+                {
+                    selected = LetElse::from_match(
+                        module,
+                        *second,
+                        *first,
+                        *value,
+                        *declared_name,
+                        &occurrences,
+                    )?;
+                }
+
+                selected
             }
             dir::Expression::If { .. } => {
                 LetElse::from_conditional(module, initializer, *declared_name)?
@@ -156,12 +174,12 @@ impl LetElse {
                 pattern,
                 guard: None,
                 body,
-            } if module.flows.is_diverging(body.into_any()) => (*pattern, body.into_any()),
+            } if module.is_diverging(body.into_any())? => (*pattern, body.into_any()),
             dir::MatchArm::Block {
                 pattern,
                 guard: None,
                 body,
-            } if module.flows.is_diverging(body.into_any()) => (*pattern, body.into_any()),
+            } if module.is_diverging(body.into_any())? => (*pattern, body.into_any()),
             _ => return Ok(None),
         };
 
@@ -225,7 +243,7 @@ impl LetElse {
         }
 
         // require the complete fallback branch to exit
-        if !module.flows.is_diverging(else_expression.into_any()) {
+        if !module.is_diverging(else_expression.into_any())? {
             return Ok(None);
         }
 

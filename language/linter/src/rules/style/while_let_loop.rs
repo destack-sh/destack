@@ -132,12 +132,22 @@ impl WhileLet {
         // select one successful match or if-let branch followed by a break
         let (pattern, value, body) = match view.get(expression) {
             dir::Expression::Match { value, arms } => {
-                let [retained, breaking] = arms.as_slice() else {
+                let [first, second] = arms.as_slice() else {
                     return Ok(None);
                 };
-                if !is_break_arm(module, iteration, *breaking)? {
+
+                // reorder a leading break arm only where the arms accept disjoint values
+                let retained = if is_break_arm(module, iteration, *second)? {
+                    first
+                } else if is_break_arm(module, iteration, *first)?
+                    && module
+                        .match_coverage(expression)
+                        .is_some_and(|coverage| coverage.is_disjoint)
+                {
+                    second
+                } else {
                     return Ok(None);
-                }
+                };
                 let (pattern, body) = match view.get(*retained) {
                     dir::MatchArm::Expression {
                         pattern,
