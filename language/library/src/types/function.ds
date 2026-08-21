@@ -28,15 +28,15 @@ export type ConstructorParameters<T> = T extends new (...parameters: infer P) =>
 
 /// Extract the return type from a callable type.
 @languageItem("types.ReturnType")
-export type ReturnType<T> = T extends (...parameters: unknown[]) => infer R ? R : never;
+export type ReturnType<T> = T extends (...parameters: never) => infer R ? R : never;
 
 /// Extract the instance type from a constructor type.
 @languageItem("types.InstanceType")
-export type InstanceType<T> = T extends new (...parameters: unknown[]) => infer R ? R : never;
+export type InstanceType<T> = T extends new (...parameters: never) => infer R ? R : never;
 
 /// Extract the explicit receiver from a callable type.
 @languageItem("types.ThisParameterType")
-export type ThisParameterType<T> = T extends (this: infer This, ...parameters: unknown[]) => unknown
+export type ThisParameterType<T> = T extends (this: infer This, ...parameters: never) => unknown
     ? This
     : unknown;
 
@@ -45,6 +45,6 @@ export type ThisParameterType<T> = T extends (this: infer This, ...parameters: u
 export type OmitThisParameter<T> =
     unknown extends ThisParameterType<T>
         ? T
-        : T extends (this: unknown, ...parameters: infer P) => infer R
+        : T extends (this: infer This, ...parameters: infer P) => infer R
           ? (...parameters: P) => R
           : T;
