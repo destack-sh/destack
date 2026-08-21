@@ -1,9 +1,9 @@
+use crate::parse::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use destack_dir::{
     Expression, GenericArgument, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenType,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
-use crate::parse::context::{ExpressionContext, TypeContext, TypeMode};
 use crate::{Parser, ParserResult};
 
 impl Parser {
@@ -19,8 +19,8 @@ impl Parser {
     pub(crate) fn parse_index(
         &mut self,
         receiver_id: LocalNodeId<Expression>,
-        position: PostfixPosition,
-        context: ExpressionContext,
+        postfix_position: PostfixPosition,
+        position: ExpressionPosition,
         is_optional: bool,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
@@ -40,7 +40,7 @@ impl Parser {
             };
             let index_id = self.insert_node(
                 Expression::Index {
-                    position,
+                    position: postfix_position,
                     left: receiver_id,
                     index: None,
                     is_optional,
@@ -57,7 +57,7 @@ impl Parser {
         let index = if is_missing_index {
             self.recover_missing_expression_here(NodeType::Expression)
         } else {
-            self.parse_expression(context.nested())?
+            self.parse_expression(position.nested(), ExpressionStop::default())?
         };
 
         // close bracket
@@ -66,7 +66,7 @@ impl Parser {
         }
 
         let index_expression = Expression::Index {
-            position,
+            position: postfix_position,
             left: receiver_id,
             index: Some(index),
             is_optional,
@@ -94,7 +94,7 @@ impl Parser {
     /// ```
     pub(crate) fn parse_new(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
 
@@ -106,18 +106,15 @@ impl Parser {
             self.recover_missing_type_expression_here(NodeType::Expression)
         } else {
             self.parse_type_or_recover_missing(
-                TypeContext {
-                    function: context.function,
-                    mode: TypeMode::NewReceiver,
-                    ..TypeContext::default()
-                },
+                TypePosition::NewReceiver,
+                TypeStop::default(),
                 NodeType::Expression,
             )?
         };
 
         // constructor arguments are optional
         let arguments_start = self.mark_parse_start();
-        let arguments = self.parse_arguments_if_present(context.nested())?;
+        let arguments = self.parse_arguments_if_present(position.nested())?;
         let arguments_range = arguments
             .as_ref()
             .map(|_| self.range_since(&arguments_start));
@@ -149,21 +146,21 @@ impl Parser {
         &mut self,
         receiver_id: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        position: PostfixPosition,
-        context: ExpressionContext,
+        postfix_position: PostfixPosition,
+        position: ExpressionPosition,
         is_optional: bool,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         let receiver_range = self.tree.get_range(receiver_id);
 
         // dynamic arguments (may be empty)
-        let arguments = self.parse_argument_list(context.nested())?;
+        let arguments = self.parse_argument_list(position.nested())?;
         let arguments_range = self.range_since(&start);
 
         // call
         let call_id = self.insert_node(
             Expression::Call {
-                position,
+                position: postfix_position,
                 left: receiver_id,
                 generic_arguments,
                 arguments,

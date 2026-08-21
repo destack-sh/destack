@@ -1,5 +1,8 @@
 use crate::tests::{TestParser, block_expression_ids};
-use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
+use crate::{
+    ExpressionPosition, ExpressionStop, assert_comment, assert_expression_path, assert_node,
+    assert_string,
+};
 use destack_dir::{
     AssignOperator, BinaryOperator, Block, CommentKind, Declaration, Declarator, ExportKind,
     Expression, FunctionDeclaration, FunctionForm, IfForm, Name, Pattern, Property, ScalarLiteral,
@@ -10,7 +13,9 @@ use destack_dir::{
 fn test_parse_if_ternary() {
     let test = TestParser::new("true ? 1 : 2");
     let mut parser = test.prepare();
-    let if_id = parser.parse_expression(Default::default()).unwrap();
+    let if_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
@@ -24,7 +29,9 @@ fn test_parse_if_ternary() {
 fn test_parse_ternary_false_branch_assignment() {
     let test = TestParser::new("condition ? first : target = nested ? yes : no");
     let mut parser = test.prepare();
-    let expression = parser.parse_expression(Default::default()).unwrap();
+    let expression = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression, Expression::If { else_expression: Some(else_expression), .. } => {
         assert_node!(parser.tree, *else_expression, Expression::Assign { operator, left, right } => {
@@ -79,7 +86,9 @@ fn test_parse_statement_position_ternaries() {
 fn test_parse_ternary_arrow_else_expression() {
     let test = TestParser::new("ready ? value : item => item");
     let mut parser = test.prepare();
-    let if_id = parser.parse_expression(Default::default()).unwrap();
+    let if_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, if_id, Expression::If { form, else_expression, .. } => {
         assert_eq!(*form, IfForm::Ternary);
@@ -101,7 +110,9 @@ fn test_parse_if_ternary_multiline() {
     : 2"#,
     );
     let mut parser = test.prepare();
-    let if_id = parser.parse_expression(Default::default()).unwrap();
+    let if_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
@@ -123,7 +134,9 @@ fn test_parse_if_ternary_multiline_with_comments() {
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_expression(Default::default()).unwrap();
+    let if_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
 
@@ -143,7 +156,9 @@ fn test_parse_if_ternary_multiline_with_comments() {
 fn test_parse_if_ternary_boundary_comments_attach_to_branch_owners() {
     let test = TestParser::new("cond ? // then-boundary\nleft : // else-boundary\nright");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
@@ -173,7 +188,9 @@ fn test_parse_if_ternary_boundary_comments_attach_to_branch_owners() {
 fn test_parse_if_ternary_inline_branch_comment_keeps_branch_token_span() {
     let test = TestParser::new("condition ? null /* branch-note */ : other");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::If { then_expression, else_expression, .. } => {
@@ -199,7 +216,9 @@ fn test_parse_if_ternary_inline_branch_comment_keeps_branch_token_span() {
 fn test_parse_if_ternary_nested_tree_branches_keep_token_spans() {
     let test = TestParser::new("condition ? null /* branch-note */ : other ? <A /> : <B />");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
@@ -236,7 +255,9 @@ fn test_parse_long_ternary_ladder() {
 
     let test = TestParser::new(&source);
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::If { .. });
 
@@ -248,7 +269,9 @@ fn test_parse_long_ternary_ladder() {
 fn test_parse_if_ternary_with_parenthesis() {
     let test = TestParser::new("x ? () : ()");
     let mut parser = test.prepare();
-    let if_id = parser.parse_expression(Default::default()).unwrap();
+    let if_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
@@ -268,7 +291,9 @@ fn test_parse_if_ternary_with_parenthesis() {
 fn test_parse_if_ternary_with_brackets() {
     let test = TestParser::new("x ? [] : []");
     let mut parser = test.prepare();
-    let if_id = parser.parse_expression(Default::default()).unwrap();
+    let if_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
@@ -288,7 +313,9 @@ fn test_parse_if_ternary_with_brackets() {
 fn test_parse_if_ternary_with_braces() {
     let test = TestParser::new("x ? {} : {}");
     let mut parser = test.prepare();
-    let if_id = parser.parse_expression(Default::default()).unwrap();
+    let if_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
@@ -308,7 +335,9 @@ fn test_parse_if_ternary_with_braces() {
 fn test_parse_if_ternary_with_binary_condition() {
     let test = TestParser::new("x == 0 ? 1 : 2");
     let mut parser = test.prepare();
-    let if_id = parser.parse_expression(Default::default()).unwrap();
+    let if_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::Binary { left, operator, right } => {
@@ -331,7 +360,9 @@ fn test_parse_export_const_ternary_object_literal_arrow_value() {
 };"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Let { export, declarators, .. } => {
         assert_eq!(*export, Some(ExportKind::Named));
         assert_eq!(declarators.len(), 1);
@@ -380,7 +411,7 @@ fn test_parse_ternary_object_literal_arrow_value_expression() {
 }"#,
     );
     let mut parser = test.prepare();
-    let result = parser.parse_expression(Default::default());
+    let result = parser.parse_expression(ExpressionPosition::Value, ExpressionStop::default());
     match result {
         Ok(expr_id) => {
             assert_node!(parser.tree, expr_id, Expression::If { form, then_expression, else_expression, .. } => {
@@ -420,7 +451,9 @@ fn test_parse_assignment_object_spread_ternary_value() {
     let test = TestParser::new("target = { ...tls ? { cert: tls.cert } : {}, ...node }");
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
         assert_eq!(*operator, AssignOperator::Assign);

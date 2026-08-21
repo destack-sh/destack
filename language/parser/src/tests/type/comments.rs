@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{CommentRetention, assert_comment, assert_expression_path, assert_node};
 use destack_dir::{
@@ -875,10 +875,7 @@ fn test_parse_type_mapped_expression_records_separator_and_template_head_spans()
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     parser.finalize_comments();
 
@@ -932,10 +929,7 @@ fn test_parse_type_mapped_expression_records_remap_block_comment_boundary() {
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     parser.finalize_comments();
 
@@ -993,10 +987,7 @@ fn test_parse_type_mapped_expression_records_trailing_comment_owner() {
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     parser.finalize_comments();
 
@@ -1053,10 +1044,7 @@ fn test_parse_type_template_interpolation_records_trailing_line_comment_boundary
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     parser.finalize_comments();
 

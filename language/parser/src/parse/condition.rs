@@ -1,6 +1,6 @@
-use crate::parse::context::ExpressionContext;
 use crate::parse::r#let::DeclaratorValue;
 use crate::parse::lookahead::DelimiterDepth;
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserResult, TokenProbe};
 use destack_dir::{Condition, ConditionOperand, Keyword, NodeType, OperatorPrecedence, TokenType};
 
@@ -8,10 +8,11 @@ impl Parser {
     /// Parse one parenthesized control condition.
     pub(crate) fn parse_parenthesized_condition(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
     ) -> ParserResult<Condition> {
         self.eat_token(TokenType::OpenParenthesis)?;
-        let condition = self.parse_condition(context)?;
+        let condition = self.parse_condition(position, stop)?;
         self.eat_close_token_or_recover_missing_with(
             TokenType::CloseParenthesis,
             NodeType::Expression,
@@ -24,22 +25,26 @@ impl Parser {
     }
 
     /// Parse one control condition after its opening delimiter.
-    fn parse_condition(&mut self, context: ExpressionContext) -> ParserResult<Condition> {
+    fn parse_condition(
+        &mut self,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
+    ) -> ParserResult<Condition> {
         // preserve ordinary expressions as one operand
         if !self.peek_condition_binding_operand() {
-            let condition = self.parse_expression(context)?;
+            let condition = self.parse_expression(position, stop)?;
 
             return Ok(Condition::expression(condition));
         }
 
-        let first = self.parse_condition_operand(context)?;
+        let first = self.parse_condition_operand(position, stop)?;
         let mut operands = vec![first];
 
         // collect top-level logical-and operands
         while self.peek_is(TokenType::LogicalAnd) {
             self.bump();
 
-            let operand = self.parse_condition_operand(context)?;
+            let operand = self.parse_condition_operand(position, stop)?;
             operands.push(operand);
         }
 
@@ -107,7 +112,8 @@ impl Parser {
     /// Parse one operand in a condition chain.
     fn parse_condition_operand(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
     ) -> ParserResult<ConditionOperand> {
         let keyword = self.peek_keyword();
         let is_binding = keyword
@@ -121,10 +127,8 @@ impl Parser {
         // parse a declaration operand
         if is_binding {
             let head = self.parse_let_head()?;
-            let declarator = self.parse_declarator(
-                context.function,
-                DeclaratorValue::Required(OperatorPrecedence::LogicalAnd),
-            )?;
+            let declarator =
+                self.parse_declarator(DeclaratorValue::Required(OperatorPrecedence::LogicalAnd))?;
 
             Ok(ConditionOperand::Binding {
                 kind: head.kind,
@@ -134,10 +138,8 @@ impl Parser {
         }
         // parse one boolean operand without consuming the next conjunction
         else {
-            let condition = self.parse_expression(ExpressionContext {
-                minimum_precedence: OperatorPrecedence::LogicalAnd,
-                ..context
-            })?;
+            let condition =
+                self.parse_expression_at(position, stop, OperatorPrecedence::LogicalAnd)?;
 
             Ok(ConditionOperand::Expression { condition })
         }

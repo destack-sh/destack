@@ -21,12 +21,7 @@ struct { public x: int32, readonly y: boolean }
 
     let start = parser.mark_parse_start();
     let error = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "{");
@@ -43,12 +38,7 @@ class {}
 
     let start = parser.mark_parse_start();
     let error = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "{");
@@ -66,12 +56,7 @@ class Foo { x: int32, y: int32 }
 
     let start = parser.mark_parse_start();
     let error = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), ",");
@@ -89,12 +74,7 @@ struct Foo { x: int32, y: int32 }
 
     let start = parser.mark_parse_start();
     let error = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), ",");
@@ -211,12 +191,7 @@ struct Foo extends Bar implements Baz {
 
     let start = parser.mark_parse_start();
     let struct_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
@@ -238,12 +213,7 @@ class Combined extends First, Second {}
 
     let start = parser.mark_parse_start();
     let class_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
@@ -265,12 +235,7 @@ class Counter extends {}
 
     let start = parser.mark_parse_start();
     let class_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
     assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { name, extends_type, .. }) => {
         assert_string!(parser, name.expect("expected class name").string(), "Counter");
@@ -291,12 +256,7 @@ fn test_parse_class_member_method_parameter_type_then_default_value() {
 
     let start = parser.mark_parse_start();
     let class_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
 
     // parse one class method that mixes typed and defaulted parameters
@@ -443,12 +403,7 @@ struct Foo<T: Numeric> implements Quux {
 
     let start = parser.mark_parse_start();
     let struct_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { name, generic_parameters, implements_types, members, .. }) => {
         assert_string!(parser, name.string(), "Foo");
@@ -515,12 +470,7 @@ class Box<T> {}
 
     let start = parser.mark_parse_start();
     let class_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
 
     let generic_parameter_span = parser
@@ -546,12 +496,7 @@ struct Foo where Guard: Limit {
 
     let start = parser.mark_parse_start();
     let struct_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { generic_parameters, where_clauses, members, .. }) => {
         assert!(members.is_empty());
@@ -581,12 +526,7 @@ struct Foo {
 
     let start = parser.mark_parse_start();
     let struct_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { members, .. }) => {
         assert_eq!(members.len(), 1);
@@ -600,12 +540,7 @@ fn test_parse_struct_implements_type_spans() {
 
     let start = parser.mark_parse_start();
     let struct_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
 
     // spans on implements types
@@ -626,12 +561,7 @@ fn test_parse_struct_negative_implements_type() {
 
     let start = parser.mark_parse_start();
     let struct_id = parser
-        .parse_struct_or_class(
-            &start,
-            DeclarationHeader::default(),
-            false,
-            Default::default(),
-        )
+        .parse_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap();
 
     test.assert_no_errors(&parser);

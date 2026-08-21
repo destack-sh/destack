@@ -1,12 +1,14 @@
 use crate::tests::TestParser;
-use crate::{assert_node, assert_string};
+use crate::{ExpressionPosition, ExpressionStop, assert_node, assert_string};
 use destack_dir::{BinaryOperator, Expression, RangeEnd, ScalarLiteral};
 
 #[test]
 fn test_parse_half_open_range_expression() {
     let test = TestParser::new("1..10");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
@@ -24,7 +26,9 @@ fn test_parse_half_open_range_expression() {
 fn test_parse_inclusive_range_expression() {
     let test = TestParser::new("1..=10");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Inclusive);
@@ -78,7 +82,9 @@ fn test_parse_open_ended_range_expressions() {
 fn test_parse_range_expression_precedence() {
     let test = TestParser::new("start + 1..end * 2");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
@@ -96,7 +102,9 @@ fn test_parse_range_expression_precedence() {
 fn test_parse_negative_range_start_expression() {
     let test = TestParser::new("-3..3");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
@@ -112,7 +120,9 @@ fn test_parse_negative_range_start_expression() {
 fn test_parse_range_index_expression() {
     let test = TestParser::new("items[1..count]");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Index { left, index, .. } => {
         assert_node!(parser.tree, *left, Expression::Identifier { name } => {
@@ -209,7 +219,9 @@ fn test_parse_full_range_expression_before_newline() {
 fn test_parse_range_expression_recovers_missing_inclusive_end() {
     let test = TestParser::new("1..=");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {

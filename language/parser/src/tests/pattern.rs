@@ -37,7 +37,7 @@ fn test_parse_pattern_wildcard() {
     // _
     let test = TestParser::new("_");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
     assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
 }
 
@@ -47,7 +47,7 @@ fn test_parse_deeply_nested_tuple_pattern() {
     let source = nested_tuple_pattern_source(1024);
     let test = TestParser::new(&source);
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
@@ -59,7 +59,7 @@ fn test_parse_deeply_nested_tuple_pattern() {
 fn test_parse_tuple_pattern_with_missing_close_parenthesis() {
     let test = TestParser::new("(first, second");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -72,7 +72,7 @@ fn test_parse_tuple_pattern_with_missing_close_parenthesis() {
 fn test_parse_computed_pattern_field_with_missing_close_bracket() {
     let test = TestParser::new("{ [key: value }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -92,7 +92,7 @@ fn test_parse_pattern_reference() {
     // &_
     let test = TestParser::new("&_");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
     // &
     assert_node!(parser.tree, pattern_id,
         Pattern::BorrowOf { mutability: Some(mutability), right } => {
@@ -105,7 +105,7 @@ fn test_parse_pattern_reference() {
     // &1
     let test = TestParser::new("&1");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
     // &
     assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability: Some(mutability), right } => {
         assert_eq!(*mutability, Mutability::Mutable);
@@ -120,7 +120,7 @@ fn test_parse_pattern_reference() {
 fn test_parse_pattern_reference_chain_compact() {
     let test = TestParser::new("&&item");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability, right } => {
         assert_eq!(*mutability, Some(Mutability::Mutable));
@@ -140,7 +140,7 @@ fn test_parse_pattern_value() {
     // ^x
     let test = TestParser::new("^x");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
     assert_node!(parser.tree, pattern_id, Pattern::MoveOf { mutability: Some(mutability), right } => {
         assert_eq!(*mutability, Mutability::Mutable);
         assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
@@ -153,7 +153,7 @@ fn test_parse_pattern_value() {
 fn test_parse_pattern_undefined_literal() {
     let test = TestParser::new("undefined");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     // undefined
     assert_node!(parser.tree, pattern_id, Pattern::Expression { value } => {
@@ -165,7 +165,7 @@ fn test_parse_pattern_undefined_literal() {
 fn test_parse_pattern_dereference_binding() {
     let test = TestParser::new("*value");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
@@ -179,7 +179,7 @@ fn test_parse_pattern_dereference_binding() {
 fn test_parse_pattern_dereference_wildcard() {
     let test = TestParser::new("*_");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::Wildcard);
@@ -191,7 +191,7 @@ fn test_parse_pattern_dereference_wildcard() {
 fn test_parse_pattern_dereference_literal() {
     let test = TestParser::new("*42");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::Expression { value } => {
@@ -205,7 +205,7 @@ fn test_parse_pattern_dereference_literal() {
 fn test_parse_pattern_dereference_range() {
     let test = TestParser::new("*0..10");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
@@ -221,7 +221,7 @@ fn test_parse_pattern_dereference_range() {
 fn test_parse_pattern_dereference_tuple() {
     let test = TestParser::new("*(x, y)");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::Tuple { fields } => {
@@ -245,7 +245,7 @@ fn test_parse_pattern_dereference_tuple() {
 fn test_parse_pattern_dereference_sequence() {
     let test = TestParser::new("*[head, ...tail]");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::Sequence { fields } => {
@@ -269,7 +269,7 @@ fn test_parse_pattern_dereference_sequence() {
 fn test_parse_pattern_dereference_object() {
     let test = TestParser::new("*{ x, y }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::Object { fields } => {
@@ -290,7 +290,7 @@ fn test_parse_pattern_dereference_object() {
 fn test_parse_pattern_dereference_nominal_tuple() {
     let test = TestParser::new("*Result.Ok(value)");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::NominalTuple { ty, fields } => {
@@ -313,7 +313,7 @@ fn test_parse_pattern_dereference_nominal_tuple() {
 fn test_parse_pattern_dereference_nominal_object() {
     let test = TestParser::new("*Point { x, y }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::NominalObject { ty, fields } => {
@@ -336,7 +336,7 @@ fn test_parse_pattern_dereference_nominal_object() {
 fn test_parse_pattern_dereference_before_borrow() {
     let test = TestParser::new("*&readonly inner");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::BorrowOf { mutability: Some(mutability), right } => {
@@ -353,7 +353,7 @@ fn test_parse_pattern_dereference_before_borrow() {
 fn test_parse_pattern_dereference_before_move() {
     let test = TestParser::new("*^exclusive item");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::MoveOf { mutability: Some(mutability), right } => {
@@ -370,7 +370,7 @@ fn test_parse_pattern_dereference_before_move() {
 fn test_parse_pattern_identifier() {
     let test = TestParser::new("x");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
     assert_node!(parser.tree, pattern_id, Pattern::Binding { name, pattern: None } => {
         assert_string!(parser, *name, "x");
     });
@@ -380,7 +380,7 @@ fn test_parse_pattern_identifier() {
 fn test_parse_pattern_path() {
     let test = TestParser::new("MyEnum.A");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
     assert_node!(parser.tree, pattern_id, Pattern::Expression { value } => {
         assert_expression_path!(parser, parser.tree.get(*value), "MyEnum.A");
     });
@@ -390,7 +390,7 @@ fn test_parse_pattern_path() {
 fn test_parse_pattern_range_half_open() {
     let test = TestParser::new("0..10");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
@@ -404,7 +404,7 @@ fn test_parse_pattern_range_half_open() {
 fn test_parse_pattern_range_inclusive() {
     let test = TestParser::new("0..=10");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Inclusive);
@@ -419,7 +419,7 @@ fn test_parse_pattern_range_inclusive() {
 fn test_parse_signed_pattern_range() {
     let test = TestParser::new("-10..=-5");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Inclusive);
@@ -434,7 +434,7 @@ fn test_parse_signed_pattern_range() {
 fn test_parse_signed_numeric_patterns() {
     let test = TestParser::new("-1 | +2n | -3.5");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
         assert_eq!(patterns.len(), 3);
@@ -457,7 +457,7 @@ fn test_parse_signed_numeric_patterns() {
 fn test_parse_pattern_range_open_ended() {
     let test = TestParser::new("0..");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: None, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
@@ -470,7 +470,7 @@ fn test_parse_pattern_range_open_ended() {
 fn test_parse_pattern_range_startless() {
     let test = TestParser::new("..10");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: None, end: Some(end), end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
@@ -483,7 +483,7 @@ fn test_parse_pattern_range_startless() {
 fn test_parse_pattern_range_startless_inclusive() {
     let test = TestParser::new("..=10");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: None, end: Some(end), end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Inclusive);
@@ -496,7 +496,7 @@ fn test_parse_pattern_range_startless_inclusive() {
 fn test_parse_pattern_range_identifier_bounds() {
     let test = TestParser::new("MIN..MAX");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
@@ -514,7 +514,7 @@ fn test_parse_pattern_range_identifier_bounds() {
 fn test_parse_pattern_range_path_bounds() {
     let test = TestParser::new("Limits.Min..=Limits.Max");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Inclusive);
@@ -528,7 +528,7 @@ fn test_parse_pattern_range_path_bounds() {
 fn test_parse_pattern_range_union() {
     let test = TestParser::new("0..10 | 20..30");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
         assert_eq!(patterns.len(), 2);
@@ -550,7 +550,7 @@ fn test_parse_pattern_range_union() {
 fn test_parse_pattern_range_stops_before_match_arrow() {
     let test = TestParser::new("0.. => value");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: None, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
@@ -564,7 +564,7 @@ fn test_parse_pattern_range_stops_before_match_arrow() {
 fn test_parse_pattern_range_recovers_inclusive_end_before_union() {
     let test = TestParser::new("0..= | 1");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
@@ -582,7 +582,7 @@ fn test_parse_pattern_range_recovers_inclusive_end_before_union() {
 fn test_parse_pattern_range_recovers_bare_range() {
     let test = TestParser::new("..");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: None, end: Some(_), end_kind } => {
@@ -594,7 +594,7 @@ fn test_parse_pattern_range_recovers_bare_range() {
 fn test_parse_pattern_range_recovers_missing_inclusive_end() {
     let test = TestParser::new("0..=");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(_), end: Some(_), end_kind } => {
@@ -606,7 +606,7 @@ fn test_parse_pattern_range_recovers_missing_inclusive_end() {
 fn test_parse_pattern_tuple() {
     let test = TestParser::new("(x: 1, 2, y, z, ...)");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     // (x: 1, 2, y, z, ...)
     assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
@@ -653,7 +653,7 @@ fn test_parse_pattern_tuple() {
 fn test_parse_pattern_tuple_with_path() {
     let test = TestParser::new("Result.Success(_, ...)");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     // Result.Success(_, ..)
     assert_node!(parser.tree, pattern_id, Pattern::NominalTuple { ty, fields } => {
@@ -685,7 +685,7 @@ fn test_parse_pattern_tuple_with_path() {
 fn test_parse_pattern_object_field_const_alias() {
     let test = TestParser::new("{ const: value, title }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     // { const: value, title }
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
@@ -717,7 +717,7 @@ fn test_parse_pattern_tuple_newline_separated() {
 )",
     );
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     // (x: 1, 2, ..)
     assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
@@ -751,7 +751,7 @@ fn test_parse_pattern_union() {
     // 1 | 2 | 3
     let test = TestParser::new("1 | 2 | 3");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
         assert_eq!(patterns.len(), 3);
@@ -774,10 +774,31 @@ fn test_parse_pattern_union() {
 }
 
 #[test]
+fn test_parse_pattern_union_before_type() {
+    let test = TestParser::new("success | &failure: Result");
+    let mut parser = test.prepare();
+    let pattern_id = parser.parse_pattern_before_type().unwrap();
+
+    test.assert_no_errors(&parser);
+    assert!(parser.peek_is(TokenType::Colon));
+    assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
+        assert_eq!(patterns.len(), 2);
+        assert_node!(parser.tree, patterns[0], Pattern::Binding { name, pattern: None } => {
+            assert_string!(parser, *name, "success");
+        });
+        assert_node!(parser.tree, patterns[1], Pattern::BorrowOf { right, .. } => {
+            assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
+                assert_string!(parser, *name, "failure");
+            });
+        });
+    });
+}
+
+#[test]
 fn test_parse_pattern_struct_anonymous() {
     let test = TestParser::new("{ x: 1, y, z, w: 4, ... }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 5);
@@ -818,7 +839,7 @@ fn test_parse_pattern_struct_anonymous() {
 fn test_parse_pattern_named_default_after_comment_newline() {
     let test = TestParser::new("{d //comment\n= b}");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 1);
@@ -838,7 +859,7 @@ fn test_parse_pattern_named_default_after_comment_newline() {
 fn test_parse_pattern_struct_numeric_name_aliases() {
     let test = TestParser::new("{ 0: fieldNameOrOptions, 1: from, length: argc }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 3);
@@ -871,7 +892,7 @@ fn test_parse_pattern_struct_numeric_name_aliases() {
 fn test_parse_pattern_struct_string_name_aliases() {
     let test = TestParser::new(r#"{ "false": decorators, "true": metadata }"#);
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 2);
@@ -894,7 +915,7 @@ fn test_parse_pattern_struct_string_name_aliases() {
 fn test_parse_pattern_struct_computed_field() {
     let test = TestParser::new("{ [key]: value }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 1);
@@ -919,7 +940,7 @@ fn test_parse_pattern_struct_computed_field() {
 fn test_parse_pattern_struct_with_path() {
     let test = TestParser::new("Vector2 { x: 0, y }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::NominalObject { ty, fields } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
@@ -952,7 +973,7 @@ fn test_parse_pattern_struct_with_path() {
 fn test_parse_nominal_object_pattern_with_nested_nominal_object_field() {
     let test = TestParser::new("Shape.Line { start: Point { x, y }, end }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::NominalObject { ty, fields } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
@@ -988,7 +1009,7 @@ fn test_parse_nominal_object_pattern_with_nested_nominal_object_field() {
 fn test_parse_pattern_unbound_rest() {
     let test = TestParser::new("[1, ...]");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
         assert_eq!(fields.len(), 2);
@@ -1009,7 +1030,7 @@ fn test_parse_pattern_unbound_rest() {
 fn test_parse_pattern_unbound_middle_rest() {
     let test = TestParser::new("[first, ..., last]");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
         assert_eq!(fields.len(), 3);
@@ -1034,7 +1055,7 @@ fn test_parse_pattern_unbound_middle_rest() {
 fn test_parse_pattern_nested_rest() {
     let test = TestParser::new("[...[x, y]]");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
         assert_eq!(fields.len(), 1);
@@ -1060,7 +1081,7 @@ fn test_parse_pattern_nested_rest() {
 fn test_parse_pattern_object_readonly_shorthand() {
     let test = TestParser::new("{ readonly }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 1);
@@ -1074,7 +1095,7 @@ fn test_parse_pattern_object_readonly_shorthand() {
 fn test_parse_pattern_object_readonly_shorthand_with_newline() {
     let test = TestParser::new("{ readonly\n}");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 1);
@@ -1087,7 +1108,7 @@ fn test_parse_pattern_object_readonly_shorthand_with_newline() {
 fn test_parse_pattern_array_readonly_identifier() {
     let test = TestParser::new("[readonly, setReadonly]");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
         assert_eq!(fields.len(), 2);
@@ -1108,7 +1129,7 @@ fn test_parse_pattern_array_readonly_identifier() {
 fn test_report_pattern_object_readonly_modifier_with_name() {
     let test = TestParser::new("{ readonly value }");
     let mut parser = test.prepare();
-    let error = parser.parse_pattern(Default::default()).unwrap_err();
+    let error = parser.parse_pattern().unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "value");
 }
@@ -1117,7 +1138,7 @@ fn test_report_pattern_object_readonly_modifier_with_name() {
 fn test_parse_pattern_object_rest_newline_before_terminator() {
     let test = TestParser::new("{\n  onSuccess,\n  ...rest\n}");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 2);
@@ -1136,7 +1157,7 @@ fn test_parse_pattern_object_rest_newline_before_terminator() {
 fn test_parse_pattern_must() {
     let test = TestParser::new("1!");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Must(inner) => {
         assert_node!(parser.tree, *inner, Pattern::Expression { value } => {
@@ -1149,7 +1170,7 @@ fn test_parse_pattern_must() {
 fn test_parse_pattern_union_with_must_arms() {
     let test = TestParser::new("1! | 2!");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
         assert_eq!(patterns.len(), 2);
@@ -1172,7 +1193,7 @@ fn test_parse_pattern_union_with_must_arms() {
 fn test_parse_pattern_union_with_trailing_must_arm() {
     let test = TestParser::new("1 | 2!");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
         assert_eq!(patterns.len(), 2);
@@ -1194,7 +1215,7 @@ fn test_parse_pattern_array_elision() {
     // [,a] - elision before 'a'
     let test = TestParser::new("[,a]");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
         assert_eq!(fields.len(), 2);
@@ -1216,7 +1237,7 @@ fn test_parse_pattern_array_multiple_elisions() {
     // [,,a] - two elisions before 'a'
     let test = TestParser::new("[,,a]");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
         assert_eq!(fields.len(), 3);
@@ -1241,7 +1262,7 @@ fn test_parse_pattern_array_trailing_elision() {
     // [a,] - element followed by trailing comma (not elision)
     let test = TestParser::new("[a,]");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
         // trailing comma doesn't create elision, just 'a'
@@ -1261,7 +1282,7 @@ fn test_parse_object_pattern_defaults_do_not_consume_following_fields() {
     // {a,b=1,c:d,e:f=2,[g]:[h]}
     let test = TestParser::new("{a,b=1,c:d,e:f=2,[g]:[h]}");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 5);
@@ -1293,7 +1314,7 @@ fn test_parse_object_pattern_alias_and_computed_defaults() {
     // {c, d:e=1, [f]:g=2, h=i}
     let test = TestParser::new("{c, d:e=1, [f]:g=2, h=i}");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 4);
@@ -1320,7 +1341,7 @@ fn test_parse_object_pattern_computed_field_with_newline_after_colon() {
     // { [key]:\nvalue }
     let test = TestParser::new("{ [key]:\nvalue }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 1);
@@ -1342,7 +1363,7 @@ fn test_parse_object_pattern_alias_with_newline_after_colon() {
     // { source:\ntarget }
     let test = TestParser::new("{ source:\ntarget }");
     let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern(Default::default()).unwrap();
+    let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 1);

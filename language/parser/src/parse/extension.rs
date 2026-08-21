@@ -1,6 +1,5 @@
-use crate::parse::DeclarationHeader;
-use crate::parse::context::{FunctionContext, TypeContext, TypeStops};
 use crate::parse::error::ParserResultExt;
+use crate::parse::{DeclarationHeader, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserResult};
 
 use destack_dir::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
@@ -17,7 +16,6 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         header: DeclarationHeader,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
         // extension
         self.eat_keyword(Keyword::Extension)?;
@@ -33,7 +31,7 @@ impl Parser {
 
         // <parameters>
         let generic_parameter_container_start = self.mark_parse_start();
-        let generic_parameters = self.parse_generic_parameters_if_present(false, function)?;
+        let generic_parameters = self.parse_generic_parameters_if_present(false)?;
         let generic_parameter_container_range = generic_parameters
             .as_ref()
             .map(|_| self.range_since(&generic_parameter_container_start));
@@ -44,11 +42,8 @@ impl Parser {
         // target
         let target_start = self.mark_parse_start();
         let target_type = self.parse_type_or_recover_missing(
-            TypeContext {
-                function,
-                stops: TypeStops::IMPLEMENTS,
-                ..TypeContext::default()
-            },
+            TypePosition::Type,
+            TypeStop::IMPLEMENTS,
             NodeType::Declaration,
         )?;
 
@@ -60,15 +55,15 @@ impl Parser {
         );
 
         // implements types
-        let implements_types = self.parse_implements_types_if_present(function)?;
+        let implements_types = self.parse_implements_types_if_present()?;
 
         // where constraints
-        let where_clauses = self.parse_where_clauses(function)?;
+        let where_clauses = self.parse_where_clauses()?;
 
         // { members }
         self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)
             .in_node(NodeType::Declaration)?;
-        let members = self.parse_members(function)?;
+        let members = self.parse_members()?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
         // retain the complete declaration

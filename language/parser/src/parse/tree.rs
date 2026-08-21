@@ -1,6 +1,5 @@
 use crate::lex::decode_html_entities;
-use crate::parse::context::{ExpressionContext, ExpressionMode, FunctionContext};
-use crate::parse::{PathGrammar, RangedPath, TokenMode};
+use crate::parse::{ExpressionPosition, ExpressionStop, RangedPath, TokenMode};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_dir::{
     Expression, GenericArgument, LocalNodeId, Name, NodeType, Path, StringId, TokenLiteral,
@@ -87,7 +86,6 @@ impl Parser {
     pub(crate) fn parse_tree_child(
         &mut self,
         follow_mode: TokenMode,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<TreeChild>> {
         let start = self.mark_parse_start();
 
@@ -101,15 +99,12 @@ impl Parser {
                 return Ok(self.insert_node(TreeChild::Empty, self.range_since(&start)));
             }
 
-            // parse the optional spread marker and shared value grammar
+            // parse the optional spread marker and shared value
             let is_spread = self.peek_is(TokenType::Spread);
             if is_spread {
                 self.bump();
             }
-            let value = self.parse_expression(ExpressionContext {
-                function,
-                ..ExpressionContext::default()
-            });
+            let value = self.parse_expression(ExpressionPosition::Value, ExpressionStop::default());
             let value = match value {
                 Ok(value) => value,
                 Err(error) => {
@@ -157,7 +152,7 @@ impl Parser {
 
         // nested tree child
         if self.peek_tree_literal_start() {
-            let value = self.parse_tree_literal_in_mode(follow_mode, function)?;
+            let value = self.parse_tree_literal_in_mode(follow_mode)?;
             return Ok(self.insert_node(TreeChild::Tree { value }, self.range_since(&start)));
         }
 
@@ -212,10 +207,7 @@ impl Parser {
     /// {...args}
     /// ```
     #[inline]
-    pub(crate) fn parse_tree_attribute(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<TreeAttribute>> {
+    pub(crate) fn parse_tree_attribute(&mut self) -> ParserResult<LocalNodeId<TreeAttribute>> {
         let start = self.mark_parse_start();
         // spread expression container
         if self.peek_is(TokenType::OpenBrace) {
@@ -225,10 +217,8 @@ impl Parser {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
             self.bump();
-            let value = self.parse_expression(ExpressionContext {
-                function,
-                ..ExpressionContext::default()
-            })?;
+            let value =
+                self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
             self.eat_tree_expression_close_brace(TokenMode::TreeTag, NodeType::TreeAttribute)?;
             self.extend_node_region_range(
                 value,
@@ -254,10 +244,8 @@ impl Parser {
                 if self.peek_is(TokenType::OpenBrace) {
                     let container_start = self.mark_parse_start();
                     self.bump_with_mode(TokenMode::Ordinary);
-                    let value = self.parse_expression(ExpressionContext {
-                        function,
-                        ..ExpressionContext::default()
-                    })?;
+                    let value = self
+                        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
                     self.eat_tree_expression_close_brace(
                         TokenMode::TreeTag,
                         NodeType::TreeAttribute,
@@ -410,20 +398,16 @@ impl Parser {
     ///     {children.map(child => <Entity name={child.name} />)}
     /// </Level>
     /// ```
-    pub(crate) fn parse_tree_literal(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        self.parse_tree_literal_in_mode(TokenMode::Ordinary, function)
+    pub(crate) fn parse_tree_literal(&mut self) -> ParserResult<LocalNodeId<Expression>> {
+        self.parse_tree_literal_in_mode(TokenMode::Ordinary)
     }
 
     /// Parse a tree literal and advance in the requested mode after it closes.
     pub(crate) fn parse_tree_literal_in_mode(
         &mut self,
         follow_mode: TokenMode,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let (first, is_self_closing) = self.parse_tree_literal_open(follow_mode, function)?;
+        let (first, is_self_closing) = self.parse_tree_literal_open(follow_mode)?;
         if is_self_closing {
             return self.insert_tree_literal_expression(first, false, None);
         }
@@ -499,7 +483,7 @@ impl Parser {
 
             if self.peek_tree_literal_start() {
                 let child_start = self.mark_parse_start();
-                let child = self.parse_tree_literal_open(TokenMode::TreeChild, function);
+                let child = self.parse_tree_literal_open(TokenMode::TreeChild);
                 let child = match child {
                     Ok(child) => child,
                     Err(error) => {
@@ -528,7 +512,7 @@ impl Parser {
             }
 
             let child_start = self.mark_parse_start();
-            let child = self.parse_tree_child(TokenMode::TreeChild, function);
+            let child = self.parse_tree_child(TokenMode::TreeChild);
 
             let child = match child {
                 Ok(child) => child,
@@ -602,7 +586,6 @@ impl Parser {
     fn parse_tree_literal_open(
         &mut self,
         follow_mode: TokenMode,
-        function: FunctionContext,
     ) -> ParserResult<(TreeFrame, bool)> {
         let start = self.mark_parse_start();
         self.eat_tree_opening_angle()?;
@@ -613,7 +596,7 @@ impl Parser {
             let RangedPath {
                 path,
                 segment_ranges,
-            } = self.parse_ranged_path(PathGrammar::Tree)?;
+            } = self.parse_tree_path()?;
 
             // tree namespace names cannot be followed by member access
             if self.has_tree_literal_namespace_member(&path) {
@@ -630,17 +613,13 @@ impl Parser {
         let generic_arguments = if path.is_some()
             && (self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft))
         {
-            self.parse_generic_argument_list(ExpressionContext {
-                function,
-                mode: ExpressionMode::Tree,
-                ..ExpressionContext::default()
-            })?
+            self.parse_generic_argument_list(ExpressionPosition::Tree)?
         } else {
             Vec::new()
         };
 
         // parse tag attributes
-        let attributes = self.parse_tree_literal_attributes(function)?;
+        let attributes = self.parse_tree_literal_attributes()?;
 
         // close self-closing tags immediately
         if self.peek_is(TokenType::Divide) {
@@ -686,7 +665,6 @@ impl Parser {
     /// Parse tree literal header attributes.
     fn parse_tree_literal_attributes(
         &mut self,
-        function: FunctionContext,
     ) -> ParserResult<Option<Vec<LocalNodeId<TreeAttribute>>>> {
         self.skip_tree_whitespace(TokenMode::Ordinary);
         if self.peek_is(TokenType::Divide) || self.peek_tree_tag_close() {
@@ -710,7 +688,7 @@ impl Parser {
             }
 
             let attribute_start = self.mark_parse_start();
-            let attribute = self.parse_tree_attribute(function);
+            let attribute = self.parse_tree_attribute();
 
             let attribute = match attribute {
                 Ok(attribute) => attribute,
@@ -744,7 +722,7 @@ impl Parser {
         let path = if self.peek_tree_tag_close() {
             None
         } else {
-            let path = self.parse_ranged_path(PathGrammar::Tree)?.path;
+            let path = self.parse_tree_path()?.path;
             if self.has_tree_literal_namespace_member(&path) {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }

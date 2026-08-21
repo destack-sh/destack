@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -11,10 +11,7 @@ fn test_parse_borrow_with_named_lifetime() {
     let test = TestParser::new("type View = &'a readonly Buffer");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -44,10 +41,7 @@ fn test_parse_borrow_with_static_lifetime() {
     let test = TestParser::new("type View = &'static Buffer");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -68,10 +62,7 @@ fn test_parse_lifetime_union_generic_argument() {
     let test = TestParser::new("type Joined = Borrowed<Node, 'a | 'b>");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -90,10 +81,7 @@ fn test_parse_bare_lifetime_generic_parameter() {
     let test = TestParser::new("function first<'a>(a: &'a Node): &'a Node { return a; }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -115,10 +103,7 @@ fn test_parse_const_lifetime_generic_parameter() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

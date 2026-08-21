@@ -1,6 +1,8 @@
-use crate::parse::{ExpressionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
-use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{
+    TypePosition, TypeStop, assert_expression_path, assert_node, assert_path, assert_string,
+};
 use destack_dir::{
     Declaration, Expression, GenericArgument, TypeDeclaration, TypeExpression, TypeLiteral,
 };
@@ -10,10 +12,7 @@ fn test_parse_type_infer_span() {
     let test = TestParser::new("type T = infer Value");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -38,10 +37,7 @@ fn test_parse_type_unary_prefix_operator_span() {
     let test = TestParser::new("type T = keyof Value");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -68,10 +64,7 @@ fn test_parse_static_value_call_type_expression() {
     let test = TestParser::new("type T = runtime.sizeOf<Header>()");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -110,10 +103,7 @@ fn test_parse_local_type_expression() {
     let test = TestParser::new("type T = local Value");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -133,10 +123,7 @@ fn test_parse_local_type_operator_precedence() {
     let test = TestParser::new("type T = local Value | undefined");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -162,10 +149,7 @@ fn test_parse_local_owned_type_expression() {
     let test = TestParser::new("type T = local ^Value");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -187,10 +171,7 @@ fn test_parse_owned_local_type_expression() {
     let test = TestParser::new("type T = ^local Value");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -212,10 +193,7 @@ fn test_parse_type_not_operator_span() {
     let test = TestParser::new("type T = !Unpin");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -242,10 +220,7 @@ fn test_parse_readonly_type_operator_precedence() {
     let test = TestParser::new("type T = readonly string[] | undefined");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -272,10 +247,7 @@ fn test_parse_type_unary_postfix_operator_span() {
     let test = TestParser::new("Value as const");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     let unary_id = expr_id;
@@ -296,10 +268,7 @@ fn test_parse_type_binary_operator_span() {
     let test = TestParser::new("Value as Other");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     let binary_id = expr_id;
@@ -323,10 +292,7 @@ fn test_parse_type_binary_extends_operator_span() {
     let test = TestParser::new("type T = Left extends Right");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -357,10 +323,7 @@ fn test_parse_type_binary_satisfies_operator_span() {
     let test = TestParser::new("Value satisfies Constraint");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     let binary_id = expr_id;
@@ -384,10 +347,7 @@ fn test_parse_type_binary_implements_operator_span() {
     let test = TestParser::new("type T = Value implements Trait");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -410,7 +370,9 @@ fn test_parse_type_binary_implements_operator_span() {
 fn test_parse_type_expression_stops_before_in() {
     let test = TestParser::new("Key in Record");
     let mut parser = test.prepare();
-    let type_id = parser.parse_type(Default::default()).unwrap();
+    let type_id = parser
+        .parse_type(TypePosition::Type, TypeStop::default())
+        .unwrap();
 
     assert_expression_path!(parser, parser.tree.get(type_id), "Key");
 
@@ -423,7 +385,9 @@ fn test_parse_type_expression_stops_before_in() {
 fn test_parse_type_expression_stops_before_instanceof() {
     let test = TestParser::new("Value instanceof Other");
     let mut parser = test.prepare();
-    let type_id = parser.parse_type(Default::default()).unwrap();
+    let type_id = parser
+        .parse_type(TypePosition::Type, TypeStop::default())
+        .unwrap();
 
     // Value
     assert_node!(parser.tree, type_id, TypeExpression::Reference { path, generic_arguments } => {

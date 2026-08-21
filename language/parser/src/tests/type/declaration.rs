@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -134,10 +134,7 @@ fn test_parse_conditional_type_alias_with_generics_through_expression_entry() {
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -187,10 +184,7 @@ fn test_parse_type_expression_with_indexed_generic_argument_after_type_keyword()
     let test = TestParser::new("type Foo<T[number]>");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type Foo<T[number]>

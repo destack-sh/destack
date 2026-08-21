@@ -1,7 +1,4 @@
-use crate::parse::context::{
-    ExpressionContext, ExpressionStops, FunctionContext, PatternContext, StatementPosition,
-    TypeContext,
-};
+use crate::parse::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
@@ -67,12 +64,11 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         header: DeclarationHeader,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let keyword_range = self.peek_token_span().span.range();
         let head = self.parse_let_head()?;
 
-        self.parse_let_declarators(start, header, head, keyword_range, function)
+        self.parse_let_declarators(start, header, head, keyword_range)
     }
 
     /// Parse a using binding (incl. `using` keyword and optional `await`).
@@ -88,7 +84,6 @@ impl Parser {
         start: &ParseStart,
         header: DeclarationHeader,
         asynchrony: Asynchrony,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         // optional await
         if asynchrony == Asynchrony::Async {
@@ -101,10 +96,8 @@ impl Parser {
         // parse declarators
         let mut declarators = Vec::new();
         loop {
-            let declarator_id = self.parse_declarator(
-                function,
-                DeclaratorValue::Required(OperatorPrecedence::Lowest),
-            )?;
+            let declarator_id =
+                self.parse_declarator(DeclaratorValue::Required(OperatorPrecedence::Lowest))?;
             declarators.push(declarator_id);
 
             if self.peek_is(TokenType::Comma) {
@@ -187,9 +180,8 @@ impl Parser {
         header: DeclarationHeader,
         head: LetHead,
         keyword_range: ByteRange,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let first_declarator = self.parse_declarator(function, DeclaratorValue::Optional)?;
+        let first_declarator = self.parse_declarator(DeclaratorValue::Optional)?;
 
         // let else
         if self.peek_is_keyword(Keyword::Else) {
@@ -214,7 +206,7 @@ impl Parser {
 
             let else_branch = {
                 let branch_start = self.mark_parse_start();
-                let else_block = self.parse_block(BlockContext::Statement, function)?;
+                let else_block = self.parse_block(BlockContext::Statement)?;
 
                 self.insert_node(
                     Expression::Block(else_block),
@@ -246,7 +238,7 @@ impl Parser {
         loop {
             if self.peek_is(TokenType::Comma) {
                 self.bump();
-                let declarator_id = self.parse_declarator(function, DeclaratorValue::Optional)?;
+                let declarator_id = self.parse_declarator(DeclaratorValue::Optional)?;
                 declarators.push(declarator_id);
                 continue;
             }
@@ -322,7 +314,6 @@ impl Parser {
     /// ```
     pub(super) fn parse_declarator(
         &mut self,
-        function: FunctionContext,
         value: DeclaratorValue,
     ) -> ParserResult<LocalNodeId<Declarator>> {
         let documentation = self.parse_documentation();
@@ -357,7 +348,7 @@ impl Parser {
 
         // parse the selected binding or pattern form
         let pattern_id = if parses_plain_binding {
-            let (name, name_range) = self.eat_binding_identifier_with_range(function)?;
+            let (name, name_range) = self.eat_binding_identifier_with_range()?;
             let pattern_id = self.insert_node(
                 Pattern::Binding {
                     name,
@@ -369,11 +360,7 @@ impl Parser {
 
             pattern_id
         } else {
-            self.parse_pattern(PatternContext {
-                function,
-                is_before_type: true,
-                ..PatternContext::default()
-            })?
+            self.parse_pattern_before_type()?
         };
 
         // type
@@ -381,10 +368,8 @@ impl Parser {
             let type_start = self.mark_parse_start();
             self.bump();
             let ty = self.parse_type_or_recover_missing(
-                TypeContext {
-                    function,
-                    ..TypeContext::default()
-                },
+                TypePosition::Type,
+                TypeStop::default(),
                 NodeType::Declarator,
             )?;
             (Some(ty), Some(self.range_since(&type_start)))
@@ -402,16 +387,13 @@ impl Parser {
                 DeclaratorValue::Optional => OperatorPrecedence::Lowest,
                 DeclaratorValue::Required(precedence) => precedence,
             };
-            let value = self.parse_expression_or_recover_missing(
-                ExpressionContext {
-                    function,
-                    stops: ExpressionStops::NEWLINE_CALL,
-                    minimum_precedence,
-                    statement: StatementPosition::Nested,
-                    ..ExpressionContext::default()
-                },
-                NodeType::Declarator,
-            )?;
+            let position = ExpressionPosition::NestedStatement;
+            let stop = ExpressionStop::NEWLINE_CALL;
+            let value = if self.peek_expression_slot_boundary() {
+                self.recover_missing_expression_here(NodeType::Declarator)
+            } else {
+                self.parse_expression_at(position, stop, minimum_precedence)?
+            };
 
             (Some(value), Some(operator_range))
         } else if matches!(value, DeclaratorValue::Required(_)) {

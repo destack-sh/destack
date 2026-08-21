@@ -1,9 +1,5 @@
-use crate::parse::DeclarationHeader;
-use crate::parse::context::{
-    ExpressionContext, FunctionContext, ParameterContext, ParameterSpace, StatementPosition,
-    TypeContext, TypeMode,
-};
 use crate::parse::error::ParserResultExt;
+use crate::parse::{DeclarationHeader, ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_core::StringId;
@@ -14,6 +10,80 @@ use destack_dir::{
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
+/// The interpretation of `yield` in one function position.
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+pub(crate) enum YieldKeyword {
+    /// Treat `yield` as an identifier.
+    #[default]
+    Identifier,
+    /// Parse `yield` as a generator expression.
+    Expression,
+    /// Reject `yield` in this position.
+    Forbidden,
+}
+
+/// The interpretation of `await` in one function position.
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+pub(crate) enum AwaitKeyword {
+    /// Parse `await` as an asynchronous expression.
+    #[default]
+    Expression,
+    /// Reject `await` in this position.
+    Forbidden,
+}
+
+/// The lexical interpretation of function-sensitive keywords.
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+pub(crate) struct FunctionKeywords {
+    /// The active `yield` interpretation.
+    pub(crate) yield_keyword: YieldKeyword,
+    /// The active `await` interpretation.
+    pub(crate) await_keyword: AwaitKeyword,
+}
+
+/// The source modifiers that control one function.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) struct FunctionModifiers {
+    /// The function asynchrony.
+    pub(crate) asynchrony: Asynchrony,
+    /// Whether the function is a generator.
+    pub(crate) is_generator: bool,
+}
+
+impl FunctionKeywords {
+    /// Return the keyword interpretation active in parameter initializers.
+    pub(crate) fn parameters(self, modifiers: FunctionModifiers) -> Self {
+        Self {
+            yield_keyword: if modifiers.is_generator {
+                YieldKeyword::Forbidden
+            } else {
+                self.yield_keyword
+            },
+            await_keyword: if modifiers.asynchrony == Asynchrony::Async {
+                AwaitKeyword::Forbidden
+            } else {
+                self.await_keyword
+            },
+        }
+    }
+
+    /// Return the keyword interpretation active in a function body.
+    pub(crate) fn body(self, modifiers: FunctionModifiers) -> Self {
+        Self {
+            yield_keyword: if modifiers.is_generator {
+                YieldKeyword::Expression
+            } else {
+                YieldKeyword::Identifier
+            },
+            await_keyword: if modifiers.asynchrony == Asynchrony::Async {
+                AwaitKeyword::Expression
+            } else {
+                AwaitKeyword::Forbidden
+            },
+        }
+    }
+}
+
 /// One function name and its source range.
 struct FunctionName {
     /// The function name.
@@ -22,14 +92,21 @@ struct FunctionName {
     range: ByteRange,
 }
 
+/// The namespace containing one function.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum FunctionSpace {
+    /// Value space.
+    Value,
+    /// Type space.
+    Type,
+}
+
 /// One function accumulated during parsing.
 struct Function {
-    /// The function grammar space.
-    space: ParameterSpace,
-    /// The relationship to a surrounding statement.
-    statement: StatementPosition,
-    /// Function rules inherited from the enclosing grammar.
-    enclosing_function: FunctionContext,
+    /// The namespace containing the function.
+    space: FunctionSpace,
+    /// The expression position surrounding the function.
+    position: ExpressionPosition,
     /// The declaration header.
     header: DeclarationHeader,
     /// The optional function name.
@@ -51,16 +128,10 @@ struct Function {
 impl Function {
     /// Create one function for a declaration header.
     #[inline]
-    fn new(
-        header: DeclarationHeader,
-        enclosing_function: FunctionContext,
-        space: ParameterSpace,
-        statement: StatementPosition,
-    ) -> Self {
+    fn new(header: DeclarationHeader, space: FunctionSpace, position: ExpressionPosition) -> Self {
         Self {
             space,
-            statement,
-            enclosing_function,
+            position,
             header,
             name: None,
             signature: FunctionSignature {
@@ -85,6 +156,14 @@ impl Function {
             body_range: None,
         }
     }
+
+    /// Return this function's source modifiers.
+    fn modifiers(&self) -> FunctionModifiers {
+        FunctionModifiers {
+            asynchrony: self.signature.asynchrony,
+            is_generator: self.signature.is_generator,
+        }
+    }
 }
 
 impl Parser {
@@ -102,14 +181,9 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         header: DeclarationHeader,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<LocalNodeId<Declaration>> {
-        let mut function = Function::new(
-            header,
-            context.function,
-            ParameterSpace::Value,
-            context.statement,
-        );
+        let mut function = Function::new(header, FunctionSpace::Value, position);
         self.parse_function_head(&mut function)?;
         self.require_function_name(&function)?;
         self.parse_function_parameters(&mut function)?;
@@ -124,14 +198,8 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         header: DeclarationHeader,
-        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let mut function = Function::new(
-            header,
-            context.function,
-            ParameterSpace::Type,
-            StatementPosition::None,
-        );
+        let mut function = Function::new(header, FunctionSpace::Type, ExpressionPosition::Value);
         self.parse_function_head(&mut function)?;
         self.require_function_name(&function)?;
         self.parse_function_parameters(&mut function)?;
@@ -153,7 +221,6 @@ impl Parser {
         parameter_name: StringId,
         parameter_range: ByteRange,
         header: DeclarationHeader,
-        enclosing_function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
         let parameter = Parameter::Named {
             name: parameter_name,
@@ -162,12 +229,7 @@ impl Parser {
             default: None,
         };
         let parameter = self.insert_node(parameter, parameter_range);
-        let mut function = Function::new(
-            header,
-            enclosing_function,
-            ParameterSpace::Value,
-            StatementPosition::None,
-        );
+        let mut function = Function::new(header, FunctionSpace::Value, ExpressionPosition::Value);
         function.signature.parameters.push(parameter);
         function.parameter_range = Some(parameter_range);
         self.parse_function_return(&mut function)?;
@@ -322,11 +384,15 @@ impl Parser {
             FunctionForm::Lambda
         };
         let name = self.parse_function_name(form)?;
-        let parameter_function = function
-            .enclosing_function
-            .enter_parameters(asynchrony, is_generator);
-        let (generic_parameters, generic_parameter_range) =
-            self.parse_function_generics(parameter_function)?;
+        let function_modifiers = FunctionModifiers {
+            asynchrony,
+            is_generator,
+        };
+        let parameter_keywords = self.keywords.parameters(function_modifiers);
+        let (generic_parameters, generic_parameter_range) = self
+            .with_keywords(parameter_keywords, |parser| {
+                parser.parse_function_generics()
+            })?;
 
         // record the function head
         function.name = name;
@@ -402,11 +468,10 @@ impl Parser {
     /// Parse function generic parameters and their container range.
     fn parse_function_generics(
         &mut self,
-        function: FunctionContext,
     ) -> ParserResult<(Vec<LocalNodeId<GenericParameter>>, Option<ByteRange>)> {
         let start = self.mark_parse_start();
         let generic_parameters = self
-            .parse_generic_parameters_if_present(false, function)
+            .parse_generic_parameters_if_present(false)
             .in_node(NodeType::Declaration)?;
         let range = generic_parameters
             .as_ref()
@@ -430,9 +495,9 @@ impl Parser {
     /// Parse function parameters.
     #[inline(never)]
     fn parse_function_parameters(&mut self, function: &mut Function) -> ParserResult<()> {
-        // select the parameter grammar from the function form and source position
+        // select the parameter form from the function form and source position
         let has_parenthesized_parameters = function.signature.form == FunctionForm::Function
-            || function.space == ParameterSpace::Type
+            || function.space == FunctionSpace::Type
             || self.peek_is(TokenType::OpenParenthesis);
         if has_parenthesized_parameters {
             self.parse_parenthesized_function_parameters(function)
@@ -453,15 +518,9 @@ impl Parser {
         let parameters = if self.peek_is(TokenType::CloseParenthesis) {
             vec![]
         } else {
-            let parameter_function = function.enclosing_function.enter_parameters(
-                function.signature.asynchrony,
-                function.signature.is_generator,
-            );
-            self.parse_parameter_list_body(ParameterContext {
-                function: parameter_function,
-                statement: function.statement,
-                space: function.space,
-                ..ParameterContext::default()
+            let parameter_keywords = self.keywords.parameters(function.modifiers());
+            self.with_keywords(parameter_keywords, |parser| {
+                parser.parse_parameter_list_body(function.position)
             })?
         };
 
@@ -508,13 +567,13 @@ impl Parser {
     /// Parse a function return type and where clauses.
     #[inline(never)]
     fn parse_function_return(&mut self, function: &mut Function) -> ParserResult<()> {
-        // select the return grammar from the function form and source position
+        // select the return marker from the function form and source position
         if function.signature.form == FunctionForm::Lambda
             && self.peek_lambda_return_type_marker(function.space)
         {
             self.parse_lambda_return_type(function)
         } else if function.signature.form == FunctionForm::Function
-            || function.space == ParameterSpace::Type
+            || function.space == FunctionSpace::Type
         {
             self.parse_regular_return_type(function)
         } else {
@@ -528,24 +587,22 @@ impl Parser {
         let start = self.mark_parse_start();
         self.bump();
 
-        let mode = if function.space == ParameterSpace::Value {
-            TypeMode::ArrowReturn
+        let position = if function.space == FunctionSpace::Type {
+            TypePosition::Type
         } else {
-            TypeMode::Type
+            TypePosition::ArrowReturn
         };
-        let parameter_function = function.enclosing_function.enter_parameters(
-            function.signature.asynchrony,
-            function.signature.is_generator,
-        );
-        let return_type = self.parse_type_or_recover_missing(
-            TypeContext {
-                function: parameter_function,
-                mode,
-                ..TypeContext::default()
-            },
-            NodeType::Declaration,
-        )?;
-        let where_clauses = self.parse_where_clauses(parameter_function)?;
+        let parameter_keywords = self.keywords.parameters(function.modifiers());
+        let (return_type, where_clauses) = self.with_keywords(parameter_keywords, |parser| {
+            let return_type = parser.parse_type_or_recover_missing(
+                position,
+                TypeStop::default(),
+                NodeType::Declaration,
+            )?;
+            let where_clauses = parser.parse_where_clauses()?;
+
+            Ok((return_type, where_clauses))
+        })?;
 
         function.signature.return_type = Some(return_type);
         function.signature.where_clauses = where_clauses;
@@ -561,28 +618,23 @@ impl Parser {
             let start = self.mark_parse_start();
             self.bump();
 
-            let parameter_function = function.enclosing_function.enter_parameters(
-                function.signature.asynchrony,
-                function.signature.is_generator,
-            );
-            let return_type = self.parse_type_or_recover_missing(
-                TypeContext {
-                    function: parameter_function,
-                    ..TypeContext::default()
-                },
-                NodeType::Declaration,
-            )?;
+            let parameter_keywords = self.keywords.parameters(function.modifiers());
+            let return_type = self.with_keywords(parameter_keywords, |parser| {
+                parser.parse_type_or_recover_missing(
+                    TypePosition::Type,
+                    TypeStop::default(),
+                    NodeType::Declaration,
+                )
+            })?;
 
             function.signature.return_type = Some(return_type);
             function.return_type_range = Some(self.range_since(&start));
         }
 
         // parse trailing where clauses
-        let parameter_function = function.enclosing_function.enter_parameters(
-            function.signature.asynchrony,
-            function.signature.is_generator,
-        );
-        let where_clauses = self.parse_where_clauses(parameter_function)?;
+        let parameter_keywords = self.keywords.parameters(function.modifiers());
+        let where_clauses =
+            self.with_keywords(parameter_keywords, |parser| parser.parse_where_clauses())?;
         function.signature.where_clauses = where_clauses;
 
         Ok(())
@@ -599,11 +651,10 @@ impl Parser {
         // parse a declared function block
         if function.signature.form == FunctionForm::Function && self.peek_is(TokenType::OpenBrace) {
             let start = self.mark_parse_start();
-            let body_function = FunctionContext::body(
-                function.signature.asynchrony,
-                function.signature.is_generator,
-            );
-            let block_id = self.parse_block(BlockContext::Expression, body_function)?;
+            let body_keywords = self.keywords.body(function.modifiers());
+            let block_id = self.with_keywords(body_keywords, |parser| {
+                parser.parse_block(BlockContext::Expression)
+            })?;
             let range = self.range_since(&start);
             let body = self.insert_node(Expression::Block(block_id), range);
 
@@ -614,7 +665,7 @@ impl Parser {
         }
         // parse a lambda body
         else if function.signature.form == FunctionForm::Lambda
-            && function.space == ParameterSpace::Value
+            && function.space == FunctionSpace::Value
             && self.peek_is(TokenType::ArrowWide)
         {
             self.parse_lambda_body(function)
@@ -630,20 +681,16 @@ impl Parser {
 
         // parse the block or expression body
         let start = self.mark_parse_start();
-        let body_function = FunctionContext::body(
-            function.signature.asynchrony,
-            function.signature.is_generator,
-        );
-        let body = if self.peek_block() {
-            let block_id = self.parse_block(BlockContext::Expression, body_function)?;
+        let body_keywords = self.keywords.body(function.modifiers());
+        let body = self.with_keywords(body_keywords, |parser| {
+            if parser.peek_block() {
+                let block_id = parser.parse_block(BlockContext::Expression)?;
 
-            self.insert_node(Expression::Block(block_id), self.range_since(&start))
-        } else {
-            self.parse_expression(ExpressionContext {
-                function: body_function,
-                ..ExpressionContext::default()
-            })?
-        };
+                Ok(parser.insert_node(Expression::Block(block_id), parser.range_since(&start)))
+            } else {
+                parser.parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+            }
+        })?;
         let range = self.range_since(&start);
 
         // record the function body
@@ -654,14 +701,14 @@ impl Parser {
     }
 
     /// Check whether a lambda return type marker is present.
-    fn peek_lambda_return_type_marker(&self, space: ParameterSpace) -> bool {
+    fn peek_lambda_return_type_marker(&self, space: FunctionSpace) -> bool {
         // value arrows use colon return types
         if self.peek_is(TokenType::Colon) {
             return true;
         }
 
         // arrow return types only apply in type positions
-        if space != ParameterSpace::Type {
+        if space == FunctionSpace::Value {
             return false;
         }
 

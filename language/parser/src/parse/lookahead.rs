@@ -1,8 +1,8 @@
-use crate::parse::context::{ExpressionContext, ExpressionStops};
+use crate::parse::ExpressionStop;
 use crate::{Parser, TokenProbe};
 use destack_dir::{Keyword, Token, TokenType};
 
-/// Nested delimiters tracked by grammar classifiers and recovery.
+/// Nested delimiters tracked during classification and recovery.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DelimiterDepth {
     /// The nested parenthesis depth.
@@ -519,14 +519,9 @@ impl Parser {
 
                 probe.peek_token_type() == TokenType::ArrowWide
             }
-            TokenType::OpenParenthesis => {
-                probe.scan_group(TokenType::OpenParenthesis, TokenType::CloseParenthesis)
-                    && probe.scan_function_arrow()
-            }
+            TokenType::OpenParenthesis => probe.scan_function(),
             TokenType::LessThan | TokenType::ShiftLeft => {
-                probe.scan_generic_parameter_group() == Some(GenericDisambiguation::Distinct)
-                    && probe.scan_group(TokenType::OpenParenthesis, TokenType::CloseParenthesis)
-                    && probe.scan_function_arrow()
+                probe.scan_generic_function() == Some(GenericDisambiguation::Distinct)
             }
             _ => false,
         }
@@ -542,41 +537,25 @@ impl Parser {
         }
 
         let mut probe = self.cursor.probe(&self.file);
-        if probe.scan_generic_parameter_group() != Some(GenericDisambiguation::Distinct)
-            || probe.peek_token_type() != TokenType::OpenParenthesis
-        {
-            return false;
-        }
-        if !probe.scan_group(TokenType::OpenParenthesis, TokenType::CloseParenthesis) {
-            return false;
-        }
 
-        probe.scan_function_arrow()
+        probe.scan_generic_function() == Some(GenericDisambiguation::Distinct)
     }
 
     /// Return whether the current angle group starts a generic function type.
     pub(crate) fn peek_generic_function_type(&self) -> bool {
         let mut probe = self.cursor.probe(&self.file);
-        if probe.scan_generic_parameter_group().is_none()
-            || probe.peek_token_type() != TokenType::OpenParenthesis
-        {
-            return false;
-        }
-        if !probe.scan_group(TokenType::OpenParenthesis, TokenType::CloseParenthesis) {
-            return false;
-        }
 
-        probe.scan_function_arrow()
+        probe.scan_generic_function().is_some()
     }
 
     /// Return whether one parenthesized group starts a lambda expression.
-    pub(crate) fn peek_parenthesized_lambda(&self, context: ExpressionContext) -> bool {
+    pub(crate) fn peek_parenthesized_lambda(&self, stop: ExpressionStop) -> bool {
         let is_parameter_list = self.peek_parenthesized_parameter_list();
         let mut probe = self.cursor.probe(&self.file);
         if !probe.scan_group(TokenType::OpenParenthesis, TokenType::CloseParenthesis) {
             return false;
         }
-        if context.stops.contains(ExpressionStops::CONDITIONAL_COLON)
+        if stop.has(ExpressionStop::CONDITIONAL_COLON)
             && probe.peek_token_type() == TokenType::Colon
             && !is_parameter_list
         {
@@ -594,13 +573,8 @@ impl Parser {
 
         let mut probe = self.cursor.probe(&self.file);
         probe.bump();
-        if probe.scan_open_generic_parameter_group(1).is_none()
-            || !probe.scan_group(TokenType::OpenParenthesis, TokenType::CloseParenthesis)
-        {
-            return false;
-        }
 
-        probe.scan_function_arrow()
+        probe.scan_open_generic_function(1).is_some()
     }
 }
 
@@ -658,6 +632,24 @@ impl TokenProbe<'_> {
         self.bump();
 
         self.scan_function_return()
+    }
+
+    /// Advance through one parenthesized parameter list and its function arrow.
+    fn scan_function(&mut self) -> bool {
+        self.scan_group(TokenType::OpenParenthesis, TokenType::CloseParenthesis)
+            && self.scan_function_arrow()
+    }
+
+    /// Advance through one generic function head.
+    fn scan_generic_function(&mut self) -> Option<GenericDisambiguation> {
+        let disambiguation = self.scan_generic_parameter_group()?;
+        self.scan_function().then_some(disambiguation)
+    }
+
+    /// Advance through one generic function head whose opening token was consumed.
+    fn scan_open_generic_function(&mut self, depth: u32) -> Option<GenericDisambiguation> {
+        let disambiguation = self.scan_open_generic_parameter_group(depth)?;
+        self.scan_function().then_some(disambiguation)
     }
 
     /// Advance through one generic parameter group.
@@ -782,7 +774,7 @@ impl TokenProbe<'_> {
                 return true;
             }
 
-            // stop at top-level grammar boundaries
+            // stop at top-level expression boundaries
             if is_top_level
                 && matches!(
                     token_type,

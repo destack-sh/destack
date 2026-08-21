@@ -11,30 +11,29 @@ use destack_source::{
 };
 use std::sync::Arc;
 
-use super::TokenMode;
-use super::context::FunctionContext;
 use super::cursor::TokenCursor;
+use super::{FunctionKeywords, TokenMode};
 
 /// Recursive descents between nested stack checks.
 const STACK_CHECK_INTERVAL: u16 = 8;
 /// Maximum nested recursive parser descent before reporting malformed input.
 const MAX_RECURSIVE_DESCENT_DEPTH: u16 = 2048;
 
-/// The source grammar accepted by a parser.
+/// The form of one parsed source file.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum Grammar {
-    /// Ordinary Destack source.
+pub enum SourceForm {
+    /// A Destack program.
     #[default]
-    Destack,
-    /// Destack source with structural pattern placeholders.
+    Program,
+    /// A structural pattern.
     Pattern,
 }
 
 /// Configuration for parsing one source file.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ParseOptions {
-    /// The accepted source grammar.
-    pub grammar: Grammar,
+    /// The parsed source form.
+    pub form: SourceForm,
     /// The source comments to retain.
     pub comment_retention: CommentRetention,
 }
@@ -102,8 +101,10 @@ pub struct Parser {
     pub(super) next_documentation_comment: usize,
     /// The current nested recursive descent depth.
     recursive_descent_depth: u16,
-    /// The accepted source grammar.
-    grammar: Grammar,
+    /// The parsed source form.
+    form: SourceForm,
+    /// The active interpretation of function-sensitive keywords.
+    pub(super) keywords: FunctionKeywords,
 
     /// The DIR tree.
     pub tree: Tree,
@@ -224,12 +225,27 @@ impl Parser {
             cursor,
             next_documentation_comment: 0,
             recursive_descent_depth: 0,
-            grammar: options.grammar,
+            form: options.form,
+            keywords: FunctionKeywords::default(),
             is_ambient: language_type.is_declaration(),
             tree,
             strings: LocalStringPool::new(),
             errors: Vec::new(),
         }
+    }
+
+    /// Parse with one keyword interpretation and restore the enclosing interpretation.
+    pub(crate) fn with_keywords<T>(
+        &mut self,
+        keywords: FunctionKeywords,
+        parse: impl FnOnce(&mut Self) -> ParserResult<T>,
+    ) -> ParserResult<T> {
+        let enclosing = std::mem::replace(&mut self.keywords, keywords);
+        let result = parse(self);
+
+        self.keywords = enclosing;
+
+        result
     }
 
     /// Return consumed semantic tokens for parser tests.
@@ -504,11 +520,7 @@ impl Parser {
     /// ```
     pub fn parse_roots(&mut self) -> Vec<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
-        let expressions = self.parse_block_body(
-            BlockForm::Implicit,
-            BlockContext::Statement,
-            FunctionContext::default(),
-        );
+        let expressions = self.parse_block_body(BlockForm::Implicit, BlockContext::Statement);
 
         match expressions {
             Ok(expressions) => expressions,
@@ -799,7 +811,7 @@ impl Parser {
     /// Return whether the current token is a repeated Pattern placeholder.
     #[inline]
     pub(crate) fn peek_repeated_pattern_marker(&self) -> bool {
-        if self.grammar != Grammar::Pattern {
+        if self.form != SourceForm::Pattern {
             return false;
         }
 

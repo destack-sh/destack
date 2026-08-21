@@ -7,7 +7,7 @@ use destack_dir::{
 };
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 
-use crate::parse::{BindingModifierGrammar, ParameterContext, ParameterSpace};
+use crate::parse::BindingPosition;
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_path,
     assert_string,
@@ -197,12 +197,7 @@ fn test_parse_parameter_optional_variadic() {
 fn test_parse_parameter_variadic_tuple_name() {
     let test = TestParser::new("...[value]: [] | [TNext]");
     let mut parser = test.prepare();
-    let parameter_id = parser
-        .parse_parameter(ParameterContext {
-            space: ParameterSpace::Type,
-            ..ParameterContext::default()
-        })
-        .unwrap();
+    let parameter_id = parser.parse_parameter(Default::default()).unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
         assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 1);
@@ -368,9 +363,7 @@ fn test_parse_generic_parameters_multiline_union_constraint_with_default() {
 >"#,
     );
     let mut parser = test.prepare();
-    let generic_parameters = parser
-        .parse_generic_parameter_list(true, Default::default())
-        .unwrap();
+    let generic_parameters = parser.parse_generic_parameter_list(true).unwrap();
 
     // Return: ReturnType<onRequestHookHandler<RawServer>> | ReturnType<onRequestAsyncHookHandler<RawServer>> = ReturnType<onRequestHookHandler<RawServer>>
     assert_eq!(generic_parameters.len(), 1);
@@ -447,9 +440,7 @@ fn test_parse_generic_parameters_multiline_union_constraint_with_default() {
 fn test_parse_generic_parameters_default_before_shifted_close() {
     let test = TestParser::declaration("<Union, LastElement = LastOf<Union>>");
     let mut parser = test.prepare();
-    let generic_parameters = parser
-        .parse_generic_parameter_list(true, Default::default())
-        .unwrap();
+    let generic_parameters = parser.parse_generic_parameter_list(true).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -466,9 +457,7 @@ fn test_parse_generic_parameters_default_before_shifted_close() {
 fn test_parse_generic_parameters_record_first_parameter_container_leading_span() {
     let test = TestParser::new("<\n  T>");
     let mut parser = test.prepare();
-    let generic_parameters = parser
-        .parse_generic_parameter_list(true, Default::default())
-        .unwrap();
+    let generic_parameters = parser.parse_generic_parameter_list(true).unwrap();
 
     assert_eq!(generic_parameters.len(), 1);
 
@@ -488,9 +477,7 @@ fn test_parse_generic_parameters_missing_close_angle() {
     // <T
     let test = TestParser::new("<T");
     let mut parser = test.prepare();
-    let parameters = parser
-        .parse_generic_parameter_list(true, Default::default())
-        .unwrap();
+    let parameters = parser.parse_generic_parameter_list(true).unwrap();
 
     // diagnostics
     test.assert_errors(
@@ -515,9 +502,7 @@ fn test_parse_generic_arguments_missing_close_angle_in_type_context() {
     // <string, number
     let test = TestParser::new("<string, number");
     let mut parser = test.prepare();
-    let arguments = parser
-        .parse_type_generic_arguments(Default::default())
-        .unwrap();
+    let arguments = parser.parse_type_generic_arguments().unwrap();
 
     // diagnostics
     test.assert_errors(
@@ -564,9 +549,7 @@ fn test_parse_generic_arguments_object_shape_prefers_type_in_type_context() {
     // <{ name: "alpha"; count: 1 }>
     let test = TestParser::new(r#"<{ name: "alpha"; count: 1 }>"#);
     let mut parser = test.prepare();
-    let arguments = parser
-        .parse_type_generic_arguments(Default::default())
-        .unwrap();
+    let arguments = parser.parse_type_generic_arguments().unwrap();
 
     test.assert_no_errors(&parser);
     assert_eq!(arguments.len(), 1);
@@ -594,9 +577,7 @@ fn test_parse_generic_arguments_empty_in_type_context_recovers_error_slot() {
     // <>
     let test = TestParser::new("<>");
     let mut parser = test.prepare();
-    let arguments = parser
-        .parse_type_generic_arguments(Default::default())
-        .unwrap();
+    let arguments = parser.parse_type_generic_arguments().unwrap();
 
     // diagnostics
     test.assert_errors(&parser, &[(None, None, Some(TokenType::Identifier), "<")]);
@@ -611,9 +592,7 @@ fn test_parse_generic_arguments_first_value_with_boundary_comment() {
     let source = "<\n  // first-type-arg\n  string | number\n>";
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let arguments = parser
-        .parse_type_generic_arguments(Default::default())
-        .unwrap();
+    let arguments = parser.parse_type_generic_arguments().unwrap();
     parser.finalize_comments();
 
     assert_eq!(arguments.len(), 1);
@@ -629,9 +608,7 @@ fn test_parse_generic_arguments_following_value_with_boundary_comment() {
     let source = "<string,\n  // second-type-arg\n  number>";
     let test = TestParser::declaration(source);
     let mut parser = test.prepare();
-    let arguments = parser
-        .parse_type_generic_arguments(Default::default())
-        .unwrap();
+    let arguments = parser.parse_type_generic_arguments().unwrap();
     parser.finalize_comments();
 
     assert_eq!(arguments.len(), 2);
@@ -659,9 +636,7 @@ fn test_parse_spread_type_generic_argument() {
     // <...T>
     let test = TestParser::new("<...T>");
     let mut parser = test.prepare();
-    let arguments = parser
-        .parse_type_generic_arguments(Default::default())
-        .unwrap();
+    let arguments = parser.parse_type_generic_arguments().unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -706,9 +681,7 @@ fn test_parse_variadic_type_generic_parameter() {
     // <...Parameters, Return>
     let test = TestParser::new("<...Parameters, Return>");
     let mut parser = test.prepare();
-    let parameters = parser
-        .parse_generic_parameter_list(true, Default::default())
-        .unwrap();
+    let parameters = parser.parse_generic_parameter_list(true).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -730,9 +703,7 @@ fn test_parse_variadic_const_generic_parameter() {
     // <const ...Shape: readonly usize[]>
     let test = TestParser::new("<const ...Shape: readonly usize[]>");
     let mut parser = test.prepare();
-    let parameters = parser
-        .parse_generic_parameter_list(true, Default::default())
-        .unwrap();
+    let parameters = parser.parse_generic_parameter_list(true).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -771,7 +742,7 @@ fn test_parse_const_modifier_target_requires_same_line() {
 n"#,
     );
     let mut parser = test.prepare();
-    let modifiers = parser.parse_binding_modifiers(BindingModifierGrammar::Member);
+    let modifiers = parser.parse_binding_modifiers(BindingPosition::Member);
 
     assert!(modifiers.is_empty());
     assert!(parser.peek_is_keyword(Keyword::Const));
@@ -784,7 +755,7 @@ fn test_parse_const_modifier_allows_block_line_break() {
 {}"#,
     );
     let mut parser = test.prepare();
-    let modifiers = parser.parse_binding_modifiers(BindingModifierGrammar::Member);
+    let modifiers = parser.parse_binding_modifiers(BindingPosition::Member);
 
     assert!(modifiers.is_const_block);
     assert!(parser.peek_is_on_new_line());
@@ -968,7 +939,7 @@ class Test {
 fn test_parse_tree_attribute_string_literal_value() {
     let test = TestParser::new("title=\"hello\"");
     let mut parser = test.prepare();
-    let argument_id = parser.parse_tree_attribute(Default::default()).unwrap();
+    let argument_id = parser.parse_tree_attribute().unwrap();
     assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::String(string)) } => {
         assert_string!(parser, *name, "title");
         assert_string!(parser, *string, "hello");
@@ -980,7 +951,7 @@ fn test_parse_tree_attribute_string_literal_value() {
 fn test_parse_tree_attribute_string_decodes_html_entities() {
     let test = TestParser::new("title=\"A&nbsp;&amp;&#160;&#xA0;B\"");
     let mut parser = test.prepare();
-    let argument_id = parser.parse_tree_attribute(Default::default()).unwrap();
+    let argument_id = parser.parse_tree_attribute().unwrap();
 
     assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::String(string)) } => {
         assert_string!(parser, *name, "title");
@@ -993,7 +964,7 @@ fn test_parse_tree_attribute_string_decodes_html_entities() {
 fn test_parse_tree_attribute_string_preserves_invalid_html_entities() {
     let test = TestParser::new("title=\"A&missing;B&amp;C\"");
     let mut parser = test.prepare();
-    let argument_id = parser.parse_tree_attribute(Default::default()).unwrap();
+    let argument_id = parser.parse_tree_attribute().unwrap();
 
     assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::String(string)) } => {
         assert_string!(parser, *name, "title");
@@ -1005,7 +976,7 @@ fn test_parse_tree_attribute_string_preserves_invalid_html_entities() {
 fn test_parse_tree_attribute_with_newline_before_assign() {
     let test = TestParser::new("onBroadcastSelected\n    = { this._onYouTubeBroadcastIDSelected }");
     let mut parser = test.prepare();
-    let argument_id = parser.parse_tree_attribute(Default::default()).unwrap();
+    let argument_id = parser.parse_tree_attribute().unwrap();
 
     assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::Expression(value)) } => {
         assert_string!(parser, *name, "onBroadcastSelected");
@@ -1020,7 +991,7 @@ fn test_parse_tree_attribute_with_newline_before_assign() {
 fn test_parse_tree_attribute_with_numeric_kebab_segment() {
     let test = TestParser::new("panose-1=\"test\"");
     let mut parser = test.prepare();
-    let argument_id = parser.parse_tree_attribute(Default::default()).unwrap();
+    let argument_id = parser.parse_tree_attribute().unwrap();
     assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::String(string)) } => {
         assert_string!(parser, *name, "panose1");
         assert_string!(parser, *string, "test");
@@ -1033,7 +1004,7 @@ fn test_parse_tree_attribute_with_double_hyphen_kebab_segment() {
         r#"data-nextjs-container-errors-pseudo-html--diff={sign === '+' ? "add" : "remove"}"#,
     );
     let mut parser = test.prepare();
-    let argument_id = parser.parse_tree_attribute(Default::default()).unwrap();
+    let argument_id = parser.parse_tree_attribute().unwrap();
     assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::Expression(value)) } => {
         assert_string!(parser, *name, "dataNextjsContainerErrorsPseudoHtmlDiff");
         assert_node!(parser.tree, *value, Expression::If { form, .. } => {

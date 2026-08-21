@@ -1,4 +1,3 @@
-use crate::parse::context::FunctionContext;
 use crate::parse::error::ParserResultExt;
 use crate::parse::{DeclarationHeader, TypeMemberContainerKind};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
@@ -20,7 +19,6 @@ impl Parser {
         start: &ParseStart,
         header: DeclarationHeader,
         kind: TypeKind,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
         // interface
         self.eat_keyword(Keyword::Interface)
@@ -42,23 +40,23 @@ impl Parser {
 
         // <parameters>
         let generic_parameter_container_start = self.mark_parse_start();
-        let generic_parameters = self.parse_generic_parameters_if_present(true, function)?;
+        let generic_parameters = self.parse_generic_parameters_if_present(true)?;
         let generic_parameter_container_range = generic_parameters
             .as_ref()
             .map(|_| self.range_since(&generic_parameter_container_start));
 
         // extends Base
-        let extends_types = self.parse_extends_types_if_present(function)?;
+        let extends_types = self.parse_extends_types_if_present()?;
 
         // where constraints
-        let where_clauses = self.parse_where_clauses(function)?;
+        let where_clauses = self.parse_where_clauses()?;
 
         // { members }
         self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)
             .in_node(NodeType::Declaration)?;
 
         let member_container_kind = TypeMemberContainerKind::from(kind);
-        let members = self.parse_type_members(member_container_kind, function)?;
+        let members = self.parse_type_members(member_container_kind)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
         // retain the complete declaration

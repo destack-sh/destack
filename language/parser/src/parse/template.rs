@@ -1,10 +1,11 @@
+use crate::parse::ExpressionStop;
 use destack_dir::{
     Argument, Expression, LocalNodeId, StringId, TemplateLiteral, Token, TokenSpan, TokenType,
     TypeExpression,
 };
 use destack_source::ByteRange;
 
-use crate::parse::context::{ExpressionContext, FunctionContext, StatementPosition, TypeContext};
+use crate::parse::{ExpressionPosition, TypePosition, TypeStop};
 use crate::{Parser, ParserError, ParserResult};
 
 impl Parser {
@@ -28,11 +29,8 @@ impl Parser {
     /// `${stmt}`
     /// `SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
-    pub(crate) fn parse_template_literal(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<TemplateLiteral> {
-        self.parse_expression_template(false, function)
+    pub(crate) fn parse_template_literal(&mut self) -> ParserResult<TemplateLiteral> {
+        self.parse_expression_template(false)
     }
 
     /// Parse a tagged template literal.
@@ -41,22 +39,18 @@ impl Parser {
     /// ```ds
     /// sql`SELECT * FROM users WHERE id = ${id}`
     /// ```
-    pub(crate) fn parse_tagged_template_literal(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<TemplateLiteral> {
-        self.parse_expression_template(true, function)
+    pub(crate) fn parse_tagged_template_literal(&mut self) -> ParserResult<TemplateLiteral> {
+        self.parse_expression_template(true)
     }
 
     /// Parse a value-space template with the selected escape rules.
     fn parse_expression_template(
         &mut self,
         allow_legacy_octal_escapes: bool,
-        function: FunctionContext,
     ) -> ParserResult<TemplateLiteral> {
         let (strings, arguments) = self
             .parse_template_chunks(allow_legacy_octal_escapes, |parser| {
-                parser.parse_template_argument(function)
+                parser.parse_template_argument()
             })?;
 
         if arguments.is_empty() && strings.len() == 1 {
@@ -75,11 +69,12 @@ impl Parser {
     /// ```
     pub(crate) fn parse_type_template_literal(
         &mut self,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let start = self.mark_parse_start();
-        let (strings, spans) =
-            self.parse_template_chunks(false, |parser| parser.parse_type(context.nested()))?;
+        let (strings, spans) = self.parse_template_chunks(false, |parser| {
+            parser.parse_type(TypePosition::Type, stop.nest())
+        })?;
 
         let expression = TypeExpression::TemplateLiteral { strings, spans };
         let expression_id = self.insert_node(expression, self.range_since(&start));
@@ -249,15 +244,12 @@ impl Parser {
     /// Parse a template literal interpolation argument.
     ///
     /// Template literal interpolations parse as full expressions (no named args).
-    pub(crate) fn parse_template_argument(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Argument>> {
+    pub(crate) fn parse_template_argument(&mut self) -> ParserResult<LocalNodeId<Argument>> {
         let start = self.mark_parse_start();
 
         // interpolations own their decorators like call arguments do
-        let decorators = self.parse_decorators(function);
-        let value = self.parse_template_interpolation(function)?;
+        let decorators = self.parse_decorators();
+        let value = self.parse_template_interpolation()?;
 
         let argument_id =
             self.insert_node(Argument::Positional { value }, self.range_since(&start));
@@ -273,14 +265,10 @@ impl Parser {
     /// value
     /// condition ? yes : no
     /// ```
-    fn parse_template_interpolation(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        self.parse_expression(ExpressionContext {
-            function,
-            statement: StatementPosition::Nested,
-            ..ExpressionContext::default()
-        })
+    fn parse_template_interpolation(&mut self) -> ParserResult<LocalNodeId<Expression>> {
+        self.parse_expression(
+            ExpressionPosition::NestedStatement,
+            ExpressionStop::default(),
+        )
     }
 }

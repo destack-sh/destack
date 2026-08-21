@@ -1,5 +1,7 @@
 use crate::tests::TestParser;
-use crate::{assert_expression_path, assert_node, assert_string};
+use crate::{
+    ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_string,
+};
 use destack_dir::{
     AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Declaration, Expression,
     FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, LetKind, ScalarLiteral,
@@ -13,7 +15,9 @@ fn test_parse_async_generic_arrow_assignment_with_constraint_default() {
         "pollContext.getCredentials = async <T: object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // pollContext.getCredentials = async <T: object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
     assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {

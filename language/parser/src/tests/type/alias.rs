@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -87,10 +87,7 @@ fn test_parse_bigint_literal_type() {
     let test = TestParser::new("let x: 0n;");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
@@ -108,10 +105,7 @@ fn test_parse_this_type_alias() {
     let test = TestParser::new("type Builder = this");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     // type Builder = this
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -132,10 +126,7 @@ fn test_parse_type_alias_with_generic_parameters() {
     let test = TestParser::new("type T<A, B> = isize");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     // type T<A, B> = int32
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -155,10 +146,7 @@ fn test_parse_type_alias_with_generic_parameters_without_spacing() {
     let test = TestParser::new("type T<U>=U;");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T<U>=U
@@ -180,10 +168,7 @@ fn test_parse_type_alias_with_empty_generic_parameters() {
     let test = TestParser::new("type Box<> = string;");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type Box<> = string
@@ -245,10 +230,7 @@ fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -268,10 +250,7 @@ fn test_parse_type_alias_parenthesized_missing_close_parenthesis() {
     let test = TestParser::new("type T = (string");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_errors(
@@ -302,10 +281,7 @@ fn test_parse_pointer_type_alias() {
     let test = TestParser::new("type Ptr = *int32");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
@@ -327,10 +303,7 @@ fn test_parse_borrowed_reference_type_alias() {
     let test = TestParser::new("type Borrowed = &Buffer");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
@@ -353,10 +326,7 @@ fn test_parse_borrowed_reference_type_chain_compact() {
     let test = TestParser::new("type Borrowed = &&Buffer");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -386,10 +356,7 @@ fn test_parse_readonly_borrowed_reference_type_alias() {
     let test = TestParser::new("type Borrowed = &readonly Buffer");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
@@ -411,10 +378,7 @@ fn test_parse_borrowed_reference_type_alias_before_union() {
     let test = TestParser::new("type MaybeBorrowed = &int32 | undefined");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -441,10 +405,7 @@ fn test_parse_pointer_type_alias_before_union() {
     let test = TestParser::new("type MaybePointer = *int32 | undefined");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -471,10 +432,7 @@ fn test_parse_type_parameter_function_constraint() {
     let test = TestParser::new("type Parameters<T: (a: any) => any> = T");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     // type Parameters<T: (a: any) => any> = T
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -496,10 +454,7 @@ fn test_parse_type_parameter_default_conditional() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type Wrapper<F: Function, ReturnType = F extends (...args: any) => infer T ? T : unknown> = ReturnType

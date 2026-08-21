@@ -1,3 +1,4 @@
+use crate::{ExpressionPosition, ExpressionStop};
 use destack_dir::{Declaration, Expression, GlobalDeclaration};
 
 use crate::{TestParser, assert_node};
@@ -15,7 +16,9 @@ declare global {
     );
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
             assert!(*is_ambient);
@@ -35,7 +38,9 @@ global {
     );
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
             assert!(*is_ambient);

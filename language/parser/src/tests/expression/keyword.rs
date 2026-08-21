@@ -1,5 +1,8 @@
 use crate::tests::{TestParser, block_expression_ids};
-use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
+use crate::{
+    ExpressionPosition, ExpressionStop, assert_comment, assert_expression_path, assert_node,
+    assert_string,
+};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, BinaryOperator, Block, BlockForm, ClassDeclaration,
     CommentKind, Declaration, Declarator, Decorator, DependencyBinding, DependencyItem, ExportKind,
@@ -13,7 +16,9 @@ use destack_source::{NodeSpanBoundary, NodeSpanType};
 fn test_parse_type_keyword_symbolic_prefix_values() {
     let test = TestParser::new("(type &User, type ^User, type *User, type !User)");
     let mut parser = test.prepare();
-    let expression = parser.parse_expression(Default::default()).unwrap();
+    let expression = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression, Expression::TupleExpression { elements } => {
@@ -95,7 +100,9 @@ fn test_parse_if_extends_type_reference() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         assert!(else_expression.is_none());
@@ -126,7 +133,9 @@ fn test_parse_if_extends_type_reference() {
 fn test_parse_type_relation_ternary_value_condition() {
     let test = TestParser::new(r#"const width = Row extends string ? 4 : 2"#);
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
@@ -154,7 +163,9 @@ fn test_parse_if_instanceof_type_reference() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         assert!(else_expression.is_none());
@@ -189,7 +200,9 @@ if (value is string) {
 ",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::If { condition, then_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -223,7 +236,9 @@ fn test_parse_if_is_type_guard_comment_boundaries() {
     let test =
         TestParser::new("if (value /* checked value */ is /* expected type */ string) { value }");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     assert_eq!(parser.comments().len(), 2);
@@ -262,7 +277,9 @@ fn test_parse_if_is_type_guard_comment_boundaries() {
 fn test_parse_export_expression_with_items_block() {
     let test = TestParser::new("export { bar, baz } from \"foo\"");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // export { bar, baz } from foo
     assert_node!(parser.tree, expression_id, Expression::Export { target: Some(target), items, .. } => {
@@ -288,7 +305,9 @@ fn test_parse_export_expression_with_items_block() {
 fn test_parse_export_expression_items_without_target() {
     let test = TestParser::new("export { bar, baz }");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Export { target: None, items, .. } => {
         assert_eq!(items.len(), 2);
@@ -312,7 +331,9 @@ fn test_parse_export_expression_items_without_target() {
 fn test_parse_export_expression_namespace_alias() {
     let test = TestParser::new("export * as baz from \"foo\"");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // export * as baz from foo
     assert_node!(parser.tree, expression_id, Expression::Export { target: Some(target), items, .. } => {
@@ -331,7 +352,9 @@ fn test_parse_export_expression_namespace_alias() {
 fn test_parse_export_expression_type_declaration() {
     let test = TestParser::new("export type NonNullValue = Something");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, .. }) => {
             assert_string!(parser, name.string(), "NonNullValue");
@@ -380,7 +403,9 @@ type = type + 2
     let mut parser = test.prepare();
 
     // let type = 1
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value: Some(value), .. } => {
@@ -392,7 +417,9 @@ type = type + 2
     });
 
     // type = type + 2
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "type");
         assert_eq!(*operator, AssignOperator::Assign);
@@ -412,7 +439,9 @@ fn test_parse_namespace_as_identifier_in_index_assignment() {
     let test = TestParser::new("namespace[this.dest] = values");
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right, .. } => {
         assert_eq!(*operator, AssignOperator::Assign);
 
@@ -436,7 +465,9 @@ fn test_parse_override_as_identifier_call() {
     let test = TestParser::new("override(value)");
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "override");
         assert_eq!(arguments.len(), 1);
@@ -451,7 +482,9 @@ fn test_parse_abstract_as_identifier_call() {
     let test = TestParser::new("abstract(value)");
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "abstract");
         assert_eq!(arguments.len(), 1);
@@ -507,7 +540,9 @@ fn test_parse_callback_parameter_named_type() {
 })",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -558,7 +593,9 @@ fn test_parse_callback_parameter_named_type() {
 fn test_report_export_path_expression() {
     let test = TestParser::new("export foo");
     let mut parser = test.prepare();
-    let error = parser.parse_expression(Default::default()).unwrap_err();
+    let error = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "foo");
 }
@@ -568,7 +605,9 @@ fn test_report_export_path_expression() {
 fn test_parse_import_expression_with_items_block() {
     let test = TestParser::new("import { bar, baz } from \"foo\"");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // import { bar, baz } from foo
     assert_node!(parser.tree, expression_id, Expression::Import { target, items, .. } => {
@@ -597,7 +636,9 @@ fn test_parse_import_expression_with_items_block() {
 fn test_parse_import_expression_namespace_alias_with_arguments() {
     let test = TestParser::new("import * as baz from \"foo\" with { bar: true }");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // import * as baz from foo with { bar: true }
     assert_node!(parser.tree, expression_id, Expression::Import { target, items, attributes, .. } => {
@@ -624,7 +665,9 @@ fn test_parse_import_expression_namespace_alias_with_arguments() {
 fn test_report_import_expression_items_without_target() {
     let test = TestParser::new("import { foo }");
     let mut parser = test.prepare();
-    let error = parser.parse_expression(Default::default()).unwrap_err();
+    let error = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "");
 }

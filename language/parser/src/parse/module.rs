@@ -1,4 +1,3 @@
-use crate::parse::context::FunctionContext;
 use crate::parse::error::ParserResultExt;
 use crate::{ParseStart, Parser, ParserResult};
 
@@ -18,11 +17,10 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         main_range: ByteRange,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
         self.eat_token(TokenType::OpenBrace)?;
         let expressions = self
-            .parse_block_body(BlockForm::Explicit, BlockContext::Statement, function)
+            .parse_block_body(BlockForm::Explicit, BlockContext::Statement)
             .in_node(NodeType::Block)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 

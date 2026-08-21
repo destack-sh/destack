@@ -15,7 +15,7 @@ fn test_parse_member_definite_field() {
     let test = TestParser::new("prop!: Foo");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: Some(value), is_definite, .. } => {
@@ -30,7 +30,7 @@ fn test_parse_member_definite_accessor() {
     let test = TestParser::new("accessor a!: any");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: Some(value), is_accessor, is_definite, .. } => {
@@ -48,7 +48,7 @@ fn test_report_member_optional_definite_assignment_combo() {
     let test = TestParser::new("prop!?: Foo");
     let mut parser = test.prepare();
 
-    let error = parser.parse_member(Default::default()).unwrap_err();
+    let error = parser.parse_member().unwrap_err();
     assert_eq!(parser.range_str(error.range()), "?");
 }
 
@@ -57,7 +57,7 @@ fn test_parse_member_override_field() {
     let test = TestParser::new("override foo: int32");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: Some(value), is_override, .. } => {
         assert!(*is_override);
         assert_string!(parser, *name, "foo");
@@ -85,7 +85,7 @@ port2 = {
 ",
     );
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
 
     // port2 = { postMessage: () => { setTimeout(this.port1.onmessage, 0) } }
     assert_node!(parser.tree, member_id, Member::Field { name: Name::Identifier(name), declared_type: None, default: Some(default), .. } => {
@@ -127,7 +127,7 @@ fn test_parse_member_abstract_override_method() {
     let test = TestParser::new("abstract override foo(): void");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, abstraction, is_override, .. } => {
         assert_string!(parser, *name, "foo");
         assert!(signature.is_abstract);
@@ -141,7 +141,7 @@ fn test_parse_member_virtual_method() {
     let test = TestParser::new("virtual foo(): void {}");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, abstraction, body: Some(body), .. } => {
         assert_string!(parser, *name, "foo");
         assert_eq!(*abstraction, MethodAbstraction::Virtual);
@@ -155,7 +155,7 @@ fn test_parse_member_async_override_method() {
     let test = TestParser::new("public async override foo(): void");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, visibility, is_override, .. } => {
         assert_eq!(*visibility, Some(Visibility::Public));
         assert_string!(parser, *name, "foo");
@@ -171,7 +171,7 @@ fn test_parse_member_method_parameter_type_then_default_value() {
     );
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
 
     // parse one method where a typed parameter is followed by a defaulted parameter
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: Some(_), .. } => {
@@ -206,7 +206,7 @@ fn test_parse_member_method_generic_with_newline_before_parameters() {
     let test = TestParser::new("private method<T>\n(value: T): T { return value }");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
 
     // parse one method with a generic parameter and a newline before dynamic parameters
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: Some(body), visibility, .. } => {
@@ -236,7 +236,7 @@ fn test_parse_member_method_with_newline_before_return_type() {
     let test = TestParser::new("method(value: string)\n: string { return value }");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
 
     // parse one method with a newline before return type marker
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: Some(body), .. } => {
@@ -265,7 +265,7 @@ fn test_parse_member_method_object_union_return_type() {
         TestParser::new("overlaps(): { overlaps: false } | { overlaps: true; reason: string }");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
 
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: None, .. } => {
         assert_string!(parser, *name, "overlaps");
@@ -287,7 +287,7 @@ fn test_parse_member_method_body_boundary_comment_on_return_type() {
     let test = TestParser::new("method(): number // method-body\n{ return 1 }");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     parser.finalize_comments();
     assert_node!(parser.tree, member, Member::Method { signature, body: Some(body), .. } => {
         let return_type = signature.return_type.expect("expected return type");
@@ -312,7 +312,7 @@ fn test_parse_member_async_string_literal_name() {
     let test = TestParser::new(r#"async 'delete'(name: string): Promise<boolean> { return true }"#);
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::String(name)), signature, body, .. } => {
         assert_string!(parser, *name, "delete");
         assert_eq!(signature.asynchrony, Asynchrony::Async);
@@ -346,7 +346,7 @@ fn test_parse_member_method_named_public() {
     let test = TestParser::new("public() {}");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), visibility, .. } => {
         assert!(visibility.is_none());
         assert_string!(parser, *name, "public");
@@ -358,7 +358,7 @@ fn test_parse_member_static_method_named_protected() {
     let test = TestParser::new("static protected() {}");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), is_static, .. } => {
         assert!(*is_static);
         assert_string!(parser, *name, "protected");
@@ -370,7 +370,7 @@ fn test_parse_member_field_named_static() {
     let test = TestParser::new("static");
     let mut parser = test.prepare();
 
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
     assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: None, default: None, .. } => {
         assert_string!(parser, *name, "static");
     });
@@ -381,7 +381,7 @@ fn test_parse_member_missing_default_expression() {
     // x =
     let test = TestParser::new("x =");
     let mut parser = test.prepare();
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -397,7 +397,7 @@ fn test_parse_members_recover_error_slot() {
     // +\ny: int32
     let test = TestParser::new("+\ny: int32");
     let mut parser = test.prepare();
-    let members = parser.parse_members(Default::default()).unwrap();
+    let members = parser.parse_members().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_eq!(members.len(), 2);
@@ -420,7 +420,7 @@ fn test_parse_members_recover_error_slot() {
 fn test_recover_members_embedded_type() {
     let test = TestParser::new("...Transform\nx: int32");
     let mut parser = test.prepare();
-    let members = parser.parse_members(Default::default()).unwrap();
+    let members = parser.parse_members().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_eq!(parser.range_str(parser.errors[0].range()), "...");
@@ -443,7 +443,7 @@ fn test_recover_members_embedded_type() {
 fn test_report_member_method_signature_without_separator() {
     let test = TestParser::new("method() method2()");
     let mut parser = test.prepare();
-    let error = parser.parse_member(Default::default()).unwrap_err();
+    let error = parser.parse_member().unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "method2");
 }
@@ -490,7 +490,7 @@ fn test_parse_member_get_set_newline_only() {
 foo(): string;"#,
     );
     let mut parser = test.prepare();
-    let member = parser.parse_member(Default::default()).unwrap();
+    let member = parser.parse_member().unwrap();
 
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: None, .. } => {
         assert_string!(parser, *name, "foo");
@@ -505,7 +505,7 @@ foo(): string;"#,
 fn test_parse_property_with_value() {
     let test = TestParser::new("x: int32");
     let mut parser = test.prepare();
-    let property = parser.parse_property(Default::default()).unwrap();
+    let property = parser.parse_property().unwrap();
     assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
         assert_string!(parser, *name, "x");
         assert!(!*is_shorthand);
@@ -525,7 +525,7 @@ fn test_parse_property_with_value() {
 fn test_parse_property_with_default_value() {
     let test = TestParser::new("x = 42");
     let mut parser = test.prepare();
-    let property = parser.parse_property(Default::default()).unwrap();
+    let property = parser.parse_property().unwrap();
     assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
         assert_string!(parser, *name, "x");
         assert!(*is_shorthand);
@@ -549,7 +549,7 @@ fn test_parse_property_missing_value_expression() {
     // x:
     let test = TestParser::new("x:");
     let mut parser = test.prepare();
-    let property = parser.parse_property(Default::default()).unwrap();
+    let property = parser.parse_property().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -564,7 +564,7 @@ fn test_parse_property_missing_value_expression() {
 fn test_parse_property_with_typed_arrow_value() {
     let test = TestParser::new("reproFunc: (_: any): any => { }");
     let mut parser = test.prepare();
-    let property = parser.parse_property(Default::default()).unwrap();
+    let property = parser.parse_property().unwrap();
     assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "reproFunc");
         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
@@ -580,7 +580,7 @@ fn test_parse_property_with_typed_arrow_value() {
 fn test_parse_member_type_keyword_as_field_key() {
     let test = TestParser::new("type: string");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
 
     assert_node!(parser.tree, member_id, Member::Field { name: Name::Identifier(name), declared_type: Some(value), .. } => {
         assert_string!(parser, *name, "type");
@@ -598,7 +598,7 @@ const: number"#,
     );
     let mut parser = test.prepare();
     let members = parser
-        .parse_type_members(TypeMemberContainerKind::TypeLiteral, Default::default())
+        .parse_type_members(TypeMemberContainerKind::TypeLiteral)
         .unwrap();
 
     assert_eq!(members.len(), 2);
@@ -684,7 +684,7 @@ override const Rows: number = 4
 fn test_parse_property_with_value_and_default_value() {
     let test = TestParser::new("x: int32 = 42");
     let mut parser = test.prepare();
-    let property = parser.parse_property(Default::default()).unwrap();
+    let property = parser.parse_property().unwrap();
     assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "x");
         assert_node!(parser.tree, *value, Expression::Assign { .. });
@@ -696,7 +696,7 @@ fn test_parse_property_diagnoses_definite_assignment() {
     let test = TestParser::new("prop!: LongType[]");
     let mut parser = test.prepare();
 
-    let error = parser.parse_property(Default::default()).unwrap_err();
+    let error = parser.parse_property().unwrap_err();
     assert_eq!(parser.range_str(error.range()), "!");
 }
 
@@ -705,7 +705,7 @@ fn test_parse_properties_recover_error_slot() {
     // +\ny: int32
     let test = TestParser::new("+\ny: int32");
     let mut parser = test.prepare();
-    let properties = parser.parse_object_properties(Default::default()).unwrap();
+    let properties = parser.parse_object_properties().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_eq!(properties.len(), 2);
@@ -730,7 +730,7 @@ fn test_parse_properties_recover_error_slot() {
 fn test_parse_properties_recover_unkeyed_value_field() {
     let test = TestParser::new(": 1,\ny: 2");
     let mut parser = test.prepare();
-    let properties = parser.parse_object_properties(Default::default()).unwrap();
+    let properties = parser.parse_object_properties().unwrap();
 
     test.assert_errors(
         &parser,
@@ -755,7 +755,7 @@ fn test_parse_properties_recover_unkeyed_value_field() {
 fn test_parse_properties_recover_unkeyed_default_field() {
     let test = TestParser::new("= 1,\ny: 2");
     let mut parser = test.prepare();
-    let properties = parser.parse_object_properties(Default::default()).unwrap();
+    let properties = parser.parse_object_properties().unwrap();
 
     test.assert_errors(
         &parser,
@@ -780,7 +780,7 @@ fn test_parse_properties_recover_unkeyed_default_field() {
 fn test_report_property_optional_definite_assignment_combo() {
     let test = TestParser::new("prop!?: LongType[]");
     let mut parser = test.prepare();
-    let error = parser.parse_property(Default::default()).unwrap_err();
+    let error = parser.parse_property().unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "?");
 }
@@ -789,7 +789,7 @@ fn test_report_property_optional_definite_assignment_combo() {
 fn test_parse_property_method_call() {
     let test = TestParser::new("<T = any>(x: T): T");
     let mut parser = test.prepare();
-    let property_id = parser.parse_property(Default::default()).unwrap();
+    let property_id = parser.parse_property().unwrap();
     // <T = any>(x: T): T
     assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {
         assert_eq!(signature.role, Some(FunctionRole::Call));
@@ -818,7 +818,7 @@ fn test_parse_property_method_call() {
 fn test_parse_property_method_object_return_type() {
     let test = TestParser::new("method(): { value: string; count: number }");
     let mut parser = test.prepare();
-    let property_id = parser.parse_property(Default::default()).unwrap();
+    let property_id = parser.parse_property().unwrap();
 
     assert_node!(parser.tree, property_id, Property::Method { name: Some(Name::Identifier(name)), signature, .. } => {
         assert_string!(parser, *name, "method");
@@ -833,7 +833,7 @@ fn test_parse_object_property_constructor_method_as_key() {
     let test = TestParser::new("constructor(x: int32);");
     let mut parser = test.prepare();
 
-    let property_id = parser.parse_property(Default::default()).unwrap();
+    let property_id = parser.parse_property().unwrap();
     assert_node!(parser.tree, property_id, Property::Method { name: Some(Name::Identifier(name)), signature, .. } => {
         // constructor
         assert_string!(parser, *name, "constructor");
@@ -949,7 +949,7 @@ fn test_parse_member_decorator_argument_import_meta_expression() {
 fn test_parse_member_type_with_value() {
     let test = TestParser::new("type Item = string");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: None, value: Some(value), visibility, is_ambient, .. } => {
         assert_string!(parser, *name, "Item");
         assert!(generic_parameters.is_empty());
@@ -966,7 +966,7 @@ fn test_parse_member_type_with_value() {
 fn test_parse_member_type_with_bound() {
     let test = TestParser::new("type Item: Hashable");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: Some(ty), value: None, .. } => {
         assert_string!(parser, *name, "Item");
         assert!(generic_parameters.is_empty());
@@ -983,7 +983,7 @@ fn test_parse_member_type_with_multiline_bound() {
     | Bar"#,
     );
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedType { name, constraint: Some(ty), value: None, .. } => {
         assert_string!(parser, *name, "Item");
         assert_node!(parser.tree, *ty, TypeExpression::Union { .. });
@@ -994,7 +994,7 @@ fn test_parse_member_type_with_multiline_bound() {
 fn test_parse_member_type_with_bound_and_value() {
     let test = TestParser::new("type Item: Hashable = string");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedType { name, constraint: Some(ty), value: Some(value), .. } => {
         assert_string!(parser, *name, "Item");
         assert_expression_path!(parser, parser.tree.get(*ty), "Hashable");
@@ -1008,7 +1008,7 @@ fn test_parse_member_type_with_bound_and_value() {
 fn test_parse_member_type_with_visibility() {
     let test = TestParser::new("public type Item = string");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedType { name, value: Some(_), visibility, .. } => {
         assert_eq!(*visibility, Some(Visibility::Public));
         assert_string!(parser, *name, "Item");
@@ -1019,7 +1019,7 @@ fn test_parse_member_type_with_visibility() {
 fn test_parse_member_type_with_abstraction_modifiers() {
     let test = TestParser::new("abstract override type Item = string");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
 
     assert_node!(parser.tree, member_id, Member::AssociatedType { name, is_abstract, is_override, .. } => {
         assert_string!(parser, *name, "Item");
@@ -1032,7 +1032,7 @@ fn test_parse_member_type_with_abstraction_modifiers() {
 fn test_parse_member_type_with_generic_parameters() {
     let test = TestParser::new("type View<U> = (Item, U)");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: None, value: Some(_), .. } => {
         assert_string!(parser, *name, "View");
         assert!(where_clauses.is_empty());
@@ -1047,7 +1047,7 @@ fn test_parse_member_type_with_generic_parameters() {
 fn test_parse_member_static_new_method_as_key() {
     let test = TestParser::new("static new<T>(): Set<T> { undefined! }");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
 
     assert_node!(parser.tree, member_id, Member::Method { name: Some(name), signature, is_static, .. } => {
         assert_string!(parser, name.string(), "new");
@@ -1062,7 +1062,7 @@ fn test_parse_member_static_new_method_as_key() {
 fn test_parse_member_static_constructor_method_as_key() {
     let test = TestParser::new("static constructor<T>(): Set<T> { undefined! }");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
 
     assert_node!(parser.tree, member_id, Member::Method { name: Some(name), signature, is_static, .. } => {
         assert_string!(parser, name.string(), "constructor");
@@ -1077,7 +1077,7 @@ fn test_parse_member_static_constructor_method_as_key() {
 fn test_parse_member_associated_const() {
     let test = TestParser::new("const Rows: number = 128");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedConst { name, declared_type: Some(ty), value: Some(value), .. } => {
         assert_string!(parser, *name, "Rows");
         assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
@@ -1093,7 +1093,7 @@ fn test_parse_member_associated_const() {
 fn test_parse_member_associated_const_with_abstraction_modifiers() {
     let test = TestParser::new("abstract override const Rows: number");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
 
     assert_node!(parser.tree, member_id, Member::AssociatedConst { name, is_abstract, is_override, .. } => {
         assert_string!(parser, *name, "Rows");
@@ -1106,7 +1106,7 @@ fn test_parse_member_associated_const_with_abstraction_modifiers() {
 fn test_parse_member_associated_const_binary_default() {
     let test = TestParser::new("const LaneWidth: number = WidthHint * 2");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedConst { value: Some(value), .. } => {
         assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
             assert_eq!(*operator, BinaryOperator::Multiply);
@@ -1118,7 +1118,7 @@ fn test_parse_member_associated_const_binary_default() {
 fn test_parse_member_associated_const_type_relation_default() {
     let test = TestParser::new("const Width: uint = Row extends string ? 4 : 2");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
 
     assert_node!(parser.tree, member_id, Member::AssociatedConst { value: Some(value), .. } => {
         assert_node!(parser.tree, *value, Expression::Type { value } => {
@@ -1138,7 +1138,7 @@ fn test_parse_member_associated_const_type_relation_default() {
 fn test_report_member_static_associated_type() {
     let test = TestParser::new("static type Item = string");
     let mut parser = test.prepare();
-    let error = parser.parse_member(Default::default()).unwrap_err();
+    let error = parser.parse_member().unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "type");
 }
@@ -1147,7 +1147,7 @@ fn test_report_member_static_associated_type() {
 fn test_report_member_static_associated_const() {
     let test = TestParser::new("static const Rows: number = 128");
     let mut parser = test.prepare();
-    let error = parser.parse_member(Default::default()).unwrap_err();
+    let error = parser.parse_member().unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "static const Rows");
 }
@@ -1156,7 +1156,7 @@ fn test_report_member_static_associated_const() {
 fn test_parse_member_const_block() {
     let test = TestParser::new("const { assert(true) }");
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::ConstBlock { body } => {
         assert_node!(parser.tree, *body, Expression::Block(_));
     });
@@ -1169,7 +1169,7 @@ fn test_parse_member_const_block_after_line_break() {
 { assert(true) }"#,
     );
     let mut parser = test.prepare();
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
 
     assert_node!(parser.tree, member_id, Member::ConstBlock { body } => {
         assert_node!(parser.tree, *body, Expression::Block(_));
@@ -1186,7 +1186,7 @@ fn test_parse_member_method_with_multiline_return_type() {
     );
     let mut parser = test.prepare();
 
-    let member_id = parser.parse_member(Default::default()).unwrap();
+    let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::Method { name: Some(name), signature, .. } => {
         assert_string!(parser, name.string(), "Type");
         assert_eq!(signature.parameters.len(), 1);

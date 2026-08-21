@@ -1,6 +1,6 @@
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
 
-use crate::parse::context::{ExpressionContext, StatementPosition};
 use crate::{Parser, ParserError, ParserResult};
 
 impl Parser {
@@ -11,12 +11,12 @@ impl Parser {
     /// value
     /// ```
     pub fn parse_argument_fragment(&mut self) -> ParserResult<LocalNodeId<Argument>> {
-        self.parse_positional_argument(ExpressionContext::default())
+        self.parse_positional_argument(ExpressionPosition::Value)
     }
 
     /// Return true when one recovered argument list should stop at the current statement boundary.
-    fn peek_recovered_argument_list_end(&self, context: ExpressionContext) -> bool {
-        context.statement != StatementPosition::None && self.peek_is_on_new_line()
+    fn peek_recovered_argument_list_end(&self, position: ExpressionPosition) -> bool {
+        position.is_in_statement() && self.peek_is_on_new_line()
     }
 
     /// Return whether one argument was recovered as missing or malformed.
@@ -46,7 +46,7 @@ impl Parser {
     #[inline]
     pub(crate) fn parse_positional_argument(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<LocalNodeId<Argument>> {
         let documentation = self.parse_documentation();
 
@@ -57,7 +57,7 @@ impl Parser {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
-            let value = self.parse_expression(context.nested())?;
+            let value = self.parse_expression(position.nested(), ExpressionStop::default())?;
             let value_range = self.tree.get_range(value);
             let argument_id = self.insert_node(Argument::Positional { value }, value_range);
             self.attach_documentation(argument_id, documentation);
@@ -66,12 +66,12 @@ impl Parser {
         }
 
         let start = self.mark_parse_start();
-        let decorators = self.parse_decorators(context.function);
+        let decorators = self.parse_decorators();
 
         // spread argument
         if self.peek_is(TokenType::Spread) {
             self.bump();
-            let value = self.parse_expression(context.nested())?;
+            let value = self.parse_expression(position.nested(), ExpressionStop::default())?;
 
             // insert the spread argument
             let argument_id =
@@ -83,7 +83,7 @@ impl Parser {
         }
 
         // positional value expression
-        let value = self.parse_expression(context.nested())?;
+        let value = self.parse_expression(position.nested(), ExpressionStop::default())?;
 
         // insert the positional argument
         let argument_id =
@@ -97,10 +97,10 @@ impl Parser {
     /// Parse dynamic arguments (including the `(` and `)` tokens) if they exist.
     pub(crate) fn parse_arguments_if_present(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<Option<Vec<LocalNodeId<Argument>>>> {
         if self.peek_is(TokenType::OpenParenthesis) {
-            return Ok(Some(self.parse_argument_list(context)?));
+            return Ok(Some(self.parse_argument_list(position)?));
         }
         Ok(None)
     }
@@ -108,7 +108,7 @@ impl Parser {
     /// Parse a positional dynamic argument list, including its parentheses.
     pub(crate) fn parse_argument_list(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<Vec<LocalNodeId<Argument>>> {
         self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -120,7 +120,7 @@ impl Parser {
 
         // regular dynamic arguments
         let arguments =
-            self.parse_argument_list_body(TokenType::CloseParenthesis, context.nested())?;
+            self.parse_argument_list_body(TokenType::CloseParenthesis, position.nested())?;
 
         self.eat_list_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
@@ -143,7 +143,7 @@ impl Parser {
     fn parse_argument_list_body(
         &mut self,
         terminator: TokenType,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<Vec<LocalNodeId<Argument>>> {
         let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
 
@@ -155,7 +155,7 @@ impl Parser {
             // eat one argument
             let argument_start = self.mark_parse_start();
             let is_recovered_argument;
-            let argument = self.parse_positional_argument(context);
+            let argument = self.parse_positional_argument(position);
             let argument_id = match argument {
                 Ok(argument_id) => {
                     is_recovered_argument = self.has_recovered_argument_slot(argument_id);
@@ -180,7 +180,7 @@ impl Parser {
                     continue;
                 }
 
-                if self.peek_recovered_argument_list_end(context) {
+                if self.peek_recovered_argument_list_end(position) {
                     break;
                 }
 
@@ -192,7 +192,7 @@ impl Parser {
             }
             // recovered statement calls should stop before the next newline led statement
             else if !is_recovered_argument
-                || self.peek_recovered_argument_list_end(context)
+                || self.peek_recovered_argument_list_end(position)
                 || !self.peek_recovered_list_continuation(terminator)
             {
                 break;

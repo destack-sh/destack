@@ -5,15 +5,6 @@ use smallvec::SmallVec;
 
 use crate::{Parser, ParserError, ParserResult};
 
-/// The identifier grammar used by one path.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum PathGrammar {
-    /// Regular language identifiers.
-    Regular,
-    /// Tree tag identifiers, including kebab-case names.
-    Tree,
-}
-
 /// One path and the source range of every segment.
 pub(crate) struct RangedPath {
     /// The decoded path.
@@ -37,29 +28,40 @@ impl Parser {
     /// network.http.Client
     /// ```
     pub fn parse_path(&mut self) -> ParserResult<Path> {
-        self.parse_ranged_path(PathGrammar::Regular)
-            .map(|path| path.path)
+        self.parse_ranged_path().map(|path| path.path)
     }
 
-    /// Parse one regular or tree path and retain its segment ranges.
-    pub(crate) fn parse_ranged_path(&mut self, grammar: PathGrammar) -> ParserResult<RangedPath> {
+    /// Parse one regular path and retain its segment ranges.
+    pub(crate) fn parse_ranged_path(&mut self) -> ParserResult<RangedPath> {
+        self.parse_path_segments(false)
+    }
+
+    /// Parse one tree tag path and retain its segment ranges.
+    pub(crate) fn parse_tree_path(&mut self) -> ParserResult<RangedPath> {
+        self.parse_path_segments(true)
+    }
+
+    /// Parse one path with the selected identifier form.
+    fn parse_path_segments(&mut self, is_tree: bool) -> ParserResult<RangedPath> {
         let mut segments = SmallVec::<[StringId; 1]>::new();
         let mut segment_ranges = SmallVec::<[ByteRange; 3]>::new();
 
         // parse the first required segment
-        let (segment, range) = match grammar {
-            PathGrammar::Regular => self.eat_identifier_with_range()?,
-            PathGrammar::Tree => self.eat_tree_literal_identifier_with_range()?,
+        let (segment, range) = if is_tree {
+            self.eat_tree_literal_identifier_with_range()?
+        } else {
+            self.eat_identifier_with_range()?
         };
         segments.push(segment);
         segment_ranges.push(range);
 
         // parse every statically joined segment
-        while self.peek_path_continuation(grammar) {
+        while self.peek_path_segment(is_tree) {
             self.bump();
-            let (segment, range) = match grammar {
-                PathGrammar::Regular => self.eat_identifier_with_range()?,
-                PathGrammar::Tree => self.eat_tree_literal_identifier_with_range()?,
+            let (segment, range) = if is_tree {
+                self.eat_tree_literal_identifier_with_range()?
+            } else {
+                self.eat_identifier_with_range()?
             };
             segments.push(segment);
             segment_ranges.push(range);
@@ -109,12 +111,17 @@ impl Parser {
     }
 
     /// Return whether the current dot continues a static path.
-    pub(in crate::parse) fn peek_path_continuation(&self, grammar: PathGrammar) -> bool {
+    pub(in crate::parse) fn peek_path_continuation(&self) -> bool {
+        self.peek_path_segment(false)
+    }
+
+    /// Return whether the current dot continues one path.
+    fn peek_path_segment(&self, is_tree: bool) -> bool {
         if !self.peek_is(TokenType::Dot) {
             return false;
         }
 
-        if grammar == PathGrammar::Regular && self.peek_token_has_leading_comment() {
+        if !is_tree && self.peek_token_has_leading_comment() {
             return false;
         }
 
@@ -126,6 +133,6 @@ impl Parser {
 
         let next = TokenSpan::new(next, self.file_id);
 
-        grammar == PathGrammar::Tree || !self.contains_comment_before_token(dot_end, next)
+        is_tree || !self.contains_comment_before_token(dot_end, next)
     }
 }

@@ -19,7 +19,7 @@ extension of Foo {
 
     let start = parser.mark_parse_start();
     let extension_id = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { generic_parameters, implements_types, target_type, .. }) => {
         assert!(generic_parameters.is_empty());
@@ -45,7 +45,7 @@ extension of Foo {
 
     let start = parser.mark_parse_start();
     let error = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), ",");
@@ -58,7 +58,7 @@ fn test_parse_extension_target_type_span() {
 
     let start = parser.mark_parse_start();
     let extension_id = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
 
     // retain the target as the anonymous declaration selection
@@ -89,7 +89,7 @@ extension MyExt of Foo<int32> {
 
     let start = parser.mark_parse_start();
     let extension_id = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { name, generic_parameters, implements_types, target_type, .. }) => {
         assert_string!(parser, name.unwrap().string(), "MyExt");
@@ -124,7 +124,7 @@ extension of Bar<int32> implements Baz {
 
     let start = parser.mark_parse_start();
     let extension_id = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { generic_parameters, implements_types, target_type, .. }) => {
         assert!(generic_parameters.is_empty());
@@ -163,7 +163,7 @@ extension<U> of Bar<T> implements Baz<T> {
 
     let start = parser.mark_parse_start();
     let extension_id = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { name, generic_parameters, implements_types, target_type, .. }) => {
         assert!(name.is_none()); // anonymous
@@ -226,7 +226,7 @@ extension MyExt<U> of Bar<T> implements Baz<T> {
 
     let start = parser.mark_parse_start();
     let extension_id = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { name, generic_parameters, implements_types, target_type, .. }) => {
         assert_string!(parser, name.unwrap().string(), "MyExt"); // named
@@ -289,7 +289,7 @@ extension of Foo where Guard: Limit {
 
     let start = parser.mark_parse_start();
     let extension_id = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { where_clauses, target_type, .. }) => {
         assert_eq!(where_clauses.len(), 1);
@@ -322,7 +322,7 @@ extension<T> of Slice<T> {
 
     let start = parser.mark_parse_start();
     let extension_id = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
 
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { members, .. }) => {
@@ -363,7 +363,7 @@ extension<T> of Slice<T> {
 
     let start = parser.mark_parse_start();
     let extension_id = parser
-        .parse_extension(&start, DeclarationHeader::default(), Default::default())
+        .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
 
     // indexSet(&exclusive this, i: number, value: T): void

@@ -1,6 +1,5 @@
-use crate::parse::context::{ExpressionContext, PatternContext};
 use crate::parse::error::ParserResultExt;
-use crate::parse::{PathGrammar, RangedPath};
+use crate::parse::{ExpressionPosition, ExpressionStop, RangedPath};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
@@ -8,6 +7,27 @@ use destack_dir::{
     RangeEnd, ScalarLiteral, TokenType, TypeExpression,
 };
 use destack_source::ByteRange;
+
+/// Token ownership for one pattern operand.
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+struct PatternStop(u8);
+
+impl PatternStop {
+    /// A type annotation owned by the enclosing declaration.
+    const ANNOTATION: Self = Self(1 << 0);
+    /// A union separator owned by the enclosing pattern.
+    const UNION: Self = Self(1 << 1);
+
+    /// Add one enclosing token.
+    const fn add(self, stop: Self) -> Self {
+        Self(self.0 | stop.0)
+    }
+
+    /// Return whether one token belongs to the enclosing pattern.
+    const fn has(self, stop: Self) -> bool {
+        self.0 & stop.0 != 0
+    }
+}
 
 impl Parser {
     /// Parse one standalone pattern fragment.
@@ -17,7 +37,7 @@ impl Parser {
     /// Vector2 { x: 0, y }
     /// ```
     pub fn parse_pattern_fragment(&mut self) -> ParserResult<LocalNodeId<Pattern>> {
-        self.parse_pattern(PatternContext::default())
+        self.parse_pattern()
     }
 
     /// Parse a pattern.
@@ -33,25 +53,32 @@ impl Parser {
     /// Vector2 { x: 0, y, z: zed }
     /// geom.Mesh<2, float32> { vertices: [2, ...] }
     /// ```
-    pub(crate) fn parse_pattern(
-        &mut self,
-        context: PatternContext,
-    ) -> ParserResult<LocalNodeId<Pattern>> {
+    pub(crate) fn parse_pattern(&mut self) -> ParserResult<LocalNodeId<Pattern>> {
+        self.parse_pattern_until(PatternStop::default())
+    }
+
+    /// Parse a pattern followed by a type annotation.
+    pub(crate) fn parse_pattern_before_type(&mut self) -> ParserResult<LocalNodeId<Pattern>> {
+        self.parse_pattern_until(PatternStop::ANNOTATION)
+    }
+
+    /// Parse a pattern with its immediate owner.
+    fn parse_pattern_until(&mut self, stops: PatternStop) -> ParserResult<LocalNodeId<Pattern>> {
         self.with_recursive_descent(NodeType::Pattern, |parser| {
-            parser.parse_pattern_after_descent(context)
+            parser.parse_pattern_after_descent(stops)
         })
     }
 
-    /// Parse a pattern after recursive descent state has been entered.
+    /// Parse a pattern after checking the recursion depth.
     fn parse_pattern_after_descent(
         &mut self,
-        context: PatternContext,
+        stops: PatternStop,
     ) -> ParserResult<LocalNodeId<Pattern>> {
         let documentation = self.parse_documentation();
         let start = self.mark_parse_start();
 
         // preserve contextually reserved bindings for recovery while reporting them
-        self.report_forbidden_binding_identifier(context.function);
+        self.report_forbidden_binding_identifier();
 
         // parse the primary pattern
         let mut pattern_id = {
@@ -62,7 +89,7 @@ impl Parser {
                 _ => None,
             };
             if let Some(end_kind) = startless_range_end {
-                self.parse_startless_range_pattern(&start, end_kind, context)?
+                self.parse_startless_range_pattern(&start, end_kind)?
             }
             // wildcard
             else if self.peek_identifier_is("_") {
@@ -76,7 +103,7 @@ impl Parser {
             ) {
                 self.eat_reference_prefix_operator()?;
                 let mutability = Some(self.parse_reference_mutability());
-                let right_id = self.parse_pattern(context).in_node(NodeType::Pattern)?;
+                let right_id = self.parse_pattern_until(stops).in_node(NodeType::Pattern)?;
                 self.insert_node(
                     Pattern::BorrowOf {
                         mutability,
@@ -89,7 +116,7 @@ impl Parser {
             else if self.peek_is(TokenType::ElementwiseXor) {
                 self.bump();
                 let mutability = Some(self.parse_reference_mutability());
-                let right_id = self.parse_pattern(context).in_node(NodeType::Pattern)?;
+                let right_id = self.parse_pattern_until(stops).in_node(NodeType::Pattern)?;
                 self.insert_node(
                     Pattern::MoveOf {
                         mutability,
@@ -101,7 +128,7 @@ impl Parser {
             // dereference
             else if self.peek_is(TokenType::Multiply) {
                 self.bump();
-                let right_id = self.parse_pattern(context).in_node(NodeType::Pattern)?;
+                let right_id = self.parse_pattern_until(stops).in_node(NodeType::Pattern)?;
                 self.insert_node(
                     Pattern::DereferenceOf { right: right_id },
                     self.range_since(&start),
@@ -110,11 +137,8 @@ impl Parser {
             // tuple (without type, no struct tuples)
             else if self.peek_is(TokenType::OpenParenthesis) {
                 self.bump();
-                let fields = self.parse_pattern_field_list(
-                    TokenType::Comma,
-                    TokenType::CloseParenthesis,
-                    context.nested(),
-                )?;
+                let fields =
+                    self.parse_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)?;
                 let pattern = Pattern::Tuple { fields };
                 self.eat_close_token_or_recover_missing(
                     TokenType::CloseParenthesis,
@@ -125,11 +149,8 @@ impl Parser {
             // struct (without type)
             else if self.peek_is(TokenType::OpenBrace) {
                 self.bump();
-                let fields = self.parse_pattern_field_list(
-                    TokenType::Comma,
-                    TokenType::CloseBrace,
-                    context.nested(),
-                )?;
+                let fields =
+                    self.parse_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)?;
                 let pattern = Pattern::Object { fields };
                 self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Pattern)?;
                 self.insert_node(pattern, self.range_since(&start))
@@ -137,11 +158,8 @@ impl Parser {
             // array or slice
             else if self.peek_is(TokenType::OpenBracket) {
                 self.bump();
-                let fields = self.parse_pattern_field_list(
-                    TokenType::Comma,
-                    TokenType::CloseBracket,
-                    context.nested(),
-                )?;
+                let fields =
+                    self.parse_pattern_field_list(TokenType::Comma, TokenType::CloseBracket)?;
                 self.eat_close_token_or_recover_missing(
                     TokenType::CloseBracket,
                     NodeType::Pattern,
@@ -163,7 +181,7 @@ impl Parser {
                     self.range_since(&start),
                 );
                 if let Some(end_kind) = self.peek_range_end() {
-                    self.parse_range_pattern(&start, expression_id, end_kind, context)?
+                    self.parse_range_pattern(&start, expression_id, end_kind)?
                 } else {
                     self.insert_node(
                         Pattern::Expression {
@@ -191,14 +209,13 @@ impl Parser {
                 self.insert_node(pattern, self.range_since(&start))
             }
             // binding with expression or pattern
-            else if !context.is_before_type
+            else if !stops.has(PatternStop::ANNOTATION)
                 && self.peek_is(TokenType::Identifier)
                 && self.peek_token_type_at(1) == TokenType::Colon
             {
-                let (name, name_range) =
-                    self.eat_binding_identifier_with_range(context.function)?;
+                let (name, name_range) = self.eat_binding_identifier_with_range()?;
                 self.bump();
-                let nested_pattern = self.parse_pattern(context.nested())?;
+                let nested_pattern = self.parse_pattern()?;
                 let pattern_id = self.insert_node(
                     Pattern::Binding {
                         name,
@@ -211,9 +228,7 @@ impl Parser {
             }
             // path or identifier
             else {
-                let path = self
-                    .parse_ranged_path(PathGrammar::Regular)
-                    .in_node(NodeType::Pattern)?;
+                let path = self.parse_ranged_path().in_node(NodeType::Pattern)?;
                 let last_range = path
                     .last_range()
                     .ok_or_else(|| ParserError::unexpected(self.peek_token().range()))?;
@@ -226,11 +241,7 @@ impl Parser {
                 if self.peek_is(TokenType::OpenParenthesis) {
                     self.bump();
                     let fields = self
-                        .parse_pattern_field_list(
-                            TokenType::Comma,
-                            TokenType::CloseParenthesis,
-                            context.nested(),
-                        )
+                        .parse_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
                         .in_node(NodeType::Pattern)?;
                     let expression_id = self.insert_node(
                         TypeExpression::Reference {
@@ -254,11 +265,7 @@ impl Parser {
                 else if self.peek_is(TokenType::OpenBrace) {
                     self.bump();
                     let fields = self
-                        .parse_pattern_field_list(
-                            TokenType::Comma,
-                            TokenType::CloseBrace,
-                            context.nested(),
-                        )
+                        .parse_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
                         .in_node(NodeType::Pattern)?;
                     let ty_id = self.insert_node(
                         TypeExpression::Reference {
@@ -280,7 +287,7 @@ impl Parser {
                     let expression_id =
                         self.insert_member_chain(&path.segments, &segment_ranges)?;
 
-                    self.parse_range_pattern(&start, expression_id, end_kind, context)?
+                    self.parse_range_pattern(&start, expression_id, end_kind)?
                 }
                 // path
                 else if path.segments.len() > 1 {
@@ -316,15 +323,13 @@ impl Parser {
             pattern_id = self.insert_node(pattern, self.range_since(&start));
         }
         // collect a union at the current level
-        let pattern_id = if self.peek_is(TokenType::ElementwiseOr) && !context.stops_at_union {
+        let pattern_id = if self.peek_is(TokenType::ElementwiseOr) && !stops.has(PatternStop::UNION)
+        {
             // eat all union "fields" (just unnamed patterns)
             let mut patterns: Vec<LocalNodeId<Pattern>> = vec![pattern_id];
             while self.peek_is(TokenType::ElementwiseOr) {
                 self.bump();
-                let field_pattern_id = self.parse_pattern(PatternContext {
-                    stops_at_union: true,
-                    ..context
-                })?;
+                let field_pattern_id = self.parse_pattern_until(stops.add(PatternStop::UNION))?;
                 patterns.push(field_pattern_id);
             }
             let pattern = Pattern::Union { patterns };
@@ -368,7 +373,6 @@ impl Parser {
     fn parse_range_end(
         &mut self,
         end_kind: RangeEnd,
-        context: PatternContext,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         let is_omitted = self.peek_range_pattern_end_omitted();
 
@@ -384,16 +388,13 @@ impl Parser {
             return Ok(Some(missing_id));
         }
 
-        let end_id = self.parse_range_end_expression(context)?;
+        let end_id = self.parse_range_end_expression()?;
 
         Ok(Some(end_id))
     }
 
     /// Parse one range endpoint expression.
-    fn parse_range_end_expression(
-        &mut self,
-        context: PatternContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    fn parse_range_end_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
 
         // fold explicit signs into numeric scalar bounds
@@ -414,11 +415,11 @@ impl Parser {
             return self.parse_identifier_expression(&start);
         }
 
-        self.parse_expression(ExpressionContext {
-            function: context.function,
-            minimum_precedence: OperatorPrecedence::Range,
-            ..ExpressionContext::default()
-        })
+        self.parse_expression_at(
+            ExpressionPosition::Value,
+            ExpressionStop::default(),
+            OperatorPrecedence::Range,
+        )
     }
 
     /// Parse one startless range pattern.
@@ -426,11 +427,10 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         end_kind: RangeEnd,
-        context: PatternContext,
     ) -> ParserResult<LocalNodeId<Pattern>> {
         self.bump();
 
-        let mut end = self.parse_range_end(end_kind, context)?;
+        let mut end = self.parse_range_end(end_kind)?;
         if end.is_none() {
             let missing_id = self.recover_missing_expression_here(NodeType::Pattern);
             end = Some(missing_id);
@@ -452,10 +452,9 @@ impl Parser {
         start: &ParseStart,
         start_id: LocalNodeId<Expression>,
         end_kind: RangeEnd,
-        context: PatternContext,
     ) -> ParserResult<LocalNodeId<Pattern>> {
         self.bump();
-        let end = self.parse_range_end(end_kind, context)?;
+        let end = self.parse_range_end(end_kind)?;
 
         Ok(self.insert_node(
             Pattern::Range {
@@ -472,7 +471,6 @@ impl Parser {
         &mut self,
         separator: TokenType,
         terminator: TokenType,
-        context: PatternContext,
     ) -> ParserResult<Vec<LocalNodeId<PatternField>>> {
         let mut fields = Vec::new();
         let is_object_pattern = terminator == TokenType::CloseBrace;
@@ -486,13 +484,8 @@ impl Parser {
             // parse one field
             let documentation = self.parse_documentation();
             let field_start = self.mark_parse_start();
-            let (pattern_field, name_range) = self.parse_pattern_field(
-                separator,
-                terminator,
-                is_object_pattern,
-                field_start,
-                context,
-            )?;
+            let (pattern_field, name_range) =
+                self.parse_pattern_field(separator, terminator, is_object_pattern, field_start)?;
             let pattern_field_id = self.insert_node(pattern_field, self.range_since(&field_start));
             if let Some(name_range) = name_range {
                 self.tree.set_main_range(pattern_field_id, name_range);
@@ -520,7 +513,6 @@ impl Parser {
         terminator: TokenType,
         is_object_pattern: bool,
         field_start: ParseStart,
-        context: PatternContext,
     ) -> ParserResult<(PatternField, Option<ByteRange>)> {
         // array and tuple elisions are empty fields before a separator
         if !is_object_pattern && self.peek_is(separator) {
@@ -529,10 +521,10 @@ impl Parser {
 
         // object patterns use property shaped fields
         if is_object_pattern {
-            return self.parse_object_pattern_field(separator, terminator, field_start, context);
+            return self.parse_object_pattern_field(separator, terminator, field_start);
         }
 
-        self.parse_list_pattern_field(separator, terminator, context)
+        self.parse_list_pattern_field(separator, terminator)
     }
 
     /// Parse an object pattern property field.
@@ -541,12 +533,10 @@ impl Parser {
         separator: TokenType,
         terminator: TokenType,
         field_start: ParseStart,
-        context: PatternContext,
     ) -> ParserResult<(PatternField, Option<ByteRange>)> {
         // computed property
         if self.peek_is(TokenType::OpenBracket) {
-            let (pattern_field, key_range) =
-                self.parse_computed_pattern_field(field_start, context)?;
+            let (pattern_field, key_range) = self.parse_computed_pattern_field(field_start)?;
             return Ok((pattern_field, Some(key_range)));
         }
 
@@ -555,12 +545,7 @@ impl Parser {
             || self.peek_name_start()
             || self.peek_numeric_pattern_name()
         {
-            return self.parse_named_or_rest_pattern_field(
-                separator,
-                terminator,
-                field_start,
-                context,
-            );
+            return self.parse_named_or_rest_pattern_field(separator, terminator, field_start);
         }
 
         Err(ParserError::unexpected(self.peek_token_span()))
@@ -571,22 +556,21 @@ impl Parser {
         &mut self,
         separator: TokenType,
         terminator: TokenType,
-        context: PatternContext,
     ) -> ParserResult<(PatternField, Option<ByteRange>)> {
         // wildcard fields are positional unless explicitly used as labels
         if self.peek_identifier_is("_") && self.peek_token_type_at(1) != TokenType::Colon {
-            let pattern_field = self.parse_positional_pattern_field(context)?;
+            let pattern_field = self.parse_positional_pattern_field()?;
             return Ok((pattern_field, None));
         }
 
-        // rest fields belong to the list element grammar
+        // rest fields belong to the list element
         if self.peek_is(TokenType::Spread) {
-            let pattern_field = self.parse_rest_pattern_field(separator, terminator, context)?;
+            let pattern_field = self.parse_rest_pattern_field(separator, terminator)?;
             return Ok((pattern_field, None));
         }
 
         // otherwise the element is a binding pattern
-        let pattern_field = self.parse_positional_pattern_field(context)?;
+        let pattern_field = self.parse_positional_pattern_field()?;
 
         Ok((pattern_field, None))
     }
@@ -595,13 +579,9 @@ impl Parser {
     fn parse_computed_pattern_field(
         &mut self,
         field_start: ParseStart,
-        context: PatternContext,
     ) -> ParserResult<(PatternField, ByteRange)> {
         self.eat_token(TokenType::OpenBracket)?;
-        let key = self.parse_expression(ExpressionContext {
-            function: context.function,
-            ..ExpressionContext::default()
-        })?;
+        let key = self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
         self.eat_close_token_or_recover_missing_with(
             TokenType::CloseBracket,
             NodeType::PatternField,
@@ -614,9 +594,8 @@ impl Parser {
         // retain the complete computed key as the field's main range
         let key_range = self.range_since(&field_start);
         self.eat_token(TokenType::Colon)?;
-        let pattern = self.parse_pattern(context).in_node(NodeType::Pattern)?;
-        let pattern =
-            self.parse_pattern_default(pattern, self.range_since(&field_start), context)?;
+        let pattern = self.parse_pattern().in_node(NodeType::Pattern)?;
+        let pattern = self.parse_pattern_default(pattern, self.range_since(&field_start))?;
 
         Ok((PatternField::Computed { key, pattern }, key_range))
     }
@@ -627,14 +606,13 @@ impl Parser {
         separator: TokenType,
         terminator: TokenType,
         field_start: ParseStart,
-        context: PatternContext,
     ) -> ParserResult<(PatternField, Option<ByteRange>)> {
         if self.peek_is(TokenType::Spread) {
-            let pattern_field = self.parse_rest_pattern_field(separator, terminator, context)?;
+            let pattern_field = self.parse_rest_pattern_field(separator, terminator)?;
             return Ok((pattern_field, None));
         }
 
-        self.parse_named_pattern_field(terminator, field_start, context)
+        self.parse_named_pattern_field(terminator, field_start)
     }
 
     /// Parse a named pattern field.
@@ -642,25 +620,20 @@ impl Parser {
         &mut self,
         terminator: TokenType,
         field_start: ParseStart,
-        context: PatternContext,
     ) -> ParserResult<(PatternField, Option<ByteRange>)> {
         let has_named_colon_field = self.peek_name_start()
             && self.peek_token_type_at(1) == TokenType::Colon
             || terminator == TokenType::CloseBrace && self.peek_numeric_pattern_name();
         if has_named_colon_field {
-            return self.parse_named_colon_pattern_field(terminator, field_start, context);
+            return self.parse_named_colon_pattern_field(terminator, field_start);
         }
 
         // shorthand property names also declare bindings
-        self.report_forbidden_binding_identifier(context.function);
+        self.report_forbidden_binding_identifier();
 
         let (name, range) = self.eat_pattern_field_name_with_range(terminator)?;
-        let shorthand_pattern = self.parse_shorthand_pattern_default(
-            name,
-            range,
-            self.range_since(&field_start),
-            context,
-        )?;
+        let shorthand_pattern =
+            self.parse_shorthand_pattern_default(name, range, self.range_since(&field_start))?;
         let pattern_field = PatternField::Named {
             name,
             is_shorthand: true,
@@ -675,14 +648,12 @@ impl Parser {
         &mut self,
         terminator: TokenType,
         field_start: ParseStart,
-        context: PatternContext,
     ) -> ParserResult<(PatternField, Option<ByteRange>)> {
         let (name, name_range) = self.eat_pattern_field_name_with_range(terminator)?;
         self.bump();
 
-        let pattern = self.parse_pattern(context).in_node(NodeType::Pattern)?;
-        let pattern =
-            self.parse_pattern_default(pattern, self.range_since(&field_start), context)?;
+        let pattern = self.parse_pattern().in_node(NodeType::Pattern)?;
+        let pattern = self.parse_pattern_default(pattern, self.range_since(&field_start))?;
         let pattern_field = PatternField::Named {
             name,
             is_shorthand: false,
@@ -697,7 +668,6 @@ impl Parser {
         &mut self,
         separator: TokenType,
         terminator: TokenType,
-        context: PatternContext,
     ) -> ParserResult<PatternField> {
         self.bump();
 
@@ -710,7 +680,7 @@ impl Parser {
         let pattern = if has_omitted_target || has_line_omitted_target {
             None
         } else {
-            let pattern = self.parse_pattern(context).in_node(NodeType::Pattern)?;
+            let pattern = self.parse_pattern().in_node(NodeType::Pattern)?;
             Some(pattern)
         };
 
@@ -718,12 +688,9 @@ impl Parser {
     }
 
     /// Parse a positional pattern field with an optional default.
-    fn parse_positional_pattern_field(
-        &mut self,
-        context: PatternContext,
-    ) -> ParserResult<PatternField> {
-        let pattern = self.parse_pattern(context).in_node(NodeType::Pattern)?;
-        let pattern = self.parse_pattern_default(pattern, self.tree.get_range(pattern), context)?;
+    fn parse_positional_pattern_field(&mut self) -> ParserResult<PatternField> {
+        let pattern = self.parse_pattern().in_node(NodeType::Pattern)?;
+        let pattern = self.parse_pattern_default(pattern, self.tree.get_range(pattern))?;
 
         Ok(PatternField::Positional { pattern })
     }
@@ -733,17 +700,13 @@ impl Parser {
         &mut self,
         pattern_id: LocalNodeId<Pattern>,
         range: ByteRange,
-        context: PatternContext,
     ) -> ParserResult<LocalNodeId<Pattern>> {
         if !self.peek_is(TokenType::Assign) {
             return Ok(pattern_id);
         }
 
         self.bump();
-        let value = self.parse_expression(ExpressionContext {
-            function: context.function,
-            ..ExpressionContext::default()
-        })?;
+        let value = self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
         let pattern = Pattern::Default {
             pattern: pattern_id,
             value,
@@ -758,7 +721,6 @@ impl Parser {
         name: Name,
         name_range: ByteRange,
         field_range: ByteRange,
-        context: PatternContext,
     ) -> ParserResult<Option<LocalNodeId<Pattern>>> {
         let identifier = match name {
             Name::Identifier(name) => name,
@@ -774,7 +736,7 @@ impl Parser {
             },
             name_range,
         );
-        let pattern = self.parse_pattern_default(binding_pattern, field_range, context)?;
+        let pattern = self.parse_pattern_default(binding_pattern, field_range)?;
 
         if pattern == binding_pattern {
             Ok(None)

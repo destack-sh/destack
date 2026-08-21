@@ -30,7 +30,7 @@ fn test_parse_pattern_where_clause_placeholder() {
 fn test_parse_where_type_assertion() {
     let test = TestParser::new("where T: int32");
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
 
     // where T: int32
     assert_eq!(clauses.len(), 1);
@@ -51,7 +51,7 @@ fn test_parse_where_type_assertion() {
 fn test_parse_where_negative_capability() {
     let test = TestParser::new("where T: !Unpin");
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -70,7 +70,7 @@ fn test_parse_where_negative_capability() {
 fn test_parse_where_equality_constraint() {
     let test = TestParser::new("where T.Output == U");
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -93,7 +93,7 @@ fn test_parse_where_multiple_clauses() {
     let input = "where T: Numeric, U: Copy, V: Comparable";
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
 
     assert_eq!(clauses.len(), 3);
 
@@ -126,7 +126,7 @@ fn test_parse_where_parenthesized_multiline() {
 )"##;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
 
     assert_eq!(clauses.len(), 3);
 
@@ -154,7 +154,7 @@ fn test_parse_where_parenthesized_multiline() {
 fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
     let test = TestParser::new("where (T: Numeric, U: Copy");
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
 
     test.assert_errors(
         &parser,
@@ -189,7 +189,7 @@ fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
 fn test_where_clause_spans() {
     let test = TestParser::new("where T: Numeric");
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
     let clause_id = clauses[0];
 
     // main span
@@ -212,7 +212,7 @@ fn test_where_clause_constraint_with_boundary_comment() {
     let source = "where T: // bound-note\nNumeric";
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
     parser.finalize_comments();
 
     assert_eq!(clauses.len(), 1);
@@ -241,7 +241,7 @@ fn test_where_clause_constraint_with_boundary_comment() {
 fn test_parse_where_type_expression_left() {
     let test = TestParser::new("where BaseOf<Borrowed>: Clone");
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -256,7 +256,7 @@ fn test_parse_where_type_expression_left() {
 fn test_recover_where_implements_separator() {
     let test = TestParser::new("where T implements Clone");
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_eq!(parser.range_str(parser.errors[0].range()), "implements");
@@ -272,7 +272,7 @@ fn test_recover_where_implements_separator() {
 fn test_recover_where_extends_separator() {
     let test = TestParser::new("where T extends Clone");
     let mut parser = test.prepare();
-    let clauses = parser.parse_where(Default::default()).unwrap();
+    let clauses = parser.parse_where().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_eq!(parser.range_str(parser.errors[0].range()), "extends");

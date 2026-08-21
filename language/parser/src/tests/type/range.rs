@@ -1,5 +1,5 @@
 use crate::assert_node;
-use crate::parse::{ExpressionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use destack_dir::{
     Declaration, Expression, LocalNodeId, RangeEnd, Tree, TypeDeclaration, TypeExpression,
@@ -17,10 +17,7 @@ fn test_parse_half_open_range_type() {
     let test = TestParser::new("type Window = Start..End");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -40,10 +37,7 @@ fn test_parse_inclusive_range_type() {
     let test = TestParser::new("type Window = Start..=End");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -140,10 +134,7 @@ fn test_parse_range_type_recovers_missing_inclusive_end() {
     let test = TestParser::new("type Window = Start..=");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);

@@ -1,6 +1,7 @@
-use crate::parse::context::{ExpressionContext, TypeContext};
 use crate::parse::lookahead::DelimiterDepth;
-use crate::parse::{TokenMode, TypeMemberContainerKind};
+use crate::parse::{
+    ExpressionPosition, ExpressionStop, TokenMode, TypeMemberContainerKind, TypePosition, TypeStop,
+};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_dir::{
     Expression, Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, TreeAttribute, TreeChild,
@@ -8,7 +9,7 @@ use destack_dir::{
 };
 use destack_source::ByteRange;
 
-/// A grammar point where parsing can resume after damaged syntax.
+/// A source point where parsing can resume after damaged syntax.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RecoveryPoint {
     /// A declaration.
@@ -429,27 +430,29 @@ impl Parser {
     /// Parse one type or recover a missing child at a type boundary.
     pub(crate) fn parse_type_or_recover_missing(
         &mut self,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
         owner: NodeType,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         if self.peek_type_expression_recovery_boundary() {
             return Ok(self.recover_missing_type_expression_here(owner));
         }
 
-        self.parse_type(context)
+        self.parse_type(position, stop)
     }
 
     /// Parse one expression or recover a missing child at an expression boundary.
     pub(crate) fn parse_expression_or_recover_missing(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
         owner: NodeType,
     ) -> ParserResult<LocalNodeId<Expression>> {
         if self.peek_expression_slot_boundary() {
             return Ok(self.recover_missing_expression_here(owner));
         }
 
-        self.parse_expression(context)
+        self.parse_expression(position, stop)
     }
 
     /// Eat one close token or recover one missing close delimiter.
@@ -477,7 +480,7 @@ impl Parser {
             return Ok(());
         }
 
-        // allow the caller to define the grammar boundary it owns
+        // allow the caller to define the source boundary it owns
         let token_type = self.peek_token_type();
         let is_recoverable_boundary = is_recoverable_boundary(self, token_type);
         if !is_recoverable_boundary {
@@ -563,7 +566,7 @@ impl Parser {
                 break;
             }
 
-            // stop before the next item or enclosing grammar boundary
+            // stop before the next item or enclosing source boundary
             if Self::is_list_item_recovery_boundary(start_range, token, terminator, &depth) {
                 return self.report_recovery(start_range, error);
             }

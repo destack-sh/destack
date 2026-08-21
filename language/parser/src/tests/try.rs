@@ -13,7 +13,7 @@ try foo()
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     let main_span = parser
         .tree
         .get_main_span(try_id)
@@ -38,7 +38,7 @@ try {
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     let main_span = parser
         .tree
         .get_main_span(try_id)
@@ -70,7 +70,7 @@ try /* comment */ {
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     assert_node!(parser.tree, try_id, Expression::Try { body, .. } => {
         let body_span = parser.tree.get_span(*body);
         assert_eq!(parser.span_str(body_span), "{\n    foo()\n}");
@@ -92,7 +92,7 @@ try {
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     assert_node!(parser.tree, try_id, Expression::Try { body, catch: Some(catch), finally: Some(finally) } => {
         // try
         assert_node!(parser.tree, *body, Expression::Block(block_id) => {
@@ -148,7 +148,7 @@ try {
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     assert_node!(parser.tree, try_id, Expression::Try { catch: Some(catch), .. } => {
         assert_node!(parser.tree, *catch, Catch { pattern: Some(catch_pattern), ty: Some(catch_ty), .. } => {
         // catch binding
@@ -175,7 +175,7 @@ try {
     );
     let mut parser = test.prepare();
 
-    let _try_id = parser.parse_try(Default::default()).unwrap();
+    let _try_id = parser.parse_try().unwrap();
 
     test.assert_no_errors(&parser);
 }
@@ -223,7 +223,7 @@ try {
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
 
     assert_node!(parser.tree, try_id, Expression::Try { body, catch: Some(catch), finally: Some(finally), .. } => {
         assert_node!(parser.tree, *body, Expression::Block(try_block_id) => {
@@ -279,7 +279,7 @@ try {
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
 
     assert_node!(parser.tree, try_id, Expression::Try { body, catch: Some(catch), finally: Some(finally), .. } => {
         assert_node!(parser.tree, *body, Expression::Block(try_block_id) => {
@@ -318,7 +318,7 @@ try {
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -347,7 +347,7 @@ try {
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     assert_node!(parser.tree, try_id, Expression::Try { catch: Some(catch), .. } => {
         assert_node!(parser.tree, *catch, Catch { pattern: Some(catch_pattern), ty: Some(catch_ty), body } => {
         // catch { name, message }
@@ -391,7 +391,7 @@ fn test_parse_catch_expression_parameter() {
     let test = TestParser::new("try {} catch (answer()) {}");
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     assert_node!(parser.tree, try_id, Expression::Try { catch: Some(catch), .. } => {
         assert_node!(parser.tree, *catch, Catch { pattern: Some(catch_pattern), ty: None, body } => {
         assert_node!(parser.tree, *catch_pattern, Pattern::NominalTuple { ty, fields } => {
@@ -410,7 +410,7 @@ fn test_parse_catch_literal_parameter() {
     let test = TestParser::new("try {} catch (42) {}");
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     assert_node!(parser.tree, try_id, Expression::Try { catch: Some(catch), .. } => {
         assert_node!(parser.tree, *catch, Catch { pattern: Some(catch_pattern), ty: None, body } => {
         assert_node!(parser.tree, *catch_pattern, Pattern::Expression { value } => {
@@ -427,7 +427,7 @@ fn test_parse_catch_without_binding_after_newline() {
     let test = TestParser::new("try {\n  foo()\n}\ncatch {\n  bar()\n}");
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     assert_node!(parser.tree, try_id, Expression::Try { catch: Some(catch), finally: None, .. } => {
         assert_node!(parser.tree, *catch, Catch { pattern: None, ty: None, body } => {
         assert_node!(parser.tree, *body, Expression::Block(block_id) => {
@@ -451,7 +451,7 @@ fn test_parse_try_with_comment_newline_boundaries() {
     );
     let mut parser = test.prepare();
 
-    let try_id = parser.parse_try(Default::default()).unwrap();
+    let try_id = parser.parse_try().unwrap();
     assert_node!(parser.tree, try_id, Expression::Try { catch: Some(catch), finally: Some(finally), .. } => {
         assert_node!(parser.tree, *catch, Catch { pattern: Some(catch_pattern), ty: None, body } => {
         assert_node!(parser.tree, *catch_pattern, Pattern::Binding { name, pattern: None, .. } => {

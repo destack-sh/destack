@@ -1,4 +1,4 @@
-use crate::parse::context::TypeContext;
+use crate::parse::{TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
@@ -82,7 +82,7 @@ impl Parser {
     /// ```
     fn parse_type_tuple_element(
         &mut self,
-        context: TypeContext,
+        stop: TypeStop,
         close: TokenType,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
         let documentation = self.parse_documentation();
@@ -97,7 +97,7 @@ impl Parser {
                 None
             };
 
-            self.parse_tuple_rest_element(&start, label, context)?
+            self.parse_tuple_rest_element(&start, label, stop)?
         }
         // parse a regular or labeled rest element
         else {
@@ -108,9 +108,9 @@ impl Parser {
             };
             if label.is_some() && self.peek_is(TokenType::Spread) {
                 self.bump();
-                self.parse_tuple_rest_element(&start, label, context)?
+                self.parse_tuple_rest_element(&start, label, stop)?
             } else {
-                self.parse_tuple_element(&start, label, context, close)?
+                self.parse_tuple_element(&start, label, stop, close)?
             }
         };
         self.attach_documentation(element, documentation);
@@ -123,7 +123,7 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         label: Option<TupleLabel>,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
         // reject optional rest labels
         if label.is_some_and(|label| label.is_optional) {
@@ -131,7 +131,7 @@ impl Parser {
         }
 
         // parse the rest payload
-        let value = self.parse_type(context.nested())?;
+        let value = self.parse_type(TypePosition::Type, stop.nest())?;
 
         let element = self.insert_node(
             TupleElement::Spread {
@@ -159,10 +159,10 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         label: Option<TupleLabel>,
-        context: TypeContext,
+        stop: TypeStop,
         close: TokenType,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
-        let value = self.parse_type(context.nested())?;
+        let value = self.parse_type(TypePosition::Type, stop.nest())?;
 
         let is_optional = if let Some(label) = label {
             label.is_optional
@@ -201,7 +201,7 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         value: LocalNodeId<TypeExpression>,
-        context: TypeContext,
+        stop: TypeStop,
         close: TokenType,
     ) -> ParserResult<Vec<LocalNodeId<TupleElement>>> {
         // optional marker on an unlabeled tuple element
@@ -230,7 +230,7 @@ impl Parser {
         let mut elements = vec![first_element];
         if self.peek_is(TokenType::Comma) {
             self.eat_token(TokenType::Comma)?;
-            elements.extend(self.parse_type_tuple_elements(context, close)?);
+            elements.extend(self.parse_type_tuple_elements(stop, close)?);
         }
 
         Ok(elements)
@@ -246,7 +246,7 @@ impl Parser {
     /// ```
     pub(crate) fn parse_type_tuple_elements(
         &mut self,
-        context: TypeContext,
+        stop: TypeStop,
         close: TokenType,
     ) -> ParserResult<Vec<LocalNodeId<TupleElement>>> {
         let mut elements = Vec::new();
@@ -259,7 +259,7 @@ impl Parser {
 
             // one tuple element
             let element_start = self.mark_parse_start();
-            let (element, is_recovered) = match self.parse_type_tuple_element(context, close) {
+            let (element, is_recovered) = match self.parse_type_tuple_element(stop, close) {
                 Ok(element_id) => {
                     let is_recovered = matches!(self.tree.get(element_id), TupleElement::Error);
 

@@ -1,4 +1,4 @@
-use crate::parse::context::{AwaitContext, FunctionContext, YieldContext};
+use crate::parse::{AwaitKeyword, YieldKeyword};
 use crate::{Parser, ParserError, ParserResult};
 use destack_core::StringId;
 use destack_dir::{Keyword, Name, ScalarLiteral, Token, TokenLiteral, TokenType};
@@ -55,19 +55,19 @@ impl Parser {
     #[inline]
     pub(crate) fn eat_binding_identifier_with_range(
         &mut self,
-        function: FunctionContext,
     ) -> ParserResult<(StringId, ByteRange)> {
-        self.report_forbidden_binding_identifier(function);
+        self.report_forbidden_binding_identifier();
 
         self.eat_identifier_with_range()
     }
 
     /// Report a contextually reserved binding identifier while preserving its tree shape.
-    pub(crate) fn report_forbidden_binding_identifier(&mut self, function: FunctionContext) {
+    pub(crate) fn report_forbidden_binding_identifier(&mut self) {
         let keyword = self.peek_keyword();
-        let is_forbidden = function.yield_context == YieldContext::Forbidden
+        let is_forbidden = self.keywords.yield_keyword == YieldKeyword::Forbidden
             && keyword == Some(Keyword::Yield)
-            || function.await_context == AwaitContext::Forbidden && keyword == Some(Keyword::Await);
+            || self.keywords.await_keyword == AwaitKeyword::Forbidden
+                && keyword == Some(Keyword::Await);
         if is_forbidden {
             let error = ParserError::unexpected(self.peek_token_span());
             self.report_error(error);
@@ -406,7 +406,7 @@ impl Parser {
     ) -> ParserResult<(usize, ByteRange)> {
         let token = self.peek_numeric_literal()?;
 
-        // parse the integer name through the literal grammar
+        // parse the integer name through the literal parser
         let numeric_literal = self.parse_scalar_literal()?;
         let ScalarLiteral::Integer(index) = numeric_literal else {
             return Err(ParserError::unexpected(token));

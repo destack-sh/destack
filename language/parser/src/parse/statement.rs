@@ -1,4 +1,4 @@
-use crate::parse::context::{BraceContext, ExpressionContext, FunctionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserError, ParserResult};
 use destack_dir::{
     BlockContext, Expression, LocalNodeId, NodeType, Token, TokenType, YieldCardinality,
@@ -33,10 +33,7 @@ impl Parser {
     /// break outer
     /// break found: value
     /// ```
-    pub(crate) fn parse_break(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_break(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         self.bump();
 
@@ -52,10 +49,8 @@ impl Parser {
             if !next.is_on_new_line() && next.is(TokenType::Colon) {
                 let (label, label_range) = self.eat_identifier_with_range()?;
                 self.bump();
-                let value = self.parse_expression(ExpressionContext {
-                    function,
-                    ..ExpressionContext::default()
-                })?;
+                let value =
+                    self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
 
                 (Some(label), Some(label_range), Some(value))
             }
@@ -67,20 +62,16 @@ impl Parser {
             }
             // break value
             else {
-                let value = self.parse_expression(ExpressionContext {
-                    function,
-                    ..ExpressionContext::default()
-                })?;
+                let value =
+                    self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
 
                 (None, None, Some(value))
             }
         }
         // break value
         else {
-            let value = self.parse_expression(ExpressionContext {
-                function,
-                ..ExpressionContext::default()
-            })?;
+            let value =
+                self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
 
             (None, None, Some(value))
         };
@@ -142,10 +133,7 @@ impl Parser {
     /// await? value
     /// await! value
     /// ```
-    pub(crate) fn parse_await(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_await(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         self.bump();
 
@@ -156,10 +144,8 @@ impl Parser {
         let is_must = !is_maybe && is_adjacent && self.eat_token_if(TokenType::Not);
 
         // await[?!]? value
-        let expression = self.parse_expression(ExpressionContext {
-            function,
-            ..ExpressionContext::default()
-        })?;
+        let expression =
+            self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
         // select the parsed await operation
         let node = if is_maybe {
             Expression::AwaitMaybe { expression }
@@ -179,25 +165,16 @@ impl Parser {
     /// const expression
     /// const { statements }
     /// ```
-    pub(crate) fn parse_const_evaluation(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_const_evaluation(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         self.bump();
 
         // const { body } or const expression
         let body = if self.peek_block() {
-            let block = self.parse_block(BlockContext::Expression, function)?;
+            let block = self.parse_block(BlockContext::Expression)?;
             self.insert_node(Expression::Block(block), self.tree.get_range(block))
         } else {
-            let context = ExpressionContext {
-                function,
-                statement: StatementPosition::Direct,
-                brace: BraceContext::Block,
-                ..ExpressionContext::default()
-            };
-            self.parse_expression(context)?
+            self.parse_expression(ExpressionPosition::Block, ExpressionStop::default())?
         };
 
         Ok(self.insert_node(Expression::Const { body }, self.range_since(&start)))
@@ -211,10 +188,7 @@ impl Parser {
     /// yield value
     /// yield* values
     /// ```
-    pub(crate) fn parse_yield(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_yield(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         self.bump();
 
@@ -233,10 +207,7 @@ impl Parser {
         } else if is_absent {
             None
         } else {
-            Some(self.parse_expression(ExpressionContext {
-                function,
-                ..ExpressionContext::default()
-            })?)
+            Some(self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?)
         };
 
         Ok(self.insert_node(
@@ -252,10 +223,7 @@ impl Parser {
     /// return
     /// return value
     /// ```
-    pub(crate) fn parse_return(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_return(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         self.bump();
 
@@ -263,10 +231,7 @@ impl Parser {
         let value = if self.peek_statement_operand_absent() {
             None
         } else {
-            Some(self.parse_expression(ExpressionContext {
-                function,
-                ..ExpressionContext::default()
-            })?)
+            Some(self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?)
         };
 
         Ok(self.insert_node(Expression::Return { value }, self.range_since(&start)))

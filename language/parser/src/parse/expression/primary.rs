@@ -1,10 +1,9 @@
-use crate::parse::DeclarationHeader;
-use crate::parse::context::{
-    AwaitContext, BraceContext, DecoratorContext, ExpressionContext, ExpressionStops,
-    StatementPosition, TypeContext, YieldContext,
-};
 use crate::parse::expression::operator::ExpressionOperator;
 use crate::parse::r#type::operator::TypePrefixOperator;
+use crate::parse::{
+    AwaitKeyword, DeclarationHeader, ExpressionPosition, ExpressionStop, TypePosition, TypeStop,
+    YieldKeyword,
+};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
@@ -51,7 +50,8 @@ impl Parser {
     #[inline(never)]
     pub(in crate::parse::expression) fn parse_expression_operand(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
     ) -> ParserResult<LocalNodeId<Expression>> {
         // parse prefixes only when the operand actually has one
         let prefixes = if let Some(first) = self.parse_value_prefix()? {
@@ -68,9 +68,14 @@ impl Parser {
         // parse every postfix around the primary expression
         let primary_start = self.mark_parse_start();
         let (expression, is_parenthesized) =
-            self.parse_expression_primary(&primary_start, context)?;
-        let mut expression =
-            self.parse_expression_postfix(&primary_start, expression, is_parenthesized, context)?;
+            self.parse_expression_primary(&primary_start, position, stop)?;
+        let mut expression = self.parse_expression_postfix(
+            &primary_start,
+            expression,
+            is_parenthesized,
+            position,
+            stop,
+        )?;
 
         // fold consumed prefixes from the operand outward
         if let Some(prefixes) = prefixes {
@@ -150,29 +155,31 @@ impl Parser {
     fn parse_expression_primary(
         &mut self,
         start: &ParseStart,
-        context: ExpressionContext,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
     ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         let token = self.peek_token_type();
 
         // dispatch identifiers without repeating keyword classification
         if token == TokenType::Identifier {
             let expression = if let Some(keyword) = self.peek_keyword() {
-                self.parse_keyword_primary(start, keyword, context)?
+                self.parse_keyword_primary(start, keyword, position, stop)?
             } else {
-                self.parse_identifier_primary(start, context)?
+                self.parse_identifier_primary(start, position, stop)?
             };
 
             return Ok((expression, false));
         }
 
-        self.parse_token_primary(start, token, context)
+        self.parse_token_primary(start, token, position, stop)
     }
 
     /// Parse one non-keyword identifier primary.
     fn parse_identifier_primary(
         &mut self,
         start: &ParseStart,
-        context: ExpressionContext,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
     ) -> ParserResult<LocalNodeId<Expression>> {
         if self.peek_identifier_is("delete") {
             return Err(ParserError::unexpected(self.peek_token_span()));
@@ -180,17 +187,14 @@ impl Parser {
 
         // primitive type literals are first-class values outside value postfix syntax
         if !self.peek_identifier_value_postfix() && self.peek_intrinsic_type_literal().is_some() {
-            let value = self.parse_type(TypeContext {
-                function: context.function,
-                ..TypeContext::default()
-            })?;
+            let value = self.parse_type(TypePosition::Type, TypeStop::default())?;
 
             return Ok(self.insert_type_expression_value(value));
         }
 
         let (name, name_range) = self.eat_identifier_with_range()?;
 
-        // classify identifier-shaped grammar from one consumed head
+        // classify an identifier-shaped expression from one consumed head
         match self.peek_token_type() {
             // an applied hole heads an inferred call
             TokenType::OpenParenthesis if self.range_str(name_range) == "_" => {
@@ -205,18 +209,13 @@ impl Parser {
                 Ok(expression)
             }
             TokenType::ArrowWide => {
-                let declaration = self.parse_bare_lambda(
-                    start,
-                    name,
-                    name_range,
-                    DeclarationHeader::default(),
-                    context.function,
-                )?;
+                let declaration =
+                    self.parse_bare_lambda(start, name, name_range, DeclarationHeader::default())?;
 
                 Ok(self.insert_declaration_expression(start, declaration))
             }
-            TokenType::Colon if self.peek_label_body(context) => {
-                let body = self.parse_label_body(context)?;
+            TokenType::Colon if self.peek_label_body(stop) => {
+                let body = self.parse_label_body()?;
 
                 // attach the label to its loop, the only valid target
                 if let Expression::While { label, .. }
@@ -232,7 +231,7 @@ impl Parser {
                 Ok(body)
             }
             TokenType::OpenBrace => {
-                self.parse_identifier_object_primary(start, name, name_range, context)
+                self.parse_identifier_object_primary(start, name, name_range, position, stop)
             }
             _ => Ok(self.insert_identifier_expression(start, name, name_range)),
         }
@@ -244,13 +243,14 @@ impl Parser {
         start: &ParseStart,
         name: StringId,
         name_range: ByteRange,
-        context: ExpressionContext,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let name_text = self.strings.get(name);
 
         // parse module { body }
         if name_text == "module" {
-            let declaration = self.parse_module(start, name_range, context.function)?;
+            let declaration = self.parse_module(start, name_range)?;
 
             return Ok(self.insert_declaration_expression(start, declaration));
         }
@@ -261,14 +261,14 @@ impl Parser {
                 is_ambient: self.is_ambient,
                 ..DeclarationHeader::default()
             };
-            let declaration = self.parse_global(start, name_range, header, context.function)?;
+            let declaration = self.parse_global(start, name_range, header)?;
 
             return Ok(self.insert_declaration_expression(start, declaration));
         }
 
         // leave an identifier followed by an enclosing control body
-        if context.brace == BraceContext::Block
-            || context.stops.contains(ExpressionStops::BODY_BRACE)
+        if position == ExpressionPosition::Block
+            || stop.has(ExpressionStop::BODY_BRACE)
             || self.peek_is_on_new_line()
         {
             return Ok(self.insert_identifier_expression(start, name, name_range));
@@ -291,7 +291,7 @@ impl Parser {
         };
         let ty = self.insert_node(ty, name_range);
         self.tree.set_main_range(ty, name_range);
-        let properties = self.parse_object_literal(context.function)?;
+        let properties = self.parse_object_literal()?;
 
         Ok(self.insert_node(
             Expression::StructExpression { ty, properties },
@@ -304,29 +304,24 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         keyword: Keyword,
-        context: ExpressionContext,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
     ) -> ParserResult<LocalNodeId<Expression>> {
         // parse @keyword as an identifier decorator head except for this and super
-        if context.decorator == DecoratorContext::Head
+        if position == ExpressionPosition::DecoratorHead
             && !matches!(keyword, Keyword::This | Keyword::Super)
         {
             return self.parse_identifier_expression(start);
         }
 
         // parse declaration keyword ...
-        if self.peek_declaration_primary(context) {
-            return self.parse_declaration_primary(start, context);
+        if self.peek_declaration_primary(position) {
+            return self.parse_declaration_primary(start, position);
         }
 
         // parse type declarations and first-class structural type values
-        if self.peek_type_keyword_value(keyword, context) {
-            let value = self.parse_type_declaration(
-                start,
-                TypeContext {
-                    function: context.function,
-                    ..TypeContext::default()
-                },
-            )?;
+        if self.peek_type_keyword_value(keyword, stop) {
+            let value = self.parse_type_declaration(start, TypeStop::default())?;
 
             return Ok(self.insert_type_expression_value(value));
         }
@@ -335,10 +330,7 @@ impl Parser {
         if TypePrefixOperator::from_token(TokenType::Identifier, Some(keyword)).is_some()
             && self.peek_type_operand_start_at(1)
         {
-            let value = self.parse_type(TypeContext {
-                function: context.function,
-                ..TypeContext::default()
-            })?;
+            let value = self.parse_type(TypePosition::Type, TypeStop::default())?;
 
             return Ok(self.insert_type_expression_value(value));
         }
@@ -378,7 +370,7 @@ impl Parser {
                 ))
             }
             Keyword::Do if self.peek_do_block_expression() => {
-                let block = self.parse_block(BlockContext::Expression, context.function)?;
+                let block = self.parse_block(BlockContext::Expression)?;
 
                 Ok(self.insert_node(Expression::Block(block), self.range_since(start)))
             }
@@ -386,36 +378,36 @@ impl Parser {
                 self.bump();
                 Ok(self.insert_node(Expression::Debugger, self.range_since(start)))
             }
-            Keyword::If => self.parse_if(context.function),
-            Keyword::While | Keyword::Do => self.parse_while(context.function),
-            Keyword::For => self.parse_for(context.function),
-            Keyword::Loop => self.parse_loop(context.function),
-            Keyword::Try => self.parse_try(context.function),
-            Keyword::Match => self.parse_match(context.function),
-            Keyword::Switch => self.parse_switch(context.function),
-            Keyword::Break => self.parse_break(context.function),
+            Keyword::If => self.parse_if(),
+            Keyword::While | Keyword::Do => self.parse_while(),
+            Keyword::For => self.parse_for(),
+            Keyword::Loop => self.parse_loop(),
+            Keyword::Try => self.parse_try(),
+            Keyword::Match => self.parse_match(),
+            Keyword::Switch => self.parse_switch(),
+            Keyword::Break => self.parse_break(),
             Keyword::Continue => self.parse_continue(),
-            Keyword::Return => self.parse_return(context.function),
-            Keyword::Yield if context.function.yield_context == YieldContext::Forbidden => {
+            Keyword::Return => self.parse_return(),
+            Keyword::Yield if self.keywords.yield_keyword == YieldKeyword::Forbidden => {
                 Err(ParserError::unexpected(self.peek_token_span()))
             }
-            Keyword::Yield if context.function.yield_context == YieldContext::Expression => {
-                self.parse_yield(context.function)
+            Keyword::Yield if self.keywords.yield_keyword == YieldKeyword::Expression => {
+                self.parse_yield()
             }
-            Keyword::Await if context.function.await_context == AwaitContext::Forbidden => {
+            Keyword::Await if self.keywords.await_keyword == AwaitKeyword::Forbidden => {
                 Err(ParserError::unexpected(self.peek_token_span()))
             }
-            Keyword::Await => self.parse_await(context.function),
+            Keyword::Await => self.parse_await(),
             Keyword::Async if self.peek_async_lambda() => self
-                .parse_function(start, DeclarationHeader::default(), context)
+                .parse_function(start, DeclarationHeader::default(), position)
                 .map(|declaration| self.insert_declaration_expression(start, declaration)),
-            Keyword::Const => self.parse_const_evaluation(context.function),
-            Keyword::New => self.parse_new(context),
-            Keyword::Import if self.peek_import_statement() => self.parse_import(context.function),
+            Keyword::Const => self.parse_const_evaluation(),
+            Keyword::New => self.parse_new(position),
+            Keyword::Import if self.peek_import_statement() => self.parse_import(),
             Keyword::Import if self.peek_next_token_type() == TokenType::Dot => {
                 self.parse_import_meta(start)
             }
-            Keyword::Export => self.parse_export(context.function),
+            Keyword::Export => self.parse_export(),
             _ => self.parse_identifier_expression(start),
         }
     }
@@ -429,7 +421,7 @@ impl Parser {
     }
 
     /// Return whether a type-family keyword starts a type value expression.
-    fn peek_type_keyword_value(&self, keyword: Keyword, context: ExpressionContext) -> bool {
+    fn peek_type_keyword_value(&self, keyword: Keyword, stop: ExpressionStop) -> bool {
         // reject keywords outside the type family
         if !matches!(
             keyword,
@@ -447,7 +439,7 @@ impl Parser {
 
         // keep type as the binding identifier in for (type in|of value)
         if keyword == Keyword::Type
-            && context.stops.contains(ExpressionStops::FOR_EACH)
+            && stop.has(ExpressionStop::FOR_EACH)
             && matches!(next_keyword, Some(Keyword::In | Keyword::Of))
         {
             return false;
@@ -470,7 +462,7 @@ impl Parser {
             return true;
         }
 
-        // keep type followed by any other value operator in expression grammar
+        // keep type followed by any other value operator in value space
         if keyword == Keyword::Type
             && ExpressionOperator::from_token(next.ty(), next_keyword).is_some()
         {
@@ -485,18 +477,19 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         token: TokenType,
-        context: ExpressionContext,
+        position: ExpressionPosition,
+        stop: ExpressionStop,
     ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         match token {
-            TokenType::OpenParenthesis => self.parse_parenthesized_primary(start, context),
+            TokenType::OpenParenthesis => self.parse_parenthesized_primary(start, position, stop),
             TokenType::OpenBracket => self
-                .parse_bracket_literal(start, context)
+                .parse_bracket_literal(start, position)
                 .map(|expression| (expression, false)),
             TokenType::OpenBrace => self
-                .parse_brace_primary(start, context)
+                .parse_brace_primary(start, position)
                 .map(|expression| (expression, false)),
             TokenType::LessThan if self.peek_generic_lambda() => self
-                .parse_function(start, DeclarationHeader::default(), context)
+                .parse_function(start, DeclarationHeader::default(), position)
                 .map(|declaration| {
                     (
                         self.insert_declaration_expression(start, declaration),
@@ -504,12 +497,12 @@ impl Parser {
                     )
                 }),
             TokenType::LessThan if self.peek_tree_literal_start() => self
-                .parse_tree_literal(context.function)
+                .parse_tree_literal()
                 .map(|expression| (expression, false)),
             TokenType::TemplateString | TokenType::TemplateStringStart
                 if self.peek_template_literal_start() =>
             {
-                let value = self.parse_template_literal(context.function)?;
+                let value = self.parse_template_literal()?;
                 let expression = self.insert_node(
                     Expression::TemplateExpression { value },
                     self.range_since(start),
@@ -545,7 +538,11 @@ impl Parser {
                         Some(self.recover_missing_expression_here(NodeType::Expression))
                     }
                 } else {
-                    Some(self.parse_expression(context.right(OperatorPrecedence::Range))?)
+                    Some(self.parse_expression_at(
+                        position.right(),
+                        stop,
+                        OperatorPrecedence::Range,
+                    )?)
                 };
                 let expression = self.insert_node(
                     Expression::RangeExpression {
@@ -559,10 +556,7 @@ impl Parser {
                 Ok((expression, false))
             }
             _ if TypePrefixOperator::from_token(token, None).is_some() => {
-                let ty = self.parse_type(TypeContext {
-                    function: context.function,
-                    ..TypeContext::default()
-                })?;
+                let ty = self.parse_type(TypePosition::Type, TypeStop::default())?;
 
                 Ok((self.insert_type_expression_value(ty), false))
             }
@@ -574,16 +568,16 @@ impl Parser {
     fn parse_brace_primary(
         &mut self,
         start: &ParseStart,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        if context.brace == BraceContext::Block
-            || context.statement == StatementPosition::Direct && !self.peek_statement_object()
+        if position == ExpressionPosition::Block
+            || position.is_statement() && !self.peek_statement_object()
         {
-            let block = self.parse_block(BlockContext::Expression, context.function)?;
+            let block = self.parse_block(BlockContext::Expression)?;
 
             return Ok(self.insert_node(Expression::Block(block), self.range_since(start)));
         }
-        let properties = self.parse_object_literal(context.function)?;
+        let properties = self.parse_object_literal()?;
 
         Ok(self.insert_node(
             Expression::ObjectExpression { properties },

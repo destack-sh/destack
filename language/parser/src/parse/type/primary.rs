@@ -1,6 +1,5 @@
-use crate::parse::DeclarationHeader;
-use crate::parse::context::TypeContext;
 use crate::parse::r#type::operator::{TypeOperator, TypePrefixOperator};
+use crate::parse::{DeclarationHeader, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_dir::{
     LocalNodeId, Mutability, NodeType, OperatorPrecedence, RangeEnd, TokenType, TypeExpression,
@@ -101,7 +100,8 @@ impl Parser {
     #[inline(never)]
     pub(in crate::parse::r#type) fn parse_type_operand(
         &mut self,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // parse prefixes only when the operand actually has one
         let prefixes = if let Some(first) = self.parse_type_prefix()? {
@@ -120,9 +120,9 @@ impl Parser {
         let mut ty = if prefixes.is_some() && self.peek_type_expression_recovery_boundary() {
             self.recover_missing_type_expression_here(NodeType::TypeExpression)
         } else {
-            let ty = self.parse_type_primary(&primary_start, context)?;
+            let ty = self.parse_type_primary(&primary_start, position, stop)?;
 
-            self.parse_type_postfix(&primary_start, ty, context)?
+            self.parse_type_postfix(&primary_start, ty, position, stop)?
         };
 
         // fold consumed prefixes from the operand outward
@@ -270,25 +270,28 @@ impl Parser {
     fn parse_type_primary(
         &mut self,
         start: &ParseStart,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         match self.peek_token_type() {
-            TokenType::Identifier => self.parse_identifier_type_primary(start, context),
+            TokenType::Identifier => self.parse_identifier_type_primary(start, stop),
             TokenType::Lifetime => Ok(self.parse_lifetime_type()),
-            TokenType::OpenParenthesis if self.peek_parenthesized_function_type(context) => {
-                self.parse_function_type(start, DeclarationHeader::default(), context)
+            TokenType::OpenParenthesis if self.peek_parenthesized_function_type(position, stop) => {
+                self.parse_function_type(start, DeclarationHeader::default())
             }
-            TokenType::OpenParenthesis => self.parse_parenthesized_type(start, context),
+            TokenType::OpenParenthesis => self.parse_parenthesized_type(start, stop),
             TokenType::LessThan if self.peek_generic_function_type() => {
-                self.parse_function_type(start, DeclarationHeader::default(), context)
+                self.parse_function_type(start, DeclarationHeader::default())
             }
-            TokenType::OpenBracket => self.parse_bracket_type(start, context),
-            TokenType::OpenBrace => self.parse_object_type_primary(start, context),
-            TokenType::ElementwiseOr => self.parse_leading_type_list(context, TypeOperator::Union),
+            TokenType::OpenBracket => self.parse_bracket_type(start, stop),
+            TokenType::OpenBrace => self.parse_object_type_primary(start, stop),
+            TokenType::ElementwiseOr => {
+                self.parse_leading_type_list(position, stop, TypeOperator::Union)
+            }
             TokenType::TemplateString | TokenType::TemplateStringStart
                 if self.peek_template_literal_start() =>
             {
-                self.parse_type_template_literal(context)
+                self.parse_type_template_literal(stop)
             }
             TokenType::Add | TokenType::Subtract => {
                 let value = self.parse_signed_numeric_literal()?;
@@ -307,7 +310,7 @@ impl Parser {
                 ))
             }
             TokenType::Range | TokenType::RangeInclusive => {
-                self.parse_startless_range_type(start, context)
+                self.parse_startless_range_type(start, position, stop)
             }
             _ => Err(ParserError::unexpected(self.peek_token_span())),
         }
@@ -317,31 +320,31 @@ impl Parser {
     fn parse_identifier_type_primary(
         &mut self,
         start: &ParseStart,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         if self.peek_construct_type() {
-            return self.parse_function_type(start, DeclarationHeader::default(), context);
+            return self.parse_function_type(start, DeclarationHeader::default());
         }
         if let Some(keyword) = self.peek_keyword()
-            && let Some(ty) = self.parse_type_keyword_expression(start, keyword, context)?
+            && let Some(ty) = self.parse_type_keyword_expression(start, keyword, stop)?
         {
             return Ok(ty);
         }
 
-        self.parse_type_reference(start, context)
+        self.parse_type_reference(start, stop)
     }
 
     /// Parse one object or mapped primary type.
     fn parse_object_type_primary(
         &mut self,
         start: &ParseStart,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         if self.peek_mapped_type() {
-            return self.parse_mapped_type(context);
+            return self.parse_mapped_type(stop);
         }
 
-        let members = self.parse_type_object_literal(context.function)?;
+        let members = self.parse_type_object_literal()?;
 
         Ok(self.insert_node(TypeExpression::Object { members }, self.range_since(start)))
     }
@@ -349,19 +352,20 @@ impl Parser {
     /// Parse a type list with one leading separator.
     fn parse_leading_type_list(
         &mut self,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
         operator: TypeOperator,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let operator_range = self.peek_token().range();
         self.bump();
         let mut elements = Vec::new();
-        let first = self.parse_type(context.right(operator.precedence()))?;
+        let first = self.parse_type_at(position, stop, operator.precedence())?;
         let mut last = first;
         elements.push(first);
 
         while self.peek_is(TokenType::ElementwiseOr) {
             self.bump();
-            let element = self.parse_type(context.right(operator.precedence()))?;
+            let element = self.parse_type_at(position, stop, operator.precedence())?;
             last = element;
             elements.push(element);
         }
@@ -401,7 +405,8 @@ impl Parser {
     fn parse_startless_range_type(
         &mut self,
         start: &ParseStart,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let operator_range = self.peek_token().range();
         let end_kind = if self.peek_is(TokenType::RangeInclusive) {
@@ -417,7 +422,7 @@ impl Parser {
                 Some(self.recover_missing_type_expression_here(NodeType::TypeExpression))
             }
         } else {
-            Some(self.parse_type(context.right(OperatorPrecedence::Range))?)
+            Some(self.parse_type_at(position, stop, OperatorPrecedence::Range)?)
         };
         let ty = self.insert_node(
             TypeExpression::Range {

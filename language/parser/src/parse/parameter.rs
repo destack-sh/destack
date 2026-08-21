@@ -5,10 +5,8 @@ use destack_dir::{
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
-use crate::parse::BindingModifierGrammar;
-use crate::parse::context::{
-    AwaitContext, ExpressionContext, ExpressionStops, ParameterContext, PatternContext,
-    StatementPosition, TypeContext, TypeStops,
+use crate::parse::{
+    AwaitKeyword, BindingPosition, ExpressionPosition, ExpressionStop, TypePosition, TypeStop,
 };
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
@@ -38,7 +36,7 @@ impl Parser {
     /// value: string = "default"
     /// ```
     pub fn parse_parameter_fragment(&mut self) -> ParserResult<LocalNodeId<Parameter>> {
-        self.parse_parameter(ParameterContext::default())
+        self.parse_parameter(ExpressionPosition::Value)
     }
 
     /// Parse one standalone parenthesized parameter list.
@@ -48,13 +46,13 @@ impl Parser {
     /// (left: int, right: int = 0)
     /// ```
     pub fn parse_parameter_list_fragment(&mut self) -> ParserResult<Vec<LocalNodeId<Parameter>>> {
-        self.parse_dynamic_parameters(ParameterContext::default())
+        self.parse_dynamic_parameters(ExpressionPosition::Value)
     }
 
     /// Return true when the current keyword should end a malformed parameter list after a newline.
-    fn peek_parameter_recovery_boundary(&self, context: ParameterContext) -> bool {
+    fn peek_parameter_recovery_boundary(&self, position: ExpressionPosition) -> bool {
         // only statement scoped dynamic parameters should stop at newline led keywords
-        if context.statement == StatementPosition::None {
+        if !position.is_in_statement() {
             return false;
         }
 
@@ -111,32 +109,23 @@ impl Parser {
     #[inline]
     pub(crate) fn parse_parameter_type(
         &mut self,
-        context: ParameterContext,
-        stops: TypeStops,
+        stops: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        self.parse_type(TypeContext {
-            function: context.function,
-            mode: context.type_mode,
-            stops,
-            ..TypeContext::default()
-        })
+        self.parse_type(TypePosition::Type, stops)
     }
 
     /// Parse a parameter default value expression.
     #[inline]
     pub(crate) fn parse_parameter_default(
         &mut self,
-        context: ParameterContext,
-        stops: ExpressionStops,
+        position: ExpressionPosition,
+        stops: ExpressionStop,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let mut function = context.function;
-        function.await_context = AwaitContext::Forbidden;
+        let mut keywords = self.keywords;
+        keywords.await_keyword = AwaitKeyword::Forbidden;
 
-        self.parse_expression(ExpressionContext {
-            function,
-            statement: context.statement.nested(),
-            stops,
-            ..ExpressionContext::default()
+        self.with_keywords(keywords, |parser| {
+            parser.parse_expression(position.nested(), stops)
         })
     }
 
@@ -157,15 +146,15 @@ impl Parser {
     /// ```
     pub(crate) fn parse_parameter(
         &mut self,
-        context: ParameterContext,
+        position: ExpressionPosition,
     ) -> ParserResult<LocalNodeId<Parameter>> {
         // parse parameter prefixes
         let documentation = self.parse_documentation();
-        let decorators = self.parse_decorators(context.function);
+        let decorators = self.parse_decorators();
         let start = self.mark_parse_start();
 
         // receiver shorthand
-        if let Some(parameter) = self.parse_this_parameter(&start, context)? {
+        if let Some(parameter) = self.parse_this_parameter(&start)? {
             self.attach_documentation(parameter, documentation);
             self.attach_decorators(parameter.id, decorators);
 
@@ -173,7 +162,7 @@ impl Parser {
         }
 
         // modifiers
-        let mut modifiers = self.parse_binding_modifiers(BindingModifierGrammar::Parameter);
+        let mut modifiers = self.parse_binding_modifiers(BindingPosition::Parameter);
 
         // variadic
         let is_variadic = if self.peek_is(TokenType::Spread) {
@@ -184,7 +173,7 @@ impl Parser {
         };
 
         // pattern/name
-        let binding = self.parse_parameter_binding(context)?;
+        let binding = self.parse_parameter_binding()?;
         let name_range = binding.name_range();
         // ? maybe
         if self.peek_is(TokenType::Maybe) {
@@ -209,7 +198,7 @@ impl Parser {
                 {
                     self.recover_missing_type_expression_here(NodeType::Parameter)
                 } else {
-                    self.parse_parameter_type(context, TypeStops::default())?
+                    self.parse_parameter_type(TypeStop::default())?
                 };
                 let type_range = self.range_since(&type_start);
                 (Some(declared_type), Some(type_range))
@@ -238,7 +227,7 @@ impl Parser {
                 {
                     self.recover_missing_expression_here(NodeType::Parameter)
                 } else {
-                    self.parse_parameter_default(context, ExpressionStops::default())
+                    self.parse_parameter_default(position, ExpressionStop::default())
                         .in_node(NodeType::Parameter)?
                 };
 
@@ -319,14 +308,13 @@ impl Parser {
     fn parse_this_parameter(
         &mut self,
         start: &ParseStart,
-        context: ParameterContext,
     ) -> ParserResult<Option<LocalNodeId<Parameter>>> {
         let Some(name_range) = self.this_parameter_range() else {
             return Ok(None);
         };
 
         let this_id = self.strings.intern("this");
-        let declared_type = self.parse_parameter_type(context, TypeStops::default())?;
+        let declared_type = self.parse_parameter_type(TypeStop::default())?;
         let parameter_id = self.insert_node(
             Parameter::Named {
                 name: this_id,
@@ -380,25 +368,19 @@ impl Parser {
     }
 
     /// Parse one parameter pattern or named binding.
-    fn parse_parameter_binding(
-        &mut self,
-        context: ParameterContext,
-    ) -> ParserResult<ParameterBinding> {
+    fn parse_parameter_binding(&mut self) -> ParserResult<ParameterBinding> {
         // pattern
         if matches!(
             self.peek_token_type(),
             TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::OpenBrace
         ) || self.peek_identifier_is("_")
         {
-            let pattern = self.parse_pattern(PatternContext {
-                function: context.function,
-                ..PatternContext::default()
-            })?;
+            let pattern = self.parse_pattern()?;
             return Ok(ParameterBinding::Pattern(pattern));
         }
 
         // name
-        let (name, name_range) = self.eat_binding_identifier_with_range(context.function)?;
+        let (name, name_range) = self.eat_binding_identifier_with_range()?;
 
         Ok(ParameterBinding::Named {
             name,
@@ -418,7 +400,7 @@ impl Parser {
     /// ```
     pub(crate) fn parse_parameter_list_body(
         &mut self,
-        context: ParameterContext,
+        position: ExpressionPosition,
     ) -> ParserResult<Vec<LocalNodeId<Parameter>>> {
         let mut parameters: Vec<LocalNodeId<Parameter>> = Vec::new();
         while self.has_more_tokens() {
@@ -427,14 +409,14 @@ impl Parser {
             }
 
             // newline led statement keywords should stay outside malformed parameter lists
-            if self.peek_parameter_recovery_boundary(context) {
+            if self.peek_parameter_recovery_boundary(position) {
                 break;
             }
 
             // eat one parameter
             let parameter_start = self.mark_parse_start();
             let mut is_recovered_parameter = false;
-            let parameter = self.parse_parameter(context).and_then(|parameter| {
+            let parameter = self.parse_parameter(position).and_then(|parameter| {
                 let has_cast_tail =
                     matches!(self.peek_keyword(), Some(Keyword::As | Keyword::Satisfies));
                 if has_cast_tail {
@@ -448,7 +430,7 @@ impl Parser {
                 Err(error) => {
                     is_recovered_parameter = true;
                     let recover_at_statement_keyword =
-                        self.peek_parameter_recovery_boundary(context);
+                        self.peek_parameter_recovery_boundary(position);
 
                     // newline led keyword statements should stay outside malformed parameter lists
                     if recover_at_statement_keyword {
@@ -475,7 +457,7 @@ impl Parser {
                     continue;
                 }
 
-                if self.peek_parameter_recovery_boundary(context) {
+                if self.peek_parameter_recovery_boundary(position) {
                     break;
                 }
 
@@ -487,7 +469,7 @@ impl Parser {
             }
             // stop recovered lists before keyword boundaries
             let recovered_parameter_hits_boundary = is_recovered_parameter
-                && (self.peek_parameter_recovery_boundary(context)
+                && (self.peek_parameter_recovery_boundary(position)
                     || !self.peek_recovered_list_continuation(TokenType::CloseParenthesis));
 
             // require a separator between adjacent parameter heads
@@ -502,7 +484,7 @@ impl Parser {
     /// Parse dynamic parameters, including the `(` and `)` tokens.
     pub(crate) fn parse_dynamic_parameters(
         &mut self,
-        context: ParameterContext,
+        position: ExpressionPosition,
     ) -> ParserResult<Vec<LocalNodeId<Parameter>>> {
         self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -513,7 +495,7 @@ impl Parser {
         }
 
         // regular dynamic parameters
-        let parameters = self.parse_parameter_list_body(context)?;
+        let parameters = self.parse_parameter_list_body(position)?;
         self.eat_list_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::Parameter,

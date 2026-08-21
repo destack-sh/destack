@@ -1,4 +1,4 @@
-use crate::parse::context::{ConditionalTypeContext, FunctionContext, TypeContext};
+use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserError, ParserResult};
 
 use destack_dir::{
@@ -8,10 +8,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse zero or more where clauses.
-    pub(crate) fn parse_where_clauses(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
+    pub(crate) fn parse_where_clauses(&mut self) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
         if !self.peek_is_keyword(Keyword::Where) {
             return Ok(Vec::new());
         }
@@ -26,7 +23,7 @@ impl Parser {
             return Ok(Vec::new());
         }
 
-        self.parse_where(function)
+        self.parse_where()
     }
 
     /// Parse one required where clause sequence.
@@ -35,21 +32,15 @@ impl Parser {
     /// ```ds
     /// where T: Serializable, T.Output == U
     /// ```
-    pub(crate) fn parse_where(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
+    pub(crate) fn parse_where(&mut self) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
         self.eat_keyword(Keyword::Where)?;
 
-        self.parse_where_body(function)
+        self.parse_where_body()
     }
 
     /// Parse the clauses after a `where` keyword.
     /// Separated by commas.
-    fn parse_where_body(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
+    fn parse_where_body(&mut self) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
         let mut clauses: Vec<LocalNodeId<WhereClause>> = Vec::new();
 
         // parenthesized list with newlines
@@ -59,7 +50,7 @@ impl Parser {
                 if self.peek_is(TokenType::CloseParenthesis) {
                     break;
                 }
-                let next_clause = self.parse_where_clause(function)?;
+                let next_clause = self.parse_where_clause()?;
                 clauses.push(next_clause);
                 // optional comma with newlines
                 if self.peek_is(TokenType::Comma) {
@@ -74,7 +65,7 @@ impl Parser {
         // plain list separated by commas
         else {
             while self.has_more_tokens() {
-                let clause = self.parse_where_clause(function)?;
+                let clause = self.parse_where_clause()?;
                 clauses.push(clause);
                 // required comma
                 if self.peek_is(TokenType::Comma) {
@@ -89,10 +80,7 @@ impl Parser {
     }
 
     /// Parse one where clause.
-    fn parse_where_clause(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<WhereClause>> {
+    fn parse_where_clause(&mut self) -> ParserResult<LocalNodeId<WhereClause>> {
         let documentation = self.parse_documentation();
 
         // retain one repeated Pattern placeholder as a complete clause
@@ -118,11 +106,8 @@ impl Parser {
 
         // parse left operand
         let left = self.parse_type_or_recover_missing(
-            TypeContext {
-                function,
-                conditional: ConditionalTypeContext::Forbidden,
-                ..TypeContext::default()
-            },
+            TypePosition::Type,
+            TypeStop::RELATION,
             NodeType::WhereClause,
         )?;
         let left_range = self.tree.get_range(left);
@@ -158,10 +143,8 @@ impl Parser {
 
         // parse right operand
         let right = self.parse_type_or_recover_missing(
-            TypeContext {
-                function,
-                ..TypeContext::default()
-            },
+            TypePosition::Type,
+            TypeStop::default(),
             NodeType::WhereClause,
         )?;
         let clause = self.insert_node(

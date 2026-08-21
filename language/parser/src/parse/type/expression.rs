@@ -1,11 +1,64 @@
-use crate::parse::context::{
-    ConditionalTypeContext, DecoratorContext, InferExtends, TypeContext, TypeStops,
-};
+use crate::parse::ExpressionStop;
 use crate::parse::r#type::operator::{TypeOperator, TypeRelation};
 use crate::{Parser, ParserResult};
 use destack_dir::{LocalNodeId, NodeType, OperatorPrecedence, RangeEnd, TokenType, TypeExpression};
 use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 use smallvec::SmallVec;
+
+/// The source position of one type expression.
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+pub(crate) enum TypePosition {
+    /// Parse an ordinary type expression.
+    #[default]
+    Type,
+    /// Parse the receiver of a `new` expression.
+    NewReceiver,
+    /// Parse an arrow return annotation.
+    ArrowReturn,
+}
+
+/// Token ownership inherited by type infix operands.
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+pub(crate) struct TypeStop(u8);
+
+impl TypeStop {
+    /// A colon owned by an enclosing conditional type.
+    pub(crate) const CONDITIONAL_COLON: Self = Self(1 << 0);
+    /// An `implements` token owned by an enclosing heritage clause.
+    pub(crate) const IMPLEMENTS: Self = Self(1 << 1);
+    /// An angle close owned by an enclosing generic argument list.
+    pub(crate) const ANGLE_CLOSE: Self = Self(1 << 2);
+    /// A relation operator owned by the enclosing production.
+    pub(crate) const RELATION: Self = Self(1 << 3);
+    /// An `extends` relation owned by an inferred type.
+    pub(crate) const INFER_CONSTRAINT: Self = Self(1 << 4);
+
+    /// Add one enclosing token.
+    pub(crate) const fn add(self, stop: Self) -> Self {
+        Self(self.0 | stop.0)
+    }
+
+    /// Return whether one token belongs to the enclosing type.
+    pub(crate) const fn has(self, stop: Self) -> bool {
+        self.0 & stop.0 != 0
+    }
+
+    /// Return the stops inherited through explicit type nesting.
+    pub(crate) const fn nest(self) -> Self {
+        Self(self.0 & Self::RELATION.0)
+    }
+}
+
+impl From<ExpressionStop> for TypeStop {
+    /// Preserve a generic close across value and type parsing.
+    fn from(stop: ExpressionStop) -> Self {
+        if stop.has(ExpressionStop::ANGLE_CLOSE) {
+            TypeStop::ANGLE_CLOSE
+        } else {
+            TypeStop::default()
+        }
+    }
+}
 
 /// One conditional type branch awaiting its final false branch.
 struct ConditionalTypeBranch {
@@ -32,31 +85,39 @@ impl Parser {
     /// ```
     pub(crate) fn parse_type(
         &mut self,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+        self.parse_type_at(position, stop, OperatorPrecedence::Lowest)
+    }
+
+    /// Parse one type expression at the given minimum precedence.
+    pub(in crate::parse::r#type) fn parse_type_at(
+        &mut self,
+        position: TypePosition,
+        stop: TypeStop,
+        minimum_precedence: OperatorPrecedence,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.with_recursive_descent(NodeType::TypeExpression, |parser| {
-            parser.parse_type_after_descent(context)
+            parser.parse_type_after_descent(position, stop, minimum_precedence)
         })
     }
 
-    /// Parse one type expression after entering recursive descent state.
+    /// Parse one type expression after checking the recursion depth.
     fn parse_type_after_descent(
         &mut self,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
+        minimum_precedence: OperatorPrecedence,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let documentation = self.parse_documentation();
 
-        // parse decorators only at their owning type level
-        let decorators =
-            if context.decorator == DecoratorContext::None && self.peek_is(TokenType::At) {
-                Some(self.parse_decorators(context.function))
-            } else {
-                None
-            };
+        // parse decorators at their owning type level
+        let decorators = self.peek_is(TokenType::At).then(|| self.parse_decorators());
 
         // parse the operand and iterative operator tail
-        let first = self.parse_type_operand(context)?;
-        let ty = self.parse_type_tail_after_descent(first, context)?;
+        let first = self.parse_type_operand(position, stop)?;
+        let ty = self.parse_type_tail_after_descent(first, position, stop, minimum_precedence)?;
 
         // attach documentation and decorators after the complete type is known
         if !matches!(
@@ -76,21 +137,24 @@ impl Parser {
     pub(in crate::parse) fn parse_type_tail(
         &mut self,
         first: LocalNodeId<TypeExpression>,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.with_recursive_descent(NodeType::TypeExpression, |parser| {
-            parser.parse_type_tail_after_descent(first, context)
+            parser.parse_type_tail_after_descent(first, position, stop, OperatorPrecedence::Lowest)
         })
     }
 
-    /// Parse one type operator tail after entering recursive descent state.
+    /// Parse one type operator tail within the current recursion depth.
     fn parse_type_tail_after_descent(
         &mut self,
         mut left: LocalNodeId<TypeExpression>,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
+        minimum_precedence: OperatorPrecedence,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // reduce infix operations owned by this type level
-        while let Some(operator) = self.peek_type_operator(context) {
+        while let Some(operator) = self.peek_type_operator(stop, minimum_precedence) {
             let precedence = operator.precedence();
             let range = self.peek_token().range();
             self.bump();
@@ -105,26 +169,24 @@ impl Parser {
             }
 
             // parse the complete right operand at this operator's binding power
-            let right_context = if matches!(operator, TypeOperator::Relation(TypeRelation::Extends))
-            {
-                TypeContext {
-                    infer_extends: InferExtends::Constraint,
-                    minimum_precedence: precedence,
-                    ..context
-                }
+            let right_stop = if matches!(operator, TypeOperator::Relation(TypeRelation::Extends)) {
+                stop.add(TypeStop::INFER_CONSTRAINT)
             } else {
-                context.right(precedence)
+                stop
             };
-            let right =
-                self.parse_type_or_recover_missing(right_context, NodeType::TypeExpression)?;
+            let right = if self.peek_type_expression_recovery_boundary() {
+                self.recover_missing_type_expression_here(NodeType::TypeExpression)
+            } else {
+                self.parse_type_at(position, right_stop, precedence)?
+            };
 
             // promote an extends relation followed by question into a conditional type
             let is_conditional = matches!(operator, TypeOperator::Relation(TypeRelation::Extends))
-                && context.conditional == ConditionalTypeContext::Allowed
-                && OperatorPrecedence::Conditional > context.minimum_precedence
+                && !stop.has(TypeStop::RELATION)
+                && OperatorPrecedence::Conditional > minimum_precedence
                 && self.peek_is(TokenType::Maybe);
             if is_conditional {
-                left = self.parse_conditional_type_ladder(left, right, range, context)?;
+                left = self.parse_conditional_type_ladder(left, right, range, position, stop)?;
 
                 continue;
             }
@@ -141,7 +203,8 @@ impl Parser {
         mut left: LocalNodeId<TypeExpression>,
         mut extends_type: LocalNodeId<TypeExpression>,
         mut extends_range: ByteRange,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let mut branches: SmallVec<[ConditionalTypeBranch; 4]> = SmallVec::new();
 
@@ -149,14 +212,12 @@ impl Parser {
             // parse ? thenType
             let question = self.peek_token().range();
             self.bump();
-            let then_type = self.parse_type_or_recover_missing(
-                TypeContext {
-                    stops: context.stops.with(TypeStops::CONDITIONAL_COLON),
-                    minimum_precedence: OperatorPrecedence::Lowest,
-                    ..context
-                },
-                NodeType::TypeExpression,
-            )?;
+            let then_stop = stop.add(TypeStop::CONDITIONAL_COLON);
+            let then_type = if self.peek_type_expression_recovery_boundary() {
+                self.recover_missing_type_expression_here(NodeType::TypeExpression)
+            } else {
+                self.parse_type_at(position, then_stop, OperatorPrecedence::Lowest)?
+            };
 
             // parse or recover the conditional colon
             let colon =
@@ -171,11 +232,12 @@ impl Parser {
             });
 
             // parse the next fallback through operators stronger than relations
-            left = self.parse_type_or_recover_missing(
-                context.right(OperatorPrecedence::TypeRelation),
-                NodeType::TypeExpression,
-            )?;
-            let next = self.peek_type_operator(context);
+            left = if self.peek_type_expression_recovery_boundary() {
+                self.recover_missing_type_expression_here(NodeType::TypeExpression)
+            } else {
+                self.parse_type_at(position, stop, OperatorPrecedence::TypeRelation)?
+            };
+            let next = self.peek_type_operator(stop, OperatorPrecedence::Lowest);
             if !matches!(next, Some(TypeOperator::Relation(TypeRelation::Extends))) {
                 break;
             }
@@ -183,14 +245,12 @@ impl Parser {
             // parse the next extends relation without recursive conditional depth
             extends_range = self.peek_token().range();
             self.bump();
-            extends_type = self.parse_type_or_recover_missing(
-                TypeContext {
-                    infer_extends: InferExtends::Constraint,
-                    minimum_precedence: OperatorPrecedence::TypeRelation,
-                    ..context
-                },
-                NodeType::TypeExpression,
-            )?;
+            let extends_stop = stop.add(TypeStop::INFER_CONSTRAINT);
+            extends_type = if self.peek_type_expression_recovery_boundary() {
+                self.recover_missing_type_expression_here(NodeType::TypeExpression)
+            } else {
+                self.parse_type_at(position, extends_stop, OperatorPrecedence::TypeRelation)?
+            };
             if !self.peek_is(TokenType::Maybe) {
                 left = self.insert_type_infix(
                     left,
@@ -220,7 +280,11 @@ impl Parser {
     }
 
     /// Return the current infix operation owned by one type expression.
-    fn peek_type_operator(&self, context: TypeContext) -> Option<TypeOperator> {
+    fn peek_type_operator(
+        &self,
+        stop: TypeStop,
+        minimum_precedence: OperatorPrecedence,
+    ) -> Option<TypeOperator> {
         // classify the source token before evaluating contextual ownership
         let token_type = self.peek_token_type();
         let keyword = (token_type == TokenType::Identifier)
@@ -228,7 +292,7 @@ impl Parser {
             .flatten();
         let operator = TypeOperator::from_token(token_type, keyword)?;
 
-        if Self::is_type_operator_stopped(operator, context) {
+        if Self::is_type_operator_stopped(operator, stop) {
             return None;
         }
 
@@ -236,20 +300,18 @@ impl Parser {
             return None;
         }
 
-        (operator.precedence() > context.minimum_precedence).then_some(operator)
+        (operator.precedence() > minimum_precedence).then_some(operator)
     }
 
-    /// Return whether the current token belongs to an enclosing type grammar.
-    fn is_type_operator_stopped(operator: TypeOperator, context: TypeContext) -> bool {
-        // leave forbidden conditional relations to the enclosing grammar
-        if context.conditional == ConditionalTypeContext::Forbidden
-            && matches!(operator, TypeOperator::Relation(_))
-        {
+    /// Return whether the current token belongs to the enclosing production.
+    fn is_type_operator_stopped(operator: TypeOperator, stop: TypeStop) -> bool {
+        // leave forbidden conditional relations to the enclosing production
+        if stop.has(TypeStop::RELATION) && matches!(operator, TypeOperator::Relation(_)) {
             return true;
         }
 
         // leave an implements clause to the enclosing declaration
-        if context.stops.contains(TypeStops::IMPLEMENTS)
+        if stop.has(TypeStop::IMPLEMENTS)
             && matches!(operator, TypeOperator::Relation(TypeRelation::Implements))
         {
             return true;

@@ -1,5 +1,8 @@
 use crate::tests::TestParser;
-use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{
+    ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_path,
+    assert_string,
+};
 use destack_dir::{
     BinaryOperator, Block, Declaration, Declarator, ExportKind, Expression, GenericArgument,
     Pattern, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
@@ -11,7 +14,9 @@ use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 fn test_parse_labeled_statement_with_newline_before_target() {
     let test = TestParser::new("outer:\nwhile (true) {}");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::While { label, .. } => {
         assert_string!(parser, label.unwrap(), "outer");
@@ -80,7 +85,9 @@ type Value =
         ",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     // type Value = | string | number | boolean
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
@@ -114,7 +121,9 @@ type Value =
         ",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // type Value = ...
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
@@ -157,7 +166,9 @@ type Target =
             "###,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     // type Target = | "bun" | "node" | "browser"
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
@@ -198,7 +209,9 @@ const value =
   | 3",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     // const value = | 1 | 2 | 3
     assert_node!(parser.tree, expr_id, Expression::Let { mutability: _, declarators, .. } => {
         assert_eq!(declarators.len(), 1);
@@ -232,7 +245,9 @@ const value =
   | 3",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // const value = ...
     assert_node!(parser.tree, expression_id, Expression::Let { mutability: _, declarators, .. } => {
@@ -252,7 +267,7 @@ const value =
 fn test_parse_statement_expression() {
     let test = TestParser::new("a;");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_statement(Default::default());
+    let expr_id = parser.parse_statement();
 
     assert_expression_path!(parser, parser.tree.get(expr_id), "a");
     let span = parser.tree.get_span(expr_id);
@@ -269,7 +284,7 @@ fn test_parse_statement_expression() {
 fn test_parse_new_type_arguments_with_spaces_in_statement() {
     let test = TestParser::new("new A < T >;");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_statement(Default::default());
+    let expression_id = parser.parse_statement();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
@@ -289,7 +304,9 @@ fn test_parse_new_type_arguments_with_spaces_in_statement() {
 fn test_parse_multiline_logical_chain_after_comment_lines() {
     let test = TestParser::new("a == 1\n// keep chaining\n&& b == 0\n&& c == 1");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // a == 1 && b == 0 && c == 1
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
@@ -313,7 +330,9 @@ fn test_parse_multiline_logical_chain_after_comment_lines() {
 fn test_parse_export_const_type_identifier_with_struct_value() {
     let test = TestParser::new("export const type = struct");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Let { export, declarators, .. } => {
         assert_eq!(*export, Some(ExportKind::Named));
@@ -431,7 +450,9 @@ const x =
 ",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { mutability: _, declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
@@ -465,7 +486,9 @@ const x =
 fn test_parse_labeled_statement_span() {
     let test = TestParser::new("label: loop {}");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Loop { label, .. } => {
         assert_string!(parser, label.unwrap(), "label");

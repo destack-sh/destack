@@ -1,3 +1,4 @@
+use crate::{ExpressionPosition, ExpressionStop};
 use destack_core::StringId;
 use destack_dir::{
     DependencyBinding, DependencyItem, Expression, ImportAttribute, ImportAttributeClauseKind,
@@ -35,7 +36,7 @@ fn test_parse_import_simple() {
     // import sample
     let test = TestParser::new("import \"destack\"");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     // import
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
@@ -48,7 +49,9 @@ fn test_parse_import_simple() {
 fn test_parse_import_from_expression() {
     let test = TestParser::new("import os from 'os'");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // import os from 'os'
     assert_node!(parser.tree, expression_id, Expression::Import { target, items, .. } => {
@@ -66,7 +69,7 @@ fn test_parse_import_from_expression() {
 fn test_parse_import_path_with_arguments() {
     let test = TestParser::new("import \"destack.geometry\" with { bar: true }");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     // import sample.module with { bar: true }
     assert_node!(parser.tree, import_id, Expression::Import { target, items, attributes, .. } => {
@@ -109,7 +112,7 @@ fn test_parse_import_path_with_arguments() {
 fn test_parse_import_path_with_missing_attribute_close_brace() {
     let test = TestParser::new("import \"destack.geometry\" with { bar: true");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -134,7 +137,7 @@ fn test_parse_import_path_with_nested_attributes() {
 }"#,
     );
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected attributes");
@@ -171,7 +174,7 @@ fn test_parse_import_path_with_nested_attributes() {
 fn test_parse_import_with_prefix_items() {
     let test = TestParser::new("import { Vector2, Vector3 as V3 } from \"ds.geometry\"");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
         let items = import_items(items);
@@ -192,7 +195,7 @@ fn test_parse_import_with_prefix_items() {
 fn test_parse_import_as_alias() {
     let test = TestParser::new(r#"import * as geom from "ds/geometry""#);
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     // import * as geom from ds.geometry
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
@@ -210,7 +213,7 @@ fn test_parse_import_as_alias() {
 fn test_parse_import_with_newline_before_from() {
     let test = TestParser::new("import { A }\nfrom 'foo'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     // parse multiline named import with from on the next line
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
@@ -232,7 +235,7 @@ fn test_parse_import_default_with_newline_before_from() {
 from 'foo'",
     );
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     // parse multiline default import with from on the next line
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
@@ -254,7 +257,7 @@ fn test_parse_import_default_with_newline_block_items() {
 from 'foo'",
     );
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     // parse multiline default plus named imports
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
@@ -286,7 +289,7 @@ fn test_parse_import_default_with_newline_comment_before_from() {
 from 'foo'",
     );
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     // parse default import with comment between binding and from
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
@@ -307,7 +310,7 @@ fn test_parse_import_with_newline_after_from() {
 'foo'",
     );
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     // parse import target on the next line after from
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
@@ -334,7 +337,7 @@ import {
     );
     let mut parser = test.prepare();
 
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
         assert_import_target_string(&parser, *target, "./lib/object.ng");
 
@@ -355,7 +358,7 @@ import {
 fn test_parse_import_items_without_separator_spaces() {
     let test = TestParser::new("import {foo,bar,baz} from 'module'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
         let items = import_items(items);
@@ -376,7 +379,7 @@ fn test_parse_import_items_without_separator_spaces() {
 fn test_parse_import_with_default_and_block() {
     let test = TestParser::new("import Default, { Item } from 'foo'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
         let items = import_items(items);
@@ -401,7 +404,7 @@ fn test_parse_import_type_identifier_name() {
     // treat type as a value name in named imports
     let test = TestParser::new("import { type } from 'foo'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
         let items = import_items(items);
@@ -417,7 +420,7 @@ fn test_parse_import_type_identifier_name() {
 fn test_parse_import_type_as_default_name() {
     let test = TestParser::new("import type from './a'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
         let items = import_items(items);
@@ -434,7 +437,7 @@ fn test_parse_import_type_as_default_name() {
 fn test_parse_import_named_alias_after_newline_comment() {
     let test = TestParser::new("import {\n  a\n  // keep alias on next line\n  as b\n} from 'foo'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
         let items = import_items(items);
@@ -451,7 +454,7 @@ fn test_parse_import_named_alias_after_newline_comment() {
 fn test_parse_bare_import_with_newline_after_comment() {
     let test = TestParser::new("import // keep target on next line\n'foo'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
         assert_bare_import(items);
@@ -463,7 +466,7 @@ fn test_parse_bare_import_with_newline_after_comment() {
 fn test_parse_import_block_with_newline_after_comment() {
     let test = TestParser::new("import // keep binding on next line\n{} from 'foo'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
         let _items = assert_empty_import_shell(items);
@@ -476,7 +479,7 @@ fn test_parse_import_type_as_value_alias() {
     // treat type as a value name with an alias
     let test = TestParser::new("import { type as alias } from './a'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
         let items = import_items(items);
@@ -493,7 +496,7 @@ fn test_parse_import_block_recovers_broken_alias_item() {
     // preserve valid siblings after one broken import item
     let test = TestParser::new("import { Foo as, Bar } from 'foo'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
         let items = import_items(items);
@@ -513,7 +516,7 @@ fn test_parse_import_block_recovers_missing_close_before_from() {
     // preserve the import clause when `}` is omitted before from
     let test = TestParser::new("import { Foo from 'foo'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
         let items = import_items(items);
@@ -583,7 +586,7 @@ fn test_parse_export_block_recovers_broken_alias_item() {
     // preserve valid siblings after one broken export item
     let test = TestParser::new("export { Foo as, Bar } from 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { items, target: Some(target), .. } => {
         assert_eq!(items.len(), 2);
@@ -602,7 +605,7 @@ fn test_parse_export_type_identifier_name() {
     // treat type as a value name in named exports
     let test = TestParser::new("export { type } from 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { items, .. } => {
         assert_eq!(items.len(), 1);
@@ -617,7 +620,7 @@ fn test_parse_export_type_identifier_name() {
 fn test_parse_export_clause_after_comment_newline_keyword() {
     let test = TestParser::new("export //comment\n{}");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
@@ -629,7 +632,7 @@ fn test_parse_export_clause_after_comment_newline_keyword() {
 fn test_parse_export_specifier_alias_after_comment_newline() {
     let test = TestParser::new("export {\n  bar as // comment\n  baz,\n} from 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
         assert_string!(parser, *target, "foo");
@@ -646,7 +649,7 @@ fn test_parse_export_specifier_alias_after_comment_newline() {
 fn test_parse_import_specifier_alias_after_comment_newline() {
     let test = TestParser::new("import {\n  bar as // comment\n  baz,\n} from 'foo'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
         assert_import_target_string(&parser, *target, "foo");
@@ -665,7 +668,7 @@ fn test_parse_import_default_and_namespace() {
     // combined default import + namespace import
     let test = TestParser::new(r#"import a, * as b from "foo""#);
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
         let items = import_items(items);
@@ -693,7 +696,7 @@ export { CreateUIMessage, UIMessage }
     );
     let mut parser = test.prepare();
 
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
     assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
         assert_eq!(items.len(), 2);
@@ -716,7 +719,7 @@ export { CreateUIMessage, UIMessage }
 fn test_parse_export_with_newline_before_from() {
     let test = TestParser::new("export { A }\nfrom 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     // parse multiline named export with from on the next line
     assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
@@ -734,7 +737,7 @@ fn test_parse_export_with_newline_before_from() {
 fn test_parse_export_namespace_with_newline_before_from() {
     let test = TestParser::new("export *\nfrom 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     // parse multiline namespace export with from on the next line
     assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
@@ -750,7 +753,7 @@ fn test_parse_export_namespace_with_newline_before_from() {
 fn test_parse_export_with_namespace() {
     let test = TestParser::new("export * from 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
     assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
         assert_eq!(items.len(), 1);
         assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: None, .. } => {
@@ -764,7 +767,7 @@ fn test_parse_export_with_namespace() {
 fn test_parse_export_with_namespace_alias() {
     let test = TestParser::new("export * as foo from 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
     assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
         assert_eq!(items.len(), 1);
         assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: Some(alias), .. } => {
@@ -790,7 +793,7 @@ fn test_recover_export_namespace_without_target() {
 fn test_parse_export_default_from_item() {
     let test = TestParser::new("export default foo");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
     assert_node!(parser.tree, export_id, Expression::Export { target: None, items, .. } => {
         assert_eq!(items.len(), 1);
         assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: None, value: Some(value), .. } => {
@@ -804,7 +807,7 @@ fn test_parse_export_default_from_item() {
 fn test_parse_export_default_from_target() {
     let test = TestParser::new("export { default } from 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
     assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
         assert_string!(parser, *target, "foo");
         assert_eq!(items.len(), 1);
@@ -819,7 +822,7 @@ fn test_parse_export_default_from_target() {
 fn test_parse_export_default_from_target_with_alias_and_items() {
     let test = TestParser::new("export { default as bar, baz as baz, biz } from 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
     assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
         assert_string!(parser, *target, "foo");
         assert_eq!(items.len(), 3);
@@ -847,7 +850,7 @@ fn test_parse_export_default_from_target_with_alias_and_items() {
 fn test_parse_export_default_with_multiple_aliases() {
     let test = TestParser::new("export { default as bar, default as baz } from 'foo'");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
     assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
         assert_string!(parser, *target, "foo");
         assert_eq!(items.len(), 2);
@@ -869,7 +872,7 @@ fn test_report_export_type_without_binding() {
     // source: export type
     let test = TestParser::new("export type");
     let mut parser = test.prepare();
-    let error = parser.parse_export(Default::default()).unwrap_err();
+    let error = parser.parse_export().unwrap_err();
 
     // type
     assert_eq!(parser.range_str(error.range()), "type");
@@ -880,7 +883,7 @@ fn test_report_type_marked_import_items() {
     // source: import type {} from 'x'
     let test = TestParser::new("import type {} from 'x'");
     let mut parser = test.prepare();
-    let error = parser.parse_import(Default::default()).unwrap_err();
+    let error = parser.parse_import().unwrap_err();
 
     // type
     assert_eq!(error.kind(), ParserErrorKind::TypeDependency);
@@ -892,7 +895,7 @@ fn test_report_type_marked_import_namespace() {
     // source: import type * as ns from 'x'
     let test = TestParser::new("import type * as ns from 'x'");
     let mut parser = test.prepare();
-    let error = parser.parse_import(Default::default()).unwrap_err();
+    let error = parser.parse_import().unwrap_err();
 
     // type
     assert_eq!(error.kind(), ParserErrorKind::TypeDependency);
@@ -904,7 +907,7 @@ fn test_report_type_marked_import_default() {
     // source: import type A from 'x'
     let test = TestParser::new("import type A from 'x'");
     let mut parser = test.prepare();
-    let error = parser.parse_import(Default::default()).unwrap_err();
+    let error = parser.parse_import().unwrap_err();
 
     // type
     assert_eq!(error.kind(), ParserErrorKind::TypeDependency);
@@ -929,7 +932,7 @@ fn test_report_type_marked_import_default_with_items() {
     // source: import type A, { B } from 'x'
     let test = TestParser::new("import type A, { B } from 'x'");
     let mut parser = test.prepare();
-    let error = parser.parse_import(Default::default()).unwrap_err();
+    let error = parser.parse_import().unwrap_err();
 
     // type
     assert_eq!(error.kind(), ParserErrorKind::TypeDependency);
@@ -941,7 +944,7 @@ fn test_parse_import_type_as_default_name_with_items() {
     // source: import type, { B } from 'x'
     let test = TestParser::new("import type, { B } from 'x'");
     let mut parser = test.prepare();
-    let import_id = parser.parse_import(Default::default()).unwrap();
+    let import_id = parser.parse_import().unwrap();
 
     assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
         let items = import_items(items);
@@ -954,7 +957,7 @@ fn test_report_type_marked_export_items() {
     // source: export type { Foo }
     let test = TestParser::new("export type { Foo }");
     let mut parser = test.prepare();
-    let error = parser.parse_export(Default::default()).unwrap_err();
+    let error = parser.parse_export().unwrap_err();
 
     // type
     assert_eq!(error.kind(), ParserErrorKind::TypeDependency);
@@ -966,7 +969,7 @@ fn test_report_type_marked_export_star() {
     // source: export type * from 'x'
     let test = TestParser::new("export type * from 'x'");
     let mut parser = test.prepare();
-    let error = parser.parse_export(Default::default()).unwrap_err();
+    let error = parser.parse_export().unwrap_err();
 
     // type
     assert_eq!(error.kind(), ParserErrorKind::TypeDependency);
@@ -991,7 +994,7 @@ fn test_report_export_default_enum() {
     // source: export default enum A { X, Y, Z }
     let test = TestParser::new("export default enum A { X, Y, Z }");
     let mut parser = test.prepare();
-    let error = parser.parse_export(Default::default()).unwrap_err();
+    let error = parser.parse_export().unwrap_err();
 
     // enum
     assert_eq!(parser.range_str(error.range()), "enum");
@@ -1002,7 +1005,7 @@ fn test_parse_export_keyword_name_without_target() {
     // source: export { if }
     let test = TestParser::new("export { if }");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
@@ -1020,7 +1023,7 @@ fn test_parse_export_keyword_alias_without_target() {
     // source: export { if as foo }
     let test = TestParser::new("export { if as foo }");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
@@ -1037,7 +1040,7 @@ fn test_parse_export_keyword_alias_without_target() {
 fn test_parse_export_keyword_string_alias_without_target() {
     let test = TestParser::new(r#"export { localName as "external-name" }"#);
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
@@ -1056,7 +1059,7 @@ fn test_parse_export_keyword_literal_alias_without_target() {
     let source = "export { true_instance as true, false_instance as false, null_instance as null }";
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     // export
     assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
@@ -1091,7 +1094,7 @@ fn test_parse_export_as_identifier_without_target() {
     // source: export { as }
     let test = TestParser::new("export { as }");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
@@ -1109,7 +1112,7 @@ fn test_parse_export_type_identifier_without_target() {
     // source: export { type }
     let test = TestParser::new("export { type }");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
@@ -1127,7 +1130,7 @@ fn test_parse_export_named_type_with_keyword_alias_without_target() {
     // source: export { type as if }
     let test = TestParser::new("export { type as if }");
     let mut parser = test.prepare();
-    let export_id = parser.parse_export(Default::default()).unwrap();
+    let export_id = parser.parse_export().unwrap();
 
     assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
@@ -1144,7 +1147,7 @@ fn test_parse_export_named_type_with_keyword_alias_without_target() {
 fn test_report_export_function_without_name() {
     let test = TestParser::new("export function(option: any): void");
     let mut parser = test.prepare();
-    let error = parser.parse_export(Default::default()).unwrap_err();
+    let error = parser.parse_export().unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "function");
 }

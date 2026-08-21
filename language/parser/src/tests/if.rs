@@ -14,7 +14,7 @@ fn test_parse_if_basic() {
     let test = TestParser::new("if (true) {}");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     let main_span = parser
         .tree
         .get_main_span(if_id)
@@ -41,7 +41,7 @@ fn test_parse_if_else_with_empty_blocks() {
     let mut parser = test.prepare();
 
     // if (false) { } else { }
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // false
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -78,7 +78,7 @@ else {
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     let else_span = parser
         .tree
         .get_side_span(if_id, NodeSpanType::Region(NodeSpanRegion::Else))
@@ -93,7 +93,7 @@ fn test_parse_if_else_parenthesized_with_trivial_blocks() {
     let mut parser = test.prepare();
 
     // if (cond) { a } else { b }
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // cond
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -124,7 +124,7 @@ fn test_parse_if_parenthesized_condition_keeps_inner_span() {
     let test = TestParser::new("if (cond) {}");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
 
@@ -153,7 +153,7 @@ if (cond) {
     let mut parser = test.prepare();
 
     // if (cond) { if (cond) { a } else { b } }
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // cond
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -199,7 +199,7 @@ fn test_parse_if_else_if_with_empty_blocks() {
     let test = TestParser::new("if (true) {} else if (false) {}");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // true
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -239,7 +239,7 @@ if (x > y) {
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // if x > y
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -284,7 +284,7 @@ fn test_parse_if_else_if_else_with_empty_blocks() {
     let test = TestParser::new("if (true) {} else if (false) {} else {}");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // if true
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -330,7 +330,7 @@ else { v }
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // if (v < lo)
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -388,7 +388,7 @@ if (x > y) {
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         // condition is binary expression x > y
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -418,7 +418,7 @@ else
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // if (x)
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -465,7 +465,7 @@ else
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { else_expression, .. } => {
         let else_expression_id = else_expression.expect("expected else expression");
         assert_node!(parser.tree, else_expression_id, Expression::Block(block_id) => {
@@ -492,7 +492,7 @@ fn test_parse_if_let_condition() {
     let test = TestParser::new("if (let (x, _) = value) { x } else { 0 }");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let (kind, _, declarator_id) = condition
             .as_binding()
@@ -516,7 +516,7 @@ fn test_parse_if_const_condition() {
     let test = TestParser::new("if (const value = maybe) { value }");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         let (kind, mutability, declarator_id) = condition
             .as_binding()
@@ -538,7 +538,7 @@ fn test_parse_if_let_tagged_object_pattern() {
     let test = TestParser::new("if (let Point { x, y } = value) { x }");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         let (kind, _, declarator_id) = condition
             .as_binding()
@@ -571,7 +571,7 @@ fn test_parse_if_logical_condition_as_expression() {
     let test = TestParser::new("if (ready && enabled) { run() }");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         let condition = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition, Expression::Binary { left, operator, right } => {
@@ -591,7 +591,7 @@ fn test_parse_if_condition_chain() {
     let test = TestParser::new("if (ready && let (count, label) = pair && count > 0) { label }");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         assert_eq!(condition.operands.len(), 3);
 
@@ -627,7 +627,7 @@ fn test_parse_if_condition_chain_after_comparison() {
     let test = TestParser::new("if (value < limit && let item = maybe) { item }");
     let mut parser = test.prepare();
 
-    let if_id = parser.parse_if(Default::default()).unwrap();
+    let if_id = parser.parse_if().unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         assert_eq!(condition.operands.len(), 2);
 

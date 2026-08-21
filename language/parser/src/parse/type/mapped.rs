@@ -1,4 +1,4 @@
-use crate::parse::context::TypeContext;
+use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserResult};
 
 use destack_dir::{
@@ -36,7 +36,7 @@ impl Parser {
     /// ```
     pub(crate) fn parse_mapped_type(
         &mut self,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let start = self.mark_parse_start();
 
@@ -44,9 +44,9 @@ impl Parser {
         self.eat_token(TokenType::OpenBrace)?;
 
         let readonly = self.parse_type_mapped_readonly_modifier();
-        let head = self.parse_mapped_type_head(context)?;
+        let head = self.parse_mapped_type_head(stop)?;
         let optional = self.parse_type_mapped_optional_modifier();
-        let value = self.parse_mapped_type_value(context)?;
+        let value = self.parse_mapped_type_value(stop)?;
 
         // consume an optional member terminator
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
@@ -122,16 +122,19 @@ impl Parser {
     /// [K in keyof T as `get${K}`]
     /// [P in keyof Model as P]
     /// ```
-    fn parse_mapped_type_head(&mut self, context: TypeContext) -> ParserResult<MappedTypeHead> {
+    fn parse_mapped_type_head(&mut self, stop: TypeStop) -> ParserResult<MappedTypeHead> {
         let documentation = self.parse_documentation();
         let start = self.mark_parse_start();
         self.eat_token(TokenType::OpenBracket)?;
 
         let (name, name_range) = self.eat_identifier_with_range()?;
         self.eat_keyword(Keyword::In)?;
-        let source_type =
-            self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
-        let key_remap = self.parse_mapped_type_key(source_type, context)?;
+        let source_type = self.parse_type_or_recover_missing(
+            TypePosition::Type,
+            stop.nest(),
+            NodeType::TypeExpression,
+        )?;
+        let key_remap = self.parse_mapped_type_key(source_type, stop)?;
 
         self.eat_type_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
         let range = self.range_since(&start);
@@ -164,7 +167,7 @@ impl Parser {
     fn parse_mapped_type_key(
         &mut self,
         source_type: LocalNodeId<TypeExpression>,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         if !self.peek_is_keyword(Keyword::As) {
             return Ok(None);
@@ -172,8 +175,11 @@ impl Parser {
 
         let as_range = self.eat_keyword(Keyword::As)?.range();
         self.set_node_trailing_range(source_type, as_range.start);
-        let remap_expression =
-            self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
+        let remap_expression = self.parse_type_or_recover_missing(
+            TypePosition::Type,
+            stop.nest(),
+            NodeType::TypeExpression,
+        )?;
         self.set_node_leading_range(remap_expression, as_range.end);
 
         Ok(Some(remap_expression))
@@ -187,10 +193,7 @@ impl Parser {
     /// : readonly T[K]
     /// : T[K] | undefined
     /// ```
-    fn parse_mapped_type_value(
-        &mut self,
-        context: TypeContext,
-    ) -> ParserResult<Option<MappedTypeValue>> {
+    fn parse_mapped_type_value(&mut self, stop: TypeStop) -> ParserResult<Option<MappedTypeValue>> {
         if !self.peek_is(TokenType::Colon) {
             return Ok(None);
         }
@@ -198,8 +201,11 @@ impl Parser {
         let start = self.mark_parse_start();
         self.eat_token(TokenType::Colon)?;
         let boundary_start = self.peek_previous_token_end();
-        let value =
-            self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
+        let value = self.parse_type_or_recover_missing(
+            TypePosition::Type,
+            stop.nest(),
+            NodeType::TypeExpression,
+        )?;
         self.set_node_leading_range(value, boundary_start);
         let range = self.range_since(&start);
 

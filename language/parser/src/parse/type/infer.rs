@@ -1,5 +1,5 @@
-use crate::parse::context::{ConditionalTypeContext, InferExtends, TypeContext};
 use crate::parse::lookahead::DelimiterDepth;
+use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserResult, TokenProbe};
 
 use destack_core::StringId;
@@ -17,13 +17,13 @@ impl Parser {
     /// ```
     pub(crate) fn parse_type_infer(
         &mut self,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // `infer T`
         let start = self.mark_parse_start();
         self.eat_keyword(Keyword::Infer)?;
         let (name, name_range) = self.parse_infer_binding()?;
-        let constraint = self.parse_infer_constraint(context)?;
+        let constraint = self.parse_infer_constraint(stop)?;
 
         // infer node
         let type_expression_id = self.insert_node(
@@ -66,17 +66,17 @@ impl Parser {
     /// ```
     fn parse_infer_constraint(
         &mut self,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         if !self.peek_is_keyword(Keyword::Extends) {
             return Ok(None);
         }
-        if context.infer_extends == InferExtends::Conditional && self.peek_infer_conditional() {
+        if !stop.has(TypeStop::INFER_CONSTRAINT) && self.peek_infer_conditional() {
             return Ok(None);
         }
 
         self.bump();
-        let constraint = self.parse_infer_constraint_type(context)?;
+        let constraint = self.parse_infer_constraint_type(stop)?;
 
         Ok(Some(constraint))
     }
@@ -91,15 +91,11 @@ impl Parser {
     /// ```
     fn parse_infer_constraint_type(
         &mut self,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        self.parse_type_or_recover_missing(
-            TypeContext {
-                conditional: ConditionalTypeContext::Forbidden,
-                ..context.nested()
-            },
-            NodeType::TypeExpression,
-        )
+        let stop = stop.nest().add(TypeStop::RELATION);
+
+        self.parse_type_or_recover_missing(TypePosition::Type, stop, NodeType::TypeExpression)
     }
 
     /// Return whether this `extends` is followed by a top-level conditional question.

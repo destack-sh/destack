@@ -1,6 +1,5 @@
-use crate::parse::DeclarationHeader;
-use crate::parse::context::{ExpressionContext, FunctionContext};
 use crate::parse::error::ParserResultExt;
+use crate::parse::{DeclarationHeader, ExpressionPosition, ExpressionStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
@@ -28,7 +27,6 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         header: DeclarationHeader,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
         // enum
         let enum_range = self.eat_keyword(Keyword::Enum)?.range();
@@ -51,7 +49,7 @@ impl Parser {
         // <parameters>
         let generic_parameter_container_start = self.mark_parse_start();
         let generic_parameters = self
-            .parse_generic_parameters_if_present(false, function)
+            .parse_generic_parameters_if_present(false)
             .in_node(NodeType::Declaration)?;
         let generic_parameter_container_range = generic_parameters
             .as_ref()
@@ -59,25 +57,21 @@ impl Parser {
 
         // extends Base
         let extends_types = self
-            .parse_extends_types_if_present(function)
+            .parse_extends_types_if_present()
             .in_node(NodeType::Declaration)?;
 
         // implements Trait
         let implements_types = self
-            .parse_implements_types_if_present(function)
+            .parse_implements_types_if_present()
             .in_node(NodeType::Declaration)?;
 
         // where constraints
-        let where_clauses = self
-            .parse_where_clauses(function)
-            .in_node(NodeType::Declaration)?;
+        let where_clauses = self.parse_where_clauses().in_node(NodeType::Declaration)?;
 
         // { fields and members }
         self.eat_token(TokenType::OpenBrace)
             .in_node(NodeType::Declaration)?;
-        let body = self
-            .parse_enum_body(function)
-            .in_node(NodeType::Declaration)?;
+        let body = self.parse_enum_body().in_node(NodeType::Declaration)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
         let enum_id = self.insert_node(
@@ -111,7 +105,7 @@ impl Parser {
     }
 
     /// Parse one enum body without its delimiters.
-    fn parse_enum_body(&mut self, function: FunctionContext) -> ParserResult<EnumBody> {
+    fn parse_enum_body(&mut self) -> ParserResult<EnumBody> {
         // collect fields and associated members
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
@@ -130,7 +124,7 @@ impl Parser {
             // parse documentation, decorators and one field or member
             else {
                 let documentation = self.parse_documentation();
-                let decorators = self.parse_decorators(function);
+                let decorators = self.parse_decorators();
 
                 // reject decorator prefixes without an owner
                 if !decorators.is_empty() && self.peek_is(TokenType::CloseBrace) {
@@ -142,16 +136,14 @@ impl Parser {
 
                 // enum field
                 if self.peek_enum_field() {
-                    let field = self
-                        .parse_enum_field(function)
-                        .in_node(NodeType::EnumField)?;
+                    let field = self.parse_enum_field().in_node(NodeType::EnumField)?;
                     self.attach_documentation(field, documentation);
                     self.attach_decorators(field.id, decorators);
                     fields.push(field);
                 }
                 // associated member
                 else {
-                    let member_id = self.parse_member_or_recover(function);
+                    let member_id = self.parse_member_or_recover();
                     if !matches!(self.tree.get(member_id), Member::Error) {
                         self.attach_documentation(member_id, documentation);
                     }
@@ -182,23 +174,18 @@ impl Parser {
     }
 
     /// Parse one enum field.
-    fn parse_enum_field(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<EnumField>> {
+    fn parse_enum_field(&mut self) -> ParserResult<LocalNodeId<EnumField>> {
         let start = self.mark_parse_start();
         let (name, name_range) = self
-            .eat_enum_field_name_with_range(function)
+            .eat_enum_field_name_with_range()
             .in_node(NodeType::EnumField)?;
 
         // optional `= <expr>` value
         let value = if self.peek_is(TokenType::Assign) {
             self.eat_token(TokenType::Assign)?;
             let value = self.parse_expression_or_recover_missing(
-                ExpressionContext {
-                    function,
-                    ..ExpressionContext::default()
-                },
+                ExpressionPosition::Value,
+                ExpressionStop::default(),
                 NodeType::EnumField,
             )?;
             Some(value)
@@ -214,10 +201,7 @@ impl Parser {
     }
 
     /// Eat an enum field name, including computed string/number names.
-    fn eat_enum_field_name_with_range(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<(Name, ByteRange)> {
+    fn eat_enum_field_name_with_range(&mut self) -> ParserResult<(Name, ByteRange)> {
         if self.peek_is(TokenType::OpenBracket) {
             let start = self.mark_parse_start();
             self.bump();
@@ -236,7 +220,7 @@ impl Parser {
                 let (index, _) = self.eat_index_name_with_range()?;
                 Name::Index(index)
             } else if self.peek_is(TokenType::TemplateString) {
-                let template = self.parse_template_literal(function)?;
+                let template = self.parse_template_literal()?;
                 match template {
                     TemplateLiteral::String { string } => Name::String(string),
                     TemplateLiteral::InterpolatedString { .. } => {

@@ -16,9 +16,9 @@ pub static BINDING_MODIFIERS: [Keyword; 8] = [
     Keyword::Private,
 ];
 
-/// The binding grammar that governs one modifier prefix.
+/// The source position of one binding modifier prefix.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) enum BindingModifierGrammar {
+pub(crate) enum BindingPosition {
     /// A function parameter.
     Parameter,
     /// An object property.
@@ -27,33 +27,33 @@ pub(crate) enum BindingModifierGrammar {
     Member,
 }
 
-impl BindingModifierGrammar {
-    /// Return whether this grammar accepts accessor modifiers.
+impl BindingPosition {
+    /// Return whether this position accepts accessor modifiers.
     const fn accepts_accessor(self) -> bool {
         matches!(self, Self::Property | Self::Member)
     }
 
-    /// Return whether this grammar accepts virtual modifiers.
+    /// Return whether this position accepts virtual modifiers.
     const fn accepts_virtual(self) -> bool {
         matches!(self, Self::Member)
     }
 
-    /// Return whether this grammar accepts const modifiers.
+    /// Return whether this position accepts const modifiers.
     const fn accepts_const(self) -> bool {
         matches!(self, Self::Property | Self::Member)
     }
 
-    /// Return whether this grammar accepts variance modifiers.
+    /// Return whether this position accepts variance modifiers.
     const fn accepts_variance(self) -> bool {
         matches!(self, Self::Member)
     }
 
-    /// Return whether this grammar accepts declaration modifiers.
+    /// Return whether this position accepts declaration modifiers.
     const fn accepts_declaration(self) -> bool {
         matches!(self, Self::Member)
     }
 
-    /// Return whether this grammar validates modifier order.
+    /// Return whether this position validates modifier order.
     const fn validates_order(self) -> bool {
         !matches!(self, Self::Property)
     }
@@ -170,7 +170,7 @@ impl Parser {
     /// Parse a binding modifiers prefix when present.
     pub(crate) fn parse_binding_modifiers(
         &mut self,
-        grammar: BindingModifierGrammar,
+        position: BindingPosition,
     ) -> BindingModifiers {
         // initialize modifier state
         let mut modifiers = BindingModifiers::default();
@@ -190,7 +190,7 @@ impl Parser {
                 break;
             }
             let peek_keyword = self.peek_keyword();
-            let is_out_variance_modifier = grammar.accepts_variance()
+            let is_out_variance_modifier = position.accepts_variance()
                 && self.peek_identifier_is("out")
                 && !self.peek_next_token().is_on_new_line()
                 && (self.peek_token_type_at(1) == TokenType::Identifier
@@ -210,7 +210,7 @@ impl Parser {
                         | Keyword::Const
                         | Keyword::Accessor
                 );
-                let is_virtual_modifier = grammar.accepts_virtual() && keyword == Keyword::Virtual;
+                let is_virtual_modifier = position.accepts_virtual() && keyword == Keyword::Virtual;
 
                 is_standard_modifier || is_virtual_modifier
             }) || is_out_variance_modifier;
@@ -225,10 +225,10 @@ impl Parser {
             );
 
             // consume an input variance modifier
-            if grammar.accepts_variance() && peek_keyword == Some(Keyword::In) {
+            if position.accepts_variance() && peek_keyword == Some(Keyword::In) {
                 let range = self.peek_token().range();
                 self.bump();
-                if grammar.validates_order() && (seen_variance_in || seen_variance_out) {
+                if position.validates_order() && (seen_variance_in || seen_variance_out) {
                     self.report_error(ParserError::unexpected(range));
                 }
                 modifiers.variance = Some(match modifiers.variance {
@@ -246,7 +246,7 @@ impl Parser {
             if is_out_variance_modifier {
                 let range = self.peek_token().range();
                 self.bump();
-                if grammar.validates_order() && seen_variance_out {
+                if position.validates_order() && seen_variance_out {
                     self.report_error(ParserError::unexpected(range));
                 }
                 modifiers.variance = Some(match modifiers.variance {
@@ -266,11 +266,11 @@ impl Parser {
                 let range = self.peek_token().range();
                 self.bump();
                 if modifiers.visibility.is_some() {
-                    if grammar.validates_order() {
+                    if position.validates_order() {
                         self.report_error(ParserError::unexpected(range));
                     }
                 } else {
-                    if grammar.validates_order() && (seen_static || seen_override || seen_readonly)
+                    if position.validates_order() && (seen_static || seen_override || seen_readonly)
                     {
                         self.report_error(ParserError::unexpected(range));
                     }
@@ -280,14 +280,14 @@ impl Parser {
             }
 
             // declaration modifiers
-            if grammar.accepts_declaration() && self.peek_is_keyword(Keyword::Declare) {
+            if position.accepts_declaration() && self.peek_is_keyword(Keyword::Declare) {
                 if !self.peek_next_same_line_member_name() {
                     break;
                 }
                 let range = self.peek_token().range();
                 self.bump();
                 if modifiers.is_ambient {
-                    if grammar.validates_order() {
+                    if position.validates_order() {
                         self.report_error(ParserError::unexpected(range));
                     }
                 } else {
@@ -304,10 +304,10 @@ impl Parser {
                 let range = self.peek_token().range();
                 self.bump();
                 modifiers.is_static = true;
-                if grammar.validates_order() && seen_override {
+                if position.validates_order() && seen_override {
                     self.report_error(ParserError::unexpected(range));
                 }
-                if grammar.validates_order() && seen_accessor {
+                if position.validates_order() && seen_accessor {
                     self.report_error(ParserError::unexpected(range));
                 }
                 seen_static = true;
@@ -325,7 +325,7 @@ impl Parser {
             }
 
             // abstraction modifiers (virtual)
-            if grammar.accepts_virtual()
+            if position.accepts_virtual()
                 && self.peek_is_keyword(Keyword::Virtual)
                 && is_abstraction_modifier
             {
@@ -345,7 +345,7 @@ impl Parser {
                 let range = self.peek_token().range();
                 self.bump();
                 modifiers.is_override = true;
-                if grammar.validates_order() && seen_readonly {
+                if position.validates_order() && seen_readonly {
                     self.report_error(ParserError::unexpected(range));
                 }
                 seen_override = true;
@@ -366,7 +366,7 @@ impl Parser {
             }
 
             // const heads a const evaluation block
-            let is_const_block = grammar.accepts_const()
+            let is_const_block = position.accepts_const()
                 && self.peek_is_keyword(Keyword::Const)
                 && self.peek_next_token_type() == TokenType::OpenBrace;
 
@@ -384,7 +384,7 @@ impl Parser {
             }
 
             // accessor modifiers
-            let is_accessor_modifier = grammar.accepts_accessor()
+            let is_accessor_modifier = position.accepts_accessor()
                 && self.peek_is_keyword(Keyword::Accessor)
                 && !matches!(
                     self.peek_token_type_at(1),

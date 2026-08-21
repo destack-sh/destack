@@ -34,7 +34,7 @@ fn parse_block_source(source: &str) -> (Parser, LocalNodeId<Block>) {
     let test = TestParser::new(source);
     let mut parser = test.prepare();
     let block_id = parser
-        .parse_block(BlockContext::Expression, Default::default())
+        .parse_block(BlockContext::Expression)
         .expect("expected block expression in test source");
     parser.finalize_comments();
     (parser, block_id)
@@ -45,7 +45,7 @@ fn parse_property_source(source: &str) -> (Parser, LocalNodeId<Property>) {
     let test = TestParser::new(source);
     let mut parser = test.prepare();
     let property_id = parser
-        .parse_property(Default::default())
+        .parse_property()
         .expect("expected property in test source");
     parser.finalize_comments();
     (parser, property_id)
@@ -227,11 +227,7 @@ fn test_finalize_comments_after_direct_entrypoint() {
 
     // `value`, `next`
     let expressions = parser
-        .parse_block_body(
-            BlockForm::Implicit,
-            BlockContext::Statement,
-            Default::default(),
-        )
+        .parse_block_body(BlockForm::Implicit, BlockContext::Statement)
         .unwrap();
     assert_eq!(expressions.len(), 2);
 

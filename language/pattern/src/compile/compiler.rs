@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_core::{Arena, StringPool};
 use destack_dir as dir;
-use destack_parser::{CommentRetention, Grammar, Parse, ParseOptions, Parser};
+use destack_parser::{CommentRetention, Parse, ParseOptions, Parser, SourceForm};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, LanguageType,
     ModuleId, PackageId, Span,
@@ -285,7 +285,7 @@ impl Compiler {
             LanguageType::Destack,
             tree,
             ParseOptions {
-                grammar: Grammar::Pattern,
+                form: SourceForm::Pattern,
                 comment_retention: CommentRetention::Ignore,
             },
         );

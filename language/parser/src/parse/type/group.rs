@@ -1,4 +1,4 @@
-use crate::parse::context::{ExpressionContext, TypeContext, TypeMode, TypeStops};
+use crate::parse::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_dir::{
     Expression, InferForm, Keyword, LocalNodeId, NodeType, TokenType, TupleElement, TupleForm,
@@ -10,7 +10,7 @@ impl Parser {
     pub(super) fn parse_parenthesized_type(
         &mut self,
         start: &ParseStart,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -21,20 +21,24 @@ impl Parser {
 
         // tuple head
         if self.peek_type_tuple() {
-            let elements = self.parse_type_tuple_elements(context, TokenType::CloseParenthesis)?;
+            let elements = self.parse_type_tuple_elements(stop, TokenType::CloseParenthesis)?;
 
             return self.finish_tuple_type(start, elements, TupleForm::Tuple);
         }
 
         // first type
-        let ty = self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
+        let ty = self.parse_type_or_recover_missing(
+            TypePosition::Type,
+            stop.nest(),
+            NodeType::TypeExpression,
+        )?;
 
         // tuple tail
         if self.peek_is(TokenType::Comma)
             || self.peek_optional_tuple_element(TokenType::CloseParenthesis)
         {
             let elements =
-                self.parse_type_tuple_tail(start, ty, context, TokenType::CloseParenthesis)?;
+                self.parse_type_tuple_tail(start, ty, stop, TokenType::CloseParenthesis)?;
 
             return self.finish_tuple_type(start, elements, TupleForm::Tuple);
         }
@@ -93,7 +97,11 @@ impl Parser {
     }
 
     /// Return whether the current parenthesis group is a function type head.
-    pub(super) fn peek_parenthesized_function_type(&self, context: TypeContext) -> bool {
+    pub(super) fn peek_parenthesized_function_type(
+        &self,
+        position: TypePosition,
+        stop: TypeStop,
+    ) -> bool {
         if self.peek_token_type() != TokenType::OpenParenthesis {
             return false;
         }
@@ -105,44 +113,47 @@ impl Parser {
         };
 
         if follow.is(TokenType::Colon) {
-            return !context.stops.contains(TypeStops::CONDITIONAL_COLON);
+            return !stop.has(TypeStop::CONDITIONAL_COLON);
         }
         if !follow.is(TokenType::ArrowWide) {
             return false;
         }
 
-        context.mode != TypeMode::ArrowReturn || self.peek_parenthesized_parameter_list()
+        position != TypePosition::ArrowReturn || self.peek_parenthesized_parameter_list()
     }
 
     /// Parse one slice, fixed-array, or repeated Pattern placeholder type.
     pub(super) fn parse_bracket_type(
         &mut self,
         start: &ParseStart,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenBracket)?;
 
         // repeated Pattern placeholder
         if self.peek_repeated_pattern_marker() {
-            let elements = self.parse_type_tuple_elements(context, TokenType::CloseBracket)?;
+            let elements = self.parse_type_tuple_elements(stop, TokenType::CloseBracket)?;
 
             return self.finish_tuple_type(start, elements, TupleForm::Array);
         }
 
         // empty, labeled, or spread bracket tuple
         if self.peek_is(TokenType::CloseBracket) || self.peek_type_tuple() {
-            let elements = self.parse_type_tuple_elements(context, TokenType::CloseBracket)?;
+            let elements = self.parse_type_tuple_elements(stop, TokenType::CloseBracket)?;
 
             return self.reject_bracket_tuple_type(start, elements);
         }
 
         // element type
-        let element =
-            self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
+        let element = self.parse_type_or_recover_missing(
+            TypePosition::Type,
+            stop.nest(),
+            NodeType::TypeExpression,
+        )?;
 
         // fixed array
         if self.peek_is(TokenType::Semicolon) {
-            return self.parse_fixed_array_type(start, element, context);
+            return self.parse_fixed_array_type(start, element);
         }
 
         // comma or optional marker opens a bracket tuple
@@ -150,7 +161,7 @@ impl Parser {
             || self.peek_optional_tuple_element(TokenType::CloseBracket)
         {
             let elements =
-                self.parse_type_tuple_tail(start, element, context, TokenType::CloseBracket)?;
+                self.parse_type_tuple_tail(start, element, stop, TokenType::CloseBracket)?;
 
             return self.reject_bracket_tuple_type(start, elements);
         }
@@ -187,7 +198,6 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         element: LocalNodeId<TypeExpression>,
-        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::Semicolon)?;
 
@@ -205,10 +215,8 @@ impl Parser {
             )
         } else {
             self.parse_expression_or_recover_missing(
-                ExpressionContext {
-                    function: context.function,
-                    ..ExpressionContext::default()
-                },
+                ExpressionPosition::Value,
+                ExpressionStop::default(),
                 NodeType::Expression,
             )?
         };

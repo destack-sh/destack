@@ -1,6 +1,7 @@
 use crate::parse::DeclarationHeader;
 use crate::{
-    TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
+    ExpressionPosition, ExpressionStop, TestParser, assert_comment, assert_expression_path,
+    assert_node, assert_path, assert_string,
 };
 use destack_dir::{
     CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
@@ -16,12 +17,7 @@ fn test_parse_interface_anonymous_empty() {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, members, .. }) => {
         assert!(name.is_none());
@@ -38,12 +34,7 @@ fn test_parse_interface_with_extends() {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, extends_types, members, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Foo");
@@ -66,12 +57,7 @@ interface Foo extends Bar<Baz>, Namespace.Qux<string> {}
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
 
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
@@ -104,12 +90,7 @@ fn test_parse_interface_with_missing_close_brace() {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
@@ -134,12 +115,7 @@ interface Foo<G> {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
 
     // interface call signature with generic parameters
@@ -202,12 +178,7 @@ interface Foo extends Bar
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
         assert_eq!(extends_types.len(), 1);
@@ -228,12 +199,7 @@ Baz {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
         assert_eq!(extends_types.len(), 2);
@@ -255,12 +221,7 @@ Baz {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
         assert_eq!(extends_types.len(), 2);
@@ -285,12 +246,7 @@ interface Foo extends Baz {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, extends_types, members, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Foo");
@@ -335,12 +291,7 @@ interface Foo {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
         assert_eq!(members.len(), 2);
@@ -354,12 +305,7 @@ fn test_parse_interface_with_generic_parameters() {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Baz");
@@ -383,12 +329,7 @@ fn test_parse_interface_with_empty_generic_parameters() {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Box");
@@ -403,12 +344,7 @@ fn test_parse_interface_with_variance_parameters() {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Baz");
@@ -431,12 +367,7 @@ fn test_parse_interface_with_invariant_parameter() {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Holder");
@@ -460,12 +391,7 @@ interface Baz<T> where Requirement: Interface {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, where_clauses, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Baz");
@@ -498,12 +424,7 @@ interface SQL {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, members, .. }) => {
         assert_string!(parser, name.unwrap().string(), "SQL");
@@ -592,12 +513,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
         assert_eq!(members.len(), 3);
@@ -667,12 +583,7 @@ interface MacroContext {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
@@ -723,12 +634,7 @@ interface ImportMetaEnv {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
@@ -771,12 +677,7 @@ where(where: Brackets, parameters?: ObjectLiteral): this
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
         assert_eq!(members.len(), 2);
@@ -810,12 +711,7 @@ fn test_parse_newtype_interface_empty() {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Nominal,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Nominal)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, members, .. }) => {
         assert!(*is_nominal);
@@ -874,12 +770,7 @@ interface Add<T, R = this> {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Nominal,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Nominal)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, members, .. }) => {
         assert!(*is_nominal);
@@ -910,12 +801,7 @@ fn test_parse_interface_with_is_property_name() {
 
     let start = parser.mark_parse_start();
     let interface_id = parser
-        .parse_interface(
-            &start,
-            DeclarationHeader::default(),
-            TypeKind::Structural,
-            Default::default(),
-        )
+        .parse_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, members, .. }) => {
         assert_string!(parser, name.unwrap().string(), "Webidl");
@@ -943,7 +829,9 @@ fn test_parse_interface_with_is_and_other_members() {
     );
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Interface(InterfaceDeclaration { name, export, members, .. }) => {
             assert_string!(parser, name.unwrap().string(), "Webidl");

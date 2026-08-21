@@ -13,4 +13,5 @@ mod primary;
 mod reference;
 mod tuple;
 
+pub(crate) use expression::{TypePosition, TypeStop};
 pub(crate) use member::TypeMemberContainerKind;

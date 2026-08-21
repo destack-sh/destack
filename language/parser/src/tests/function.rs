@@ -1,3 +1,4 @@
+use crate::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BlockContext, BlockForm, CommentKind, Declaration,
     Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase, GenericArgument,
@@ -53,7 +54,9 @@ fn test_parse_function_lambda_with_newlines() {
 fn test_parse_optional_arrow_parameter_without_type() {
     let test = TestParser::new("(value?) => value");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -90,7 +93,9 @@ fn test_parse_arrow_parameter_defaults_with_angle_operators() {
     for (source, expected_operator) in cases {
         let test = TestParser::new(source);
         let mut parser = test.prepare();
-        let expression_id = parser.parse_expression(Default::default()).unwrap();
+        let expression_id = parser
+            .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+            .unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -110,7 +115,9 @@ fn test_parse_arrow_parameter_defaults_with_angle_operators() {
 fn test_parse_typed_arrow_parameter_default() {
     let test = TestParser::new("(value: Box<Item> = input) => value");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -130,7 +137,9 @@ fn test_parse_typed_arrow_parameter_default() {
 fn test_parse_parenthesized_optional_arrow_parameter_without_type_call() {
     let test = TestParser::new("((value?) => value)()");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
         crate::assert_parenthesized!(parser.tree, *left, expression => {
@@ -160,11 +169,7 @@ export function stableLater(): void {}
     let mut parser = test.prepare();
 
     let expressions = parser
-        .parse_block_body(
-            BlockForm::Implicit,
-            BlockContext::Statement,
-            Default::default(),
-        )
+        .parse_block_body(BlockForm::Implicit, BlockContext::Statement)
         .unwrap();
 
     assert_eq!(expressions.len(), 2);
@@ -240,11 +245,7 @@ function stableLater(): void {}
     let mut parser = test.prepare();
 
     let expressions = parser
-        .parse_block_body(
-            BlockForm::Implicit,
-            BlockContext::Statement,
-            Default::default(),
-        )
+        .parse_block_body(BlockForm::Implicit, BlockContext::Statement)
         .unwrap();
 
     assert_eq!(expressions.len(), 2);
@@ -277,11 +278,7 @@ const value = 1
     let mut parser = test.prepare();
 
     let expressions = parser
-        .parse_block_body(
-            BlockForm::Implicit,
-            BlockContext::Statement,
-            Default::default(),
-        )
+        .parse_block_body(BlockForm::Implicit, BlockContext::Statement)
         .unwrap();
 
     assert_eq!(expressions.len(), 2);
@@ -480,7 +477,9 @@ fn test_parse_plain_parenthesized_typed_lambda() {
 fn test_parse_function_type_with_this_parameter() {
     let test = TestParser::new("type T = (this: Foo, value: Bar) => Baz");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // type T = (this: Foo, value: Bar) => Baz
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -504,7 +503,9 @@ fn test_parse_function_type_with_this_parameter() {
 fn test_parse_function_type_with_unqualified_this_parameter() {
     let test = TestParser::new("type T = (this, value: Bar) => Baz");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // type T = (this, value: Bar) => Baz
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -528,7 +529,9 @@ fn test_parse_function_type_with_unqualified_this_parameter() {
 fn test_parse_function_type_with_borrowed_this_parameter() {
     let test = TestParser::new("type T = (&readonly this, value: Bar) => Baz");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // type T = (&readonly this, value: Bar) => Baz
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -557,7 +560,9 @@ fn test_parse_function_type_with_borrowed_this_parameter() {
 fn test_parse_function_type_with_readonly_this_parameter() {
     let test = TestParser::new("type T = (readonly this, value: Bar) => Baz");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // type T = (readonly this, value: Bar) => Baz
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -681,7 +686,9 @@ fn test_recover_unclosed_lambda_return_type() {
 fn test_parse_function_parenthesized_void_return_type() {
     let test = TestParser::new("(): (void) => {}");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -700,7 +707,9 @@ fn test_parse_function_parenthesized_void_return_type() {
 fn test_parse_function_default_parameter_followed_by_required() {
     let test = TestParser::new(r#"function func(greeting: string = "Hello", target: string) {}"#);
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // function func(greeting: string = "Hello", target: string) {}
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -758,11 +767,7 @@ fn test_recover_reserved_formal_parameter_bindings() {
         let test = TestParser::new(source);
         let mut parser = test.prepare();
         let expressions = parser
-            .parse_block_body(
-                BlockForm::Implicit,
-                BlockContext::Statement,
-                Default::default(),
-            )
+            .parse_block_body(BlockForm::Implicit, BlockContext::Statement)
             .unwrap();
 
         assert_eq!(expressions.len(), 2);
@@ -810,11 +815,7 @@ fn test_recover_forbidden_formal_parameter_default_expressions() {
         let test = TestParser::new(source);
         let mut parser = test.prepare();
         let expressions = parser
-            .parse_block_body(
-                BlockForm::Implicit,
-                BlockContext::Statement,
-                Default::default(),
-            )
+            .parse_block_body(BlockForm::Implicit, BlockContext::Statement)
             .unwrap();
 
         assert_eq!(expressions.len(), 2);
@@ -842,7 +843,9 @@ fn test_parse_function_new_type() {
     let test = TestParser::new("new(): $");
     let mut parser = test.prepare();
 
-    let type_id = parser.parse_type(Default::default()).unwrap();
+    let type_id = parser
+        .parse_type(TypePosition::Type, TypeStop::default())
+        .unwrap();
     assert_node!(parser.tree, type_id, TypeExpression::Constructor(constructor) => {
         assert!(!constructor.is_abstract);
         assert!(constructor.parameters.is_empty());
@@ -855,7 +858,9 @@ fn test_parse_function_new_type_with_generic_arguments() {
     let test = TestParser::new("new <T>(x: int32) => T");
     let mut parser = test.prepare();
 
-    let type_id = parser.parse_type(Default::default()).unwrap();
+    let type_id = parser
+        .parse_type(TypePosition::Type, TypeStop::default())
+        .unwrap();
     assert_node!(parser.tree, type_id, TypeExpression::Constructor(constructor) => {
         let generic_parameters = &constructor.generic_parameters;
         // <T>
@@ -959,7 +964,9 @@ fn test_parse_function_abstract_new_type_with_newline() {
     let test = TestParser::new("abstract\nnew (): T");
     let mut parser = test.prepare();
 
-    let type_id = parser.parse_type(Default::default()).unwrap();
+    let type_id = parser
+        .parse_type(TypePosition::Type, TypeStop::default())
+        .unwrap();
     assert_node!(parser.tree, type_id, TypeExpression::Constructor(constructor) => {
         assert!(constructor.is_abstract);
         assert!(constructor.parameters.is_empty());
@@ -1208,7 +1215,9 @@ fn test_parse_function_generator_call_argument_with_bare_yield() {
     // source: function* a() { b.c(yield); }
     let test = TestParser::new("function* a() { b.c(yield); }");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // function* a() { b.c(yield); }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1242,7 +1251,9 @@ fn test_parse_function_generator_call_argument_with_bare_yield() {
 fn test_parse_function_expression_container_spans() {
     let test = TestParser::new("bar(...items, function callback() { return 1; });");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // bar(...items, function callback() { return 1; })
     assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
@@ -1342,7 +1353,9 @@ fn test_parse_function_generator_nested_yield() {
     // source: function *a() { yield yield }
     let test = TestParser::new("function *a() { yield yield }");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // function *a() { yield yield }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1374,7 +1387,9 @@ fn test_parse_function_generator_delegate_yield() {
     // source: function *a() { yield *a }
     let test = TestParser::new("function *a() { yield *a }");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // function *a() { yield *a }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1402,7 +1417,9 @@ fn test_parse_function_generator_delegate_nested_yield() {
     // source: function *a() { yield *yield }
     let test = TestParser::new("function *a() { yield *yield }");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // function *a() { yield *yield }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1435,7 +1452,9 @@ fn test_parse_function_generator_yield_before_dereference() {
     // *a}
     let test = TestParser::new("function *a(){yield\n*a}");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // function *a(){yield
     // *a}
@@ -1472,7 +1491,9 @@ fn test_recover_function_generator_delegate_before_following_const() {
     // const value = 1}
     let test = TestParser::new("function *a(){yield*\nconst value = 1}");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // diagnostics
     test.assert_errors(
@@ -1513,7 +1534,9 @@ fn test_parse_function_generator_yield_in_computed_assignment() {
     // source: function* a(){({[yield]:a}=1)}
     let test = TestParser::new("function* a(){({[yield]:a}=1)}");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
             assert!(signature.is_generator);
@@ -1586,7 +1609,9 @@ fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
         "(runtime, effect, options: Runtime.RunCallbackOptions<any, any> = {}): (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void => 0",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
@@ -1646,7 +1671,9 @@ fn test_parse_lambda_body_boundary_comment_on_body_owner() {
     let test = TestParser::new("(x) =>\n// lambda-body\nx");
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
@@ -1666,7 +1693,9 @@ fn test_parse_empty_parenthesized_lambda_with_comment() {
     let test = TestParser::new("(/* empty */) => {}");
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1684,7 +1713,9 @@ fn test_parse_lambda_comment_only_block_body_attaches_inside_block() {
     let test = TestParser::new("() => {\n  // code\n}");
     let mut parser = test.prepare();
 
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1731,7 +1762,9 @@ fn test_report_unparenthesized_arrow_call() {
     // source: () => {}()
     let test = TestParser::new("() => {}()");
     let mut parser = test.prepare();
-    let error = parser.parse_expression(Default::default()).unwrap_err();
+    let error = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap_err();
 
     // (
     assert_eq!(parser.range_str(error.range()), "(");
@@ -1739,7 +1772,9 @@ fn test_report_unparenthesized_arrow_call() {
     // source: a => {}()
     let test = TestParser::new("a => {}()");
     let mut parser = test.prepare();
-    let error = parser.parse_expression(Default::default()).unwrap_err();
+    let error = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap_err();
 
     // (
     assert_eq!(parser.range_str(error.range()), "(");
@@ -1751,7 +1786,9 @@ fn test_parse_parenthesized_arrow_call() {
     // source: (() => {})()
     let test = TestParser::new("(() => {})()");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // (() => {})()
     assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
@@ -1771,7 +1808,9 @@ fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
     // source: (() => {})()
     let test = TestParser::new("(() => {})()");
     let mut parser = test.prepare_with_comment_retention(CommentRetention::All);
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // (() => {})()
     assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {

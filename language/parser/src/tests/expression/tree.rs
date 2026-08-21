@@ -1,5 +1,8 @@
 use crate::tests::TestParser;
-use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
+use crate::{
+    ExpressionPosition, ExpressionStop, assert_expression_path, assert_name, assert_node,
+    assert_path, assert_string,
+};
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, FunctionForm,
     GenericParameter, IfForm, NodeType, Parameter, Pattern, ScalarLiteral, TreeAttribute,
@@ -12,7 +15,9 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 fn test_parse_constrained_generic_arrow_before_tree() {
     let test = TestParser::new("<P: Model>(x: P) => <Foo />");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -48,7 +53,9 @@ fn test_parse_constrained_generic_arrow_before_tree() {
 fn test_parse_parenthesized_tree_callback_body() {
     let test = TestParser::new("items.map((item) => (<option>{item}</option>))");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -106,7 +113,9 @@ fn test_parse_parenthesized_tree_callback_body() {
 fn test_recover_generic_arrow_without_tree_disambiguator() {
     let test = TestParser::new("<R>(x: R) => x");
     let mut parser = test.prepare();
-    let expression = parser.parse_expression(Default::default()).unwrap();
+    let expression = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children: Some(children), .. } => {
@@ -145,7 +154,9 @@ fn test_recover_generic_arrow_constraint_member() {
 fn test_parse_generic_arrow_with_trailing_comma() {
     let test = TestParser::new("<T,>() => 1");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -163,7 +174,9 @@ fn test_parse_generic_arrow_with_trailing_comma() {
 fn test_parse_generic_arrow_with_constraint_disambiguator() {
     let test = TestParser::new("<T: unknown>(x) => 1");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -184,7 +197,9 @@ fn test_parse_generic_arrow_with_constraint_disambiguator() {
 fn test_parse_generic_arrow_with_default_disambiguator() {
     let test = TestParser::new("<T = unknown,>(x) => 1");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -208,7 +223,9 @@ fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
     let mut parser = test.prepare();
 
     // <T,>(x: T): T => x
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -244,7 +261,9 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
     : (): void => bar()"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
         let condition = condition.as_expression().expect("expected expression condition");
@@ -279,7 +298,9 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
     : ((): void => bar())"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
         let condition = condition.as_expression().expect("expected expression condition");
@@ -316,7 +337,9 @@ fn test_parse_tree_attribute_typed_arrow_value() {
         "<StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} />",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::TreeExpression { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected attributes");
         let class_name_attribute = attributes.iter().copied().find(|attribute_id| {
@@ -344,7 +367,9 @@ fn test_parse_tree_attribute_typed_arrow_value() {
 fn test_parse_tree_attribute_fixed_array_expression_value() {
     let test = TestParser::new("<Buffer data={[0; count]} />");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
@@ -366,7 +391,9 @@ fn test_parse_tree_attribute_fixed_array_expression_value() {
 fn test_parse_tree_attribute_fixed_array_expression_value_recovers_missing_length() {
     let test = TestParser::new("<Buffer data={[0; ]} next />");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
@@ -393,7 +420,9 @@ fn test_parse_ternary_tree_attribute_typed_arrow() {
         "disabled ? <StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} /> : null",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { form, then_expression, else_expression, .. } => {
         assert_eq!(*form, IfForm::Ternary);
         assert_node!(parser.tree, *then_expression, Expression::TreeExpression { attributes, .. } => {
@@ -424,7 +453,9 @@ fn test_parse_ternary_tree_attribute_typed_arrow() {
 fn test_parse_tree_attribute_nested_tree_expression_value() {
     let test = TestParser::new("<Foo prop={<Bar><Baz /></Bar>} />;");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected tree attributes");
@@ -458,7 +489,9 @@ fn test_parse_tree_attribute_nested_tree_expression_value() {
 fn test_parse_closing_tag_with_trailing_line_comment_before_greater_than() {
     let test = TestParser::new("<a></a // line\n>;");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left, .. } => {
         let left = left.expect("expected tag path");
@@ -472,7 +505,9 @@ fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tre
         "(signal: AbortSignal, addInspectorRequest: <Data>(result: FetcherResult<Data>) => void): AutoAbortedAPMClient => signal",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
@@ -517,7 +552,9 @@ fn test_parse_tree_text_after_comment_expression_container() {
 </test>"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
 

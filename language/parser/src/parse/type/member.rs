@@ -1,11 +1,11 @@
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     Asynchrony, FunctionRole, Keyword, LocalNodeId, NodeType, TokenType, TypeKind, TypeMember,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
-use crate::parse::context::{ExpressionContext, FunctionContext, ParameterSpace, TypeContext};
-use crate::parse::member::{Method, MethodContext, MethodRoleGrammar};
-use crate::parse::{BindingModifiers, RecoveryPoint};
+use crate::parse::member::Method;
+use crate::parse::{BindingModifiers, FunctionModifiers, RecoveryPoint, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 /// The kind of type member container being parsed.
@@ -54,10 +54,9 @@ impl Parser {
     /// ```
     pub(crate) fn parse_type_object_literal(
         &mut self,
-        function: FunctionContext,
     ) -> ParserResult<Vec<LocalNodeId<TypeMember>>> {
         self.eat_token(TokenType::OpenBrace)?;
-        let members = self.parse_type_members(TypeMemberContainerKind::TypeLiteral, function)?;
+        let members = self.parse_type_members(TypeMemberContainerKind::TypeLiteral)?;
 
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
         Ok(members)
@@ -127,7 +126,6 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         modifiers: &BindingModifiers,
-        function: FunctionContext,
     ) -> ParserResult<Option<LocalNodeId<TypeMember>>> {
         if !self.peek_is_keyword(Keyword::Type)
             || self.peek_next_token_type() != TokenType::Identifier
@@ -141,9 +139,9 @@ impl Parser {
 
         // generic parameters and where clauses
         let generic_parameters = self
-            .parse_generic_parameters_if_present(false, function)?
+            .parse_generic_parameters_if_present(false)?
             .unwrap_or_default();
-        let where_clauses = self.parse_where_clauses(function)?;
+        let where_clauses = self.parse_where_clauses()?;
 
         // declared type
         let constraint = if self.peek_is(TokenType::Colon) {
@@ -155,7 +153,7 @@ impl Parser {
             {
                 self.recover_missing_type_expression_here(NodeType::TypeMember)
             } else {
-                self.parse_member_type(function)?
+                self.parse_member_type()?
             };
 
             Some(constraint)
@@ -170,7 +168,7 @@ impl Parser {
             let value = if self.peek_is(TokenType::CloseBrace) || self.peek_any_stop() {
                 self.recover_missing_type_expression_here(NodeType::TypeMember)
             } else {
-                self.parse_member_type(function)?
+                self.parse_member_type()?
             };
 
             Some(value)
@@ -199,7 +197,6 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         modifiers: &BindingModifiers,
-        function: FunctionContext,
     ) -> ParserResult<Option<LocalNodeId<TypeMember>>> {
         if !self.peek_is_keyword(Keyword::Const)
             || self.peek_next_token_type() != TokenType::Identifier
@@ -221,7 +218,7 @@ impl Parser {
             {
                 self.recover_missing_type_expression_here(NodeType::TypeMember)
             } else {
-                self.parse_member_type(function)?
+                self.parse_member_type()?
             };
 
             Some(declared_type)
@@ -236,10 +233,7 @@ impl Parser {
             let value = if self.peek_is(TokenType::CloseBrace) || self.peek_any_stop() {
                 self.recover_missing_expression_here(NodeType::TypeMember)
             } else {
-                self.parse_expression(ExpressionContext {
-                    function,
-                    ..ExpressionContext::default()
-                })?
+                self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?
             };
 
             Some(value)
@@ -265,9 +259,8 @@ impl Parser {
     pub(crate) fn parse_type_member_or_recover(
         &mut self,
         container_kind: TypeMemberContainerKind,
-        function: FunctionContext,
     ) -> LocalNodeId<TypeMember> {
-        match self.parse_type_member(container_kind, function) {
+        match self.parse_type_member(container_kind) {
             Ok(member_id) => member_id,
             Err(error) => {
                 let error = error.in_node(NodeType::TypeMember);
@@ -282,12 +275,11 @@ impl Parser {
     pub(crate) fn parse_type_member(
         &mut self,
         container_kind: TypeMemberContainerKind,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<TypeMember>> {
         let start = self.mark_parse_start();
 
         // plain fields
-        if let Some(member_id) = self.parse_plain_type_field_member_if_present(&start, function)? {
+        if let Some(member_id) = self.parse_plain_type_field_member_if_present(&start)? {
             return Ok(member_id);
         }
 
@@ -297,15 +289,13 @@ impl Parser {
         // parse associated members
         if container_kind.allows_associated_members() {
             if let Some(member_id) =
-                self.parse_type_associated_type_if_present(&start, &associated_modifiers, function)?
+                self.parse_type_associated_type_if_present(&start, &associated_modifiers)?
             {
                 return Ok(member_id);
             }
-            if let Some(member_id) = self.parse_type_associated_const_if_present(
-                &start,
-                &associated_modifiers,
-                function,
-            )? {
+            if let Some(member_id) =
+                self.parse_type_associated_const_if_present(&start, &associated_modifiers)?
+            {
                 return Ok(member_id);
             }
         }
@@ -356,7 +346,7 @@ impl Parser {
         };
 
         // role
-        let parsed_role = self.parse_method_role(MethodRoleGrammar::New);
+        let parsed_role = self.parse_method_role(Some(FunctionRole::New));
         let (role, role_range) = match parsed_role {
             Some((role, range)) => (Some(role), Some(range)),
             None => (None, None),
@@ -370,14 +360,12 @@ impl Parser {
 
             let key_start = self.mark_parse_start();
             self.eat_token(TokenType::OpenBracket)?;
-            let (name, name_range) = self.eat_binding_identifier_with_range(function)?;
+            let (name, name_range) = self.eat_binding_identifier_with_range()?;
             self.eat_token(TokenType::Colon)?;
 
             let key_type = self.parse_type_or_recover_missing(
-                TypeContext {
-                    function,
-                    ..TypeContext::default()
-                },
+                TypePosition::Type,
+                TypeStop::default(),
                 NodeType::TypeMember,
             )?;
 
@@ -401,7 +389,7 @@ impl Parser {
             let value_type = if self.peek_is(TokenType::CloseBrace) || self.peek_any_stop() {
                 self.recover_missing_type_expression_here(NodeType::TypeMember)
             } else {
-                self.parse_method_return_type(NodeType::TypeMember, function)?
+                self.parse_method_return_type(NodeType::TypeMember)?
             };
 
             let member = TypeMember::IndexSignature {
@@ -484,9 +472,7 @@ impl Parser {
             } = self.parse_method(
                 NodeType::TypeMember,
                 role,
-                MethodContext {
-                    enclosing_function: function,
-                    space: ParameterSpace::Type,
+                FunctionModifiers {
                     asynchrony: Asynchrony::Sync,
                     is_generator: false,
                 },
@@ -572,7 +558,7 @@ impl Parser {
                 if self.peek_is(TokenType::CloseBrace) || self.peek_any_stop() {
                     self.recover_missing_type_expression_here(NodeType::TypeMember)
                 } else {
-                    self.parse_method_return_type(NodeType::TypeMember, function)?
+                    self.parse_method_return_type(NodeType::TypeMember)?
                 },
             )
         } else {
@@ -621,7 +607,6 @@ impl Parser {
     fn parse_plain_type_field_member_if_present(
         &mut self,
         start: &ParseStart,
-        function: FunctionContext,
     ) -> ParserResult<Option<LocalNodeId<TypeMember>>> {
         if !self.peek_plain_type_field_member() {
             return Ok(None);
@@ -638,7 +623,7 @@ impl Parser {
         let declared_type = if self.peek_is(TokenType::CloseBrace) || self.peek_any_stop() {
             self.recover_missing_type_expression_here(NodeType::TypeMember)
         } else {
-            self.parse_method_return_type(NodeType::TypeMember, function)?
+            self.parse_method_return_type(NodeType::TypeMember)?
         };
 
         let member_id = self.insert_node(
@@ -690,7 +675,6 @@ impl Parser {
     pub(crate) fn parse_type_members(
         &mut self,
         container_kind: TypeMemberContainerKind,
-        function: FunctionContext,
     ) -> ParserResult<Vec<LocalNodeId<TypeMember>>> {
         let mut members: Vec<LocalNodeId<TypeMember>> = Vec::new();
         let mut previous_member_had_error = false;
@@ -735,7 +719,7 @@ impl Parser {
 
             // parse documentation, decorators and one member
             let documentation = self.parse_documentation();
-            let decorators = self.parse_decorators(function);
+            let decorators = self.parse_decorators();
 
             // reject decorator prefixes without an owner
             if !decorators.is_empty()
@@ -751,7 +735,7 @@ impl Parser {
             }
 
             let error_count = self.errors.len();
-            let member_id = self.parse_type_member_or_recover(container_kind, function);
+            let member_id = self.parse_type_member_or_recover(container_kind);
             previous_member_had_error = self.errors.len() > error_count
                 || matches!(self.tree.get(member_id), TypeMember::Error);
 

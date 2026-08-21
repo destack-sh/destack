@@ -1,7 +1,5 @@
-use crate::parse::context::{
-    BraceContext, ExpressionContext, ExpressionStops, FunctionContext, StatementPosition,
-};
 use crate::parse::error::ParserResultExt;
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserError, ParserResult};
 use destack_dir::{
     Block, BlockContext, BlockForm, Expression, Keyword, LocalNodeId, NodeType, Token, TokenType,
@@ -14,7 +12,7 @@ struct BlockFrame {
     /// The enclosing block source form.
     form: BlockForm,
     /// The enclosing block evaluation context.
-    context: BlockContext,
+    block_context: BlockContext,
 }
 
 /// The expressions collected from one block body.
@@ -44,9 +42,9 @@ impl BlockItem {
 
 impl Parser {
     /// Return whether the current colon can continue one consumed label.
-    pub(crate) fn peek_label_body(&self, context: ExpressionContext) -> bool {
-        if context.stops.contains(ExpressionStops::SWITCH_COLON)
-            || context.stops.contains(ExpressionStops::CONDITIONAL_COLON)
+    pub(crate) fn peek_label_body(&self, stop: ExpressionStop) -> bool {
+        if stop.has(ExpressionStop::SWITCH_COLON)
+            || stop.has(ExpressionStop::CONDITIONAL_COLON)
             || !self.peek_is(TokenType::Colon)
         {
             return false;
@@ -66,10 +64,7 @@ impl Parser {
     }
 
     /// Parse a label body after its identifier has been consumed.
-    pub(crate) fn parse_label_body(
-        &mut self,
-        context: ExpressionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_label_body(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         self.eat_token(TokenType::Colon)?;
 
         // represent an empty labeled statement as an empty implicit block
@@ -89,11 +84,7 @@ impl Parser {
             return Ok(self.insert_node(Expression::Block(block), self.range_since(&start)));
         }
 
-        self.parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            brace: BraceContext::Block,
-            ..context.nested()
-        })
+        self.parse_expression(ExpressionPosition::Block, ExpressionStop::default())
     }
 
     /// Return whether the current tokens start a block.
@@ -107,8 +98,7 @@ impl Parser {
     /// Parse an explicit block.
     pub(crate) fn parse_block(
         &mut self,
-        context: BlockContext,
-        function: FunctionContext,
+        block_context: BlockContext,
     ) -> ParserResult<LocalNodeId<Block>> {
         let start = self.mark_parse_start();
         let form = if self.peek_is_keyword(Keyword::Do) {
@@ -121,12 +111,12 @@ impl Parser {
         // parse the delimited body
         self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)
             .in_node(NodeType::Block)?;
-        let body = self.parse_block_items(form, context, function)?;
+        let body = self.parse_block_items(form, block_context)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Block)?;
 
         Ok(self.insert_node(
             Block {
-                context,
+                context: block_context,
                 form,
                 leading_expressions: body.leading_expressions,
                 tail_expression: body.tail_expression,
@@ -136,12 +126,9 @@ impl Parser {
     }
 
     /// Parse a block or wrap one statement in an implicit block.
-    pub(crate) fn parse_block_or_statement(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Block>> {
+    pub(crate) fn parse_block_or_statement(&mut self) -> ParserResult<LocalNodeId<Block>> {
         if self.peek_block() {
-            return self.parse_block(BlockContext::Statement, function);
+            return self.parse_block(BlockContext::Statement);
         }
 
         let start = self.mark_parse_start();
@@ -149,7 +136,7 @@ impl Parser {
         if self.peek_is(TokenType::Semicolon) {
             self.bump();
         } else {
-            let item = self.parse_block_item(function, None);
+            let item = self.parse_block_item(None);
             leading_expressions.push(item.expression());
         }
 
@@ -168,13 +155,12 @@ impl Parser {
     pub(crate) fn parse_block_body(
         &mut self,
         form: BlockForm,
-        context: BlockContext,
-        function: FunctionContext,
+        block_context: BlockContext,
     ) -> ParserResult<Vec<LocalNodeId<Expression>>> {
         let BlockBody {
             mut leading_expressions,
             tail_expression,
-        } = self.parse_block_items(form, context, function)?;
+        } = self.parse_block_items(form, block_context)?;
         if let Some(tail_expression) = tail_expression {
             leading_expressions.push(tail_expression);
         }
@@ -186,8 +172,7 @@ impl Parser {
     fn parse_block_items(
         &mut self,
         form: BlockForm,
-        context: BlockContext,
-        function: FunctionContext,
+        block_context: BlockContext,
     ) -> ParserResult<BlockBody> {
         let mut leading_expressions = Vec::new();
         let mut tail_expression = None;
@@ -220,15 +205,18 @@ impl Parser {
                 leading_expressions.push(expression);
             }
 
-            let frame = BlockFrame { form, context };
-            match self.parse_block_item(function, Some(frame)) {
+            let frame = BlockFrame {
+                form,
+                block_context,
+            };
+            match self.parse_block_item(Some(frame)) {
                 BlockItem::Statement(expression) => leading_expressions.push(expression),
                 BlockItem::Tail(expression) => tail_expression = Some(expression),
             }
         }
 
         // only brace-delimited expression blocks preserve a value tail
-        if (!form.is_explicit() || context != BlockContext::Expression)
+        if (!form.is_explicit() || block_context != BlockContext::Expression)
             && let Some(expression) = tail_expression.take()
         {
             leading_expressions.push(expression);
@@ -241,17 +229,9 @@ impl Parser {
     }
 
     /// Parse and classify one statement item with local recovery.
-    fn parse_block_item(
-        &mut self,
-        function: FunctionContext,
-        block: Option<BlockFrame>,
-    ) -> BlockItem {
-        let context = ExpressionContext {
-            function,
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        };
-        let expression = self.parse_expression(context);
+    fn parse_block_item(&mut self, block: Option<BlockFrame>) -> BlockItem {
+        let expression =
+            self.parse_expression(ExpressionPosition::Statement, ExpressionStop::default());
         let expression = match expression {
             Ok(expression) => expression,
             Err(error) => {
@@ -271,8 +251,8 @@ impl Parser {
     /// ```ds
     /// return result;
     /// ```
-    pub(crate) fn parse_statement(&mut self, function: FunctionContext) -> LocalNodeId<Expression> {
-        self.parse_block_item(function, None).expression()
+    pub(crate) fn parse_statement(&mut self) -> LocalNodeId<Expression> {
+        self.parse_block_item(None).expression()
     }
 
     /// Classify one expression as a statement or block value tail.
@@ -308,7 +288,7 @@ impl Parser {
         let has_separator = self.peek_is_on_new_line() || is_terminator;
         let keeps_tail = block.is_some_and(|frame| {
             frame.form.is_explicit()
-                && frame.context == BlockContext::Expression
+                && frame.block_context == BlockContext::Expression
                 && (!is_statement || preserves_tail)
         });
 
@@ -354,26 +334,23 @@ impl Parser {
     }
 
     /// Parse one control body and normalize it to a block expression.
-    pub(crate) fn parse_control_body(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_control_body(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         if self.peek_block() {
-            let block = self.parse_block(BlockContext::Expression, function)?;
+            let block = self.parse_block(BlockContext::Expression)?;
 
             return Ok(self.insert_node(Expression::Block(block), self.tree.get_range(block)));
         }
 
         let start = self.mark_parse_start();
-        let (leading_expressions, tail_expression, context) = match self
-            .parse_block_item(function, None)
+        let (leading_expressions, tail_expression, block_context) = match self
+            .parse_block_item(None)
         {
             BlockItem::Statement(expression) => (vec![expression], None, BlockContext::Statement),
             BlockItem::Tail(expression) => (Vec::new(), Some(expression), BlockContext::Expression),
         };
         let block = self.insert_node(
             Block {
-                context,
+                context: block_context,
                 form: BlockForm::Implicit,
                 leading_expressions,
                 tail_expression,

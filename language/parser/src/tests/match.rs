@@ -83,7 +83,7 @@ match (x) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.parse_match(Default::default()).unwrap();
+    let match_id = parser.parse_match().unwrap();
     let main_span = parser
         .tree
         .get_main_span(match_id)
@@ -142,7 +142,7 @@ match (shape) {
 "#,
     );
     let mut parser = test.prepare();
-    let match_id = parser.parse_match(Default::default()).unwrap();
+    let match_id = parser.parse_match().unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -180,7 +180,7 @@ match (x) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.parse_match(Default::default()).unwrap();
+    let match_id = parser.parse_match().unwrap();
     assert_node!(parser.tree, match_id, Expression::Match { value: _, arms } => {
         assert_eq!(arms.len(), 1);
 
@@ -223,7 +223,7 @@ match (pair) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.parse_match(Default::default()).unwrap();
+    let match_id = parser.parse_match().unwrap();
     assert_node!(parser.tree, match_id, Expression::Match { value: _, arms } => {
         assert_eq!(arms.len(), 2);
 
@@ -273,7 +273,7 @@ match (input) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.parse_match(Default::default()).unwrap();
+    let match_id = parser.parse_match().unwrap();
     assert_node!(parser.tree, match_id, Expression::Match { arms, .. } => {
         assert_eq!(arms.len(), 1);
         assert_node!(parser.tree, arms[0], MatchArm::Expression { guard: Some(guard), body, .. } => {
@@ -334,7 +334,7 @@ match (self) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.parse_match(Default::default()).unwrap();
+    let match_id = parser.parse_match().unwrap();
 
     // match (self) { ... }
     assert_node!(parser.tree, match_id, Expression::Match { value, arms } => {
@@ -386,7 +386,7 @@ match (value) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.parse_match(Default::default()).unwrap();
+    let match_id = parser.parse_match().unwrap();
     assert_node!(parser.tree, match_id, Expression::Match { value, .. } => {
         let match_span = parser.tree.get_span(match_id);
         assert_eq!(parser.span_str(match_span), "match (value) {\n    _ => result\n}");
@@ -404,7 +404,7 @@ fn test_parse_switch_records_expression_and_selector_spans() {
     let test = TestParser::new("switch (value) { case 1: break; default: break }");
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    let switch_id = parser.parse_switch().unwrap();
     let switch_span = parser.tree.get_span(switch_id);
     let main_span = parser
         .tree
@@ -446,7 +446,7 @@ match (result) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.parse_match(Default::default()).unwrap();
+    let match_id = parser.parse_match().unwrap();
 
     assert_node!(parser.tree, match_id, Expression::Match { arms, .. } => {
         assert_eq!(arms.len(), 2);
@@ -499,7 +499,7 @@ switch (left.type) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    let switch_id = parser.parse_switch().unwrap();
     assert_node!(parser.tree, switch_id, Expression::Switch { value: _, cases } => {
         assert_eq!(cases.len(), 4);
 
@@ -566,7 +566,7 @@ switch(a) { case 1: {}
     let mut parser = test.prepare();
 
     // switch(a) { case 1: {} /foo/ }
-    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    let switch_id = parser.parse_switch().unwrap();
     assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 1);
         assert_node!(parser.tree, cases[0], SwitchCase { body, .. } => {
@@ -594,7 +594,7 @@ switch (tag.injectTo) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    let switch_id = parser.parse_switch().unwrap();
     assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 1);
         assert_node!(parser.tree, cases[0], SwitchCase { body, .. } => {
@@ -646,7 +646,7 @@ switch (tag) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    let switch_id = parser.parse_switch().unwrap();
     assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 2);
 
@@ -699,7 +699,7 @@ switch (value) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    let switch_id = parser.parse_switch().unwrap();
     assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 1);
         assert_node!(parser.tree, cases[0], SwitchCase { body, .. } => {
@@ -765,7 +765,7 @@ fn test_parse_switch_case_minified_if_continue_then_if() {
         "switch(op[0]){default:if(!(t=_.trys,t=t.length>0&&t[t.length-1])&&(op[0]===6||op[0]===2)){_=0;continue}if(op[0]===3&&(!t||op[1]>t[0]&&op[1]<t[3])){_.label=op[1];break}}",
     );
     let mut parser = test.prepare();
-    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    let switch_id = parser.parse_switch().unwrap();
 
     // switch(op[0]) { default: if (...) { _ = 0; continue } if (...) { _.label = op[1]; break } }
     assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {

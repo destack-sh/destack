@@ -53,11 +53,11 @@ const PARSER_DIAGNOSTICS: &[DiagnosticDefinition] = &[
 enum ParserDiagnostic {
     /// Source syntax with no more specific token classification.
     UnexpectedSyntax,
-    /// A source token rejected by its grammar position.
+    /// A source token rejected by its position.
     UnexpectedToken,
     /// One required source token.
     ExpectedToken,
-    /// One required grammar node.
+    /// One required syntax node.
     Expected(NodeType),
     /// A tuple type written with brackets.
     BracketTupleType,
@@ -185,11 +185,11 @@ pub struct ParserError {
     actual: Option<TokenType>,
     /// The immediate parser failure.
     kind: ParserErrorKind,
-    /// The grammar node expected at the error.
+    /// The syntax node expected at the error.
     expected_node: Option<NodeType>,
 }
 
-/// Immediate parser failure independent of its grammar context.
+/// Immediate parser failure independent of its surrounding syntax.
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub enum ParserErrorKind {
     /// The source location is unexpected.
@@ -224,7 +224,7 @@ pub type ParserResult<T> = Result<T, ParserError>;
 
 /// Extension methods for parser operation results.
 pub trait ParserResultExt<T> {
-    /// Attach the grammar node required by this operation.
+    /// Attach the syntax node required by this operation.
     fn in_node(self, node_type: NodeType) -> Result<T, ParserError>;
 }
 
@@ -262,7 +262,7 @@ impl From<TokenSpan> for ParserErrorLocation {
 }
 
 impl<T> ParserResultExt<T> for Result<T, ParserError> {
-    /// Attach a grammar node when the error has no expected node.
+    /// Attach a syntax node when the error has no expected node.
     #[inline]
     fn in_node(self, node_type: NodeType) -> Self {
         match self {
@@ -369,7 +369,7 @@ impl ParserError {
         }
     }
 
-    /// Return the grammar node expected at this error.
+    /// Return the syntax node expected at this error.
     pub fn expected_node(self) -> Option<NodeType> {
         self.expected_node
     }
@@ -387,7 +387,7 @@ impl ParserError {
         Span::new(file_id, range.start, range.end)
     }
 
-    /// Set the grammar node expected at this error.
+    /// Set the syntax node expected at this error.
     pub fn in_node(mut self, node_type: NodeType) -> Self {
         self.expected_node = Some(node_type);
 
@@ -454,7 +454,7 @@ impl ParserError {
 
     /// Return the diagnostic header and primary label messages.
     fn message(&self) -> (String, String) {
-        // a required grammar node names the token failures, other kinds keep their own message
+        // a required syntax node names token failures, other kinds keep their own message
         if let Some(node_type) = self.expected_node
             && matches!(
                 self.kind,

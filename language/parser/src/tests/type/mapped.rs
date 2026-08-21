@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -160,10 +160,7 @@ fn test_parse_type_mapped_expression_in_generic_arguments() {
     let test = TestParser::new("type T = Promise<{ -readonly [P in keyof T]: T[P] }>");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -186,10 +183,7 @@ fn test_parse_type_mapped_expression_with_newline_between_plus_and_readonly() {
     let test = TestParser::new("type T = { +\nreadonly [K in keyof T]: T[K] }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { +\nreadonly [K in keyof T]: T[K] }
@@ -237,10 +231,7 @@ fn test_parse_type_mapped_expression_with_semicolon() {
     let test = TestParser::new("type T = { [K in T]: T[K]; }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { [K in T]: T[K]; }
@@ -276,10 +267,7 @@ fn test_parse_type_mapped_expression_without_value_type() {
     let test = TestParser::new(r#"type A = { [K in "a" | "b"] }"#);
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -339,10 +327,7 @@ fn test_parse_type_mapped_expression_with_intersection() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { [P in keyof T]: T[P]; } & { [x: string]: PropertyDescriptor; }
@@ -385,10 +370,7 @@ fn test_parse_type_mapped_expression_with_parenthesized_conditional_generic_valu
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
     test.assert_no_errors(&parser);
 
@@ -443,10 +425,7 @@ fn test_parse_type_mapped_expression_with_key_remap_conditional() {
         TestParser::new("type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }
@@ -466,10 +445,7 @@ fn test_parse_type_mapped_expression_with_conditional_infer_constraint() {
     let test = TestParser::new("type T = { [P in infer U extends keyof Source ? 1 : 0]: Value }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -506,10 +482,7 @@ fn test_parse_type_mapped_expression_in_declaration_file() {
     let test = TestParser::declaration("type T = { [K in keyof T]: T[K] }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { [K in keyof T]: T[K] }
@@ -527,10 +500,7 @@ fn test_parse_type_mapped_expression_with_remap_in_declaration_file() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }
@@ -550,10 +520,7 @@ fn test_parse_type_mapped_expression_missing_value_type() {
     let test = TestParser::new("type T = { [K in keyof T]: }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
@@ -582,10 +549,7 @@ fn test_parse_type_mapped_expression_missing_close_bracket_before_colon() {
     let test = TestParser::new("type T = { [K in keyof T: T[K] }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
@@ -629,10 +593,7 @@ fn test_parse_type_mapped_expression_with_leading_union_constraint() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -665,10 +626,7 @@ fn test_parse_type_mapped_expression_with_newline_before_remap_in_declaration_fi
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -694,10 +652,7 @@ fn test_parse_leading_union_in_type_alias() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

@@ -1,4 +1,4 @@
-use crate::parse::context::{FunctionContext, TypeContext, TypeStops};
+use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserError, ParserResult};
 
 use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
@@ -16,7 +16,8 @@ impl Parser {
     fn parse_heritage_types(
         &mut self,
         terminators: &[Keyword],
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
     ) -> ParserResult<Vec<LocalNodeId<TypeExpression>>> {
         let mut items = Vec::new();
         let mut expects_item = true;
@@ -68,7 +69,7 @@ impl Parser {
             }
 
             let item_start = self.mark_parse_start();
-            let item = self.parse_type_or_recover_missing(context, NodeType::Declaration)?;
+            let item = self.parse_type_or_recover_missing(position, stop, NodeType::Declaration)?;
             let item_range = self.range_since(&item_start);
             self.tree
                 .set_side_range(item, NodeSpanType::Region(NodeSpanRegion::Type), item_range);
@@ -90,7 +91,6 @@ impl Parser {
     /// ```
     pub(crate) fn parse_extends_types_if_present(
         &mut self,
-        function: FunctionContext,
     ) -> ParserResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
         if !self.peek_is_keyword(Keyword::Extends) {
             return Ok(None);
@@ -99,11 +99,8 @@ impl Parser {
 
         let types = self.parse_heritage_types(
             &[Keyword::Implements, Keyword::With, Keyword::Where],
-            TypeContext {
-                function,
-                stops: TypeStops::IMPLEMENTS,
-                ..TypeContext::default()
-            },
+            TypePosition::Type,
+            TypeStop::IMPLEMENTS,
         )?;
 
         Ok(Some(types))
@@ -120,7 +117,6 @@ impl Parser {
     #[inline]
     pub(crate) fn parse_implements_types_if_present(
         &mut self,
-        function: FunctionContext,
     ) -> ParserResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
         if !self.peek_is_keyword(Keyword::Implements) {
             return Ok(None);
@@ -129,10 +125,8 @@ impl Parser {
 
         let types = self.parse_heritage_types(
             &[Keyword::With, Keyword::Where],
-            TypeContext {
-                function,
-                ..TypeContext::default()
-            },
+            TypePosition::Type,
+            TypeStop::default(),
         )?;
 
         Ok(Some(types))

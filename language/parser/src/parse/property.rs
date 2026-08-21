@@ -1,12 +1,12 @@
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     AssignOperator, AssignPattern, Asynchrony, Expression, FunctionRole, LocalNodeId, Name,
     NodeType, OperatorPrecedence, Property, TokenLiteral, TokenType,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
-use crate::parse::context::{ExpressionContext, FunctionContext, ParameterSpace};
-use crate::parse::member::{MemberHead, Method, MethodContext, MethodRoleGrammar};
-use crate::parse::{BindingModifierGrammar, RecoveryPoint};
+use crate::parse::member::{MemberHead, Method};
+use crate::parse::{BindingPosition, RecoveryPoint};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 #[allow(clippy::type_complexity)]
@@ -19,12 +19,9 @@ impl Parser {
     /// { a: 1, b }
     /// { a(x): void }
     /// ```
-    pub(crate) fn parse_object_literal(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<Vec<LocalNodeId<Property>>> {
+    pub(crate) fn parse_object_literal(&mut self) -> ParserResult<Vec<LocalNodeId<Property>>> {
         self.eat_token(TokenType::OpenBrace)?;
-        let properties = self.parse_object_properties(function)?;
+        let properties = self.parse_object_properties()?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
 
         Ok(properties)
@@ -32,14 +29,8 @@ impl Parser {
 
     /// Parse one spread or embed value expression.
     #[inline]
-    fn parse_property_value(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        self.parse_expression(ExpressionContext {
-            function,
-            ..ExpressionContext::default()
-        })
+    fn parse_property_value(&mut self) -> ParserResult<LocalNodeId<Expression>> {
+        self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())
     }
 
     /// Insert the assignment expression used to preserve one property value with a default.
@@ -80,10 +71,7 @@ impl Parser {
     /// key
     /// ...other
     /// ```
-    pub(crate) fn parse_object_properties(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<Vec<LocalNodeId<Property>>> {
+    pub(crate) fn parse_object_properties(&mut self) -> ParserResult<Vec<LocalNodeId<Property>>> {
         let mut properties = Vec::new();
 
         while self.has_more_tokens() {
@@ -110,7 +98,7 @@ impl Parser {
                 continue;
             }
 
-            let property = self.parse_object_property_or_recover(function);
+            let property = self.parse_object_property_or_recover();
             properties.push(property);
         }
 
@@ -118,12 +106,9 @@ impl Parser {
     }
 
     /// Parse one object property, recovering malformed input as an error node.
-    fn parse_object_property_or_recover(
-        &mut self,
-        function: FunctionContext,
-    ) -> LocalNodeId<Property> {
+    fn parse_object_property_or_recover(&mut self) -> LocalNodeId<Property> {
         let documentation = self.parse_documentation();
-        let property_id = match self.parse_object_property(function) {
+        let property_id = match self.parse_object_property() {
             Ok(property_id) => property_id,
             Err(error) => {
                 let error = error.in_node(NodeType::Property);
@@ -147,19 +132,16 @@ impl Parser {
     /// key = fallback
     /// method() {}
     /// ```
-    fn parse_object_property(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Property>> {
+    fn parse_object_property(&mut self) -> ParserResult<LocalNodeId<Property>> {
         let start = self.mark_parse_start();
 
         if self.peek_simple_object_property() {
-            let property_id = self.parse_simple_object_property(&start, function)?;
+            let property_id = self.parse_simple_object_property(&start)?;
 
             return Ok(property_id);
         }
 
-        self.parse_property(function)
+        self.parse_property()
     }
 
     /// Return whether the current object property can use the simple field parser.
@@ -209,11 +191,10 @@ impl Parser {
     fn parse_simple_object_property(
         &mut self,
         start: &ParseStart,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Property>> {
         if self.peek_is(TokenType::Spread) {
             self.bump();
-            let value = self.parse_property_value(function)?;
+            let value = self.parse_property_value()?;
             let property = Property::Spread { value };
 
             return Ok(self.insert_node(property, self.range_since(start)));
@@ -222,11 +203,11 @@ impl Parser {
         let (name, name_range) = self.eat_property_name_with_range()?;
 
         if self.peek_is(TokenType::Colon) {
-            return self.parse_simple_object_colon_field(start, name, name_range, function);
+            return self.parse_simple_object_colon_field(start, name, name_range);
         }
 
         if self.peek_is(TokenType::Assign) {
-            return self.parse_simple_object_default_field(start, name, name_range, function);
+            return self.parse_simple_object_default_field(start, name, name_range);
         }
 
         if self.peek_shorthand_object_property_end() {
@@ -249,12 +230,11 @@ impl Parser {
         start: &ParseStart,
         name: Name,
         name_range: ByteRange,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Property>> {
         let type_start = self.mark_parse_start();
         self.bump();
 
-        let value = self.parse_simple_object_field_value(function)?;
+        let value = self.parse_simple_object_field_value()?;
         let property_id = self.insert_node(
             Property::Field {
                 name,
@@ -286,7 +266,6 @@ impl Parser {
         start: &ParseStart,
         name: Name,
         name_range: ByteRange,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Property>> {
         let Name::Identifier(identifier) = name else {
             return Err(ParserError::unexpected(name_range));
@@ -294,7 +273,7 @@ impl Parser {
 
         let assign_start = self.mark_parse_start();
         self.bump();
-        let default = self.parse_simple_object_field_value(function)?;
+        let default = self.parse_simple_object_field_value()?;
         let value = self.insert_node(Expression::Identifier { name: identifier }, name_range);
         self.tree.set_main_range(value, name_range);
         let value = self.insert_property_default_expression(
@@ -365,10 +344,7 @@ impl Parser {
     /// call()
     /// condition ? yes : no
     /// ```
-    fn parse_simple_object_field_value(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    fn parse_simple_object_field_value(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let token_type = self.peek_token_type();
         if token_type == TokenType::Assign
             || token_type == TokenType::Comma
@@ -378,10 +354,7 @@ impl Parser {
             return Ok(self.recover_missing_expression_here(NodeType::Property));
         }
 
-        self.parse_expression(ExpressionContext {
-            function,
-            ..ExpressionContext::default()
-        })
+        self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())
     }
 
     /// Parse a property.
@@ -403,40 +376,36 @@ impl Parser {
     /// set x(value: int32): void
     /// private static foo(): void
     /// ```
-    pub(crate) fn parse_property(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Property>> {
+    pub(crate) fn parse_property(&mut self) -> ParserResult<LocalNodeId<Property>> {
         let start = self.mark_parse_start();
 
         // spread property
         if self.peek_is(TokenType::Spread) {
             let start = self.mark_parse_start();
             self.bump();
-            let value = self.parse_property_value(function)?;
+            let value = self.parse_property_value()?;
             let property = Property::Spread { value };
             return Ok(self.insert_node(property, self.range_since(&start)));
         }
 
         // modifiers and head
-        let modifiers = self.parse_binding_modifiers(BindingModifierGrammar::Property);
+        let modifiers = self.parse_binding_modifiers(BindingPosition::Property);
         let MemberHead {
             modifiers,
             name,
             name_range,
             role,
             role_range: _,
-            is_async,
-            is_generator,
+            function_modifiers,
             is_method,
             associated_const_name,
-        } = self.parse_member_head(modifiers, MethodRoleGrammar::Ordinary)?;
+        } = self.parse_member_head(modifiers, None)?;
 
         // object fields cannot start with an unnamed call signature
         if name.is_none()
             && role.is_none()
-            && !is_async
-            && !is_generator
+            && function_modifiers.asynchrony == Asynchrony::Sync
+            && !function_modifiers.is_generator
             && self.peek_is(TokenType::OpenParenthesis)
         {
             return Err(ParserError::unexpected(self.peek_token_span()));
@@ -503,16 +472,7 @@ impl Parser {
             } = self.parse_method(
                 NodeType::Property,
                 role,
-                MethodContext {
-                    enclosing_function: function,
-                    space: ParameterSpace::Value,
-                    asynchrony: if is_async {
-                        Asynchrony::Async
-                    } else {
-                        Asynchrony::Sync
-                    },
-                    is_generator,
-                },
+                function_modifiers,
                 modifiers.is_abstract,
                 modifiers.is_override,
                 true,
@@ -557,11 +517,11 @@ impl Parser {
                     {
                         self.recover_missing_expression_here(NodeType::Property)
                     } else {
-                        self.parse_expression(ExpressionContext {
-                            function,
-                            minimum_precedence: OperatorPrecedence::Assignment,
-                            ..ExpressionContext::default()
-                        })?
+                        self.parse_expression_at(
+                            ExpressionPosition::Value,
+                            ExpressionStop::default(),
+                            OperatorPrecedence::Assignment,
+                        )?
                     };
                     let type_range = self.range_since(&type_start);
                     (Some(value), Some(type_range))
@@ -581,10 +541,7 @@ impl Parser {
                 {
                     self.recover_missing_expression_here(NodeType::Property)
                 } else {
-                    self.parse_expression(ExpressionContext {
-                        function,
-                        ..ExpressionContext::default()
-                    })?
+                    self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?
                 };
                 (Some(default), Some(self.range_since(&assign_start)))
             } else {

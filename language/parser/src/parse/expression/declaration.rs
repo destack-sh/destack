@@ -1,6 +1,5 @@
-use crate::parse::context::{ExpressionContext, StatementPosition};
 use crate::parse::lookahead::DelimiterDepth;
-use crate::parse::{DeclarationHeader, TypeKeywordHeader};
+use crate::parse::{DeclarationHeader, ExpressionPosition, TypeKeywordHeader};
 use crate::{ParseStart, Parser, ParserError, ParserResult, TokenProbe};
 use destack_dir::{
     Asynchrony, Declaration, ExportKind, Expression, Keyword, LocalNodeId, PlaceModifier,
@@ -23,7 +22,7 @@ impl Parser {
     /// Return whether the current tokens start a declaration expression.
     pub(in crate::parse::expression) fn peek_declaration_primary(
         &self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> bool {
         let mut probe = self.cursor.probe(&self.file);
 
@@ -85,7 +84,7 @@ impl Parser {
         };
 
         // direct declaration nouns own malformed statement heads
-        if context.statement == StatementPosition::Direct
+        if position.is_statement()
             && matches!(
                 keyword,
                 Keyword::Struct
@@ -111,9 +110,7 @@ impl Parser {
         // classify declaration nouns from their required continuation
         match keyword {
             Keyword::Let | Keyword::Using => true,
-            Keyword::Const => {
-                probe.scan_const_declaration(context.statement != StatementPosition::Nested)
-            }
+            Keyword::Const => probe.scan_const_declaration(!position.is_nested_statement()),
             Keyword::Struct | Keyword::Enum | Keyword::Interface => {
                 probe.bump();
 
@@ -155,10 +152,10 @@ impl Parser {
     pub(in crate::parse::expression) fn parse_declaration_primary(
         &mut self,
         start: &ParseStart,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let header = self.parse_declaration_header(DeclarationHeader::default())?;
-        let decorators = self.parse_decorators(context.function);
+        let decorators = self.parse_decorators();
         let header = self.parse_declaration_header(header)?;
 
         // parse contextual global after declaration modifiers
@@ -166,7 +163,7 @@ impl Parser {
         {
             let main_range = self.peek_token().range();
             self.bump();
-            let declaration = self.parse_global(start, main_range, header, context.function)?;
+            let declaration = self.parse_global(start, main_range, header)?;
 
             return Ok(self.insert_declaration_expression(start, declaration));
         }
@@ -185,43 +182,37 @@ impl Parser {
                 match const_noun {
                     // const heads the const function form
                     Some(Keyword::Function) => {
-                        let declaration = self.parse_function(start, header, context)?;
+                        let declaration = self.parse_function(start, header, position)?;
                         self.insert_declaration_expression(start, declaration)
                     }
-                    _ => self.parse_let(start, header, context.function)?,
+                    _ => self.parse_let(start, header)?,
                 }
             }
-            Keyword::Using => {
-                self.parse_using(start, header, Asynchrony::Sync, context.function)?
-            }
+            Keyword::Using => self.parse_using(start, header, Asynchrony::Sync)?,
             Keyword::Function | Keyword::Async => {
-                let declaration = self.parse_function(start, header, context)?;
+                let declaration = self.parse_function(start, header, position)?;
                 self.insert_declaration_expression(start, declaration)
             }
             Keyword::Struct | Keyword::Class => {
-                let is_anonymous =
-                    keyword == Keyword::Class && context.statement != StatementPosition::Direct;
-                let declaration =
-                    self.parse_struct_or_class(start, header, is_anonymous, context.function)?;
+                let is_anonymous = keyword == Keyword::Class && !position.is_statement();
+                let declaration = self.parse_struct_or_class(start, header, is_anonymous)?;
                 self.insert_declaration_expression(start, declaration)
             }
             Keyword::Enum => {
-                let declaration = self.parse_enum(start, header, context.function)?;
+                let declaration = self.parse_enum(start, header)?;
                 self.insert_declaration_expression(start, declaration)
             }
             Keyword::Interface => {
-                let declaration =
-                    self.parse_interface(start, header, TypeKind::Structural, context.function)?;
+                let declaration = self.parse_interface(start, header, TypeKind::Structural)?;
                 self.insert_declaration_expression(start, declaration)
             }
             Keyword::Extension => {
-                let declaration = self.parse_extension(start, header, context.function)?;
+                let declaration = self.parse_extension(start, header)?;
                 self.insert_declaration_expression(start, declaration)
             }
             Keyword::Newtype if self.peek_next_keyword() == Some(Keyword::Interface) => {
                 self.bump();
-                let declaration =
-                    self.parse_interface(start, header, TypeKind::Nominal, context.function)?;
+                let declaration = self.parse_interface(start, header, TypeKind::Nominal)?;
                 self.insert_declaration_expression(start, declaration)
             }
             Keyword::Type | Keyword::Readonly | Keyword::Newtype
@@ -231,8 +222,7 @@ impl Parser {
                     self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
                 let type_keyword = TypeKeywordHeader::from_keyword(keyword)
                     .ok_or_else(|| ParserError::unexpected(self.peek_token().range()))?;
-                let declaration =
-                    self.parse_type_alias(start, header, type_keyword, context.function)?;
+                let declaration = self.parse_type_alias(start, header, type_keyword)?;
                 self.insert_declaration_expression(start, declaration)
             }
             _ => return Err(ParserError::unexpected(self.peek_token_span())),

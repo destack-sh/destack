@@ -1,4 +1,4 @@
-use crate::parse::{DecoratorContext, ExpressionContext};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -11,7 +11,9 @@ use destack_dir::{
 fn test_parse_class_expression_with_implements() {
     let test = TestParser::new("class implements Foo {}");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -28,7 +30,9 @@ fn test_parse_class_expression_with_implements() {
 fn test_parse_final_class_expression() {
     let test = TestParser::new("final class Service {}");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -45,7 +49,9 @@ fn test_parse_final_class_expression() {
 fn test_parse_class_expression_with_newline_implements() {
     let test = TestParser::new("class\n  implements Foo\n{}");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -62,7 +68,9 @@ fn test_parse_class_expression_with_newline_implements() {
 fn test_parse_class_expression_with_newline_extends() {
     let test = TestParser::new("class\n  extends Foo<Bar>\n{}");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -85,7 +93,9 @@ fn test_parse_class_expression_with_newline_extends() {
 fn test_parse_unparenthesized_class_expression_with_extends() {
     let test = TestParser::new("class extends TestRepository {}");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -102,7 +112,9 @@ fn test_parse_unparenthesized_class_expression_with_extends() {
 fn test_parse_object_property_named_class_expression_value() {
     let test = TestParser::new("{ useClass: class MyExampleClass {} }");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -126,10 +138,7 @@ fn test_eat_decorator_object_property_named_class_expression_value() {
     let test = TestParser::new("Component({ useClass: class MyExampleClass {} })");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            decorator: DecoratorContext::Head,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::DecoratorHead, ExpressionStop::default())
         .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 1);
@@ -161,7 +170,9 @@ fn test_parse_class_expression_with_generic_implements_clause() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, members, .. }) => {
@@ -184,7 +195,9 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
 }"###,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // <P: Props>(wrapped: ComponentType<P>) => class extends Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
@@ -221,7 +234,9 @@ fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
 }"###,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // <P: Props>(wrapped: React.ComponentType<P>) => class extends React.Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {

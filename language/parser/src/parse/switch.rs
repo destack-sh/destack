@@ -1,5 +1,5 @@
-use crate::parse::context::{ExpressionContext, ExpressionStops, FunctionContext};
 use crate::parse::error::ParserResultExt;
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserError, ParserResult};
 
 use destack_dir::{
@@ -9,21 +9,15 @@ use destack_dir::{
 
 impl Parser {
     /// Parse one switch statement.
-    pub(crate) fn parse_switch(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_switch(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         let keyword_range = self.eat_keyword(Keyword::Switch)?.range();
-        let value = self.parse_parenthesized_expression(ExpressionContext {
-            function,
-            ..ExpressionContext::default()
-        })?;
+        let value = self.parse_parenthesized_expression(ExpressionPosition::Value)?;
 
         // parse the switch cases
         self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)
             .in_node(NodeType::SwitchCase)?;
-        let cases = self.parse_switch_cases(function)?;
+        let cases = self.parse_switch_cases()?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::SwitchCase)?;
 
         // retain the complete switch and its keyword
@@ -37,10 +31,7 @@ impl Parser {
     }
 
     /// Parse switch cases until the closing brace.
-    fn parse_switch_cases(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<Vec<LocalNodeId<SwitchCase>>> {
+    fn parse_switch_cases(&mut self) -> ParserResult<Vec<LocalNodeId<SwitchCase>>> {
         let mut cases = Vec::new();
         let mut has_default = false;
         while self.has_more_tokens() && !self.peek_is(TokenType::CloseBrace) {
@@ -62,9 +53,7 @@ impl Parser {
             }
 
             // parse and retain the next case
-            let case = self
-                .parse_switch_case(function)
-                .in_node(NodeType::SwitchCase)?;
+            let case = self.parse_switch_case().in_node(NodeType::SwitchCase)?;
             if self.tree.get(case).selector == SwitchSelector::Default {
                 has_default = true;
             }
@@ -96,13 +85,10 @@ impl Parser {
     }
 
     /// Parse one switch case.
-    fn parse_switch_case(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<SwitchCase>> {
+    fn parse_switch_case(&mut self) -> ParserResult<LocalNodeId<SwitchCase>> {
         let documentation = self.parse_documentation();
         let decorators = if self.peek_is(TokenType::At) {
-            self.parse_decorators(function)
+            self.parse_decorators()
         } else {
             smallvec::SmallVec::new()
         };
@@ -114,11 +100,8 @@ impl Parser {
             SwitchSelector::Default
         } else {
             self.eat_keyword(Keyword::Case)?;
-            let value = self.parse_expression(ExpressionContext {
-                function,
-                stops: ExpressionStops::SWITCH_COLON,
-                ..ExpressionContext::default()
-            })?;
+            let value =
+                self.parse_expression(ExpressionPosition::Value, ExpressionStop::SWITCH_COLON)?;
             SwitchSelector::Case(value)
         };
         let selector_range = self.range_since(&start);
@@ -137,7 +120,7 @@ impl Parser {
                 continue;
             }
 
-            expressions.push(self.parse_statement(function));
+            expressions.push(self.parse_statement());
             if matches!(
                 self.peek_token_type(),
                 TokenType::Comma | TokenType::Semicolon

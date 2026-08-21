@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -179,10 +179,7 @@ fn test_parse_type_template_literal_with_generic_arguments() {
     let test = TestParser::new("type T = `foo-${Capitalize<K>}`");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = `foo-${Capitalize<K>}`
@@ -215,10 +212,7 @@ fn test_parse_type_template_literal_with_union_interpolation_after_outer_union()
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type Issuer = | "https://oauth.battlenet.com.cn" | `https://${"us" | "eu"}.battle.net/oauth`
@@ -258,10 +252,7 @@ fn test_parse_type_mapped_expression() {
     let test = TestParser::new("type T = { readonly [K in keyof T as `foo-${K}`]-?: T[K] }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { readonly [K in keyof T as `foo-${K}`]-?: T[K] }
@@ -310,10 +301,7 @@ fn test_parse_type_literal_call_signature_with_parameters() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { (num: number): number (str: string): string }
@@ -357,10 +345,7 @@ fn test_parse_type_literal_construct_signature() {
     let test = TestParser::new("type T = { new (x: number): Foo }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { new (x: number): Foo }
@@ -400,10 +385,7 @@ fn test_parse_type_literal_generic_call_overloads() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type Tmp = { <N: number>(num: N): typeof num <S: string>(str: S): typeof str }
@@ -495,10 +477,7 @@ fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type Tmp = { <N: number>(num: N): MyType <S: string>(str: S): MyType }
@@ -534,10 +513,7 @@ const Mapping: (Value extends Field<infer S> ? { readonly [K in keyof S]?: (vari
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -592,10 +568,7 @@ const Mapping
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -624,10 +597,7 @@ fn test_parse_typeof_query_with_readonly_identifier() {
     let test = TestParser::new("type T = typeof readonly");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -648,10 +618,7 @@ fn test_parse_typeof_query_with_type_identifier() {
     let test = TestParser::new("type T = typeof type");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -672,10 +639,7 @@ fn test_parse_typeof_query_with_instantiation() {
     let test = TestParser::new("type A<U> = InstanceType<typeof Array<U>>");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -707,10 +671,7 @@ fn test_parse_typeof_query_instantiation_in_generic_argument() {
     let test = TestParser::new("type T = Callback<typeof something<Type1, Type2>>");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -743,10 +704,7 @@ fn test_parse_typeof_query_with_member_instantiation() {
     let test = TestParser::new("type T<U> = typeof namespace.Factory<U>");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -775,10 +733,7 @@ fn test_parse_typeof_query_missing_operand() {
     let test = TestParser::new("type T = typeof");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
@@ -799,10 +754,7 @@ fn test_parse_keyof_query_missing_operand() {
     let test = TestParser::new("type T = keyof");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_errors(&parser, &[(Some(NodeType::TypeExpression), None, None, "")]);
@@ -822,10 +774,7 @@ fn test_parse_type_literal_abstract_construct_signature() {
     let test = TestParser::new("type T = { abstract new (x: number): Foo }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { abstract new (x: number): Foo }
@@ -846,10 +795,7 @@ fn test_parse_type_literal_index_signature() {
     let test = TestParser::new("type T = { readonly [k: string]?: Foo }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { readonly [k: string]?: Foo }
@@ -876,10 +822,7 @@ fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
     let test = TestParser::new("type T = string | { [x: string | number]: unknown }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = string | { [x: string | number]: unknown }
@@ -924,10 +867,7 @@ topic: string
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { [topic: string]: number }
@@ -954,10 +894,7 @@ fn test_parse_type_literal_readonly_property_name() {
     let test = TestParser::new("type T = { readonly?: boolean }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { readonly?: boolean }
@@ -993,10 +930,7 @@ fn test_parse_type_literal_static_members() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { static value: string; static call(): number }
@@ -1042,10 +976,7 @@ fn test_parse_type_literal_static_property_name() {
     let test = TestParser::new("type T = { static?: boolean }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { static?: boolean }
@@ -1076,10 +1007,7 @@ fn test_parse_intrinsic_type_alias() {
     let test = TestParser::new("type Uppercase<S: string> = intrinsic");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -1097,10 +1025,7 @@ fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
     let test = TestParser::new("type Uppercase<S: string> = intrinsic<string>");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -1126,10 +1051,7 @@ fn test_parse_symbol_type_as_reference() {
     let test = TestParser::new("type Token = symbol");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -1150,10 +1072,7 @@ fn test_parse_generic_arrow_function_type() {
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type ClassDecorator = <TFunction: Function>(target: TFunction) => TFunction | void
@@ -1170,10 +1089,7 @@ fn test_parse_type_arrow_with_conditional_return() {
     let test = TestParser::declaration("type T = <X>() => X extends A | B ? true : false");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = <X>() => X extends A | B ? true : false
@@ -1198,10 +1114,7 @@ fn test_parse_type_nested_conditional_with_arrows() {
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type StrictEqual<L, R> = ... ? IsNever<L> extends IsNever<R> ? true : false : false
@@ -1226,10 +1139,7 @@ fn test_parse_type_member_generic_arrow_complex_constraint() {
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { method: <...>(...) => true }
@@ -1254,10 +1164,7 @@ fn test_parse_nested_generic_reference_with_literal_argument() {
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -1288,10 +1195,7 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -1354,9 +1258,7 @@ fn test_parse_generic_parameter_nested_conditional_constraint_with_trailing_comm
 >"#;
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let generic_parameters = parser
-        .parse_generic_parameter_list(false, Default::default())
-        .unwrap();
+    let generic_parameters = parser.parse_generic_parameter_list(false).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -1387,10 +1289,7 @@ fn test_parse_function_type_nested_conditional_constraint() {
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -1447,10 +1346,7 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -1517,10 +1413,7 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -1589,10 +1482,7 @@ fn test_parse_type_member_generic_arrow_conditional_constraint_before_parameter_
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -1647,10 +1537,7 @@ fn test_parse_type_literal_where_field_after_function_type() {
     let test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { setSelectedFields: (fields: FieldOption[]) => void; where?: Where }
@@ -1685,10 +1572,7 @@ fn test_parse_type_generic_arrow_in_generic_arguments() {
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = Extends<arrow1, arrow2>
@@ -1708,10 +1592,7 @@ fn test_parse_type_path_empty_generic_arguments_recovers_error_slot() {
     let test = TestParser::new("type T = Container<>");
     let mut parser = test.prepare();
     let expression_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
@@ -1733,10 +1614,7 @@ fn test_parse_type_literal_call_signature() {
     let test = TestParser::new("type T = { (): string }");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = { (): string }
@@ -1759,10 +1637,7 @@ fn test_parse_type_template_literal() {
     let test = TestParser::new("type T = `foo-${Bar}`");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = `foo-${Bar}`

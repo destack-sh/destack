@@ -1,5 +1,4 @@
-use crate::parse::context::{FunctionContext, TypeContext};
-use crate::parse::{DeclarationHeader, TypeKeywordHeader};
+use crate::parse::{DeclarationHeader, TypeKeywordHeader, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
@@ -25,7 +24,7 @@ impl Parser {
     pub(crate) fn parse_type_declaration(
         &mut self,
         start: &ParseStart,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let keyword_start = self.mark_parse_start();
         let keyword = self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
@@ -38,7 +37,7 @@ impl Parser {
             return Err(ParserError::unexpected(self.peek_token_span()));
         }
 
-        self.parse_type_keyword_body(start, keyword_range, type_keyword, context)
+        self.parse_type_keyword_body(start, keyword_range, type_keyword, stop)
     }
 
     /// Return true when the current identifier head starts a type alias.
@@ -91,12 +90,11 @@ impl Parser {
         start: &ParseStart,
         header: DeclarationHeader,
         type_keyword: TypeKeywordHeader,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
         let (name, name_range) = self.eat_name_with_range()?;
         let generic_parameter_container_start = self.mark_parse_start();
         let generic_parameters = self
-            .parse_generic_parameters_if_present(true, function)?
+            .parse_generic_parameters_if_present(true)?
             .unwrap_or_default();
         let generic_parameter_container_range = (!generic_parameters.is_empty())
             .then(|| self.range_since(&generic_parameter_container_start));
@@ -105,10 +103,7 @@ impl Parser {
         self.eat_token(TokenType::Assign)?;
 
         // alias value
-        let value_id = self.parse_type_alias_value(TypeContext {
-            function,
-            ..TypeContext::default()
-        })?;
+        let value_id = self.parse_type_alias_value(TypeStop::default())?;
 
         // declaration node
         let declaration = Declaration::Type(TypeDeclaration {
@@ -148,9 +143,9 @@ impl Parser {
         start: &ParseStart,
         keyword_range: ByteRange,
         type_keyword: TypeKeywordHeader,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let right = self.parse_type(context.nested())?;
+        let right = self.parse_type(TypePosition::Type, stop.nest())?;
         if type_keyword.mutability != Some(Mutability::Immutable) {
             return Ok(right);
         }
@@ -174,9 +169,9 @@ impl Parser {
     /// ```
     fn parse_type_alias_value(
         &mut self,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let value = self.parse_type(context.nested())?;
+        let value = self.parse_type(TypePosition::Type, stop.nest())?;
 
         // reject optional type suffixes outside tuple and parameter heads
         if self.peek_is(TokenType::Maybe) {

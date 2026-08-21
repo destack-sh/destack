@@ -1,4 +1,4 @@
-use crate::parse::context::{ExpressionContext, FunctionContext};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{ParseStart, Parser, ParserResult};
 use destack_dir::{Condition, Expression, IfForm, Keyword, LocalNodeId, TokenType};
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
@@ -28,19 +28,16 @@ impl Parser {
     /// ```ds
     /// if (ready) run() else wait()
     /// ```
-    pub(crate) fn parse_if(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let head = self.parse_if_head(function)?;
-        let then_expression = self.parse_control_body(function)?;
-        let else_clause = self.parse_else_clause(function)?;
+    pub(crate) fn parse_if(&mut self) -> ParserResult<LocalNodeId<Expression>> {
+        let head = self.parse_if_head()?;
+        let then_expression = self.parse_control_body()?;
+        let else_clause = self.parse_else_clause()?;
 
         Ok(self.insert_if_expression(head, then_expression, else_clause))
     }
 
     /// Parse an optional else expression for an if expression.
-    fn parse_else_clause(&mut self, function: FunctionContext) -> ParserResult<Option<ElseClause>> {
+    fn parse_else_clause(&mut self) -> ParserResult<Option<ElseClause>> {
         if !self.peek_else_after_semicolons() {
             return Ok(None);
         }
@@ -51,9 +48,9 @@ impl Parser {
         let else_range = self.peek_token_span().span.range();
         self.eat_keyword(Keyword::Else)?;
         let expression = if self.peek_is_keyword(Keyword::If) {
-            self.parse_if(function)?
+            self.parse_if()?
         } else {
-            self.parse_control_body(function)?
+            self.parse_control_body()?
         };
 
         Ok(Some(ElseClause {
@@ -73,17 +70,15 @@ impl Parser {
     }
 
     /// Parse one if head.
-    fn parse_if_head(&mut self, function: FunctionContext) -> ParserResult<IfHead> {
+    fn parse_if_head(&mut self) -> ParserResult<IfHead> {
         let start = self.mark_parse_start();
 
         // keyword
         let keyword_range = self.eat_keyword(Keyword::If)?.range();
 
         // condition
-        let condition = self.parse_parenthesized_condition(ExpressionContext {
-            function,
-            ..ExpressionContext::default()
-        })?;
+        let condition = self
+            .parse_parenthesized_condition(ExpressionPosition::Value, ExpressionStop::default())?;
 
         Ok(IfHead {
             start,

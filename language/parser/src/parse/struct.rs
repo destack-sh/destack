@@ -1,5 +1,4 @@
 use crate::parse::DeclarationHeader;
-use crate::parse::context::FunctionContext;
 use crate::parse::error::ParserResultExt;
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
@@ -21,7 +20,6 @@ impl Parser {
         start: &ParseStart,
         header: DeclarationHeader,
         allow_anonymous_class: bool,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
         // struct or class
         let keyword = self
@@ -49,7 +47,7 @@ impl Parser {
         // <parameters>
         let generic_parameter_container_start = self.mark_parse_start();
         let generic_parameters = self
-            .parse_generic_parameters_if_present(false, function)
+            .parse_generic_parameters_if_present(false)
             .in_node(NodeType::Declaration)?;
         let generic_parameter_container_range = generic_parameters
             .as_ref()
@@ -62,10 +60,10 @@ impl Parser {
             None
         };
         let extends_clause = if is_class {
-            self.parse_extends_types_if_present(function)
+            self.parse_extends_types_if_present()
                 .in_node(NodeType::Declaration)?
         } else if unexpected_extends_range.is_some() {
-            self.parse_extends_types_if_present(function)
+            self.parse_extends_types_if_present()
                 .in_node(NodeType::Declaration)?;
             None
         } else {
@@ -77,18 +75,16 @@ impl Parser {
 
         // implements Trait
         let implements_types = self
-            .parse_implements_types_if_present(function)
+            .parse_implements_types_if_present()
             .in_node(NodeType::Declaration)?;
 
         // where constraints
-        let where_clauses = self
-            .parse_where_clauses(function)
-            .in_node(NodeType::Declaration)?;
+        let where_clauses = self.parse_where_clauses().in_node(NodeType::Declaration)?;
 
         // { members }
         self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)
             .in_node(NodeType::Declaration)?;
-        let members = self.parse_members(function)?;
+        let members = self.parse_members()?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
         // struct or class

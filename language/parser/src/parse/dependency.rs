@@ -1,4 +1,4 @@
-use crate::parse::context::{ExpressionContext, FunctionContext};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserError, ParserResult};
 
 use destack_core::StringId;
@@ -32,10 +32,7 @@ impl Parser {
     /// import Default, { Item } from "foo"
     /// import foo as baz with { bar: true }
     /// ```
-    pub(crate) fn parse_import(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_import(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
 
         // keyword
@@ -48,7 +45,7 @@ impl Parser {
 
         // binding
         let items = if self.peek_dependency_binding() {
-            Some(self.parse_dependency_items(false, function)?)
+            Some(self.parse_dependency_items(false)?)
         } else {
             None
         };
@@ -61,7 +58,7 @@ impl Parser {
         let (target, target_range) = self.eat_dependency_target_with_range()?;
 
         // arguments
-        let import_clause = self.parse_import_clause(function)?;
+        let import_clause = self.parse_import_clause()?;
         let attributes = import_clause
             .as_ref()
             .map(|import_clause| import_clause.clause.clone());
@@ -129,10 +126,7 @@ impl Parser {
     /// export { bar as bar, baz }
     /// export default foo
     /// ```
-    pub(crate) fn parse_export(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
+    pub(crate) fn parse_export(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
 
         self.eat_keyword(Keyword::Export)?;
@@ -146,10 +140,8 @@ impl Parser {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
-            let value = self.parse_expression(ExpressionContext {
-                function,
-                ..ExpressionContext::default()
-            })?;
+            let value =
+                self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
             let item = self.insert_node(
                 DependencyItem::Binding {
                     binding: DependencyBinding::Default,
@@ -196,7 +188,7 @@ impl Parser {
             // required module target
             self.eat_keyword(Keyword::From)?;
             let (target, target_range) = self.eat_dependency_target_with_range()?;
-            let import_clause = self.parse_import_clause(function)?;
+            let import_clause = self.parse_import_clause()?;
             let attributes = import_clause
                 .as_ref()
                 .map(|import_clause| import_clause.clause.clone());
@@ -238,7 +230,7 @@ impl Parser {
         }
 
         // binding
-        let items = self.parse_dependency_items(true, function)?;
+        let items = self.parse_dependency_items(true)?;
 
         // optional target for named exports
         let has_from_target = self.peek_is_keyword(Keyword::From);
@@ -252,7 +244,7 @@ impl Parser {
 
         // assertions or attributes
         let import_clause = if target.is_some() {
-            self.parse_import_clause(function)?
+            self.parse_import_clause()?
         } else {
             None
         };
@@ -372,10 +364,7 @@ impl Parser {
     }
 
     /// Parse dependency arguments for import/export attributes.
-    fn parse_import_clause(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<Option<ImportClause>> {
+    fn parse_import_clause(&mut self) -> ParserResult<Option<ImportClause>> {
         // attribute clause head
         if !self.peek_is_keyword(Keyword::With) {
             return Ok(None);
@@ -386,17 +375,14 @@ impl Parser {
 
         // parse the attribute clause body
         self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)?;
-        let context = ExpressionContext {
-            function,
-            ..ExpressionContext::default()
-        };
         let mut attributes = Vec::new();
         let mut attribute_ranges = Vec::new();
         while self.has_more_tokens() && !self.peek_is(TokenType::CloseBrace) {
             let attribute_start = self.mark_parse_start();
             let (key, _) = self.eat_name_with_range()?;
             self.eat_token(TokenType::Colon)?;
-            let value = self.parse_expression(context.nested())?;
+            let value =
+                self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
             let value = self.decode_import_attribute_value(value)?;
 
             attributes.push(ImportAttribute { key, value });
@@ -495,7 +481,6 @@ impl Parser {
     fn parse_dependency_items(
         &mut self,
         allow_literal_alias: bool,
-        function: FunctionContext,
     ) -> ParserResult<Vec<LocalNodeId<DependencyItem>>> {
         let mut items: Vec<LocalNodeId<DependencyItem>> = Vec::new();
 
@@ -563,7 +548,7 @@ impl Parser {
             while !self.peek_is(TokenType::CloseBrace) {
                 let item_start = self.mark_parse_start();
                 let documentation = self.parse_documentation();
-                let decorators = self.parse_decorators(function);
+                let decorators = self.parse_decorators();
 
                 let item = match self.parse_dependency_item(allow_literal_alias) {
                     Ok(item) => item,

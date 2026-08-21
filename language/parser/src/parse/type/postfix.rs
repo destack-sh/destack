@@ -1,4 +1,4 @@
-use crate::parse::context::{ExpressionContext, TypeContext, TypeMode};
+use crate::parse::{ExpressionPosition, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
@@ -34,7 +34,8 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         mut left: LocalNodeId<TypeExpression>,
-        context: TypeContext,
+        position: TypePosition,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         loop {
             // stop before tokens that cannot continue one type operand
@@ -55,16 +56,16 @@ impl Parser {
             // parse one postfix operation without recursive descent
             let is_on_new_line = self.peek_is_on_new_line();
             let next = match token_type {
-                TokenType::OpenBracket => Some(self.parse_type_index_postfix(left, context)?),
-                TokenType::OpenParenthesis if context.mode != TypeMode::NewReceiver => {
-                    self.parse_type_static_call_postfix(start, left, context)?
+                TokenType::OpenBracket => Some(self.parse_type_index_postfix(left, stop)?),
+                TokenType::OpenParenthesis if position != TypePosition::NewReceiver => {
+                    self.parse_type_static_call_postfix(start, left)?
                 }
-                TokenType::Dot => Some(self.parse_type_member_postfix(start, left, context)?),
+                TokenType::Dot => Some(self.parse_type_member_postfix(start, left)?),
                 TokenType::Not if !is_on_new_line => {
                     Some(self.parse_type_must_postfix(start, left))
                 }
                 TokenType::LessThan | TokenType::ShiftLeft if !is_on_new_line => {
-                    self.parse_type_generic_postfix(start, left, context)?
+                    self.parse_type_generic_postfix(start, left)?
                 }
                 _ => None,
             };
@@ -84,7 +85,6 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         left: LocalNodeId<TypeExpression>,
-        context: TypeContext,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         let Some(head) = self.promote_type_value_head(left) else {
             return Ok(None);
@@ -93,10 +93,7 @@ impl Parser {
             head.expression,
             head.generic_arguments,
             PostfixPosition::Direct,
-            ExpressionContext {
-                function: context.function,
-                ..ExpressionContext::default()
-            },
+            ExpressionPosition::Value,
             false,
         )?;
         let ty = self.insert_node(
@@ -260,7 +257,6 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         left: LocalNodeId<TypeExpression>,
-        context: TypeContext,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         let previous_head_range = self.tree.get_head_range(left);
         let previous_main_range = self.tree.get_main_range(left);
@@ -273,7 +269,7 @@ impl Parser {
             _ => return Ok(None),
         };
 
-        let generic_arguments = self.parse_type_generic_arguments(context)?;
+        let generic_arguments = self.parse_type_generic_arguments()?;
         let ty = match head {
             TypeGenericHead::Reference(path) => TypeExpression::Reference {
                 path,
@@ -301,12 +297,11 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         left: LocalNodeId<TypeExpression>,
-        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::Dot)?;
         let (name, name_range) = self.eat_member_name_with_range()?;
         let generic_arguments = if self.peek_type_generic_arguments() {
-            self.parse_type_generic_arguments(context)?
+            self.parse_type_generic_arguments()?
         } else {
             Vec::new()
         };
@@ -327,7 +322,7 @@ impl Parser {
     fn parse_type_index_postfix(
         &mut self,
         left: LocalNodeId<TypeExpression>,
-        context: TypeContext,
+        stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let start = self.mark_parse_start();
         self.eat_token(TokenType::OpenBracket)?;
@@ -351,7 +346,7 @@ impl Parser {
         let index = if self.peek_type_expression_recovery_boundary() {
             self.recover_missing_type_expression_here(NodeType::TypeExpression)
         } else {
-            self.parse_type(context.nested())?
+            self.parse_type(TypePosition::Type, stop.nest())?
         };
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
         let left_range = self.tree.get_range(left);

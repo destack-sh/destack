@@ -1,7 +1,7 @@
 use crate::parse::error::ParserResultExt;
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
 
-use crate::parse::context::ExpressionContext;
 use crate::{ParseStart, Parser, ParserResult};
 
 impl Parser {
@@ -9,7 +9,7 @@ impl Parser {
     pub(crate) fn parse_bracket_literal(
         &mut self,
         start: &ParseStart,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<LocalNodeId<Expression>> {
         self.eat_token(TokenType::OpenBracket)?;
 
@@ -23,7 +23,7 @@ impl Parser {
         }
 
         if self.peek_is(TokenType::Comma) {
-            let elements = self.parse_array_elements(None, context.nested())?;
+            let elements = self.parse_array_elements(None, position.nested())?;
             self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
 
             return Ok(self.insert_node(
@@ -35,8 +35,11 @@ impl Parser {
         if self.peek_is(TokenType::Semicolon) {
             let value = self.recover_missing_expression_here(NodeType::Expression);
             self.bump();
-            let length =
-                self.parse_expression_or_recover_missing(context.nested(), NodeType::Expression)?;
+            let length = self.parse_expression_or_recover_missing(
+                position.nested(),
+                ExpressionStop::default(),
+                NodeType::Expression,
+            )?;
             self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
 
             return Ok(self.insert_node(
@@ -45,14 +48,17 @@ impl Parser {
             ));
         }
 
-        let first = self.parse_positional_argument(context.nested())?;
+        let first = self.parse_positional_argument(position.nested())?;
         if self.peek_is(TokenType::Semicolon)
             && let Argument::Positional { value } = self.tree.get(first)
         {
             let value = *value;
             self.bump();
-            let length =
-                self.parse_expression_or_recover_missing(context.nested(), NodeType::Expression)?;
+            let length = self.parse_expression_or_recover_missing(
+                position.nested(),
+                ExpressionStop::default(),
+                NodeType::Expression,
+            )?;
             self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
 
             return Ok(self.insert_node(
@@ -61,7 +67,7 @@ impl Parser {
             ));
         }
 
-        let elements = self.parse_array_elements(Some(first), context.nested())?;
+        let elements = self.parse_array_elements(Some(first), position.nested())?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
 
         Ok(self.insert_node(
@@ -74,13 +80,13 @@ impl Parser {
     #[cfg(test)]
     pub(crate) fn parse_array_literal(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<Vec<LocalNodeId<Argument>>> {
         self.eat_token(TokenType::OpenBracket)?;
         let elements = if self.peek_is(TokenType::CloseBracket) {
             vec![]
         } else {
-            self.parse_array_elements(None, context.nested())?
+            self.parse_array_elements(None, position.nested())?
         };
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
         Ok(elements)
@@ -90,7 +96,7 @@ impl Parser {
     fn parse_array_elements(
         &mut self,
         first_element: Option<LocalNodeId<Argument>>,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<Vec<LocalNodeId<Argument>>> {
         let mut elements = Vec::new();
         if let Some(first) = first_element {
@@ -125,7 +131,7 @@ impl Parser {
 
             // keep eating elements (positional/spread only)
             let element = self
-                .parse_positional_argument(context)
+                .parse_positional_argument(position)
                 .in_node(NodeType::Argument)?;
 
             elements.push(element);

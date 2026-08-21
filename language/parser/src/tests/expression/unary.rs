@@ -1,5 +1,5 @@
 use crate::tests::TestParser;
-use crate::{assert_expression_path, assert_node, assert_path};
+use crate::{ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_path};
 use destack_dir::{
     BinaryOperator, Expression, Mutability, NodeType, ScalarLiteral, TokenType, TypeExpression,
     UnaryOperator, VarianceBound,
@@ -10,7 +10,9 @@ use destack_dir::{
 fn test_parse_unary_operator_span() {
     let test = TestParser::new("-value");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
@@ -28,7 +30,9 @@ fn test_parse_unary_operator_span() {
 fn test_parse_unary_postfix_operator_span() {
     let test = TestParser::new("value++");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::PostIncrement);
@@ -113,7 +117,9 @@ fn test_parse_parenthesized_unary_exponent_operands() {
 fn test_parse_unary_negate_allows_newline_before_operand() {
     let test = TestParser::new("-\n1");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
@@ -125,7 +131,9 @@ fn test_parse_unary_negate_allows_newline_before_operand() {
 fn test_parse_unary_negate_allows_line_comment_before_operand() {
     let test = TestParser::new("-// comment\n1");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
@@ -138,7 +146,9 @@ fn test_parse_unary_negate_allows_line_comment_before_operand() {
 fn test_parse_unary_negate_preserves_parenthesized_comment_wrapper() {
     let test = TestParser::new("-(/* comment */ 1)");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
@@ -158,7 +168,9 @@ fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {
     let test =
         TestParser::new("await (new Promise<void>(resolve => setTimeout(() => resolve(), delay)))");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // await (new Promise<void>(...))
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {
@@ -179,7 +191,9 @@ fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {
 fn test_parse_mixed_prefix_and_postfix_increment_decrement() {
     let test = TestParser::new("(a++ + ++a) * (b-- - --b)");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
         crate::assert_parenthesized!(parser.tree, *left, expression => {
@@ -219,7 +233,9 @@ fn test_parse_mixed_prefix_and_postfix_increment_decrement() {
 fn test_parse_dereference_variable() {
     let test = TestParser::new("*x");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Dereference);
         assert_expression_path!(parser, parser.tree.get(*right), "x");
@@ -229,7 +245,9 @@ fn test_parse_dereference_variable() {
 fn test_parse_reference_variable() {
     let test = TestParser::new("&x");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability: Some(mutability), variance: None, right } => {
         assert_eq!(*mutability, Mutability::Mutable);
         assert_expression_path!(parser, parser.tree.get(*right), "x");
@@ -241,7 +259,9 @@ fn test_parse_reference_variable() {
 fn test_parse_reference_chain_compact() {
     let test = TestParser::new("&&value");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability, variance, right } => {
         assert_eq!(*mutability, Some(Mutability::Mutable));
@@ -261,7 +281,9 @@ fn test_parse_reference_chain_compact() {
 fn test_parse_reference_member_call() {
     let test = TestParser::new("&self.foo()");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability: Some(Mutability::Mutable), variance: None, right } => {
         assert_node!(parser.tree, *right, Expression::Call { left, generic_arguments: _, arguments, .. } => {
             assert!(arguments.is_empty());
@@ -275,7 +297,9 @@ fn test_parse_reference_member_call() {
 fn test_parse_bound_reference_expression() {
     let test = TestParser::new("&readonly super T");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability: Some(mutability), variance, right } => {
         assert_eq!(*mutability, Mutability::Immutable);
         assert_eq!(*variance, Some(VarianceBound::Super));
@@ -288,7 +312,9 @@ fn test_parse_bound_reference_expression() {
 fn test_parse_new_constructor_call() {
     let test = TestParser::new("new Foo()");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::New { ty, arguments } => {
         assert_expression_path!(parser, parser.tree.get(*ty), "Foo");
         assert!(arguments.is_empty());

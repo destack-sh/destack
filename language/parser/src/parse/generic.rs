@@ -5,32 +5,17 @@ use destack_dir::{
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
-use crate::parse::TokenMode;
-use crate::parse::context::{
-    DecoratorContext, ExpressionContext, ExpressionStops, FunctionContext, ParameterContext,
-    TypeContext, TypeStops,
-};
 use crate::parse::expression::operator::ExpressionOperator;
+use crate::parse::{ExpressionPosition, ExpressionStop, TokenMode, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 /// The closing-token policy of one generic argument list.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum GenericClose {
-    /// Require one expression-context closing angle.
+    /// Require one literal closing angle.
     Expression,
     /// Accept contextual type closing angles.
     Type,
-}
-
-/// Rules shared by every item in one generic argument list.
-#[derive(Debug, Copy, Clone)]
-struct GenericArgumentContext {
-    /// Function rules inherited by argument expressions.
-    function: FunctionContext,
-    /// The closing-token policy.
-    close: GenericClose,
-    /// Whether an empty list recovers one error argument.
-    is_empty_recoverable: bool,
 }
 
 impl Parser {
@@ -108,7 +93,6 @@ impl Parser {
     /// Parse one mixed generic argument node.
     fn parse_generic_argument(
         &mut self,
-        context: GenericArgumentContext,
         start: &ParseStart,
     ) -> ParserResult<LocalNodeId<GenericArgument>> {
         let is_spread = self.peek_is(TokenType::Spread);
@@ -118,7 +102,7 @@ impl Parser {
 
         // spread call expressions are value packs
         if is_spread && self.peek_token_type_at(1) == TokenType::OpenParenthesis {
-            return self.parse_static_value_argument(true, context, start);
+            return self.parse_static_value_argument(true, start);
         }
 
         // associated type refinement
@@ -130,11 +114,7 @@ impl Parser {
             self.eat_keyword(Keyword::Type)?;
             let name = self.eat_identifier()?;
             self.eat_token(TokenType::Assign)?;
-            let value = self.parse_type(TypeContext {
-                function: context.function,
-                stops: TypeStops::ANGLE_CLOSE,
-                ..TypeContext::default()
-            })?;
+            let value = self.parse_type(TypePosition::Type, TypeStop::ANGLE_CLOSE)?;
             let argument = GenericArgument::AssociatedType { name, value };
 
             return Ok(self.insert_node(argument, self.range_since(start)));
@@ -149,11 +129,7 @@ impl Parser {
             self.eat_keyword(Keyword::Const)?;
             let name = self.eat_identifier()?;
             self.eat_token(TokenType::Assign)?;
-            let value = self.parse_type(TypeContext {
-                function: context.function,
-                stops: TypeStops::ANGLE_CLOSE,
-                ..TypeContext::default()
-            })?;
+            let value = self.parse_type(TypePosition::Type, TypeStop::ANGLE_CLOSE)?;
             let argument = GenericArgument::AssociatedConst { name, value };
 
             return Ok(self.insert_node(argument, self.range_since(start)));
@@ -162,11 +138,7 @@ impl Parser {
         // explicit type-space argument
         if self.peek_is_keyword(Keyword::Type) {
             self.eat_keyword(Keyword::Type)?;
-            let value = self.parse_type(TypeContext {
-                function: context.function,
-                stops: TypeStops::ANGLE_CLOSE,
-                ..TypeContext::default()
-            })?;
+            let value = self.parse_type(TypePosition::Type, TypeStop::ANGLE_CLOSE)?;
             let argument = if is_spread {
                 GenericArgument::SpreadType { value }
             } else {
@@ -178,11 +150,7 @@ impl Parser {
 
         // classify the whole argument without speculative parsing
         if self.peek_generic_argument_type() {
-            let value = self.parse_type(TypeContext {
-                function: context.function,
-                stops: TypeStops::ANGLE_CLOSE,
-                ..TypeContext::default()
-            })?;
+            let value = self.parse_type(TypePosition::Type, TypeStop::ANGLE_CLOSE)?;
             let argument = if is_spread {
                 GenericArgument::SpreadType { value }
             } else {
@@ -193,22 +161,18 @@ impl Parser {
         }
 
         // otherwise parse the argument in value space
-        self.parse_static_value_argument(is_spread, context, start)
+        self.parse_static_value_argument(is_spread, start)
     }
 
     /// Parse one value-shaped generic argument as a static type argument.
     fn parse_static_value_argument(
         &mut self,
         is_spread: bool,
-        context: GenericArgumentContext,
         start: &ParseStart,
     ) -> ParserResult<LocalNodeId<GenericArgument>> {
         let expression_start = self.mark_parse_start();
-        let expression = self.parse_expression(ExpressionContext {
-            function: context.function,
-            stops: ExpressionStops::ANGLE_CLOSE,
-            ..ExpressionContext::default()
-        })?;
+        let expression =
+            self.parse_expression(ExpressionPosition::Value, ExpressionStop::ANGLE_CLOSE)?;
         let value = self.insert_static_value_type(expression, &expression_start);
         let argument = if is_spread {
             GenericArgument::SpreadType { value }
@@ -232,17 +196,9 @@ impl Parser {
     }
 
     /// Parse one generic parameter in a generic parameter list.
-    fn parse_generic_parameter(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<GenericParameter>> {
+    fn parse_generic_parameter(&mut self) -> ParserResult<LocalNodeId<GenericParameter>> {
         let documentation = self.parse_documentation();
         let start = self.mark_parse_start();
-        let parameter_context = ParameterContext {
-            function,
-            ..ParameterContext::default()
-        };
-
         // generic parameters accept only the dedicated generic modifiers
         let mut variance = None;
         let mut is_const = false;
@@ -305,7 +261,7 @@ impl Parser {
 
             (name, range)
         } else {
-            self.eat_binding_identifier_with_range(function)?
+            self.eat_binding_identifier_with_range()?
         };
 
         let has_annotation = self.peek_is(TokenType::Colon);
@@ -320,7 +276,7 @@ impl Parser {
             {
                 self.recover_missing_type_expression_here(NodeType::GenericParameter)
             } else {
-                self.parse_parameter_type(parameter_context, TypeStops::ANGLE_CLOSE)?
+                self.parse_parameter_type(TypeStop::ANGLE_CLOSE)?
             };
             (Some(declared_type), Some(self.range_since(&type_start)))
         } else {
@@ -341,12 +297,14 @@ impl Parser {
             }
             // classify the default by its own shape, like a generic argument
             else if self.peek_generic_argument_type() {
-                self.parse_parameter_type(parameter_context, TypeStops::ANGLE_CLOSE)?
+                self.parse_parameter_type(TypeStop::ANGLE_CLOSE)?
             }
             // every other default parses in value space and wraps as a static value type
             else {
-                let expression =
-                    self.parse_parameter_default(parameter_context, ExpressionStops::ANGLE_CLOSE)?;
+                let expression = self.parse_parameter_default(
+                    ExpressionPosition::Value,
+                    ExpressionStop::ANGLE_CLOSE,
+                )?;
 
                 self.insert_static_value_type(expression, &default_start)
             };
@@ -394,16 +352,12 @@ impl Parser {
     pub(crate) fn parse_generic_parameters_if_present(
         &mut self,
         is_empty_allowed: bool,
-        function: FunctionContext,
     ) -> ParserResult<Option<Vec<LocalNodeId<GenericParameter>>>> {
         if !self.peek_is(TokenType::LessThan) {
             return Ok(None);
         }
 
-        Ok(Some(self.parse_generic_parameter_list(
-            is_empty_allowed,
-            function,
-        )?))
+        Ok(Some(self.parse_generic_parameter_list(is_empty_allowed)?))
     }
 
     /// Parse generic parameters, including the `<` and `>` tokens.
@@ -412,7 +366,6 @@ impl Parser {
     pub(crate) fn parse_generic_parameter_list(
         &mut self,
         is_empty_allowed: bool,
-        function: FunctionContext,
     ) -> ParserResult<Vec<LocalNodeId<GenericParameter>>> {
         let start = self.mark_parse_start();
         self.eat_token(TokenType::LessThan)?;
@@ -437,7 +390,7 @@ impl Parser {
             }
 
             let parameter = self
-                .parse_generic_parameter(function)
+                .parse_generic_parameter()
                 .in_node(NodeType::GenericParameter)?;
             parameters.push(parameter);
 
@@ -472,23 +425,17 @@ impl Parser {
     /// ```
     pub(crate) fn parse_type_generic_arguments(
         &mut self,
-        context: TypeContext,
     ) -> ParserResult<Vec<LocalNodeId<GenericArgument>>> {
         let start = self.mark_parse_start();
 
         self.eat_generic_angle_open()?;
 
         let first_argument_leading_start = self.peek_previous_token_end();
-        let argument_context = GenericArgumentContext {
-            function: context.function,
-            close: GenericClose::Type,
-            is_empty_recoverable: true,
+        let generic_arguments = if self.peek_type_angle_close() {
+            vec![self.recover_empty_generic_argument(&start)]
+        } else {
+            self.parse_generic_argument_list_body(first_argument_leading_start)?
         };
-        let generic_arguments = self.parse_generic_argument_contents(
-            &start,
-            first_argument_leading_start,
-            argument_context,
-        )?;
 
         self.eat_type_angle_close_or_recover_missing(NodeType::Expression)?;
 
@@ -522,32 +469,6 @@ impl Parser {
         ))
     }
 
-    /// Parse generic argument contents after the opening angle.
-    fn parse_generic_argument_contents(
-        &mut self,
-        start: &ParseStart,
-        first_argument_leading_start: u32,
-        context: GenericArgumentContext,
-    ) -> ParserResult<Vec<LocalNodeId<GenericArgument>>> {
-        let is_empty = if context.is_empty_recoverable {
-            self.peek_type_angle_close()
-        } else {
-            self.peek_expression_type_angle_close()
-        };
-        if !is_empty {
-            return self.parse_generic_argument_list_body(first_argument_leading_start, context);
-        }
-
-        if context.is_empty_recoverable {
-            Ok(vec![self.recover_empty_generic_argument(start)])
-        } else {
-            Err(ParserError::expected(
-                self.range_since(start),
-                TokenType::Identifier,
-            ))
-        }
-    }
-
     /// Recover one empty generic argument list as an error argument.
     fn recover_empty_generic_argument(
         &mut self,
@@ -566,7 +487,6 @@ impl Parser {
     fn parse_generic_argument_list_body(
         &mut self,
         mut next_argument_leading_start: u32,
-        context: GenericArgumentContext,
     ) -> ParserResult<Vec<LocalNodeId<GenericArgument>>> {
         let mut arguments = smallvec::SmallVec::<[LocalNodeId<GenericArgument>; 4]>::new();
 
@@ -580,7 +500,7 @@ impl Parser {
             let documentation = self.parse_documentation();
             let argument_start = self.mark_parse_start();
             let mut is_recovered_argument = false;
-            let argument_id = match self.parse_generic_argument(context, &argument_start) {
+            let argument_id = match self.parse_generic_argument(&argument_start) {
                 Ok(argument) => argument,
                 Err(error) => {
                     is_recovered_argument = true;
@@ -619,32 +539,32 @@ impl Parser {
     /// Parse type or value generic arguments, including their angle tokens.
     pub(crate) fn parse_generic_argument_list(
         &mut self,
-        context: ExpressionContext,
+        position: ExpressionPosition,
     ) -> ParserResult<Vec<LocalNodeId<GenericArgument>>> {
         let start = self.mark_parse_start();
         let generic_close = self.eat_generic_angle_open()?;
         let first_argument_leading_start = self.peek_previous_token_end();
 
-        let uses_type_close =
-            context.decorator != DecoratorContext::None || generic_close == GenericClose::Type;
-        let argument_context = GenericArgumentContext {
-            function: context.function,
-            close: if uses_type_close {
-                GenericClose::Type
+        let is_decorator = position.is_decorator();
+        let uses_type_close = is_decorator || generic_close == GenericClose::Type;
+        let generic_arguments = if is_decorator {
+            if self.peek_type_angle_close() {
+                vec![self.recover_empty_generic_argument(&start)]
             } else {
-                GenericClose::Expression
-            },
-            is_empty_recoverable: context.decorator != DecoratorContext::None,
+                self.parse_generic_argument_list_body(first_argument_leading_start)?
+            }
+        } else if self.peek_expression_type_angle_close() {
+            return Err(ParserError::expected(
+                self.range_since(&start),
+                TokenType::Identifier,
+            ));
+        } else {
+            self.parse_generic_argument_list_body(first_argument_leading_start)?
         };
-        let generic_arguments = self.parse_generic_argument_contents(
-            &start,
-            first_argument_leading_start,
-            argument_context,
-        )?;
 
-        // type-like contexts can consume glued right-angle tails
-        if argument_context.close == GenericClose::Type {
-            if argument_context.is_empty_recoverable {
+        // type closes can consume glued right angle tails
+        if uses_type_close {
+            if is_decorator {
                 self.eat_type_angle_close_or_recover_missing(NodeType::Expression)?;
             } else {
                 self.eat_type_angle_close()?;

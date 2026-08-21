@@ -115,7 +115,7 @@ impl Parser {
             return None;
         }
 
-        // resolve literals available in all grammar spaces
+        // resolve literals available in every type position
         if let Some(literal) = self.peek_universal_type_literal() {
             return Some(literal);
         }

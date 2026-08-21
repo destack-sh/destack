@@ -1,14 +1,14 @@
 use destack_dir::{
     Asynchrony, BlockContext, Expression, FunctionForm, FunctionPhase, FunctionRole,
-    FunctionSignature, Keyword, LocalNodeId, Member, Name, NodeType, Parameter, StringId,
-    TokenType, TypeExpression,
+    FunctionSignature, Keyword, LocalNodeId, Member, Name, NodeType, StringId, TokenType,
+    TypeExpression,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
-use crate::parse::context::{
-    ExpressionContext, FunctionContext, ParameterContext, ParameterSpace, TypeContext,
+use crate::parse::{
+    BindingModifiers, BindingPosition, ExpressionPosition, ExpressionStop, FunctionModifiers,
+    TypePosition, TypeStop,
 };
-use crate::parse::{BindingModifierGrammar, BindingModifiers};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 /// The shared head of one property or member.
@@ -24,10 +24,8 @@ pub(crate) struct MemberHead {
     pub(crate) role: Option<FunctionRole>,
     /// The method role keyword range.
     pub(crate) role_range: Option<ByteRange>,
-    /// Whether the head is async.
-    pub(crate) is_async: bool,
-    /// Whether the head is a generator.
-    pub(crate) is_generator: bool,
+    /// The function modifiers.
+    pub(crate) function_modifiers: FunctionModifiers,
     /// Whether the head is method-shaped.
     pub(crate) is_method: bool,
     /// The associated const name when present.
@@ -49,37 +47,13 @@ pub(crate) struct Method {
     pub(crate) return_type_range: Option<ByteRange>,
 }
 
-/// Grammar rules inherited by one method signature and body.
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct MethodContext {
-    /// Function rules inherited from the enclosing grammar.
-    pub(crate) enclosing_function: FunctionContext,
-    /// The method parameter grammar space.
-    pub(crate) space: ParameterSpace,
-    /// The method asynchrony.
-    pub(crate) asynchrony: Asynchrony,
-    /// Whether the method is a generator.
-    pub(crate) is_generator: bool,
-}
-
-/// The distinguished role accepted by one method head.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) enum MethodRoleGrammar {
-    /// No constructor-like role.
-    Ordinary,
-    /// A value constructor.
-    Constructor,
-    /// A type constructor.
-    New,
-}
-
 #[allow(clippy::type_complexity)]
 impl Parser {
     /// Parse one `async` keyword when it plausibly starts a method head.
     #[inline]
-    fn parse_method_asynchrony(&mut self) -> bool {
+    fn parse_method_asynchrony(&mut self) -> Asynchrony {
         if !self.peek_is_keyword(Keyword::Async) {
-            return false;
+            return Asynchrony::Sync;
         }
 
         let peek_next_token = self.peek_next_token();
@@ -96,9 +70,9 @@ impl Parser {
             );
         if can_start_async_method {
             self.bump();
-            true
+            Asynchrony::Async
         } else {
-            false
+            Asynchrony::Sync
         }
     }
 
@@ -107,9 +81,9 @@ impl Parser {
     fn parse_method_late_modifiers(
         &mut self,
         mut modifiers: BindingModifiers,
-        is_async: bool,
+        asynchrony: Asynchrony,
     ) -> BindingModifiers {
-        if !is_async {
+        if asynchrony == Asynchrony::Sync {
             return modifiers;
         }
 
@@ -131,7 +105,7 @@ impl Parser {
     #[inline]
     pub(crate) fn parse_method_role(
         &mut self,
-        grammar: MethodRoleGrammar,
+        constructor_role: Option<FunctionRole>,
     ) -> Option<(FunctionRole, ByteRange)> {
         let keyword = self.peek_keyword()?;
 
@@ -155,9 +129,9 @@ impl Parser {
         }
 
         // constructors and new methods only need delimiter lookahead
-        let role = match (grammar, keyword) {
-            (MethodRoleGrammar::Constructor, Keyword::Constructor) => FunctionRole::Constructor,
-            (MethodRoleGrammar::New, Keyword::New) => FunctionRole::New,
+        let role = match (constructor_role, keyword) {
+            (Some(FunctionRole::Constructor), Keyword::Constructor) => FunctionRole::Constructor,
+            (Some(FunctionRole::New), Keyword::New) => FunctionRole::New,
             _ => return None,
         };
 
@@ -191,7 +165,7 @@ impl Parser {
         &mut self,
         name: Option<&Name>,
         modifiers: &BindingModifiers,
-        is_async: bool,
+        asynchrony: Asynchrony,
     ) -> ParserResult<()> {
         // reject impossible modifier combinations
         let is_invalid = modifiers.is_optional && modifiers.is_definite
@@ -207,7 +181,7 @@ impl Parser {
         }
 
         // reject an optional marker joined to an async method head
-        if !is_async
+        if asynchrony == Asynchrony::Sync
             && modifiers.is_optional
             && matches!(
                 name,
@@ -222,56 +196,33 @@ impl Parser {
         Ok(())
     }
 
-    /// Parse method parameters in property or member contexts.
-    #[inline]
-    fn parse_method_parameters(
-        &mut self,
-        context: MethodContext,
-    ) -> ParserResult<Vec<LocalNodeId<Parameter>>> {
-        let function = context
-            .enclosing_function
-            .enter_parameters(context.asynchrony, context.is_generator);
-
-        self.parse_dynamic_parameters(ParameterContext {
-            function,
-            space: context.space,
-            ..ParameterContext::default()
-        })
-    }
-
     /// Parse one method or field type expression.
     #[inline]
     pub(crate) fn parse_method_return_type(
         &mut self,
         owner: NodeType,
-        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        self.parse_type_or_recover_missing(
-            TypeContext {
-                function,
-                ..TypeContext::default()
-            },
-            owner,
-        )
+        self.parse_type_or_recover_missing(TypePosition::Type, TypeStop::default(), owner)
     }
 
     /// Parse one method body expression.
     #[inline]
     fn parse_method_body(
         &mut self,
-        context: MethodContext,
+        modifiers: FunctionModifiers,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let function = FunctionContext::body(context.asynchrony, context.is_generator);
+        let body_keywords = self.keywords.body(modifiers);
 
         if self.peek_is(TokenType::OpenBrace) {
-            let block = self.parse_block(BlockContext::Expression, function)?;
+            let block = self.with_keywords(body_keywords, |parser| {
+                parser.parse_block(BlockContext::Expression)
+            })?;
 
             return Ok(self.insert_node(Expression::Block(block), self.tree.get_range(block)));
         }
 
-        self.parse_expression(ExpressionContext {
-            function,
-            ..ExpressionContext::default()
+        self.with_keywords(body_keywords, |parser| {
+            parser.parse_expression(ExpressionPosition::Value, ExpressionStop::default())
         })
     }
 
@@ -279,14 +230,14 @@ impl Parser {
     pub(crate) fn parse_member_head(
         &mut self,
         mut modifiers: BindingModifiers,
-        role_grammar: MethodRoleGrammar,
+        constructor_role: Option<FunctionRole>,
     ) -> ParserResult<MemberHead> {
         // async and late abstraction modifiers
-        let is_async = self.parse_method_asynchrony();
-        modifiers = self.parse_method_late_modifiers(modifiers, is_async);
+        let asynchrony = self.parse_method_asynchrony();
+        modifiers = self.parse_method_late_modifiers(modifiers, asynchrony);
 
         // role and accessor marker
-        let parsed_role = self.parse_method_role(role_grammar);
+        let parsed_role = self.parse_method_role(constructor_role);
         let (role, role_range) = match parsed_role {
             Some((role, range)) => (Some(role), Some(range)),
             None => (None, None),
@@ -294,6 +245,10 @@ impl Parser {
 
         // generator and name
         let is_generator = self.eat_token_if(TokenType::Multiply);
+        let function_modifiers = FunctionModifiers {
+            asynchrony,
+            is_generator,
+        };
         let (name, name_range) =
             if let Some((name, range)) = self.eat_property_name_with_range_if_present()? {
                 (Some(name), Some(range))
@@ -304,7 +259,7 @@ impl Parser {
         // postfix modifiers
         let modifiers = self.parse_definite_modifier(modifiers);
         let modifiers = self.parse_postfix_binding_modifier(modifiers);
-        self.validate_method_head_modifiers(name.as_ref(), &modifiers, is_async)?;
+        self.validate_method_head_modifiers(name.as_ref(), &modifiers, asynchrony)?;
 
         // classify the head
         let associated_const_name = if modifiers.is_const_asserted {
@@ -315,7 +270,7 @@ impl Parser {
         } else {
             None
         };
-        let is_method = is_async
+        let is_method = asynchrony == Asynchrony::Async
             || is_generator
             || self.peek_is(TokenType::LessThan)
             || self.peek_is(TokenType::OpenParenthesis)
@@ -327,8 +282,7 @@ impl Parser {
             name_range,
             role,
             role_range,
-            is_async,
-            is_generator,
+            function_modifiers,
             is_method,
             associated_const_name,
         })
@@ -348,54 +302,73 @@ impl Parser {
         &mut self,
         owner: NodeType,
         role: Option<FunctionRole>,
-        context: MethodContext,
+        function_modifiers: FunctionModifiers,
         is_abstract: bool,
         is_override: bool,
         is_body_allowed: bool,
     ) -> ParserResult<Method> {
-        let parameter_function = context
-            .enclosing_function
-            .enter_parameters(context.asynchrony, context.is_generator);
+        let parameter_keywords = self.keywords.parameters(function_modifiers);
+        let (
+            generic_parameters,
+            generic_parameter_range,
+            parameters,
+            parameter_range,
+            return_type,
+            return_type_range,
+            where_clauses,
+        ) = self.with_keywords(parameter_keywords, |parser| {
+            // parse generic parameters
+            let generic_parameter_start = parser.mark_parse_start();
+            let generic_parameters = parser
+                .parse_generic_parameters_if_present(false)?
+                .unwrap_or_default();
+            let generic_parameter_range = (!generic_parameters.is_empty())
+                .then(|| parser.range_since(&generic_parameter_start));
 
-        // generic parameters and parameters
-        let generic_parameter_start = self.mark_parse_start();
-        let generic_parameters = self
-            .parse_generic_parameters_if_present(false, parameter_function)?
-            .unwrap_or_default();
-        let generic_parameter_range =
-            (!generic_parameters.is_empty()).then(|| self.range_since(&generic_parameter_start));
+            // parse parameters
+            let parameter_start = parser.mark_parse_start();
+            let parameters = parser.parse_dynamic_parameters(ExpressionPosition::Value)?;
+            let parameter_range = parser.range_since(&parameter_start);
 
-        let parameter_start = self.mark_parse_start();
-        let parameters = self.parse_method_parameters(context)?;
-        let parameter_range = self.range_since(&parameter_start);
+            // parse the return type
+            let has_return_type_marker = parser.peek_is(TokenType::Colon);
+            let (return_type, return_type_range) = if has_return_type_marker {
+                let type_start = parser.mark_parse_start();
+                parser.eat_token(TokenType::Colon)?;
 
-        // return type
-        let has_return_type_marker = self.peek_is(TokenType::Colon);
-        let (return_type, return_type_range) = if has_return_type_marker {
-            let type_start = self.mark_parse_start();
-            self.eat_token(TokenType::Colon)?;
-
-            let return_type = if self.peek_is(TokenType::CloseBrace) || self.peek_any_stop() {
-                self.recover_missing_type_expression_here(owner)
+                let return_type = if parser.peek_is(TokenType::CloseBrace) || parser.peek_any_stop()
+                {
+                    parser.recover_missing_type_expression_here(owner)
+                } else {
+                    parser.parse_method_return_type(owner)?
+                };
+                (Some(return_type), Some(parser.range_since(&type_start)))
             } else {
-                self.parse_method_return_type(owner, parameter_function)?
+                (None, None)
             };
-            (Some(return_type), Some(self.range_since(&type_start)))
-        } else {
-            (None, None)
-        };
 
-        // where clauses
-        let where_clauses = self.parse_where_clauses(parameter_function)?;
+            // parse trailing constraints
+            let where_clauses = parser.parse_where_clauses()?;
+
+            Ok((
+                generic_parameters,
+                generic_parameter_range,
+                parameters,
+                parameter_range,
+                return_type,
+                return_type_range,
+                where_clauses,
+            ))
+        })?;
 
         // body
         let body = if is_body_allowed && self.peek_is(TokenType::OpenBrace) {
-            Some(self.parse_method_body(context)?)
+            Some(self.parse_method_body(function_modifiers)?)
         } else {
             None
         };
 
-        // reject a body where the containing grammar forbids one
+        // reject a body where the containing declaration forbids one
         if !is_body_allowed && self.peek_is(TokenType::OpenBrace) {
             return Err(ParserError::unexpected(self.peek_token_span()));
         }
@@ -413,7 +386,7 @@ impl Parser {
 
         // assemble the signature
         let signature = FunctionSignature {
-            asynchrony: context.asynchrony,
+            asynchrony: function_modifiers.asynchrony,
             role,
             form: FunctionForm::Function,
             phase: FunctionPhase::Normal,
@@ -425,7 +398,7 @@ impl Parser {
             return_type,
             is_abstract,
             is_override,
-            is_generator: context.is_generator,
+            is_generator: function_modifiers.is_generator,
         };
 
         Ok(Method {
@@ -439,15 +412,10 @@ impl Parser {
 
     /// Parse one member type expression.
     #[inline]
-    pub(crate) fn parse_member_type(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+    pub(crate) fn parse_member_type(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.parse_type_or_recover_missing(
-            TypeContext {
-                function,
-                ..TypeContext::default()
-            },
+            TypePosition::Type,
+            TypeStop::default(),
             NodeType::Member,
         )
     }
@@ -465,7 +433,6 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         modifiers: BindingModifiers,
-        function: FunctionContext,
     ) -> ParserResult<Option<LocalNodeId<Member>>> {
         if !self.peek_is_keyword(Keyword::Type)
             || self.peek_next_token_type() != TokenType::Identifier
@@ -484,9 +451,9 @@ impl Parser {
 
         // generic parameters and where clauses
         let generic_parameters = self
-            .parse_generic_parameters_if_present(false, function)?
+            .parse_generic_parameters_if_present(false)?
             .unwrap_or_default();
-        let where_clauses = self.parse_where_clauses(function)?;
+        let where_clauses = self.parse_where_clauses()?;
 
         // declared type
         let constraint = if self.peek_is(TokenType::Colon) {
@@ -498,7 +465,7 @@ impl Parser {
             {
                 self.recover_missing_type_expression_here(NodeType::Member)
             } else {
-                self.parse_member_type(function)?
+                self.parse_member_type()?
             };
 
             Some(constraint)
@@ -513,7 +480,7 @@ impl Parser {
             let value = if self.peek_is(TokenType::CloseBrace) || self.peek_any_stop() {
                 self.recover_missing_type_expression_here(NodeType::Member)
             } else {
-                self.parse_member_type(function)?
+                self.parse_member_type()?
             };
 
             Some(value)
@@ -540,11 +507,8 @@ impl Parser {
     }
 
     /// Parse one member, recovering malformed input as an error node.
-    pub(crate) fn parse_member_or_recover(
-        &mut self,
-        function: FunctionContext,
-    ) -> LocalNodeId<Member> {
-        match self.parse_member(function) {
+    pub(crate) fn parse_member_or_recover(&mut self) -> LocalNodeId<Member> {
+        match self.parse_member() {
             Ok(member_id) => member_id,
             Err(error) => {
                 let error = error.in_node(NodeType::Member);
@@ -577,14 +541,11 @@ impl Parser {
     /// // static block (ES2022)
     /// static { console.log("init") }
     /// ```
-    pub(crate) fn parse_member(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Member>> {
+    pub(crate) fn parse_member(&mut self) -> ParserResult<LocalNodeId<Member>> {
         let start = self.mark_parse_start();
 
         // modifiers prefix
-        let modifiers = self.parse_binding_modifiers(BindingModifierGrammar::Member);
+        let modifiers = self.parse_binding_modifiers(BindingPosition::Member);
 
         // duplicate static modifier across newlines
         if modifiers.is_static
@@ -605,7 +566,7 @@ impl Parser {
         // must check before name parsing since static is already a modifier
         if modifiers.is_static && self.peek_is(TokenType::OpenBrace) {
             let body_start = self.mark_parse_start();
-            let body_block = self.parse_block(BlockContext::Statement, function)?;
+            let body_block = self.parse_block(BlockContext::Statement)?;
             let body =
                 self.insert_node(Expression::Block(body_block), self.range_since(&body_start));
 
@@ -613,16 +574,14 @@ impl Parser {
         }
 
         // type member: `type Name<U> = ...` or `type Name: Bound`
-        if let Some(member_id) =
-            self.parse_associated_type_member_if_present(&start, modifiers, function)?
-        {
+        if let Some(member_id) = self.parse_associated_type_member_if_present(&start, modifiers)? {
             return Ok(member_id);
         }
 
         // const block: `const { ... }` (block head already consumed)
         if modifiers.is_const_block && self.peek_is(TokenType::OpenBrace) {
             let body_start = self.mark_parse_start();
-            let body_block = self.parse_block(BlockContext::Statement, function)?;
+            let body_block = self.parse_block(BlockContext::Statement)?;
             let body =
                 self.insert_node(Expression::Block(body_block), self.range_since(&body_start));
 
@@ -630,10 +589,10 @@ impl Parser {
         }
 
         // head
-        let role_grammar = if modifiers.is_static {
-            MethodRoleGrammar::Ordinary
+        let constructor_role = if modifiers.is_static {
+            None
         } else {
-            MethodRoleGrammar::Constructor
+            Some(FunctionRole::Constructor)
         };
         let MemberHead {
             modifiers,
@@ -641,11 +600,10 @@ impl Parser {
             name_range,
             role,
             role_range,
-            is_async,
-            is_generator,
+            function_modifiers,
             is_method,
             associated_const_name,
-        } = self.parse_member_head(modifiers, role_grammar)?;
+        } = self.parse_member_head(modifiers, constructor_role)?;
 
         // reject impossible associated modifiers
         if associated_const_name.is_some() && modifiers.is_static {
@@ -682,16 +640,7 @@ impl Parser {
             } = self.parse_method(
                 NodeType::Member,
                 role,
-                MethodContext {
-                    enclosing_function: function,
-                    space: ParameterSpace::Value,
-                    asynchrony: if is_async {
-                        Asynchrony::Async
-                    } else {
-                        Asynchrony::Sync
-                    },
-                    is_generator,
-                },
+                function_modifiers,
                 modifiers.is_abstract,
                 modifiers.is_override,
                 true,
@@ -757,7 +706,7 @@ impl Parser {
                 let declared_type = if is_missing_type {
                     self.recover_missing_type_expression_here(NodeType::Member)
                 } else {
-                    self.parse_member_type(function)?
+                    self.parse_member_type()?
                 };
                 let (value, const_type) = if associated_const_name.is_some() {
                     (None, Some(declared_type))
@@ -776,10 +725,7 @@ impl Parser {
                 let default = if self.peek_is(TokenType::CloseBrace) || self.peek_any_stop() {
                     self.recover_missing_expression_here(NodeType::Member)
                 } else {
-                    self.parse_expression(ExpressionContext {
-                        function,
-                        ..ExpressionContext::default()
-                    })?
+                    self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?
                 };
                 Some(default)
             } else {
@@ -853,10 +799,7 @@ impl Parser {
     }
 
     /// Parse members (class/struct/interface/extension body).
-    pub(crate) fn parse_members(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<Vec<LocalNodeId<Member>>> {
+    pub(crate) fn parse_members(&mut self) -> ParserResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
         while self.has_more_tokens() {
             // read the current token once per iteration
@@ -877,7 +820,7 @@ impl Parser {
             // parse documentation, decorators and one member
             else {
                 let documentation = self.parse_documentation();
-                let decorators = self.parse_decorators(function);
+                let decorators = self.parse_decorators();
 
                 // reject decorator prefixes without an owner
                 if !decorators.is_empty()
@@ -892,7 +835,7 @@ impl Parser {
                     break;
                 }
 
-                let member_id = self.parse_member_or_recover(function);
+                let member_id = self.parse_member_or_recover();
                 if !matches!(self.tree.get(member_id), Member::Error) {
                     self.attach_documentation(member_id, documentation);
                 }

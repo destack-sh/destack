@@ -1,4 +1,4 @@
-use crate::parse::context::{DecoratorContext, ExpressionContext, FunctionContext};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserResult};
 use destack_dir::{
     Decorator, DecoratorPosition, Expression, LocalNodeId, OperatorPrecedence, TokenType,
@@ -16,12 +16,12 @@ impl Parser {
     /// @sealed
     /// @route("/users")
     /// ```
-    pub(crate) fn parse_decorators(&mut self, function: FunctionContext) -> Decorators {
+    pub(crate) fn parse_decorators(&mut self) -> Decorators {
         let mut decorators = Decorators::new();
 
         while self.peek_is(TokenType::At) {
             let start = self.mark_parse_start();
-            match self.parse_decorator(function) {
+            match self.parse_decorator() {
                 Ok(decorator) => decorators.push(decorator),
                 Err(error) => {
                     let range = self.range_since(&start);
@@ -61,21 +61,17 @@ impl Parser {
     }
 
     /// Parse one decorator expression.
-    fn parse_decorator(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Decorator>> {
+    fn parse_decorator(&mut self) -> ParserResult<LocalNodeId<Decorator>> {
         let start = self.mark_parse_start();
 
         // eat @ marker
         self.eat_token(TokenType::At)?;
 
-        let expression = self.parse_expression(ExpressionContext {
-            function,
-            decorator: DecoratorContext::Head,
-            minimum_precedence: OperatorPrecedence::Primary,
-            ..ExpressionContext::default()
-        })?;
+        let expression = self.parse_expression_at(
+            ExpressionPosition::DecoratorHead,
+            ExpressionStop::default(),
+            OperatorPrecedence::Primary,
+        )?;
 
         // store decorator side node
         let decorator = self.insert_node(

@@ -1,3 +1,4 @@
+use crate::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     Argument, BinaryOperator, CommentKind, ConditionOperand, Declaration, Expression, FloatType,
     FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, IfForm, IntegerType,
@@ -76,7 +77,7 @@ fn test_parse_array_literal_with_missing_close_bracket() {
 fn test_parse_object_literal_with_missing_close_brace() {
     let test = TestParser::new("{ foo: 1");
     let mut parser = test.prepare();
-    let properties = parser.parse_object_literal(Default::default()).unwrap();
+    let properties = parser.parse_object_literal().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_eq!(properties.len(), 1);
@@ -227,7 +228,7 @@ fn test_parse_template_literal() {
     let mut parser = test.prepare();
 
     // `hello`
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
     match literal {
         TemplateLiteral::String { string: template } => {
             // hello
@@ -237,7 +238,7 @@ fn test_parse_template_literal() {
     }
 
     // `hello ${name}`
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
     match literal {
         TemplateLiteral::InterpolatedString { strings, arguments } => {
             assert_eq!(arguments.len(), 1);
@@ -255,7 +256,7 @@ fn test_parse_template_literal() {
     }
 
     // `${stmt}`
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
     match literal {
         TemplateLiteral::InterpolatedString { strings, arguments } => {
             assert_eq!(strings.len(), 2);
@@ -272,7 +273,7 @@ fn test_parse_template_literal() {
     }
 
     // `${start}${middle}${end}`
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
     match literal {
         TemplateLiteral::InterpolatedString { strings, arguments } => {
             assert_eq!(strings.len(), 4);
@@ -299,7 +300,7 @@ fn test_parse_template_literal() {
     }
 
     // `SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
     match literal {
         TemplateLiteral::InterpolatedString { strings, arguments } => {
             assert_eq!(arguments.len(), 2);
@@ -330,7 +331,7 @@ fn test_parse_template_literal() {
 fn test_parse_template_literal_as_cast_expression() {
     let test = TestParser::new("`${type as string}`");
     let mut parser = test.prepare();
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
 
     match literal {
         TemplateLiteral::InterpolatedString { strings, arguments } => {
@@ -357,7 +358,7 @@ fn test_parse_template_literal_as_cast_expression() {
 fn test_parse_template_literal_with_escaped_interpolation_prefix() {
     let test = TestParser::new(r"`\${${value}}`");
     let mut parser = test.prepare();
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
 
     match literal {
         TemplateLiteral::InterpolatedString { strings, arguments } => {
@@ -379,9 +380,7 @@ fn test_parse_template_literal_with_escaped_interpolation_prefix() {
 fn test_report_template_literal_legacy_octal_escape() {
     let test = TestParser::new(r"`\1`");
     let mut parser = test.prepare();
-    let error = parser
-        .parse_template_literal(Default::default())
-        .unwrap_err();
+    let error = parser.parse_template_literal().unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), r"`\1`");
 }
@@ -596,7 +595,7 @@ fn test_parse_array_literal_with_newline_prefixed_comma_separator() {
 fn test_parse_tree_fragment() {
     let test = TestParser::new("<A/>");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     // <A/>
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         // A
@@ -612,7 +611,7 @@ fn test_parse_tree_inline_whitespace_text_child() {
     let test = TestParser::new("<Text> </Text>");
     let mut parser = test.prepare();
 
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { children, .. } => {
         let children = children.as_ref().expect("expected children");
         assert_eq!(children.len(), 1);
@@ -628,7 +627,7 @@ fn test_parse_tree_literal_records_body_span() {
     let test = TestParser::new("<Link>\n  Docs\n</Link>");
     let mut parser = test.prepare();
 
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     let body_span = parser
         .tree
         .get_side_span(expression, NodeSpanType::Region(NodeSpanRegion::Body))
@@ -641,7 +640,7 @@ fn test_parse_tree_literal_records_body_span() {
 fn test_parse_tree_fragment_with_kebab_tag() {
     let test = TestParser::new("<amp-something />");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     // <amp-something />
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "ampSomething");
@@ -656,7 +655,7 @@ fn test_parse_tree_fragment_with_attributes() {
     // pure tree syntax: numeric values need {}, boolean flags are implicit true
     let test = TestParser::new("<A a={1} annoying-bee={2} c={3} flag />");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "A");
         assert_eq!(attributes.as_ref().unwrap().len(), 4);
@@ -689,7 +688,7 @@ fn test_parse_tree_fragment_with_attributes() {
 fn test_recover_tree_attribute_missing_value() {
     let test = TestParser::new(r#"<Panel broken= next="ok" />"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     test.assert_errors(
         &parser,
@@ -716,7 +715,7 @@ fn test_recover_tree_attribute_missing_value() {
 fn test_recover_tree_spread_attribute_missing_value() {
     let test = TestParser::new("<Panel {...} next />");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     test.assert_errors(
         &parser,
@@ -742,7 +741,7 @@ fn test_recover_tree_spread_attribute_missing_value() {
 fn test_recover_tree_expression_child() {
     let test = TestParser::new("<Panel>{,}<Child /></Panel>");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     test.assert_errors(
         &parser,
@@ -763,7 +762,7 @@ fn test_recover_tree_expression_child() {
 fn test_recover_unterminated_tree_expression_child() {
     let test = TestParser::new("<Panel>{value + ;</Panel>");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     test.assert_errors(
         &parser,
@@ -789,7 +788,7 @@ fn test_recover_unterminated_tree_expression_child() {
 fn test_recover_tree_ancestor_closing_tag() {
     let test = TestParser::new("<Panel><Item></Panel>");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     test.assert_errors(
         &parser,
@@ -841,7 +840,7 @@ fn test_recover_tree_opening_at_ancestor_closing_tag() {
 fn test_recover_tree_mismatched_closing_tag() {
     let test = TestParser::new("<Panel></Other><Child /></Panel>");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     test.assert_errors(
         &parser,
@@ -862,7 +861,7 @@ fn test_recover_tree_mismatched_closing_tag() {
 fn test_recover_tree_closing_tag_at_eof() {
     let test = TestParser::new("<Panel><Child />");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
     assert_node!(parser.tree, expression, Expression::TreeExpression { children: Some(children), .. } => {
@@ -888,7 +887,7 @@ fn test_parse_tree_fragment_with_attributes_and_child() {
 ",
     );
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Tooltip");
         assert_eq!(attributes.as_ref().unwrap().len(), 3);
@@ -931,7 +930,7 @@ fn test_parse_tree_nested_deep() {
 ",
     );
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "A");
         assert!(attributes.is_none());
@@ -981,7 +980,9 @@ fn test_parse_tree_in_parenthesis() {
         "#,
     );
     let mut parser = test.prepare();
-    let expression = parser.parse_expression(Default::default()).unwrap();
+    let expression = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     crate::assert_parenthesized!(parser.tree, expression, expression => {
         // <div className="font-semibold">
         assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
@@ -1032,7 +1033,7 @@ fn test_parse_tree_in_parenthesis() {
 fn test_parse_tree_with_generic_arguments() {
     let test = TestParser::new(r#"<Component<any>></Component>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), generic_arguments, attributes, children, .. } => {
         assert_node!(parser.tree, *left, Expression::Identifier { name } => {
             assert_string!(parser, *name, "Component");
@@ -1091,7 +1092,7 @@ fn test_parse_tree_with_shift_left_generic_arguments() {
     let mut parser = test.prepare();
 
     // parse the tree literal
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), generic_arguments, attributes, children, .. } => {
         assert_node!(parser.tree, *left, Expression::Identifier { name } => {
             assert_string!(parser, *name, "Component");
@@ -1116,7 +1117,7 @@ fn test_parse_tree_with_generic_arguments_and_multiline_attributes() {
 />"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression_id = parser.parse_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), generic_arguments, attributes, children, .. } => {
         assert_node!(parser.tree, *left, Expression::Identifier { name } => {
@@ -1153,7 +1154,7 @@ fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
 />"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression_id = parser.parse_tree_literal().unwrap();
     parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
@@ -1184,7 +1185,7 @@ fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
 fn test_parse_tree_with_text_content() {
     let test = TestParser::new(r#"<h4>Tool: {part.toolName}</h4>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "h4");
         assert!(attributes.is_none());
@@ -1207,7 +1208,7 @@ fn test_parse_nested_tree_with_text_content() {
     // <div><h4>Tool: {x}</h4></div>
     let test = TestParser::new(r#"<div><h4>Tool: {x}</h4></div>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "div");
         assert!(attributes.is_none());
@@ -1225,7 +1226,7 @@ fn test_parse_tree_with_attribute_and_children() {
     // <div key={index}><h4>Tool: {x}</h4></div>
     let test = TestParser::new(r#"<div key={index}><h4>Tool: {x}</h4></div>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "div");
         assert!(attributes.is_some());
@@ -1240,7 +1241,7 @@ fn test_parse_tree_with_attribute_and_children() {
 fn test_parse_tree_fragment_with_nested_callback() {
     let test = TestParser::new(r#"<>{x.map(() => (<div><h4>T: {y}</h4></div>))}</>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, attributes, children, .. } => {
         assert!(attributes.is_none());
         assert!(children.is_some());
@@ -1254,7 +1255,7 @@ fn test_parse_tree_fragment_with_nested_callback() {
 fn test_parse_tree_with_comment_container() {
     let test = TestParser::new(r#"<div>{/* comment */}</div>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(_), attributes, children, .. } => {
         assert!(attributes.is_none());
         assert!(children.is_some());
@@ -1266,7 +1267,7 @@ fn test_parse_tree_with_comment_container() {
 fn test_parse_tree_fragment_with_keyword_text_and_expression() {
     let test = TestParser::new("<>for {x}</>");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { left, children, .. } => {
         assert!(left.is_none());
@@ -1288,7 +1289,7 @@ fn test_parse_tree_fragment_with_keyword_text_and_expression() {
 fn test_parse_tree_fragment_with_comments() {
     let test = TestParser::new("<\n// comment\n/* comment */\n>\n</>");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, attributes, children, .. } => {
         assert!(attributes.is_none());
         assert!(children.is_some());
@@ -1301,7 +1302,7 @@ fn test_parse_tree_fragment_with_comments() {
 fn test_parse_tree_fragment_closing_with_comment_retention() {
     let test = TestParser::new("<>\n< /* comment */ / >");
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, attributes, children, .. } => {
         assert!(attributes.is_none());
         assert!(children.is_some());
@@ -1314,7 +1315,7 @@ fn test_parse_tree_fragment_closing_with_comment_retention() {
 fn test_parse_tree_with_namespace_tag() {
     let test = TestParser::new(r#"<Foo:Bar n:foo="bar" />"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Foo:Bar");
         let attributes = attributes.as_ref().expect("expected attributes");
@@ -1334,7 +1335,9 @@ fn test_parse_ternary_with_and_in_tree() {
     // Just the ternary part, without leading condition
     let test = TestParser::new(r#"a ? <>{y && <E />}</> : null"#);
     let mut parser = test.prepare();
-    let expr = parser.parse_expression(Default::default()).unwrap();
+    let expr = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     // a ? ... : null -> If with IfForm::Ternary
     assert_node!(parser.tree, expr, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
@@ -1365,7 +1368,7 @@ fn test_parse_ternary_with_and_in_tree() {
 fn test_parse_nested_tree_in_attribute() {
     let test = TestParser::new(r#"<Button icon={<Icon />} />"#);
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Button");
         assert!(attributes.is_some());
@@ -1399,7 +1402,7 @@ fn test_parse_multiline_tree_attribute_expression_before_tag_close() {
 </PopoverProvider>"#,
     );
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "PopoverProvider");
@@ -1457,7 +1460,7 @@ fn test_parse_tree_attribute_tree_with_nested_map_before_tag_close() {
 </PopoverProvider>"#,
     );
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "PopoverProvider");
@@ -1498,7 +1501,7 @@ fn test_parse_tree_fragment_text_in_attribute_expression() {
         r#"<Show when={shouldShow()} fallback={<>off</>}><>{props.children}</></Show>"#,
     );
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Show");
         let attributes = attributes.as_ref().expect("expected attributes");
@@ -1528,7 +1531,7 @@ fn test_parse_tree_named_text_in_attribute_expression() {
 }/>;"#,
     );
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "ParentComponent");
         let attributes = attributes.as_ref().expect("expected attributes");
@@ -1569,7 +1572,7 @@ fn test_parse_tree_attribute_object_callback_with_fragment_ternary() {
     // parse one tree literal from the tree-tag input
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression_id = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression_id = parser.parse_tree_literal().unwrap();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
@@ -1625,7 +1628,7 @@ fn test_parse_tree_attribute_spread_with_multiline_comments() {
 />"#,
     );
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Tag");
         let attributes = attributes.as_ref().expect("expected attributes");
@@ -1646,7 +1649,7 @@ fn test_parse_tree_attribute_spread_with_cast() {
         r#"<WrappedComponent {...(this.props as P & DependentProps)} {...this.state} />"#,
     );
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "WrappedComponent");
         let attributes = attributes.as_ref().expect("expected attributes");
@@ -1675,7 +1678,7 @@ fn test_parse_tree_attribute_spread_with_cast() {
 fn test_parse_deeply_nested_tree_in_attr() {
     let test = TestParser::new(r#"<Outer title={<div><Button icon={<Icon />} /></div>} />"#);
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Outer");
         assert!(attributes.is_some());
@@ -1698,7 +1701,7 @@ fn test_parse_deeply_nested_tree_in_attr() {
 fn test_parse_tree_attr_object_literal() {
     let test = TestParser::new(r#"<Rive style={{width: 400, height: 400}} />"#);
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Rive");
         assert!(attributes.is_some());
@@ -1719,7 +1722,7 @@ fn test_parse_multiline_tree_with_siblings() {
     let code = "<div>\n\t{x}\n\t<form onClick={() => {}}></form>\n</div>";
     let test = TestParser::new(code);
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "div");
         assert!(attributes.is_none());
@@ -1747,7 +1750,7 @@ fn test_parse_multiline_tree_with_siblings() {
 fn test_parse_tree_with_logical_and() {
     let test = TestParser::new(r#"<div>{x && <span/>}</div>"#);
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "div");
         assert!(attributes.is_none());
@@ -1772,7 +1775,7 @@ fn test_parse_tree_with_logical_and() {
 fn test_parse_tree_expression_container_relational() {
     let test = TestParser::new(r#"<div>{a < b}</div>"#);
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "div");
         assert!(attributes.is_none());
@@ -1798,7 +1801,7 @@ fn test_parse_tree_expression_container_relational() {
 fn test_parse_tree_expression_container_generic_call() {
     let test = TestParser::new(r#"<div>{foo<T>(x)}</div>"#);
     let mut parser = test.prepare();
-    let expr = parser.parse_tree_literal(Default::default()).unwrap();
+    let expr = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "div");
         assert!(attributes.is_none());
@@ -1827,7 +1830,7 @@ fn test_parse_tree_expression_container_logical_and_inline_tree_with_text() {
     let test =
         TestParser::new(r#"<div>{errors.Checkbox && <p id="Checkbox">Checkbox Error</p>}</div>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "div");
@@ -1856,11 +1859,11 @@ fn test_parse_tree_after_class_block_newline() {
     let mut parser = test.prepare();
 
     // class declaration
-    let class_expr = parser.parse_statement(Default::default());
+    let class_expr = parser.parse_statement();
     assert_node!(parser.tree, class_expr, Expression::Declaration(_));
 
     // tree literal expression
-    let tree_expr = parser.parse_statement(Default::default());
+    let tree_expr = parser.parse_statement();
     assert_node!(parser.tree, tree_expr, Expression::TreeExpression { .. });
 }
 
@@ -1869,7 +1872,7 @@ fn test_parse_tree_after_class_block_newline() {
 fn test_parse_template_literal_empty() {
     let test = TestParser::new("``");
     let mut parser = test.prepare();
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
 
     let TemplateLiteral::String { string } = literal else {
         panic!("expected plain template literal");
@@ -1882,7 +1885,7 @@ fn test_parse_template_literal_empty() {
 fn test_parse_template_literal_optional_chain() {
     let test = TestParser::new(r#"`value ${theme?.activeColor}`"#);
     let mut parser = test.prepare();
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
 
     let TemplateLiteral::InterpolatedString { strings, arguments } = literal else {
         panic!("expected interpolated template literal");
@@ -1907,7 +1910,7 @@ fn test_parse_template_literal_optional_chain() {
 fn test_parse_template_literal_ternary() {
     let test = TestParser::new(r#"`value ${mode === "dark" ? "dark" : "light"}`"#);
     let mut parser = test.prepare();
-    let literal = parser.parse_template_literal(Default::default()).unwrap();
+    let literal = parser.parse_template_literal().unwrap();
 
     let TemplateLiteral::InterpolatedString { strings, arguments } = literal else {
         panic!("expected interpolated template literal");
@@ -1941,7 +1944,7 @@ fn test_parse_template_literal_ternary() {
 fn test_parse_tree_text_with_equals_after_tag_with_attribute_no_space() {
     let test = TestParser::new(r#"<div className={styles.foo}>=</div>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { children, .. } => {
         let children = children.as_ref().expect("expected children");
@@ -1957,7 +1960,7 @@ fn test_parse_tree_text_with_equals_after_tag_with_attribute_no_space() {
 fn test_parse_tree_text_with_equals_after_tag_with_attribute_with_space() {
     let test = TestParser::new(r#"<div className={styles.foo} >=</div>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { children, .. } => {
         let children = children.as_ref().expect("expected children");
@@ -1973,7 +1976,7 @@ fn test_parse_tree_text_with_equals_after_tag_with_attribute_with_space() {
 fn test_parse_tree_text_with_equals_after_simple_tag_no_space() {
     let test = TestParser::new(r#"<div>=</div>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { children, .. } => {
         let children = children.as_ref().expect("expected children");
@@ -1989,7 +1992,7 @@ fn test_parse_tree_text_with_equals_after_simple_tag_no_space() {
 fn test_parse_tree_fragment_text_with_equals_prefix() {
     let test = TestParser::new(r#"<>=x</>"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { children, .. } => {
@@ -2039,7 +2042,9 @@ fn test_parse_nested_tree_fragment_text_with_equals_prefix() {
 fn test_parse_tree_fragment_followed_by_greater_than_or_equal() {
     let test = TestParser::new(r#"<>x</>>=1"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_expression(Default::default()).unwrap();
+    let expression = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
@@ -2054,7 +2059,9 @@ fn test_parse_tree_fragment_followed_by_greater_than_or_equal() {
 fn test_parse_tree_element_followed_by_greater_than_or_equal() {
     let test = TestParser::new(r#"<span>x</span>>=1"#);
     let mut parser = test.prepare();
-    let expression = parser.parse_expression(Default::default()).unwrap();
+    let expression = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
@@ -2112,7 +2119,7 @@ fn test_parse_tree_fragment_equals_in_array() {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     // ensure the array includes a fragment and a boolean
     assert_node!(parser.tree, expression, Expression::TreeExpression { attributes, .. } => {
@@ -2136,7 +2143,7 @@ fn test_parse_tree_ternary_expression_container_in_xml_mode() {
     let input = r#"<div>{isLoading ? <div>loading</div> : <div>done</div>}</div>"#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     // verify the ternary expression container
     assert_node!(parser.tree, expression, Expression::TreeExpression { children, .. } => {
@@ -2156,7 +2163,7 @@ fn test_parse_tree_ternary_expression_container() {
     let input = r#"<div>{isLoading ? <div>loading</div> : <div>done</div>}</div>"#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     // verify the ternary expression container
     assert_node!(parser.tree, expression, Expression::TreeExpression { children, .. } => {
@@ -2182,7 +2189,7 @@ fn test_parse_tree_after_parenthesized_tree_in_expression_container() {
 
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "div");
 
@@ -2232,7 +2239,9 @@ fn test_parse_tree_ternary_fragment_with_text_fallback() {
     let input = "shouldShow ? <>{children}</> : <>off</>";
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression = parser.parse_expression(Default::default()).unwrap();
+    let expression = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expression, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
         let condition = condition.as_expression().expect("expected expression condition");
@@ -2265,7 +2274,7 @@ fn test_parse_tree_fragment_with_colon_text_node() {
     let input = r#"<code>{value && <>:</>}</code>"#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     // verify logical-and fragment text parsing
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children, .. } => {
@@ -2295,7 +2304,7 @@ fn test_parse_tree_logical_and_fragment_with_nested_ternary_tree() {
     let input = r#"<div>{condition && <>{show ? <Box /> : null}</>}</div>"#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "div");
@@ -2325,7 +2334,7 @@ fn test_parse_tree_fragment_with_keyword_text_before_expression() {
     let input = r#"<strong>{componentNameJsx && <>for {componentNameJsx}</>}</strong>"#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression = parser.parse_tree_literal(Default::default()).unwrap();
+    let expression = parser.parse_tree_literal().unwrap();
 
     // strong element with one expression child
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children, .. } => {
@@ -2362,7 +2371,7 @@ fn test_report_tree_literal_namespace_member_path_parse_error() {
     let mut parser = test.prepare();
 
     let error = parser
-        .parse_tree_literal(Default::default())
+        .parse_tree_literal()
         .expect_err("expected parse failure for namespace member path");
     assert_eq!(parser.range_str(error.range()), "/");
 }

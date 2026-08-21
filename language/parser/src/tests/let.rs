@@ -1,3 +1,4 @@
+use crate::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration, FunctionForm,
     GenericArgument, GenericParameter, IntegerType, LetKind, Name, NodeType, Parameter, Pattern,
@@ -19,7 +20,7 @@ const x: int32 = 1
 
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -96,7 +97,7 @@ const constants:
 
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -115,7 +116,9 @@ const constants:
 fn test_parse_let_recovers_missing_type_annotation_value() {
     let test = TestParser::new("const value: ");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // const value:
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -136,7 +139,9 @@ fn test_parse_let_recovers_missing_type_annotation_value() {
 fn test_parse_let_recovers_missing_type_before_initializer() {
     let test = TestParser::new("const value: = 1");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // const value: = 1
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -159,7 +164,9 @@ fn test_parse_let_recovers_missing_type_before_initializer() {
 fn test_parse_let_recovers_missing_initializer_value() {
     let test = TestParser::new("const value = ");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // const value =
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -222,12 +229,7 @@ using x = open()
 
     let start = parser.mark_parse_start();
     let using_id = parser
-        .parse_using(
-            &start,
-            DeclarationHeader::default(),
-            Asynchrony::Sync,
-            Default::default(),
-        )
+        .parse_using(&start, DeclarationHeader::default(), Asynchrony::Sync)
         .unwrap();
 
     assert_node!(parser.tree, using_id, Expression::Using { asynchrony, declarators, .. } => {
@@ -247,7 +249,9 @@ using x = open()
 fn test_parse_let_generic_arrow_initializer() {
     let test = TestParser::new("const foo: Tmp = <T,>(str: T): T => { return str; }");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // const foo: Tmp = <T,>(str: T): T => { return str; }
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -290,7 +294,7 @@ fn test_parse_let_readonly_identifier_with_type_annotation() {
 
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -315,7 +319,7 @@ fn test_parse_let_array_pattern_readonly_identifier() {
 
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -352,12 +356,7 @@ await using conn = openConnection()
 
     let start = parser.mark_parse_start();
     let using_id = parser
-        .parse_using(
-            &start,
-            DeclarationHeader::default(),
-            Asynchrony::Async,
-            Default::default(),
-        )
+        .parse_using(&start, DeclarationHeader::default(), Asynchrony::Async)
         .unwrap();
 
     assert_node!(parser.tree, using_id, Expression::Using { asynchrony, declarators, .. } => {
@@ -377,12 +376,7 @@ using a = openA(), b = openB()
 
     let start = parser.mark_parse_start();
     let using_id = parser
-        .parse_using(
-            &start,
-            DeclarationHeader::default(),
-            Asynchrony::Sync,
-            Default::default(),
-        )
+        .parse_using(&start, DeclarationHeader::default(), Asynchrony::Sync)
         .unwrap();
 
     assert_node!(parser.tree, using_id, Expression::Using { declarators, .. } => {
@@ -401,7 +395,7 @@ let x: float64[3] = undefined
 
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // let x: float64[3] = undefined
@@ -440,7 +434,7 @@ const (x, y) = foo()
 
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // const (x, y) = foo()
@@ -478,7 +472,7 @@ fn test_parse_let_definite_assignment_pattern() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -498,7 +492,7 @@ fn test_parse_let_implicit_undefined() {
 
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // let x: int32
@@ -527,7 +521,7 @@ const x =
 
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // const x = foo.parse()
@@ -559,7 +553,9 @@ const registry: Map<
     );
     let mut parser = test.prepare();
 
-    let let_id = parser.parse_expression(Default::default()).unwrap();
+    let let_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // const registry: Map<..., ...> = new Map()
     assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -613,7 +609,7 @@ fn test_parse_let_multiple_declarators() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
     // let a: int32 = 1, b: string = "hello"
     assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -647,7 +643,7 @@ fn test_parse_let_declarators_with_leading_comma_newline() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // let args = new Array(arguments.length - 1)
@@ -680,7 +676,7 @@ fn test_parse_const_declarators_with_newline_after_keyword() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // const
@@ -713,7 +709,7 @@ fn test_parse_const_declarator_boundary_with_line_terminator_trivia() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let let_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // const result = CreateRecord(IntegerKey, value)
@@ -723,7 +719,7 @@ fn test_parse_const_declarator_boundary_with_line_terminator_trivia() {
     });
 
     // return result as never
-    let return_id = parser.parse_return(Default::default()).unwrap();
+    let return_id = parser.parse_return().unwrap();
     assert_node!(parser.tree, return_id, Expression::Return { value } => {
         let value = value.expect("expected return value");
         assert_node!(parser.tree, value, Expression::As { .. } => {
@@ -737,7 +733,7 @@ fn test_parse_let_else_with_block_branch() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let expression_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // let { x } = value else { return }
@@ -780,7 +776,7 @@ fn test_parse_let_else_literal_pattern() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let expression_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // let "ok" = value else { return }
@@ -815,7 +811,7 @@ fn test_parse_literal_pattern_without_let_else() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let expression_id = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap();
 
     // let "ok" = value
@@ -840,7 +836,7 @@ fn test_report_let_else_without_initializer() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let error = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap_err();
 
     // let x else { return }
@@ -853,7 +849,7 @@ fn test_report_let_else_without_block_branch() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let error = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap_err();
 
     // let x = value else return
@@ -867,7 +863,7 @@ fn test_report_indexed_declarator_target() {
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();
     let error = parser
-        .parse_let(&start, DeclarationHeader::default(), Default::default())
+        .parse_let(&start, DeclarationHeader::default())
         .unwrap_err();
 
     assert_eq!(parser.range_str(error.range()), "[");

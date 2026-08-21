@@ -1,7 +1,7 @@
 use crate::tests::TestParser;
 use crate::{
-    assert_comment, assert_expression_path, assert_node, assert_string,
-    assert_value_expression_path,
+    ExpressionPosition, ExpressionStop, assert_comment, assert_expression_path, assert_node,
+    assert_string, assert_value_expression_path,
 };
 use destack_dir::{
     Argument, CommentKind, Expression, RangeEnd, ScalarLiteral, TokenType, TypeExpression,
@@ -12,7 +12,9 @@ use destack_dir::{
 fn test_parse_member_expression_as_member_chain() {
     let test = TestParser::new("foo.bar");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "bar");
@@ -72,7 +74,9 @@ shared?.nested.ok satisfies boolean;
 fn test_parse_super_member_expression() {
     let test = TestParser::new("super.value");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // super.value
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
@@ -85,7 +89,9 @@ fn test_parse_super_member_expression() {
 fn test_parse_member_expression_with_newline_after_dot() {
     let test = TestParser::new("receiver.\nnext");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // receiver.\nnext
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
@@ -98,7 +104,9 @@ fn test_parse_member_expression_with_newline_after_dot() {
 fn test_parse_call_chain_with_newline_after_dot() {
     let test = TestParser::new("receiver().\nthen(value)");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // receiver().\nthen(value)
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -123,7 +131,9 @@ fn test_parse_call_chain_with_newline_after_dot() {
 fn test_parse_member_hop_comments_attach_to_boundary_owners() {
     let test = TestParser::new("source /* hop-a */ .first() /* hop-b */ .second()");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -176,7 +186,9 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
 fn test_parse_call_boundary_comment_attaches_to_call_separator() {
     let test = TestParser::new("run /* callee-note */ (first, second)");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     assert_eq!(parser.comments().len(), 1);
@@ -188,7 +200,9 @@ fn test_parse_call_boundary_comment_attaches_to_call_separator() {
 fn test_parse_member_expression_with_line_comment_before_dot() {
     let test = TestParser::new("container // marker\n.left as PropertyAccessExpression");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     test.assert_no_errors(&parser);
@@ -234,7 +248,9 @@ fn test_parse_function_member_comment_boundary_before_dot() {
         "function f(container) { return ((container // marker\n.left as PropertyAccessExpression).expression as PropertyAccessExpression).expression; }",
     );
     let mut parser = test.prepare();
-    let _ = parser.parse_expression(Default::default()).unwrap();
+    let _ = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     test.assert_no_errors(&parser);
@@ -268,7 +284,9 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
         "(activeService as unknown as QuickInputController) /* boundary note */ .pick()",
     );
     let mut parser = test.prepare();
-    let _ = parser.parse_expression(Default::default()).unwrap();
+    let _ = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     parser.finalize_comments();
 
     test.assert_no_errors(&parser);
@@ -292,7 +310,9 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
 fn test_parse_decimal_integer_member_access() {
     let test = TestParser::new("1.foo");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "foo");
@@ -304,7 +324,9 @@ fn test_parse_decimal_integer_member_access() {
 fn test_parse_parenthesized_integer_member_access() {
     let test = TestParser::new("(1).foo");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "foo");
@@ -318,7 +340,9 @@ fn test_parse_parenthesized_integer_member_access() {
 fn test_parse_destack_double_dot_as_range() {
     let test = TestParser::new("0..a");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -334,7 +358,9 @@ fn test_parse_destack_double_dot_as_range() {
 fn test_parse_this_member_expression_in_variant_context() {
     let test = TestParser::new("this.port1.onmessage");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // this.port1.onmessage
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
@@ -351,7 +377,9 @@ fn test_parse_this_member_expression_in_variant_context() {
 fn test_parse_call_argument_this_member_expression_in_variant_context() {
     let test = TestParser::new("setTimeout(this.port1.onmessage, 0)");
     let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     // setTimeout(this.port1.onmessage, 0)
     assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
@@ -380,7 +408,9 @@ self
 ",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { left: baz_recv, .. } => {
         assert_node!(parser.tree, *baz_recv, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "baz");
@@ -396,7 +426,9 @@ self
 fn test_parse_member_boolean_identifier_name() {
     let test = TestParser::new("a.true");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Member { name, .. } => {
         assert_string!(parser, *name, "true");
@@ -408,7 +440,9 @@ fn test_parse_member_boolean_identifier_name() {
 fn test_parse_path_null_identifier_name() {
     let test = TestParser::new("a.null");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "null");
@@ -423,7 +457,9 @@ fn test_parse_path_null_identifier_name() {
 fn test_parse_member_default_identifier_name_after_parenthesized_await_call() {
     let test = TestParser::new(r#"(await load(join("file://", process.argv[2]))).default"#);
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Member { name, .. } => {
         assert_string!(parser, *name, "default");

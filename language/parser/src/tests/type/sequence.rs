@@ -1,7 +1,8 @@
-use crate::parse::{ExpressionContext, StatementPosition};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{
-    ParserErrorKind, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    ParserErrorKind, TypePosition, TypeStop, assert_expression_path, assert_name, assert_node,
+    assert_path, assert_string,
 };
 use destack_dir::{
     BinaryOperator, Declaration, Expression, InferForm, NodeType, ScalarLiteral, TokenType,
@@ -29,7 +30,9 @@ fn test_parse_pattern_tuple_element_placeholder() {
 fn assert_rejects_bracket_tuple_type(input: &str) {
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    parser.parse_type(Default::default()).unwrap();
+    parser
+        .parse_type(TypePosition::Type, TypeStop::default())
+        .unwrap();
 
     let errors: Vec<_> = parser
         .errors
@@ -54,10 +57,7 @@ fn test_parse_slice_type() {
     let test = TestParser::new("type T = [EventTarget]");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = [EventTarget]
@@ -78,10 +78,7 @@ fn test_parse_readonly_slice_type() {
     let test = TestParser::new("type T = [readonly EventTarget]");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = [readonly EventTarget]
@@ -104,10 +101,7 @@ fn test_parse_fixed_array_type() {
     let test = TestParser::new("type T = [EventTarget; 32]");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = [EventTarget; 32]
@@ -129,10 +123,7 @@ fn test_parse_fixed_array_type_length_infer_hole() {
     let test = TestParser::new("type T = [EventTarget; _]");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = [EventTarget; _]
@@ -153,10 +144,7 @@ fn test_parse_fixed_array_type_value_length_expression() {
     let test = TestParser::new("type T<const N: uint> = [EventTarget; N * 2]");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T<const N: uint> = [EventTarget; N * 2]
@@ -178,10 +166,7 @@ fn test_parse_fixed_array_type_recovers_missing_length_expression() {
     let test = TestParser::new("type T = [EventTarget; ]");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = [EventTarget; ]
@@ -200,10 +185,7 @@ fn test_parse_single_element_tuple_type() {
     let test = TestParser::new("type T = (EventTarget,)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (EventTarget,)
@@ -230,10 +212,7 @@ fn test_parse_tuple_type_with_spread() {
     let test = TestParser::new("type T = (...Parts, string)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (...Parts, string)
@@ -264,10 +243,7 @@ fn test_parse_labeled_tuple_type_with_spread_payload() {
         TestParser::new(r#"type T = (keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES")"#);
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -311,10 +287,7 @@ fn test_parse_optional_tuple_element() {
     let test = TestParser::new("type T = (EventTarget?)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (EventTarget?)
@@ -341,10 +314,7 @@ fn test_parse_optional_tuple_element_trailing_comma() {
     let test = TestParser::new("type T = (EventTarget?,)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (EventTarget?,)
@@ -369,10 +339,7 @@ fn test_parse_optional_labeled_tuple_element() {
     let test = TestParser::new("type T = (start?: number)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (start?: number)
@@ -398,10 +365,7 @@ fn test_parse_optional_tuple_element_with_readonly_type() {
     let test = TestParser::new("type T = (readonly EventTarget?)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (readonly EventTarget?)
@@ -429,10 +393,7 @@ fn test_parse_tuple_type() {
     let test = TestParser::new("type T = (string, number)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (string, number)
@@ -461,10 +422,7 @@ fn test_parse_tuple_type_with_readonly_type_element() {
     let test = TestParser::new("type T = (string, readonly EventTarget)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (string, readonly EventTarget)
@@ -491,10 +449,7 @@ fn test_parse_labeled_tuple_type() {
     let test = TestParser::new("type T = (start: number, end: number)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (start: number, end: number)
@@ -525,10 +480,7 @@ fn test_record_labeled_tuple_main_spans() {
     let test = TestParser::new("type T = (start: number, rest: ...string[])");
     let mut parser = test.prepare();
     let expression = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_no_errors(&parser);
@@ -552,10 +504,7 @@ fn test_parse_labeled_tuple_type_complex() {
     let test = TestParser::new("type T = (importCode: string, nameMap: Record<string, string>)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     // type T = (importCode: string, nameMap: Record<string, string>)
@@ -579,10 +528,7 @@ fn test_recover_slice_type_missing_close_bracket() {
     let test = TestParser::new("type T = [string");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_errors(
@@ -612,10 +558,7 @@ fn test_parse_tuple_type_missing_first_element() {
     let test = TestParser::new("type T = (, string)");
     let mut parser = test.prepare();
     let expr_id = parser
-        .parse_expression(ExpressionContext {
-            statement: StatementPosition::Direct,
-            ..ExpressionContext::default()
-        })
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
     test.assert_errors(
