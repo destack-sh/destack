@@ -99,16 +99,12 @@ impl BodyState<'_, '_> {
                         return Ok(error);
                     };
 
-                    // record the fields contributed by this spread
-                    let key_type = self.intern_object(&spread_fields)?;
-                    let subject =
-                        dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
-                            .with_scope(site.scope)
-                            .with_key_type(key_type);
-                    self.module_mut(module).members_tail.record_subject(
-                        dir::MemberSite::Node(property.into_global_any(module)),
-                        subject,
-                    );
+                    self.record_spread_subject(
+                        site,
+                        property.into_global_any(site.node.module_id),
+                        spread,
+                        &spread_fields,
+                    )?;
 
                     // overwrite the slots the spread supplies
                     for field in spread_fields {
@@ -289,6 +285,13 @@ impl BodyState<'_, '_> {
 
                         return Ok(CheckAttempt::NotApplicable);
                     };
+
+                    self.record_spread_subject(
+                        site,
+                        property.into_global_any(site.node.module_id),
+                        spread,
+                        &spread_fields,
+                    )?;
 
                     // adopt each supplied field into its expected slot
                     for supplied in spread_fields {
@@ -502,6 +505,25 @@ impl BodyState<'_, '_> {
                 write: ty,
             },
         )
+    }
+
+    /// Record the member subject one spread property contributes its fields through.
+    pub(in crate::sema) fn record_spread_subject(
+        &mut self,
+        site: FlowSite,
+        property: dir::GlobalNodeIdAny,
+        spread: dir::GlobalTypeId,
+        spread_fields: &[dir::TypeProperty],
+    ) -> CompilerResult<()> {
+        let key_type = self.intern_object(spread_fields)?;
+        let subject = dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
+            .with_scope(site.scope)
+            .with_key_type(key_type);
+        self.module_mut(property.module_id)
+            .members_tail
+            .record_subject(dir::MemberSite::Node(property), subject);
+
+        Ok(())
     }
 
     /// Build the committed slot one expected field stores for a supplied value.

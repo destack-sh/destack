@@ -195,16 +195,7 @@ impl BodyState<'_, '_> {
                         });
                     };
 
-                    // record the fields contributed by this spread
-                    let key_type = self.intern_object(&spread_fields)?;
-                    let subject =
-                        dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
-                            .with_scope(site.scope)
-                            .with_key_type(key_type);
-                    self.module_mut(module)
-                        .members_tail
-                        .record_subject(dir::MemberSite::Node(property), subject);
-
+                    self.record_spread_subject(site, property, spread, &spread_fields)?;
                     for field in spread_fields {
                         fields.insert(field.key, field);
                     }
