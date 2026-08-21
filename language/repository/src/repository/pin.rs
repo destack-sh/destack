@@ -278,7 +278,7 @@ mod tests {
             .edit(
                 base_revision,
                 [Edit::add_file(
-                    "src/example.ts",
+                    "src/example.ds",
                     repository
                         .put_blob(b"export const value = 1")
                         .expect("source Blob should store"),
@@ -480,7 +480,7 @@ mod tests {
             repository.as_ref(),
             initial,
             [Edit::add_file(
-                "src/example.ts",
+                "src/example.ds",
                 repository
                     .put_blob(b"export const value = 1")
                     .expect("source Blob should store"),
@@ -490,14 +490,14 @@ mod tests {
             repository.as_ref(),
             revision_1,
             [Edit::set_file(
-                "src/example.ts",
+                "src/example.ds",
                 repository
                     .put_blob(b"export const value = 2")
                     .expect("source Blob should store"),
             )],
         );
         let _revision_pin = repository.pin(revision_2).expect("pin retained revision");
-        let file_id = repository.file_id(&root.join("src/example.ts"));
+        let file_id = repository.file_id(&root.join("src/example.ds"));
 
         // retained revision
         let file = repository

@@ -1,4 +1,3 @@
-
 use destack_artifact::{
     ArtifactBinding, ArtifactBindingId, ArtifactBindingPin, ArtifactDependency, ArtifactId,
     ArtifactKey, ArtifactOutcome, ArtifactVersion, SourceDependency, SourceDependencyKey,

@@ -559,10 +559,11 @@ pub fn normalize_workspace_path(path: PathBuf) -> Option<PathBuf> {
 
 /// Return candidate module paths in deterministic order.
 fn module_candidate_paths(path: PathBuf, loader: Option<Loader>) -> Vec<PathBuf> {
-    let file_type = FileType::from_path(&path);
+    let is_recognized =
+        FileType::from_path(&path).is_some_and(|file_type| file_type != FileType::Binary);
 
     // retain recognized source and loader paths
-    if file_type.is_some() || loader.is_some() && path.extension().is_some() {
+    if is_recognized || loader.is_some() && path.extension().is_some() {
         vec![path]
     }
     // apply an explicit loader extension
