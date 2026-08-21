@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::{FloatFormat, roundtrip_float};
 
-use crate::{LanguageItem, RangeType, ScalarDomain, Literal, StringId};
+use crate::{LanguageItem, Literal, RangeType, ScalarDomain, StringId};
 
 /// A primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

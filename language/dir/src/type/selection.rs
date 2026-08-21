@@ -9,10 +9,10 @@ use crate::{
     Access, AutoInterface, BinaryOperator, CaptureMode, CastOrigin, ClassConstructor,
     EnumBackingType, EnumVariantValue, FunctionRole, FunctionSignature, GenericArgumentBinding,
     GlobalGenericParameterId, GlobalNodeId, GlobalNodeIdAny, GlobalScopeId, GlobalStaticId,
-    GlobalSymbolId, GlobalTypeId, IntegerType, LanguageItem, LocalCaptureFrameId,
+    GlobalSymbolId, GlobalTypeId, IntegerType, LanguageItem, Literal, LocalCaptureFrameId,
     LocalGenericParameterId, LocalGenericTemplateId, LocalNodeId, LocalScopeId, MemberKind,
     MemberOrigin, MemberRole, MemberSlot, MemberSpace, MethodAbstraction, Node, PrimitiveType,
-    RangeEnd, ScalarFamilySet, Literal, Space, StaticKey, TypeFold, UnaryOperator,
+    RangeEnd, ScalarFamilySet, Space, StaticKey, TypeFold, UnaryOperator,
 };
 
 /// One declaration selected with its generic argument bindings.

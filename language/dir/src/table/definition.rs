@@ -187,6 +187,8 @@ pub enum TypeRoot {
     Declaration(GlobalSymbolId),
     /// A builtin primitive root.
     Primitive(PrimitiveType),
+    /// The tuple constructor root.
+    Tuple,
 }
 
 impl TypeFold for TypeRoot {

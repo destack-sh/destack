@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution, GlobalTypeId,
-    MemberAccess, MemberDecision, OperationResolution, Literal, Selection, StaticKey,
-    Subscript, SubscriptDecision, TypeFold, WalkSelections,
+    Literal, MemberAccess, MemberDecision, OperationResolution, Selection, StaticKey, Subscript,
+    SubscriptDecision, TypeFold, WalkSelections,
 };
 
 /// Value projection selected during checking.

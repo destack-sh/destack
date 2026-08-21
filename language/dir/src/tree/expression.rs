@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause, InferForm,
-    Keyword, LocalNodeId, MatchArm, Mutability, Node, NodeType, OperatorPrecedence, Pattern,
-    PlaceModifier, Property, RangeEnd, Literal, StaticKey, SwitchCase, TemplateLiteral,
+    Keyword, Literal, LocalNodeId, MatchArm, Mutability, Node, NodeType, OperatorPrecedence,
+    Pattern, PlaceModifier, Property, RangeEnd, StaticKey, SwitchCase, TemplateLiteral,
     TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
 };
 

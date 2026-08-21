@@ -2,8 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalTypeId, PrimitiveType, Projection, RangeEnd, RangeType, Literal, StaticKey,
-    TypeFold, WalkSelections,
+    GlobalTypeId, Literal, PrimitiveType, Projection, RangeEnd, RangeType, StaticKey, TypeFold,
+    WalkSelections,
 };
 
 /// Executable predicate selected during checking.

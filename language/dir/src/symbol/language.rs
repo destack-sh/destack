@@ -1459,7 +1459,6 @@ define_language_items! {
             FunctionPointer => (Newtype, "types/function", "FunctionPointer"),
 
             /// Tuple value type.
-            Tuple => (Newtype, "types/function", "Tuple"),
 
             /// Constructor instance alias.
             InstanceType => (Type, "types/function", "InstanceType"),

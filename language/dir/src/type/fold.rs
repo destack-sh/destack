@@ -7,10 +7,10 @@ use crate::{
     Access, AutoInterface, BinaryOperator, CaptureMode, CastOrigin, EnumBackingType,
     EnumVariantValue, FunctionRole, FunctionSignature, GlobalGenericParameterId, GlobalNodeId,
     GlobalNodeIdAny, GlobalScopeId, GlobalStaticId, GlobalSymbolId, GlobalTypeId, InstanceOrigin,
-    IntegerType, LanguageItem, LocalCaptureFrameId, LocalGenericParameterId,
+    IntegerType, LanguageItem, Literal, LocalCaptureFrameId, LocalGenericParameterId,
     LocalGenericTemplateId, LocalNodeId, LocalScopeId, MemberKind, MemberOrigin, MemberRole,
     MemberSlot, MemberSpace, MethodAbstraction, Node, PrimitiveType, RangeEnd, ScalarFamilySet,
-    Literal, Space, StaticKey, UnaryOperator,
+    Space, StaticKey, UnaryOperator,
 };
 
 /// Rewrite every type id one checked value embeds.

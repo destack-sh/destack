@@ -2,8 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, FunctionSignature, GenericArgument, GenericParameter, LocalNodeId, MemberSlot,
-    MemberSpace, Mutability, Name, Node, NodeType, Parameter, Path, RangeEnd, Literal,
+    Expression, FunctionSignature, GenericArgument, GenericParameter, Literal, LocalNodeId,
+    MemberSlot, MemberSpace, Mutability, Name, Node, NodeType, Parameter, Path, RangeEnd,
     ScopeKind, StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral,
     VarianceBound, WhereClause,
 };

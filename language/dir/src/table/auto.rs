@@ -5,7 +5,10 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, SegmentView, TypeFold};
+use crate::{
+    GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem,
+    SegmentView, TypeFold,
+};
 
 /// Interface whose implementation can be provided by compiler rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -61,6 +64,34 @@ pub enum AutoInterface {
 }
 
 impl AutoInterface {
+    /// Every auto interface in declaration order.
+    const ALL: [Self; 24] = [
+        Self::AtomicSafe,
+        Self::Compare,
+        Self::Concrete,
+        Self::Copy,
+        Self::Clone,
+        Self::Debug,
+        Self::Display,
+        Self::Default,
+        Self::Deserialize,
+        Self::DynamicSafe,
+        Self::Equal,
+        Self::Float,
+        Self::FloatDomain,
+        Self::Hash,
+        Self::Integer,
+        Self::IntegerDomain,
+        Self::OverwriteStable,
+        Self::PartialCompare,
+        Self::PartialEqual,
+        Self::Serialize,
+        Self::SharedSafe,
+        Self::StrictEqual,
+        Self::Unpin,
+        Self::Zeroable,
+    ];
+
     /// The representation markers sealed on every concrete nominal.
     pub const REPRESENTATION: [Self; 4] = [
         Self::Copy,
@@ -68,9 +99,7 @@ impl AutoInterface {
         Self::OverwriteStable,
         Self::DynamicSafe,
     ];
-}
 
-impl AutoInterface {
     /// Return the auto interface named by one language item.
     pub fn from_language_item(item: LanguageItem) -> Option<Self> {
         match item {
@@ -235,6 +264,11 @@ impl AutoInterface {
         )
     }
 
+    /// Iterate every auto interface in declaration order.
+    pub fn all() -> impl Iterator<Item = Self> {
+        Self::ALL.into_iter()
+    }
+
     /// Return whether a written derive decorator may name this interface.
     pub fn is_derivable(self) -> bool {
         self.is_auto_derivable()
@@ -354,11 +388,16 @@ impl<'a> AutoTable<'a> {
         AutoTable::from_view(self.segments.with_tail(tail))
     }
 
-    /// Return whether one type satisfies one marker interface.
-    pub fn conforms(&self, target: GlobalTypeId, interface: AutoInterface) -> bool {
+    /// Return whether one type satisfies one marker interface under the given assuming template.
+    pub fn conforms(
+        &self,
+        target: GlobalTypeId,
+        scope: Option<GlobalGenericTemplateId>,
+        interface: AutoInterface,
+    ) -> bool {
         self.segments
             .iter()
-            .any(|segment| segment.conforms(target, interface))
+            .any(|segment| segment.conforms(target, scope, interface))
     }
 
     /// Iterate visible auto-derived implementations.
@@ -381,8 +420,9 @@ pub struct AutoSegment {
     pub module_id: ModuleId,
     /// Auto-derived implementations in emission order.
     implementations: Vec<AutoDerivedImplementation>,
-    /// The satisfied marker interfaces per conforming type.
-    conformances: IndexMap<GlobalTypeId, Vec<AutoInterface>>,
+    /// The satisfied marker interfaces per conforming type, under the template whose bounds
+    /// a parameter-bearing type assumes.
+    conformances: IndexMap<(GlobalTypeId, Option<GlobalGenericTemplateId>), Vec<AutoInterface>>,
     /// The selected implementation per concrete declared owner and interface root.
     selected: IndexMap<(GlobalSymbolId, GlobalSymbolId), Option<GlobalSymbolId>>,
 }
@@ -417,9 +457,14 @@ impl AutoSegment {
         self.selected.get(&(owner, root)).copied()
     }
 
-    /// Record one checked marker conformance.
-    pub fn push_conformance(&mut self, target: GlobalTypeId, interface: AutoInterface) {
-        let interfaces = self.conformances.entry(target).or_default();
+    /// Record one checked marker conformance, under the assuming template of an open type.
+    pub fn push_conformance(
+        &mut self,
+        target: GlobalTypeId,
+        scope: Option<GlobalGenericTemplateId>,
+        interface: AutoInterface,
+    ) {
+        let interfaces = self.conformances.entry((target, scope)).or_default();
         if !interfaces.contains(&interface) {
             interfaces.push(interface);
         }
@@ -430,11 +475,19 @@ impl AutoSegment {
         self.implementations.push(implementation);
     }
 
-    /// Return whether one type satisfies one marker interface in this segment.
-    pub fn conforms(&self, target: GlobalTypeId, interface: AutoInterface) -> bool {
-        self.conformances
-            .get(&target)
-            .is_some_and(|interfaces| interfaces.contains(&interface))
+    /// Return whether one type satisfies one marker interface in this segment under the given
+    /// assuming template, a closed type's conformance holding in every scope.
+    pub fn conforms(
+        &self,
+        target: GlobalTypeId,
+        scope: Option<GlobalGenericTemplateId>,
+        interface: AutoInterface,
+    ) -> bool {
+        [scope, None].iter().any(|scope| {
+            self.conformances
+                .get(&(target, *scope))
+                .is_some_and(|interfaces| interfaces.contains(&interface))
+        })
     }
 
     /// Iterate auto-derived implementations in insertion order.
@@ -454,9 +507,9 @@ impl TypeFold for AutoSegment {
         map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
     ) -> Result<(), E> {
         let conformances = std::mem::take(&mut self.conformances);
-        for (mut target, interfaces) in conformances {
+        for ((mut target, scope), interfaces) in conformances {
             target.map_types(map)?;
-            let entries = self.conformances.entry(target).or_default();
+            let entries = self.conformances.entry((target, scope)).or_default();
             for interface in interfaces {
                 if !entries.contains(&interface) {
                     entries.push(interface);

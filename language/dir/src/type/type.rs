@@ -5,8 +5,8 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalNodeIdAny,
-    GlobalStaticId, GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd, ScalarDomain,
-    Literal, StaticKey, StringId, TypeFold, TypeLiteral, UnaryOperator,
+    GlobalStaticId, GlobalSymbolId, LanguageItem, Literal, MappedTypeModifier, RangeEnd,
+    ScalarDomain, StaticKey, StringId, TypeFold, TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, IntegerType, MemoryParameter, PrimitiveType};
@@ -134,10 +134,9 @@ impl From<&Literal> for Type {
             Literal::Undefined => Self::Undefined,
             Literal::Boolean(_) => Self::Primitive(PrimitiveType::Boolean),
             Literal::Character(_) => Self::Primitive(PrimitiveType::Character),
-            Literal::String(_)
-            | Literal::Integer(_)
-            | Literal::Float(_)
-            | Literal::Bigint(_) => Self::Literal(*value),
+            Literal::String(_) | Literal::Integer(_) | Literal::Float(_) | Literal::Bigint(_) => {
+                Self::Literal(*value)
+            }
             Literal::RegexString { .. } => Self::Error,
         }
     }
@@ -197,10 +196,7 @@ impl Type {
 
     /// Return whether this type is the undefined singleton.
     pub fn is_undefined(&self) -> bool {
-        matches!(
-            self,
-            Self::Undefined | Self::Literal(Literal::Undefined)
-        )
+        matches!(self, Self::Undefined | Self::Literal(Literal::Undefined))
     }
 
     /// Return whether runtime values of this type can carry memory placement.
@@ -267,13 +263,7 @@ impl Type {
             return domain.member_owner_item();
         }
 
-        match self {
-            Self::Slice(_) => Some(LanguageItem::Slice),
-            Self::FixedArray(_) => Some(LanguageItem::FixedArray),
-            Self::Tuple(_) => Some(LanguageItem::Tuple),
-            Self::Function(_) | Self::FunctionSignature(_) => Some(LanguageItem::Function),
-            _ => None,
-        }
+        self.builtin_item()
     }
 
     /// Return the language declaration that carries this built-in type at runtime.
@@ -282,10 +272,14 @@ impl Type {
             return domain.representation_item();
         }
 
+        self.builtin_item()
+    }
+
+    /// Return the language declaration backing this slice, fixed array, or function type.
+    fn builtin_item(&self) -> Option<LanguageItem> {
         match self {
             Self::Slice(_) => Some(LanguageItem::Slice),
             Self::FixedArray(_) => Some(LanguageItem::FixedArray),
-            Self::Tuple(_) => Some(LanguageItem::Tuple),
             Self::Function(_) | Self::FunctionSignature(_) => Some(LanguageItem::Function),
             _ => None,
         }
@@ -324,10 +318,9 @@ impl Type {
         // enumerate the remaining finite domains
         match self {
             Self::Never => Some(SmallVec::new()),
-            Self::Primitive(PrimitiveType::Boolean) => Some(smallvec![
-                Literal::Boolean(false),
-                Literal::Boolean(true),
-            ]),
+            Self::Primitive(PrimitiveType::Boolean) => {
+                Some(smallvec![Literal::Boolean(false), Literal::Boolean(true)])
+            }
             _ => None,
         }
     }
@@ -852,7 +845,9 @@ impl MemoryLiteral {
 }
 
 /// Normalized memory access value, ordered from the weakest to the strongest access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
 pub enum Access {
     /// Shared readonly access.
     Readonly,
@@ -1557,12 +1552,8 @@ impl StaticBinaryOperator {
     }
 
     /// Evaluate this operator over two scalar literals.
-    pub fn apply(
-        self,
-        left: Literal,
-        right: Literal,
-    ) -> Result<Literal, &'static str> {
-        use Literal as Literal;
+    pub fn apply(self, left: Literal, right: Literal) -> Result<Literal, &'static str> {
+        use Literal;
         use StaticBinaryOperator as Operator;
 
         let literal = match (self, left, right) {
@@ -1841,11 +1832,7 @@ pub struct RangeType {
 
 impl RangeType {
     /// Create an interval from pattern bounds.
-    pub fn new(
-        start: Option<Literal>,
-        end: Option<Literal>,
-        end_kind: RangeEnd,
-    ) -> Self {
+    pub fn new(start: Option<Literal>, end: Option<Literal>, end_kind: RangeEnd) -> Self {
         Self {
             start,
             end,
@@ -2015,15 +2002,9 @@ impl RangeType {
         let start_holds = match (&self.start, &inner.start) {
             (None, _) => true,
             (Some(_), None) => false,
-            (Some(Literal::Integer(outer)), Some(Literal::Integer(inner))) => {
-                outer <= inner
-            }
-            (Some(Literal::Bigint(outer)), Some(Literal::Bigint(inner))) => {
-                outer <= inner
-            }
-            (Some(Literal::Character(outer)), Some(Literal::Character(inner))) => {
-                outer <= inner
-            }
+            (Some(Literal::Integer(outer)), Some(Literal::Integer(inner))) => outer <= inner,
+            (Some(Literal::Bigint(outer)), Some(Literal::Bigint(inner))) => outer <= inner,
+            (Some(Literal::Character(outer)), Some(Literal::Character(inner))) => outer <= inner,
             _ => false,
         };
         if !start_holds {
@@ -2042,10 +2023,7 @@ impl RangeType {
                 inner_end < outer_end
                     || (inner_end == outer_end && (self.is_inclusive || !inner.is_inclusive))
             }
-            (
-                Some(Literal::Character(outer_end)),
-                Some(Literal::Character(inner_end)),
-            ) => {
+            (Some(Literal::Character(outer_end)), Some(Literal::Character(inner_end))) => {
                 inner_end < outer_end
                     || (inner_end == outer_end && (self.is_inclusive || !inner.is_inclusive))
             }
@@ -2146,10 +2124,7 @@ impl RangeType {
     }
 
     /// Return the greater inclusive lower bound.
-    fn max_start_bound(
-        left: &Option<Literal>,
-        right: &Option<Literal>,
-    ) -> Option<Option<Literal>> {
+    fn max_start_bound(left: &Option<Literal>, right: &Option<Literal>) -> Option<Option<Literal>> {
         let start = match (left, right) {
             (None, None) => None,
             (Some(left), None) => Some(*left),
