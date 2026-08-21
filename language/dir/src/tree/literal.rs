@@ -10,7 +10,7 @@ use crate::{
     PrimitiveType, RangeType, ScalarAlias, ScalarDomain, StringId, Type,
 };
 
-/// A ScalarLiteral is literal scalar value.
+/// A Literal is literal scalar value.
 ///
 /// Examples:
 /// ```
@@ -28,7 +28,7 @@ use crate::{
 /// /abc/g
 /// ```
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]
-pub enum ScalarLiteral {
+pub enum Literal {
     /// Null value.
     Null,
     /// Undefined value.
@@ -52,7 +52,7 @@ pub enum ScalarLiteral {
     },
 }
 
-impl ScalarLiteral {
+impl Literal {
     /// Return this literal's boolean value.
     pub fn as_boolean(&self) -> Option<bool> {
         match self {
@@ -151,8 +151,7 @@ impl ScalarLiteral {
     /// Widen one scalar literal to its base type.
     pub fn widen(&self) -> Type {
         match self {
-            // numeric literals without a numeric context widen to plain number
-            Self::Integer(_) => Type::Primitive(PrimitiveType::Float(FloatType::Float64)),
+            Self::Integer(_) => Type::Primitive(PrimitiveType::Integer(IntegerType::DEFAULT)),
             Self::Float(_) => Type::Primitive(PrimitiveType::Float(FloatType::Float64)),
             Self::Bigint(_) => Type::Primitive(PrimitiveType::Bigint),
             Self::String(_) => Type::Primitive(PrimitiveType::String),
@@ -161,15 +160,6 @@ impl ScalarLiteral {
             Self::Null => Type::Null,
             Self::Undefined => Type::Undefined,
             Self::RegexString { .. } => Type::Error,
-        }
-    }
-
-    /// Return this literal's scalar type in an integer context.
-    pub fn widen_integer(&self) -> Type {
-        match self {
-            // integer literals in an integer context widen to the integer default
-            Self::Integer(_) => Type::Primitive(PrimitiveType::Integer(IntegerType::DEFAULT)),
-            _ => self.widen(),
         }
     }
 
@@ -367,7 +357,7 @@ impl TreeChild {
     }
 }
 
-impl PartialEq for ScalarLiteral {
+impl PartialEq for Literal {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Null, Self::Null) => true,
@@ -393,9 +383,9 @@ impl PartialEq for ScalarLiteral {
     }
 }
 
-impl Eq for ScalarLiteral {}
+impl Eq for Literal {}
 
-impl Hash for ScalarLiteral {
+impl Hash for Literal {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Self::Null => 0_u8.hash(state),

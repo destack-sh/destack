@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Name, ScalarLiteral};
+use crate::{Name, Literal};
 
 /// The kind of one import attribute clause.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -32,7 +32,7 @@ pub struct ImportAttribute {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ImportAttributeValue {
     /// A scalar literal value.
-    ScalarLiteral(ScalarLiteral),
+    Literal(Literal),
     /// An array value.
     Array(Vec<ImportAttributeValue>),
     /// An object value.

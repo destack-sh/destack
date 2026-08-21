@@ -6,7 +6,7 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalNodeIdAny,
     GlobalStaticId, GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd, ScalarDomain,
-    ScalarLiteral, StaticKey, StringId, TypeFold, TypeLiteral, UnaryOperator,
+    Literal, StaticKey, StringId, TypeFold, TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, IntegerType, MemoryParameter, PrimitiveType};
@@ -40,7 +40,7 @@ pub enum Type {
     /// Primitive type, like `string` or `int32`.
     Primitive(PrimitiveType),
     /// Scalar literal type, like `"id"` or `42`.
-    Literal(ScalarLiteral),
+    Literal(Literal),
     /// Singleton static property key type.
     Key(StaticKey),
     /// Singleton type of one normalized memory value.
@@ -119,26 +119,26 @@ impl From<TypeLiteral> for Type {
     }
 }
 
-impl From<ScalarLiteral> for Type {
+impl From<Literal> for Type {
     /// Convert a scalar literal expression into its exact type.
-    fn from(value: ScalarLiteral) -> Self {
+    fn from(value: Literal) -> Self {
         Self::from(&value)
     }
 }
 
-impl From<&ScalarLiteral> for Type {
+impl From<&Literal> for Type {
     /// Convert a scalar literal expression into its exact type.
-    fn from(value: &ScalarLiteral) -> Self {
+    fn from(value: &Literal) -> Self {
         match value {
-            ScalarLiteral::Null => Self::Null,
-            ScalarLiteral::Undefined => Self::Undefined,
-            ScalarLiteral::Boolean(_) => Self::Primitive(PrimitiveType::Boolean),
-            ScalarLiteral::Character(_) => Self::Primitive(PrimitiveType::Character),
-            ScalarLiteral::String(_)
-            | ScalarLiteral::Integer(_)
-            | ScalarLiteral::Float(_)
-            | ScalarLiteral::Bigint(_) => Self::Literal(*value),
-            ScalarLiteral::RegexString { .. } => Self::Error,
+            Literal::Null => Self::Null,
+            Literal::Undefined => Self::Undefined,
+            Literal::Boolean(_) => Self::Primitive(PrimitiveType::Boolean),
+            Literal::Character(_) => Self::Primitive(PrimitiveType::Character),
+            Literal::String(_)
+            | Literal::Integer(_)
+            | Literal::Float(_)
+            | Literal::Bigint(_) => Self::Literal(*value),
+            Literal::RegexString { .. } => Self::Error,
         }
     }
 }
@@ -148,7 +148,7 @@ impl Type {
     pub fn is_boolean(&self) -> bool {
         matches!(
             self,
-            Self::Primitive(PrimitiveType::Boolean) | Self::Literal(ScalarLiteral::Boolean(_))
+            Self::Primitive(PrimitiveType::Boolean) | Self::Literal(Literal::Boolean(_))
         )
     }
 
@@ -199,7 +199,7 @@ impl Type {
     pub fn is_undefined(&self) -> bool {
         matches!(
             self,
-            Self::Undefined | Self::Literal(ScalarLiteral::Undefined)
+            Self::Undefined | Self::Literal(Literal::Undefined)
         )
     }
 
@@ -270,6 +270,8 @@ impl Type {
         match self {
             Self::Slice(_) => Some(LanguageItem::Slice),
             Self::FixedArray(_) => Some(LanguageItem::FixedArray),
+            Self::Tuple(_) => Some(LanguageItem::Tuple),
+            Self::Function(_) | Self::FunctionSignature(_) => Some(LanguageItem::Function),
             _ => None,
         }
     }
@@ -283,6 +285,8 @@ impl Type {
         match self {
             Self::Slice(_) => Some(LanguageItem::Slice),
             Self::FixedArray(_) => Some(LanguageItem::FixedArray),
+            Self::Tuple(_) => Some(LanguageItem::Tuple),
+            Self::Function(_) | Self::FunctionSignature(_) => Some(LanguageItem::Function),
             _ => None,
         }
     }
@@ -301,17 +305,17 @@ impl Type {
     }
 
     /// Return the only scalar literal inhabiting this type.
-    pub fn singleton_literal(&self) -> Option<ScalarLiteral> {
+    pub fn singleton_literal(&self) -> Option<Literal> {
         match self {
-            Self::Null => Some(ScalarLiteral::Null),
-            Self::Undefined => Some(ScalarLiteral::Undefined),
+            Self::Null => Some(Literal::Null),
+            Self::Undefined => Some(Literal::Undefined),
             Self::Literal(literal) => Some(*literal),
             _ => None,
         }
     }
 
     /// Return every inhabitant when this type has a finite literal set.
-    pub fn finite_literals(&self) -> Option<SmallVec<[ScalarLiteral; 2]>> {
+    pub fn finite_literals(&self) -> Option<SmallVec<[Literal; 2]>> {
         // return the exact singleton directly
         if let Some(literal) = self.singleton_literal() {
             return Some(smallvec![literal]);
@@ -321,8 +325,8 @@ impl Type {
         match self {
             Self::Never => Some(SmallVec::new()),
             Self::Primitive(PrimitiveType::Boolean) => Some(smallvec![
-                ScalarLiteral::Boolean(false),
-                ScalarLiteral::Boolean(true),
+                Literal::Boolean(false),
+                Literal::Boolean(true),
             ]),
             _ => None,
         }
@@ -847,8 +851,8 @@ impl MemoryLiteral {
     }
 }
 
-/// Normalized memory access value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+/// Normalized memory access value, ordered from the weakest to the strongest access.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 pub enum Access {
     /// Shared readonly access.
     Readonly,
@@ -1555,10 +1559,10 @@ impl StaticBinaryOperator {
     /// Evaluate this operator over two scalar literals.
     pub fn apply(
         self,
-        left: ScalarLiteral,
-        right: ScalarLiteral,
-    ) -> Result<ScalarLiteral, &'static str> {
-        use ScalarLiteral as Literal;
+        left: Literal,
+        right: Literal,
+    ) -> Result<Literal, &'static str> {
+        use Literal as Literal;
         use StaticBinaryOperator as Operator;
 
         let literal = match (self, left, right) {
@@ -1828,9 +1832,9 @@ pub struct FixedArrayType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct RangeType {
     /// The inclusive lower bound.
-    pub start: Option<ScalarLiteral>,
+    pub start: Option<Literal>,
     /// The upper bound.
-    pub end: Option<ScalarLiteral>,
+    pub end: Option<Literal>,
     /// Whether the upper bound is included.
     pub is_inclusive: bool,
 }
@@ -1838,8 +1842,8 @@ pub struct RangeType {
 impl RangeType {
     /// Create an interval from pattern bounds.
     pub fn new(
-        start: Option<ScalarLiteral>,
-        end: Option<ScalarLiteral>,
+        start: Option<Literal>,
+        end: Option<Literal>,
         end_kind: RangeEnd,
     ) -> Self {
         Self {
@@ -1851,8 +1855,8 @@ impl RangeType {
 
     /// Return this interval's scalar domain.
     pub fn scalar_domain(&self) -> Option<ScalarDomain> {
-        let start = self.start.as_ref().and_then(ScalarLiteral::interval_domain);
-        let end = self.end.as_ref().and_then(ScalarLiteral::interval_domain);
+        let start = self.start.as_ref().and_then(Literal::interval_domain);
+        let end = self.end.as_ref().and_then(Literal::interval_domain);
 
         match (start, end) {
             (Some(start), Some(end)) if start == end => Some(start),
@@ -1891,11 +1895,11 @@ impl RangeType {
     }
 
     /// Return whether this interval contains one scalar literal.
-    pub fn contains_literal(&self, literal: ScalarLiteral) -> bool {
+    pub fn contains_literal(&self, literal: Literal) -> bool {
         match literal {
-            ScalarLiteral::Integer(value) => self.contains_integer(value),
-            ScalarLiteral::Bigint(value) => self.contains_bigint(value),
-            ScalarLiteral::Character(value) => self.contains_character(value),
+            Literal::Integer(value) => self.contains_integer(value),
+            Literal::Bigint(value) => self.contains_bigint(value),
+            Literal::Character(value) => self.contains_character(value),
             _ => false,
         }
     }
@@ -1903,13 +1907,13 @@ impl RangeType {
     /// Return whether this interval contains one integer literal.
     pub fn contains_integer(&self, value: i64) -> bool {
         let start_holds = match self.start {
-            Some(ScalarLiteral::Integer(start)) => value >= start,
+            Some(Literal::Integer(start)) => value >= start,
             Some(_) => false,
             None => true,
         };
 
         let end_holds = match self.end {
-            Some(ScalarLiteral::Integer(end)) => {
+            Some(Literal::Integer(end)) => {
                 if self.is_inclusive {
                     value <= end
                 } else {
@@ -1926,13 +1930,13 @@ impl RangeType {
     /// Return whether this interval contains one bigint literal.
     pub fn contains_bigint(&self, value: i64) -> bool {
         let start_holds = match self.start {
-            Some(ScalarLiteral::Bigint(start)) => value >= start,
+            Some(Literal::Bigint(start)) => value >= start,
             Some(_) => false,
             None => true,
         };
 
         let end_holds = match self.end {
-            Some(ScalarLiteral::Bigint(end)) => {
+            Some(Literal::Bigint(end)) => {
                 if self.is_inclusive {
                     value <= end
                 } else {
@@ -1949,13 +1953,13 @@ impl RangeType {
     /// Return whether this interval contains one character literal.
     pub fn contains_character(&self, value: char) -> bool {
         let start_holds = match self.start {
-            Some(ScalarLiteral::Character(start)) => value >= start,
+            Some(Literal::Character(start)) => value >= start,
             Some(_) => false,
             None => true,
         };
 
         let end_holds = match self.end {
-            Some(ScalarLiteral::Character(end)) => {
+            Some(Literal::Character(end)) => {
                 if self.is_inclusive {
                     value <= end
                 } else {
@@ -1975,11 +1979,11 @@ impl RangeType {
             // integer intervals widen when both bounds fit
             PrimitiveType::Integer(integer) => {
                 let start_widens = match &self.start {
-                    Some(ScalarLiteral::Integer(start)) => integer.fits_literal(*start),
+                    Some(Literal::Integer(start)) => integer.fits_literal(*start),
                     Some(_) | None => false,
                 };
                 let end_widens = match &self.end {
-                    Some(ScalarLiteral::Integer(end)) => integer.fits_literal(*end),
+                    Some(Literal::Integer(end)) => integer.fits_literal(*end),
                     Some(_) | None => false,
                 };
 
@@ -1989,16 +1993,16 @@ impl RangeType {
             PrimitiveType::Bigint => matches!(
                 (&self.start, &self.end),
                 (
-                    Some(ScalarLiteral::Bigint(_)) | None,
-                    Some(ScalarLiteral::Bigint(_)) | None,
+                    Some(Literal::Bigint(_)) | None,
+                    Some(Literal::Bigint(_)) | None,
                 )
             ),
             // character intervals widen to the character primitive
             PrimitiveType::Character => matches!(
                 (&self.start, &self.end),
                 (
-                    Some(ScalarLiteral::Character(_)) | None,
-                    Some(ScalarLiteral::Character(_)) | None,
+                    Some(Literal::Character(_)) | None,
+                    Some(Literal::Character(_)) | None,
                 )
             ),
             _ => false,
@@ -2011,13 +2015,13 @@ impl RangeType {
         let start_holds = match (&self.start, &inner.start) {
             (None, _) => true,
             (Some(_), None) => false,
-            (Some(ScalarLiteral::Integer(outer)), Some(ScalarLiteral::Integer(inner))) => {
+            (Some(Literal::Integer(outer)), Some(Literal::Integer(inner))) => {
                 outer <= inner
             }
-            (Some(ScalarLiteral::Bigint(outer)), Some(ScalarLiteral::Bigint(inner))) => {
+            (Some(Literal::Bigint(outer)), Some(Literal::Bigint(inner))) => {
                 outer <= inner
             }
-            (Some(ScalarLiteral::Character(outer)), Some(ScalarLiteral::Character(inner))) => {
+            (Some(Literal::Character(outer)), Some(Literal::Character(inner))) => {
                 outer <= inner
             }
             _ => false,
@@ -2030,17 +2034,17 @@ impl RangeType {
         match (&self.end, &inner.end) {
             (None, _) => true,
             (Some(_), None) => false,
-            (Some(ScalarLiteral::Integer(outer_end)), Some(ScalarLiteral::Integer(inner_end))) => {
+            (Some(Literal::Integer(outer_end)), Some(Literal::Integer(inner_end))) => {
                 inner_end < outer_end
                     || (inner_end == outer_end && (self.is_inclusive || !inner.is_inclusive))
             }
-            (Some(ScalarLiteral::Bigint(outer_end)), Some(ScalarLiteral::Bigint(inner_end))) => {
+            (Some(Literal::Bigint(outer_end)), Some(Literal::Bigint(inner_end))) => {
                 inner_end < outer_end
                     || (inner_end == outer_end && (self.is_inclusive || !inner.is_inclusive))
             }
             (
-                Some(ScalarLiteral::Character(outer_end)),
-                Some(ScalarLiteral::Character(inner_end)),
+                Some(Literal::Character(outer_end)),
+                Some(Literal::Character(inner_end)),
             ) => {
                 inner_end < outer_end
                     || (inner_end == outer_end && (self.is_inclusive || !inner.is_inclusive))
@@ -2121,7 +2125,7 @@ impl RangeType {
     }
 
     /// Return the literal when this interval contains exactly one discrete value.
-    pub fn singleton_literal(&self) -> Option<ScalarLiteral> {
+    pub fn singleton_literal(&self) -> Option<Literal> {
         let start = self.start?;
         let end = self.end?;
 
@@ -2143,21 +2147,21 @@ impl RangeType {
 
     /// Return the greater inclusive lower bound.
     fn max_start_bound(
-        left: &Option<ScalarLiteral>,
-        right: &Option<ScalarLiteral>,
-    ) -> Option<Option<ScalarLiteral>> {
+        left: &Option<Literal>,
+        right: &Option<Literal>,
+    ) -> Option<Option<Literal>> {
         let start = match (left, right) {
             (None, None) => None,
             (Some(left), None) => Some(*left),
             (None, Some(right)) => Some(*right),
-            (Some(ScalarLiteral::Integer(left)), Some(ScalarLiteral::Integer(right))) => {
-                Some(ScalarLiteral::Integer((*left).max(*right)))
+            (Some(Literal::Integer(left)), Some(Literal::Integer(right))) => {
+                Some(Literal::Integer((*left).max(*right)))
             }
-            (Some(ScalarLiteral::Bigint(left)), Some(ScalarLiteral::Bigint(right))) => {
-                Some(ScalarLiteral::Bigint((*left).max(*right)))
+            (Some(Literal::Bigint(left)), Some(Literal::Bigint(right))) => {
+                Some(Literal::Bigint((*left).max(*right)))
             }
-            (Some(ScalarLiteral::Character(left)), Some(ScalarLiteral::Character(right))) => {
-                Some(ScalarLiteral::Character((*left).max(*right)))
+            (Some(Literal::Character(left)), Some(Literal::Character(right))) => {
+                Some(Literal::Character((*left).max(*right)))
             }
             (Some(_), Some(_)) => return None,
         };
@@ -2167,47 +2171,47 @@ impl RangeType {
 
     /// Return the lesser upper bound.
     fn min_end_bound(
-        left: &Option<ScalarLiteral>,
+        left: &Option<Literal>,
         left_is_inclusive: bool,
-        right: &Option<ScalarLiteral>,
+        right: &Option<Literal>,
         right_is_inclusive: bool,
-    ) -> Option<(Option<ScalarLiteral>, bool)> {
+    ) -> Option<(Option<Literal>, bool)> {
         let end = match (left, right) {
             (None, None) => (None, left_is_inclusive && right_is_inclusive),
             (Some(left), None) => (Some(*left), left_is_inclusive),
             (None, Some(right)) => (Some(*right), right_is_inclusive),
-            (Some(ScalarLiteral::Integer(left)), Some(ScalarLiteral::Integer(right))) => {
+            (Some(Literal::Integer(left)), Some(Literal::Integer(right))) => {
                 if left < right {
-                    (Some(ScalarLiteral::Integer(*left)), left_is_inclusive)
+                    (Some(Literal::Integer(*left)), left_is_inclusive)
                 } else if right < left {
-                    (Some(ScalarLiteral::Integer(*right)), right_is_inclusive)
+                    (Some(Literal::Integer(*right)), right_is_inclusive)
                 } else {
                     (
-                        Some(ScalarLiteral::Integer(*left)),
+                        Some(Literal::Integer(*left)),
                         left_is_inclusive && right_is_inclusive,
                     )
                 }
             }
-            (Some(ScalarLiteral::Bigint(left)), Some(ScalarLiteral::Bigint(right))) => {
+            (Some(Literal::Bigint(left)), Some(Literal::Bigint(right))) => {
                 if left < right {
-                    (Some(ScalarLiteral::Bigint(*left)), left_is_inclusive)
+                    (Some(Literal::Bigint(*left)), left_is_inclusive)
                 } else if right < left {
-                    (Some(ScalarLiteral::Bigint(*right)), right_is_inclusive)
+                    (Some(Literal::Bigint(*right)), right_is_inclusive)
                 } else {
                     (
-                        Some(ScalarLiteral::Bigint(*left)),
+                        Some(Literal::Bigint(*left)),
                         left_is_inclusive && right_is_inclusive,
                     )
                 }
             }
-            (Some(ScalarLiteral::Character(left)), Some(ScalarLiteral::Character(right))) => {
+            (Some(Literal::Character(left)), Some(Literal::Character(right))) => {
                 if left < right {
-                    (Some(ScalarLiteral::Character(*left)), left_is_inclusive)
+                    (Some(Literal::Character(*left)), left_is_inclusive)
                 } else if right < left {
-                    (Some(ScalarLiteral::Character(*right)), right_is_inclusive)
+                    (Some(Literal::Character(*right)), right_is_inclusive)
                 } else {
                     (
-                        Some(ScalarLiteral::Character(*left)),
+                        Some(Literal::Character(*left)),
                         left_is_inclusive && right_is_inclusive,
                     )
                 }
@@ -2220,18 +2224,18 @@ impl RangeType {
 
     /// Return whether one upper bound excludes one lower bound.
     fn end_excludes_start(
-        end: &Option<ScalarLiteral>,
+        end: &Option<Literal>,
         is_inclusive: bool,
-        start: &Option<ScalarLiteral>,
+        start: &Option<Literal>,
     ) -> bool {
         match (end, start) {
-            (Some(ScalarLiteral::Integer(end)), Some(ScalarLiteral::Integer(start))) => {
+            (Some(Literal::Integer(end)), Some(Literal::Integer(start))) => {
                 end < start || (end == start && !is_inclusive)
             }
-            (Some(ScalarLiteral::Bigint(end)), Some(ScalarLiteral::Bigint(start))) => {
+            (Some(Literal::Bigint(end)), Some(Literal::Bigint(start))) => {
                 end < start || (end == start && !is_inclusive)
             }
-            (Some(ScalarLiteral::Character(end)), Some(ScalarLiteral::Character(start))) => {
+            (Some(Literal::Character(end)), Some(Literal::Character(start))) => {
                 end < start || (end == start && !is_inclusive)
             }
             (Some(_), Some(_)) => true,

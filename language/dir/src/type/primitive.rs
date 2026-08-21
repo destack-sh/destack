@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::{FloatFormat, roundtrip_float};
 
-use crate::{LanguageItem, RangeType, ScalarDomain, ScalarLiteral, StringId};
+use crate::{LanguageItem, RangeType, ScalarDomain, Literal, StringId};
 
 /// A primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -176,7 +176,7 @@ pub enum EnumVariantIncrementError {
     Overflow,
 }
 
-impl From<EnumVariantValue> for ScalarLiteral {
+impl From<EnumVariantValue> for Literal {
     /// Convert one resolved enum variant value into its scalar literal.
     fn from(value: EnumVariantValue) -> Self {
         match value {
@@ -299,8 +299,8 @@ impl IntegerType {
         };
 
         Some(RangeType {
-            start: Some(ScalarLiteral::Integer(start)),
-            end: Some(ScalarLiteral::Integer(end)),
+            start: Some(Literal::Integer(start)),
+            end: Some(Literal::Integer(end)),
             is_inclusive: true,
         })
     }

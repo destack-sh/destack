@@ -162,6 +162,10 @@ impl ScalarDomain {
             AutoInterface::Equal | AutoInterface::Hash | AutoInterface::Compare => {
                 Some(self != Self::Float)
             }
+            // every scalar stores a default value and never pins
+            AutoInterface::Default | AutoInterface::Unpin => Some(true),
+            // inline scalars are all-zero representable, reference-carried ones are not
+            AutoInterface::Zeroable => Some(!matches!(self, Self::String | Self::Bigint)),
             // the remaining interfaces decide outside the scalar domains
             _ => None,
         }

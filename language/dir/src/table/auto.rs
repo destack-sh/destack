@@ -216,11 +216,11 @@ impl AutoInterface {
     }
 
     /// Return whether the compiler implements this interface without declarations.
-    pub fn is_intrinsic(self) -> bool {
+    pub fn has_builtin_implementation(self) -> bool {
         // include scalar ordering, which the compiler decides outside the auto set
         self.is_marker()
             || self.is_auto_derivable()
-            || matches!(self, Self::Compare | Self::PartialCompare)
+            || matches!(self, Self::Compare | Self::PartialCompare | Self::Default)
     }
 
     /// Return whether this interface takes the compared value as its argument.

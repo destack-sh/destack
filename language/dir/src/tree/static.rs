@@ -3,13 +3,13 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::ModuleId;
 
-use crate::{FunctionSignature, GlobalTypeId, ScalarLiteral, StaticKey, StringId, TypeFold};
+use crate::{FunctionSignature, GlobalTypeId, Literal, StaticKey, StringId, TypeFold};
 
 /// A concrete static value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum StaticTerm {
     /// Scalar literal.
-    ScalarLiteral { value: ScalarLiteral },
+    Literal { value: Literal },
     /// Type value.
     Type { ty: GlobalTypeId },
     /// Array value.
@@ -44,17 +44,17 @@ pub enum StaticTerm {
     },
 }
 
-impl From<ScalarLiteral> for StaticTerm {
-    fn from(value: ScalarLiteral) -> Self {
-        Self::ScalarLiteral { value }
+impl From<Literal> for StaticTerm {
+    fn from(value: Literal) -> Self {
+        Self::Literal { value }
     }
 }
 
 impl StaticTerm {
     /// Return this value's scalar literal.
-    pub fn as_scalar(&self) -> Option<ScalarLiteral> {
+    pub fn as_scalar(&self) -> Option<Literal> {
         match self {
-            Self::ScalarLiteral { value } => Some(*value),
+            Self::Literal { value } => Some(*value),
             _ => None,
         }
     }
@@ -62,7 +62,7 @@ impl StaticTerm {
     /// Return this value's string literal.
     pub fn as_string(&self) -> Option<StringId> {
         match self.as_scalar()? {
-            ScalarLiteral::String(value) => Some(value),
+            Literal::String(value) => Some(value),
             _ => None,
         }
     }
@@ -75,7 +75,7 @@ impl StaticTerm {
     /// Return this value's integer literal.
     pub fn as_integer(&self) -> Option<i64> {
         match self.as_scalar()? {
-            ScalarLiteral::Integer(value) => Some(value),
+            Literal::Integer(value) => Some(value),
             _ => None,
         }
     }

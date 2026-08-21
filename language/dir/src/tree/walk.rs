@@ -298,8 +298,8 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::TypeExpression, id.id);
     match type_expression {
-        TypeExpression::ScalarLiteral { .. } => {}
         TypeExpression::Literal { .. } => {}
+        TypeExpression::Keyword { .. } => {}
         TypeExpression::Lifetime { .. } => {}
         TypeExpression::Intrinsic => {}
         TypeExpression::Tuple { elements, .. } => {
@@ -985,7 +985,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         | Expression::ImportMeta
         | Expression::ImportSource => {}
 
-        Expression::ScalarLiteral(_) => {
+        Expression::Literal(_) => {
             // no child nodes to visit
         }
 

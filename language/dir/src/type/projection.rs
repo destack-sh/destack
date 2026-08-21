@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution, GlobalTypeId,
-    MemberAccess, MemberDecision, OperationResolution, ScalarLiteral, Selection, StaticKey,
+    MemberAccess, MemberDecision, OperationResolution, Literal, Selection, StaticKey,
     Subscript, SubscriptDecision, TypeFold, WalkSelections,
 };
 
@@ -197,7 +197,7 @@ pub struct DiscriminantCase {
     /// The physical union arm selected by this value.
     pub arm: GlobalTypeId,
     /// The source property value represented by this arm.
-    pub value: ScalarLiteral,
+    pub value: Literal,
 }
 
 /// Projection selected for one value or every runtime union arm.

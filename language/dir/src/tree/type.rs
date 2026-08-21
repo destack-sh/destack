@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Expression, FunctionSignature, GenericArgument, GenericParameter, LocalNodeId, MemberSlot,
-    MemberSpace, Mutability, Name, Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral,
+    MemberSpace, Mutability, Name, Node, NodeType, Parameter, Path, RangeEnd, Literal,
     ScopeKind, StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral,
     VarianceBound, WhereClause,
 };
@@ -332,16 +332,16 @@ pub enum TypeExpression {
     /// 42
     /// true
     /// ```
-    ScalarLiteral { value: ScalarLiteral },
+    Literal { value: Literal },
 
-    /// Literal type.
+    /// Keyword type.
     ///
     /// Examples:
     /// ```
     /// null
     /// undefined
     /// ```
-    Literal { value: TypeLiteral },
+    Keyword { value: TypeLiteral },
 
     /// Lifetime name.
     ///

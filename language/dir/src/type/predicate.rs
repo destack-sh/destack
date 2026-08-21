@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalTypeId, PrimitiveType, Projection, RangeEnd, RangeType, ScalarLiteral, StaticKey,
+    GlobalTypeId, PrimitiveType, Projection, RangeEnd, RangeType, Literal, StaticKey,
     TypeFold, WalkSelections,
 };
 
@@ -184,7 +184,7 @@ pub enum PredicateCondition {
     /// ```ds
     /// match status { "ready" => true }
     /// ```
-    Literal(ScalarLiteral),
+    Literal(Literal),
     /// Scalar interval condition, like `0..=255`.
     ///
     /// Examples:
@@ -267,16 +267,16 @@ pub struct PredicateRange {
     /// The scalar domain constrained by the range.
     pub domain: GlobalTypeId,
     /// The optional committed lower bound.
-    pub start: Option<ScalarLiteral>,
+    pub start: Option<Literal>,
     /// The optional committed upper bound.
-    pub end: Option<ScalarLiteral>,
+    pub end: Option<Literal>,
     /// Whether the upper bound is inclusive.
     pub end_bound: RangeEnd,
 }
 
 impl PredicateRange {
     /// Return whether this predicate range contains one scalar literal.
-    pub fn contains_literal(&self, literal: ScalarLiteral) -> bool {
+    pub fn contains_literal(&self, literal: Literal) -> bool {
         let range = RangeType::new(self.start, self.end, self.end_bound);
 
         range.contains_literal(literal)

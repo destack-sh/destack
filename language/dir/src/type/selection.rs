@@ -12,7 +12,7 @@ use crate::{
     GlobalSymbolId, GlobalTypeId, IntegerType, LanguageItem, LocalCaptureFrameId,
     LocalGenericParameterId, LocalGenericTemplateId, LocalNodeId, LocalScopeId, MemberKind,
     MemberOrigin, MemberRole, MemberSlot, MemberSpace, MethodAbstraction, Node, PrimitiveType,
-    RangeEnd, ScalarFamilySet, ScalarLiteral, Space, StaticKey, TypeFold, UnaryOperator,
+    RangeEnd, ScalarFamilySet, Literal, Space, StaticKey, TypeFold, UnaryOperator,
 };
 
 /// One declaration selected with its generic argument bindings.
@@ -169,7 +169,7 @@ selection_walk_leaves!(
     PrimitiveType,
     RangeEnd,
     ScalarFamilySet,
-    ScalarLiteral,
+    Literal,
     Space,
     StaticKey,
     UnaryOperator,

@@ -6,7 +6,7 @@ use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause, InferForm,
     Keyword, LocalNodeId, MatchArm, Mutability, Node, NodeType, OperatorPrecedence, Pattern,
-    PlaceModifier, Property, RangeEnd, ScalarLiteral, StaticKey, SwitchCase, TemplateLiteral,
+    PlaceModifier, Property, RangeEnd, Literal, StaticKey, SwitchCase, TemplateLiteral,
     TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
 };
 
@@ -409,7 +409,7 @@ pub enum Expression {
     /// b"abc"
     /// 0x1234
     /// ```
-    ScalarLiteral(ScalarLiteral),
+    Literal(Literal),
 
     /// Range expression.
     ///
@@ -773,12 +773,12 @@ impl Node for Expression {
 
 impl Expression {
     /// Return this expression's scalar literal.
-    pub fn as_scalar(&self) -> Option<ScalarLiteral> {
+    pub fn as_scalar(&self) -> Option<Literal> {
         match self {
-            Self::ScalarLiteral(value) => Some(*value),
+            Self::Literal(value) => Some(*value),
             Self::TemplateExpression {
                 value: TemplateLiteral::String { chunk },
-            } => chunk.cooked.map(ScalarLiteral::String),
+            } => chunk.cooked.map(Literal::String),
             _ => None,
         }
     }
@@ -878,7 +878,7 @@ impl Expression {
             Self::Super => "Super",
             Self::ImportMeta => "ImportMeta",
             Self::ImportSource => "ImportSource",
-            Self::ScalarLiteral(..) => "ScalarLiteral",
+            Self::Literal(..) => "Literal",
             Self::RangeExpression { .. } => "RangeExpression",
             Self::TemplateExpression { .. } => "TemplateExpression",
             Self::TaggedTemplateExpression { .. } => "TaggedTemplateExpression",
@@ -916,10 +916,10 @@ impl Expression {
     /// Return this expression as a static lookup key when locally obvious.
     pub fn static_key(&self) -> Option<StaticKey> {
         match self {
-            Self::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+            Self::Literal(Literal::Integer(value)) => {
                 usize::try_from(*value).ok().map(StaticKey::Index)
             }
-            Self::ScalarLiteral(ScalarLiteral::String(name)) => Some(StaticKey::Name(*name)),
+            Self::Literal(Literal::String(name)) => Some(StaticKey::Name(*name)),
             _ => None,
         }
     }

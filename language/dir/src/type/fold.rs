@@ -10,7 +10,7 @@ use crate::{
     IntegerType, LanguageItem, LocalCaptureFrameId, LocalGenericParameterId,
     LocalGenericTemplateId, LocalNodeId, LocalScopeId, MemberKind, MemberOrigin, MemberRole,
     MemberSlot, MemberSpace, MethodAbstraction, Node, PrimitiveType, RangeEnd, ScalarFamilySet,
-    ScalarLiteral, Space, StaticKey, UnaryOperator,
+    Literal, Space, StaticKey, UnaryOperator,
 };
 
 /// Rewrite every type id one checked value embeds.
@@ -179,7 +179,7 @@ type_fold_leaves!(
     PrimitiveType,
     RangeEnd,
     ScalarFamilySet,
-    ScalarLiteral,
+    Literal,
     Space,
     StaticKey,
     UnaryOperator,
