@@ -98,10 +98,7 @@ impl SessionState {
 
         // preserve a stable module-level anchor
         let span = Span::empty(module.file_id);
-        let anchor_expression = tree.insert(
-            Expression::Literal(Literal::Boolean(false)),
-            span,
-        );
+        let anchor_expression = tree.insert(Expression::Literal(Literal::Boolean(false)), span);
         let dir = DirParsed::new(tree, files, anchor_expression);
 
         Ok(dir)
@@ -156,10 +153,7 @@ impl SessionState {
         // restore the shared tree
         *tree = parse.tree;
         let span = Span::empty(file.id);
-        let anchor_expression = tree.insert(
-            Expression::Literal(Literal::Boolean(false)),
-            span,
-        );
+        let anchor_expression = tree.insert(Expression::Literal(Literal::Boolean(false)), span);
 
         Ok(DirParsedFile {
             file_id: file.id,
