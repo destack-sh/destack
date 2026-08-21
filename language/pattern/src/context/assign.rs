@@ -117,10 +117,10 @@ impl ModuleContext {
         }
 
         let is_assignable = match tree.get(target) {
-            dir::TypeExpression::Literal { value } => {
+            dir::TypeExpression::Keyword { value } => {
                 Self::is_leaf_assignable(source_type, dir::Type::from(value.clone()))
             }
-            dir::TypeExpression::ScalarLiteral { value } => {
+            dir::TypeExpression::Literal { value } => {
                 Self::is_leaf_assignable(source_type, Self::scalar_type(*value))
             }
             dir::TypeExpression::Union { elements } => {
@@ -233,10 +233,10 @@ impl ModuleContext {
         }
 
         let is_assignable = match tree.get(source) {
-            dir::TypeExpression::Literal { value } => {
+            dir::TypeExpression::Keyword { value } => {
                 Self::is_leaf_assignable(dir::Type::from(value.clone()), target_type)
             }
-            dir::TypeExpression::ScalarLiteral { value } => {
+            dir::TypeExpression::Literal { value } => {
                 Self::is_leaf_assignable(Self::scalar_type(*value), target_type)
             }
             dir::TypeExpression::Union { elements } => {
@@ -447,10 +447,10 @@ impl ModuleContext {
     }
 
     /// Return the exact checked type denoted by one scalar type literal.
-    fn scalar_type(value: dir::ScalarLiteral) -> dir::Type {
+    fn scalar_type(value: dir::Literal) -> dir::Type {
         match value {
-            dir::ScalarLiteral::Null => dir::Type::Null,
-            dir::ScalarLiteral::Undefined => dir::Type::Undefined,
+            dir::Literal::Null => dir::Type::Null,
+            dir::Literal::Undefined => dir::Type::Undefined,
             _ => dir::Type::Literal(value),
         }
     }

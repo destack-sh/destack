@@ -146,7 +146,7 @@ impl Compiler {
         }
 
         match tree.get(expression) {
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(_)) => true,
+            dir::Expression::Literal(dir::Literal::Boolean(_)) => true,
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Not,
                 right,
@@ -195,7 +195,7 @@ impl Compiler {
         }
 
         match tree.get(expression) {
-            dir::Expression::Identifier { .. } | dir::Expression::ScalarLiteral(_) => true,
+            dir::Expression::Identifier { .. } | dir::Expression::Literal(_) => true,
             dir::Expression::Member {
                 left,
                 name: Some(_),
@@ -212,7 +212,7 @@ impl Compiler {
         target: dir::LocalNodeId<dir::TypeExpression>,
     ) -> bool {
         match tree.get(target) {
-            dir::TypeExpression::ScalarLiteral { .. } | dir::TypeExpression::Literal { .. } => true,
+            dir::TypeExpression::Literal { .. } | dir::TypeExpression::Literal { .. } => true,
             dir::TypeExpression::Reference {
                 generic_arguments, ..
             } => generic_arguments.iter().all(|argument| {

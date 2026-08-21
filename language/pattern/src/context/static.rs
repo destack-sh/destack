@@ -8,10 +8,10 @@ impl ModuleContext {
         &self,
         node: dir::LocalNodeIdAny,
         program: &ProgramContext,
-    ) -> Result<Option<dir::ScalarLiteral>, ContextError> {
+    ) -> Result<Option<dir::Literal>, ContextError> {
         if node.ty == dir::NodeType::Expression {
             let expression = dir::LocalNodeId::<dir::Expression>::new(node.id);
-            if let dir::Expression::ScalarLiteral(value) = self.view().get(expression) {
+            if let dir::Expression::Literal(value) = self.view().get(expression) {
                 return Ok(Some(*value));
             }
         }
@@ -31,7 +31,7 @@ impl ProgramContext {
     pub fn static_scalar(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Result<Option<dir::ScalarLiteral>, ContextError> {
+    ) -> Result<Option<dir::Literal>, ContextError> {
         let symbols = self.symbol_targets(&[symbol])?;
         let [symbol] = symbols.as_slice() else {
             return Ok(None);
@@ -50,8 +50,8 @@ impl ProgramContext {
         };
         let scalar = match self.type_by_id(type_id)? {
             dir::Type::Literal(value) => Some(value),
-            dir::Type::Null => Some(dir::ScalarLiteral::Null),
-            dir::Type::Undefined => Some(dir::ScalarLiteral::Undefined),
+            dir::Type::Null => Some(dir::Literal::Null),
+            dir::Type::Undefined => Some(dir::Literal::Undefined),
             _ => None,
         };
 

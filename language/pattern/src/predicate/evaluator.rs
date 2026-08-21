@@ -52,7 +52,7 @@ impl<'a> Evaluator<'a> {
         }
 
         match self.predicate.tree().get(expression) {
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(value)) => Ok(*value),
+            dir::Expression::Literal(dir::Literal::Boolean(value)) => Ok(*value),
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Not,
                 right,
@@ -211,7 +211,7 @@ impl<'a> Evaluator<'a> {
     fn scalar(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<Option<dir::ScalarLiteral>, MatchError> {
+    ) -> Result<Option<dir::Literal>, MatchError> {
         if let Some(variable) = self.predicate.uses().get(expression) {
             let Some(binding) = self.bindings.get(variable) else {
                 return Err(MatchError::InvalidPredicateBinding);
@@ -222,13 +222,13 @@ impl<'a> Evaluator<'a> {
                     .module
                     .static_scalar(*node, self.program)
                     .map_err(MatchError::from),
-                Binding::Name { name, .. } => Ok(Some(dir::ScalarLiteral::String(*name))),
+                Binding::Name { name, .. } => Ok(Some(dir::Literal::String(*name))),
                 Binding::Nodes(_) => Err(MatchError::InvalidPredicateBinding),
             };
         }
 
         match self.predicate.tree().get(expression) {
-            dir::Expression::ScalarLiteral(value) => Ok(Some(*value)),
+            dir::Expression::Literal(value) => Ok(Some(*value)),
             _ => {
                 let symbols = self.module.resolve_reference(
                     self.candidate,
@@ -248,16 +248,16 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Compare two scalar literals from the same ordered domain.
-    fn scalar_order(left: dir::ScalarLiteral, right: dir::ScalarLiteral) -> Option<Ordering> {
+    fn scalar_order(left: dir::Literal, right: dir::Literal) -> Option<Ordering> {
         match (left, right) {
-            (dir::ScalarLiteral::Integer(left), dir::ScalarLiteral::Integer(right))
-            | (dir::ScalarLiteral::Bigint(left), dir::ScalarLiteral::Bigint(right)) => {
+            (dir::Literal::Integer(left), dir::Literal::Integer(right))
+            | (dir::Literal::Bigint(left), dir::Literal::Bigint(right)) => {
                 Some(left.cmp(&right))
             }
-            (dir::ScalarLiteral::Float(left), dir::ScalarLiteral::Float(right)) => {
+            (dir::Literal::Float(left), dir::Literal::Float(right)) => {
                 left.partial_cmp(&right)
             }
-            (dir::ScalarLiteral::Character(left), dir::ScalarLiteral::Character(right)) => {
+            (dir::Literal::Character(left), dir::Literal::Character(right)) => {
                 Some(left.cmp(&right))
             }
             _ => None,

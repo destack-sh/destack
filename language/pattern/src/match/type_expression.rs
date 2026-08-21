@@ -43,18 +43,18 @@ impl Matcher<'_, '_> {
 
         match (pattern, candidate) {
             (
-                dir::TypeExpression::ScalarLiteral {
+                dir::TypeExpression::Literal {
                     value: pattern_value,
                 },
-                dir::TypeExpression::ScalarLiteral {
+                dir::TypeExpression::Literal {
                     value: candidate_value,
                 },
             ) => Ok(pattern_value == candidate_value),
             (
-                dir::TypeExpression::Literal {
+                dir::TypeExpression::Keyword {
                     value: pattern_value,
                 },
-                dir::TypeExpression::Literal {
+                dir::TypeExpression::Keyword {
                     value: candidate_value,
                 },
             ) => Ok(pattern_value == candidate_value),
