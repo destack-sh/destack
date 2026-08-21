@@ -122,7 +122,11 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Compare with `other` using locale ordering.
-    localeCompare(&readonly this, other: &readonly string, locales?: &readonly string | (&readonly string)[]): Ordering {
+    localeCompare(
+        &readonly this,
+        other: &readonly string,
+        locales?: &readonly string | (&readonly string)[],
+    ): Ordering {
         todo("String.localeCompare")
     }
 
@@ -137,12 +141,20 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Replace the first matching text.
-    replace(&readonly this, pattern: &readonly string | RegExp, replacement: StringReplacement): ^string {
+    replace(
+        &readonly this,
+        pattern: &readonly string | RegExp,
+        replacement: StringReplacement,
+    ): ^string {
         todo("String.replace")
     }
 
     /// Replace every matching text.
-    replaceAll(&readonly this, pattern: &readonly string | RegExp, replacement: StringReplacement): ^string {
+    replaceAll(
+        &readonly this,
+        pattern: &readonly string | RegExp,
+        replacement: StringReplacement,
+    ): ^string {
         todo("String.replaceAll")
     }
 
