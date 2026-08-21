@@ -142,10 +142,24 @@ impl TestServer {
         capabilities: lsp::ClientCapabilities,
         initialization_options: Option<Value>,
     ) -> jsonrpc::Result<lsp::InitializeResult> {
+        let root = self.root().to_path_buf();
+
+        self.initialize_workspace(&root, capabilities, initialization_options)
+            .await
+    }
+
+    /// Initialize the server against one existing workspace root.
+    #[allow(deprecated)]
+    pub(super) async fn initialize_workspace(
+        &mut self,
+        root: &Path,
+        capabilities: lsp::ClientCapabilities,
+        initialization_options: Option<Value>,
+    ) -> jsonrpc::Result<lsp::InitializeResult> {
         let params = lsp::InitializeParams {
             capabilities,
             initialization_options,
-            root_uri: Some(self.root_uri()),
+            root_uri: Some(uri(root)),
             ..lsp::InitializeParams::default()
         };
 
@@ -215,6 +229,38 @@ impl TestServer {
     ) {
         self.notify::<lsp::notification::DidChangeTextDocument>(document.change(version, changes))
             .await;
+    }
+
+    /// Type text into one document as successive character revisions.
+    pub(super) async fn type_text(
+        &mut self,
+        document: &TestDocument,
+        mut version: i32,
+        mut position: lsp::Position,
+        text: &str,
+    ) -> (i32, lsp::Position) {
+        for character in text.chars() {
+            version += 1;
+            self.change(
+                document,
+                version,
+                [replace(
+                    lsp::Range::new(position, position),
+                    character.to_string(),
+                )],
+            )
+            .await;
+
+            // advance the UTF-16 editor position
+            if character == '\n' {
+                position.line += 1;
+                position.character = 0;
+            } else {
+                position.character += character.len_utf16() as u32;
+            }
+        }
+
+        (version, position)
     }
 
     /// Save one editor document.
@@ -433,9 +479,8 @@ impl TestServer {
     /// Build one document identity from a scoped workspace path.
     fn document(&self, path: impl AsRef<Path>) -> TestDocument {
         let path = self.file_system.path_for(path);
-        let uri = uri(&path);
 
-        TestDocument { uri }
+        TestDocument::from(path.as_path())
     }
 
     /// Receive one server initiated protocol message.
@@ -452,6 +497,13 @@ impl TestServer {
 pub(super) struct TestDocument {
     /// LSP document URI.
     uri: lsp::Uri,
+}
+
+impl From<&Path> for TestDocument {
+    /// Build one test document from its absolute filesystem path.
+    fn from(path: &Path) -> Self {
+        Self { uri: uri(path) }
+    }
 }
 
 impl TestDocument {
@@ -565,6 +617,24 @@ impl TestDocument {
         }
     }
 
+    /// Build outline parameters for this document.
+    pub(super) fn outline(&self) -> lsp::DocumentSymbolParams {
+        lsp::DocumentSymbolParams {
+            text_document: self.identifier(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        }
+    }
+
+    /// Build inlay hint parameters for one document range.
+    pub(super) fn inlay_hints(&self, range: lsp::Range) -> lsp::InlayHintParams {
+        lsp::InlayHintParams {
+            text_document: self.identifier(),
+            range,
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        }
+    }
+
     /// Build document link parameters for this document.
     pub(super) fn links(&self) -> lsp::DocumentLinkParams {
         lsp::DocumentLinkParams {
@@ -625,6 +695,15 @@ where
         assert_eq!(id, self.id);
 
         result.map(|result| from_value(result).unwrap())
+    }
+
+    /// Wait for one result superseded only by a newer document revision.
+    pub(super) async fn wait_or_content_modified(self) {
+        match self.wait().await {
+            Ok(_) => {}
+            Err(error) if error.code == jsonrpc::ErrorCode::ContentModified => {}
+            Err(error) => panic!("{} failed: {error}", R::METHOD),
+        }
     }
 }
 

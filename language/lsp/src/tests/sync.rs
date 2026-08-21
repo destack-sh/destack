@@ -1,7 +1,12 @@
+use std::fs;
+use std::path::Path;
+
 use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 
-use super::tests::{TestServer, markdown, position, range, replace, replace_document};
+use super::tests::{
+    TestDocument, TestServer, markdown, position, range, replace, replace_document,
+};
 
 /// Open a package nested below its editor folder.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -80,6 +85,143 @@ async fn test_publish_latest_document_revision() {
     };
     server
         .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .await;
+}
+
+/// Serve overlapping editor queries while one declaration is typed character by character.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_query_successive_typed_revisions() {
+    let initial = "// module\n";
+    let prefix = "declare const x";
+    let suffix = ": Clone;";
+    let (mut server, document) = TestServer::open_workspace(
+        "successive-typed-revisions",
+        &[("src/main.ds", initial)],
+        "src/main.ds",
+    )
+    .await;
+    let (version, cursor) = server.type_text(&document, 1, position(1, 0), prefix).await;
+
+    // overlap queries for the incomplete binding with later revisions
+    let outline = server
+        .start_request::<lsp::request::DocumentSymbolRequest>(document.outline())
+        .await;
+    let hints = server
+        .start_request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
+            1,
+            0,
+            1,
+            cursor.character,
+        )))
+        .await;
+    let tokens = server
+        .start_request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
+        .await;
+    let completion = server
+        .start_request::<lsp::request::Completion>(document.completion(cursor))
+        .await;
+    let (version, cursor) = server.type_text(&document, version, cursor, suffix).await;
+
+    // accept completed results and explicit supersession
+    outline.wait_or_content_modified().await;
+    hints.wait_or_content_modified().await;
+    tokens.wait_or_content_modified().await;
+    completion.wait_or_content_modified().await;
+
+    // query the complete current revision
+    server
+        .request::<lsp::request::DocumentSymbolRequest>(document.outline())
+        .await
+        .unwrap();
+    server
+        .request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
+            1,
+            0,
+            1,
+            cursor.character,
+        )))
+        .await
+        .unwrap();
+    server
+        .request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
+        .await
+        .unwrap();
+    server
+        .request::<lsp::request::Completion>(document.completion(cursor))
+        .await
+        .unwrap();
+
+    // require successful diagnostics for the final source
+    server
+        .assert_diagnostics(&document, version, Vec::new())
+        .await;
+}
+
+/// Query successive editor revisions of the authored Builtin Package.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_query_authored_builtin_while_typing() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../library");
+    let root = fs::canonicalize(root).unwrap();
+    let path = root.join("src/fs/fs.ds");
+    let source = fs::read_to_string(&path).unwrap();
+    let document = TestDocument::from(path.as_path());
+    let mut server = TestServer::new("authored-builtin-typing");
+    server
+        .initialize_workspace(&root, lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+    server.open(&document, 1, &source).await;
+    let (version, cursor) = server
+        .type_text(&document, 1, position(0, 0), "declare const x")
+        .await;
+
+    // overlap authored Builtin Package queries with the completing revisions
+    let outline = server
+        .start_request::<lsp::request::DocumentSymbolRequest>(document.outline())
+        .await;
+    let hints = server
+        .start_request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
+            0,
+            0,
+            0,
+            cursor.character,
+        )))
+        .await;
+    let tokens = server
+        .start_request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
+        .await;
+    let (version, cursor) = server
+        .type_text(&document, version, cursor, ": Clone;")
+        .await;
+
+    // accept completed results and explicit supersession
+    outline.wait_or_content_modified().await;
+    hints.wait_or_content_modified().await;
+    tokens.wait_or_content_modified().await;
+
+    // query the final authored Builtin Package revision
+    server
+        .request::<lsp::request::DocumentSymbolRequest>(document.outline())
+        .await
+        .unwrap();
+    server
+        .request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
+            0,
+            0,
+            0,
+            cursor.character,
+        )))
+        .await
+        .unwrap();
+    server
+        .request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
+        .await
+        .unwrap();
+
+    // require successful diagnostics for the final source
+    server
+        .assert_diagnostics(&document, version, Vec::new())
         .await;
 }
 
