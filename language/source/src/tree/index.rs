@@ -459,6 +459,11 @@ impl SourceIndex {
         }
     }
 
+    /// Reserve additional enclosing node span capacity.
+    pub fn reserve(&mut self, additional: usize) {
+        self.enclosing_ranges.reserve(additional);
+    }
+
     /// Return whether this index has an enclosing span for a node id.
     #[inline]
     pub fn contains_node(&self, node_id: u32) -> bool {
