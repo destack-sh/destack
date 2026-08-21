@@ -49,11 +49,6 @@ export extension<T> of ^LinkedList<T> implements Iterable<T>, Sequence {
     /// The owned sequence produced by a rest pattern.
     type Rest = ^LinkedList<T>;
 
-    /// Return the number of elements.
-    get length(): isize {
-        this.count
-    }
-
     /// Move the elements from `start..end` for a rest pattern.
     rest(start: isize, end?: isize): ^LinkedList<T> {
         todo("LinkedList.rest")
@@ -68,11 +63,6 @@ export extension<T> of ^LinkedList<T> implements Iterable<T>, Sequence {
 export extension<T: Copy> of LinkedList<T> implements Iterable<T>, Sequence {
     /// The copied sequence produced by a rest pattern.
     type Rest = ^LinkedList<T>;
-
-    /// Return the number of elements.
-    get length(): isize {
-        this.count
-    }
 
     /// Copy the elements from `start..end` for a rest pattern.
     rest(start: isize, end?: isize): ^LinkedList<T> {
@@ -100,11 +90,6 @@ export extension<T, 'a, const A: Access> of Borrowed<LinkedList<T>, 'a, A>
 {
     /// The borrowed sequence produced by a rest pattern.
     type Rest = ^LinkedList<Borrowed<T, 'a, A>>;
-
-    /// Return the number of elements.
-    get length(): isize {
-        this.count
-    }
 
     /// Borrow the elements from `start..end` for a rest pattern.
     rest(start: isize, end?: isize): ^LinkedList<Borrowed<T, 'a, A>> {
@@ -154,17 +139,17 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "exclusive"> 
     }
 
     /// Return the number of elements.
-    get length(): isize {
+    get length(&readonly this): isize {
         this.count
     }
 
     /// Return the number of elements.
-    get size(): isize {
+    get size(&readonly this): isize {
         this.count
     }
 
     /// Return whether this list has no elements.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.count == 0
     }
 

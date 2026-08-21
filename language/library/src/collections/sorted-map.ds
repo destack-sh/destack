@@ -234,12 +234,12 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Return the number of entries.
-    get size(): usize {
+    get size(&readonly this): usize {
         this.count
     }
 
     /// Return whether this map has no entries.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.count == 0
     }
 

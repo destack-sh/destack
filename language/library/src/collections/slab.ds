@@ -42,23 +42,6 @@ export struct Slab<T> {
     private count: usize = 0;
 }
 
-export extension<T: Copy> of Slab<T> {
-    /// Return the copied value for `key`.
-    get(&readonly this, key: SlabKey): T | undefined {
-        todo("Slab.get")
-    }
-
-    /// Return copied live values.
-    values(&readonly this): Iterator<T> {
-        todo("Slab.values")
-    }
-
-    /// Return copied live entries.
-    entries(&readonly this): Iterator<(SlabKey, T)> {
-        todo("Slab.entries")
-    }
-}
-
 export extension<T> of Slab<T> implements Iterable<(SlabKey, T)> {
     /// Consume this slab into owned entries.
     iterator(this): Iterator<(SlabKey, T)> {
@@ -131,17 +114,17 @@ export extension<T> of Slab<T>
     }
 
     /// Return the number of live entries.
-    get size(): usize {
+    get size(&readonly this): usize {
         this.count
     }
 
     /// Return the allocated slot count.
-    get capacity(): usize {
+    get capacity(&readonly this): usize {
         this.slots.capacity
     }
 
     /// Return whether this slab has no live entries.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.count == 0
     }
 
@@ -161,7 +144,7 @@ export extension<T> of Slab<T>
     }
 
     /// Return whether `key` identifies a live entry.
-    has(key: &readonly SlabKey): boolean {
+    has(&readonly this, key: &readonly SlabKey): boolean {
         todo("Slab.has")
     }
 

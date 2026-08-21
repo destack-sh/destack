@@ -6,11 +6,11 @@ export newtype Owned<out T> = intrinsic;
 
 export extension<T> of Owned<T> {
     /// Move this owned value into managed storage.
-    manage(this: ^T): Managed<T> {
-        return manageOwned<T>(this);
+    intoManaged(this: ^T): Managed<T> {
+        return intoManaged<T>(this);
     }
 }
 
 /// Move one owned value into managed storage.
-@intrinsic("memory.owned.manage")
-export declare function manageOwned<T>(value: ^T): Managed<T>;
+@intrinsic("memory.owned.intoManaged")
+export declare function intoManaged<T>(value: ^T): Managed<T>;

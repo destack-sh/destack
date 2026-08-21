@@ -47,7 +47,7 @@ export struct Expectation<'a, T> {
     private isSoft: boolean;
 
     /// Assertion message supplied by the caller.
-    private message?: ^string;
+    private message: ^string | undefined;
 
     /// Negate the next matcher.
     get not(this): Expectation<'a, T> {
@@ -282,7 +282,7 @@ export struct Expectation<'a, T> {
 
         // describe the failed expectation
         const defaultMessage = this.isNegated ? negatedMessage : message;
-        const message = this.message ?? String.from(defaultMessage.borrow());
+        const message: ^string = this.message ?? String.from(defaultMessage.borrow());
         const issue = Issue {
             kind: IssueKind.Assertion,
             message,
@@ -311,7 +311,7 @@ export struct PanicExpectation<R> {
     private isSoft: boolean;
 
     /// Assertion message supplied by the caller.
-    private message?: ^string;
+    private message: ^string | undefined;
 
     /// Negate the matcher.
     get not(this): PanicExpectation<R> {

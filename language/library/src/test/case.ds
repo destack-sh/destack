@@ -56,7 +56,7 @@ export newtype interface Test<TestValues = {}, ModuleValues = {}, WorkerValues =
     skipIf(condition: boolean): Test<TestValues, ModuleValues, WorkerValues>;
 
     /// Register one test for each parameter tuple.
-    each<P: readonly unknown[] & Copy>(values: Iterable<P>): ParameterizedTest<P>;
+    each<P: (...unknown[],) & Copy>(values: Iterable<P>): ParameterizedTest<P>;
 
     /// Register one test for each value without spreading arrays.
     for<T>(values: Iterable<T>): TableTest<T, TestValues, ModuleValues, WorkerValues>;
@@ -197,7 +197,7 @@ export newtype interface Test<TestValues = {}, ModuleValues = {}, WorkerValues =
 
 /// Test registration over one parameter tuple.
 @languageItem("test.ParameterizedTest")
-export newtype interface ParameterizedTest<P: readonly unknown[] & Copy> {
+export newtype interface ParameterizedTest<P: (...unknown[],) & Copy> {
     /// Register one parameterized test.
     (name: string, body?: Function<P, BodyResult>): void;
 

@@ -42,7 +42,7 @@ export newtype interface TestSuite {
     skipIf(condition: boolean): TestSuite;
 
     /// Register one suite for each parameter tuple.
-    each<P: readonly unknown[]>(values: Iterable<P>): ParameterizedSuite<P>;
+    each<P: (...unknown[],)>(values: Iterable<P>): ParameterizedSuite<P>;
 
     /// Register one suite for each value without spreading arrays.
     for<T>(values: Iterable<T>): TableSuite<T>;
@@ -50,7 +50,7 @@ export newtype interface TestSuite {
 
 /// Suite registration over one parameter tuple.
 @languageItem("test.ParameterizedSuite")
-export newtype interface ParameterizedSuite<P: readonly unknown[]> {
+export newtype interface ParameterizedSuite<P: (...unknown[],)> {
     /// Register one parameterized suite.
     (name: string, body?: Function<P, void>): void;
 

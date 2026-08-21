@@ -37,8 +37,8 @@ struct MapSlot<K, V> {
 /// A compact hash map.
 @languageItem("collections.Map")
 export class Map<K, V> {
-    /// The entry storage.
-    private entries: ^[MaybeUninit<MapSlot<K, V>>] = Slice.new();
+    /// The slot storage.
+    private slots: ^[MaybeUninit<MapSlot<K, V>>] = Slice.new();
 
     /// The hash index.
     private index: ^[uint32] = Slice.new();
@@ -123,11 +123,6 @@ export extension<K: Hash, V, 'a, const A: Access> of Borrowed<Map<K, V>, 'a, A>
     /// Borrow a value by key.
     get<Q: Hash>(key: &readonly Q): Borrowed<V, 'a, A> | undefined where K: Borrow<Q>, Q: Equal<Q> {
         todo("Map.get")
-    }
-
-    /// Return whether `key` exists.
-    has<Q: Hash>(key: &readonly Q): boolean where K: Borrow<Q>, Q: Equal<Q> {
-        todo("Map.has")
     }
 
     /// Borrow an entry by key.
@@ -220,7 +215,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Group `values` by a computed key.
-    static groupBy<T>(values: Iterable<T>, key: (value: T, index: isize) => K): ^Map<K, ^Array<T>> {
+    static groupBy<T>(values: Iterable<T>, key: (value: T, index: isize) => K): ^Map<K, Array<T>> {
         todo("Map.groupBy")
     }
 
@@ -230,12 +225,12 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Return the number of entries.
-    get size(): usize {
+    get size(&readonly this): usize {
         this.count
     }
 
     /// Return whether this map has no entries.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.count == 0
     }
 
@@ -258,7 +253,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Return whether `key` exists.
-    has<Q: Hash>(key: &readonly Q): boolean where K: Borrow<Q>, Q: Equal<Q> {
+    has<Q: Hash>(&readonly this, key: &readonly Q): boolean where K: Borrow<Q>, Q: Equal<Q> {
         todo("Map.has")
     }
 

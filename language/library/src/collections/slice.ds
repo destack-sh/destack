@@ -40,17 +40,17 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Return the number of elements.
-    get size(): isize {
+    get size(&readonly this): isize {
         return sliceLength<T>(this) as isize;
     }
 
     /// Return the number of elements.
-    get length(): isize {
+    get length(&readonly this): isize {
         return this.size;
     }
 
     /// Return whether this slice has no elements.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.size == 0
     }
 
@@ -136,18 +136,13 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     /// The copied sequence produced by a rest pattern.
     type Rest = ^Array<T>;
 
-    /// Return the number of elements.
-    get length(): isize {
-        this.size
-    }
-
     /// Copy the elements from `start..end` for a rest pattern.
     rest(start: isize, end?: isize): ^Array<T> {
         todo("Slice.rest")
     }
 
     /// Return an iterator over copied values.
-    iterator(): Iterator<T> {
+    iterator(&readonly this): Iterator<T> {
         todo("Slice.iterator")
     }
 
@@ -190,28 +185,23 @@ export extension<T, 'a, const A: Access> of Borrowed<Slice<T>, 'a, A>
     /// The borrowed sequence produced by a rest pattern.
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
-    /// Return the number of elements.
-    get length(): isize {
-        this.size
-    }
-
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
+    rest(&readonly this, &start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
         todo("Slice.rest")
     }
 
     /// Return an iterator over borrowed values.
-    iterator(): Iterator<Borrowed<T, 'a, A>> {
+    iterator(&readonly this): Iterator<Borrowed<T, 'a, A>> {
         todo("Slice.iterator")
     }
 
     /// Borrow the first element.
-    first(): Borrowed<T, 'a, A> | undefined {
+    first(&readonly this): Borrowed<T, 'a, A> | undefined {
         todo("Slice.first")
     }
 
     /// Borrow the last element.
-    last(): Borrowed<T, 'a, A> | undefined {
+    last(&readonly this): Borrowed<T, 'a, A> | undefined {
         todo("Slice.last")
     }
 }

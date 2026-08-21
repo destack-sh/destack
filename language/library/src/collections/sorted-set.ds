@@ -132,12 +132,12 @@ export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "exclusive"
     }
 
     /// Return the number of elements.
-    get size(): usize {
+    get size(&readonly this): usize {
         this.map.size
     }
 
     /// Return whether this set has no elements.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.map.isEmpty
     }
 

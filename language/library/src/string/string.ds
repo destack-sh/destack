@@ -72,12 +72,12 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     type Output = ^string;
 
     /// The length in UTF-16 code units.
-    get length(): isize {
+    get length(&readonly this): isize {
         todo("String.length")
     }
 
     /// Check if the string is empty.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         todo("String.isEmpty")
     }
 
@@ -102,32 +102,32 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Concatenate two strings.
-    concat(&readonly this, ...values: string[]): ^string {
+    concat(&readonly this, ...values: (&readonly string)[]): ^string {
         todo("String.concat")
     }
 
     /// Check if string includes a substring.
-    includes(&readonly this, search: string, position?: isize): boolean {
+    includes(&readonly this, search: &readonly string, position?: isize): boolean {
         todo("String.includes")
     }
 
     /// Find the first index of a substring.
-    indexOf(&readonly this, search: string, position?: isize): isize | undefined {
+    indexOf(&readonly this, search: &readonly string, position?: isize): isize | undefined {
         todo("String.indexOf")
     }
 
     /// Find the last index of a substring.
-    lastIndexOf(&readonly this, search: string, position?: isize): isize | undefined {
+    lastIndexOf(&readonly this, search: &readonly string, position?: isize): isize | undefined {
         todo("String.lastIndexOf")
     }
 
     /// Compare with `other` using locale ordering.
-    localeCompare(&readonly this, other: string, locales?: string | string[]): Ordering {
+    localeCompare(&readonly this, other: &readonly string, locales?: &readonly string | (&readonly string)[]): Ordering {
         todo("String.localeCompare")
     }
 
     /// Match this string against `pattern`.
-    match(&readonly this, pattern: string | RegExp): StringMatch | null {
+    match(&readonly this, pattern: &readonly string | RegExp): StringMatch | null {
         todo("String.match")
     }
 
@@ -137,47 +137,47 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Replace the first matching text.
-    replace(&readonly this, pattern: string | RegExp, replacement: StringReplacement): ^string {
+    replace(&readonly this, pattern: &readonly string | RegExp, replacement: StringReplacement): ^string {
         todo("String.replace")
     }
 
     /// Replace every matching text.
-    replaceAll(&readonly this, pattern: string | RegExp, replacement: StringReplacement): ^string {
+    replaceAll(&readonly this, pattern: &readonly string | RegExp, replacement: StringReplacement): ^string {
         todo("String.replaceAll")
     }
 
     /// Find the first match of `pattern`.
-    search(&readonly this, pattern: string | RegExp): isize | undefined {
+    search(&readonly this, pattern: &readonly string | RegExp): isize | undefined {
         todo("String.search")
     }
 
     /// Split this string by `separator`.
-    split(&readonly this, separator?: string | RegExp, limit?: isize): ^Array<^string> {
+    split(&readonly this, separator?: &readonly string | RegExp, limit?: isize): ^Array<string> {
         todo("String.split")
     }
 
     /// Split this string once around the first exact separator.
-    splitOnce(&readonly this, separator: string): (^string, ^string) | undefined {
+    splitOnce(&readonly this, separator: &readonly string): (string, string) | undefined {
         todo("String.splitOnce")
     }
 
     /// Check if string starts with a prefix.
-    startsWith(&readonly this, search: string, position?: isize): boolean {
+    startsWith(&readonly this, search: &readonly string, position?: isize): boolean {
         todo("String.startsWith")
     }
 
     /// Check if string ends with a suffix.
-    endsWith(&readonly this, search: string, endPosition?: isize): boolean {
+    endsWith(&readonly this, search: &readonly string, endPosition?: isize): boolean {
         todo("String.endsWith")
     }
 
     /// Return the text after an exact prefix.
-    stripPrefix(&readonly this, prefix: string): ^string | undefined {
+    stripPrefix(&readonly this, prefix: &readonly string): ^string | undefined {
         todo("String.stripPrefix")
     }
 
     /// Return the text before an exact suffix.
-    stripSuffix(&readonly this, suffix: string): ^string | undefined {
+    stripSuffix(&readonly this, suffix: &readonly string): ^string | undefined {
         todo("String.stripSuffix")
     }
 
@@ -197,7 +197,7 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Convert to lowercase using locale rules.
-    toLocaleLowerCase(&readonly this, locales?: string | string[]): ^string {
+    toLocaleLowerCase(&readonly this, locales?: &readonly string | (&readonly string)[]): ^string {
         todo("String.toLocaleLowerCase")
     }
 
@@ -207,7 +207,7 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Convert to uppercase using locale rules.
-    toLocaleUpperCase(&readonly this, locales?: string | string[]): ^string {
+    toLocaleUpperCase(&readonly this, locales?: &readonly string | (&readonly string)[]): ^string {
         todo("String.toLocaleUpperCase")
     }
 
@@ -237,12 +237,12 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     }
 
     /// Pad the start of the string.
-    padStart(&readonly this, targetLength: isize, padString?: string): ^string {
+    padStart(&readonly this, targetLength: isize, padString?: &readonly string): ^string {
         todo("String.padStart")
     }
 
     /// Pad the end of the string.
-    padEnd(&readonly this, targetLength: isize, padString?: string): ^string {
+    padEnd(&readonly this, targetLength: isize, padString?: &readonly string): ^string {
         todo("String.padEnd")
     }
 

@@ -87,11 +87,6 @@ export extension<T: Hash, 'a> of Borrowed<Set<T>, 'a, "readonly">
         todo("Set.get")
     }
 
-    /// Return whether `value` is present.
-    has<Q: Hash>(value: &readonly Q): boolean where T: Borrow<Q>, Q: Equal<Q> {
-        todo("Set.has")
-    }
-
     /// Return borrowed values as keys.
     keys(): Iterator<Borrowed<T, 'a, "readonly">> {
         todo("Set.keys")
@@ -144,17 +139,17 @@ export extension<T: Hash> of Set<T> implements Extend<T, "exclusive"> where T: E
     }
 
     /// Return the number of elements.
-    get size(): usize {
+    get size(&readonly this): usize {
         this.map.size
     }
 
     /// Return whether this set has no elements.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.map.isEmpty
     }
 
     /// Return whether `value` is present.
-    has<Q: Hash>(value: &readonly Q): boolean where T: Borrow<Q>, Q: Equal<Q> {
+    has<Q: Hash>(&readonly this, value: &readonly Q): boolean where T: Borrow<Q>, Q: Equal<Q> {
         todo("Set.has")
     }
 

@@ -19,13 +19,6 @@ export extension<T: Compare<T>> of BinaryHeap<T> implements Iterable<T> {
     }
 }
 
-export extension<T: Compare<T>> of BinaryHeap<T> where T: Copy {
-    /// Return the copied greatest element.
-    peek(&readonly this): T | undefined {
-        todo("BinaryHeap.peek")
-    }
-}
-
 export extension<T: Compare<T>, 'a> of Borrowed<BinaryHeap<T>, 'a, "readonly">
     implements Iterable<Borrowed<T, 'a, "readonly">>
 {
@@ -71,17 +64,17 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     }
 
     /// Return the number of elements.
-    get size(): usize {
+    get size(&readonly this): usize {
         this.storage.size as usize
     }
 
     /// Return the allocated element count.
-    get capacity(): usize {
+    get capacity(&readonly this): usize {
         this.storage.capacity
     }
 
     /// Return whether this heap has no elements.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.storage.isEmpty
     }
 

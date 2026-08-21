@@ -12,18 +12,6 @@ import { Sequence } from "./sequence.ds";
 @languageItem("collections.FixedArray")
 export type FixedArray<T, const N: usize> = [T; N];
 
-export extension<T: Copy, const N: usize> of FixedArray<T, N> {
-    /// Return the first element by value.
-    first(&readonly this): T | undefined {
-        todo("FixedArray.first")
-    }
-
-    /// Return the last element by value.
-    last(&readonly this): T | undefined {
-        todo("FixedArray.last")
-    }
-}
-
 export extension<T, const N: usize> of FixedArray<T, N>
     implements Sequence, Index<isize>, IndexSet<isize, T>, Iterable<T>
 {
@@ -34,17 +22,17 @@ export extension<T, const N: usize> of FixedArray<T, N>
     type Rest = ^Array<T>;
 
     /// Return the number of elements.
-    get length(): isize {
+    get length(&readonly this): isize {
         N as isize
     }
 
     /// Return the number of elements.
-    get size(): isize {
+    get size(&readonly this): isize {
         N as isize
     }
 
     /// Return whether this fixed array has no elements.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         N == 0
     }
 
@@ -86,11 +74,6 @@ export extension<T, const N: usize, 'a, const A: Access> of Borrowed<FixedArray<
 {
     /// The borrowed sequence produced by a rest pattern.
     type Rest = ^Array<Borrowed<T, 'a, A>>;
-
-    /// Return the number of elements.
-    get length(): isize {
-        N as isize
-    }
 
     /// Borrow the elements from `start..end` for a rest pattern.
     rest(start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {

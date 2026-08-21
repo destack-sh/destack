@@ -148,7 +148,7 @@ export struct StripPrefixError {
     kind: "prefixMismatch" = "prefixMismatch";
 }
 
-export extension of PathSlice implements ToOwned, As<OsStringSlice>, Borrow<OsStringSlice>, Hash {
+export extension of PathSlice implements ToOwned, As<OsStringSlice>, Hash {
     /// The owned value type.
     type Owned = ^Path;
 
@@ -261,13 +261,13 @@ export extension of PathBuilder implements Default, As<PathSlice>, Borrow<PathSl
         todo("PathBuilder.from")
     }
 
-    /// Create a path builder by copying a path slice.
-    static from(value: &readonly PathSlice): ^PathBuilder {
+    /// Wrap a native string builder as a path builder.
+    static from(value: ^OsStringBuilder): ^PathBuilder {
         todo("PathBuilder.from")
     }
 
-    /// Wrap a native string builder as a path builder.
-    static from(value: ^OsStringBuilder): ^PathBuilder {
+    /// Create a path builder by copying a path slice.
+    static from(value: &readonly PathSlice): ^PathBuilder {
         todo("PathBuilder.from")
     }
 
