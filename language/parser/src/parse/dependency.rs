@@ -306,7 +306,7 @@ impl Parser {
         let expression = self.tree.get(expression_id);
 
         Ok(match expression {
-            Expression::ScalarLiteral(value) => ImportAttributeValue::ScalarLiteral(*value),
+            Expression::Literal(value) => ImportAttributeValue::Literal(*value),
             Expression::ArrayExpression { elements } => {
                 let mut values = Vec::with_capacity(elements.len());
 

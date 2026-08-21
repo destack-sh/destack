@@ -366,7 +366,7 @@ try {
         });
 
         // catch annotation
-        assert_node!(parser.tree, *catch_ty, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *catch_ty, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Any);
         });
 
@@ -414,7 +414,7 @@ fn test_parse_catch_literal_parameter() {
     assert_node!(parser.tree, try_id, Expression::Try { catch: Some(catch), .. } => {
         assert_node!(parser.tree, *catch, Catch { pattern: Some(catch_pattern), ty: None, body } => {
         assert_node!(parser.tree, *catch_pattern, Pattern::Expression { value } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(..));
+            assert_node!(parser.tree, *value, Expression::Literal(..));
         });
         assert_node!(parser.tree, *body, Expression::Block(..));
         });

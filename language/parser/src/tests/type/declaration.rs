@@ -195,7 +195,7 @@ fn test_parse_type_expression_with_indexed_generic_argument_after_type_keyword()
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "T");
-                        assert_node!(parser.tree, *index, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *index, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
                     });

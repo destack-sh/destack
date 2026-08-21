@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Declarator, Expression, FunctionDeclaration, IfForm,
-    LocalNodeId, Parameter, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral,
+    LocalNodeId, Parameter, PostfixPosition, Literal, TypeExpression, TypeLiteral,
 };
 
 /// Assert one direct maybe expression wrapping a call.
@@ -64,7 +64,7 @@ fn test_parse_direct_maybe_before_arithmetic() {
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::Add);
         assert_direct_maybe_call(&parser, *left, "encode");
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(1)));
     });
 }
 
@@ -97,7 +97,7 @@ fn test_parse_direct_maybe_before_as() {
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
         assert_direct_maybe_call(&parser, *expression, "encode");
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });
     });
@@ -118,7 +118,7 @@ fn test_parse_direct_maybe_before_satisfies() {
             assert_node!(parser.tree, *left, Expression::Call { .. });
         });
 
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });
     });
@@ -159,7 +159,7 @@ fn test_parse_direct_maybe_before_index() {
     assert_node!(parser.tree, expression_id, Expression::Index { left, index, position, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_direct_maybe_call(&parser, *left, "encode");
-        assert_node!(parser.tree, index.expect("expected index"), Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        assert_node!(parser.tree, index.expect("expected index"), Expression::Literal(Literal::Integer(0)));
     });
 }
 
@@ -256,7 +256,7 @@ fn test_parse_direct_maybe_after_qualified_call_before_satisfies() {
             assert_node!(parser.tree, *left, Expression::Call { .. });
         });
 
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });
     });
@@ -399,7 +399,7 @@ fn test_parse_statement_newline_before_parenthesized_assertion_continues_call() 
                 // foo.bar
                 assert_expression_path!(parser, parser.tree.get(*expression), "foo.bar");
                 // any
-                assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Any);
                 });
             });

@@ -6,7 +6,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Name,
-    Pattern, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
+    Pattern, PostfixPosition, Literal, TypeExpression, TypeLiteral, TypeMember,
     UnaryOperator,
 };
 
@@ -37,7 +37,7 @@ fn test_parse_instantiation_expression_with_index() {
     assert_node!(parser.tree, expr_id, Expression::Instantiation { left, generic_arguments } => {
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Number);
                 });
         });
@@ -46,7 +46,7 @@ fn test_parse_instantiation_expression_with_index() {
                 assert_string!(parser, *name, "f");
             });
             let index = index.expect("expected index expression");
-            assert_node!(parser.tree, index, Expression::ScalarLiteral(ScalarLiteral::String(name)) => {
+            assert_node!(parser.tree, index, Expression::Literal(Literal::String(name)) => {
                 assert_string!(parser, *name, "g");
             });
         });
@@ -66,7 +66,7 @@ fn test_parse_instantiation_expression_parenthesized() {
     assert_node!(parser.tree, expr_id, Expression::Instantiation { left, generic_arguments } => {
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Number);
                 });
         });
@@ -77,7 +77,7 @@ fn test_parse_instantiation_expression_parenthesized() {
                     assert_string!(parser, *name, "f");
                 });
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
                 });
@@ -142,7 +142,7 @@ fn test_parse_optional_chain_generic_argument_call() {
 
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
             });
@@ -297,14 +297,14 @@ await fetchListResult<{
 
                         assert_node!(parser.tree, properties[0], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                             assert_string!(parser, *name, "pattern");
-                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Keyword { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
                             });
                         });
 
                         assert_node!(parser.tree, properties[1], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                             assert_string!(parser, *name, "script");
-                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Keyword { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
                             });
                         });
@@ -397,7 +397,7 @@ fn test_parse_call_with_nested_value_generic_arguments() {
                 assert_eq!(generic_arguments.len(), 1);
 
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });
@@ -627,7 +627,7 @@ fn test_parse_instantiation_expression_unparenthesized_index_access() {
             assert_eq!(generic_arguments.len(), 1);
         });
 
-        assert_node!(parser.tree, index.expect("expected index"), Expression::ScalarLiteral(ScalarLiteral::String(name)) => {
+        assert_node!(parser.tree, index.expect("expected index"), Expression::Literal(Literal::String(name)) => {
             assert_string!(parser, *name, "g");
         });
     });
@@ -724,7 +724,7 @@ fn test_parse_instantiation_expression_before_newline_binary_operator() {
             assert_expression_path!(parser, parser.tree.get(*left), "f");
             assert_eq!(generic_arguments.len(), 1);
         });
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(1)));
     });
 }
 
@@ -744,7 +744,7 @@ fn test_parse_instantiation_expression_before_newline_division_operator() {
             assert_expression_path!(parser, parser.tree.get(*left), "f");
             assert_eq!(generic_arguments.len(), 1);
         });
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(1)));
     });
 }
 
@@ -767,7 +767,7 @@ fn test_parse_relational_expression_before_newline_prefix_expression() {
         });
         assert_node!(parser.tree, *right, Expression::Unary { operator, right } => {
             assert_eq!(*operator, UnaryOperator::Plus);
-            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(1)));
         });
     });
 }

@@ -2,7 +2,7 @@ use crate::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration, FunctionForm,
     GenericArgument, GenericParameter, IntegerType, LetKind, Name, NodeType, Parameter, Pattern,
-    PatternField, PlaceModifier, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, TypeMember,
+    PatternField, PlaceModifier, Literal, TokenType, TypeExpression, TypeLiteral, TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -40,11 +40,11 @@ const x: int32 = 1
 
             // int32
             let ty_id = ty.expect("expected explicit type");
-            assert_node!(parser.tree, ty_id, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }) });
+            assert_node!(parser.tree, ty_id, TypeExpression::Keyword { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }) });
 
             // 1
             let value_id = value.expect("expected value");
-            assert_node!(parser.tree, value_id, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, value_id, Expression::Literal(Literal::Integer(1)));
         });
     });
 }
@@ -155,7 +155,7 @@ fn test_parse_let_recovers_missing_type_before_initializer() {
             assert_node!(parser.tree, ty, TypeExpression::Missing);
 
             let value = value.expect("expected initializer");
-            assert_node!(parser.tree, value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, value, Expression::Literal(Literal::Integer(1)));
         });
     });
 }
@@ -411,14 +411,14 @@ let x: float64[3] = undefined
             // float64[3]
             let ty_id = ty.expect("expected explicit type");
             assert_node!(parser.tree, ty_id, TypeExpression::Index { left, index } => {
-                assert_node!(parser.tree, *left, TypeExpression::Literal { value: TypeLiteral::Float(float_ty) } => {
+                assert_node!(parser.tree, *left, TypeExpression::Keyword { value: TypeLiteral::Float(float_ty) } => {
                     assert_eq!(*float_ty, FloatType::Float64);
                 });
-                assert_node!(parser.tree, *index, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(3) });
+                assert_node!(parser.tree, *index, TypeExpression::Literal { value: Literal::Integer(3) });
             });
 
             // undefined
-            assert_node!(parser.tree, value.expect("expected initializer"), Expression::ScalarLiteral(ScalarLiteral::Undefined));
+            assert_node!(parser.tree, value.expect("expected initializer"), Expression::Literal(Literal::Undefined));
         });
     });
 }
@@ -578,7 +578,7 @@ const registry: Map<
                 // <string, Set<{count: number}>>
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     // string
-                        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+                        assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::String });
                 });
 
                 assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
@@ -784,7 +784,7 @@ fn test_parse_let_else_literal_pattern() {
         assert_node!(parser.tree, *declarator, Declarator { pattern, value, .. } => {
             assert_expression_path!(parser, parser.tree.get(value.expect("expected initializer")), "value");
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::String(value)) => {
                     assert_eq!(parser.strings.get(*value), "ok");
                 });
             });
@@ -819,7 +819,7 @@ fn test_parse_literal_pattern_without_let_else() {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
             assert_node!(parser.tree, *pattern, Pattern::Expression { value: pattern_value } => {
-                assert_node!(parser.tree, *pattern_value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                assert_node!(parser.tree, *pattern_value, Expression::Literal(Literal::String(value)) => {
                     assert_eq!(parser.strings.get(*value), "ok");
                 });
             });

@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{
     AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Declaration, Expression,
-    FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, LetKind, ScalarLiteral,
+    FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, LetKind, Literal,
 };
 
 /// Parse async generic arrows with constraint and default type parameters in assignments.
@@ -61,7 +61,7 @@ fn test_parse_async_generic_false_positive() {
     assert_node!(parser.tree, expressions[0], Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::LessThan);
         assert_expression_path!(parser, parser.tree.get(*left), "async");
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(1)));
     });
 
     assert_node!(parser.tree, expressions[1], Expression::Binary { left, operator, right } => {
@@ -76,7 +76,7 @@ fn test_parse_async_generic_false_positive() {
                 assert_expression_path!(parser, parser.tree.get(*value), "T");
             });
         });
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(0)));
     });
 }
 
@@ -114,6 +114,6 @@ fn test_parse_async_generic_arrow_asi() {
                 });
             });
         });
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(1)));
     });
 }

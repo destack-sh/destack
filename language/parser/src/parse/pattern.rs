@@ -4,7 +4,7 @@ use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
     Expression, Keyword, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern, PatternField,
-    RangeEnd, ScalarLiteral, TokenType, TypeExpression,
+    RangeEnd, Literal, TokenType, TypeExpression,
 };
 use destack_source::ByteRange;
 
@@ -177,7 +177,7 @@ impl Parser {
                     _ => self.parse_scalar_literal().in_node(NodeType::Pattern)?,
                 };
                 let expression_id = self.insert_node(
-                    Expression::ScalarLiteral(scalar_literal),
+                    Expression::Literal(scalar_literal),
                     self.range_since(&start),
                 );
                 if let Some(end_kind) = self.peek_range_end() {
@@ -195,14 +195,14 @@ impl Parser {
             else if let Some(keyword @ (Keyword::Null | Keyword::Undefined)) = self.peek_keyword()
             {
                 let literal = if keyword == Keyword::Null {
-                    ScalarLiteral::Null
+                    Literal::Null
                 } else {
-                    ScalarLiteral::Undefined
+                    Literal::Undefined
                 };
                 self.bump();
 
                 let expression_id =
-                    self.insert_node(Expression::ScalarLiteral(literal), self.range_since(&start));
+                    self.insert_node(Expression::Literal(literal), self.range_since(&start));
                 let pattern = Pattern::Expression {
                     value: expression_id,
                 };
@@ -405,7 +405,7 @@ impl Parser {
                 .parse_signed_numeric_literal()
                 .in_node(NodeType::Pattern)?;
 
-            return Ok(self.insert_node(Expression::ScalarLiteral(value), self.range_since(&start)));
+            return Ok(self.insert_node(Expression::Literal(value), self.range_since(&start)));
         }
 
         // match arrows terminate symbolic endpoints

@@ -5,7 +5,7 @@ use crate::{
     assert_path, assert_string,
 };
 use destack_dir::{
-    BinaryOperator, Declaration, Expression, InferForm, NodeType, ScalarLiteral, TokenType,
+    BinaryOperator, Declaration, Expression, InferForm, NodeType, Literal, TokenType,
     TupleElement, TupleForm, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 
@@ -112,7 +112,7 @@ fn test_parse_fixed_array_type() {
                     assert!(generic_arguments.is_empty());
                     assert_path!(parser, *path, "EventTarget");
                 });
-                assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
+                assert_node!(parser.tree, *length, Expression::Literal(Literal::Integer(32)));
             });
         });
     });
@@ -154,7 +154,7 @@ fn test_parse_fixed_array_type_value_length_expression() {
                 assert_node!(parser.tree, *length, Expression::Binary { left, operator, right } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "N");
                     assert_eq!(*operator, BinaryOperator::Multiply);
-                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                    assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
                 });
             });
         });
@@ -228,7 +228,7 @@ fn test_parse_tuple_type_with_spread() {
                     });
                 });
                 assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });
@@ -273,8 +273,8 @@ fn test_parse_labeled_tuple_type_with_spread_payload() {
                     assert_string!(parser, label.expect("expected tuple label"), "withscores");
                     assert!(!*is_optional);
                     assert!(!*is_readonly);
-                    assert_node!(parser.tree, *value, TypeExpression::ScalarLiteral { value } => {
-                        assert_eq!(*value, ScalarLiteral::String(parser.strings.intern("WITHSCORES")));
+                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, Literal::String(parser.strings.intern("WITHSCORES")));
                     });
                 });
             });
@@ -351,7 +351,7 @@ fn test_parse_optional_labeled_tuple_element() {
                     assert_string!(parser, *label, "start");
                     assert!(*is_optional);
                     assert!(!is_readonly);
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                 });
@@ -403,12 +403,12 @@ fn test_parse_tuple_type() {
                 assert_eq!(*form, TupleForm::Tuple);
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { value, .. } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });
                 assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                 });
@@ -459,13 +459,13 @@ fn test_parse_labeled_tuple_type() {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, .. } => {
                     assert_string!(parser, *label, "start");
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                 });
                 assert_node!(parser.tree, elements[1], TupleElement::Element { label, value, .. } => {
                     assert_string!(parser, *label, "end");
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                 });
@@ -545,7 +545,7 @@ fn test_recover_slice_type_missing_close_bracket() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Slice { element } => {
-                assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *element, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
             });
@@ -575,7 +575,7 @@ fn test_parse_tuple_type_missing_first_element() {
                     assert_node!(parser.tree, *value, TypeExpression::Missing);
                 });
                 assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });

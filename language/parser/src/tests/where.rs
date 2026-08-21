@@ -37,7 +37,7 @@ fn test_parse_where_type_assertion() {
     assert_node!(parser.tree, clauses[0], WhereClause { relation, left, right } => {
         assert_eq!(*relation, WhereRelation::Satisfies);
         assert_expression_path!(parser, parser.tree.get(*left), "T");
-        assert_node!(parser.tree, *right, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *right, TypeExpression::Keyword { value } => {
             assert_eq!(
                 *value,
                 TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,

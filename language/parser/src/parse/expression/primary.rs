@@ -8,7 +8,7 @@ use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
     BlockContext, Expression, InferForm, Keyword, LocalNodeId, Mutability, NodeType,
-    OperatorPrecedence, Path, RangeEnd, ScalarLiteral, TokenLiteral, TokenType, TypeExpression,
+    OperatorPrecedence, Path, RangeEnd, Literal, TokenLiteral, TokenType, TypeExpression,
     UnaryOperator, VarianceBound,
 };
 use destack_source::ByteRange;
@@ -358,14 +358,14 @@ impl Parser {
             Keyword::Null => {
                 self.bump();
                 Ok(self.insert_node(
-                    Expression::ScalarLiteral(ScalarLiteral::Null),
+                    Expression::Literal(Literal::Null),
                     self.range_since(start),
                 ))
             }
             Keyword::Undefined => {
                 self.bump();
                 Ok(self.insert_node(
-                    Expression::ScalarLiteral(ScalarLiteral::Undefined),
+                    Expression::Literal(Literal::Undefined),
                     self.range_since(start),
                 ))
             }
@@ -513,14 +513,14 @@ impl Parser {
             TokenType::Divide | TokenType::DivideAssign => {
                 let literal = self.parse_regex_literal()?;
                 let expression =
-                    self.insert_node(Expression::ScalarLiteral(literal), self.range_since(start));
+                    self.insert_node(Expression::Literal(literal), self.range_since(start));
 
                 Ok((expression, false))
             }
             TokenType::Literal if self.peek_scalar_literal_start() => {
                 let literal = self.parse_scalar_literal()?;
                 let expression =
-                    self.insert_node(Expression::ScalarLiteral(literal), self.range_since(start));
+                    self.insert_node(Expression::Literal(literal), self.range_since(start));
 
                 Ok((expression, false))
             }

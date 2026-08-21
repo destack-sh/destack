@@ -6,7 +6,7 @@ use crate::lex::decode_html_entity;
 use crate::parse::{RegexFlags, RegexPattern};
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{NodeType, NumberBase, ScalarLiteral, TokenLiteral, TokenSpan, TokenType};
+use destack_dir::{NodeType, NumberBase, Literal, TokenLiteral, TokenSpan, TokenType};
 
 /// One integer token body and its lexer classification.
 #[derive(Clone, Copy)]
@@ -137,7 +137,7 @@ impl<'a> IntegerLiteral<'a> {
 
 impl Parser {
     /// Parse one numeric scalar literal with an explicit sign.
-    pub(crate) fn parse_signed_numeric_literal(&mut self) -> ParserResult<ScalarLiteral> {
+    pub(crate) fn parse_signed_numeric_literal(&mut self) -> ParserResult<Literal> {
         let start = self.mark_parse_start();
         let is_negative = match self.peek_token_type() {
             TokenType::Add => false,
@@ -149,12 +149,12 @@ impl Parser {
         self.bump();
         let value = self.parse_scalar_literal()?;
         let value = match (is_negative, value) {
-            (true, ScalarLiteral::Integer(number)) => ScalarLiteral::Integer(-number),
-            (true, ScalarLiteral::Bigint(number)) => ScalarLiteral::Bigint(-number),
-            (true, ScalarLiteral::Float(number)) => ScalarLiteral::Float(-number),
-            (false, value @ ScalarLiteral::Integer(_))
-            | (false, value @ ScalarLiteral::Bigint(_))
-            | (false, value @ ScalarLiteral::Float(_)) => value,
+            (true, Literal::Integer(number)) => Literal::Integer(-number),
+            (true, Literal::Bigint(number)) => Literal::Bigint(-number),
+            (true, Literal::Float(number)) => Literal::Float(-number),
+            (false, value @ Literal::Integer(_))
+            | (false, value @ Literal::Bigint(_))
+            | (false, value @ Literal::Float(_)) => value,
             (_, _) => return Err(ParserError::unexpected(self.range_since(&start))),
         };
 
@@ -210,7 +210,7 @@ impl Parser {
     /// /abc/
     /// /abc/g
     /// ```
-    pub fn parse_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
+    pub fn parse_scalar_literal(&mut self) -> ParserResult<Literal> {
         let literal_span = self.eat();
         let Some(body) = literal_span.token.literal() else {
             return Err(ParserError::unexpected(literal_span.span.range()));
@@ -221,7 +221,7 @@ impl Parser {
 
         match body {
             // boolean literal
-            TokenLiteral::Boolean { value } => Ok(ScalarLiteral::Boolean(value)),
+            TokenLiteral::Boolean { value } => Ok(Literal::Boolean(value)),
 
             // int literal
             TokenLiteral::Int {
@@ -282,9 +282,9 @@ impl Parser {
 
                 // int
                 if is_bigint {
-                    Ok(ScalarLiteral::Bigint(value))
+                    Ok(Literal::Bigint(value))
                 } else {
-                    Ok(ScalarLiteral::Integer(value))
+                    Ok(Literal::Integer(value))
                 }
             }
 
@@ -327,7 +327,7 @@ impl Parser {
 
                 content
                     .parse::<f64>()
-                    .map(ScalarLiteral::Float)
+                    .map(Literal::Float)
                     .map_err(|_| {
                         ParserError::expected(literal_span.span.range(), TokenType::Literal)
                             .in_node(NodeType::Expression)
@@ -348,7 +348,7 @@ impl Parser {
                 }
 
                 decode_html_entity(literal_str)
-                    .map(ScalarLiteral::Character)
+                    .map(Literal::Character)
                     .ok_or_else(|| {
                         ParserError::expected(literal_span.span.range(), TokenType::Literal)
                             .in_node(NodeType::Expression)
@@ -370,7 +370,7 @@ impl Parser {
 
                 if literal_str.starts_with('\'') {
                     return Self::decode_character_literal(literal_str)
-                        .map(ScalarLiteral::Character)
+                        .map(Literal::Character)
                         .ok_or_else(|| {
                             ParserError::expected(literal_span.span.range(), TokenType::Literal)
                                 .in_node(NodeType::Expression)
@@ -391,7 +391,7 @@ impl Parser {
                 })?;
 
                 let string_id = self.strings.intern(&content);
-                Ok(ScalarLiteral::String(string_id))
+                Ok(Literal::String(string_id))
             }
 
             // regex string literal (ignore quotes)
@@ -425,7 +425,7 @@ impl Parser {
                         .in_node(NodeType::Expression));
                     }
                     let string_id = self.strings.intern(content);
-                    Ok(ScalarLiteral::RegexString {
+                    Ok(Literal::RegexString {
                         content: string_id,
                         flags: None,
                     })
@@ -473,7 +473,7 @@ impl Parser {
                     }
                     let string_id = self.strings.intern(content);
                     let flags_id = self.strings.intern(flags.source());
-                    Ok(ScalarLiteral::RegexString {
+                    Ok(Literal::RegexString {
                         content: string_id,
                         flags: Some(flags_id),
                     })
@@ -483,13 +483,13 @@ impl Parser {
             // tree text content, raw text inside tree literals
             TokenLiteral::TreeString => {
                 let string_id = self.strings.intern(literal_str);
-                Ok(ScalarLiteral::String(string_id))
+                Ok(Literal::String(string_id))
             }
         }
     }
 
     /// Re-lex and eat the current regex literal.
-    pub(crate) fn parse_regex_literal(&mut self) -> ParserResult<ScalarLiteral> {
+    pub(crate) fn parse_regex_literal(&mut self) -> ParserResult<Literal> {
         if !self.re_lex_regex() {
             return Err(ParserError::unexpected(self.peek_token_span()));
         }

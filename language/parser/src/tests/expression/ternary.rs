@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_dir::{
     AssignOperator, BinaryOperator, Block, CommentKind, Declaration, Declarator, ExportKind,
-    Expression, FunctionDeclaration, FunctionForm, IfForm, Name, Pattern, Property, ScalarLiteral,
+    Expression, FunctionDeclaration, FunctionForm, IfForm, Name, Pattern, Property, Literal,
 };
 
 /// Parse `true ? 1 : 2`.
@@ -18,9 +18,9 @@ fn test_parse_if_ternary() {
         .unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
-        assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
-        assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-        assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        assert_node!(parser.tree, condition_id, Expression::Literal(Literal::Boolean(true)));
+        assert_node!(parser.tree, *then_expression, Expression::Literal(Literal::Integer(1)));
+        assert_node!(parser.tree, else_expression.unwrap(), Expression::Literal(Literal::Integer(2)));
     });
 }
 
@@ -115,9 +115,9 @@ fn test_parse_if_ternary_multiline() {
         .unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
-        assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
-        assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-        assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        assert_node!(parser.tree, condition_id, Expression::Literal(Literal::Boolean(true)));
+        assert_node!(parser.tree, *then_expression, Expression::Literal(Literal::Integer(1)));
+        assert_node!(parser.tree, else_expression.unwrap(), Expression::Literal(Literal::Integer(2)));
     });
 }
 
@@ -345,10 +345,10 @@ fn test_parse_if_ternary_with_binary_condition() {
             assert_node!(parser.tree, *left, Expression::Identifier { name } => {
                 assert_string!(parser, *name, "x");
             });
-            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(0)));
         });
-        assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-        assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        assert_node!(parser.tree, *then_expression, Expression::Literal(Literal::Integer(1)));
+        assert_node!(parser.tree, else_expression.unwrap(), Expression::Literal(Literal::Integer(2)));
     });
 }
 

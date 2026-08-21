@@ -1,6 +1,6 @@
 use destack_dir::{
     ClassDeclaration, CommentKind, Declaration, ExportKind, Expression, GenericParameter,
-    IntegerType, Member, Name, Parameter, PlaceModifier, ScalarLiteral, StructDeclaration,
+    IntegerType, Member, Name, Parameter, PlaceModifier, Literal, StructDeclaration,
     TypeExpression, TypeLiteral, Visibility, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -270,7 +270,7 @@ fn test_parse_class_member_method_parameter_type_then_default_value() {
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), default, .. } => {
                 assert_string!(parser, *name, "userCount");
                 assert!(default.is_none());
-                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Number);
                 });
             });
@@ -450,11 +450,11 @@ struct Foo<T: Numeric> implements Quux {
         assert_node!(parser.tree, members[3], Member::Field { name: Name::Identifier(name), declared_type: Some(ty), default: Some(value), visibility, .. } => {
             assert_eq!(*visibility, Some(Visibility::Private));
             assert_string!(parser, *name, "d");
-            assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                 }));
             });
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(4)));
         });
     });
 }

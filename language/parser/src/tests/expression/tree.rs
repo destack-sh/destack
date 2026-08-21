@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    GenericParameter, IfForm, NodeType, Parameter, Pattern, ScalarLiteral, TreeAttribute,
+    GenericParameter, IfForm, NodeType, Parameter, Pattern, Literal, TreeAttribute,
     TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -184,7 +184,7 @@ fn test_parse_generic_arrow_with_constraint_disambiguator() {
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), default: None, .. } => {
                 assert_string!(parser, *name, "T");
-                assert_node!(parser.tree, *constraint, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *constraint, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Unknown);
                 });
             });
@@ -207,7 +207,7 @@ fn test_parse_generic_arrow_with_default_disambiguator() {
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.generic_parameters[0], GenericParameter::Type { name, constraint: None, default: Some(default), .. } => {
                 assert_string!(parser, *name, "T");
-                assert_node!(parser.tree, *default, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *default, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Unknown);
                 });
             });
@@ -273,7 +273,7 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
         assert_node!(parser.tree, *then_expression, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                 assert_eq!(signature.form, FunctionForm::Lambda);
-                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Void);
                 });
             });
@@ -282,7 +282,7 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
         assert_node!(parser.tree, else_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                 assert_eq!(signature.form, FunctionForm::Lambda);
-                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Void);
                 });
             });
@@ -311,7 +311,7 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                     assert_eq!(signature.form, FunctionForm::Lambda);
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Void);
                     });
                 });
@@ -322,7 +322,7 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                     assert_eq!(signature.form, FunctionForm::Lambda);
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Void);
                     });
                 });
@@ -379,7 +379,7 @@ fn test_parse_tree_attribute_fixed_array_expression_value() {
         assert_node!(parser.tree, attributes[0], TreeAttribute::Named { name, value: Some(TreeAttributeValue::Expression(value)) } => {
             assert_name!(parser, *name, "data");
             assert_node!(parser.tree, *value, Expression::FixedArrayExpression { value, length } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(0)));
                 assert_expression_path!(parser, parser.tree.get(*length), "count");
             });
         });
@@ -403,7 +403,7 @@ fn test_parse_tree_attribute_fixed_array_expression_value_recovers_missing_lengt
         assert_node!(parser.tree, attributes[0], TreeAttribute::Named { name, value: Some(TreeAttributeValue::Expression(value)) } => {
             assert_name!(parser, *name, "data");
             assert_node!(parser.tree, *value, Expression::FixedArrayExpression { value, length } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(0)));
                 assert_node!(parser.tree, *length, Expression::Missing);
             });
         });
@@ -533,7 +533,7 @@ fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tre
                         assert_string!(parser, *name, "result");
                     });
 
-                    assert_node!(parser.tree, function.return_type.expect("expected nested return type"), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, function.return_type.expect("expected nested return type"), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Void);
                     });
                 });

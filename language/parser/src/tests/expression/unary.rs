@@ -1,7 +1,7 @@
 use crate::tests::TestParser;
 use crate::{ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_path};
 use destack_dir::{
-    BinaryOperator, Expression, Mutability, NodeType, ScalarLiteral, TokenType, TypeExpression,
+    BinaryOperator, Expression, Mutability, NodeType, Literal, TokenType, TypeExpression,
     UnaryOperator, VarianceBound,
 };
 
@@ -108,7 +108,7 @@ fn test_parse_parenthesized_unary_exponent_operands() {
             crate::assert_parenthesized!(parser.tree, *left, expression => {
                 assert_node!(parser.tree, *expression, Expression::Unary { .. });
             });
-            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
         });
     }
 }
@@ -123,7 +123,7 @@ fn test_parse_unary_negate_allows_newline_before_operand() {
 
     assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(1)));
     });
 }
 
@@ -137,7 +137,7 @@ fn test_parse_unary_negate_allows_line_comment_before_operand() {
 
     assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(1)));
     });
 }
 
@@ -156,7 +156,7 @@ fn test_parse_unary_negate_preserves_parenthesized_comment_wrapper() {
             assert_node!(
                 parser.tree,
                 *expression,
-                Expression::ScalarLiteral(ScalarLiteral::Integer(1))
+                Expression::Literal(Literal::Integer(1))
             );
         });
     });

@@ -4,7 +4,7 @@ use crate::{
     assert_string, assert_value_expression_path,
 };
 use destack_dir::{
-    Argument, CommentKind, Expression, RangeEnd, ScalarLiteral, TokenType, TypeExpression,
+    Argument, CommentKind, Expression, RangeEnd, Literal, TokenType, TypeExpression,
     TypeLiteral,
 };
 
@@ -41,13 +41,13 @@ shared?.nested.ok satisfies boolean;
     assert_eq!(expressions.len(), 3);
     assert_node!(parser.tree, expressions[0], Expression::Satisfies { expression, target_type } => {
         assert_value_expression_path!(parser, parser.tree.get(*expression), "keyof.nested.ok");
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });
     });
     assert_node!(parser.tree, expressions[1], Expression::Satisfies { expression, target_type } => {
         assert_value_expression_path!(parser, parser.tree.get(*expression), "readonly.nested.ok");
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Number);
         });
     });
@@ -63,7 +63,7 @@ shared?.nested.ok satisfies boolean;
                 });
             });
         });
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Boolean);
         });
     });
@@ -316,7 +316,7 @@ fn test_parse_decimal_integer_member_access() {
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "foo");
-        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *left, Expression::Literal(Literal::Integer(1)));
     });
 }
 
@@ -331,7 +331,7 @@ fn test_parse_parenthesized_integer_member_access() {
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "foo");
         crate::assert_parenthesized!(parser.tree, *left, expression => {
-            assert_node!(parser.tree, *expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *expression, Expression::Literal(Literal::Integer(1)));
         });
     });
 }
@@ -348,7 +348,7 @@ fn test_parse_destack_double_dot_as_range() {
 
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
-        assert_node!(parser.tree, start.expect("expected start bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        assert_node!(parser.tree, start.expect("expected start bound"), Expression::Literal(Literal::Integer(0)));
         assert_node!(parser.tree, end.expect("expected end bound"), Expression::Identifier { name } => {
             assert_string!(parser, *name, "a");
         });

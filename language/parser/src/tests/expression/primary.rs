@@ -5,7 +5,7 @@ use crate::{
     assert_value_expression_path,
 };
 use destack_dir::{
-    Argument, Block, Expression, Name, Parameter, Property, ScalarLiteral, TypeExpression,
+    Argument, Block, Expression, Name, Parameter, Property, Literal, TypeExpression,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
@@ -167,7 +167,7 @@ fn test_parse_null_literal() {
     assert_node!(
         parser.tree,
         expression_id,
-        Expression::ScalarLiteral(ScalarLiteral::Null)
+        Expression::Literal(Literal::Null)
     );
 }
 
@@ -182,7 +182,7 @@ fn test_parse_undefined_literal() {
     assert_node!(
         parser.tree,
         expression_id,
-        Expression::ScalarLiteral(ScalarLiteral::Undefined)
+        Expression::Literal(Literal::Undefined)
     );
 }
 
@@ -292,7 +292,7 @@ fn test_parse_typed_object_method_in_call_argument() {
 
                 assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
                     assert_string!(parser, *name, "inc");
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                    assert_node!(parser.tree, *value, Expression::Literal(Literal::String(value)) => {
                         assert_string!(parser, *value, "inc");
                     });
                 });
@@ -348,7 +348,7 @@ fn test_parse_typed_object_method_in_decorator_argument() {
 
                 assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
                     assert_string!(parser, *name, "inc");
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                    assert_node!(parser.tree, *value, Expression::Literal(Literal::String(value)) => {
                         assert_string!(parser, *value, "inc");
                     });
                 });
@@ -411,12 +411,12 @@ fn test_parse_keywords_as_fields_and_identifiers() {
 
         assert_node!(parser.tree, properties[11], Property::Field { name: Name::Identifier(name), value, .. } => {
             assert_string!(parser, *name, "let");
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(0)));
         });
 
         assert_node!(parser.tree, properties[24], Property::Field { name: Name::Identifier(name), value, .. } => {
             assert_string!(parser, *name, "match");
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(0)));
         });
     });
 }

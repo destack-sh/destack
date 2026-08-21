@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{
     Block, BlockContext, BlockForm, CommentKind, Declaration, Expression, FunctionDeclaration,
-    FunctionForm, IfForm, LetKind, MatchArm, Name, NodeType, Property, ScalarLiteral, TokenType,
+    FunctionForm, IfForm, LetKind, MatchArm, Name, NodeType, Property, Literal, TokenType,
     TypeExpression, YieldCardinality,
 };
 
@@ -147,7 +147,7 @@ fn test_break_with_label_and_value() {
     assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
         assert_string!(parser, label.unwrap(), "label");
         assert!(value.is_some());
-        assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(17)));
+        assert_node!(parser.tree, value.unwrap(), Expression::Literal(Literal::Integer(17)));
     });
 }
 
@@ -421,7 +421,7 @@ fn test_return_with_value() {
     let return_id = parser.parse_return().unwrap();
     assert_node!(parser.tree, return_id, Expression::Return { value } => {
         assert!(value.is_some());
-        assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
+        assert_node!(parser.tree, value.unwrap(), Expression::Literal(Literal::Integer(42)));
     });
 }
 
@@ -580,7 +580,7 @@ function next(value: number): IteratorResult<number> {
                     assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
                         assert_string!(parser, *name, "done");
                         assert!(!*is_shorthand);
-                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+                        assert_node!(parser.tree, *value, Expression::Literal(Literal::Boolean(true)));
                     });
                     assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
                         assert_string!(parser, *name, "value");
@@ -635,7 +635,7 @@ function apply(result: Result): IteratorResult<number> {
                                 assert_eq!(properties.len(), 2);
                                 assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
                                     assert_string!(parser, *name, "done");
-                                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(_)));
+                                    assert_node!(parser.tree, *value, Expression::Literal(Literal::Boolean(_)));
                                 });
                                 assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
                                     assert_string!(parser, *name, "value");

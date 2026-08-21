@@ -6,7 +6,7 @@ use crate::{
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, CommentKind, Declaration,
     Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfForm, NodeType, Parameter,
-    ScalarLiteral, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
+    Literal, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::DiagnosticSeverity;
 
@@ -33,7 +33,7 @@ fn test_parse_precedence_cast_after_addition() {
         });
 
         // number
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Number);
         });
     });
@@ -58,7 +58,7 @@ fn test_parse_precedence_cast_before_multiply() {
             assert_expression_path!(parser, parser.tree.get(*expression), "a");
 
             // boolean
-            assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Boolean);
             });
         });
@@ -91,7 +91,7 @@ fn test_parse_precedence_cast_after_multiply() {
         });
 
         // boolean
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Boolean);
         });
     });
@@ -120,7 +120,7 @@ fn test_parse_precedence_cast_after_comparison() {
         });
 
         // number
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Number);
         });
     });
@@ -150,7 +150,7 @@ fn test_parse_parenthesized_cast_in_comparison_right_side() {
                 });
 
                 // number
-                assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Number);
                 });
             });
@@ -358,7 +358,7 @@ fn test_parse_typed_arrow_body_with_as_parameter_member_access() {
                     assert_path!(parser, *path, "Array");
                     assert_eq!(generic_arguments.len(), 1);
                     assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
-                            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                                 assert_eq!(*value, TypeLiteral::Number);
                             });
                     });
@@ -396,7 +396,7 @@ fn test_parse_typed_arrow_with_as_parameter_in_ternary_condition() {
             // (i: number, a: A)
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
                 assert_string!(parser, *name, "i");
-                assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *declared_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Number);
                 });
             });
@@ -422,7 +422,7 @@ fn test_parse_typed_arrow_with_as_parameter_in_ternary_condition() {
                             assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
                                 assert_eq!(*operator, BinaryOperator::LessThan);
                                 assert_expression_path!(parser, parser.tree.get(*left), "i");
-                                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                                assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(0)));
                             });
                             assert_node!(parser.tree, *right, Expression::Binary { left, operator, right } => {
                                 assert_eq!(*operator, BinaryOperator::GreaterThan);
@@ -453,7 +453,7 @@ fn test_parse_async_as_cast() {
 
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "async");
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Any);
         });
     });
@@ -560,7 +560,7 @@ fn test_parse_as_rhs_with_line_comment() {
 
     assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "value");
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Number);
         });
     });
@@ -678,7 +678,7 @@ fn test_parse_type_keyword_as_cast_expression() {
 
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "type");
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });
     });
@@ -764,8 +764,8 @@ fn test_parse_cast_with_conditional_type_target() {
         // Flag extends true ? Selected : Rejected
         assert_node!(parser.tree, *target_type, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Flag");
-            assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
-                assert_eq!(*value, ScalarLiteral::Boolean(true));
+            assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value } => {
+                assert_eq!(*value, Literal::Boolean(true));
             });
             assert_expression_path!(parser, parser.tree.get(*then_type), "Selected");
             assert_expression_path!(parser, parser.tree.get(*else_type), "Rejected");
@@ -792,7 +792,7 @@ fn test_parse_cast_followed_by_ternary_expression() {
                 assert_expression_path!(parser, parser.tree.get(*left), "perFileCache");
                 assert_node!(parser.tree, *right, Expression::As { expression, target_type } => {
                     assert_expression_path!(parser, parser.tree.get(*expression), "resolvedModuleNames");
-                    assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Unknown);
                     });
                 });
@@ -862,8 +862,8 @@ fn test_parse_type_alias_named_as_or_satisfies() {
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "as");
-            assert_node!(parser.tree, *value, TypeExpression::ScalarLiteral { value } => {
-                assert_eq!(*value, ScalarLiteral::Integer(0));
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_eq!(*value, Literal::Integer(0));
             });
         });
     });
@@ -871,8 +871,8 @@ fn test_parse_type_alias_named_as_or_satisfies() {
     assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "satisfies");
-            assert_node!(parser.tree, *value, TypeExpression::ScalarLiteral { value } => {
-                assert_eq!(*value, ScalarLiteral::Integer(0));
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_eq!(*value, Literal::Integer(0));
             });
         });
     });
@@ -953,13 +953,13 @@ fn test_parse_parenthesized_cast_assignment_target() {
         assert_node!(parser.tree, *left, AssignPattern::Place { expression: value } => {
             assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {
                 assert_expression_path!(parser, parser.tree.get(*expression), "value");
-                assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Number);
                 });
             });
         });
 
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
     });
 }
 
@@ -978,12 +978,12 @@ fn test_parse_parenthesized_satisfies_assignment_target() {
         assert_node!(parser.tree, *left, AssignPattern::Place { expression: value } => {
             assert_node!(parser.tree, *value, Expression::Satisfies { expression, target_type } => {
                 assert_expression_path!(parser, parser.tree.get(*expression), "value");
-                assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Number);
                 });
             });
         });
 
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
     });
 }

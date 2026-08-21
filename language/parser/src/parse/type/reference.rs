@@ -124,7 +124,7 @@ impl Parser {
 
         let literal = self.parse_type_literal()?;
         let type_expression = self.insert_node(
-            TypeExpression::Literal { value: literal },
+            TypeExpression::Keyword { value: literal },
             self.range_since(start),
         );
 
@@ -256,7 +256,7 @@ impl Parser {
             Keyword::Null => {
                 self.bump();
                 Some(self.insert_node(
-                    TypeExpression::Literal {
+                    TypeExpression::Keyword {
                         value: TypeLiteral::Null,
                     },
                     self.range_since(start),
@@ -265,7 +265,7 @@ impl Parser {
             Keyword::Undefined => {
                 self.bump();
                 Some(self.insert_node(
-                    TypeExpression::Literal {
+                    TypeExpression::Keyword {
                         value: TypeLiteral::Undefined,
                     },
                     self.range_since(start),

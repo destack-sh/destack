@@ -1,6 +1,6 @@
 use destack_dir::{
     BinaryOperator, Block, CommentKind, ConditionOperand, Declaration, Declarator, Expression,
-    FunctionDeclaration, FunctionForm, LetKind, Mutability, Pattern, PatternField, ScalarLiteral,
+    FunctionDeclaration, FunctionForm, LetKind, Mutability, Pattern, PatternField, Literal,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -24,7 +24,7 @@ fn test_parse_if_basic() {
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         // condition is boolean true
         let condition_id = condition.as_expression().expect("expected expression condition");
-        assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+        assert_node!(parser.tree, condition_id, Expression::Literal(Literal::Boolean(true)));
         // empty then block
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
             assert_node!(parser.tree, *block_id, Block { .. } => {
@@ -45,7 +45,7 @@ fn test_parse_if_else_with_empty_blocks() {
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // false
         let condition_id = condition.as_expression().expect("expected expression condition");
-        assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
+        assert_node!(parser.tree, condition_id, Expression::Literal(Literal::Boolean(false)));
         // { }
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
             assert_node!(parser.tree, *block_id, Block { .. } => {
@@ -203,7 +203,7 @@ fn test_parse_if_else_if_with_empty_blocks() {
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // true
         let condition_id = condition.as_expression().expect("expected expression condition");
-        assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+        assert_node!(parser.tree, condition_id, Expression::Literal(Literal::Boolean(true)));
         // then block
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
             assert_node!(parser.tree, *block_id, Block { .. } => {
@@ -214,7 +214,7 @@ fn test_parse_if_else_if_with_empty_blocks() {
         // nested else-if should be simple If
         assert_node!(parser.tree, else_expression.unwrap(), Expression::If { condition: inner_condition, then_expression: inner_then, .. } => {
             let inner_condition_id = inner_condition.as_expression().expect("expected expression condition");
-            assert_node!(parser.tree, inner_condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
+            assert_node!(parser.tree, inner_condition_id, Expression::Literal(Literal::Boolean(false)));
             assert_node!(parser.tree, *inner_then, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
@@ -288,7 +288,7 @@ fn test_parse_if_else_if_else_with_empty_blocks() {
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // if true
         let condition_id = condition.as_expression().expect("expected expression condition");
-        assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+        assert_node!(parser.tree, condition_id, Expression::Literal(Literal::Boolean(true)));
         // { }
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
             assert_node!(parser.tree, *block_id, Block { .. } => {
@@ -300,7 +300,7 @@ fn test_parse_if_else_if_else_with_empty_blocks() {
         assert_node!(parser.tree, else_expression.unwrap(), Expression::If { condition: inner_condition, then_expression: inner_then, else_expression: inner_else, .. } => {
             // else if (false)
             let inner_condition_id = inner_condition.as_expression().expect("expected expression condition");
-            assert_node!(parser.tree, inner_condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
+            assert_node!(parser.tree, inner_condition_id, Expression::Literal(Literal::Boolean(false)));
             // { }
             assert_node!(parser.tree, *inner_then, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { .. } => {
@@ -613,7 +613,7 @@ fn test_parse_if_condition_chain() {
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
                 assert_expression_path!(parser, parser.tree.get(*left), "count");
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(0)));
             });
         });
 

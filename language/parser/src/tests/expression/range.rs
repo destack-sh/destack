@@ -1,6 +1,6 @@
 use crate::tests::TestParser;
 use crate::{ExpressionPosition, ExpressionStop, assert_node, assert_string};
-use destack_dir::{BinaryOperator, Expression, RangeEnd, ScalarLiteral};
+use destack_dir::{BinaryOperator, Expression, RangeEnd, Literal};
 
 #[test]
 fn test_parse_half_open_range_expression() {
@@ -12,10 +12,10 @@ fn test_parse_half_open_range_expression() {
 
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
-        assert_node!(parser.tree, start.expect("expected start bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+        assert_node!(parser.tree, start.expect("expected start bound"), Expression::Literal(Literal::Integer(value)) => {
             assert_eq!(*value, 1);
         });
-        assert_node!(parser.tree, end.expect("expected end bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+        assert_node!(parser.tree, end.expect("expected end bound"), Expression::Literal(Literal::Integer(value)) => {
             assert_eq!(*value, 10);
         });
     });
@@ -32,10 +32,10 @@ fn test_parse_inclusive_range_expression() {
 
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Inclusive);
-        assert_node!(parser.tree, start.expect("expected start bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+        assert_node!(parser.tree, start.expect("expected start bound"), Expression::Literal(Literal::Integer(value)) => {
             assert_eq!(*value, 1);
         });
-        assert_node!(parser.tree, end.expect("expected end bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+        assert_node!(parser.tree, end.expect("expected end bound"), Expression::Literal(Literal::Integer(value)) => {
             assert_eq!(*value, 10);
         });
     });
@@ -51,7 +51,7 @@ fn test_parse_open_ended_range_expressions() {
     assert_eq!(expressions.len(), 4);
     assert_node!(parser.tree, expressions[0], Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
-        assert_node!(parser.tree, start.expect("expected start bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+        assert_node!(parser.tree, start.expect("expected start bound"), Expression::Literal(Literal::Integer(value)) => {
             assert_eq!(*value, 1);
         });
         assert!(end.is_none());
@@ -59,14 +59,14 @@ fn test_parse_open_ended_range_expressions() {
     assert_node!(parser.tree, expressions[1], Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
         assert!(start.is_none());
-        assert_node!(parser.tree, end.expect("expected end bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+        assert_node!(parser.tree, end.expect("expected end bound"), Expression::Literal(Literal::Integer(value)) => {
             assert_eq!(*value, 10);
         });
     });
     assert_node!(parser.tree, expressions[2], Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Inclusive);
         assert!(start.is_none());
-        assert_node!(parser.tree, end.expect("expected end bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+        assert_node!(parser.tree, end.expect("expected end bound"), Expression::Literal(Literal::Integer(value)) => {
             assert_eq!(*value, 10);
         });
     });
@@ -109,7 +109,7 @@ fn test_parse_negative_range_start_expression() {
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
         assert_node!(parser.tree, start.expect("expected start bound"), Expression::Unary { .. });
-        assert_node!(parser.tree, end.expect("expected end bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+        assert_node!(parser.tree, end.expect("expected end bound"), Expression::Literal(Literal::Integer(value)) => {
             assert_eq!(*value, 3);
         });
     });
@@ -130,7 +130,7 @@ fn test_parse_range_index_expression() {
         });
         assert_node!(parser.tree, index.expect("expected index"), Expression::RangeExpression { start, end, end_kind } => {
             assert_eq!(*end_kind, RangeEnd::Open);
-            assert_node!(parser.tree, start.expect("expected start bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+            assert_node!(parser.tree, start.expect("expected start bound"), Expression::Literal(Literal::Integer(value)) => {
                 assert_eq!(*value, 1);
             });
             assert_node!(parser.tree, end.expect("expected end bound"), Expression::Identifier { name } => {
@@ -152,7 +152,7 @@ fn test_parse_range_index_expression_forms() {
     assert_node!(parser.tree, expressions[0], Expression::Index { index: Some(index), .. } => {
         assert_node!(parser.tree, *index, Expression::RangeExpression { start, end, end_kind } => {
             assert_eq!(*end_kind, RangeEnd::Inclusive);
-            assert_node!(parser.tree, start.expect("expected start bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+            assert_node!(parser.tree, start.expect("expected start bound"), Expression::Literal(Literal::Integer(value)) => {
                 assert_eq!(*value, 1);
             });
             assert_node!(parser.tree, end.expect("expected end bound"), Expression::Identifier { name } => {
@@ -226,7 +226,7 @@ fn test_parse_range_expression_recovers_missing_inclusive_end() {
     assert_eq!(parser.errors.len(), 1);
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Inclusive);
-        assert_node!(parser.tree, start.expect("expected start bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+        assert_node!(parser.tree, start.expect("expected start bound"), Expression::Literal(Literal::Integer(value)) => {
             assert_eq!(*value, 1);
         });
         assert!(end.is_some());

@@ -1,6 +1,6 @@
 use destack_dir::{
     CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField, Expression,
-    GenericParameter, NodeType, PlaceModifier, ScalarLiteral, TokenType, TypeExpression,
+    GenericParameter, NodeType, PlaceModifier, Literal, TokenType, TypeExpression,
     WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -152,13 +152,13 @@ enum Foo extends Day {
         // Baz = 1
         assert_node!(parser.tree, fields[0], EnumField { name, value } => {
             assert_string!(parser, name.string(), "Baz");
-            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, value.unwrap(), Expression::Literal(Literal::Integer(1)));
         });
 
         // Qux = 2
         assert_node!(parser.tree, fields[1], EnumField { name, value } => {
             assert_string!(parser, name.string(), "Qux");
-            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            assert_node!(parser.tree, value.unwrap(), Expression::Literal(Literal::Integer(2)));
         });
     });
 }

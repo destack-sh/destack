@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, Block, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
-    InferForm, Name, NodeType, Pattern, PostfixPosition, Property, ScalarLiteral, TokenType,
+    InferForm, Name, NodeType, Pattern, PostfixPosition, Property, Literal, TokenType,
     TupleElement, TypeExpression,
 };
 use destack_source::{NodeSpanList, NodeSpanType};
@@ -29,7 +29,7 @@ fn test_parse_tuple_literal() {
                     assert_node!(
                         parser.tree,
                         *value,
-                        TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(1) }
+                        TypeExpression::Literal { value: Literal::Integer(1) }
                     );
                 }
             );
@@ -41,7 +41,7 @@ fn test_parse_tuple_literal() {
                     assert_node!(
                         parser.tree,
                         *value,
-                        TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(2) }
+                        TypeExpression::Literal { value: Literal::Integer(2) }
                     );
                 }
             );
@@ -67,7 +67,7 @@ fn test_parse_singleton_tuple_expression_literal() {
             => {
                 assert_eq!(elements.len(), 1);
                 assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                    assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
                 });
             });
         });
@@ -133,7 +133,7 @@ fn test_parse_statement_position_object_literal_with_comment() {
         assert_eq!(properties.len(), 1);
         assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
             assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
         });
     });
 }
@@ -232,8 +232,8 @@ fn test_parse_fixed_array_literal() {
 
     // [0; 32]
     assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
-        assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
+        assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(0)));
+        assert_node!(parser.tree, *length, Expression::Literal(Literal::Integer(32)));
     });
 }
 
@@ -249,7 +249,7 @@ fn test_parse_fixed_array_literal_recovers_missing_value() {
     test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ";")]);
     assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
         assert_node!(parser.tree, *value, Expression::Missing);
-        assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
+        assert_node!(parser.tree, *length, Expression::Literal(Literal::Integer(32)));
     });
 }
 
@@ -264,7 +264,7 @@ fn test_parse_fixed_array_literal_recovers_missing_length() {
 
     test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
     assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(0)));
         assert_node!(parser.tree, *length, Expression::Missing);
     });
 }
@@ -288,8 +288,8 @@ fn test_parse_fixed_array_literal_recovers_missing_close_bracket() {
         )],
     );
     assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
-        assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
+        assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(0)));
+        assert_node!(parser.tree, *length, Expression::Literal(Literal::Integer(32)));
     });
 }
 
@@ -325,7 +325,7 @@ fn test_parse_object_literal_in_parenthesis() {
             assert_eq!(properties.len(), 2);
             assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
             });
             assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
                 assert_string!(parser, *name, "y");
@@ -451,7 +451,7 @@ fn test_parse_struct_literal_path() {
             assert_eq!(properties.len(), 2);
             assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(val)) => {
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(val)) => {
                     assert_eq!(*val, 1);
                 });
             });
@@ -486,7 +486,7 @@ fn test_parse_struct_literal_infer_hole() {
             assert_eq!(properties.len(), 1);
             assert_node!(parser.tree, properties[0], Property::Field { name: Name::Identifier(name), value, .. } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
             });
         }
     );

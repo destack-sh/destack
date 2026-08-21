@@ -2,7 +2,7 @@ use crate::{ExpressionPosition, ExpressionStop};
 use destack_core::StringId;
 use destack_dir::{
     DependencyBinding, DependencyItem, Expression, ImportAttribute, ImportAttributeClauseKind,
-    ImportAttributeValue, LocalNodeId, Name, ScalarLiteral,
+    ImportAttributeValue, LocalNodeId, Name, Literal,
 };
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
@@ -85,7 +85,7 @@ fn test_parse_import_path_with_arguments() {
         assert_string!(parser, entries[0].key.string(), "bar");
         assert_eq!(
             entries[0].value,
-            ImportAttributeValue::ScalarLiteral(ScalarLiteral::Boolean(true))
+            ImportAttributeValue::Literal(Literal::Boolean(true))
         );
     });
 
@@ -123,7 +123,7 @@ fn test_parse_import_path_with_missing_attribute_close_brace() {
         assert_string!(parser, attributes.attributes[0].key.string(), "bar");
         assert_eq!(
             attributes.attributes[0].value,
-            ImportAttributeValue::ScalarLiteral(ScalarLiteral::Boolean(true))
+            ImportAttributeValue::Literal(Literal::Boolean(true))
         );
     });
 }
@@ -147,7 +147,7 @@ fn test_parse_import_path_with_nested_attributes() {
         assert_string!(parser, attributes.attributes[0].key.string(), "mode");
         assert_eq!(
             attributes.attributes[0].value,
-            ImportAttributeValue::ScalarLiteral(ScalarLiteral::String(parser.strings.intern("json")))
+            ImportAttributeValue::Literal(Literal::String(parser.strings.intern("json")))
         );
 
         assert_string!(parser, attributes.attributes[1].key.string(), "options");
@@ -156,13 +156,13 @@ fn test_parse_import_path_with_nested_attributes() {
             ImportAttributeValue::Object(vec![
                 ImportAttribute {
                     key: Name::Identifier(parser.strings.intern("eager")),
-                    value: ImportAttributeValue::ScalarLiteral(ScalarLiteral::Boolean(true)),
+                    value: ImportAttributeValue::Literal(Literal::Boolean(true)),
                 },
                 ImportAttribute {
                     key: Name::Identifier(parser.strings.intern("levels")),
                     value: ImportAttributeValue::Array(vec![
-                        ImportAttributeValue::ScalarLiteral(ScalarLiteral::Integer(1)),
-                        ImportAttributeValue::ScalarLiteral(ScalarLiteral::Integer(2)),
+                        ImportAttributeValue::Literal(Literal::Integer(1)),
+                        ImportAttributeValue::Literal(Literal::Integer(2)),
                     ]),
                 },
             ])

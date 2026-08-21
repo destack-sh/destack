@@ -3,7 +3,7 @@ use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
     Declaration, Expression, GenericArgument, GenericParameter, LocalNodeId, MappedTypeModifier,
-    Name, NodeType, Parameter, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    Name, NodeType, Parameter, Literal, TypeDeclaration, TypeExpression, TypeLiteral,
     TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -22,8 +22,8 @@ fn assert_plain_type_reference(
 
 /// Assert one string scalar type literal.
 fn assert_string_type_literal(parser: &Parser, value: LocalNodeId<TypeExpression>, expected: &str) {
-    assert_node!(parser.tree, value, TypeExpression::ScalarLiteral { value } => {
-        let ScalarLiteral::String(string) = value else {
+    assert_node!(parser.tree, value, TypeExpression::Literal { value } => {
+        let Literal::String(string) = value else {
             panic!("expected string scalar literal");
         };
         assert_string!(parser, *string, expected);
@@ -78,8 +78,8 @@ fn assert_mismatch_args(parser: &Parser, value: LocalNodeId<TypeExpression>) {
             assert_strict_equal_deep_pick_expected(parser, *value);
         });
         assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::ScalarLiteral { value } => {
-                assert_eq!(*value, ScalarLiteral::Boolean(true));
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_eq!(*value, Literal::Boolean(true));
             });
         });
     });
@@ -91,12 +91,12 @@ fn assert_record_string_unknown(parser: &Parser, value: LocalNodeId<TypeExpressi
         assert_path!(parser, *path, "Record");
         assert_eq!(generic_arguments.len(), 2);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::String);
             });
         });
         assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Unknown);
             });
         });
@@ -144,8 +144,8 @@ fn assert_expected_nested_conditional_constraint(
                 assert_plain_type_reference(parser, *value, "Expected");
             });
         });
-        assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
-            assert_eq!(*value, ScalarLiteral::Boolean(true));
+        assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value } => {
+            assert_eq!(*value, Literal::Boolean(true));
         });
         assert_string_type_literal(parser, *then_type, "union");
         assert_node!(parser.tree, *else_type, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
@@ -156,16 +156,16 @@ fn assert_expected_nested_conditional_constraint(
                     assert_extends_expected_record(parser, *value);
                 });
             });
-            assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
-                assert_eq!(*value, ScalarLiteral::Boolean(true));
+            assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value } => {
+                assert_eq!(*value, Literal::Boolean(true));
             });
             assert_string_type_literal(parser, *then_type, "object");
             assert_node!(parser.tree, *else_type, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                 assert_strict_equal_deep_pick_expected(parser, *left);
-                assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Boolean(true));
+                assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, Literal::Boolean(true));
                 });
-                assert_node!(parser.tree, *then_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *then_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Unknown);
                 });
                 assert_mismatch_info_deep_pick_expected(parser, *else_type);
@@ -228,14 +228,14 @@ fn test_parse_type_template_literal_with_union_interpolation_after_outer_union()
 
                     assert_node!(parser.tree, spans[0], TypeExpression::Union { elements } => {
                         assert_eq!(elements.len(), 2);
-                        assert_node!(parser.tree, elements[0], TypeExpression::ScalarLiteral { value } => {
-                            let ScalarLiteral::String(string_id) = value else {
+                        assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
+                            let Literal::String(string_id) = value else {
                                 panic!("expected string literal");
                             };
                             assert_string!(parser, *string_id, "us");
                         });
-                        assert_node!(parser.tree, elements[1], TypeExpression::ScalarLiteral { value } => {
-                            let ScalarLiteral::String(string_id) = value else {
+                        assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                            let Literal::String(string_id) = value else {
                                 panic!("expected string literal");
                             };
                             assert_string!(parser, *string_id, "eu");
@@ -314,11 +314,11 @@ fn test_parse_type_literal_call_signature_with_parameters() {
                     assert_eq!(signature.parameters.len(), 1);
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "num");
-                        assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
                     });
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                 });
@@ -327,11 +327,11 @@ fn test_parse_type_literal_call_signature_with_parameters() {
                     assert_eq!(signature.parameters.len(), 1);
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "str");
-                        assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
                     });
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });
@@ -363,7 +363,7 @@ fn test_parse_type_literal_construct_signature() {
                     assert_eq!(signature.parameters.len(), 1);
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "x");
-                        assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
                     });
@@ -412,7 +412,7 @@ fn test_parse_type_literal_generic_call_overloads() {
                     assert_eq!(generic_parameters.len(), 1);
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), .. } => {
                         assert_string!(parser, *name, "N");
-                        assert_node!(parser.tree, *constraint, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *constraint, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
                     });
@@ -446,7 +446,7 @@ fn test_parse_type_literal_generic_call_overloads() {
                     assert_eq!(generic_parameters.len(), 1);
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), .. } => {
                         assert_string!(parser, *name, "S");
-                        assert_node!(parser.tree, *constraint, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *constraint, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
                     });
@@ -581,7 +581,7 @@ const Mapping
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, is_const, constraint: Some(ty), .. } => {
                         assert_string!(parser, *name, "Mapping");
                         assert!(*is_const);
-                        assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
                     });
@@ -807,7 +807,7 @@ fn test_parse_type_literal_index_signature() {
                     assert!(*is_optional);
                     assert!(*is_readonly);
                     assert_string!(parser, *name, "k");
-                    assert_node!(parser.tree, *key_type, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *key_type, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                     assert_expression_path!(parser, parser.tree.get(*value_type), "Foo");
@@ -830,7 +830,7 @@ fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
                 assert_eq!(elements.len(), 2);
-                assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, elements[0], TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
                 assert_node!(parser.tree, elements[1], TypeExpression::Object { members: properties } => {
@@ -839,14 +839,14 @@ fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
                         assert_string!(parser, *name, "x");
                         assert_node!(parser.tree, *key_type, TypeExpression::Union { elements } => {
                             assert_eq!(elements.len(), 2);
-                            assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, elements[0], TypeExpression::Keyword { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
                             });
-                            assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, elements[1], TypeExpression::Keyword { value } => {
                                 assert_eq!(*value, TypeLiteral::Number);
                             });
                         });
-                        assert_node!(parser.tree, *value_type, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *value_type, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::Unknown);
                         });
                     });
@@ -877,10 +877,10 @@ topic: string
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], TypeMember::IndexSignature { name, key_type, value_type, .. } => {
                     assert_string!(parser, *name, "topic");
-                    assert_node!(parser.tree, *key_type, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *key_type, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
-                    assert_node!(parser.tree, *value_type, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value_type, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                 });
@@ -911,7 +911,7 @@ fn test_parse_type_literal_readonly_property_name() {
                         }
                         _ => panic!("expected identifier name, got {name:?}"),
                     }
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Boolean);
                     });
                 });
@@ -948,7 +948,7 @@ fn test_parse_type_literal_static_members() {
                         }
                         _ => panic!("expected identifier name, got {name:?}"),
                     }
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });
@@ -962,7 +962,7 @@ fn test_parse_type_literal_static_members() {
                         }
                         _ => panic!("expected identifier name, got {name:?}"),
                     }
-                    assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                 });
@@ -993,7 +993,7 @@ fn test_parse_type_literal_static_property_name() {
                         }
                         _ => panic!("expected identifier name, got {name:?}"),
                     }
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Boolean);
                     });
                 });
@@ -1037,7 +1037,7 @@ fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
                 assert_path!(parser, *path, "intrinsic");
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
                 });
@@ -1122,8 +1122,8 @@ fn test_parse_type_nested_conditional_with_arrows() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { then_type, else_type, .. } => {
                 assert_node!(parser.tree, *then_type, TypeExpression::Conditional { .. });
-                assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Boolean(false));
+                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, Literal::Boolean(false));
                 });
             });
         });
@@ -1234,8 +1234,8 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
                             assert_string!(parser, *name, "MISMATCH");
                             assert_mismatch_args(&parser, *ty);
                         });
-                        assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
-                            assert_eq!(*value, ScalarLiteral::Boolean(true));
+                        assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+                            assert_eq!(*value, Literal::Boolean(true));
                         });
                     });
                 });
@@ -1319,8 +1319,8 @@ fn test_parse_function_type_nested_conditional_constraint() {
                     assert_string!(parser, *name, "MISMATCH");
                     assert_mismatch_args(&parser, *ty);
                 });
-                assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Boolean(true));
+                assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+                    assert_eq!(*value, Literal::Boolean(true));
                 });
             });
         });
@@ -1394,8 +1394,8 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
                             assert_string!(parser, *name, "MISMATCH");
                             assert_mismatch_args(&parser, *ty);
                         });
-                        assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
-                            assert_eq!(*value, ScalarLiteral::Boolean(true));
+                        assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+                            assert_eq!(*value, Literal::Boolean(true));
                         });
                     });
                 });
@@ -1463,8 +1463,8 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
                             assert_plain_type_reference(&parser, *ty, "U");
                         });
 
-                        assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
-                            assert_eq!(*value, ScalarLiteral::Boolean(true));
+                        assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+                            assert_eq!(*value, Literal::Boolean(true));
                         });
                     });
                 });
@@ -1505,10 +1505,10 @@ fn test_parse_type_member_generic_arrow_conditional_constraint_before_parameter_
                                         assert_plain_type_reference(&parser, *value, "B");
                                     });
                                 });
-                                assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
-                                    assert_eq!(*value, ScalarLiteral::Boolean(true));
+                                assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value } => {
+                                    assert_eq!(*value, Literal::Boolean(true));
                                 });
-                                assert_node!(parser.tree, *then_type, TypeExpression::Literal { value } => {
+                                assert_node!(parser.tree, *then_type, TypeExpression::Keyword { value } => {
                                     assert_eq!(*value, TypeLiteral::Unknown);
                                 });
                                 assert_node!(parser.tree, *else_type, TypeExpression::Reference { path, generic_arguments } => {
@@ -1623,7 +1623,7 @@ fn test_parse_type_literal_call_signature() {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });

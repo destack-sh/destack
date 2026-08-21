@@ -7,7 +7,7 @@ use destack_dir::{
     Argument, AssignOperator, AssignPattern, BinaryOperator, Block, BlockForm, ClassDeclaration,
     CommentKind, Declaration, Declarator, Decorator, DependencyBinding, DependencyItem, ExportKind,
     Expression, FunctionDeclaration, ImportAttributeClauseKind, Name, Parameter, Pattern, Property,
-    ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    Literal, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 
@@ -75,13 +75,13 @@ let value = do {
                             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                                 assert_string!(parser, *name, "base");
                             });
-                            assert_node!(parser.tree, value.expect("expected initializer"), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                            assert_node!(parser.tree, value.expect("expected initializer"), Expression::Literal(Literal::Integer(1)));
                         });
                     });
                     assert_node!(parser.tree, tail_expression.expect("expected do block tail"), Expression::Binary { left, operator, right } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "base");
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
                     });
                 });
             });
@@ -143,9 +143,9 @@ fn test_parse_type_relation_ternary_value_condition() {
             assert_node!(parser.tree, *value, Expression::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "Row");
-                    assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value: TypeLiteral::String });
-                    assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(4) });
-                    assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(2) });
+                    assert_node!(parser.tree, *extends_type, TypeExpression::Keyword { value: TypeLiteral::String });
+                    assert_node!(parser.tree, *then_type, TypeExpression::Literal { value: Literal::Integer(4) });
+                    assert_node!(parser.tree, *else_type, TypeExpression::Literal { value: Literal::Integer(2) });
                 });
             });
         });
@@ -210,7 +210,7 @@ if (value is string) {
         // value is string
         assert_node!(parser.tree, condition_id, Expression::Is { value, target_type } => {
             assert_expression_path!(parser, parser.tree.get(*value), "value");
-            assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::String);
             });
         });
@@ -249,7 +249,7 @@ fn test_parse_if_is_type_guard_comment_boundaries() {
         // value /* checked value */ is /* expected type */ string
         assert_node!(parser.tree, condition_id, Expression::Is { value, target_type } => {
             assert_expression_path!(parser, parser.tree.get(*value), "value");
-            assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::String);
             });
 
@@ -412,7 +412,7 @@ type = type + 2
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_string!(parser, *name, "type");
             });
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
         });
     });
 
@@ -428,7 +428,7 @@ type = type + 2
         assert_node!(parser.tree, *right, Expression::Binary { left, operator, right, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "type");
             assert_eq!(*operator, BinaryOperator::Add);
-            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
         });
     });
 }

@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_dir::{
     BinaryOperator, Block, Declaration, Declarator, ExportKind, Expression, GenericArgument,
-    Pattern, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    Pattern, Literal, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
@@ -96,13 +96,13 @@ type Value =
             // | string | number | boolean
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
                 assert_eq!(elements.len(), 3);
-                assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, elements[0], TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
-                assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, elements[1], TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Number);
                 });
-                assert_node!(parser.tree, elements[2], TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, elements[2], TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Boolean);
                 });
             });
@@ -175,20 +175,20 @@ type Target =
             assert_string!(parser, name.string(), "Target");
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
                 assert_eq!(elements.len(), 3);
-                assert_node!(parser.tree, elements[0], TypeExpression::ScalarLiteral { value } => {
-                    let ScalarLiteral::String(bun_id) = value else {
+                assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
+                    let Literal::String(bun_id) = value else {
                         panic!("expected string literal");
                     };
                     assert_string!(parser, *bun_id, "bun");
                 });
-                assert_node!(parser.tree, elements[1], TypeExpression::ScalarLiteral { value } => {
-                    let ScalarLiteral::String(node_id) = value else {
+                assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                    let Literal::String(node_id) = value else {
                         panic!("expected string literal");
                     };
                     assert_string!(parser, *node_id, "node");
                 });
-                assert_node!(parser.tree, elements[2], TypeExpression::ScalarLiteral { value } => {
-                    let ScalarLiteral::String(browser_id) = value else {
+                assert_node!(parser.tree, elements[2], TypeExpression::Literal { value } => {
+                    let Literal::String(browser_id) = value else {
                         panic!("expected string literal");
                     };
                     assert_string!(parser, *browser_id, "browser");
@@ -223,12 +223,12 @@ const value =
                 assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
                     // 1
-                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                    assert_node!(parser.tree, *left, Expression::Literal(Literal::Integer(1)));
                     // 2
-                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                    assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
                 });
                 // 3
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+                assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(3)));
             });
         });
     });
@@ -471,7 +471,7 @@ const x =
                             });
                         });
                     });
-                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                    assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
                 });
                 assert_node!(parser.tree, *right, Expression::Identifier { name } => {
                     assert_string!(parser, *name, "x");

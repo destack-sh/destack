@@ -7,7 +7,7 @@ use crate::{
 use destack_dir::{
     Argument, BinaryOperator, Block, Declaration, Declarator, Expression, FunctionDeclaration,
     FunctionForm, GenericParameter, IfForm, IntegerType, MappedTypeModifier, Name, Parameter,
-    Pattern, PatternField, Property, ScalarLiteral, TokenType, TupleElement, TypeExpression,
+    Pattern, PatternField, Property, Literal, TokenType, TupleElement, TypeExpression,
     TypeLiteral, TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -25,7 +25,7 @@ fn test_parse_lambda_function_empty_type() {
 
     assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         assert_eq!(function.parameters.len(), 0);
-        assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Void);
         });
     });
@@ -46,7 +46,7 @@ fn test_parse_lambda_function_type() {
         // a: int32
         assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
             assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                 assert_eq!(
                     *value,
                     TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
@@ -56,7 +56,7 @@ fn test_parse_lambda_function_type() {
         });
 
         // int32
-        assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Keyword { value } => {
             assert_eq!(
                 *value,
                 TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
@@ -123,7 +123,7 @@ fn test_parse_lambda_function_value() {
             assert_node!(parser.tree, body.unwrap(), Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
                 assert_expression_path!(parser, parser.tree.get(*left), "a");
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
             });
         });
     });
@@ -182,7 +182,7 @@ add satisfies (a: number, b: number) => number;"#,
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
                     assert_eq!(signature.form, FunctionForm::Lambda);
                     assert_eq!(signature.parameters.len(), 2);
-                    assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                     assert_node!(parser.tree, body.expect("expected lambda body"), Expression::Binary { operator, .. } => {
@@ -198,7 +198,7 @@ add satisfies (a: number, b: number) => number;"#,
         assert_expression_path!(parser, parser.tree.get(*expression), "add");
         assert_node!(parser.tree, *target_type, TypeExpression::Function(function) => {
             assert_eq!(function.parameters.len(), 2);
-            assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Number);
             });
         });
@@ -328,7 +328,7 @@ fn test_parse_generic_lambda_function_value_multiline_after_less_than() {
             assert_eq!(generic_parameters.len(), 1);
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
                 assert_string!(parser, *name, "T");
-                assert_node!(parser.tree, constraint.unwrap(), TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, constraint.unwrap(), TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
             });
@@ -372,7 +372,7 @@ fn test_parse_ternary_typed_arrow_with_function_type_parameter() {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                 assert_eq!(signature.form, FunctionForm::Lambda);
                 assert_eq!(signature.parameters.len(), 3);
-                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Void);
                 });
             });
@@ -444,7 +444,7 @@ fn test_parse_lambda_parameter_with_mapped_object_type() {
                     assert_eq!(*optional, MappedTypeModifier::Present);
                     assert_string!(parser, parser.tree.get(*parameter).name, "T");
                     assert_expression_path!(parser, parser.tree.get(parser.tree.get(*parameter).source_type), "TestFilterTerm");
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Boolean);
                     });
                 });
@@ -529,7 +529,7 @@ fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {
                                 assert_string!(parser, *name, "action");
                                 assert_expression_path!(parser, parser.tree.get(*ty), "N");
                             });
-                            assert_node!(parser.tree, function.return_type.expect("expected nested return type"), TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, function.return_type.expect("expected nested return type"), TypeExpression::Keyword { value } => {
                                 assert_eq!(*value, TypeLiteral::Void);
                             });
                         });
@@ -615,7 +615,7 @@ fn test_parse_generic_parameter_constraint_object_property_named_in() {
                         assert_node!(name, Name::Identifier(name) => {
                             assert_string!(parser, *name, "in");
                         });
-                        assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
                     });
@@ -695,7 +695,7 @@ fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
                             assert_eq!(signature.parameters.len(), 1);
                             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
                                 assert_string!(parser, *name, "str");
-                                assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
+                                assert_node!(parser.tree, *declared_type, TypeExpression::Keyword { value } => {
                                     assert_eq!(*value, TypeLiteral::String);
                                 });
                             });

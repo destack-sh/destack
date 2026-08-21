@@ -2,7 +2,7 @@ use destack_dir::{
     Argument, Asynchrony, BinaryOperator, ClassDeclaration, CommentKind, Declaration, Decorator,
     DecoratorPosition, Expression, FunctionDeclaration, FunctionRole, GenericArgument,
     GenericParameter, IfForm, IntegerType, InterfaceDeclaration, Keyword, Member, Name, NodeType,
-    Parameter, Pattern, PatternField, ScalarLiteral, TokenType, TreeAttribute, TreeAttributeValue,
+    Parameter, Pattern, PatternField, Literal, TokenType, TreeAttribute, TreeAttributeValue,
     TupleElement, TypeExpression, TypeLiteral, TypeMember,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanType};
@@ -39,7 +39,7 @@ fn test_parse_parameter_with_type() {
     let parameter_id = parser.parse_parameter(Default::default()).unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type, default, .. } => {
         assert_string!(parser, *name, "x");
-        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
+        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Keyword { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
         }) });
         assert!(default.is_none());
     });
@@ -54,7 +54,7 @@ fn test_parse_parameter_with_maybe_type() {
     assert_node!(parser.tree, parameter_id, Parameter::Named { name, is_optional, declared_type: Some(declared_type), default: None, .. } => {
         assert_string!(parser, *name, "x");
         assert!(*is_optional);
-        assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
+        assert_node!(parser.tree, *declared_type, TypeExpression::Keyword { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
         }) });
     });
 }
@@ -67,7 +67,7 @@ fn test_parse_parameter_with_default() {
     let parameter_id = parser.parse_parameter(Default::default()).unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type, default, .. } => {
         assert_string!(parser, *name, "validate");
-        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value: TypeLiteral::Boolean });
+        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Keyword { value: TypeLiteral::Boolean });
         assert!(default.is_some());
     });
 }
@@ -134,14 +134,14 @@ fn test_parse_parameter_with_pattern_and_defaults() {
                     assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
                         assert_string!(parser, *name, "x");
                     });
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
+                    assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(4)));
                 });
             });
         });
         // boolean
-        assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Boolean });
+        assert_node!(parser.tree, *declared_type, TypeExpression::Keyword { value: TypeLiteral::Boolean });
         // = false
-        assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
+        assert_node!(parser.tree, *default, Expression::Literal(Literal::Boolean(false)));
     });
 }
 
@@ -303,7 +303,7 @@ fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults()
                                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
                                     assert_string!(parser, *name, "syncSnapshot");
                                 });
-                                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
+                                assert_node!(parser.tree, *value, Expression::Literal(Literal::Boolean(false)));
                             });
                         });
                     });
@@ -312,7 +312,7 @@ fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults()
                         assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
                             assert!(properties.is_empty());
                         });
-                        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value: TypeLiteral::Any });
+                        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value: TypeLiteral::Any });
                     });
                 });
             });
@@ -348,7 +348,7 @@ fn test_parse_parameter_multiline() {
     let parameter_id = parser.parse_parameter(Default::default()).unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
         assert_string!(parser, *name, "x");
-        assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
+        assert_node!(parser.tree, *declared_type, TypeExpression::Keyword { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
         }) });
     });
 }
@@ -518,10 +518,10 @@ fn test_parse_generic_arguments_missing_close_angle_in_type_context() {
     // <string, number
     assert_eq!(arguments.len(), 2);
     assert_node!(parser.tree, arguments[0], GenericArgument::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+            assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::String });
     });
     assert_node!(parser.tree, arguments[1], GenericArgument::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+            assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::Number });
     });
 }
 
@@ -559,14 +559,14 @@ fn test_parse_generic_arguments_object_shape_prefers_type_in_type_context() {
 
             assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                 assert_string!(parser, *name, "name");
-                assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::ScalarLiteral { value: ScalarLiteral::String(value) } => {
+                assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value: Literal::String(value) } => {
                     assert_string!(parser, *value, "alpha");
                 });
             });
 
             assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
                 assert_string!(parser, *name, "count");
-                assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(1) });
+                assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value: Literal::Integer(1) });
             });
         });
     });
@@ -613,7 +613,7 @@ fn test_parse_generic_arguments_following_value_with_boundary_comment() {
 
     assert_eq!(arguments.len(), 2);
     assert_node!(parser.tree, arguments[1], GenericArgument::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+            assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::Number });
     });
     assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "second-type-arg");
@@ -665,10 +665,10 @@ fn test_parse_spread_static_generic_argument() {
         assert_node!(parser.tree, *value, TypeExpression::StaticValue { expression } => {
             assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::Add);
-                assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                assert_node!(parser.tree, *left, Expression::Literal(Literal::Integer(value)) => {
                     assert_eq!(*value, 1);
                 });
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(value)) => {
                     assert_eq!(*value, 2);
                 });
             });
@@ -714,7 +714,7 @@ fn test_parse_variadic_const_generic_parameter() {
         assert!(default.is_none());
         assert_node!(parser.tree, constraint.expect("expected variadic constraint"), TypeExpression::Readonly { target_type } => {
             assert_node!(parser.tree, *target_type, TypeExpression::Array { element } => {
-                assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *element, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Integer(IntegerType::Pointer { is_signed: false }));
                 });
             });
@@ -730,7 +730,7 @@ fn test_parse_parameter_readonly_name() {
     let parameter_id = parser.parse_parameter(Default::default()).unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
         assert_string!(parser, *name, "readonly");
-        assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
+        assert_node!(parser.tree, *declared_type, TypeExpression::Keyword { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
         }) });
     });
 }
@@ -917,14 +917,14 @@ class Test {
 
                 assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
                     assert_string!(parser, *name, "value");
-                    assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *declared_type, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });
 
                 assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, declared_type: None, default: Some(default), .. } => {
                     assert_string!(parser, *name, "count");
-                    assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                    assert_node!(parser.tree, *default, Expression::Literal(Literal::Integer(0)));
                 });
 
                 assert_node!(parser.tree, signature.parameters[2], Parameter::VariadicNamed { name, declared_type: Some(_), .. } => {
@@ -1024,7 +1024,7 @@ fn test_parse_positional_argument() {
 
     assert_node!(parser.tree, argument_id, Argument::Positional { value } => {
         // 3
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+        assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(3)));
     });
 }
 
@@ -1099,11 +1099,11 @@ fn test_parse_dynamic_arguments_recover_error_slot() {
     // (1, , 3)
     assert_eq!(arguments.len(), 3);
     assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
     });
     assert_node!(parser.tree, arguments[1], Argument::Error);
     assert_node!(parser.tree, arguments[2], Argument::Positional { value, .. } => {
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+        assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(3)));
     });
 }
 
@@ -1557,7 +1557,7 @@ fn test_parse_type_tuple_spread_label_element() {
     assert_eq!(elements.len(), 1);
     assert_node!(parser.tree, elements[0], TupleElement::Spread { label, value } => {
         assert_string!(parser, label.unwrap(), "args");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::Number });
     });
 }
 
@@ -1575,7 +1575,7 @@ fn test_parse_type_tuple_label_element_span() {
         assert!(!*is_optional);
         assert!(!*is_readonly);
         assert_string!(parser, label.unwrap(), "label");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::Number });
     });
 }
 
@@ -1632,10 +1632,10 @@ fn test_parse_associated_generic_refinements() {
     assert_eq!(generic_arguments.len(), 2);
     assert_node!(parser.tree, generic_arguments[0], GenericArgument::AssociatedType { name, value } => {
         assert_string!(parser, *name, "Item");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 8, is_signed: false }) });
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::Integer(IntegerType::Fixed { width: 8, is_signed: false }) });
     });
     assert_node!(parser.tree, generic_arguments[1], GenericArgument::AssociatedConst { name, value } => {
         assert_string!(parser, *name, "Width");
-        assert_node!(parser.tree, *value, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(16) });
+        assert_node!(parser.tree, *value, TypeExpression::Literal { value: Literal::Integer(16) });
     });
 }

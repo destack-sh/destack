@@ -1,7 +1,7 @@
 use crate::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, GenericArgument,
-    InferForm, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral, TokenType, TypeExpression,
+    InferForm, LocalNodeId, NodeType, PostfixPosition, Literal, TokenType, TypeExpression,
 };
 use std::fmt::Write;
 
@@ -32,7 +32,7 @@ fn test_parse_index_postfix_explicit() {
     assert_node!(parser.tree, index_id, Expression::Index { position, left, index, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_eq!(*left, recv);
-        assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, index.unwrap(), Expression::Literal(Literal::Integer(1)));
     });
 }
 
@@ -51,7 +51,7 @@ fn test_parse_index_postfix_multiline() {
     assert_node!(parser.tree, index_id, Expression::Index { position, left, index, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_eq!(*left, recv);
-        assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, index.unwrap(), Expression::Literal(Literal::Integer(1)));
     });
 }
 
@@ -80,12 +80,12 @@ fn test_parse_call_postfix() {
 
         // 1
         assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
         });
 
         // 2
         assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(2)));
         });
     });
 }
@@ -198,7 +198,7 @@ fn test_parse_call_postfix_missing_close_parenthesis_after_argument() {
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_eq!(arguments.len(), 1);
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
         });
     });
 }
@@ -228,7 +228,7 @@ fn test_parse_indirect_call_postfix_missing_close_parenthesis_after_argument() {
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_eq!(arguments.len(), 1);
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
         });
     });
 }
@@ -260,7 +260,7 @@ fn test_parse_optional_call_postfix_missing_close_parenthesis_after_argument() {
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
             assert_eq!(arguments.len(), 1);
             assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
             });
         });
     });
@@ -346,7 +346,7 @@ fn test_parse_index_postfix_missing_close_bracket() {
     assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index), .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
-        assert_node!(parser.tree, *index, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *index, Expression::Literal(Literal::Integer(1)));
     });
 }
 
@@ -437,10 +437,10 @@ fn test_parse_call_expression_with_generic_arguments() {
         // (1, 2)
         assert_eq!(arguments.len(), 2);
         assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
         });
         assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(2)));
         });
     });
 }

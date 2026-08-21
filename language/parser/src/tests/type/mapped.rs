@@ -2,7 +2,7 @@ use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
-    Declaration, Expression, GenericArgument, GenericParameter, MappedTypeModifier, ScalarLiteral,
+    Declaration, Expression, GenericArgument, GenericParameter, MappedTypeModifier, Literal,
     TypeDeclaration, TypeExpression, TypeLiteral, TypeMember,
 };
 
@@ -41,13 +41,13 @@ fn test_parse_mapped_type() {
                 assert_eq!(*optional, MappedTypeModifier::None);
                 assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
-                    assert_node!(parser.tree, elements[0], TypeExpression::ScalarLiteral { value } => {
-                        assert_node!(value, ScalarLiteral::String(value) => {
+                    assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
+                        assert_node!(value, Literal::String(value) => {
                             assert_string!(parser, *value, "a");
                         });
                     });
-                    assert_node!(parser.tree, elements[1], TypeExpression::ScalarLiteral { value } => {
-                        assert_node!(value, ScalarLiteral::String(value) => {
+                    assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                        assert_node!(value, Literal::String(value) => {
                             assert_string!(parser, *value, "b");
                         });
                     });
@@ -73,7 +73,7 @@ fn test_parse_mapped_type() {
                     assert_expression_path!(parser, parser.tree.get(*target_type), "Type");
                 });
                 let value = value.expect("expected value type");
-                assert_node!(parser.tree, value, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, value, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Boolean);
                 });
             });
@@ -340,7 +340,7 @@ fn test_parse_type_mapped_expression_with_intersection() {
                     assert_eq!(properties.len(), 1);
                     assert_node!(parser.tree, properties[0], TypeMember::IndexSignature { name, key_type, value_type, .. } => {
                         assert_string!(parser, *name, "x");
-                        assert_node!(parser.tree, *key_type, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *key_type, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
                         assert_node!(parser.tree, *value_type, TypeExpression::Reference { path, generic_arguments } => {
@@ -463,11 +463,11 @@ fn test_parse_type_mapped_expression_with_conditional_infer_constraint() {
                     assert_node!(parser.tree, *extends_type, TypeExpression::KeyOf { target_type } => {
                         assert_expression_path!(parser, parser.tree.get(*target_type), "Source");
                     });
-                    assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value } => {
-                        assert_eq!(*value, ScalarLiteral::Integer(1));
+                    assert_node!(parser.tree, *then_type, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, Literal::Integer(1));
                     });
-                    assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
-                        assert_eq!(*value, ScalarLiteral::Integer(0));
+                    assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, Literal::Integer(0));
                     });
                 });
                 let value = value.expect("expected value type");
@@ -608,7 +608,7 @@ fn test_parse_type_mapped_expression_with_leading_union_constraint() {
                 });
 
                 let value = value.expect("expected value type");
-                assert_node!(parser.tree, value, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, value, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
             });

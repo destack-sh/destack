@@ -3,7 +3,7 @@ use destack_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, ClassDeclaration,
     CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole,
     GenericArgument, GenericParameter, IntegerType, InterfaceDeclaration, Member,
-    MethodAbstraction, Name, NodeType, Parameter, Property, ScalarLiteral, TokenType,
+    MethodAbstraction, Name, NodeType, Parameter, Property, Literal, TokenType,
     TypeExpression, TypeLiteral, TypeMember, Visibility,
 };
 
@@ -37,7 +37,7 @@ fn test_parse_member_definite_accessor() {
         assert_string!(parser, *name, "a");
         assert!(*is_accessor);
         assert!(*is_definite);
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Any);
         });
     });
@@ -61,7 +61,7 @@ fn test_parse_member_override_field() {
     assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: Some(value), is_override, .. } => {
         assert!(*is_override);
         assert_string!(parser, *name, "foo");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
             assert_eq!(
                 *value,
                 TypeLiteral::Integer(IntegerType::Fixed {
@@ -182,7 +182,7 @@ fn test_parse_member_method_parameter_type_then_default_value() {
         assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), default, .. } => {
             assert_string!(parser, *name, "userCount");
             assert!(default.is_none());
-            assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Number);
             });
         });
@@ -246,11 +246,11 @@ fn test_parse_member_method_with_newline_before_return_type() {
         assert_eq!(signature.parameters.len(), 1);
         assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
             assert_string!(parser, *name, "value");
-            assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::String);
             });
         });
-        assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });
 
@@ -319,7 +319,7 @@ fn test_parse_member_async_string_literal_name() {
         assert_eq!(signature.parameters.len(), 1);
         assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
             assert_string!(parser, *name, "name");
-            assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::String);
             });
         });
@@ -327,7 +327,7 @@ fn test_parse_member_async_string_literal_name() {
             assert_path!(parser, *path, "Promise");
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Boolean);
                     });
             });
@@ -406,7 +406,7 @@ fn test_parse_members_recover_error_slot() {
     assert_node!(parser.tree, members[0], Member::Error);
     assert_node!(parser.tree, members[1], Member::Field { name: Name::Identifier(name), declared_type: Some(value), default: None, .. } => {
         assert_string!(parser, *name, "y");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
             assert_eq!(
                 *value,
                 TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
@@ -429,7 +429,7 @@ fn test_recover_members_embedded_type() {
     assert_node!(parser.tree, members[0], Member::Error);
     assert_node!(parser.tree, members[1], Member::Field { name: Name::Identifier(name), declared_type: Some(value), default: None, .. } => {
         assert_string!(parser, *name, "x");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
             assert_eq!(
                 *value,
                 TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
@@ -495,7 +495,7 @@ foo(): string;"#,
     assert_node!(parser.tree, member, Member::Method { name: Some(Name::Identifier(name)), signature, body: None, .. } => {
         assert_string!(parser, *name, "foo");
         assert_eq!(signature.role, Some(FunctionRole::Getter));
-        assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value: TypeLiteral::String });
+        assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Keyword { value: TypeLiteral::String });
     });
     assert_eq!(parser.peek_token_type(), TokenType::Semicolon);
     test.assert_no_errors(&parser);
@@ -510,7 +510,7 @@ fn test_parse_property_with_value() {
         assert_string!(parser, *name, "x");
         assert!(!*is_shorthand);
         assert_node!(parser.tree, *value, Expression::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                 assert_eq!(
                     *value,
                     TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
@@ -539,7 +539,7 @@ fn test_parse_property_with_default_value() {
                     .expect("expected shorthand value main span");
                 assert_eq!(parser.span_str(main_span), "x");
             });
-            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
+            assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(42)));
         });
     });
 }
@@ -584,7 +584,7 @@ fn test_parse_member_type_keyword_as_field_key() {
 
     assert_node!(parser.tree, member_id, Member::Field { name: Name::Identifier(name), declared_type: Some(value), .. } => {
         assert_string!(parser, *name, "type");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::String });
     });
 
     test.assert_no_errors(&parser);
@@ -604,11 +604,11 @@ const: number"#,
     assert_eq!(members.len(), 2);
     assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type: Some(value), .. } => {
         assert_string!(parser, *name, "type");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::String });
     });
     assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type: Some(value), .. } => {
         assert_string!(parser, *name, "const");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::Number });
     });
 
     test.assert_no_errors(&parser);
@@ -638,12 +638,12 @@ readonly value: string
             });
             assert_node!(parser.tree, members[1], TypeMember::AssociatedType { name, value: Some(value), .. } => {
                 assert_string!(parser, *name, "Item");
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+                assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::String });
             });
             assert_node!(parser.tree, members[2], TypeMember::Field { is_readonly, name: Name::Identifier(name), declared_type: Some(value), .. } => {
                 assert!(*is_readonly);
                 assert_string!(parser, *name, "value");
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+                assert_node!(parser.tree, *value, TypeExpression::Keyword { value: TypeLiteral::String });
             });
         });
     });
@@ -715,7 +715,7 @@ fn test_parse_properties_recover_error_slot() {
     assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "y");
         assert_node!(parser.tree, *value, Expression::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                 assert_eq!(
                     *value,
                     TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
@@ -747,7 +747,7 @@ fn test_parse_properties_recover_unkeyed_value_field() {
     assert_node!(parser.tree, properties[0], Property::Error);
     assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "y");
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(2)));
     });
 }
 
@@ -772,7 +772,7 @@ fn test_parse_properties_recover_unkeyed_default_field() {
     assert_node!(parser.tree, properties[0], Property::Error);
     assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "y");
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(2)));
     });
 }
 
@@ -799,7 +799,7 @@ fn test_parse_property_method_call() {
         assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
             assert_string!(parser, *name, "T");
             assert!(constraint.is_none());
-            assert_node!(parser.tree, default.unwrap(), TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, default.unwrap(), TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Any);
             });
         });
@@ -843,7 +843,7 @@ fn test_parse_object_property_constructor_method_as_key() {
         assert_eq!(signature.parameters.len(), 1);
         assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
             assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
             });
         });
@@ -956,7 +956,7 @@ fn test_parse_member_type_with_value() {
         assert!(where_clauses.is_empty());
         assert!(visibility.is_none());
         assert!(!*is_ambient);
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });
     });
@@ -998,7 +998,7 @@ fn test_parse_member_type_with_bound_and_value() {
     assert_node!(parser.tree, member_id, Member::AssociatedType { name, constraint: Some(ty), value: Some(value), .. } => {
         assert_string!(parser, *name, "Item");
         assert_expression_path!(parser, parser.tree.get(*ty), "Hashable");
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });
     });
@@ -1080,11 +1080,11 @@ fn test_parse_member_associated_const() {
     let member_id = parser.parse_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedConst { name, declared_type: Some(ty), value: Some(value), .. } => {
         assert_string!(parser, *name, "Rows");
-        assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
             assert_eq!(*value, TypeLiteral::Number);
         });
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(value) => {
-            assert_eq!(*value, ScalarLiteral::Integer(128));
+        assert_node!(parser.tree, *value, Expression::Literal(value) => {
+            assert_eq!(*value, Literal::Integer(128));
         });
     });
 }
@@ -1124,9 +1124,9 @@ fn test_parse_member_associated_const_type_relation_default() {
         assert_node!(parser.tree, *value, Expression::Type { value } => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "Row");
-                assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value: TypeLiteral::String });
-                assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(4) });
-                assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(2) });
+                assert_node!(parser.tree, *extends_type, TypeExpression::Keyword { value: TypeLiteral::String });
+                assert_node!(parser.tree, *then_type, TypeExpression::Literal { value: Literal::Integer(4) });
+                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value: Literal::Integer(2) });
             });
         });
     });

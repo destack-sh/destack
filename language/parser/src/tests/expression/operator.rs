@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Expression,
-    IfForm, LocalNodeId, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral,
+    IfForm, LocalNodeId, PostfixPosition, Literal, TypeExpression, TypeLiteral,
     UnaryOperator,
 };
 
@@ -367,7 +367,7 @@ fn test_parse_precedence_cast_before_addition() {
                     // a
                     assert_expression_path!(parser, parser.tree.get(*expression), "a");
                     // number
-                    assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                 }
@@ -592,7 +592,7 @@ fn test_parse_precedence_is_before_logical_and() {
             // value is string
             assert_node!(parser.tree, *left, Expression::Is { value, target_type } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "value");
-                assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
             });
@@ -811,12 +811,12 @@ fn test_parse_computed_assignment() {
                 assert_expression_path!(parser, parser.tree.get(*left), "counter");
 
                 let index = index.expect("expected index expression");
-                assert_node!(parser.tree, index, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                assert_node!(parser.tree, index, Expression::Literal(Literal::String(value)) => {
                     assert_string!(parser, *value, "value");
                 });
             });
         });
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(1)));
     });
 
     let main_span = parser
@@ -1192,7 +1192,7 @@ fn test_parse_precedence_postfix_call_before_coalesce() {
             assert_node!(
                 parser.tree,
                 *right,
-                Expression::ScalarLiteral(ScalarLiteral::Integer(0))
+                Expression::Literal(Literal::Integer(0))
             );
         }
     );

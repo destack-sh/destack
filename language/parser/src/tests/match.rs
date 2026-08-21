@@ -1,6 +1,6 @@
 use destack_dir::{
     BinaryOperator, Block, CommentKind, ConditionOperand, Declarator, Expression, LetKind,
-    MatchArm, Mutability, NodeType, Pattern, PatternField, ScalarLiteral, SwitchCase,
+    MatchArm, Mutability, NodeType, Pattern, PatternField, Literal, SwitchCase,
     SwitchSelector, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -100,18 +100,18 @@ match (x) {
         assert_node!(parser.tree, arms[0], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
             });
-            assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(10)));
+            assert_node!(parser.tree, *body, Expression::Literal(Literal::Integer(10)));
         });
 
         // case 1: 2 => 20
         assert_node!(parser.tree, arms[1], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(2)));
             });
-            assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
+            assert_node!(parser.tree, *body, Expression::Literal(Literal::Integer(20)));
         });
 
         // case 2: x => x
@@ -126,7 +126,7 @@ match (x) {
         assert_node!(parser.tree, arms[3], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Wildcard);
-            assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            assert_node!(parser.tree, *body, Expression::Literal(Literal::Integer(0)));
         });
     });
 }
@@ -198,15 +198,15 @@ match (x) {
                 .expect("expected guard")
                 .as_expression()
                 .expect("expected expression guard");
-            assert_node!(parser.tree, guard_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            assert_node!(parser.tree, guard_id, Expression::Literal(Literal::Boolean(true)));
 
             // pattern: 2
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(2)));
             });
 
             // body: 20
-            assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
+            assert_node!(parser.tree, *body, Expression::Literal(Literal::Integer(20)));
         });
     });
 }
@@ -248,7 +248,7 @@ match (pair) {
                 .expect("expected expression guard");
             assert_node!(parser.tree, guard_id, Expression::Binary { left, operator: BinaryOperator::GreaterThan, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "count");
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(0)));
             });
             assert_expression_path!(parser, parser.tree.get(*body), "count");
         });
@@ -256,7 +256,7 @@ match (pair) {
         assert_node!(parser.tree, arms[1], MatchArm::Expression { pattern, guard, body } => {
             assert_node!(parser.tree, *pattern, Pattern::Wildcard);
             assert!(guard.is_none());
-            assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            assert_node!(parser.tree, *body, Expression::Literal(Literal::Integer(0)));
         });
     });
 }
@@ -313,7 +313,7 @@ match (input) {
             };
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator: BinaryOperator::GreaterThan, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "value");
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(0)));
             });
             assert_expression_path!(parser, parser.tree.get(*body), "value");
         });
@@ -506,7 +506,7 @@ switch (left.type) {
         // case "static" block
         assert_node!(parser.tree, cases[0], SwitchCase { selector: SwitchSelector::Case(value), body } => {
             // selector
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::String(literal)) => {
                 assert_string!(parser, *literal, "static");
             });
             // body
@@ -519,7 +519,7 @@ switch (left.type) {
         // case "dynamic" block
         assert_node!(parser.tree, cases[1], SwitchCase { selector: SwitchSelector::Case(value), body } => {
             // selector
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::String(literal)) => {
                 assert_string!(parser, *literal, "dynamic");
             });
             // body
@@ -532,7 +532,7 @@ switch (left.type) {
         // case "literal" block
         assert_node!(parser.tree, cases[2], SwitchCase { selector: SwitchSelector::Case(value), body } => {
             // selector
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::String(literal)) => {
                 assert_string!(parser, *literal, "literal");
             });
             // body
@@ -574,7 +574,7 @@ switch(a) { case 1: {}
                 let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 2);
                 assert_node!(parser.tree, expressions[0], Expression::Block(_));
-                assert_node!(parser.tree, expressions[1], Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                assert_node!(parser.tree, expressions[1], Expression::Literal(Literal::RegexString { .. }));
             });
         });
     });
@@ -725,7 +725,7 @@ fn test_parse_switch_case_body_recovers_at_eof() {
         assert_expression_path!(parser, parser.tree.get(*value), "cond");
         assert_eq!(cases.len(), 1);
         assert_node!(parser.tree, cases[0], SwitchCase { selector: SwitchSelector::Case(value), body } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(10)));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(10)));
             let expressions = block_expression_ids(parser.tree.get(*body));
             assert_eq!(expressions.len(), 1);
             assert_node!(parser.tree, expressions[0], Expression::Let { kind, export, mutability, declarators, is_ambient, place } => {
@@ -741,7 +741,7 @@ fn test_parse_switch_case_body_recovers_at_eof() {
                         assert_string!(parser, *name, "a");
                         assert!(pattern.is_none());
                     });
-                    assert_node!(parser.tree, value.expect("expected initializer"), Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
+                    assert_node!(parser.tree, value.expect("expected initializer"), Expression::Literal(Literal::Integer(20)));
                 });
             });
         });

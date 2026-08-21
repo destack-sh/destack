@@ -3,7 +3,7 @@ use crate::tests::TestParser;
 use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
     CommentKind, Declaration, Declarator, Expression, GenericArgument, InferForm, IntegerType,
-    ScalarLiteral, TupleElement, TypeDeclaration, TypeExpression, TypeLiteral,
+    Literal, TupleElement, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 
 /// Parse conditional types with infer constraints.
@@ -25,7 +25,7 @@ fn test_parse_type_conditional_with_infer_constraint() {
                     assert!(constraint.is_some());
                 });
                 assert_expression_path!(parser, parser.tree.get(*then_type), "A");
-                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *else_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Never);
                 });
             });
@@ -48,7 +48,7 @@ fn test_parse_type_conditional_tuple_then_branch() {
                 assert_node!(parser.tree, *then_type, TypeExpression::Tuple { elements, .. } => {
                     assert_eq!(elements.len(), 2);
                 });
-                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *else_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Never);
                 });
             });
@@ -75,16 +75,16 @@ fn test_parse_type_conditional_infer_extends_parenthesized_constraint() {
                 crate::assert_parenthesized!(parser.tree, *extends_type, expression => {
                     assert_node!(parser.tree, *expression, TypeExpression::Infer { name, constraint, .. } => {
                         assert_string!(parser, name.expect("expected infer name"), "U");
-                        assert_node!(parser.tree, constraint.expect("expected constraint"), TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, constraint.expect("expected constraint"), TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
                     });
                 });
-                assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Integer(1));
+                assert_node!(parser.tree, *then_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, Literal::Integer(1));
                 });
-                assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Integer(0));
+                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, Literal::Integer(0));
                 });
             });
         });
@@ -111,22 +111,22 @@ fn test_parse_type_conditional_infer_extends_parenthesized_conditional() {
                             assert_string!(parser, name.expect("expected infer name"), "U");
                             assert!(constraint.is_none());
                         });
-                        assert_node!(parser.tree, *right, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *right, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
-                        assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value } => {
-                            assert_eq!(*value, ScalarLiteral::Integer(1));
+                        assert_node!(parser.tree, *then_type, TypeExpression::Literal { value } => {
+                            assert_eq!(*value, Literal::Integer(1));
                         });
-                        assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
-                            assert_eq!(*value, ScalarLiteral::Integer(0));
+                        assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                            assert_eq!(*value, Literal::Integer(0));
                         });
                     });
                 });
-                assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Integer(1));
+                assert_node!(parser.tree, *then_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, Literal::Integer(1));
                 });
-                assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Integer(0));
+                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, Literal::Integer(0));
                 });
             });
         });
@@ -147,28 +147,28 @@ fn test_parse_type_conditional_with_parenthesized_nested_branch() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "T");
-                assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *extends_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
                 crate::assert_parenthesized!(parser.tree, *then_type, expression => {
                     assert_node!(parser.tree, *expression, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "T");
-                        assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
-                            let ScalarLiteral::String(string_id) = value else {
+                        assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value } => {
+                            let Literal::String(string_id) = value else {
                                 panic!("expected string literal, got {value:?}");
                             };
                             assert_string!(parser, *string_id, "a");
                         });
-                        assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value } => {
-                            assert_eq!(*value, ScalarLiteral::Integer(1));
+                        assert_node!(parser.tree, *then_type, TypeExpression::Literal { value } => {
+                            assert_eq!(*value, Literal::Integer(1));
                         });
-                        assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
-                            assert_eq!(*value, ScalarLiteral::Integer(2));
+                        assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                            assert_eq!(*value, Literal::Integer(2));
                         });
                     });
                 });
-                assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Integer(3));
+                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, Literal::Integer(3));
                 });
             });
         });
@@ -202,14 +202,14 @@ fn test_parse_type_expression() {
     assert_node!(parser.tree, expr_id, Expression::Type { value } => {
         assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
             assert_eq!(elements.len(), 3);
-            assert_node!(parser.tree, elements[0], TypeExpression::ScalarLiteral { value } => {
-                assert_eq!(*value, ScalarLiteral::Integer(1));
+            assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
+                assert_eq!(*value, Literal::Integer(1));
             });
-            assert_node!(parser.tree, elements[1], TypeExpression::ScalarLiteral { value } => {
-                assert_eq!(*value, ScalarLiteral::Integer(2));
+            assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                assert_eq!(*value, Literal::Integer(2));
             });
-            assert_node!(parser.tree, elements[2], TypeExpression::ScalarLiteral { value } => {
-                assert_eq!(*value, ScalarLiteral::Integer(3));
+            assert_node!(parser.tree, elements[2], TypeExpression::Literal { value } => {
+                assert_eq!(*value, Literal::Integer(3));
             });
         });
     });
@@ -255,7 +255,7 @@ fn test_parse_newtype_type_expression() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, is_nominal, .. }) => {
             assert_string!(parser, name.string(), "T");
             assert!(*is_nominal);
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                 }));
             });
@@ -398,7 +398,7 @@ fn test_parse_conditional_type_with_abstract_construct_signature() {
                     });
                 });
                 assert_expression_path!(parser, parser.tree.get(*then_type), "U");
-                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *else_type, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Unknown);
                 });
             });
@@ -602,7 +602,7 @@ fn test_parse_tuple_type() {
                     assert!(label.is_none());
                     assert!(!is_optional);
                     assert!(!is_readonly);
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });
@@ -610,7 +610,7 @@ fn test_parse_tuple_type() {
                     assert!(label.is_none());
                     assert!(!is_optional);
                     assert!(!is_readonly);
-                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
                     });
                 });
@@ -786,7 +786,7 @@ fn test_parse_type_conditional_with_parenthesized_constrained_infer_binary_opera
                     crate::assert_parenthesized!(parser.tree, elements[0], expression => {
                         assert_node!(parser.tree, *expression, TypeExpression::Infer { name, constraint, .. } => {
                             assert_string!(parser, name.expect("expected infer name"), "U");
-                            assert_node!(parser.tree, constraint.expect("expected constraint"), TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, constraint.expect("expected constraint"), TypeExpression::Keyword { value } => {
                                 assert_eq!(*value, TypeLiteral::Number);
                             });
                         });
@@ -818,7 +818,7 @@ fn test_parse_type_conditional_with_parenthesized_constrained_infer_intersection
                     crate::assert_parenthesized!(parser.tree, elements[0], expression => {
                         assert_node!(parser.tree, *expression, TypeExpression::Infer { name, constraint, .. } => {
                             assert_string!(parser, name.expect("expected infer name"), "U");
-                            assert_node!(parser.tree, constraint.expect("expected constraint"), TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, constraint.expect("expected constraint"), TypeExpression::Keyword { value } => {
                                 assert_eq!(*value, TypeLiteral::Number);
                             });
                         });

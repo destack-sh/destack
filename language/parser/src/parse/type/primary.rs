@@ -297,7 +297,7 @@ impl Parser {
                 let value = self.parse_signed_numeric_literal()?;
 
                 Ok(self.insert_node(
-                    TypeExpression::ScalarLiteral { value },
+                    TypeExpression::Literal { value },
                     self.range_since(start),
                 ))
             }
@@ -305,7 +305,7 @@ impl Parser {
                 let value = self.parse_scalar_literal()?;
 
                 Ok(self.insert_node(
-                    TypeExpression::ScalarLiteral { value },
+                    TypeExpression::Literal { value },
                     self.range_since(start),
                 ))
             }

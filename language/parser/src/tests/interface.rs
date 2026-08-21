@@ -75,7 +75,7 @@ interface Foo extends Bar<Baz>, Namespace.Qux<string> {}
             assert_path!(parser, *path, "Namespace.Qux");
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
             });
@@ -260,7 +260,7 @@ interface Foo extends Baz {
         assert_node!(parser.tree, members[0], TypeMember::Field { name: Name::Identifier(name), declared_type: ty, is_readonly, .. } => {
             assert!(*is_readonly);
             assert_string!(parser, *name, "value");
-            assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                 }));
             });
@@ -269,7 +269,7 @@ interface Foo extends Baz {
         // count: int32
         assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type: ty, .. } => {
             assert_string!(parser, *name, "count");
-            assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                 }));
             });
@@ -451,7 +451,7 @@ interface SQL {
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
                 assert_string!(parser, *name, "T");
                 assert!(constraint.is_none());
-                assert_node!(parser.tree, (*default).unwrap(), TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, (*default).unwrap(), TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Any);
                 });
             });
@@ -471,7 +471,7 @@ interface SQL {
             assert_eq!(signature.parameters.len(), 2);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "value");
-                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Any);
                 });
             });
@@ -479,7 +479,7 @@ interface SQL {
             assert_node!(parser.tree, signature.parameters[1], Parameter::VariadicNamed { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "arguments");
                 assert_node!(parser.tree, *ty, TypeExpression::Array { element } => {
-                    assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, *element, TypeExpression::Keyword { value } => {
                         assert_eq!(*value, TypeLiteral::Any);
                     });
                 });
@@ -558,7 +558,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { is_optional, name, declared_type, .. } => {
                 assert!(*is_optional);
                 assert_string!(parser, *name, "e");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Any);
                 });
             });
@@ -647,7 +647,7 @@ interface ImportMetaEnv {
             assert!(*is_readonly);
             assert!(!*is_optional);
             assert_string!(parser, *name, "key");
-            assert_node!(parser.tree, *key_type, TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *key_type, TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::String);
             });
             assert_node!(parser.tree, *value_type, TypeExpression::Union { elements } => {
@@ -658,7 +658,7 @@ interface ImportMetaEnv {
         // length: number;
         assert_node!(parser.tree, members[1], TypeMember::Field { name: Name::Identifier(name), declared_type, .. } => {
             assert_string!(parser, *name, "length");
-            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Keyword { value } => {
                 assert_eq!(*value, TypeLiteral::Number);
             });
         });

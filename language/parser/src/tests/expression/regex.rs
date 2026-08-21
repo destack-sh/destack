@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, AssignOperator, BinaryOperator, Declaration, Declarator, DependencyItem, Expression,
-    FunctionDeclaration, PostfixPosition, ScalarLiteral, TemplateLiteral, UnaryOperator,
+    FunctionDeclaration, PostfixPosition, Literal, TemplateLiteral, UnaryOperator,
 };
 
 /// Parse a regex body containing direct non-ASCII source text.
@@ -16,7 +16,7 @@ fn test_parse_regex_non_ascii_body() {
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
         .unwrap();
 
-    assert_node!(parser.tree, expression, Expression::ScalarLiteral(ScalarLiteral::RegexString { content, flags }) => {
+    assert_node!(parser.tree, expression, Expression::Literal(Literal::RegexString { content, flags }) => {
         assert_string!(parser, *content, "café");
         assert_string!(parser, flags.unwrap(), "u");
     });
@@ -41,7 +41,7 @@ fn test_parse_tagged_template_with_regex_interpolation() {
                 assert_string!(parser, chunks[0].cooked.unwrap(), "/^");
                 assert_string!(parser, chunks[1].cooked.unwrap(), "$/u");
                 assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                    assert_node!(parser.tree, *value, Expression::Literal(Literal::RegexString { .. }));
                 });
             }
             other => panic!("expected interpolated template, got {other:?}"),
@@ -93,7 +93,7 @@ fn test_parse_regex_literal_after_binary_add() {
                 assert_expression_path!(parser, parser.tree.get(*left), "prefix");
                 assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
                     assert_string!(parser, *name, "source");
-                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                    assert_node!(parser.tree, *left, Expression::Literal(Literal::RegexString { .. }));
                 });
             });
         });
@@ -120,7 +120,7 @@ fn test_parse_regex_literal_after_binary_subtract() {
                 assert_expression_path!(parser, parser.tree.get(*left), "prefix");
                 assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
                     assert_string!(parser, *name, "source");
-                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                    assert_node!(parser.tree, *left, Expression::Literal(Literal::RegexString { .. }));
                 });
             });
         });
@@ -150,7 +150,7 @@ fn test_parse_regex_literal_after_binary_divide() {
                 });
                 assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                     assert_string!(parser, *name, "exec");
-                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                    assert_node!(parser.tree, *left, Expression::Literal(Literal::RegexString { .. }));
                 });
             });
         });
@@ -178,7 +178,7 @@ fn test_parse_regex_literal_after_binary_less_than() {
             });
             assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                 assert_string!(parser, *name, "test");
-                assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                assert_node!(parser.tree, *left, Expression::Literal(Literal::RegexString { .. }));
             });
         });
     });
@@ -200,7 +200,7 @@ fn test_parse_regex_literal_after_binary_in_keyword() {
         assert_expression_path!(parser, parser.tree.get(*left), "key");
         assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "source");
-            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+            assert_node!(parser.tree, *left, Expression::Literal(Literal::RegexString { .. }));
         });
     });
 }
@@ -218,7 +218,7 @@ fn test_parse_regex_literal_after_binary_instanceof_keyword() {
     // value instanceof /[A-Z]/
     assert_node!(parser.tree, expr_id, Expression::InstanceOf { value, target } => {
         assert_expression_path!(parser, parser.tree.get(*value), "value");
-        assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+        assert_node!(parser.tree, *target, Expression::Literal(Literal::RegexString { .. }));
     });
 }
 
@@ -240,7 +240,7 @@ fn test_parse_regex_literal_after_assign_newline() {
                 assert_eq!(arguments.len(), 1);
                 assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                     assert_string!(parser, *name, "exec");
-                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                    assert_node!(parser.tree, *left, Expression::Literal(Literal::RegexString { .. }));
                 });
             });
         });
@@ -264,7 +264,7 @@ fn test_parse_regex_literal_after_arrow() {
                 assert_eq!(arguments.len(), 1);
                 assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                     assert_string!(parser, *name, "test");
-                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                    assert_node!(parser.tree, *left, Expression::Literal(Literal::RegexString { .. }));
                 });
             });
         });
@@ -288,7 +288,7 @@ fn test_parse_regex_literal_after_unary_not() {
             assert_eq!(arguments.len(), 1);
             assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                 assert_string!(parser, *name, "test");
-                assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                assert_node!(parser.tree, *left, Expression::Literal(Literal::RegexString { .. }));
             });
         });
     });
@@ -312,7 +312,7 @@ fn test_parse_regex_literal_after_coalesce_assign() {
             assert_eq!(arguments.len(), 1);
             assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                 assert_string!(parser, *name, "test");
-                assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                assert_node!(parser.tree, *left, Expression::Literal(Literal::RegexString { .. }));
             });
         });
     });
@@ -335,7 +335,7 @@ fn test_parse_divide_after_non_null_assertion() {
             assert_eq!(*position, PostfixPosition::Direct);
             assert_expression_path!(parser, parser.tree.get(*left), "x");
         });
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        assert_node!(parser.tree, *right, Expression::Literal(Literal::Integer(2)));
     });
 }
 
@@ -353,7 +353,7 @@ fn test_parse_regex_literal_with_character_class_slash() {
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
-            assert_node!(parser.tree, value.expect("expected initializer"), Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+            assert_node!(parser.tree, value.expect("expected initializer"), Expression::Literal(Literal::RegexString { .. }));
         });
     });
 }
@@ -436,7 +436,7 @@ fn test_parse_regex_unicode_property_escape() {
     assert_node!(
         parser.tree,
         expr_id,
-        Expression::ScalarLiteral(ScalarLiteral::RegexString { .. })
+        Expression::Literal(Literal::RegexString { .. })
     );
 }
 
@@ -454,7 +454,7 @@ fn test_parse_regex_unicode_escape_with_long_leading_zeros() {
     assert_node!(
         parser.tree,
         expr_id,
-        Expression::ScalarLiteral(ScalarLiteral::RegexString { .. })
+        Expression::Literal(Literal::RegexString { .. })
     );
 }
 
@@ -469,7 +469,7 @@ fn test_parse_string_unicode_escape_with_long_leading_zeros() {
         .unwrap();
 
     // "4"
-    assert_node!(parser.tree, expr_id, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+    assert_node!(parser.tree, expr_id, Expression::Literal(Literal::String(string_id)) => {
         assert_string!(parser, *string_id, "4");
     });
 }
@@ -509,7 +509,7 @@ fn test_parse_export_default_regex_literal() {
         assert!(target.is_none());
         assert_eq!(items.len(), 1);
         assert_node!(parser.tree, items[0], DependencyItem::Binding { value: Some(value), .. } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+            assert_node!(parser.tree, *value, Expression::Literal(Literal::RegexString { .. }));
         });
     });
 }

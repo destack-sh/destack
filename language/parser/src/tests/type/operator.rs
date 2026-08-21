@@ -136,7 +136,7 @@ fn test_parse_local_type_operator_precedence() {
                         assert_path!(parser, *path, "Value");
                     });
                 });
-                assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, elements[1], TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Undefined);
                 });
             });
@@ -229,12 +229,12 @@ fn test_parse_readonly_type_operator_precedence() {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TypeExpression::Readonly { target_type } => {
                     assert_node!(parser.tree, *target_type, TypeExpression::Array { element } => {
-                        assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *element, TypeExpression::Keyword { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
                     });
                 });
-                assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, elements[1], TypeExpression::Keyword { value } => {
                     assert_eq!(*value, TypeLiteral::Undefined);
                 });
             });
