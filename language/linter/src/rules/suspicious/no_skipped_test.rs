@@ -93,6 +93,7 @@ suite.skip("nested", () => {
 warning[no-skipped-test]: skipped registration leaves coverage inactive
  ──▶ main.ds:3:6
   │
+1 │ import { describe as suite, test } from "destack:test";
 2 │
 3 │ test.skip("direct", () => {
   │      ^^^^
@@ -133,6 +134,7 @@ test("configured", { skip: true }, () => {
 warning[no-skipped-test]: skipped registration leaves coverage inactive
  ──▶ main.ds:3:22
   │
+1 │ import { test } from "destack:test";
 2 │
 3 │ test("configured", { skip: true }, () => {
   │                      ^^^^

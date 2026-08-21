@@ -252,8 +252,8 @@ other.beforeEach(() => {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-test-hook]: duplicate beforeEach hook in one test suite
- ──▶ main.ds:9:9
-  │
+  ──▶ main.ds:9:9
+   │
  7 │     // first scoped hook
  8 │ });
  9 │ checked.beforeEach(() => {

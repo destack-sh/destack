@@ -451,15 +451,18 @@ function indent(depth: isize): string {
 warning[manual-repeat-string]: string is appended once per loop iteration
  ──▶ main.ds:3:5
   │
-1 │   function indent(depth: isize): string {
-2 │       let output = "";
-3 │ ╭     for (const _ of 0..depth) {
-4 │ │         // append one indentation level
-5 │ │         output += "  ";
-6 │ │     }
-  │ ╰─────^
-7 │       return output;
-8 │   }
+1 │ function indent(depth: isize): string {
+2 │     let output = "";
+3 │     for (const _ of 0..depth) {
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+4 │         // append one indentation level
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 │         output += "  ";
+  │         ^^^^^^^^^^^^^^^
+6 │     }
+  │     ^
+7 │     return output;
+8 │ }
   │
 "#,
         );

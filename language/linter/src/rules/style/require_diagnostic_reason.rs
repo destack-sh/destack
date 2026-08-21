@@ -217,7 +217,7 @@ warning[require-diagnostic-reason]: diagnostic suppression has no reason
  ──▶ main.ds:1:1
   │
 1 │ @allow("constant-condition", { reason: "generated declaration", ...{ reason: "" } })
-  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 2 │ function ready(): boolean {
 3 │     if (true) {
   │
