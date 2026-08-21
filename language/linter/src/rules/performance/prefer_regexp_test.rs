@@ -163,8 +163,8 @@ fn suggestion(
 
     // preserve evaluation order when moving String.match operands
     if operands.is_reordered
-        && (!module.is_repeatable_expression(operands.pattern)?
-            || !module.is_repeatable_expression(operands.input)?)
+        && (!module.is_speculatable_expression(operands.pattern)?
+            || !module.is_speculatable_expression(operands.input)?)
     {
         return Ok(None);
     }

@@ -271,14 +271,15 @@ fn suggestion(
         None
     };
 
-    // preserve eager evaluation only for a repeatable Copy fallback
+    // preserve eager evaluation only for a speculatable Copy fallback
     let result = module.expression_source(result, dir::OperatorPrecedence::Postfix)?;
-    let is_eager = if fallback.is_single_value && module.is_repeatable_expression(fallback.value)? {
-        let value_type = module.node_type_id(fallback.value.into_any())?;
-        module.satisfies_copy(fallback.value.into_any(), value_type)?
-    } else {
-        false
-    };
+    let is_eager =
+        if fallback.is_single_value && module.is_speculatable_expression(fallback.value)? {
+            let value_type = module.node_type_id(fallback.value.into_any())?;
+            module.satisfies_copy(fallback.value.into_any(), value_type)?
+        } else {
+            false
+        };
     let replacement = if binding.is_none() && is_eager {
         let value = fallback.value;
         let value_extent = module.source_extent(value.into_any())?;

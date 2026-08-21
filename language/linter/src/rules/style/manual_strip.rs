@@ -201,7 +201,7 @@ fn is_stripped_value(
     }
 
     // require repeated evaluations to preserve their values and effects
-    Ok(module.is_repeatable_expression(receiver)? && module.is_repeatable_expression(affix)?)
+    Ok(module.is_duplicable_expression(receiver)? && module.is_duplicable_expression(affix)?)
 }
 
 /// Build one canonical strip call.

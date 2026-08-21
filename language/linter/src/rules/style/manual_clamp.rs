@@ -127,7 +127,7 @@ fn clamp(
         return Ok(None);
     };
 
-    // require each branch to return the corresponding repeatable operand
+    // require each branch to return the corresponding duplicable operand
     let primitive = module.primitive_type(outer.value.into_any())?;
     let is_supported = match primitive {
         Some(dir::PrimitiveType::Integer(_)) => true,

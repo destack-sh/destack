@@ -75,7 +75,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             );
             if !is_redundant
                 || !module.is_same_computation(guarded, receiver)?
-                || !module.is_repeatable_expression(receiver)?
+                || !module.is_duplicable_expression(receiver)?
             {
                 continue;
             }

@@ -53,7 +53,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         if iteration.start != 0
             || iteration.end_kind != dir::RangeEnd::Open
-            || !module.is_repeatable_expression(iteration.end)?
+            || !module.is_duplicable_expression(iteration.end)?
         {
             continue;
         }
@@ -91,8 +91,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 .dir
                 .representation_item(module.node_type_id(assignment.target.into_any())?)?
                 != Some(dir::LanguageItem::String)
-            || !module.is_repeatable_expression(assignment.target)?
-            || !module.is_repeatable_expression(assignment.value)?
+            || !module.is_speculatable_expression(assignment.target)?
+            || !module.is_speculatable_expression(assignment.value)?
         {
             continue;
         }

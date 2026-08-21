@@ -69,7 +69,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
         if module.access_resolution(assignment.target) != module.access_resolution(filter.receiver)
             || module.access_resolution(assignment.target).is_none()
-            || !module.is_repeatable_expression(assignment.target)?
+            || !module.is_duplicable_expression(assignment.target)?
         {
             continue;
         }

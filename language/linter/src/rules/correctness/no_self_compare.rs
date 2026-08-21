@@ -153,7 +153,7 @@ warning[no-self-compare]: comparison has identical operands
         );
     }
 
-    /// Report identical builtin operations over repeatable operands.
+    /// Report identical builtin operations over duplicable operands.
     #[test]
     fn test_reports_builtin_operation_self_comparison() {
         let session = TestSession::dir(
@@ -179,7 +179,7 @@ warning[no-self-compare]: comparison has identical operands
         );
     }
 
-    /// Report identical builtin unary operations over repeatable operands.
+    /// Report identical builtin unary operations over duplicable operands.
     #[test]
     fn test_reports_builtin_unary_self_comparison() {
         let session = TestSession::dir(

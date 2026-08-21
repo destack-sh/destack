@@ -392,7 +392,7 @@ fn ascii_ranges(
             return Ok(None);
         }
     }
-    if ranges.len() > 1 && !module.is_repeatable_expression(first.value)? {
+    if ranges.len() > 1 && !module.is_duplicable_expression(first.value)? {
         return Ok(None);
     }
 

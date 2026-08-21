@@ -286,16 +286,60 @@ impl DirModule<'_> {
         None
     }
 
-    /// Return whether one checked expression can be evaluated without observable effects.
-    pub fn is_repeatable_expression(
+    /// Return whether one expression may be evaluated twice at the same program point.
+    pub fn is_duplicable_expression(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<bool, ProviderError> {
-        if !self.is_same_computation(expression, expression)? {
+        self.is_same_computation(expression, expression)
+    }
+
+    /// Return whether one expression may be evaluated on an additional control-flow path.
+    pub fn is_speculatable_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        if !self.is_duplicable_expression(expression)? {
             return Ok(false);
         }
 
         self.can_trap(expression).map(|can_trap| !can_trap)
+    }
+
+    /// Return whether one expression keeps the same value throughout a node subtree.
+    pub(crate) fn is_invariant_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        subtree: dir::LocalNodeIdAny,
+        excluded_symbols: &[dir::GlobalSymbolId],
+        occurrences: &[dir::BindingOccurrence],
+    ) -> Result<bool, ProviderError> {
+        if !self.is_speculatable_expression(expression)? {
+            return Ok(false);
+        }
+        let view = self.view();
+
+        // collect bindings read while evaluating the expression
+        let reads = occurrences
+            .iter()
+            .filter(|occurrence| {
+                occurrence.uses.contains(dir::BindingUse::READ)
+                    && view.is_inside(occurrence.node, expression.into_any())
+            })
+            .map(|occurrence| occurrence.symbol)
+            .collect::<Vec<_>>();
+        if excluded_symbols.iter().any(|symbol| reads.contains(symbol)) {
+            return Ok(false);
+        }
+
+        // reject bindings changed within the selected subtree
+        let changes_read = occurrences.iter().any(|occurrence| {
+            occurrence.uses.may_mutate()
+                && view.is_inside(occurrence.node, subtree)
+                && reads.contains(&occurrence.symbol)
+        });
+
+        Ok(!changes_read)
     }
 
     /// Return whether checked boolean structure proves one expression implies another.
@@ -304,15 +348,15 @@ impl DirModule<'_> {
         premise: dir::LocalNodeId<dir::Expression>,
         conclusion: dir::LocalNodeId<dir::Expression>,
     ) -> Result<bool, ProviderError> {
-        if !self.is_repeatable_expression(premise)? || !self.is_repeatable_expression(conclusion)? {
+        if !self.is_duplicable_expression(premise)? || !self.is_duplicable_expression(conclusion)? {
             return Ok(false);
         }
 
-        self.repeatable_boolean_implies(premise, conclusion)
+        self.boolean_implies_inner(premise, conclusion)
     }
 
-    /// Compare repeatable boolean expressions through builtin conjunctions and disjunctions.
-    fn repeatable_boolean_implies(
+    /// Compare duplicable boolean expressions through builtin conjunctions and disjunctions.
+    fn boolean_implies_inner(
         &self,
         premise: dir::LocalNodeId<dir::Expression>,
         conclusion: dir::LocalNodeId<dir::Expression>,
@@ -326,7 +370,7 @@ impl DirModule<'_> {
         let operands = self.short_circuit_operands(premise, dir::BinaryOperator::Or)?;
         if operands.len() > 1 {
             for operand in operands {
-                if !self.repeatable_boolean_implies(operand, conclusion)? {
+                if !self.boolean_implies_inner(operand, conclusion)? {
                     return Ok(false);
                 }
             }
@@ -338,7 +382,7 @@ impl DirModule<'_> {
         let operands = self.short_circuit_operands(conclusion, dir::BinaryOperator::And)?;
         if operands.len() > 1 {
             for operand in operands {
-                if !self.repeatable_boolean_implies(premise, operand)? {
+                if !self.boolean_implies_inner(premise, operand)? {
                     return Ok(false);
                 }
             }
@@ -350,7 +394,7 @@ impl DirModule<'_> {
         let operands = self.short_circuit_operands(premise, dir::BinaryOperator::And)?;
         if operands.len() > 1 {
             for operand in operands {
-                if self.repeatable_boolean_implies(operand, conclusion)? {
+                if self.boolean_implies_inner(operand, conclusion)? {
                     return Ok(true);
                 }
             }
@@ -362,7 +406,7 @@ impl DirModule<'_> {
         let operands = self.short_circuit_operands(conclusion, dir::BinaryOperator::Or)?;
         if operands.len() > 1 {
             for operand in operands {
-                if self.repeatable_boolean_implies(premise, operand)? {
+                if self.boolean_implies_inner(premise, operand)? {
                     return Ok(true);
                 }
             }
@@ -398,7 +442,7 @@ impl DirModule<'_> {
             dir::Expression::Chain { expression } => self.can_trap(*expression)?,
             dir::Expression::Index { .. } => true,
 
-            // inspect the repeatable builtin operations
+            // inspect compiler-defined operations
             dir::Expression::Unary { .. } => {
                 let Some((operator, operand)) = self.builtin_unary(expression)? else {
                     return Ok(true);
@@ -444,7 +488,7 @@ impl DirModule<'_> {
         left: dir::LocalNodeId<dir::Expression>,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> Result<bool, ProviderError> {
-        // compare repeatable places through their canonical paths
+        // compare stable places through their canonical paths
         let left_access = self.access_resolution(left);
         let right_access = self.access_resolution(right);
         match (left_access, right_access) {
@@ -470,7 +514,7 @@ impl DirModule<'_> {
         }
 
         let is_same = match (left_expression, right_expression) {
-            // repeatable compiler-defined unary operations
+            // compiler-defined unary operations
             (dir::Expression::Unary { .. }, dir::Expression::Unary { .. }) => {
                 let left_resolution = self.operator_decision(left.into_any())?;
                 let right_resolution = self.operator_decision(right.into_any())?;
@@ -500,7 +544,7 @@ impl DirModule<'_> {
                 self.is_same_operand(left_operand, right_operand)?
             }
 
-            // repeatable compiler-defined binary operations
+            // compiler-defined binary operations
             (dir::Expression::Binary { .. }, dir::Expression::Binary { .. }) => {
                 let left_resolution = self.operator_decision(left.into_any())?;
                 let right_resolution = self.operator_decision(right.into_any())?;

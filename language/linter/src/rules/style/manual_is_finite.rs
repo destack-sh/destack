@@ -47,7 +47,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // require complementary strict bounds over one repeatable float
+        // require complementary strict bounds over one duplicable float
         let Some((left_value, left_bound)) = select_infinity_bound(module, left.source.local_id)?
         else {
             continue;

@@ -131,7 +131,7 @@ fn report_parameters(
     Ok(())
 }
 
-/// Return whether one occurrence feeds an effect-free argument to the same callable.
+/// Return whether one occurrence feeds a speculatable argument to the same callable.
 fn is_recursive_argument(
     module: &DirModule<'_>,
     callable: dir::GlobalSymbolId,
@@ -168,7 +168,7 @@ fn is_recursive_argument(
         return Ok(false);
     };
 
-    module.is_repeatable_expression(*value)
+    module.is_speculatable_expression(*value)
 }
 
 #[cfg(test)]

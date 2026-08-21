@@ -45,7 +45,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // require complementary equality checks over one repeatable float
+        // require complementary equality checks over one duplicable float
         let Some((left_value, left_infinity)) =
             select_infinity_equality(module, left.source.local_id)?
         else {

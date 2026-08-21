@@ -158,8 +158,8 @@ fn can_combine(
 ) -> Result<bool, ProviderError> {
     // require the same stable receiver and mutation method
     if first.method != next.method
-        || !module.is_repeatable_expression(first.receiver)?
-        || !module.is_repeatable_expression(next.receiver)?
+        || !module.is_duplicable_expression(first.receiver)?
+        || !module.is_duplicable_expression(next.receiver)?
         || !module.is_same_computation(first.receiver, next.receiver)?
     {
         return Ok(false);
@@ -181,7 +181,7 @@ fn can_combine(
             let Some(value) = argument.value() else {
                 return Ok(false);
             };
-            if !module.is_repeatable_expression(value)? {
+            if !module.is_speculatable_expression(value)? {
                 return Ok(false);
             }
 

@@ -189,7 +189,7 @@ fn split_join_fix(
         Some(dir::Literal::String(value)) if !module.dir.strings.get(value).contains('$') => {
             replacement_source.into_owned()
         }
-        _ if module.is_repeatable_expression(replacement)? => {
+        _ if module.is_speculatable_expression(replacement)? => {
             format!("() => {replacement_source}")
         }
         _ => return Ok(None),

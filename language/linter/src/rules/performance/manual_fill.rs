@@ -85,11 +85,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         if module.selected_symbol(*index)? != Some(counter)
             || !module.is_same_computation(collection, *target)?
-            || !is_invariant_fill_value(
-                module,
+            || !module.is_invariant_expression(
                 assignment.value,
-                iteration.body,
-                counter,
+                iteration.body.into_any(),
+                &[counter],
                 &occurrences,
             )?
         {
@@ -108,43 +107,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Return whether one expression has one value throughout the fill loop.
-fn is_invariant_fill_value(
-    module: &DirModule<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-    body: dir::LocalNodeId<dir::Block>,
-    counter: dir::GlobalSymbolId,
-    occurrences: &[dir::BindingOccurrence],
-) -> Result<bool, ProviderError> {
-    if !module.is_repeatable_expression(expression)? {
-        return Ok(false);
-    }
-    let view = module.view();
-
-    // collect bindings read while evaluating the assigned value
-    let reads = occurrences
-        .iter()
-        .filter(|occurrence| {
-            occurrence.uses.contains(dir::BindingUse::READ)
-                && view.is_inside(occurrence.node, expression.into_any())
-        })
-        .map(|occurrence| occurrence.symbol)
-        .collect::<Vec<_>>();
-    if reads.contains(&counter) {
-        return Ok(false);
-    }
-
-    // reject bindings changed by the loop body
-    let changes_read = occurrences.iter().any(|occurrence| {
-        let is_mutation = occurrence.uses.may_mutate();
-        let is_within_loop = view.is_inside(occurrence.node, body.into_any());
-
-        is_mutation && is_within_loop && reads.contains(&occurrence.symbol)
-    });
-
-    Ok(!changes_read)
 }
 
 /// Build one fill call from a complete index assignment loop.

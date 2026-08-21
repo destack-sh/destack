@@ -57,7 +57,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        if !module.is_repeatable_expression(identity)? {
+        if !module.is_speculatable_expression(identity)? {
             continue;
         }
 

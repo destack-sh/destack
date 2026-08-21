@@ -80,7 +80,7 @@ impl IndexLoop {
         // require repeatedly evaluated bounds to remain stable
         if iteration.is_end_rechecked {
             let is_length = module.length_receiver(iteration.end)?.is_some();
-            if !is_length && !module.is_repeatable_expression(iteration.end)? {
+            if !is_length && !module.is_speculatable_expression(iteration.end)? {
                 return Ok(None);
             }
         }
@@ -239,7 +239,7 @@ fn is_contiguous_collection(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
 ) -> Result<bool, ProviderError> {
-    if !module.is_repeatable_expression(expression)? {
+    if !module.is_speculatable_expression(expression)? {
         return Ok(false);
     }
     let ty = module.node_type_id(expression.into_any())?;

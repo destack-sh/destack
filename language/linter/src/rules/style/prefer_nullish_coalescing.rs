@@ -67,7 +67,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             (else_expression, then_expression)
         };
         if !module.is_same_computation(test.value, selected)?
-            || !module.is_repeatable_expression(test.value)?
+            || !module.is_duplicable_expression(test.value)?
         {
             continue;
         }

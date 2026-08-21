@@ -83,7 +83,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         let binding = module.declaration_symbol(*pattern)?;
         if module.selected_symbol(*value)? != Some(binding)
-            || !module.is_repeatable_expression(push.receiver)?
+            || !module.is_speculatable_expression(push.receiver)?
         {
             continue;
         }

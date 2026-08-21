@@ -49,7 +49,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // select complementary shifts of one repeatable unsigned value
+        // select complementary shifts of one duplicable unsigned value
         let Some(left_shift) = select_shift(module, left.source.local_id)? else {
             continue;
         };

@@ -175,7 +175,7 @@ fn extracted_boundary(
         };
         if module.integral_constant(start)? == Some(0)
             && module.is_same_computation(length_receiver, search)?
-            && module.is_repeatable_expression(search)?
+            && module.is_duplicable_expression(search)?
         {
             return Ok(Some((Boundary::Start, call.receiver, search)));
         }
@@ -206,8 +206,8 @@ fn extracted_boundary(
     // require stable matching receivers
     if module.is_same_computation(source, call.receiver)?
         && module.is_same_computation(searched, search)?
-        && module.is_repeatable_expression(call.receiver)?
-        && module.is_repeatable_expression(search)?
+        && module.is_duplicable_expression(call.receiver)?
+        && module.is_duplicable_expression(search)?
     {
         return Ok(Some((Boundary::End, call.receiver, search)));
     }

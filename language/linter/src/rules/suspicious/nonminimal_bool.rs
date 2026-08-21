@@ -48,9 +48,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
         let terms = module.short_circuit_operands(expression, operator)?;
-        let is_repeatable = all_repeatable(module, &terms)?;
 
-        // replace an absorbing constant only when discarded terms are effect free
+        // replace an absorbing constant only when discarded terms are speculatable
         let absorbing = match operator {
             dir::BinaryOperator::And => false,
             dir::BinaryOperator::Or => true,
@@ -59,7 +58,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let has_absorbing = terms
             .iter()
             .any(|term| module.view().get(*term).as_boolean() == Some(absorbing));
-        if has_absorbing && is_repeatable {
+        if has_absorbing && all_speculatable(module, &terms)? {
             report_chain(
                 module,
                 lint,
@@ -72,8 +71,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // reduce complementary chains only when evaluating them has no effects
-        if has_complementary_terms(module, &terms)? && is_repeatable {
+        // reduce complementary chains only when discarded terms are speculatable
+        if has_complementary_terms(module, &terms)? && all_speculatable(module, &terms)? {
             let replacement = match operator {
                 dir::BinaryOperator::And => "false",
                 dir::BinaryOperator::Or => "true",
@@ -85,7 +84,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // remove duplicate and absorbed terms while preserving source order
-        let retained = retained_terms(module, &terms, operator, is_repeatable)?;
+        let retained = retained_terms(module, &terms, operator)?;
         if retained.len() == terms.len() {
             continue;
         }
@@ -111,13 +110,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return whether every term can be evaluated repeatedly without effects or traps.
-fn all_repeatable(
+/// Return whether every term may be evaluated on an additional control-flow path.
+fn all_speculatable(
     module: &DirModule<'_>,
     terms: &[dir::LocalNodeId<dir::Expression>],
 ) -> Result<bool, ProviderError> {
     for term in terms.iter().copied() {
-        if !module.is_repeatable_expression(term)? {
+        if !module.is_speculatable_expression(term)? {
             return Ok(false);
         }
     }
@@ -125,7 +124,21 @@ fn all_repeatable(
     Ok(true)
 }
 
-/// Return whether a chain contains one stable term and its builtin negation.
+/// Return whether every expression may be evaluated twice at the same program point.
+fn all_duplicable(
+    module: &DirModule<'_>,
+    expressions: &[dir::LocalNodeId<dir::Expression>],
+) -> Result<bool, ProviderError> {
+    for expression in expressions.iter().copied() {
+        if !module.is_duplicable_expression(expression)? {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
+}
+
+/// Return whether a chain contains one duplicable term and its builtin negation.
 fn has_complementary_terms(
     module: &DirModule<'_>,
     terms: &[dir::LocalNodeId<dir::Expression>],
@@ -166,7 +179,6 @@ fn retained_terms(
     module: &DirModule<'_>,
     terms: &[dir::LocalNodeId<dir::Expression>],
     operator: dir::BinaryOperator,
-    is_chain_repeatable: bool,
 ) -> Result<Vec<dir::LocalNodeId<dir::Expression>>, ProviderError> {
     let mut retained = Vec::new();
 
@@ -180,7 +192,7 @@ fn retained_terms(
         if module.view().get(term).as_boolean() == Some(identity) {
             continue;
         }
-        if is_chain_repeatable && is_term_redundant(module, terms, index, operator)? {
+        if is_term_redundant(module, terms, index, operator)? {
             continue;
         }
 
@@ -190,7 +202,7 @@ fn retained_terms(
     Ok(retained)
 }
 
-/// Return whether another chain term makes one repeatable term redundant.
+/// Return whether another chain term makes one duplicable term redundant.
 fn is_term_redundant(
     module: &DirModule<'_>,
     terms: &[dir::LocalNodeId<dir::Expression>],
@@ -204,6 +216,14 @@ fn is_term_redundant(
         if other_index == index {
             continue;
         }
+
+        // reject mutations between the candidate and its logical witness
+        let first = index.min(other_index) + 1;
+        let end = index.max(other_index);
+        if !all_duplicable(module, &terms[first..end])? {
+            continue;
+        }
+
         let (premise, conclusion) = match operator {
             dir::BinaryOperator::And => (other, term),
             dir::BinaryOperator::Or => (term, other),
@@ -292,7 +312,7 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Apply boolean absorption to a stable term.
+    /// Apply boolean absorption to a duplicable term.
     #[test]
     fn test_removes_absorbed_term() {
         let session = TestSession::dir(
@@ -338,6 +358,48 @@ function ready(isReady: boolean, isForced: boolean): boolean {
         );
     }
 
+    /// Remove a duplicate term whose deterministic evaluation may trap.
+    #[test]
+    fn test_removes_duplicate_trapping_term() {
+        let session = TestSession::dir(
+            &NONMINIMAL_BOOL,
+            r#"
+function isPositiveRatio(left: int32, right: int32): boolean {
+    return left / right > 0 || left / right > 0;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function isPositiveRatio(left: int32, right: int32): boolean {
+    return left / right > 0;
+}
+"#,
+        );
+    }
+
+    /// Remove a duplicate separated by a deterministic trapping term.
+    #[test]
+    fn test_removes_duplicate_around_trapping_term() {
+        let session = TestSession::dir(
+            &NONMINIMAL_BOOL,
+            r#"
+function ready(isReady: boolean, left: int32, right: int32): boolean {
+    return isReady || left / right > 0 || isReady;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function ready(isReady: boolean, left: int32, right: int32): boolean {
+    return isReady || left / right > 0;
+}
+"#,
+        );
+    }
+
     /// Remove identity constants and replace absorbing constants.
     #[test]
     fn test_reduces_boolean_constants() {
@@ -361,6 +423,21 @@ function ready(isReady: boolean): boolean {
 }
 "#,
         );
+    }
+
+    /// Preserve a trapping term before an absorbing constant.
+    #[test]
+    fn test_accepts_trapping_absorbed_term() {
+        let session = TestSession::dir(
+            &NONMINIMAL_BOOL,
+            r#"
+function isPositiveRatio(left: int32, right: int32): boolean {
+    return left / right > 0 || true;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 
     /// Replace a contradiction with false.

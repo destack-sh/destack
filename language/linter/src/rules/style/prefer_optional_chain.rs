@@ -14,7 +14,7 @@ declare_lint! {
 A conditional that returns undefined for a nullish receiver manually implements optional access.
 Instead, you SHOULD use optional chaining at the guarded access.
 
-The receiver must be repeatable and the nullish branch must produce undefined.
+The guarded receiver must produce the same value without observable effects each time it appears.
 "#,
         example: {
             reported: r#"
@@ -77,7 +77,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             (else_expression, then_expression)
         };
         if view.get(nullish).as_scalar() != Some(dir::Literal::Undefined)
-            || !module.is_repeatable_expression(test.value)?
+            || !module.is_duplicable_expression(test.value)?
         {
             continue;
         }

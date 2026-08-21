@@ -101,13 +101,13 @@ impl DirModule<'_> {
             return Ok(None);
         }
 
-        // require compatible, effect-free retained expressions
+        // require compatible speculatable expressions
         let start_domain = self.node_type(start.bound.into_any())?.scalar_domain();
         let end_domain = self.node_type(end.bound.into_any())?.scalar_domain();
         if start_domain != end_domain
-            || !self.is_repeatable_expression(start.value)?
-            || !self.is_repeatable_expression(start.bound)?
-            || !self.is_repeatable_expression(end.bound)?
+            || !self.is_speculatable_expression(start.value)?
+            || !self.is_speculatable_expression(start.bound)?
+            || !self.is_speculatable_expression(end.bound)?
         {
             return Ok(None);
         }
