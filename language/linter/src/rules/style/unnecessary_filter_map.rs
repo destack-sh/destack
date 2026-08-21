@@ -57,11 +57,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // read the checked callback result
-        let result = module.callable_return_type_id(*callback)?;
-
-        // retain filterMap when the result includes undefined
-        if module.dir.type_includes_undefined(result)? {
+        // retain filterMap when the callback can produce undefined
+        if module.produces_undefined(*callback)? {
             continue;
         }
 

@@ -118,6 +118,9 @@ fn use_accepts_slice(
     // classify the direct authored use
     let is_compatible = match view.get(parent) {
         dir::Expression::Index { left, .. } if *left == expression => true,
+        dir::Expression::Return { value: Some(value) } if *value == expression => {
+            returns_slice(module, expression)?
+        }
         dir::Expression::Member { left, .. } if *left == expression => {
             let Some(member) = module.language_member(parent)? else {
                 return Ok(false);
@@ -134,6 +137,22 @@ fn use_accepts_slice(
     };
 
     Ok(is_compatible)
+}
+
+/// Return whether the callable containing one node declares a slice result.
+fn returns_slice(
+    module: &DirModule<'_>,
+    node: dir::LocalNodeId<dir::Expression>,
+) -> Result<bool, ProviderError> {
+    let Some(callable) = module.enclosing_callable(node.into_any()) else {
+        return Ok(false);
+    };
+    let Some(return_type) = module.callable_return_type(callable) else {
+        return Ok(false);
+    };
+    let return_type = module.node_type_id(return_type.into_any())?;
+
+    Ok(module.dir.representation_item(return_type)? == Some(dir::LanguageItem::Slice))
 }
 
 /// Build one borrowed slice parameter type.

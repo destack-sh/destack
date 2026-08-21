@@ -158,11 +158,11 @@ fn callback_borrows_element(
     // reject mutation and capture of the inferred parameter
     let symbol = module.declaration_symbol(*parameter)?;
     let uses = module.binding_uses_within(symbol, body.into_any(), binding_occurrences);
-    if uses.may_mutate() || uses.contains(dir::BindingUse::CAPTURED) {
+    if uses.may_mutate() || uses.contains(dir::BindingUse::CAPTURE) {
         return Ok(false);
     }
 
-    // require every direct read to use a checked readonly borrow
+    // require every direct read to observe the element where it lives
     let root = dir::AccessPath::symbol(symbol);
     let mut has_read = false;
     for occurrence in access_occurrences {
@@ -173,8 +173,7 @@ fn callback_borrows_element(
             continue;
         }
         has_read = true;
-        let adjusted = module.adjusted_type_id(occurrence.node)?;
-        if module.dir.borrow_access(adjusted)? != Some(dir::Access::Readonly) {
+        if !module.reads_in_place(occurrence.node)? {
             return Ok(false);
         }
     }

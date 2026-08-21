@@ -105,11 +105,7 @@ fn forwarded_callee(
     if parameters.len() != arguments.len() || parameters.iter().any(|parameter| parameter.is_rest) {
         return Ok(None);
     }
-    if module
-        .coercions
-        .coercion(body.into_global_any(module.id))
-        .is_some()
-    {
+    if !module.is_unadjusted(body.into_any()) {
         return Ok(None);
     }
 
@@ -134,10 +130,7 @@ fn forwarded_callee(
         };
         let parameter = module.declaration_symbol(*parameter)?;
         if module.selected_symbol(*value)? != Some(parameter)
-            || module
-                .coercions
-                .coercion(value.into_global_any(module.id))
-                .is_some()
+            || !module.is_unadjusted(value.into_any())
         {
             return Ok(None);
         }

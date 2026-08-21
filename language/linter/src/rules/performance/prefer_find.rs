@@ -62,7 +62,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
             matches!(
                 module.scalar_constant(index)?,
-                Some(dir::ScalarLiteral::Integer(0))
+                Some(dir::Literal::Integer(0))
             )
         } else if consumer == Some(first) {
             call.arguments.is_empty()
@@ -256,16 +256,18 @@ function firstPositive(values: Values): int32 | undefined {
         let session = TestSession::dir(
             &PREFER_FIND,
             r#"
-import { Array } from "destack:collections";
+class Bag {
+    items: int32[] = [];
+}
 
-extension<T> of Array<T> {
-    filter(predicate: (value: T) => boolean, trace: boolean): Array<T> {
-        return this;
+extension of Bag {
+    filter(predicate: (value: int32) => boolean, trace: boolean): int32[] {
+        return this.items;
     }
 }
 
-function firstPositive(values: int32[]): int32 | undefined {
-    return values.filter((value) => value > 0, true).at(0);
+function firstPositive(bag: Bag): int32 | undefined {
+    return bag.filter((value) => value > 0, true).at(0);
 }
 "#,
         );

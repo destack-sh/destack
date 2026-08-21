@@ -78,7 +78,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require owned arrays and an unchanged callback result
-        let receiver_type_id = module.adjusted_type_id(call.receiver.into_any())?;
+        let receiver_type_id = module.node_type_id(call.receiver.into_any())?;
         let result_type_id = module.node_type_id(expression.into_any())?;
         let receiver_type = module.dir.get_type(receiver_type_id)?;
         let result_type = module.dir.get_type(result_type_id)?;
@@ -87,10 +87,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let is_array = module.representation_item(call.receiver.into_any())?
             == Some(dir::LanguageItem::Array)
             && module.representation_item(expression.into_any())? == Some(dir::LanguageItem::Array);
-        let is_unadjusted = module
-            .coercions
-            .coercion(body.into_global_any(module.id))
-            .is_none();
+        let is_unadjusted = module.is_unadjusted(body.into_any());
         if !is_owned || !is_array || !is_unadjusted {
             continue;
         }

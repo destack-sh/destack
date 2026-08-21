@@ -275,9 +275,7 @@ fn suggestion(
     let result = module.expression_source(result, dir::OperatorPrecedence::Postfix)?;
     let is_eager = if fallback.is_single_value && module.is_repeatable_expression(fallback.value)? {
         let value_type = module.node_type_id(fallback.value.into_any())?;
-        let value_type = module.dir.strip_form(value_type)?;
-
-        module.auto.conforms(value_type, dir::AutoInterface::Copy)
+        module.satisfies_copy(fallback.value.into_any(), value_type)?
     } else {
         false
     };

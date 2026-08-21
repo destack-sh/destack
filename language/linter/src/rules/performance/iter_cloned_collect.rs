@@ -162,6 +162,7 @@ function copy(values: &readonly Label[]): Label[] {
 warning[iter-cloned-collect]: collection is cloned through its iterator
  ──▶ main.ds:6:12
   │
+4 │
 5 │ function copy(values: &readonly Label[]): Label[] {
 6 │     return values.iterator().cloned().toArray();
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -338,9 +339,10 @@ function copy(values: &readonly Label[]): Label[] {
 warning[iter-cloned-collect]: collection is cloned through its iterator
  ──▶ main.ds:6:12
   │
+4 │
 5 │ function copy(values: &readonly Label[]): Label[] {
 6 │     return values.iterator().cloned(/* retain */).toArray();
-  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 7 │ }
   │
 "#,

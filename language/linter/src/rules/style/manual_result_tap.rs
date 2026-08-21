@@ -118,7 +118,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let uses = module.binding_uses_within(parameter, body.into_any(), &binding_occurrences);
         if module.selected_symbol(returned)? != Some(parameter)
             || uses.may_mutate()
-            || uses.contains(dir::BindingUse::CAPTURED)
+            || uses.contains(dir::BindingUse::CAPTURE)
         {
             continue;
         }
@@ -134,8 +134,24 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             {
                 continue;
             }
+            let is_explicit_readonly = occurrence
+                .node
+                .try_into_typed::<dir::Expression>()
+                .ok()
+                .and_then(|node| view.get_parent_for(node))
+                .and_then(|parent| parent.try_into_typed::<dir::Expression>().ok())
+                .is_some_and(|parent| {
+                    matches!(
+                        view.get(parent),
+                        dir::Expression::BorrowOf { mutability, .. }
+                            if mutability.map(dir::Mutability::access)
+                                == Some(dir::Access::Readonly)
+                    )
+                });
             let adjusted = module.adjusted_type_id(occurrence.node)?;
-            if module.dir.borrow_access(adjusted)? != Some(dir::Access::Readonly) {
+            if !is_explicit_readonly
+                && module.dir.borrow_access(adjusted)? != Some(dir::Access::Readonly)
+            {
                 accepts_readonly = false;
                 break;
             }

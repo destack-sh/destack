@@ -64,7 +64,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // rely exclusively on the checked narrowed receiver type
         let receiver = module.adjusted_type_id(call.receiver.into_any())?;
-        if module.dir.representation_item(receiver)? != Some(variant) {
+        if !module.dir.represents_item(receiver, variant)? {
             continue;
         }
 

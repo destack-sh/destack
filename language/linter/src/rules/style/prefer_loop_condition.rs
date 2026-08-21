@@ -232,7 +232,7 @@ declare function isDone(): boolean;
 
 loop {
     if (isDone()) {
-        break;
+        break 0;
     }
     break 1;
 }

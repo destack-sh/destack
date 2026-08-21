@@ -119,12 +119,13 @@ fn append_template(
         return Ok((left.0 || right.0, left.1 || right.1));
     }
 
-    // append authored text or retain one dynamic value
+    // append authored text as spelled, or retain one dynamic value
     let span = module.source_extent(expression.into_any())?;
     retained.push(span);
-    if let Some(dir::ScalarLiteral::String(value)) = module.view().get(expression).as_scalar() {
-        let value = module.dir.strings.get(value);
-        append_template_text(value, template);
+    if let Some(dir::Literal::String(_)) = module.view().get(expression).as_scalar() {
+        let lexeme = module.source(span)?;
+        let content = &lexeme[1..lexeme.len() - 1];
+        append_template_text(content, template);
 
         Ok((true, false))
     } else {

@@ -65,8 +65,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 "checked Iterator.cloned call has no element type argument",
             ));
         };
-        let element = module.dir.strip_form(element.argument)?;
-        if !module.auto.conforms(element, dir::AutoInterface::Copy) {
+        if !module.satisfies_copy(expression.into_any(), element.argument)? {
             continue;
         }
 

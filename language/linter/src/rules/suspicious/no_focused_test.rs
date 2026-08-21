@@ -225,16 +225,16 @@ describe("spread configured", { ...options, only: false }, () => {
             r#"
 import { describe, test } from "destack:test";
 
-test.each([[1]]).only("parameterized case", (value: int32) => {
+test.each([(1,)]).only("parameterized case", (value: int32) => {
     // empty
 });
-test.for([1]).only("table case", (value: &readonly int32) => {
+test.for([1]).only("table case", (value: &readonly int64) => {
     // empty
 });
-describe.each([[1]]).only("parameterized suite", (value: int32) => {
+describe.each([(1,)]).only("parameterized suite", (value: int32) => {
     // empty
 });
-describe.for([1]).only("table suite", (value: int32) => {
+describe.for([1]).only("table suite", (value: int64) => {
     // empty
 });
 "#,
@@ -244,16 +244,16 @@ describe.for([1]).only("table suite", (value: int32) => {
             r#"
 import { describe, test } from "destack:test";
 
-test.each([[1]])("parameterized case", (value: int32) => {
+test.each([(1,)])("parameterized case", (value: int32) => {
     // empty
 });
-test.for([1])("table case", (value: &readonly int32) => {
+test.for([1])("table case", (value: &readonly int64) => {
     // empty
 });
-describe.each([[1]])("parameterized suite", (value: int32) => {
+describe.each([(1,)])("parameterized suite", (value: int32) => {
     // empty
 });
-describe.for([1])("table suite", (value: int32) => {
+describe.for([1])("table suite", (value: int64) => {
     // empty
 });
 "#,
@@ -276,9 +276,10 @@ test /* retain */ .only("focused", () => {
 
         session.assert_diagnostics(
             r#"
-error[no-focused-test]: focused registration can exclude other tests
+warning[no-focused-test]: focused registration can exclude other tests
  ──▶ main.ds:3:20
   │
+1 │ import { test } from "destack:test";
 2 │
 3 │ test /* retain */ .only("focused", () => {
   │                    ^^^^
@@ -307,7 +308,7 @@ function register(selected: Test | undefined): void {
 
         session.assert_diagnostics(
             r#"
-error[no-focused-test]: focused registration can exclude other tests
+warning[no-focused-test]: focused registration can exclude other tests
  ──▶ main.ds:4:15
   │
 2 │

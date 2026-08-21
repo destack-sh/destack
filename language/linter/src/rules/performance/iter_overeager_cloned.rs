@@ -183,8 +183,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 "checked Iterator.cloned call has no element type argument",
             ));
         };
-        let element = module.dir.strip_form(element.argument)?;
-        if module.auto.conforms(element, dir::AutoInterface::Copy) {
+        if module.satisfies_copy(operation.receiver.into_any(), element.argument)? {
             continue;
         }
 
@@ -283,6 +282,7 @@ function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label
 warning[iter-overeager-cloned]: iterator cloning precedes an operation that can discard values
  ──▶ main.ds:8:12
   │
+6 │
 7 │ function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
 8 │     return values.cloned().take(count);
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -530,6 +530,7 @@ function prefix(values: Iterator<&readonly Label>): Iterator<Label> {
 warning[iter-overeager-cloned]: iterator cloning precedes an operation that can discard values
  ──▶ main.ds:8:12
   │
+6 │
 7 │ function prefix(values: Iterator<&readonly Label>): Iterator<Label> {
 8 │     return values.cloned(/* retain */).take(2);
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

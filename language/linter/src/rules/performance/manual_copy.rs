@@ -15,14 +15,14 @@ Instead, you SHOULD use the collection's bulk copy operation.
 "#,
         example: {
             reported: r#"
-function copy(target: int32[], source: int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index] = source[index];
     }
 }
 "#,
             accepted: r#"
-function copy(target: int32[], source: int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     target.view(0, source.length).copyFrom(source.view(0));
 }
 "#,

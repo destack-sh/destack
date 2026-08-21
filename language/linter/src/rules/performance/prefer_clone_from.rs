@@ -55,7 +55,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         if clone.is_optional()
             || !clone.arguments.is_empty()
-            || module.language_member(assignment.value)?
+            || module.implemented_language_member(assignment.value)?
                 != Some(dir::LanguageItem::Clone.member("clone"))
         {
             continue;
@@ -71,13 +71,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 .coercions
                 .coercion(assignment.value.into_global_any(module.id))
                 .is_some()
-            || module.place_access(assignment.target.into_any())? != Some(dir::Access::Exclusive)
+            || module.place_access(assignment.target)? != Some(dir::Access::Exclusive)
         {
             continue;
         }
 
         // reject destinations that may overlap the clone source
-        let Some(target) = module.access_resolution(assignment.target) else {
+        let destination = module.dereferenced_place(assignment.target);
+        let Some(target) = module.access_resolution(destination) else {
             continue;
         };
         let Some(source) = module.access_resolution(clone.receiver) else {
@@ -117,13 +118,7 @@ fn suggestion(
     }
 
     // call through the reference beneath an explicit assignment dereference
-    let target = match module.view().get(target) {
-        dir::Expression::Unary {
-            operator: dir::UnaryOperator::Dereference,
-            right,
-        } => *right,
-        _ => target,
-    };
+    let target = module.dereferenced_place(target);
     let target = module.expression_source(target, dir::OperatorPrecedence::Postfix)?;
     let source = module.expression_source(source, dir::OperatorPrecedence::Lowest)?;
     let replacement = format!("{target}.cloneFrom({source})");

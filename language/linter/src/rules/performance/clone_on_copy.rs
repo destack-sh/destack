@@ -45,18 +45,15 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         if call.is_optional()
             || !call.arguments.is_empty()
-            || module.language_member(expression)? != Some(dir::LanguageItem::Clone.member("clone"))
+            || module.implemented_language_member(expression)?
+                != Some(dir::LanguageItem::Clone.member("clone"))
         {
             continue;
         }
 
         // require the cloned value itself to satisfy Copy
         let receiver_type = module.adjusted_type_id(call.receiver.into_any())?;
-        let receiver_type = module.dir.strip_form(receiver_type)?;
-        if !module
-            .auto
-            .conforms(receiver_type, dir::AutoInterface::Copy)
-        {
+        if !module.satisfies_copy(call.receiver.into_any(), receiver_type)? {
             continue;
         }
 
