@@ -98,6 +98,22 @@ impl DirModule<'_> {
         Some((*mutability, declarator))
     }
 
+    /// Return whether one direct block expression has its value discarded.
+    pub(crate) fn is_discarded_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let view = self.view();
+        let Some(parent) = view.get_parent_for(expression) else {
+            return false;
+        };
+        let Ok(block) = parent.try_into_typed::<dir::Block>() else {
+            return false;
+        };
+
+        view.get(block).value_expression() != Some(expression)
+    }
+
     /// Return the expression that directly produces one expression's value.
     pub(crate) fn value_expression(
         &self,

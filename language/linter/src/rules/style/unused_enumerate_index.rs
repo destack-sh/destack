@@ -79,17 +79,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         // require a discarded or entirely unused index binding
-        let is_unused = match view.get(*index) {
-            dir::Pattern::Wildcard => true,
-            dir::Pattern::Binding { pattern: None, .. } => {
-                let symbol = module.declaration_symbol(*index)?;
-                occurrences
-                    .iter()
-                    .filter(|occurrence| occurrence.symbol == symbol)
-                    .all(|occurrence| occurrence.uses.is_empty())
-            }
-            _ => false,
-        };
+        let is_unused = matches!(
+            view.get(*index),
+            dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. }
+        ) && module.pattern_uses(*index, &occurrences).is_empty();
         if !is_unused {
             continue;
         }
@@ -148,6 +141,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Remove entries when a wildcard discards the index.
     #[test]
     fn test_removes_wildcard_index() {

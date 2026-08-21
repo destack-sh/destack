@@ -50,10 +50,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if assignment.operator != dir::AssignOperator::Assign {
             continue;
         }
-        if !view
-            .get_parent_for(expression)
-            .is_some_and(|parent| parent.ty == dir::NodeType::Block)
-        {
+        if !module.is_discarded_expression(expression) {
             continue;
         }
 

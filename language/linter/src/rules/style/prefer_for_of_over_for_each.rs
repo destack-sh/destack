@@ -91,10 +91,7 @@ fn suggestion(
     let view = module.view();
 
     // require the call to be a direct statement with one lambda argument
-    if !view
-        .get_parent_for(expression)
-        .is_some_and(|parent| parent.ty == dir::NodeType::Block)
-    {
+    if !module.is_discarded_expression(expression) {
         return Ok(None);
     }
     let [argument] = arguments else {
