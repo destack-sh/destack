@@ -81,7 +81,7 @@ module main.ds -> [dependency.ds]
 }
 
 #[test]
-fn test_module_graph_lists_cross_module_extensions() {
+fn test_module_graph_edges_follow_extension_imports() {
     let compiler = TestSession::builder()
         .module(
             "point.ds",

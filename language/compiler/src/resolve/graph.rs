@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload,
-    ArtifactProjectionFingerprint, ArtifactProjectionKey, DirResolved, InherentExtension,
-    ModuleGraph, SourceDependencyKey,
+    ArtifactProjectionFingerprint, ArtifactProjectionKey, DirResolved, Implementation, ModuleGraph,
+    SourceDependencyKey,
 };
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
 use destack_source::ModuleId;
@@ -214,32 +214,29 @@ impl Compiler {
 
         // build all edges when no predecessor graph is available
         let Some(base) = base else {
-            let mut extensions = Vec::new();
+            let mut implementations = Vec::new();
             let mut edges_by_module = IndexMap::with_capacity(modules.len());
 
-            // collect every module's extensions and import edges
+            // collect every module's implementations and import edges
             for module in modules.iter().copied() {
-                self.collect_inherent_extensions(artifacts, profile, module, &mut extensions)?;
+                self.collect_implementations(artifacts, profile, module, &mut implementations)?;
                 let edges = self.module_edges(artifacts, profile, module, &module_set)?;
 
                 edge_count += edges.len() as u64;
                 edges_by_module.insert(module, edges);
             }
-            extensions.sort_unstable();
-            extensions.dedup();
 
             if let Some(started) = started {
                 context.emit_span("provide.edges", started);
             }
             context.emit_counter("graph.edges", edge_count);
 
-            let graph = ModuleGraph::from_edges(profile, edges_by_module, extensions).map_err(
-                |module| CompilerError::Internal {
+            let graph = ModuleGraph::from_edges(profile, edges_by_module, implementations)
+                .map_err(|module| CompilerError::Internal {
                     message: format!(
                         "module graph edge references a module outside its profile: {module:?}"
                     ),
-                },
-            )?;
+                })?;
 
             return Ok(Arc::new(graph));
         };
@@ -253,23 +250,23 @@ impl Compiler {
             .copied()
             .collect::<FxHashSet<_>>();
 
-        // derive the complete extension list from only changed resolution entries
-        let mut extensions = base
+        // derive the complete implementation list from only changed resolution entries
+        let mut implementations = base
             .graph
-            .extensions()
+            .implementations()
             .iter()
-            .filter(|extension| {
-                !changed_modules.contains(&extension.symbol.module_id)
-                    && !removed_modules.contains(&extension.symbol.module_id)
+            .filter(|implementation| {
+                !changed_modules.contains(&implementation.symbol.module_id)
+                    && !removed_modules.contains(&implementation.symbol.module_id)
             })
             .copied()
             .collect::<Vec<_>>();
         for module in changed_modules.iter().copied() {
-            self.collect_inherent_extensions(artifacts, profile, module, &mut extensions)?;
+            self.collect_implementations(artifacts, profile, module, &mut implementations)?;
         }
-        extensions.sort_unstable();
-        extensions.dedup();
-        let is_extensions_changed = extensions.as_slice() != base.graph.extensions();
+        implementations.sort_unstable();
+        implementations.dedup();
+        let is_implementations_changed = implementations.as_slice() != base.graph.implementations();
 
         // reread import entries with changed resolved relationships
         let mut changed_edges = IndexMap::with_capacity(changed_modules.len());
@@ -296,13 +293,13 @@ impl Compiler {
         context.emit_counter("graph.edges", edge_count);
 
         // return the predecessor graph when its inputs still match
-        if !is_edges_changed && !is_extensions_changed {
+        if !is_edges_changed && !is_implementations_changed {
             return Ok(base.graph);
         }
 
         let graph = base
             .graph
-            .derive(changed_edges, base.removed_modules, extensions)
+            .derive(changed_edges, base.removed_modules, implementations)
             .map_err(|module| CompilerError::Internal {
                 message: format!(
                     "derived module graph references a module outside its profile: {module:?}"
@@ -312,25 +309,24 @@ impl Compiler {
         Ok(Arc::new(graph))
     }
 
-    /// Collect one module's exported extensions kept inherent by target ownership.
-    fn collect_inherent_extensions(
+    /// Collect one module's interface implementations.
+    fn collect_implementations(
         &self,
         artifacts: &ArtifactReader<'_>,
         profile: ProfileId,
         module: ModuleId,
-        inherent: &mut Vec<InherentExtension>,
+        implementations: &mut Vec<Implementation>,
     ) -> CompilerResult<()> {
         let resolved = artifacts
             .read_projection::<DirResolved>((module, profile), ArtifactProjectionKey::ImportEdges)
             .map_err(CompilerError::from)?;
 
-        for (symbol, target) in resolved.extensions.targets() {
-            // keep extensions of another package's target import-scoped
-            if target.module_id.package_id != module.package_id {
-                continue;
-            }
-
-            inherent.push(InherentExtension { symbol, target });
+        for (symbol, root, interface) in resolved.extensions.implementations() {
+            implementations.push(Implementation {
+                interface,
+                symbol,
+                root,
+            });
         }
 
         Ok(())

@@ -221,7 +221,7 @@ impl<'a> ResolveState<'a> {
 
         for symbol in self.bindings.symbol_ids() {
             let binding = self.bindings.get_symbol(symbol);
-            if binding.kind != dir::SymbolKind::Extension || binding.export_kind.is_none() {
+            if binding.kind != dir::SymbolKind::Extension {
                 continue;
             }
             let Some(declaration) = binding.declaration else {
@@ -236,7 +236,27 @@ impl<'a> ResolveState<'a> {
             let dir::Declaration::Extension(extension) = self.view.get(declaration) else {
                 continue;
             };
-            let Some(target) = self.extension_target(environment, extension.target_type) else {
+
+            // implementations are program facts, members of exported extensions import lexically
+            let target = self.extension_target(environment, extension.target_type);
+            let interfaces = extension
+                .implements_types
+                .iter()
+                .filter_map(|implemented| self.interface_symbol(*implemented))
+                .collect::<Vec<_>>();
+            if !interfaces.is_empty() {
+                extensions.insert_implementation(
+                    symbol,
+                    dir::ExtensionImplementation {
+                        root: target,
+                        interfaces,
+                    },
+                );
+            }
+            if binding.export_kind.is_none() {
+                continue;
+            }
+            let Some(target) = target else {
                 continue;
             };
 
@@ -244,6 +264,22 @@ impl<'a> ResolveState<'a> {
         }
 
         extensions
+    }
+
+    /// Return the interface symbol one implements clause names.
+    fn interface_symbol(
+        &self,
+        node: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        let dir::TypeExpression::Reference { .. } = self.view.get(node) else {
+            return None;
+        };
+        let reference = self.references.get(node.into_global_any(self.module))?;
+        let dir::Reference::Bound(symbols) = reference else {
+            return None;
+        };
+
+        symbols.first().copied()
     }
 
     /// Return the target root declaration of one extension target head.
@@ -255,7 +291,7 @@ impl<'a> ResolveState<'a> {
         let mut node = node;
         loop {
             match self.view.get(node) {
-                dir::TypeExpression::Literal { value } => {
+                dir::TypeExpression::Keyword { value } => {
                     return environment.language.symbol(value.representation_item()?);
                 }
                 dir::TypeExpression::Reference { .. } => {
