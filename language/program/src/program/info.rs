@@ -528,7 +528,7 @@ pub struct TypePayload {
     /// Primitive payload.
     pub primitive: PrimitiveType,
     /// Literal payload.
-    pub literal: ScalarLiteral,
+    pub literal: Literal,
     /// Memory singleton payload.
     pub memory: MemoryLiteral,
     /// Type-form payload.
@@ -577,7 +577,7 @@ pub struct TypePayloadBuilder {
     /// Primitive payload.
     pub primitive: PrimitiveType,
     /// Literal payload.
-    pub literal: ScalarLiteral,
+    pub literal: Literal,
     /// Memory singleton payload.
     pub memory: MemoryLiteral,
     /// Type-form payload.
@@ -696,7 +696,7 @@ pub enum PrimitiveTag {
 /// Reflected scalar literal program type.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct ScalarLiteral {
+pub struct Literal {
     /// Literal tag.
     pub tag: ScalarLiteralTag,
     /// String literal value when present.
@@ -866,9 +866,9 @@ pub struct FixedArrayType {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct RangeType {
     /// Inclusive lower bound.
-    pub start: Optional<ScalarLiteral>,
+    pub start: Optional<Literal>,
     /// Upper bound.
-    pub end: Optional<ScalarLiteral>,
+    pub end: Optional<Literal>,
     /// Whether the upper bound is included.
     pub is_inclusive: u32,
 }
