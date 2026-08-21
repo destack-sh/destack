@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependency, DirParsed, DirParsedFile, SourceDependency};
 use destack_dir as dir;
-use destack_parser::{CommentRetention, Parser};
+use destack_parser::{CommentRetention, ParseOptions, Parser};
 use destack_repository::{Module, Repository, Revision};
 use destack_source::{File, LanguageType, ProfileId, Span};
 
@@ -65,29 +65,34 @@ fn parse_module_file(
 
     // parse the file with the shared tree
     let tree_in = std::mem::replace(tree, dir::Tree::new(tree.module_id));
-    let mut parser = Parser::lex_into_tree_with_comment_retention(
+    let parser = Parser::new(
         source_file.clone(),
         language_type,
-        CommentRetention::Documentation,
-        repository.string_pool().clone(),
         tree_in,
+        ParseOptions {
+            comment_retention: CommentRetention::Documentation,
+            ..ParseOptions::default()
+        },
     );
-    let roots = parser.parse();
-    let diagnostics = parser.diagnostics();
+    let parse = parser.parse();
+
+    // require the source to parse cleanly
+    let diagnostics = parse.diagnostics();
     assert!(
         diagnostics.is_empty(),
         "compiler source should parse cleanly: {diagnostics:?}"
     );
 
-    // publish parsed strings to the test repository
-    parser.publish_strings();
+    // intern parsed strings in the test repository
+    repository.string_pool().extend(&parse.strings);
 
     // preserve semantic tokens
-    let tokens = parser.take_tokens();
-    let comments = parser.take_comments();
+    let tokens = parse.tokens;
+    let comments = parse.comments;
+    let roots = parse.roots;
 
     // restore the shared tree
-    *tree = parser.tree;
+    *tree = parse.tree;
     let anchor_expression = tree.insert(
         dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(false)),
         Span::empty(source_file.id),
