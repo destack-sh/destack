@@ -998,7 +998,7 @@ fn union_should_hug(
     // find the single non-nullish arm required by the hugging policy
     for element_id in elements.iter().copied() {
         match f.context().tree.get(element_id) {
-            TypeExpression::Literal {
+            TypeExpression::Keyword {
                 value: TypeLiteral::Void | TypeLiteral::Null,
             } => {}
             TypeExpression::Object { .. } | TypeExpression::Reference { .. } => {
@@ -2737,13 +2737,13 @@ fn write_type_expression_body_inner<'ast>(
     layout: TypeExpressionLayout,
 ) -> FormatResult<()> {
     match expression {
-        TypeExpression::ScalarLiteral { value } => {
+        TypeExpression::Literal { value } => {
             format_scalar_literal(value, f.context().span(node_id), f)?;
         }
         TypeExpression::Lifetime { name } => {
             write!(f, [*name])?;
         }
-        TypeExpression::Literal { value } => {
+        TypeExpression::Keyword { value } => {
             write!(f, [value])?;
         }
         TypeExpression::Intrinsic => {

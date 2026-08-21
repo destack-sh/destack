@@ -57,8 +57,8 @@ fn should_hug_single_generic_type_argument(
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
-        TypeExpression::ScalarLiteral { .. }
-        | TypeExpression::Literal { .. }
+        TypeExpression::Literal { .. }
+        | TypeExpression::Keyword { .. }
         | TypeExpression::Intrinsic
         | TypeExpression::This
         | TypeExpression::TemplateLiteral { .. }
@@ -106,7 +106,7 @@ fn should_hug_single_generic_union_argument(
         .filter(|element_id| {
             matches!(
                 context.tree.get(*element_id),
-                TypeExpression::Literal {
+                TypeExpression::Keyword {
                     value: TypeLiteral::Void | TypeLiteral::Null | TypeLiteral::Undefined
                 }
             )

@@ -10,7 +10,7 @@ use crate::template::{
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_core::StringId;
 use destack_dir::{
-    Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral,
+    Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, Literal,
     TypeExpression,
 };
 use destack_fir::format::{FormatError, FormatLayout, FormatResult};
@@ -439,8 +439,8 @@ pub(crate) fn write_index_access<'ast>(
 ) -> FormatResult<()> {
     let is_numeric_index = matches!(
         f.context().tree.get(index_id),
-        Expression::ScalarLiteral(
-            ScalarLiteral::Integer(_) | ScalarLiteral::Bigint(_) | ScalarLiteral::Float(_)
+        Expression::Literal(
+            Literal::Integer(_) | Literal::Bigint(_) | Literal::Float(_)
         )
     );
 

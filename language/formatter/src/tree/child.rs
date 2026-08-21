@@ -6,7 +6,7 @@ use crate::chain::{
 };
 use destack_dir::{
     Block, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm, IfForm,
-    LocalNodeId, MatchArm, Node, NodeType, ScalarLiteral, Tree, TreeChild, TreeStore,
+    LocalNodeId, MatchArm, Node, NodeType, Literal, Tree, TreeChild, TreeStore,
 };
 
 /// Return whether one node span contains a line comment.
@@ -142,8 +142,8 @@ pub(crate) fn tree_child_should_inline_braced_expression(
     }
 
     match value_expression {
-        Expression::ScalarLiteral(ScalarLiteral::String(_))
-        | Expression::ScalarLiteral(ScalarLiteral::Character(_)) => true,
+        Expression::Literal(Literal::String(_))
+        | Expression::Literal(Literal::Character(_)) => true,
         Expression::ArrayExpression { .. }
         | Expression::ObjectExpression { .. }
         | Expression::StructExpression { .. }

@@ -26,7 +26,7 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::StringId;
 use destack_dir::{
     BinaryOperator, Comment, Expression, FunctionSignature, Keyword, LocalNodeId, Member,
-    MethodAbstraction, Name, Node, Parameter, Property, ScalarLiteral, Tree, TreeStore,
+    MethodAbstraction, Name, Node, Parameter, Property, Literal, Tree, TreeStore,
     TypeExpression, Visibility, is_identifier_compat,
 };
 use destack_fir::format::{
@@ -229,12 +229,12 @@ fn field_like_layout<'ast>(
             f.context().tree.get(right_id),
             Expression::Declaration(_)
                 | Expression::TemplateExpression { .. }
-                | Expression::ScalarLiteral(
-                    ScalarLiteral::Boolean(_)
-                        | ScalarLiteral::Integer(_)
-                        | ScalarLiteral::Bigint(_)
-                        | ScalarLiteral::Float(_)
-                        | ScalarLiteral::String(_)
+                | Expression::Literal(
+                    Literal::Boolean(_)
+                        | Literal::Integer(_)
+                        | Literal::Bigint(_)
+                        | Literal::Float(_)
+                        | Literal::String(_)
                 )
         )
     {

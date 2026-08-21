@@ -6,9 +6,8 @@ use crate::template::{
 use crate::tree::is_tree_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
-use destack_core::StringId;
 use destack_dir::{
-    Argument, Expression, FloatType, IntegerType, LocalNodeId, Path, ScalarLiteral,
+    Argument, Expression, FloatType, IntegerType, LocalNodeId, Path, Literal, TemplateChunk,
     TemplateLiteral, TokenLiteral, TypeLiteral,
 };
 use destack_fir::format::{Format, FormatLayout, FormatResult, token};
@@ -92,7 +91,7 @@ fn escape_string_literal_content(content: &str, quote_char: char) -> String {
 /// Format a scalar literal.
 /// (This is a separate function because it's not a node but we need the span for normalization.)
 pub(crate) fn format_scalar_literal<'ast>(
-    scalar: &ScalarLiteral,
+    scalar: &Literal,
     span: Span,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
@@ -101,10 +100,10 @@ pub(crate) fn format_scalar_literal<'ast>(
     let is_tree_text = literal_type == Some(TokenLiteral::TreeString);
 
     match scalar {
-        ScalarLiteral::Null => token("null").format(f)?,
-        ScalarLiteral::Undefined => token("undefined").format(f)?,
-        ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
-        ScalarLiteral::Integer(value) => {
+        Literal::Null => token("null").format(f)?,
+        Literal::Undefined => token("undefined").format(f)?,
+        Literal::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
+        Literal::Integer(value) => {
             if source_lexeme.is_empty() {
                 copied_text(&value.to_string()).format(f)?;
             } else {
@@ -112,7 +111,7 @@ pub(crate) fn format_scalar_literal<'ast>(
                 copied_text(normalized.as_ref()).format(f)?;
             }
         }
-        ScalarLiteral::Bigint(value) => {
+        Literal::Bigint(value) => {
             if source_lexeme.is_empty() {
                 copied_text(&format!("{value}n")).format(f)?;
             } else {
@@ -120,7 +119,7 @@ pub(crate) fn format_scalar_literal<'ast>(
                 copied_text(normalized.as_ref()).format(f)?;
             }
         }
-        ScalarLiteral::Float(value) => {
+        Literal::Float(value) => {
             if source_lexeme.is_empty() {
                 copied_text(&value.to_string()).format(f)?;
             } else {
@@ -128,7 +127,7 @@ pub(crate) fn format_scalar_literal<'ast>(
                 copied_text(normalized.as_ref()).format(f)?;
             }
         }
-        ScalarLiteral::Character(value) => {
+        Literal::Character(value) => {
             let content = value.to_string();
             let escaped_content = escape_string_literal_content(content.as_str(), '\'');
             write!(
@@ -140,7 +139,7 @@ pub(crate) fn format_scalar_literal<'ast>(
                 ]
             )?;
         }
-        ScalarLiteral::String(string_id) => {
+        Literal::String(string_id) => {
             let content = f.context().strings.get(*string_id);
             let quote_char = '"';
             let escaped_content = escape_string_literal_content(content, quote_char);
@@ -171,7 +170,7 @@ pub(crate) fn format_scalar_literal<'ast>(
                 )?;
             }
         }
-        ScalarLiteral::RegexString { content, flags } => {
+        Literal::RegexString { content, flags } => {
             if let Some(flags) = flags {
                 write!(f, [token("/"), content, token("/"), flags])?;
             } else {
@@ -186,23 +185,23 @@ pub(crate) fn format_scalar_literal<'ast>(
 /// Format an interpolated template literal.
 /// |strings| = |arguments| + 1
 fn format_interpolated_template_literal<'ast>(
-    strings: &[StringId],
+    chunks: &[TemplateChunk],
     arguments: &[LocalNodeId<Argument>],
     _template_span: Span,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
-    debug_assert_eq!(strings.len(), arguments.len().saturating_add(1));
+    debug_assert_eq!(chunks.len(), arguments.len().saturating_add(1));
 
     write!(f, [token("`")])?;
 
     let mut indentation = TemplateInterpolationIndentation::default();
 
-    if let Some(first_segment) = strings.first() {
-        write!(f, [*first_segment])?;
+    if let Some(first_chunk) = chunks.first() {
+        write!(f, [first_chunk.raw])?;
     }
 
     for (index, argument) in arguments.iter().enumerate() {
-        let previous_segment = strings[index];
+        let previous_segment = chunks[index].raw;
         let previous_segment_text = f.context().strings.get(previous_segment);
         indentation = TemplateInterpolationIndentation::after_last_newline(
             previous_segment_text,
@@ -210,7 +209,7 @@ fn format_interpolated_template_literal<'ast>(
             indentation,
         );
         let after_newline = previous_segment_text.ends_with('\n');
-        let next_segment = strings[index + 1];
+        let next_segment = chunks[index + 1].raw;
 
         let format_argument = format_with(|f| write!(f, [*argument]));
         let argument_element = f.capture(&format_argument)?;
@@ -376,11 +375,11 @@ pub(crate) fn format_template_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match template {
-        TemplateLiteral::String { string } => {
-            write!(f, [token("`"), string, token("`")])?;
+        TemplateLiteral::String { chunk } => {
+            write!(f, [token("`"), chunk.raw, token("`")])?;
         }
-        TemplateLiteral::InterpolatedString { strings, arguments } => {
-            format_interpolated_template_literal(strings, arguments, _span, f)?;
+        TemplateLiteral::InterpolatedString { chunks, arguments } => {
+            format_interpolated_template_literal(chunks, arguments, _span, f)?;
         }
     }
 

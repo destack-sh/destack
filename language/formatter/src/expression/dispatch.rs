@@ -95,7 +95,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Super
         | Expression::Infer { .. }
         | Expression::Type { .. }
-        | Expression::ScalarLiteral(_)
+        | Expression::Literal(_)
         | Expression::TemplateExpression { .. }
         | Expression::TaggedTemplateExpression { .. }
         | Expression::ArrayExpression { .. }
@@ -291,7 +291,7 @@ fn format_expression_body_inner<'ast>(
         | Expression::Super
         | Expression::Infer { .. }
         | Expression::Type { .. }
-        | Expression::ScalarLiteral(_)
+        | Expression::Literal(_)
         | Expression::TemplateExpression { .. }
         | Expression::TaggedTemplateExpression { .. }
         | Expression::ArrayExpression { .. }

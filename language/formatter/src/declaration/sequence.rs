@@ -1072,7 +1072,7 @@ fn type_expression_is_void(
 ) -> bool {
     matches!(
         context.tree.get(type_id),
-        TypeExpression::Literal {
+        TypeExpression::Keyword {
             value: TypeLiteral::Void,
         }
     )

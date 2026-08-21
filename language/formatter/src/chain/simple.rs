@@ -2,7 +2,7 @@ use super::transparent_inner_expression;
 use crate::DestackFormatContext;
 use crate::expression::static_value_expression;
 use destack_dir::{
-    Argument, Expression, GenericArgument, LocalNodeId, Property, ScalarLiteral, TemplateLiteral,
+    Argument, Expression, GenericArgument, LocalNodeId, Property, Literal, TemplateLiteral,
     TypeExpression, UnaryOperator,
 };
 
@@ -99,10 +99,10 @@ fn expression_is_simple(
 
     match context.tree.get(expression_id) {
         // literals and trivial references
-        Expression::ScalarLiteral(ScalarLiteral::RegexString { content, .. }) => {
+        Expression::Literal(Literal::RegexString { content, .. }) => {
             context.strings.get(*content).chars().count() <= 5
         }
-        Expression::ScalarLiteral(_)
+        Expression::Literal(_)
         | Expression::Identifier { .. }
         | Expression::ImportMeta
         | Expression::ImportSource
@@ -246,13 +246,13 @@ pub(crate) fn template_literal_is_simple(
 ) -> bool {
     match template {
         // plain template contents
-        TemplateLiteral::String { string } => !context.strings.get(*string).contains('\n'),
+        TemplateLiteral::String { chunk } => !context.strings.get(chunk.raw).contains('\n'),
 
         // interpolated template contents
-        TemplateLiteral::InterpolatedString { strings, arguments } => {
-            strings
+        TemplateLiteral::InterpolatedString { chunks, arguments } => {
+            chunks
                 .iter()
-                .all(|string| !context.strings.get(*string).contains('\n'))
+                .all(|chunk| !context.strings.get(chunk.raw).contains('\n'))
                 && arguments.iter().copied().all(|argument_id| {
                     SimpleArgument::new(argument_id).is_simple_with_depth(context, depth)
                 })

@@ -2,7 +2,7 @@ use crate::expression::{
     should_preserve_source_parentheses, write_expression_without_derived_parentheses,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Expression, LocalNodeId, NodeType, OperatorPrecedence, ScalarLiteral, Tree};
+use destack_dir::{Expression, LocalNodeId, NodeType, OperatorPrecedence, Literal, Tree};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, group, soft_block_indent, token};
 use destack_fir::{format_args, write};
@@ -32,7 +32,7 @@ pub(crate) fn write_postfix_base_expression<'ast>(
     let needs_integer_member_parentheses = parent_expression_id.is_some_and(|parent_id| {
         matches!(
             f.context().tree.get(expression_id),
-            Expression::ScalarLiteral(ScalarLiteral::Integer(_))
+            Expression::Literal(Literal::Integer(_))
         ) && matches!(f.context().tree.get(parent_id), Expression::Member { .. })
     });
     let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, expression_id)

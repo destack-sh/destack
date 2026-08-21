@@ -2,7 +2,7 @@ use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
 use destack_dir::{
     Argument, Declaration, Expression, FunctionForm, IfForm, LocalNodeId, Pattern, Property,
-    ScalarLiteral, Tree, TypeExpression, UnaryOperator,
+    Literal, Tree, TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -108,8 +108,8 @@ impl ExpressionLeftPath {
 fn is_trivial_type_expression(tree: &Tree, expression_id: LocalNodeId<TypeExpression>) -> bool {
     matches!(
         tree.get(expression_id),
-        TypeExpression::ScalarLiteral { .. }
-            | TypeExpression::Literal { .. }
+        TypeExpression::Literal { .. }
+            | TypeExpression::Keyword { .. }
             | TypeExpression::Intrinsic
             | TypeExpression::Reference { .. }
             | TypeExpression::Member { .. }
@@ -121,7 +121,7 @@ fn is_trivial_type_expression(tree: &Tree, expression_id: LocalNodeId<TypeExpres
 /// Return whether an expression prefers inline layout.
 pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
     match expression {
-        Expression::ScalarLiteral(_)
+        Expression::Literal(_)
         | Expression::Identifier { .. }
         | Expression::ImportMeta
         | Expression::ImportSource
@@ -305,17 +305,17 @@ fn array_element_is_fill_candidate(tree: &Tree, element_id: LocalNodeId<Argument
     };
 
     match tree.get(value_id) {
-        Expression::ScalarLiteral(
-            ScalarLiteral::Integer(_) | ScalarLiteral::Bigint(_) | ScalarLiteral::Float(_),
+        Expression::Literal(
+            Literal::Integer(_) | Literal::Bigint(_) | Literal::Float(_),
         ) => true,
         Expression::Unary { operator, right } => {
             matches!(operator, UnaryOperator::Plus | UnaryOperator::Negate)
                 && matches!(
                     tree.get(*right),
-                    Expression::ScalarLiteral(
-                        ScalarLiteral::Integer(_)
-                            | ScalarLiteral::Bigint(_)
-                            | ScalarLiteral::Float(_)
+                    Expression::Literal(
+                        Literal::Integer(_)
+                            | Literal::Bigint(_)
+                            | Literal::Float(_)
                     )
                 )
         }

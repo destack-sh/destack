@@ -5,7 +5,7 @@ use crate::expression::should_preserve_source_parentheses;
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Declarator, Expression, IfForm, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral, Tree,
+    Declarator, Expression, IfForm, LocalNodeId, NodeType, PostfixPosition, Literal, Tree,
 };
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::token;
@@ -258,8 +258,8 @@ pub(crate) fn is_numeric_index(
 
     matches!(
         context.tree.get(index_id),
-        Expression::ScalarLiteral(
-            ScalarLiteral::Integer(_) | ScalarLiteral::Bigint(_) | ScalarLiteral::Float(_)
+        Expression::Literal(
+            Literal::Integer(_) | Literal::Bigint(_) | Literal::Float(_)
         )
     )
 }

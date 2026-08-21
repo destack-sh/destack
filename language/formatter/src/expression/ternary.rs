@@ -4,7 +4,7 @@ use crate::annotation::{FormatTrailingComments, write_comment_slice};
 use crate::chain::{expression_trivia_anchor_end, transparent_inner_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, Comment, Expression, IfForm, LocalNodeId, NodeType, ScalarLiteral, Tree,
+    Argument, Comment, Expression, IfForm, LocalNodeId, NodeType, Literal, Tree,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{
@@ -224,7 +224,7 @@ fn expression_is_tree_chain_bare_branch(
     let expression = context.tree.get(expression_id);
 
     match expression {
-        Expression::ScalarLiteral(ScalarLiteral::Null | ScalarLiteral::Undefined) => true,
+        Expression::Literal(Literal::Null | Literal::Undefined) => true,
         _ if is_alternate => expression_is_ternary(context, expression_id),
         _ => false,
     }

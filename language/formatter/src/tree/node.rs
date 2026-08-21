@@ -16,7 +16,7 @@ use crate::file::write_source_span;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
-    Argument, Expression, IfForm, LocalNodeId, Node, NodeType, ScalarLiteral, Tree, TreeAttribute,
+    Argument, Expression, IfForm, LocalNodeId, Node, NodeType, Literal, Tree, TreeAttribute,
     TreeAttributeValue, TreeChild, TreeStore,
 };
 use destack_fir::format::{FormatError, FormatResult};
@@ -301,7 +301,7 @@ fn write_tree_attribute_value<'ast>(
         TreeAttributeValue::String(string_id) => {
             let span = Span::empty(f.context().file.id);
             write!(f, [token("=")])?;
-            format_scalar_literal(&ScalarLiteral::String(*string_id), span, f)
+            format_scalar_literal(&Literal::String(*string_id), span, f)
         }
         TreeAttributeValue::Expression(value_id) => {
             let has_callback_break =

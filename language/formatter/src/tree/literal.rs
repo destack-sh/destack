@@ -15,7 +15,7 @@ use crate::tree::{
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, Comment, Declaration, Expression, FunctionForm, GenericArgument, IfForm, LocalNodeId,
-    NodeType, ScalarLiteral, Tree, TreeAttribute, TreeChild,
+    NodeType, Literal, Tree, TreeAttribute, TreeChild,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{
@@ -85,8 +85,8 @@ fn tree_children_layout(
         if !matches!(
             value,
             Expression::TreeExpression { .. }
-                | Expression::ScalarLiteral(ScalarLiteral::String(_))
-                | Expression::ScalarLiteral(ScalarLiteral::Character(_))
+                | Expression::Literal(Literal::String(_))
+                | Expression::Literal(Literal::Character(_))
         ) {
             expression_child_count += 1;
         }

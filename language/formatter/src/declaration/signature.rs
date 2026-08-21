@@ -295,7 +295,7 @@ fn parameter_default_is_huggable(
 
     match context.tree.get(default) {
         Expression::Identifier { .. }
-        | Expression::ScalarLiteral(_)
+        | Expression::Literal(_)
         | Expression::This
         | Expression::Super => true,
 

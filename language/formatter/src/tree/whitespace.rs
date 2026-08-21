@@ -1,5 +1,5 @@
 use crate::DestackFormatContext;
-use destack_dir::{Expression, LocalNodeId, ScalarLiteral, TreeChild};
+use destack_dir::{Expression, LocalNodeId, Literal, TreeChild};
 
 /// Check whether a tree text child is whitespace-only.
 pub(crate) fn tree_text_is_whitespace_only(
@@ -27,7 +27,7 @@ pub(crate) fn tree_text_is_whitespace_only(
             Some((true, has_newline))
         }
         TreeChild::Expression { value } => match tree.get(*value) {
-            Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+            Expression::Literal(Literal::String(string_id)) => {
                 let has_annotation =
                     context.has_annotation(child_id) || context.has_annotation(*value);
                 if has_annotation {
@@ -45,7 +45,7 @@ pub(crate) fn tree_text_is_whitespace_only(
                 let has_newline = content.contains(['\n', '\r']);
                 Some((true, has_newline))
             }
-            Expression::ScalarLiteral(ScalarLiteral::Character(value)) => {
+            Expression::Literal(Literal::Character(value)) => {
                 if !is_tree_whitespace_char(*value) {
                     return Some((false, false));
                 }
@@ -88,7 +88,7 @@ pub(crate) fn tree_child_is_space_expression(
     let TreeChild::Expression { value } = context.tree.get(child_id) else {
         return false;
     };
-    let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = context.tree.get(*value)
+    let Expression::Literal(Literal::String(string_id)) = context.tree.get(*value)
     else {
         return false;
     };

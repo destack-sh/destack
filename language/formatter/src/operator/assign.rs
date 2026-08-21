@@ -16,7 +16,7 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
     Declaration, Declarator, DecoratorPosition, Expression, FunctionDeclaration, FunctionForm,
-    GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, ScalarLiteral, TemplateLiteral,
+    GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, Literal, TemplateLiteral,
     TokenType, TypeExpression,
 };
 use destack_fir::format::{
@@ -54,28 +54,28 @@ fn is_short_expression(
     match context.tree.get(expression_id) {
         Expression::Identifier { name } => context.strings.get(*name).len() <= threshold as usize,
         Expression::Unary { right, .. } => is_short_expression(context, *right, threshold),
-        Expression::ScalarLiteral(
-            ScalarLiteral::Null
-            | ScalarLiteral::Undefined
-            | ScalarLiteral::Boolean(_)
-            | ScalarLiteral::Integer(_)
-            | ScalarLiteral::Bigint(_)
-            | ScalarLiteral::Float(_),
+        Expression::Literal(
+            Literal::Null
+            | Literal::Undefined
+            | Literal::Boolean(_)
+            | Literal::Integer(_)
+            | Literal::Bigint(_)
+            | Literal::Float(_),
         )
         | Expression::This => true,
-        Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+        Expression::Literal(Literal::String(string_id)) => {
             context.strings.get(*string_id).len() <= threshold as usize
         }
-        Expression::ScalarLiteral(ScalarLiteral::RegexString { content, .. }) => {
+        Expression::Literal(Literal::RegexString { content, .. }) => {
             context.strings.get(*content).len() <= threshold as usize
         }
         Expression::TemplateExpression { value } => {
             // interpolated templates are not short in the assignment-like rules
-            let TemplateLiteral::String { string } = value else {
+            let TemplateLiteral::String { chunk } = value else {
                 return false;
             };
 
-            let content = context.strings.get(*string);
+            let content = context.strings.get(chunk.raw);
 
             content.len() <= threshold as usize && !content.contains('\n')
         }
@@ -1584,7 +1584,7 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
 
         _ if matches!(
             assignment_rhs_innermost_expression(context, right),
-            Expression::ScalarLiteral(ScalarLiteral::String(_))
+            Expression::Literal(Literal::String(_))
         ) =>
         {
             true
@@ -1686,8 +1686,8 @@ fn assignment_rhs_is_compact(
 
     matches!(
         right_expression,
-        Expression::ScalarLiteral(
-            ScalarLiteral::Boolean(_) | ScalarLiteral::Integer(_) | ScalarLiteral::Float(_)
+        Expression::Literal(
+            Literal::Boolean(_) | Literal::Integer(_) | Literal::Float(_)
         ) | Expression::TemplateExpression { .. }
             | Expression::TaggedTemplateExpression { .. }
     ) || expression_is_class_declaration(context, right)

@@ -13,7 +13,7 @@ use crate::declaration::{
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, Declaration, Expression, FunctionForm, FunctionSignature, GenericArgument,
-    LocalNodeId, Parameter, ScalarLiteral, TypeExpression, UnaryOperator,
+    LocalNodeId, Parameter, Literal, TypeExpression, UnaryOperator,
 };
 use destack_fir::format::{
     FormatElement as FirElement, FormatError, FormatLayout, FormatResult, GroupId,
@@ -126,8 +126,8 @@ fn is_simple_type_expression(
     let expression_id = extract_single_generic_argument_type_expression(ctx, expression_id);
 
     match ctx.tree.get(expression_id) {
-        TypeExpression::ScalarLiteral { .. }
-        | TypeExpression::Literal { .. }
+        TypeExpression::Literal { .. }
+        | TypeExpression::Keyword { .. }
         | TypeExpression::Intrinsic
         | TypeExpression::Const
         | TypeExpression::This => true,
@@ -251,7 +251,7 @@ fn is_relatively_short_argument(
             1 => SimpleArgument::from(expression_id).is_simple(ctx),
             _ => false,
         },
-        Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }) => true,
+        Expression::Literal(Literal::RegexString { .. }) => true,
         _ => SimpleArgument::from(expression_id).is_simple(ctx),
     }
 }
@@ -452,7 +452,7 @@ fn is_concise_numeric_literal_expression(
     let expression_id = transparent_inner_expression(ctx, expression_id);
 
     match ctx.tree.get(expression_id) {
-        Expression::ScalarLiteral(ScalarLiteral::Integer(_) | ScalarLiteral::Float(_)) => true,
+        Expression::Literal(Literal::Integer(_) | Literal::Float(_)) => true,
         Expression::Unary { operator, right } => {
             matches!(
                 operator,
@@ -462,7 +462,7 @@ fn is_concise_numeric_literal_expression(
                     | UnaryOperator::ElementwiseNot
             ) && matches!(
                 ctx.tree.get(transparent_inner_expression(ctx, *right)),
-                Expression::ScalarLiteral(ScalarLiteral::Integer(_) | ScalarLiteral::Float(_))
+                Expression::Literal(Literal::Integer(_) | Literal::Float(_))
             ) && !ctx.comments().has_comment_in_span(ctx.span(expression_id))
         }
         _ => false,

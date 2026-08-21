@@ -413,7 +413,7 @@ pub(crate) fn format_primary_expression<'ast>(
         }
 
         // scalar literal
-        Expression::ScalarLiteral(node) => {
+        Expression::Literal(node) => {
             format_scalar_literal(node, tree.get_span(node_id), f)?;
         }
 

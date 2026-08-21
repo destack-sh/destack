@@ -11,7 +11,7 @@ use destack_core::{StringId, StringPool};
 use destack_dir::{
     DecoratorPosition, DependencyBinding, DependencyItem, Expression, ImportAttribute,
     ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Keyword, LocalNodeId,
-    Name, ScalarLiteral, TokenSpan, TokenType, Tree,
+    Name, Literal, TokenSpan, TokenType, Tree,
 };
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
@@ -68,7 +68,7 @@ fn format_dependency_item_name<'ast>(
             write!(f, [name])?;
         }
         Name::String(name) => {
-            let literal = ScalarLiteral::String(name);
+            let literal = Literal::String(name);
             let span = Span::empty(f.context().file.id);
             format_scalar_literal(&literal, span, f)?;
         }
@@ -558,7 +558,7 @@ fn write_import_attribute_value<'ast>(
 ) -> FormatResult<()> {
     match value {
         // scalar
-        ImportAttributeValue::ScalarLiteral(value) => {
+        ImportAttributeValue::Literal(value) => {
             let span = Span::empty(f.context().file.id);
             format_scalar_literal(value, span, f)
         }
