@@ -147,7 +147,7 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     }
 
     /// Return the first element by value.
-    first(&readonly this): T | undefined {
+    first(): T | undefined {
         if (this.isEmpty) {
             return undefined;
         }
@@ -156,7 +156,7 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     }
 
     /// Return the last element by value.
-    last(&readonly this): T | undefined {
+    last(): T | undefined {
         let length = this.length;
 
         if (length == 0) {
@@ -186,7 +186,7 @@ export extension<T, 'a, const A: Access> of Borrowed<Slice<T>, 'a, A>
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(&readonly this, &start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
+    rest(&readonly this, start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
         todo("Slice.rest")
     }
 
