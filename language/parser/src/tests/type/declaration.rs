@@ -13,7 +13,7 @@ fn test_parse_conditional_type_alias_with_generics() {
         "type FindMyWayVersion<RawServer: RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
 
@@ -61,7 +61,7 @@ fn test_parse_conditional_type_alias_with_generics() {
 fn test_parse_type_alias_records_generic_parameter_container_range() {
     let test = TestParser::new("type Box<T> = T");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
 
@@ -84,7 +84,7 @@ fn test_parse_type_declaration_conditional_object_infer_after_newline() {
     { valueOf(): infer V extends ArrayBufferLike } ? V : T"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
 
@@ -108,7 +108,7 @@ fn test_parse_type_declaration_generic_default_before_shifted_close() {
     IsNever<Union> extends true ? () : (...TuplifyUnion<Exclude<Union, LastElement>>, LastElement)"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
 

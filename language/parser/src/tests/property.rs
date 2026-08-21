@@ -459,7 +459,7 @@ fn test_parse_interface_get_set_with_newlines() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     // parse interface members with get and set
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -624,7 +624,7 @@ readonly value: string
 }"#,
     );
     let mut parser = test.prepare();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -658,7 +658,7 @@ override const Rows: number = 4
 }"#,
     );
     let mut parser = test.prepare();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     assert_node!(parser.tree, roots[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
@@ -859,7 +859,7 @@ fn test_parse_member_decorator_argument_this_member_expression() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -905,7 +905,7 @@ fn test_parse_member_decorator_argument_import_meta_expression() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -1204,7 +1204,7 @@ fn test_parse_class_member_trailing_comments_stay_on_member_owner() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),

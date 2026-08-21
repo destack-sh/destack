@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_parser::Parser;
-use destack_source::{File, FileId, FileType, LanguageType, Uri};
+use destack_dir::Tree;
+use destack_parser::{ParseOptions, Parser};
+use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -26,7 +26,13 @@ fuzz_target!(|data: &[u8]| {
 
     // parse the input
     let language = LanguageType::try_from(file_type).expect("file type has no parser language");
-    let mut parser = Parser::lex_file(file, language, Arc::new(StringPool::new()));
+    let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+    let parser = Parser::new(
+        file,
+        language,
+        Tree::new(module_id),
+        ParseOptions::default(),
+    );
     let _ = parser.parse();
 });
 

@@ -15,7 +15,7 @@ use crate::{
 fn test_reject_match_arm_placeholder_in_destack_grammar() {
     let test = TestParser::new("match (value) { $$$ARMS }");
     let mut parser = test.prepare();
-    parser.parse();
+    parser.parse_in_place();
 
     test.assert_errors(
         &parser,
@@ -36,7 +36,7 @@ fn test_reject_match_arm_placeholder_in_destack_grammar() {
 fn test_parse_pattern_branch_placeholders() {
     let test = TestParser::new("match (value) { $$$ARMS }");
     let mut parser = test.prepare_pattern();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, roots[0], Expression::Match { arms, .. } => {
@@ -49,7 +49,7 @@ fn test_parse_pattern_branch_placeholders() {
 
     let test = TestParser::new("switch (value) { $$$CASES }");
     let mut parser = test.prepare_pattern();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, roots[0], Expression::Switch { cases, .. } => {
@@ -718,7 +718,7 @@ switch (value) {
 fn test_parse_switch_case_body_recovers_at_eof() {
     let test = TestParser::new("switch (cond) { case 10: let a = 20;");
     let mut parser = test.prepare();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     assert_eq!(roots.len(), 1);
     assert_node!(parser.tree, roots[0], Expression::Switch { value, cases } => {
@@ -797,7 +797,7 @@ fn test_parse_switch_case_boundary_comment_ownership() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),

@@ -39,7 +39,7 @@ enum Foo extends Day {}
 fn test_parse_shared_enum_declaration() {
     let test = TestParser::new("shared enum Result { Ok; Error }");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -62,7 +62,7 @@ enum A;
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[0], Expression::Error);
@@ -286,7 +286,7 @@ enum Value {
 "###,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     assert_eq!(
@@ -327,7 +327,7 @@ Entry
 }"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -375,7 +375,7 @@ B
 }"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -404,7 +404,7 @@ B
 fn test_parse_enum_body_boundary_comment_on_declaration_owner() {
     let test = TestParser::new("enum Value /* enum-body */ { A }");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),

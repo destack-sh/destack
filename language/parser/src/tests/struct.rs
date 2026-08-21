@@ -104,7 +104,7 @@ struct Foo { x: int32, y: int32 }
 fn test_parse_local_class_declaration() {
     let test = TestParser::new("local class Promise {}");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -121,7 +121,7 @@ fn test_parse_local_class_declaration() {
 fn test_parse_exported_local_class_declaration() {
     let test = TestParser::new("export local class Promise {}");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -139,7 +139,7 @@ fn test_parse_exported_local_class_declaration() {
 fn test_parse_export_default_local_class_declaration() {
     let test = TestParser::new("export default local class Promise {}");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -157,7 +157,7 @@ fn test_parse_export_default_local_class_declaration() {
 fn test_parse_shared_struct_declaration() {
     let test = TestParser::new("shared struct Channel<T> {}");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -183,7 +183,7 @@ fn test_parse_struct_const_forms() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -334,7 +334,7 @@ fn test_parse_class_superclass_boundary_comment_on_super_type() {
 }",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
 
@@ -365,7 +365,7 @@ Second // impl-second
 }",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -404,7 +404,7 @@ fn test_parse_declare_class_head_comment_before_generics_on_declaration_owner() 
 }",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),

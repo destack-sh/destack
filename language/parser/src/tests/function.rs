@@ -215,7 +215,7 @@ fn test_parse_const_function() {
 fn test_parse_const_function_through_statement_path() {
     let test = TestParser::new("const function f(): usize {}");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -670,7 +670,7 @@ fn test_parse_function_lambda_with_explicit_return_type() {
 fn test_recover_unclosed_lambda_return_type() {
     let test = TestParser::new("const broken = (value): { item: ;\nconst recovered = value;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     assert_eq!(parser.errors.len(), 1);
@@ -1285,7 +1285,7 @@ function main() {
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(

@@ -7,7 +7,7 @@ fn test_parse_module_newline_as_identifiers() {
     let test = TestParser::new("module\nFoo\n{}");
     let mut parser = test.prepare();
 
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     assert_eq!(expressions.len(), 3);
 
     let module_id = expressions[0];
@@ -31,7 +31,7 @@ module {
     );
     let mut parser = test.prepare();
 
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     assert_eq!(expressions.len(), 1);
 
     let expression_id = expressions[0];
@@ -53,7 +53,7 @@ module {}
     );
     let mut parser = test.prepare();
 
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     assert_eq!(expressions.len(), 1);
 
     let expression_id = expressions[0];

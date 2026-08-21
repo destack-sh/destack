@@ -69,7 +69,7 @@ type Full = ..
 ",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 4);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -120,7 +120,7 @@ type Other = Value
 ",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {

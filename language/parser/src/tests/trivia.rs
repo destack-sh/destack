@@ -1,24 +1,19 @@
+use crate::{
+    CommentRetention, Lexer, ParseOptions, Parser, TestParser, assert_comment,
+    assert_expression_path, assert_node,
+};
 use destack_dir::{
     Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentAnchor,
     CommentKind, CommentRole, Declaration, Declarator, Decorator, DecoratorPosition, Expression,
     FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration, TokenType,
     TypeDeclaration, TypeExpression,
 };
-use std::sync::Arc;
-
-use destack_core::StringPool;
-use destack_source::LanguageType;
-
-use crate::{
-    CommentRetention, Lexer, Parser, TestParser, assert_comment, assert_expression_path,
-    assert_node,
-};
 
 /// Parse one whole source string and return the resulting root expressions.
 fn parse_source(source: &str) -> (Parser, Vec<LocalNodeId<Expression>>) {
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     (parser, expressions)
 }
 
@@ -28,13 +23,8 @@ fn parse_source_with_comment_retention(
     comment_retention: CommentRetention,
 ) -> (Parser, Vec<LocalNodeId<Expression>>) {
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_comment_retention(
-        test.file.clone(),
-        LanguageType::Destack,
-        comment_retention,
-        Arc::new(StringPool::new()),
-    );
-    let expressions = parser.parse();
+    let mut parser = test.prepare_with_comment_retention(comment_retention);
+    let expressions = parser.parse_in_place();
 
     (parser, expressions)
 }
@@ -279,15 +269,18 @@ fn test_keep_comments_source_local() {
     assert_eq!(comment_text(&first_parser, first_comment), "first");
 
     let second_test = TestParser::new("// second\nsecond");
-    let mut second_parser = Parser::lex_into_tree_with_comment_retention(
+    let mut second_parser = Parser::new(
         second_test.file.clone(),
         second_test.language,
-        CommentRetention::All,
-        Arc::new(StringPool::new()),
         first_parser.tree,
+        ParseOptions {
+            comment_retention: CommentRetention::All,
+            ..ParseOptions::default()
+        },
     );
 
-    second_parser.parse();
+    second_parser.parse_roots();
+    second_parser.finalize_comments();
 
     assert_eq!(second_parser.comments().len(), 1);
     assert_ne!(second_parser.comments()[0], first_comment);

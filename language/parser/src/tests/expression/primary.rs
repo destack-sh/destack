@@ -1,15 +1,12 @@
+use crate::parse::{DecoratorContext, ExpressionContext};
 use crate::tests::{TestParser, block_expression_ids};
+use crate::{
+    CommentRetention, assert_expression_path, assert_node, assert_path, assert_string,
+    assert_value_expression_path,
+};
 use destack_dir::{
     Argument, Block, Expression, Name, Parameter, Property, ScalarLiteral, TypeExpression,
 };
-use std::sync::Arc;
-
-use crate::parse::{DecoratorContext, ExpressionContext};
-use crate::{
-    CommentRetention, Parser, assert_expression_path, assert_node, assert_path, assert_string,
-    assert_value_expression_path,
-};
-use destack_core::StringPool;
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 /// Parse import meta as one dedicated expression root.
@@ -194,12 +191,7 @@ fn test_parse_parenthesized_expression_records_source_region() {
 #[test]
 fn test_parse_parenthesized_expression_keeps_inner_expression_span() {
     let test = TestParser::new("(/* keep */ value)");
-    let mut parser = Parser::lex_file_with_comment_retention(
-        test.file.clone(),
-        test.language,
-        CommentRetention::All,
-        Arc::new(StringPool::new()),
-    );
+    let mut parser = test.prepare_with_comment_retention(CommentRetention::All);
     let expression_id = parser.parse_expression(Default::default()).unwrap();
     parser.finalize_comments();
 

@@ -25,7 +25,7 @@ fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_
         "for (;;) {\n  if (condition) continue\n\n  // breaking comment\n  (possibleArray || []).sort()\n}",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::For { body, .. } => {
@@ -54,7 +54,7 @@ fn test_report_labeled_lexical_declaration() {
     // source: a: let a
     let test = TestParser::new("a: let a");
     let mut parser = test.prepare();
-    let _ = parser.parse();
+    let _ = parser.parse_in_place();
     let diagnostic = parser
         .diagnostics()
         .to_vec()
@@ -333,7 +333,7 @@ fn test_parse_export_const_type_identifier_with_struct_value() {
 fn test_parse_const_object_pattern_binding() {
     let test = TestParser::new("const { a } = obj;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -349,7 +349,7 @@ fn test_parse_const_object_pattern_binding() {
 fn test_parse_const_block_statement() {
     let test = TestParser::new("const { compute() }");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -363,7 +363,7 @@ fn test_parse_const_block_statement() {
 fn test_parse_const_block_initializer() {
     let test = TestParser::new("let x = const { 1 };");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -381,7 +381,7 @@ fn test_parse_const_block_initializer() {
 fn test_parse_const_call_initializer() {
     let test = TestParser::new("let x = const factorial(10);");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -403,8 +403,7 @@ fn test_parse_no_semi_for_of_slice_trailing_block_comment_is_not_duplicated() {
     let source = "for (a of b) foo\n\n// 11\n;[]\n\nfor (a of b) foo\n\n// 21\n;foo\n\n// prettier-ignore\nfor (   a of   b)   foo (   )\n\n;[]\n\nfor (a of b) foo; /* comment */\n\n// prettier-ignore\nfor (   a of   b) while   (   1)   foo (   )\n\n;[]\n";
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let _ = parser.parse();
-    parser.finalize_comments();
+    let _ = parser.parse_in_place();
 
     let trailing_block_comment_count = parser
         .comments()

@@ -659,7 +659,7 @@ fn test_parse_if_condition_chain_after_comparison() {
 fn test_parse_if_head_trailing_comment_on_condition_owner() {
     let test = TestParser::new("if (ready) // if-head\n    run()");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -695,7 +695,7 @@ fn test_parse_if_head_trailing_comment_on_condition_owner() {
 fn test_parse_if_else_boundary_comment_on_else_owner() {
     let test = TestParser::new("if (ready) {\n  run()\n}\n// else-boundary\nelse {\n  stop()\n}\n");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -720,7 +720,7 @@ fn test_parse_if_else_after_then_semicolon_with_leading_boundary_comment() {
     let input = "if (foo) a = b;\n/* foo */ else foo.split;";
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
 
@@ -735,7 +735,7 @@ fn test_parse_if_else_after_then_semicolon_with_trailing_boundary_comment() {
     let input = "if (foo) a = b;\nelse /* foo */ foo.split;";
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
 

@@ -82,7 +82,7 @@ foo = [bar] = baz;
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 9);
@@ -121,7 +121,7 @@ a['b'] = c[d] = "test"
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 8);
@@ -144,7 +144,7 @@ a['b'] = c[d] = "test"
 fn test_parse_dereference_assignment_targets() {
     let test = TestParser::new("*reference() += offset; *this = source");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);

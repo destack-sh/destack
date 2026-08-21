@@ -10,7 +10,7 @@ use destack_dir::{
 fn test_parse_type_alias() {
     let test = TestParser::new("type T = int32");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     assert_eq!(expressions.len(), 1);
     let expr_id = expressions[0];
 
@@ -30,7 +30,7 @@ fn test_parse_type_alias() {
 fn test_parse_local_newtype_declaration() {
     let test = TestParser::new("local newtype TaskId = uint64");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -48,7 +48,7 @@ fn test_parse_local_newtype_declaration() {
 fn test_parse_declare_type_alias_kind() {
     let test = TestParser::declaration("declare type T = string");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     let expression_id = expressions[0];
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -67,7 +67,7 @@ fn test_parse_declare_type_alias_kind() {
 fn test_parse_type_alias_before_tree_literal() {
     let test = TestParser::new("type X = typeof Array\n<div>a</div>;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     assert_eq!(expressions.len(), 2);
 
     // type X = typeof Array
@@ -214,7 +214,7 @@ fn test_recover_type_alias_value_declaration_boundaries() {
     for source in cases {
         let test = TestParser::new(source);
         let mut parser = test.prepare();
-        let roots = parser.parse();
+        let roots = parser.parse_in_place();
 
         assert!(
             !parser.errors.is_empty(),

@@ -176,7 +176,7 @@ interface Example {
 "#,
     );
     let mut parser = test.prepare();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     assert_eq!(roots.len(), 1);
@@ -829,7 +829,7 @@ fn test_parse_newtype_interface_empty() {
 fn test_parse_local_newtype_interface() {
     let test = TestParser::new("local newtype interface Awaitable {}");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -847,7 +847,7 @@ fn test_parse_local_newtype_interface() {
 fn test_parse_shared_newtype_interface() {
     let test = TestParser::new("shared newtype interface Channel {}");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -987,7 +987,7 @@ fn test_parse_interface_with_is_and_other_members() {
 fn test_parse_interface_head_comment_before_body_on_declaration_owner() {
     let test = TestParser::new("interface Shape // interface-head\n{\n  area: number\n}");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -1017,7 +1017,7 @@ export newtype interface Add<T, R = this> {
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -1064,7 +1064,7 @@ newtype interface Error {
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     assert_eq!(expressions.len(), 1);

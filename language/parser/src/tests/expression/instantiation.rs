@@ -86,7 +86,7 @@ fn test_parse_instantiation_expression_parenthesized() {
 fn test_parse_parenthesized_instantiation_expression_statement() {
     let test = TestParser::new("(f<T>)<K>;");
     let mut parser = test.prepare_with_comment_retention(CommentRetention::All);
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -126,7 +126,7 @@ fn test_parse_generic_call_with_parenthesized_instantiation_callee() {
 fn test_parse_optional_chain_generic_argument_call() {
     let test = TestParser::new("fn?.<number>();");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -155,7 +155,7 @@ fn test_parse_instantiation_expression_before_next_statement_keyword() {
 const addSpanOperationAttributes = addSpanAttributes("gen_ai.operation", String.camelToSnake)<OperationAttributes>"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
 

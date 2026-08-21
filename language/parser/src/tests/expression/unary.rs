@@ -48,7 +48,7 @@ fn test_reject_runtime_typeof_expression() {
     let test = TestParser::new("typeof value");
     let mut parser = test.prepare();
 
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_errors(
         &parser,
@@ -69,7 +69,7 @@ fn test_reject_runtime_void_expression() {
     let test = TestParser::new("void value");
     let mut parser = test.prepare();
 
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_errors(
         &parser,
@@ -94,7 +94,7 @@ fn test_parse_parenthesized_unary_exponent_operands() {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 4);
@@ -301,7 +301,7 @@ fn test_recover_delete_expression() {
     let test = TestParser::new("delete foo.bar");
     let mut parser = test.prepare();
 
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_errors(
         &parser,

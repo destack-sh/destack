@@ -128,7 +128,7 @@ fn test_recover_generic_arrow_constraint_member() {
         "const broken = <T: { item: ; }>(value: T) => value;\nconst recovered = 1;",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_errors(&parser, &[(Some(NodeType::TypeMember), None, None, ";")]);
     assert_eq!(expressions.len(), 2);

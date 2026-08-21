@@ -110,7 +110,7 @@ fn test_parse_block_with_missing_close_brace() {
 fn test_parse_root_unmatched_close_brace_recovery() {
     let test = TestParser::new("}\nnextValue");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[0], Expression::Error);
@@ -121,7 +121,7 @@ fn test_parse_root_unmatched_close_brace_recovery() {
 fn test_parse_root_unmatched_close_parenthesis_recovery() {
     let test = TestParser::new(")\nnextValue");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[0], Expression::Error);
@@ -527,7 +527,7 @@ fn test_parse_statement_leading_semicolon_parenthesized_arrow_call() {
 fn test_parse_if_block_keeps_tail_expression_value() {
     let test = TestParser::new("if (x) { foo() }");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // if (x) { foo() }
     assert_eq!(expressions.len(), 1);
@@ -549,7 +549,7 @@ fn test_parse_if_block_keeps_tail_expression_value() {
 fn test_parse_function_body_keeps_tail_expression_value() {
     let test = TestParser::new("function run() { foo() }");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // function run() { foo() }
     assert_eq!(expressions.len(), 1);
@@ -579,7 +579,7 @@ function next(value: number): IteratorResult<number> {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
 
@@ -633,7 +633,7 @@ function apply(result: Result): IteratorResult<number> {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
 
@@ -684,7 +684,7 @@ function run() {
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // function run() { foo() }
     assert_eq!(expressions.len(), 1);
@@ -714,7 +714,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // function choose(...) { if (flag) { a } else { b } }
     assert_eq!(expressions.len(), 1);
@@ -764,7 +764,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     let function_expression_id = expressions[0];
@@ -800,7 +800,7 @@ fn test_parse_function_declaration_followed_by_call_without_newline() {
         "function main(){return 1}main().catch((function handle(error){console.error(error);process.exit(1)}));",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // function main(){...} main().catch(...)
     assert_eq!(expressions.len(), 2);
@@ -853,7 +853,7 @@ fn test_return_asi_with_block_comment_newline() {
 fn test_parse_return_semicolon_trailing_comment_on_statement_wrapper_owner() {
     let test = TestParser::new("return value; // return-tail");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -879,7 +879,7 @@ fn test_parse_return_semicolon_trailing_comment_on_statement_wrapper_owner() {
 fn test_parse_new_without_receiver_as_statement_recovers_missing_constructor() {
     let test = TestParser::new("new");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
@@ -906,7 +906,7 @@ new
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
@@ -934,7 +934,7 @@ next()
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "next")]);
@@ -965,7 +965,7 @@ const value = 1
 "#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(
@@ -1002,7 +1002,7 @@ fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_before_tree()
 }",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -1034,7 +1034,7 @@ fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_before_tree()
 fn test_parse_statement_separator_comment_before_semicolon_attaches_to_previous_statement() {
     let test = TestParser::new("declare const PAGE_PATH: string\n  //<- keep-marker\n;(()=>{})()");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),
@@ -1102,7 +1102,7 @@ fn test_parse_deeply_nested_if_statement() {
     let source = nested_if_block_source(512);
     let test = TestParser::new(&source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     test.assert_no_errors(&parser);
@@ -1114,7 +1114,7 @@ fn test_parse_excessively_nested_if_statement() {
     let source = nested_if_block_source(1025);
     let test = TestParser::new(&source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     test.assert_no_errors(&parser);
@@ -1126,7 +1126,7 @@ fn test_parse_deeply_nested_unbraced_if_statement() {
     let source = nested_unbraced_if_source(1024);
     let test = TestParser::new(&source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     test.assert_no_errors(&parser);
@@ -1138,7 +1138,7 @@ fn test_parse_deeply_nested_unbraced_while_statement() {
     let source = nested_unbraced_while_source(1024);
     let test = TestParser::new(&source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     test.assert_no_errors(&parser);

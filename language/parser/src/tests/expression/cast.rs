@@ -176,7 +176,7 @@ fn test_parse_logical_or_with_parenthesized_cast_comparison() {
 fn test_parse_if_condition_with_parenthesized_cast_comparison() {
     let test = TestParser::new("if (i < 0 || i >= (this.length as number)) {\n  undefined!;\n}");
     let mut parser = test.prepare();
-    let _ = parser.parse();
+    let _ = parser.parse_in_place();
 
     // if (i < 0 || i >= (this.length as number)) { ... }
     let has_parse_error = parser
@@ -466,7 +466,7 @@ fn test_recover_newline_before_assertion_operator() {
         let test = TestParser::new(&source);
         let mut parser = test.prepare();
 
-        parser.parse();
+        parser.parse_in_place();
 
         test.assert_errors(
             &parser,
@@ -575,7 +575,7 @@ fn test_recover_arrow_parameter_cast_tails() {
         let source = format!("{source}\nconst stable = 1;");
         let test = TestParser::new(&source);
         let mut parser = test.prepare();
-        let expressions = parser.parse();
+        let expressions = parser.parse_in_place();
 
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -790,7 +790,7 @@ fn test_parse_parenthesized_cast_followed_by_flat_map_call() {
 fn test_parse_type_alias_named_as_or_satisfies() {
     let test = TestParser::new("type as = 0;\ntype satisfies = 0;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
 

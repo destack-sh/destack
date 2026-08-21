@@ -283,7 +283,7 @@ fn test_parse_deeply_nested_call_expression() {
     let source = nested_call_source(1024);
     let test = TestParser::new(&source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     test.assert_no_errors(&parser);

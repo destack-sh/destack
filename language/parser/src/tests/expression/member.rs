@@ -33,7 +33,7 @@ shared?.nested.ok satisfies boolean;
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 3);

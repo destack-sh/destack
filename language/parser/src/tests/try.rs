@@ -202,7 +202,7 @@ async function errorCase(): Promise<int32> {
     );
     let mut parser = test.prepare();
 
-    parser.parse();
+    parser.parse_in_place();
 
     test.assert_no_errors(&parser);
 }

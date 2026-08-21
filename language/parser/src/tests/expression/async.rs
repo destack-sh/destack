@@ -49,7 +49,7 @@ fn test_parse_async_generic_arrow_assignment_with_constraint_default() {
 fn test_parse_async_generic_false_positive() {
     let test = TestParser::new("async < 1;\nasync<T>() == 0;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
@@ -81,7 +81,7 @@ fn test_parse_async_generic_false_positive() {
 fn test_parse_async_generic_arrow_asi() {
     let test = TestParser::new("let a = {}\nasync<T,>() => {}\n\n(a as any).b = 1;\n");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 3);
 

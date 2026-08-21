@@ -1,15 +1,14 @@
 use crate::{CommentRetention, ParserError, ParserResult, PatternMarker, classify_keyword};
-use core::fmt;
-use destack_core::{LocalStringPool, StringId, StringPool, ensure_sufficient_stack};
+use core::fmt::{self, Debug};
+use destack_core::{LocalStringPool, StringId, ensure_sufficient_stack};
 use destack_dir::{
     BlockContext, BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token,
     TokenLiteral, TokenSpan, TokenType, Tree, TreeCapacity, TreeStore,
 };
 use destack_source::{
-    ByteRange, Diagnostic, DiagnosticCollection, File, FileId, LanguageType, ModuleId,
-    NodeSpanBoundary, NodeSpanRegion, NodeSpanType, PackageId, Span,
+    ByteRange, Diagnostic, DiagnosticCollection, File, FileId, LanguageType, NodeSpanBoundary,
+    NodeSpanRegion, NodeSpanType, Span,
 };
-use std::fmt::Debug;
 use std::sync::Arc;
 
 use super::TokenMode;
@@ -27,8 +26,68 @@ pub enum Grammar {
     /// Ordinary Destack source.
     #[default]
     Destack,
-    /// Destack source with structural Pattern placeholders.
+    /// Destack source with structural pattern placeholders.
     Pattern,
+}
+
+/// Configuration for parsing one source file.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ParseOptions {
+    /// The accepted source grammar.
+    pub grammar: Grammar,
+    /// The source comments to retain.
+    pub comment_retention: CommentRetention,
+}
+
+/// The completed parse of one source file.
+pub struct Parse {
+    /// The parsed source file.
+    pub file: Arc<File>,
+    /// The parsed root expressions.
+    pub roots: Vec<LocalNodeId<Expression>>,
+    /// The completed DIR tree.
+    pub tree: Tree,
+
+    /// The strings interned while parsing.
+    pub strings: LocalStringPool,
+    /// The semantic tokens.
+    pub tokens: Vec<Token>,
+    /// The retained source comments.
+    pub comments: Vec<Comment>,
+
+    /// The distinct parser errors.
+    pub errors: Vec<ParserError>,
+}
+
+impl Debug for Parse {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Parse")
+            .field("file", &self.file.path)
+            .field("roots", &self.roots.len())
+            .field("tokens", &self.tokens.len())
+            .field("comments", &self.comments.len())
+            .field("errors", &self.errors.len())
+            .finish()
+    }
+}
+
+impl Parse {
+    /// Take the semantic tokens as source spans.
+    pub fn take_token_spans(&mut self) -> Vec<TokenSpan> {
+        // attach the parsed file to every source-local token
+        let file_id = self.file.id;
+
+        std::mem::take(&mut self.tokens)
+            .into_iter()
+            .map(|token| TokenSpan::new(token, file_id))
+            .collect()
+    }
+
+    /// Create source diagnostics from parser errors.
+    pub fn diagnostics(&self) -> DiagnosticCollection {
+        diagnostics(&self.file, &self.errors)
+    }
 }
 
 /// An indexed parser for one source file.
@@ -39,8 +98,6 @@ pub struct Parser {
     pub file_id: FileId,
     /// The forward token cursor.
     pub(super) cursor: TokenCursor,
-    /// Whether the parser is finished.
-    is_finished: bool,
     /// The next retained comment to inspect for documentation.
     pub(super) next_documentation_comment: usize,
     /// The current nested recursive descent depth.
@@ -52,9 +109,6 @@ pub struct Parser {
     pub tree: Tree,
     /// The strings interned locally during this parse.
     pub strings: LocalStringPool,
-    /// The shared string pool receiving published strings.
-    shared_strings: Arc<StringPool>,
-
     /// Whether the source is an ambient declaration file.
     pub(crate) is_ambient: bool,
     /// The distinct parser errors encountered so far.
@@ -150,14 +204,17 @@ impl Parser {
         result
     }
 
-    /// Create one parser over an indexed token cursor.
-    fn new(
+    /// Create a parser for one source file and DIR tree.
+    pub fn new(
         file: Arc<File>,
-        language: LanguageType,
-        strings: Arc<StringPool>,
+        language_type: LanguageType,
         mut tree: Tree,
-        cursor: TokenCursor,
+        options: ParseOptions,
     ) -> Self {
+        // lex the source and reserve the expected node storage
+        let cursor = TokenCursor::new(file.clone(), options.comment_retention);
+        tree.reserve(TreeCapacity::nodes(cursor.token_count()));
+
         // initialize source-local parser state
         let file_id = file.id;
         tree.begin_source_file(file_id);
@@ -165,71 +222,14 @@ impl Parser {
             file,
             file_id,
             cursor,
-            is_finished: false,
             next_documentation_comment: 0,
             recursive_descent_depth: 0,
-            grammar: Grammar::Destack,
-            is_ambient: language.is_declaration(),
+            grammar: options.grammar,
+            is_ambient: language_type.is_declaration(),
             tree,
             strings: LocalStringPool::new(),
-            shared_strings: strings,
             errors: Vec::new(),
         }
-    }
-
-    /// Create a parser for one source file.
-    pub fn lex_file(file: Arc<File>, language: LanguageType, strings: Arc<StringPool>) -> Self {
-        Self::lex_file_with_comment_retention(
-            file,
-            language,
-            CommentRetention::Documentation,
-            strings,
-        )
-    }
-
-    /// Create a parser for one source file with explicit comment retention.
-    pub fn lex_file_with_comment_retention(
-        file: Arc<File>,
-        language: LanguageType,
-        comment_retention: CommentRetention,
-        strings: Arc<StringPool>,
-    ) -> Self {
-        let module_id = ModuleId::new(PackageId::new(0), file.id.0);
-        let cursor = TokenCursor::new(file.clone(), comment_retention);
-        let capacity = TreeCapacity {
-            nodes: cursor.token_count(),
-            ..TreeCapacity::default()
-        };
-        let tree = Tree::with_capacities(module_id, capacity);
-
-        Self::new(file, language, strings, tree, cursor)
-    }
-
-    /// Select the source grammar accepted by this parser.
-    pub fn with_grammar(mut self, grammar: Grammar) -> Self {
-        self.grammar = grammar;
-
-        self
-    }
-
-    /// Create a parser that appends one module source file to an existing DIR tree.
-    pub fn lex_into_tree_with_comment_retention(
-        file: Arc<File>,
-        language: LanguageType,
-        comment_retention: CommentRetention,
-        strings: Arc<StringPool>,
-        tree: Tree,
-    ) -> Self {
-        let cursor = TokenCursor::new(file.clone(), comment_retention);
-
-        Self::new(file, language, strings, tree, cursor)
-    }
-
-    /// Publish locally interned strings and return the shared pool.
-    pub fn publish_strings(&self) -> &Arc<StringPool> {
-        self.shared_strings.extend(&self.strings);
-
-        &self.shared_strings
     }
 
     /// Return consumed semantic tokens for parser tests.
@@ -526,20 +526,36 @@ impl Parser {
         }
     }
 
-    /// Parse everything as an implicit namespace.
-    pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        let expressions = self.parse_roots();
+    /// Parse the complete source file.
+    pub fn parse(mut self) -> Parse {
+        // parse the implicit file namespace
+        let roots = self.parse_roots();
 
         // finish retained source metadata
         self.finalize_comments();
-        self.is_finished = true;
+        let tokens = self.cursor.take_tokens();
+        let comments = self.cursor.take_comments();
 
-        expressions
+        Parse {
+            file: self.file,
+            roots,
+            tree: self.tree,
+
+            strings: self.strings,
+            tokens,
+            comments,
+
+            errors: self.errors,
+        }
     }
 
-    /// Return whether the parser finished one full parse pipeline.
-    pub const fn is_finished(&self) -> bool {
-        self.is_finished
+    /// Parse the complete source file while retaining parser state for tests.
+    #[cfg(test)]
+    pub(crate) fn parse_in_place(&mut self) -> Vec<LocalNodeId<Expression>> {
+        let roots = self.parse_roots();
+        self.finalize_comments();
+
+        roots
     }
 
     /// Finalize retained comments after contextual tokenization.
@@ -571,18 +587,7 @@ impl Parser {
 
     /// Create source diagnostics from parser errors.
     pub fn diagnostics(&self) -> DiagnosticCollection {
-        if self.errors.is_empty() {
-            return DiagnosticCollection::new();
-        }
-
-        let blob = self.file.blob();
-        let diagnostics = self
-            .errors
-            .iter()
-            .map(|error| error.to_diagnostic(blob, self.file_id))
-            .collect();
-
-        DiagnosticCollection::from_diagnostics(diagnostics)
+        diagnostics(&self.file, &self.errors)
     }
 
     /// Create one source diagnostic from one parser error.
@@ -847,8 +852,6 @@ impl Parser {
     /// Advance to the next token.
     #[inline]
     pub fn bump(&mut self) {
-        debug_assert!(!self.is_finished, "parser is already finished");
-
         self.cursor.bump();
     }
 
@@ -912,4 +915,21 @@ impl ParseStart {
     pub(crate) fn token_end(&self) -> u32 {
         self.range.end
     }
+}
+
+/// Create source diagnostics from parser errors.
+fn diagnostics(file: &File, errors: &[ParserError]) -> DiagnosticCollection {
+    // skip diagnostic allocation for successful parses
+    if errors.is_empty() {
+        return DiagnosticCollection::new();
+    }
+
+    // convert every parser failure against the authored source
+    let blob = file.blob();
+    let diagnostics = errors
+        .iter()
+        .map(|error| error.to_diagnostic(blob, file.id))
+        .collect();
+
+    DiagnosticCollection::from_diagnostics(diagnostics)
 }

@@ -26,7 +26,7 @@ fn test_parse_optional_chain_after_comment_newlines() {
     let input = "promise\n  .then(noop)\n  // comment\n  // comment\n  ?.catch(noop)";
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -173,7 +173,7 @@ fn test_parse_direct_maybe_after_generic_call_with_escaped_string() {
         r#"const config = decode<ServerConfig>("{\"host\":\"127.0.0.1\",\"port\":8080,\"secure\":true}")?;"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -196,7 +196,7 @@ fn test_parse_direct_maybe_after_multiline_generic_call() {
 )?;"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -215,7 +215,7 @@ fn test_parse_direct_maybe_after_multiline_generic_call() {
 fn test_parse_direct_maybe_after_qualified_call() {
     let test = TestParser::new("JSON.parse(text)?;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -230,7 +230,7 @@ fn test_parse_direct_maybe_after_qualified_call() {
 fn test_parse_direct_maybe_after_qualified_call_before_satisfies() {
     let test = TestParser::new("JSON.stringify(value)? satisfies string;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);

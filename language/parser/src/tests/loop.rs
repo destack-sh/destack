@@ -771,7 +771,7 @@ fn test_parse_do_while_block_with_semicolons() {
     let test = TestParser::new("do { a++; b--; } while (a < 1)");
     let mut parser = test.prepare();
 
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
     assert_eq!(roots.len(), 1);
     assert_node!(parser.tree, roots[0], Expression::While { form, condition, body, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);

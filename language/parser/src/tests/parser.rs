@@ -1,13 +1,13 @@
 use destack_dir::{
-    AssignPattern, Block, Expression, LocalNodeId, Node, NodeType, TokenLiteral, TokenType,
+    AssignPattern, Block, Expression, LocalNodeId, Node, NodeType, TokenLiteral, TokenType, Tree,
     TypeExpression,
 };
 use std::sync::Arc;
 
-use destack_core::{StringId, StringPool};
-use destack_source::{File, FileId, FileType, LanguageType, Uri};
+use destack_core::StringId;
+use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
 
-use crate::{CommentRetention, Grammar, Parser};
+use crate::{CommentRetention, Grammar, ParseOptions, Parser};
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
@@ -54,7 +54,10 @@ impl TestParser {
 
     /// Create a parser accepting structural Pattern placeholders.
     pub(crate) fn prepare_pattern(&self) -> Parser {
-        self.prepare().with_grammar(Grammar::Pattern)
+        self.prepare_with_options(ParseOptions {
+            grammar: Grammar::Pattern,
+            comment_retention: CommentRetention::All,
+        })
     }
 
     /// Create a parser with explicit comment retention for this test.
@@ -62,18 +65,24 @@ impl TestParser {
         &self,
         comment_retention: CommentRetention,
     ) -> Parser {
-        Parser::lex_file_with_comment_retention(
-            self.file.clone(),
-            self.language,
+        self.prepare_with_options(ParseOptions {
             comment_retention,
-            Arc::new(StringPool::new()),
-        )
+            ..ParseOptions::default()
+        })
+    }
+
+    /// Create a parser with explicit parse options for this test.
+    fn prepare_with_options(&self, options: ParseOptions) -> Parser {
+        let module_id = ModuleId::new(PackageId::new(0), self.file.id.0);
+        let tree = Tree::new(module_id);
+
+        Parser::new(self.file.clone(), self.language, tree, options)
     }
 
     /// Parse one complete source file without parser errors.
     pub(crate) fn parse(&self) -> (Parser, Vec<LocalNodeId<Expression>>) {
         let mut parser = self.prepare();
-        let roots = parser.parse();
+        let roots = parser.parse_in_place();
 
         self.assert_no_errors(&parser);
 
@@ -152,7 +161,7 @@ fn test_take_tokens_before_parse() {
 fn test_take_tokens_materializes_splits() {
     let test = TestParser::new("const borrowed = &&value; type Nested = Box<Box<int>>;");
     let mut parser = test.prepare();
-    parser.parse();
+    parser.parse_in_place();
     let tokens = parser.take_tokens();
     let tokens: Vec<_> = tokens
         .iter()
@@ -191,7 +200,7 @@ fn test_take_tokens_materializes_splits() {
 fn test_take_tokens_materializes_regex() {
     let test = TestParser::new("const pattern = /a+b/g;");
     let mut parser = test.prepare();
-    parser.parse();
+    parser.parse_in_place();
     let tokens = parser.take_tokens();
     let tokens: Vec<_> = tokens
         .iter()
@@ -221,7 +230,7 @@ fn test_take_tokens_materializes_regex() {
 fn test_take_tokens_materializes_tree() {
     let test = TestParser::new("const tree = <panel-name title={value}>hello world</panel-name>;");
     let mut parser = test.prepare();
-    parser.parse();
+    parser.parse_in_place();
     let tokens = parser.take_tokens();
     let tokens: Vec<_> = tokens
         .iter()

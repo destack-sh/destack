@@ -812,7 +812,7 @@ fn test_recover_tree_opening_at_ancestor_closing_tag() {
         "const broken = <Panel><Item><Child flag={ ;</Panel>;\nconst recovered = 1;",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_errors(
         &parser,
@@ -2011,7 +2011,7 @@ fn test_parse_nested_tree_fragment_text_with_equals_prefix() {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 1);
@@ -2075,7 +2075,7 @@ fn test_parse_tree_text_and_greater_than_or_equal_sequence() {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 4);
@@ -2378,7 +2378,7 @@ function x() {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 1);
@@ -2404,7 +2404,7 @@ class Foo {}
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
 
     // ensure fragments after classes parse with multiple children
@@ -2450,7 +2450,7 @@ class Foo {}
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 13);
@@ -2507,7 +2507,7 @@ function test() {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // ensure return is terminated and tree literal follows
     assert_eq!(expressions.len(), 1);
@@ -2547,7 +2547,7 @@ function app() {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -2582,7 +2582,7 @@ fn test_parse_object_property_trailing_comments_on_property_owners() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert!(
         parser.errors.is_empty(),

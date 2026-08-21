@@ -55,7 +55,7 @@ global {
     );
     let mut parser = test.prepare();
 
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
     assert_eq!(expressions.len(), 1);
 
     let expression_id = expressions[0];

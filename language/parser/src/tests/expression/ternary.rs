@@ -47,7 +47,7 @@ fn test_parse_ternary_false_branch_assignment() {
 fn test_parse_statement_position_ternaries() {
     let test = TestParser::new("{ condition ? first : second; [condition] ? third : fourth; }");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);

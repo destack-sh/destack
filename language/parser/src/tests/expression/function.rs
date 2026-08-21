@@ -156,7 +156,7 @@ fn test_parse_typed_lambda_value_with_multiple_parameters() {
 add satisfies (a: number, b: number) => number;"#,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
@@ -247,7 +247,7 @@ fn test_parse_call_with_function_expression_newline_before_body() {
 fn test_recover_anonymous_function_argument() {
     let test = TestParser::new("consume(function () {});\nconst stable = 1;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[0], Expression::Call { arguments, .. } => {

@@ -807,7 +807,7 @@ interface Reader {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     test.assert_no_errors(&parser);
@@ -924,7 +924,7 @@ class Test {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     test.assert_no_errors(&parser);
@@ -1264,7 +1264,7 @@ fn test_parse_dynamic_arguments_recover_leading_empty_slots() {
 fn test_parse_malformed_call_statement_missing_close_keeps_call_shape() {
     let test = TestParser::new("foo(a,b;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(
@@ -1289,7 +1289,7 @@ fn test_parse_malformed_call_statement_missing_close_keeps_call_shape() {
 fn test_parse_malformed_call_statement_before_const_keeps_call_shape() {
     let test = TestParser::new("foo(a,b const;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(
@@ -1323,7 +1323,7 @@ fn test_parse_malformed_call_statement_before_const_keeps_call_shape() {
 fn test_parse_malformed_call_statement_with_leading_empty_slots_keeps_call_shape() {
     let test = TestParser::new("foo (,,b);");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(
@@ -1348,7 +1348,7 @@ fn test_parse_malformed_call_statement_with_leading_empty_slots_keeps_call_shape
 fn test_parse_malformed_call_statement_with_trailing_spread_keeps_call_shape() {
     let test = TestParser::new("foo (a, ...);");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(
@@ -1373,7 +1373,7 @@ foo (,,b);
 "#;
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(
@@ -1422,7 +1422,7 @@ foo (a, ...);
 "#;
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(
@@ -1470,7 +1470,7 @@ bar();
 "#;
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(
@@ -1510,7 +1510,7 @@ const value = 1;
 "#;
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     // diagnostics
     test.assert_errors(

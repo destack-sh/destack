@@ -7,10 +7,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use destack_core::StringPool;
-use destack_dir::{Expression, LocalNodeId};
-use destack_parser::{CommentRetention, Parser};
-use destack_source::{File, FileId, FileType, LanguageType, Uri};
+use destack_dir::Tree;
+use destack_parser::{CommentRetention, Parse, ParseOptions, Parser};
+use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
 use pprof::ProfilerGuardBuilder;
 use pprof::flamegraph::Options as FlamegraphOptions;
 
@@ -88,7 +87,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let language = file_language(file.ty)?;
     let comment_retention = options.comment_retention;
     let stage = options.stage;
-    let strings = Arc::new(StringPool::new());
 
     // prepare the sampler before measuring parser work
     let guard = ProfilerGuardBuilder::default()
@@ -102,20 +100,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     while start.elapsed() < options.duration {
         match stage {
             ParserStage::Lex => {
-                black_box(Parser::lex_file_with_comment_retention(
+                let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+                black_box(Parser::new(
                     file.clone(),
                     language,
-                    comment_retention,
-                    strings.clone(),
+                    Tree::new(module_id),
+                    ParseOptions {
+                        comment_retention,
+                        ..ParseOptions::default()
+                    },
                 ));
             }
             ParserStage::Parse => {
-                black_box(parse_file(
-                    file.clone(),
-                    language,
-                    comment_retention,
-                    strings.clone(),
-                ));
+                black_box(parse_file(file.clone(), language, comment_retention));
             }
         }
         runs += 1;
@@ -155,14 +152,19 @@ fn parse_file(
     file: Arc<File>,
     language: LanguageType,
     comment_retention: CommentRetention,
-    strings: Arc<StringPool>,
-) -> (Parser, Vec<LocalNodeId<Expression>>) {
-    let mut parser =
-        Parser::lex_file_with_comment_retention(file, language, comment_retention, strings);
+) -> Parse {
+    let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+    let parser = Parser::new(
+        file,
+        language,
+        Tree::new(module_id),
+        ParseOptions {
+            comment_retention,
+            ..ParseOptions::default()
+        },
+    );
 
-    let roots = parser.parse();
-
-    (parser, roots)
+    parser.parse()
 }
 
 /// Write a pprof report as an SVG flamegraph.

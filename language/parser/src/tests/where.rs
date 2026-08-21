@@ -11,7 +11,7 @@ use crate::{TestParser, assert_comment, assert_expression_path, assert_node, ass
 fn test_parse_pattern_where_clause_placeholder() {
     let test = TestParser::new("function example<T>(): void where $$$CLAUSES {}");
     let mut parser = test.prepare_pattern();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, roots[0], Expression::Declaration(value) => {

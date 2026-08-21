@@ -42,7 +42,7 @@ fn test_parse_inclusive_range_expression() {
 fn test_parse_open_ended_range_expressions() {
     let test = TestParser::new("1..\n..10\n..=10\n..");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 4);
     assert_node!(parser.tree, expressions[0], Expression::RangeExpression { start, end, end_kind } => {
@@ -136,7 +136,7 @@ fn test_parse_range_index_expression_forms() {
     let test =
         TestParser::new("items[1..=count]\nitems[start..]\nitems[..end]\nitems[..=end]\nitems[..]");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 5);
     assert_node!(parser.tree, expressions[0], Expression::Index { index: Some(index), .. } => {
@@ -191,7 +191,7 @@ fn test_parse_range_index_expression_forms() {
 fn test_parse_full_range_expression_before_newline() {
     let test = TestParser::new("..\nvalue");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[0], Expression::RangeExpression { start, end, end_kind } => {

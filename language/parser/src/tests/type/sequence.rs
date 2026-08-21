@@ -13,7 +13,7 @@ use destack_dir::{
 fn test_parse_pattern_tuple_element_placeholder() {
     let test = TestParser::new("type Values = [$$$ELEMENTS]");
     let mut parser = test.prepare_pattern();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, roots[0], Expression::Declaration(value) => {

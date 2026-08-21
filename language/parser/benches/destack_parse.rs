@@ -1,9 +1,8 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_core::StringPool;
-use destack_dir::{Expression, TypeExpression};
-use destack_parser::{CommentRetention, Parser};
-use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
+use destack_dir::{Expression, Tree, TypeExpression};
+use destack_parser::{CommentRetention, Parse, ParseOptions, Parser};
+use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri, glob};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -31,8 +30,6 @@ struct Corpus {
     bytes: u64,
     /// Total corpus source lines.
     lines: u64,
-    /// The shared string pool used by every file parse.
-    strings: Arc<StringPool>,
 }
 
 /// One parser benchmark stage.
@@ -93,6 +90,20 @@ impl Stats {
         }
     }
 
+    /// Summarize one completed parse.
+    fn from_parse(parse: &Parse) -> Self {
+        Self {
+            tokens: parse.tokens.len() as u64,
+            nodes: parse.tree.node_count() as u64,
+            expressions: parse.tree.iter_nodes::<Expression>().count() as u64,
+            type_expressions: parse.tree.iter_nodes::<TypeExpression>().count() as u64,
+            comments: parse.comments.len() as u64,
+            errors: parse.errors.len() as u64,
+            strings: parse.strings.len() as u64,
+            string_bytes: parse.strings.owned_bytes() as u64,
+        }
+    }
+
     /// Accumulate one summary into this summary.
     fn add(&mut self, other: Self) {
         self.tokens += other.tokens;
@@ -118,77 +129,71 @@ fn worker_count() -> usize {
 }
 
 /// Create one parser for a source file.
-fn prepare_parser(
-    file: Arc<File>,
-    comment_retention: CommentRetention,
-    strings: Arc<StringPool>,
-) -> Parser {
+fn prepare_parser(file: Arc<File>, comment_retention: CommentRetention) -> Parser {
     let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
-    Parser::lex_file_with_comment_retention(file, language_type, comment_retention, strings)
+    let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+
+    Parser::new(
+        file,
+        language_type,
+        Tree::new(module_id),
+        ParseOptions {
+            comment_retention,
+            ..ParseOptions::default()
+        },
+    )
 }
 
 /// Parse one file through the full parser pipeline.
-fn parse_file(
-    file: Arc<File>,
-    comment_retention: CommentRetention,
-    strings: Arc<StringPool>,
-) -> Parser {
-    let mut parser = prepare_parser(file, comment_retention, strings);
-    parser.parse();
+fn parse_file(file: Arc<File>, comment_retention: CommentRetention) -> Parse {
+    let parser = prepare_parser(file, comment_retention);
 
-    parser
+    parser.parse()
 }
 
 /// Run one parser benchmark stage for one file.
-fn run_stage(
-    file: Arc<File>,
-    stage: Stage,
-    comment_retention: CommentRetention,
-    strings: Arc<StringPool>,
-) {
+fn run_stage(file: Arc<File>, stage: Stage, comment_retention: CommentRetention) {
     match stage {
         Stage::Lex => {
-            let mut parser = prepare_parser(file, comment_retention, strings);
+            let mut parser = prepare_parser(file, comment_retention);
             let tokens = parser.take_tokens();
             black_box(tokens);
         }
         Stage::ParseRoots => {
-            let mut parser = prepare_parser(file, comment_retention, strings);
+            let mut parser = prepare_parser(file, comment_retention);
             let roots = parser.parse_roots();
             black_box((parser, roots));
         }
         Stage::Parse => {
-            let mut parser = prepare_parser(file, comment_retention, strings);
-            let roots = parser.parse();
-            black_box((parser, roots));
+            let parser = prepare_parser(file, comment_retention);
+            black_box(parser.parse());
         }
     }
 }
 
 /// Summarize one parser benchmark stage for one file.
-fn summarize_stage(
-    file: Arc<File>,
-    stage: Stage,
-    comment_retention: CommentRetention,
-    strings: Arc<StringPool>,
-) -> Stats {
-    let mut parser = prepare_parser(file, comment_retention, strings);
+fn summarize_stage(file: Arc<File>, stage: Stage, comment_retention: CommentRetention) -> Stats {
+    let mut parser = prepare_parser(file, comment_retention);
 
     // run the selected stage
     match stage {
-        Stage::Lex => {}
+        Stage::Lex => {
+            let tokens = parser.take_tokens();
+
+            Stats::from_parser(&parser, tokens.len())
+        }
         Stage::ParseRoots => {
             parser.parse_roots();
+
+            let tokens = parser.take_tokens();
+            Stats::from_parser(&parser, tokens.len())
         }
         Stage::Parse => {
-            parser.parse();
+            let parse = parser.parse();
+
+            Stats::from_parse(&parse)
         }
     }
-
-    // summarize retained parser state
-    let tokens = parser.take_tokens();
-
-    Stats::from_parser(&parser, tokens.len())
 }
 
 /// Summarize one parser benchmark stage for one corpus.
@@ -196,12 +201,7 @@ fn summarize_corpus(corpus: &Corpus, stage: Stage, comment_retention: CommentRet
     let mut stats = Stats::default();
 
     for file in &corpus.files {
-        stats.add(summarize_stage(
-            file.clone(),
-            stage,
-            comment_retention,
-            corpus.strings.clone(),
-        ));
+        stats.add(summarize_stage(file.clone(), stage, comment_retention));
     }
 
     stats
@@ -354,7 +354,6 @@ fn load_file_corpus(name: impl Into<String>, paths: &[PathBuf]) -> Option<Corpus
             files,
             bytes,
             lines,
-            strings: Arc::new(StringPool::new()),
         })
     }
 }
@@ -394,7 +393,6 @@ fn generated_corpus(
         files,
         bytes,
         lines,
-        strings: Arc::new(StringPool::new()),
     }
 }
 
@@ -646,12 +644,7 @@ fn bench_parse(criterion: &mut Criterion) {
             |bencher, corpus| {
                 bencher.iter(|| {
                     for file in &corpus.files {
-                        run_stage(
-                            file.clone(),
-                            stage,
-                            comment_retention,
-                            corpus.strings.clone(),
-                        );
+                        run_stage(file.clone(), stage, comment_retention);
                     }
                 });
             },
@@ -717,7 +710,6 @@ fn bench_parse_single(criterion: &mut Criterion) {
     let worker_count = worker_count();
     let comment_retention = comment_retention();
     let comment_retention_name = comment_retention_name(comment_retention);
-    let strings = Arc::new(StringPool::new());
 
     // oxc style: single thread parse
     group.bench_with_input(
@@ -726,8 +718,8 @@ fn bench_parse_single(criterion: &mut Criterion) {
         |bencher, file| {
             bencher.iter(|| {
                 // parse full pipeline
-                let parser = parse_file(file.clone(), comment_retention, strings.clone());
-                black_box(parser);
+                let parse = parse_file(file.clone(), comment_retention);
+                black_box(parse);
             });
         },
     );
@@ -737,9 +729,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         BenchmarkId::new(format!("parse_{comment_retention_name}"), "no-drop"),
         &file,
         |bencher, file| {
-            bencher.iter_with_large_drop(|| {
-                parse_file(file.clone(), comment_retention, strings.clone())
-            });
+            bencher.iter_with_large_drop(|| parse_file(file.clone(), comment_retention));
         },
     );
 
@@ -750,8 +740,8 @@ fn bench_parse_single(criterion: &mut Criterion) {
         |bencher, file| {
             bencher.iter(|| {
                 (0..worker_count).into_par_iter().for_each(|_| {
-                    let parser = parse_file(file.clone(), comment_retention, strings.clone());
-                    black_box(parser);
+                    let parse = parse_file(file.clone(), comment_retention);
+                    black_box(parse);
                 });
             });
         },

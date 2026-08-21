@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use crate::{CommentRetention, Lexer, Parser, Tokenizer};
-use destack_core::StringPool;
-use destack_dir::render_tokens;
+use crate::{CommentRetention, Lexer, ParseOptions, Parser, Tokenizer};
 pub(in crate::lex) use destack_dir::{NumberBase, Token, TokenLiteral, TokenSpan, TokenType};
-use destack_source::{File, FileId, FileType, LanguageType, Span, Uri};
+use destack_dir::{Tree, render_tokens};
+use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Span, Uri};
 
 /// The lexer entry point used by a roundtrip assertion.
 #[derive(Debug, Clone, Copy)]
@@ -181,11 +180,15 @@ pub(in crate::lex) fn lex_source_with_tree_literals(
     };
 
     // configure parser driven lexing
-    let mut parser = Parser::lex_file_with_comment_retention(
+    let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+    let mut parser = Parser::new(
         file.clone(),
         LanguageType::Destack,
-        CommentRetention::All,
-        Arc::new(StringPool::new()),
+        Tree::new(module_id),
+        ParseOptions {
+            comment_retention: CommentRetention::All,
+            ..ParseOptions::default()
+        },
     );
 
     // drive tree child tokenization like production code

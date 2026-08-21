@@ -54,7 +54,7 @@ let value = do {
 "#,
     );
     let mut parser = test.prepare();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     assert_eq!(roots.len(), 1);
     assert_node!(parser.tree, roots[0], Expression::Let { declarators, .. } => {
@@ -345,7 +345,7 @@ fn test_parse_export_expression_type_declaration() {
 fn test_parse_export_default_abstract_class_with_decorator_prefixes() {
     let test = TestParser::new("@before\nexport default @after abstract class Foo { }");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -464,7 +464,7 @@ fn test_parse_abstract_as_identifier_call() {
 fn test_parse_abstract_newline_as_identifier_then_class() {
     let test = TestParser::new("abstract\nclass B {}");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
@@ -481,7 +481,7 @@ fn test_parse_abstract_newline_as_identifier_then_class() {
 fn test_parse_type_newline_as_identifier_then_assignment() {
     let test = TestParser::new("type\nFoo = string;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);

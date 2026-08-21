@@ -59,7 +59,7 @@ shared const registry: Registry = new Registry();
     );
     let mut parser = test.prepare();
 
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(roots.len(), 2);
@@ -194,7 +194,7 @@ fn test_recover_malformed_declarator_punctuation() {
     for (source, expected) in cases {
         let test = TestParser::new(source);
         let mut parser = test.prepare();
-        let expressions = parser.parse();
+        let expressions = parser.parse_in_place();
 
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Error);
@@ -877,7 +877,7 @@ fn test_report_indexed_declarator_target() {
 fn test_parse_let_lambda_initializer_before_next_line_expression() {
     let test = TestParser::new("let f1 = (/* ... */) => {}\n(() => {})(/* ... */)\n");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
 

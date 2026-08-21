@@ -24,7 +24,7 @@ fn test_parse_mapped_type() {
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 5);
 
@@ -209,7 +209,7 @@ fn test_parse_type_mapped_expression_distinguishes_plain_and_explicit_add_modifi
         "type A = { readonly [K in keyof T]?: T[K] }; type B = { +readonly [K in keyof T]+?: T[K] };",
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
 
@@ -256,7 +256,7 @@ fn test_parse_type_mapped_expression_with_semicolon() {
 fn test_parse_type_mapped_expression_without_value_type_with_character_keys() {
     let test = TestParser::new("type Keys = 'a' | 'b'; type A = { [K in Keys] };");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     test.assert_no_errors(&parser);
@@ -306,7 +306,7 @@ fn test_parse_type_mapped_expression_without_value_type_with_modifiers() {
     let test =
         TestParser::new("type A = { +readonly [T in number]; }; type B = { [K in number]+? };");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     test.assert_no_errors(&parser);

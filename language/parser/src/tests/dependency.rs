@@ -534,7 +534,7 @@ fn test_parse_import_block_keeps_statement_owner_in_missing_close_gap() {
     let cursor = source.find("  from").unwrap() as u32 + 1;
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
     let root_id = roots[0];
 
     assert_node!(parser.tree, root_id, Expression::Import { items, target, .. } => {
@@ -561,7 +561,7 @@ fn test_parse_import_keeps_target_main_span_for_unterminated_path() {
     let probe = cursor.saturating_sub(1);
     let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let roots = parser.parse();
+    let roots = parser.parse_in_place();
     let root_id = roots[0];
 
     assert_node!(parser.tree, root_id, Expression::Import { target, .. } => {
@@ -780,7 +780,7 @@ fn test_parse_export_with_namespace_alias() {
 fn test_recover_export_namespace_without_target() {
     let test = TestParser::new("export * as from './module.ds';\nexport type Recovered = string;");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 2);
     assert_eq!(parser.errors.len(), 1);
@@ -916,7 +916,7 @@ fn test_recover_type_marked_import_item() {
     // source: import { type Foo } from 'x'
     let test = TestParser::new("import { type Foo } from 'x'");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     assert_eq!(parser.errors.len(), 1);
@@ -978,7 +978,7 @@ fn test_recover_type_marked_export_item() {
     // source: export { type Foo }
     let test = TestParser::new("export { type Foo }");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     assert_eq!(expressions.len(), 1);
     assert_eq!(parser.errors.len(), 1);
@@ -1153,7 +1153,7 @@ fn test_report_export_function_without_name() {
 fn test_parse_root_import_named_binding_from_source() {
     let test = TestParser::new("import {a} from 'a';");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -1168,7 +1168,7 @@ fn test_parse_root_import_named_binding_from_source() {
 fn test_parse_root_import_default_and_namespace() {
     let test = TestParser::new("import a, * as b from 'a';");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
@@ -1183,7 +1183,7 @@ fn test_parse_root_import_default_and_namespace() {
 fn test_parse_root_export_named_binding_from_source() {
     let test = TestParser::new("export {a} from 'a';");
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expressions = parser.parse_in_place();
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
