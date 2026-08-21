@@ -144,6 +144,9 @@ author: "Florian"
 - but we must still understand, or the software sits in some weird disconnected castle in the sky that serves nobody
 - (well over a year of "vibe coding" has shown this pretty concolusively)
 
+
+## Why Care About Performance
+
 - there is something beautiful about doing the most with the fewest possible parts
 - a minimal, simple language like C or even Go - though very few people would have called either "minimal" at the time they were introduced - is elegant in a way.
 - it's genuinely pleasing to get so much out of relatively little syntax that covers so many use cases
@@ -151,8 +154,6 @@ author: "Florian"
 - however, over time, most serious languages with actual production use evolve an set of common features for building serious software
 - Go and generics, Java / C# and unsafe / structs / ref, ...
 - JVM/CLR by default, Rust on demand
-
-## Why Care About Performance
 
 - hardware is getting *more* expensive
 
@@ -209,9 +210,10 @@ author: "Florian"
 - after some good 15+ years writing software in all kinds of languages and domains, what is my wishlist for the ideal language
 - basically: TS but JVM/CLR with som Rust-y bits? kinda? like that's actually it.
 - what is the minimum set of changes / additions we need to good prior art to get what we need
+- not necessarily "what is the best theoretical version of something like typescript" (default decision = remove) but "what is the most typescript we can make it, removing only what is absolutely necessary" (default decision = keep)
 - safe, sound, predictable
-- about two dozen or so key decisions to be made when building "typescript++"
-- and they roughly split into: how do we support which types, which expressions do we add, how do we deal with memory and layouts, and where does any of this actually run
+<!--- about two dozen or so key decisions to be made when building "typescript++"
+- and they roughly split into: how do we support which types, which expressions do we add, how do we deal with memory and layouts, and where does any of this actually run-->
 
 - what is the ergonomic ladder of TS++ between TS -> Rust
 - don't try to be cute or clever or fancy
@@ -270,6 +272,10 @@ author: "Florian"
 - (sequence collections default to isize instead of number)
 - keep null and undefined, no strong reason not to
 
+- keep freshness and widening
+- keep literal freshness
+- const / as const
+
 ### Enums
 
 - enums are reasonably simple
@@ -305,7 +311,7 @@ author: "Florian"
 - implicit and explicit this
 - value and borrowed forms
 
-- no method binding (i.e. no obj.method, instead use () => object.method()) for clarity)
+- no method binding (i.e. no sneaky obj.method, instead use () => object.method()) for clarity)
 
 ### Nominality
 
@@ -401,7 +407,9 @@ export type Record<K: PropertyKey, V> = {
 
 - keep all the ergonomics and muscle memory
 - remove some legacy weirdness
-- expressions as values
+- "expressions as values"
+- pattern matching
+- error handling (Result)
 
 ### TSX
 
@@ -417,12 +425,17 @@ export type Record<K: PropertyKey, V> = {
 ### Patterns and Match
 
 - patterns
+- refutable vs irrefutable
 - match
-- catch match
 - `Sequence` type
 - ... except for dynamic index signatures where it types as `V | undefined` (via dynamic.find)
 - ranges: `..`
 - switch still works but match encouraged
+
+- let, let-else
+- if let
+- while let
+- match guards
 
 - No Computed Keys
 - no `obj[expr]` where `expr` is dynamic
@@ -440,7 +453,7 @@ export type Record<K: PropertyKey, V> = {
 - `@if` static gating
 - taint/tag system
 
-### No Exceptions, Only Results
+### Result and Try
 
 - Most subtractions and additions between from TS++ to TS are about soundness, but there is nothing intrinsically unsound about exceptions. 
 - if there is one really bad error in modern managed languages, it's exceptions
@@ -454,8 +467,9 @@ export type Record<K: PropertyKey, V> = {
 - checked exceptions are even worse
 - the only sane error handling method is the Swift-y Rust-y ? operator 
 
-### Try-Catch-Finally
+- result and async (promise / task)
 
+- Try-Catch-Finally still works
 - familiar try / catch / finally syntax still works though!
 - catch (e) is all Try error residuals
 - catch match (e) as the ergonomic switch
@@ -481,6 +495,9 @@ export type Record<K: PropertyKey, V> = {
 
 - `extension<T> of T`: blanket extension
 - rustc coherence
+- no orphan rule? 
+- global extensions considered for impls (not import order)
+- member overloading only within a single declaration block (extension or itme declaration)
 
 ### Operator Overloading
 
@@ -490,7 +507,7 @@ export type Record<K: PropertyKey, V> = {
 - unary `Plus`, `Minus`
 - `Vector2<float32> + Vector2<float32>`
 
-### Const Evaluation
+### Const
 
 - originally envisioned something closer to Zig's comptime (or even Jai's version of it)
 - originally had a comptime keyword here but was kinda confusing
@@ -514,17 +531,19 @@ export type Record<K: PropertyKey, V> = {
 
 - *fiber*-based execution (e.g. JVM's new model)
 
-### Context, ContextVars
+### Context and ContextVars
 
 - like Python
 - but for all bindings
 - `Context`
 
-### Panics, Traps
+### Panic
 
 - overflows / underflows
 - out of bounds
 - deliberate unreachable
+- worker scoped
+- catch unwind
 
 ---
 
@@ -540,10 +559,15 @@ export type Record<K: PropertyKey, V> = {
 
 - so, TS++ should behave as much as TS as we can physically manage while keeping sane and predictable performance _and_ behavior
 - (and something we can actually build into a good toolchain)
-- @repr
+- by default follows rust-y layout, including niche optimisation
+- null / undefined / nullish is stored in the same address (currently bit patterns just 0x0 and 0x1)
 - layout
 
-### Local and Shared Memory
+- @repr
+- custom repr
+- @repr("C")
+
+### Local and Shared
 
 - generalise SharedArrayBuffer and friends?
 - worker-first, local-first, shared-nothing-first memory model
@@ -563,7 +587,7 @@ export type Record<K: PropertyKey, V> = {
 
 ### Ownership
 
-- Value Types
+- Value Types, wooo
 - with move semantics
 - bare T just means whatever the default form is. preserve TS behavior
 - reference types are reference types, value types are value types
@@ -572,14 +596,11 @@ export type Record<K: PropertyKey, V> = {
 - references and pointers
 - arrghh yes seriously pointers in TypeScript let's go
 
-### Borrowing
+### Borrowing and Lifetimes
 
-- if we want value types and we want to pass them around, we need some form of borrowing
+- if we want value types and we want to pass them around, we need some way to reference them safely
 - we *could* do this asthe C# way and have in / inout / out style params, which is half the solution
-- but we want to be unviversal, and we want ot be safe, ...
-- all types can contain references, just like in Rust
-
-### Lifetimes
+- but we want to be unviversal, and we want ot be safe, so if all types can contain references, just like in Rust, ... we need proper borrowing rules
 
 - as soon as we pass and store references, we need to make sure those are safe too
 - well wouldn't you know, lifetimes
@@ -616,26 +637,16 @@ export type Record<K: PropertyKey, V> = {
 
 - Burning the Boats
 - No Backward Compatibility
-- first and most serious cut is to drop support for existing .ts/.tsx alltogether
-- no NPM, no JS bridge, no TS "best effort", no fallbacks, nada.
+- first and most serious cut is to drop support for existing .ts/.tsx (and .js/.jsx) alltogether
+- no NPM, no JS bridge, no TS "best effort", no fallbacks, no compatibility bridge, nada.
 - standardization, integration, .. the whole thing only works with a blank slate
-- (I had to figure this out the hard way)
 
-### "Write Once, Run Everywhere"
+<!--### "Write Once, Run Everywhere"
 
 - yada yada heard it a million times
 - (though it did arguably sorta work for Java, and now the web , and maybe WASM, .. mostly)
 - want portable
-- always build from source?
-
-### destack.json
-
-- oh what is the theoretically ideally package format? toml? txt? magic setup.py? just kidding
-- combine electron, expo, package.json, Cargo.toml, ...
-
-### import.meta
-
--
+- always build from source?-->
 
 ### ESM Modules
 
@@ -683,7 +694,45 @@ export type Record<K: PropertyKey, V> = {
 - Entity, Edge, ...
 - C4, ...
 
+
+### Testing
+
+- destack:test
+
+### destack.json
+
+- oh what is the theoretically ideally package format? toml? txt? magic setup.py? just kidding
+- combine electron, expo, package.json, Cargo.toml, ...
+
+### import.meta
+
+| Field | Description | Type | Examples |
+|-------|-------------|------|----------|
+| `import.meta.url` | current module URL | `string` | `"file:///app/src/main.ds"`, `"https://example.com/mod.ds"` |
+| `import.meta.path` | current local file path, when available | `string \| undefined` | `"/app/src/main.ds"`, `undefined` |
+| `import.meta.dir` | current local directory, when available | `string \| undefined` | `"/app/src"`, `undefined` |
+| `import.meta.output` | output artifact | `Output` | `"bundle"`, `"program"` |
+| `import.meta.platform` | target operating system | `Platform` | `"linux"`, `"windows"`, `"none"` |
+| `import.meta.host` | target host environment | `Host` | `"browser"`, `"native"`, `"wasi"` |
+| `import.meta.target` | target family and ABI | `Target` | `{ family: "unix", arch: "x64", abi: "gnu" }` |
+| `import.meta.targetName` | active build target name | `string \| undefined` | `"web"`, `"native"` |
+| `import.meta.product` | active deliverable product name | `Product \| undefined` | `"app"`, `"server"` |
+| `import.meta.version` | active package version | `string \| undefined` | `"2026.5.27-alpha.1"` |
+| `import.meta.runtime` | semantic runtime | `Runtime` | `"destack"`, `"js"` |
+| `import.meta.<mode>` | mode shorthands for `debug`, `dev`, `prod`, `test`, `bench`, `lint` | `boolean` | `import.meta.test`, `import.meta.prod` |
+| `import.meta.env` | configured build environment | `{ readonly [key: string]: string \| undefined }` | `{ NODE_ENV: "production" }` |
+
+### Standard Library
+
+- again: what is the most widely known, idiomatic shape here that everyone already knows?
+- in this case: Node and Web shaped
+- `node:*` -> `destack:*`
+- Web* APIs
+- fetch, .. whatever good standards the Web has
+- Rust-y stdlib underneath
+
+<!--
 ## So
 
 - so what
-- first, most central piece of the puzzle
+- first, most central piece of the puzzle-->
