@@ -2,10 +2,10 @@ use std::sync::{Arc, Mutex};
 
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_parser::{CommentRetention, Parser};
+use destack_parser::{CommentRetention, ParseOptions, Parser};
 use destack_source::{
-    DiagnosticCollection, File, FileId, FileType, LanguageType, ModuleId, PrintOptions, Span, Uri,
-    print_diagnostics,
+    DiagnosticCollection, File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions,
+    Span, Uri, print_diagnostics,
 };
 
 use super::TestProgram;
@@ -36,20 +36,24 @@ impl TestSource {
     pub(crate) fn parse(text: &str, strings: Arc<StringPool>) -> Self {
         let source = fixture_text(text).to_string();
         let file = test_file("<pattern-test>", source);
-        let mut parser = Parser::lex_file_with_comment_retention(
+        let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+        let parser = Parser::new(
             file.clone(),
             LanguageType::Destack,
-            CommentRetention::Ignore,
-            strings,
+            dir::Tree::new(module_id),
+            ParseOptions {
+                comment_retention: CommentRetention::Ignore,
+                ..ParseOptions::default()
+            },
         );
-        let roots = parser.parse();
-        assert!(parser.errors.is_empty(), "{:?}", parser.errors);
-        parser.tree.index_parents(&roots);
-        parser.publish_strings();
+        let mut parse = parser.parse();
+        assert!(parse.errors.is_empty(), "{:?}", parse.errors);
+        parse.tree.index_parents(&parse.roots);
+        strings.extend(&parse.strings);
 
         Self::Parsed {
             file,
-            tree: Box::new(parser.tree),
+            tree: Box::new(parse.tree),
         }
     }
 

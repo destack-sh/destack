@@ -16,33 +16,34 @@ impl Compiler {
         metavariables: &MetavariableTable,
     ) -> Result<Predicate, DiagnosticCollection> {
         self.register(file.clone());
-        let mut parser = self.parser(file.clone());
-        let roots = parser.parse();
+        let mut parse = Self::parse(file);
 
-        // preserve authoritative parser diagnostics
-        if !parser.errors.is_empty() {
-            return Err(parser.diagnostics());
+        // reject malformed predicate source
+        if !parse.errors.is_empty() {
+            return Err(parse.diagnostics());
         }
-        parser.tree.index_parents(&roots);
+
+        // index ancestors for marker resolution
+        parse.tree.index_parents(&parse.roots);
 
         // require one complete expression root
-        let [root] = roots.as_slice() else {
+        let [root] = parse.roots.as_slice() else {
             let error = PredicateError::ExpectedRoot {
-                anchor: file.id.into(),
-                found: roots.len(),
+                anchor: parse.file.id.into(),
+                found: parse.roots.len(),
             };
 
-            return Err(self.report(error, &file));
+            return Err(self.report(error, &parse.file));
         };
         let root = *root;
-        let tokens = parser.take_token_spans();
-        parser.publish_strings();
-        let mut uses = PredicateUses::new(parser.tree.node_count());
+        let tokens = parse.take_token_spans();
+        self.strings().extend(&parse.strings);
+        let mut uses = PredicateUses::new(parse.tree.node_count());
 
         // bind every predicate marker to an existing metavariable
         for token in tokens {
-            let marker = Marker::parse(&file, token)
-                .map_err(|error| self.predicate_marker_error(error, &file))?;
+            let marker = Marker::parse(&parse.file, token)
+                .map_err(|error| self.predicate_marker_error(error, &parse.file))?;
             let Some(marker) = marker else {
                 continue;
             };
@@ -51,7 +52,7 @@ impl Compiler {
                     anchor: marker.span.into(),
                 };
 
-                return Err(self.report(error, &file));
+                return Err(self.report(error, &parse.file));
             }
             let name = self.strings().intern(&marker.name);
             let Some(variable) = metavariables.find_id(name) else {
@@ -60,24 +61,24 @@ impl Compiler {
                     name: marker.name,
                 };
 
-                return Err(self.report(error, &file));
+                return Err(self.report(error, &parse.file));
             };
             let target = marker
-                .resolve(&parser.tree)
-                .map_err(|error| self.predicate_marker_error(error, &file))?;
+                .resolve(&parse.tree)
+                .map_err(|error| self.predicate_marker_error(error, &parse.file))?;
             let MarkerTarget::Node(expression) = target else {
                 let error = PredicateError::InvalidMetavariable {
                     anchor: marker.span.into(),
                 };
 
-                return Err(self.report(error, &file));
+                return Err(self.report(error, &parse.file));
             };
             if expression.ty != dir::NodeType::Expression {
                 let error = PredicateError::InvalidMetavariable {
                     anchor: marker.span.into(),
                 };
 
-                return Err(self.report(error, &file));
+                return Err(self.report(error, &parse.file));
             }
 
             uses.insert(PredicateUse {
@@ -86,10 +87,10 @@ impl Compiler {
             });
         }
 
-        self.validate_predicate(&parser.tree, root, &uses, &file)?;
+        self.validate_predicate(&parse.tree, root, &uses, &parse.file)?;
 
         Ok(Predicate {
-            tree: parser.tree,
+            tree: parse.tree,
             root,
             uses,
         })

@@ -6,9 +6,10 @@ use destack_artifact::{
 };
 use destack_core::{Arena, StringPool};
 use destack_dir as dir;
-use destack_parser::{CommentRetention, Grammar, Parser};
+use destack_parser::{CommentRetention, Grammar, Parse, ParseOptions, Parser};
 use destack_source::{
-    Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, LanguageType, Span,
+    Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, LanguageType,
+    ModuleId, PackageId, Span,
 };
 
 use super::marker::{Marker, MarkerError};
@@ -57,21 +58,23 @@ impl Compiler {
         mode: FragmentRole,
     ) -> Result<Fragment, DiagnosticCollection> {
         self.register(file.clone());
-        let mut parser = self.parser(file.clone());
-        let roots = parser.parse();
+        let mut parse = Self::parse(file);
 
-        // preserve authoritative parser diagnostics
-        if !parser.errors.is_empty() {
-            return Err(parser.diagnostics());
+        // reject malformed pattern source
+        if !parse.errors.is_empty() {
+            return Err(parse.diagnostics());
         }
-        parser.tree.index_parents(&roots);
+
+        // index ancestors for marker resolution
+        parse.tree.index_parents(&parse.roots);
 
         // require one complete expression root
-        let [root] = roots.as_slice() else {
-            return Err(self.expected_root(mode, &file, roots.len()));
+        let [root] = parse.roots.as_slice() else {
+            return Err(self.expected_root(mode, &parse.file, parse.roots.len()));
         };
+        let root = root.into_any();
 
-        self.compile_parser(parser, file, root.into_any(), mode)
+        self.compile_fragment(parse, root, mode)
     }
 
     /// Compile one node selected from a complete parse context.
@@ -82,29 +85,30 @@ impl Compiler {
         mode: FragmentRole,
     ) -> Result<Fragment, DiagnosticCollection> {
         self.register(file.clone());
-        let mut parser = self.parser(file.clone());
-        let roots = parser.parse();
+        let mut parse = Self::parse(file);
 
-        // preserve authoritative parser diagnostics
-        if !parser.errors.is_empty() {
-            return Err(parser.diagnostics());
+        // reject malformed pattern source
+        if !parse.errors.is_empty() {
+            return Err(parse.diagnostics());
         }
-        parser.tree.index_parents(&roots);
+
+        // index ancestors for contextual root selection
+        parse.tree.index_parents(&parse.roots);
 
         // select roots of recursive node families instead of their nested children
-        let selected = parser
+        let selected = parse
             .tree
             .iter_node_ids()
             .filter(|node| {
                 if node.ty != selector {
                     return false;
                 }
-                let mut parent = parser.tree.get_parent(node.id);
+                let mut parent = parse.tree.get_parent(node.id);
                 while let Some(ancestor) = parent {
                     if ancestor.ty == selector {
                         return false;
                     }
-                    parent = parser.tree.get_parent(ancestor.id);
+                    parent = parse.tree.get_parent(ancestor.id);
                 }
 
                 true
@@ -113,10 +117,10 @@ impl Compiler {
 
         // require the selector to identify exactly one contextual root
         let [root] = selected.as_slice() else {
-            return Err(self.expected_context_node(mode, &file, selector, selected.len()));
+            return Err(self.expected_context_node(mode, &parse.file, selector, selected.len()));
         };
 
-        self.compile_parser(parser, file, *root, mode)
+        self.compile_fragment(parse, *root, mode)
     }
 
     /// Build one pattern from its compiled structural root.
@@ -144,31 +148,32 @@ impl Compiler {
     }
 
     /// Compile a parsed DIR and selected root into a structural fragment.
-    fn compile_parser(
+    fn compile_fragment(
         &mut self,
-        mut parser: Parser,
-        file: Arc<File>,
+        mut parse: Parse,
         root: dir::LocalNodeIdAny,
         mode: FragmentRole,
     ) -> Result<Fragment, DiagnosticCollection> {
-        let tokens = parser.take_token_spans();
+        // materialize contextual tokens and parsed strings
+        let tokens = parse.take_token_spans();
+        self.strings.extend(&parse.strings);
 
-        // publish parser strings before interning metavariable names
-        parser.publish_strings();
-        let mut uses = MetavariableUses::new(parser.tree.node_count());
-        let Some(root_span) = dir::View::new(&parser.tree).get_decorated_span(root) else {
+        // locate the selected fragment in its authored source
+        let file = parse.file.as_ref();
+        let mut uses = MetavariableUses::new(parse.tree.node_count());
+        let Some(root_span) = dir::View::new(&parse.tree).get_decorated_span(root) else {
             let error = PatternError::Internal {
                 anchor: file.id.into(),
                 message: "selected pattern root has no source span".to_string(),
             };
 
-            return Err(self.report(error, &file));
+            return Err(self.report(error, file));
         };
 
         // resolve markers contained by the selected root
         for token in tokens {
-            let marker = Marker::parse(&file, token)
-                .map_err(|error| self.marker_error(error, mode, &file))?;
+            let marker =
+                Marker::parse(file, token).map_err(|error| self.marker_error(error, mode, file))?;
             let Some(marker) = marker else {
                 continue;
             };
@@ -180,18 +185,18 @@ impl Compiler {
             }
 
             let target = marker
-                .resolve(&parser.tree)
-                .map_err(|error| self.marker_error(error, mode, &file))?;
-            let variable = self.resolve_metavariable(&marker, target, mode, &file)?;
+                .resolve(&parse.tree)
+                .map_err(|error| self.marker_error(error, mode, file))?;
+            let variable = self.resolve_metavariable(&marker, target, mode, file)?;
             let metavariable_use = target.metavariable_use(variable, marker.span);
             uses.insert(metavariable_use);
         }
         uses.finish();
-        uses.validate_repeated(&parser.tree)
-            .map_err(|error| self.sequence_error(error, mode, &file))?;
+        uses.validate_repeated(&parse.tree)
+            .map_err(|error| self.sequence_error(error, mode, file))?;
 
         let fragment = Fragment {
-            tree: parser.tree,
+            tree: parse.tree,
             root,
             span: root_span,
             uses,
@@ -270,15 +275,22 @@ impl Compiler {
         }
     }
 
-    /// Create the authoritative parser for one authored fragment.
-    pub(super) fn parser(&self, file: Arc<File>) -> Parser {
-        Parser::lex_file_with_comment_retention(
+    /// Parse one authored fragment with the pattern grammar.
+    pub(super) fn parse(file: Arc<File>) -> Parse {
+        let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+        let tree = dir::Tree::new(module_id);
+
+        let parser = Parser::new(
             file,
             LanguageType::Destack,
-            CommentRetention::Ignore,
-            self.strings.clone(),
-        )
-        .with_grammar(Grammar::Pattern)
+            tree,
+            ParseOptions {
+                grammar: Grammar::Pattern,
+                comment_retention: CommentRetention::Ignore,
+            },
+        );
+
+        parser.parse()
     }
 
     /// Retain one authored file for diagnostic resolution.
