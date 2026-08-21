@@ -658,8 +658,8 @@ function writeAll(sink: TcpStream | MemoryBuffer, chunk: [uint8]) {
 
 ### Coherence
 
-Unlike Rust, Destack has _no orphan rule_: any module may extend any nominal type and implement any nominal interface for it.
-Because Destack always compiles whole programs from source, coherence can be enforced where it is actually needed instead of at every possible declaration site, which is quite nice:
+Unlike Rust, Destack has no _general orphan rule_: any module may extend any nominal type and implement any nominal interface for it.
+And because Destack always compiles whole programs from source, coherence can be enforced where it is actually needed instead of at every possible declaration site, which is quite nice:
 
 | Claim | Scope | Conflict |
 | --- | --- | --- |
@@ -667,11 +667,10 @@ Because Destack always compiles whole programs from source, coherence can be enf
 | `implements` declarations | global: unique per (type, interface instantiation) pair | compile error pointing at both declarations |
 | Operator and capability dispatch | global: works wherever the interface is nameable | none possible, implementations are unique |
 
-For extension members, candidates resolve in declaration order within one scope, import order is never considered, and an overload that can never win is flagged as unreachable.
-For `implements`, uniqueness covers blankets too (no specialization, and bare-bounded blankets only from the interface's package, see [Blankets](./types.md#blankets)) - and it is what keeps generic instantiation coherent: a `Set<Vector2>` is always built and queried under the same `Hash` implementation, no matter which modules the value flows through.
+For `implements`, uniqueness covers blankets too (no specialization, and bare-bounded blankets only from the interface's package, see [Blankets](./types.md#blankets)) - and this is how we keep generic instantiation coherent: a `Set<Vector2>` is always built and queried under the same `Hash` implementation, no matter which modules the value comes through.
 
-When two packages do collide, the build fails and the fix is source-level (drop a dependency, or vendor and patch) - whichever side "won" would silently change the other's behavior, so there is deliberately no switch to pick one.
-Libraries should therefore only implement pairs they own one side of (a default-`warn` diagnostic nudges accordingly); foreign-on-foreign implementations belong in applications, where nothing downstream can collide.
+When two packages do collide, the build fails and the fix is source-level (drop a dependency, or vendor and patch).
+Libraries _should_ therefore only implement pairs they own one side of (a default-`warn` diagnostic nudges accordingly); foreign-on-foreign implementations belong in applications, where nothing downstream can collide.
 
 ## Errors
 

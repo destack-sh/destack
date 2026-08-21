@@ -36,6 +36,8 @@ const initial: char = 'A';
 const input: unknown = readInput();
 ```
 
+An unannotated `let` initialized by an integer literal takes whichever integer its uses demand, so `let i = 0; i < values.length` makes `i` an `isize`, and `int64` when nothing constrains it; float literals take `float64`.
+
 Builtin types like `string` and `bigint` are not really "special" in Destack in the same way they are in TypeScript, instead they are just aliases to the standard library `String` and `BigInt` classes.
 In general, Destack follows TypeScript behavior as exactly as possible for a *sound and strict* type system, including the exact same widening rules, infer and match, template inference, and all the other fun stuff.
 
@@ -247,7 +249,19 @@ extension of Vector2 {
 ```
 
 Extensions can be added to any **nominal type**, including `struct`, `class`, `enum`, and `newtype`, whether defined locally or in a foreign / imported module.
-Plain type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions because it would be unclear when they should apply.
+The target of an extension is always rooted at one declaration, which is what indexes member lookup and implementation conflicts:
+
+| Target | Example | Root |
+| --- | --- | --- |
+| Nominal application | `of User`, `of Box<T>`, `of Priority` | the declaration |
+| Memory form of a nominal | `of ^Array<T>`, `of &readonly Set<T>` | the declaration, with the form kept on the target |
+| Primitive | `of int32`, `of string` | the primitive |
+| Structural type constructor | `of (int32, string)`, `of [T]`, `of [T; N]`, `of (x: int32) => void` | the language item |
+| Bounded parameter | `of T` with `T: Display` | none: a [blanket](#blankets) |
+
+A type alias extends whatever it names, so `extension of Account` with `type Account = User` extends `User`.
+Structural object types (`{ x: number }`), unions, and intersections cannot receive extensions because they have no root to index.
+An unbounded parameter (`of T`, or the equivalent `T: unknown` bound) is rejected as well, because members on _everything_ pollute every candidate set.
 
 Extensions can also be named for and then referenced explicitly for export and import:
 
@@ -265,6 +279,9 @@ The visibility of extension members follows from their placement:
 - **Same file as type**: Extensions are automatically visible wherever the type is used.
 - **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
 - **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
+
+That lexical rule covers members only.
+An `implements` clause is a fact about the type and holds wherever the declaring module is part of the program, so generic code and operator dispatch see every implementation without importing it (see [Coherence](./expressions.md#coherence)).
 
 ### Blankets
 
@@ -285,7 +302,7 @@ extension<T> of Box<T> implements Display where T: Display {
 }
 ```
 
-The target of a blanket decides the scope of the claims it may make:
+The target of a blanket determines its scope:
 
 | Blanket | Example | Who may declare it |
 | --- | --- | --- |
@@ -294,9 +311,9 @@ The target of a blanket decides the scope of the claims it may make:
 | `implements` over a bare bounded parameter | `extension<T: Equal> of T implements PartialEqual` | only the package declaring the interface |
 
 Member blankets are lexical like all extension members, so the bound just names the candidate domain and nothing can surprise code that didn't import it.
-(Unbounded targets - including the `T: unknown` spelling of the same thing - are rejected, because methods on _everything_ pollute every candidate set.)
+The bound of a member blanket names an interface, nominal or structural, exactly like an inline parameter bound or a `where` clause would.
 
-An `implements` blanket makes a global claim, so it needs a clear owner: a nominal target gives the conflict surface one, while an open-domain claim over every type that ever satisfies a bound belongs to the contract's owner.
+An `implements` blanket is global, so it needs a clear owner: a nominal target gives the conflict surface one, while an open-domain claim over every type that ever satisfies a bound belongs to the contract's owner.
 That last form is also how interface hierarchies ship their bridges anyway:
 
 ```ds
@@ -307,6 +324,17 @@ extension<T: Equal> of T implements PartialEqual {
 ```
 
 All `implements` blankets participate in the same general coherence rules: overlapping implementations of the same interface for the same type - including blanket-vs-specific overlap - are a program-wide error (see [Coherence](./expressions.md#coherence)).
+Overlap is decided over the declared bounds and `where` clauses of both implementations, and two blankets whose bounds some type could satisfy together overlap (like in Rust).
+
+```ds
+extension<T: Loud> of T implements Quiet {}
+extension of Bell implements Quiet {} // ERROR: conflicts when Bell is Loud
+```
+
+```ds
+extension<T: Loud> of T implements Quiet {}
+extension<T: Bright> of T implements Quiet {} // ERROR: conflicts when some declared type is both
+```
 
 ## Enums
 
