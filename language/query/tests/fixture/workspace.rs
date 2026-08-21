@@ -240,11 +240,11 @@ impl QueryWorkspace {
 
                 Ok(Edit::add_file(logical_path, blob))
             }
-            QueryChange::Set(file) => {
-                let logical_path = query_logical_path(&file.path)?;
+            QueryChange::Edit(target) => {
+                let logical_path = query_logical_path(&target.path)?;
                 let blob = self
                     .repository
-                    .put_blob(file.source.as_bytes())
+                    .put_blob(target.source.as_bytes())
                     .map_err(|error| format!("failed to store query file: {error}"))?;
 
                 Ok(Edit::set_file(logical_path, blob))

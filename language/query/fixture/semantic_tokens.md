@@ -1095,6 +1095,84 @@ true;
 
 ## Source changes
 
+### Classify a declaration while typing
+
+Request semantic tokens after every inserted scalar.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+
+declare const x: Clone;
+              ^ binding
+                 ^^^^^ type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
+```
+
+### Classify a selected replacement while typing
+
+Replace the selected type with the first scalar and insert each remaining scalar separately.
+
+```ds main.ds
+declare const value: Wrong;
+```
+
+```ds main.ds type
+declare const value: Clone;
+              ^^^^^ binding
+                     ^^^^^ type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
+```
+
+### Classify a declaration while backspacing
+
+Request semantic tokens after every scalar removed from the end of a type name.
+
+```ds main.ds
+declare const value: Cloneeeee;
+```
+
+```ds main.ds backspace
+declare const value: Clone;
+              ^^^^^ binding
+                     ^^^^^ type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
+```
+
+### Classify a declaration while deleting
+
+Request semantic tokens after every scalar removed from the start of an identifier.
+
+```ds main.ds
+declare const temporaryvalue: Clone;
+```
+
+```ds main.ds delete
+declare const value: Clone;
+              ^^^^^ binding
+                     ^^^^^ type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
+```
+
 ### Classify declarations while editing class fields
 
 Class and field declarations remain classified through successive source edits.

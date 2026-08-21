@@ -293,7 +293,10 @@ fn parse_initial_file(language: &str) -> Result<Option<InitialFile<'_>>, String>
         return Err(format!("file block '{language}' has too many arguments"));
     }
     if let Some(marker) = marker
-        && !matches!(marker, "expected" | "after" | "change" | "add")
+        && !matches!(
+            marker,
+            "expected" | "after" | "change" | "type" | "backspace" | "delete" | "add"
+        )
     {
         return Err(format!(
             "file block '{language}' has unknown marker '{marker}'"

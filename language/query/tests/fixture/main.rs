@@ -1,6 +1,7 @@
 mod assertion;
 mod call;
 mod case;
+mod change;
 mod file;
 mod markdown;
 mod patch;
@@ -15,6 +16,7 @@ mod workspace;
 use assertion::*;
 use call::*;
 use case::*;
+use change::*;
 use file::*;
 use markdown::*;
 use patch::*;

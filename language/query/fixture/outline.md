@@ -503,6 +503,26 @@ export const source = 1;
 
 ## Source changes
 
+### Outline a declaration while typing
+
+Request the outline after every inserted scalar.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+
+declare const x: Clone;
+^^^^^^^^^^^^^^^^^^^^^^ declaration
+              ^ binding
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=x kind=constant detail=Clone range=main.ds#declaration selection=main.ds#binding
+```
+
 ### Add declarations to the outline
 
 The outline follows declarations added to the selected revision.

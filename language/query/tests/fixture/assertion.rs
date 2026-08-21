@@ -11,18 +11,20 @@ use super::{
     parse_marked_file_tag, require_query_file, validate_query_path,
 };
 
-/// One query call and its exact expected result.
+/// One query call and its expected result.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct QueryAssertion {
     /// The query call.
     pub(super) call: QueryCall,
-    /// The exact expected response.
+    /// The expected response.
     pub(super) expected: QueryExpectation,
 }
 
-/// The exact expected result of one query call.
+/// The expected result of one query call.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) enum QueryExpectation {
+    /// Any successful response from the declared query method.
+    Success,
     /// The exact response rows.
     Rows {
         /// The parsed response rows.
@@ -37,6 +39,14 @@ pub(super) enum QueryExpectation {
 }
 
 impl QueryAssertion {
+    /// Return this assertion with success required instead of an exact response.
+    pub(super) fn require_success(&self) -> Self {
+        Self {
+            call: self.call.clone(),
+            expected: QueryExpectation::Success,
+        }
+    }
+
     /// Parse one query call and its exact expected response.
     pub(super) fn parse(
         blocks: &[QueryBlock],

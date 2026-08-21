@@ -590,6 +590,25 @@ ping();
 
 ## Source changes
 
+### Request hints while typing a declaration
+
+Request inlay hints after every inserted scalar.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+
+declare const x: Clone;
+^^^^^^^^^^^^^^^^^^^^^^^ declaration
+```
+
+```query inlay_hints main.ds#declaration
+@inlay_hints.none
+```
+
 ### Update an inferred binding hint
 
 An inferred type hint reflects the current initializer.

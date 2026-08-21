@@ -101,8 +101,9 @@ impl<'a> QueryRun<'a> {
         let mut updates = Vec::new();
         let mut traces = Vec::new();
 
-        // apply each revision and execute its assertions
+        // execute each revision in declaration order
         for (revision_index, revision) in revisions.iter().enumerate() {
+            // publish the revision changes
             if !revision.changes.is_empty()
                 && let Some(trace) = self.advance(&revision.changes)?
             {
@@ -111,6 +112,8 @@ impl<'a> QueryRun<'a> {
                     trace,
                 });
             }
+
+            // execute the revision assertions
             for (assertion_index, assertion) in revision.assertions.iter().enumerate() {
                 let result = self.run_assertion(assertion, is_blessing)?;
                 if let Some(update) = result.response_update {
@@ -177,7 +180,8 @@ impl<'a> QueryRun<'a> {
         let execution = self.workspace.query(self.revision, request.clone())?;
         let response = execution.response;
         let mut traces = execution.trace.into_iter().collect::<Vec<_>>();
-        if self.workspace.has_timings() {
+        if self.workspace.has_timings() && !matches!(assertion.expected, QueryExpectation::Success)
+        {
             let warm = self.workspace.query(self.revision, request)?;
             if warm.response != response {
                 return Err(format!(
@@ -194,6 +198,7 @@ impl<'a> QueryRun<'a> {
         }
 
         let response_update = match &assertion.expected {
+            QueryExpectation::Success => None,
             QueryExpectation::Rows {
                 rows: expected,
                 content_range,
