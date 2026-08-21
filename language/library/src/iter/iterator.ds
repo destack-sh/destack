@@ -177,6 +177,11 @@ export newtype interface Iterator<T> {
         todo("Iterator.first")
     }
 
+    /// Return the yielded value at `index` after consuming preceding values.
+    nth(this, index: isize): T | undefined {
+        todo("Iterator.nth")
+    }
+
     /// Return the last yielded value.
     last(this): T | undefined {
         todo("Iterator.last")
