@@ -83,7 +83,7 @@ impl<'a> StaticEvaluator<'a> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<StaticValue, StaticError> {
         match self.view.get(expression) {
-            dir::Expression::ScalarLiteral(value) => Ok(StaticValue::Term((*value).into())),
+            dir::Expression::Literal(value) => Ok(StaticValue::Term((*value).into())),
             dir::Expression::ImportMeta => Ok(StaticValue::ImportMeta),
             dir::Expression::Member {
                 left,
@@ -125,8 +125,8 @@ impl<'a> StaticEvaluator<'a> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<bool, StaticError> {
         match self.evaluate_expression(expression)? {
-            dir::StaticTerm::ScalarLiteral {
-                value: dir::ScalarLiteral::Boolean(value),
+            dir::StaticTerm::Literal {
+                value: dir::Literal::Boolean(value),
             } => Ok(value),
             _ => Err(StaticError::NotBoolean(expression)),
         }
@@ -157,8 +157,8 @@ impl<'a> StaticEvaluator<'a> {
         let owner = self.evaluate_value(left)?;
         let index = self.evaluate_expression(index)?;
         let key = match index.as_scalar() {
-            Some(dir::ScalarLiteral::String(name)) => dir::StaticKey::Name(name),
-            Some(dir::ScalarLiteral::Integer(index)) => {
+            Some(dir::Literal::String(name)) => dir::StaticKey::Name(name),
+            Some(dir::Literal::Integer(index)) => {
                 let Ok(index) = usize::try_from(index) else {
                     return Err(StaticError::NotStatic(expression));
                 };
@@ -202,7 +202,7 @@ impl<'a> StaticEvaluator<'a> {
                 let value = elements
                     .get(index)
                     .cloned()
-                    .unwrap_or_else(|| dir::ScalarLiteral::Undefined.into());
+                    .unwrap_or_else(|| dir::Literal::Undefined.into());
 
                 Ok(StaticValue::Term(value))
             }
@@ -242,24 +242,24 @@ impl<'a> StaticEvaluator<'a> {
             "roles" => StaticValue::Term(self.string_array(conditions.roles.iter())),
             "features" => StaticValue::Term(self.string_array(conditions.features.iter())),
             "tags" => StaticValue::Term(self.string_array(conditions.tags.iter())),
-            "debug" => StaticValue::Term(
-                dir::ScalarLiteral::Boolean(conditions.contains_mode("debug")).into(),
-            ),
-            "dev" => StaticValue::Term(
-                dir::ScalarLiteral::Boolean(conditions.contains_mode("dev")).into(),
-            ),
-            "prod" => StaticValue::Term(
-                dir::ScalarLiteral::Boolean(conditions.contains_mode("prod")).into(),
-            ),
-            "test" => StaticValue::Term(
-                dir::ScalarLiteral::Boolean(conditions.contains_mode("test")).into(),
-            ),
-            "bench" => StaticValue::Term(
-                dir::ScalarLiteral::Boolean(conditions.contains_mode("bench")).into(),
-            ),
-            "lint" => StaticValue::Term(
-                dir::ScalarLiteral::Boolean(conditions.contains_mode("lint")).into(),
-            ),
+            "debug" => {
+                StaticValue::Term(dir::Literal::Boolean(conditions.contains_mode("debug")).into())
+            }
+            "dev" => {
+                StaticValue::Term(dir::Literal::Boolean(conditions.contains_mode("dev")).into())
+            }
+            "prod" => {
+                StaticValue::Term(dir::Literal::Boolean(conditions.contains_mode("prod")).into())
+            }
+            "test" => {
+                StaticValue::Term(dir::Literal::Boolean(conditions.contains_mode("test")).into())
+            }
+            "bench" => {
+                StaticValue::Term(dir::Literal::Boolean(conditions.contains_mode("bench")).into())
+            }
+            "lint" => {
+                StaticValue::Term(dir::Literal::Boolean(conditions.contains_mode("lint")).into())
+            }
             "env" => StaticValue::Environment,
             _ => return Err(StaticError::NotStatic(expression)),
         };
@@ -307,7 +307,7 @@ impl<'a> StaticEvaluator<'a> {
     /// Read one active source graph label.
     fn label_member(&self, key: dir::StaticKey) -> dir::StaticTerm {
         let Some(name) = key.name() else {
-            return dir::ScalarLiteral::Undefined.into();
+            return dir::Literal::Undefined.into();
         };
         let name = self.strings.get(name);
 
@@ -316,17 +316,17 @@ impl<'a> StaticEvaluator<'a> {
             .labels
             .get(name)
             .map(|values| self.string_array(values.iter()))
-            .unwrap_or_else(|| dir::ScalarLiteral::Undefined.into())
+            .unwrap_or_else(|| dir::Literal::Undefined.into())
     }
 
     /// Read one environment variable allowed by the active profile.
     fn environment_member(&self, key: dir::StaticKey) -> dir::StaticTerm {
         let Some(name) = key.name() else {
-            return dir::ScalarLiteral::Undefined.into();
+            return dir::Literal::Undefined.into();
         };
         let name = self.strings.get(name);
         if !self.profile.env.contains(name) {
-            return dir::ScalarLiteral::Undefined.into();
+            return dir::Literal::Undefined.into();
         }
 
         self.optional_string(self.environment.get(name))
@@ -338,7 +338,7 @@ impl<'a> StaticEvaluator<'a> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<dir::StaticTerm, StaticError> {
         let Some(path) = &self.module.path else {
-            return Ok(dir::ScalarLiteral::Undefined.into());
+            return Ok(dir::Literal::Undefined.into());
         };
         let Some(path) = path.to_str() else {
             return Err(StaticError::NotStatic(expression));
@@ -353,10 +353,10 @@ impl<'a> StaticEvaluator<'a> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<dir::StaticTerm, StaticError> {
         let Some(path) = &self.module.path else {
-            return Ok(dir::ScalarLiteral::Undefined.into());
+            return Ok(dir::Literal::Undefined.into());
         };
         let Some(directory) = path.parent() else {
-            return Ok(dir::ScalarLiteral::Undefined.into());
+            return Ok(dir::Literal::Undefined.into());
         };
         let Some(directory) = directory.to_str() else {
             return Err(StaticError::NotStatic(expression));
@@ -376,7 +376,7 @@ impl<'a> StaticEvaluator<'a> {
             dir::UnaryOperator::Not => {
                 let right = self.evaluate_boolean(right)?;
 
-                Ok(dir::ScalarLiteral::Boolean(!right).into())
+                Ok(dir::Literal::Boolean(!right).into())
             }
             _ => Err(StaticError::NotStatic(expression)),
         }
@@ -395,13 +395,13 @@ impl<'a> StaticEvaluator<'a> {
             dir::BinaryOperator::And => {
                 let value = self.evaluate_boolean(left)? && self.evaluate_boolean(right)?;
 
-                Ok(dir::ScalarLiteral::Boolean(value).into())
+                Ok(dir::Literal::Boolean(value).into())
             }
             // ||
             dir::BinaryOperator::Or => {
                 let value = self.evaluate_boolean(left)? || self.evaluate_boolean(right)?;
 
-                Ok(dir::ScalarLiteral::Boolean(value).into())
+                Ok(dir::Literal::Boolean(value).into())
             }
             // scalar equality
             dir::BinaryOperator::Equal
@@ -415,8 +415,8 @@ impl<'a> StaticEvaluator<'a> {
                 };
 
                 // reject reference-valued regex literals
-                if matches!(left, dir::ScalarLiteral::RegexString { .. })
-                    || matches!(right, dir::ScalarLiteral::RegexString { .. })
+                if matches!(left, dir::Literal::RegexString { .. })
+                    || matches!(right, dir::Literal::RegexString { .. })
                 {
                     return Err(StaticError::NotStatic(expression));
                 }
@@ -429,7 +429,7 @@ impl<'a> StaticEvaluator<'a> {
                     is_equal
                 };
 
-                Ok(dir::ScalarLiteral::Boolean(value).into())
+                Ok(dir::Literal::Boolean(value).into())
             }
             _ => Err(StaticError::NotStatic(expression)),
         }
@@ -437,14 +437,14 @@ impl<'a> StaticEvaluator<'a> {
 
     /// Build one string term, interning the text into the shared pool.
     fn string(&self, value: &str) -> dir::StaticTerm {
-        dir::ScalarLiteral::String(self.strings.intern(value)).into()
+        dir::Literal::String(self.strings.intern(value)).into()
     }
 
     /// Build one optional string term, undefined when absent.
     fn optional_string(&self, value: Option<&str>) -> dir::StaticTerm {
         match value {
             Some(value) => self.string(value),
-            None => dir::ScalarLiteral::Undefined.into(),
+            None => dir::Literal::Undefined.into(),
         }
     }
 
@@ -470,16 +470,16 @@ impl<'a> StaticEvaluator<'a> {
         let dir::StaticTerm::Array { elements } = self.evaluate_expression(receiver)? else {
             return Err(StaticError::NotStatic(receiver));
         };
-        let dir::StaticTerm::ScalarLiteral {
-            value: dir::ScalarLiteral::String(value),
+        let dir::StaticTerm::Literal {
+            value: dir::Literal::String(value),
         } = self.evaluate_expression(value)?
         else {
             return Err(StaticError::NotStatic(value));
         };
         let mut contains = false;
         for element in elements {
-            let dir::StaticTerm::ScalarLiteral {
-                value: dir::ScalarLiteral::String(element),
+            let dir::StaticTerm::Literal {
+                value: dir::Literal::String(element),
             } = element
             else {
                 return Err(StaticError::NotStatic(receiver));
@@ -488,7 +488,7 @@ impl<'a> StaticEvaluator<'a> {
             contains |= element == value;
         }
 
-        Ok(dir::ScalarLiteral::Boolean(contains).into())
+        Ok(dir::Literal::Boolean(contains).into())
     }
 
     /// Match one `array.includes(value)` call into its receiver and value expressions.

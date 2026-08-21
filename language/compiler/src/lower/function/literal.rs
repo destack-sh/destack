@@ -137,14 +137,12 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Literal::Boolean(_) => Ok(mir::Type::Boolean),
 
             // require numeric literals to enter through a concrete value target
-            dir::Literal::Integer(_) | dir::Literal::Float(_) => {
-                Err(CompilerError::Internal {
-                    message: format!(
-                        "numeric literal expression {} reached lowering without a concrete target",
-                        expression.id
-                    ),
-                })
-            }
+            dir::Literal::Integer(_) | dir::Literal::Float(_) => Err(CompilerError::Internal {
+                message: format!(
+                    "numeric literal expression {} reached lowering without a concrete target",
+                    expression.id
+                ),
+            }),
 
             // reject literal domains without scalar carriers
             other => Err(LowerError::Unsupported {

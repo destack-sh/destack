@@ -287,8 +287,7 @@ impl FunctionLowerer<'_, '_, '_> {
             if !self.operator_decision(case.case)?.is_builtin() {
                 return Ok(None);
             }
-            let dir::Type::Literal(dir::Literal::Integer(constant)) =
-                self.node_type(selector)?
+            let dir::Type::Literal(dir::Literal::Integer(constant)) = self.node_type(selector)?
             else {
                 return Ok(None);
             };

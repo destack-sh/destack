@@ -22,9 +22,9 @@ impl ExportState<'_> {
             if declarator.ty.is_some() {
                 return ExportForm::Declared;
             }
-            let is_literal = declarator.value.is_some_and(|value| {
-                matches!(self.view.get(value), dir::Expression::Literal(_))
-            });
+            let is_literal = declarator
+                .value
+                .is_some_and(|value| matches!(self.view.get(value), dir::Expression::Literal(_)));
 
             return match is_literal {
                 true => ExportForm::Literal,

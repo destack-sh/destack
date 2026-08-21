@@ -18,11 +18,11 @@ impl ResolveState<'_> {
         expression: &dir::Expression,
     ) {
         match expression {
-            dir::Expression::ScalarLiteral(value) => {
+            dir::Expression::Literal(value) => {
                 if let Some(item) = value.representation_item() {
                     self.use_language_item(item);
                 }
-                if matches!(value, dir::ScalarLiteral::RegexString { .. }) {
+                if matches!(value, dir::Literal::RegexString { .. }) {
                     self.use_language_item(dir::LanguageItem::RegExp);
                 }
             }
@@ -159,12 +159,12 @@ impl ResolveState<'_> {
         ty: &dir::TypeExpression,
     ) {
         match ty {
-            dir::TypeExpression::ScalarLiteral { value } => {
+            dir::TypeExpression::Literal { value } => {
                 if let Some(item) = value.representation_item() {
                     self.use_language_item(item);
                 }
             }
-            dir::TypeExpression::Literal { value } => {
+            dir::TypeExpression::Keyword { value } => {
                 if let Some(item) = value.representation_item() {
                     self.use_language_item(item);
                 }

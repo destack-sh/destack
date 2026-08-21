@@ -708,13 +708,10 @@ impl Rewriter<'_, '_> {
         operator: js::BinaryOperator,
         right: js::LocalNodeId<js::Expression>,
     ) -> Option<js::Expression> {
-        let js::Literal::Number(left) =
-            self.output_scalar_literal_expression(module, left)?
-        else {
+        let js::Literal::Number(left) = self.output_scalar_literal_expression(module, left)? else {
             return None;
         };
-        let js::Literal::Number(right) =
-            self.output_scalar_literal_expression(module, right)?
+        let js::Literal::Number(right) = self.output_scalar_literal_expression(module, right)?
         else {
             return None;
         };

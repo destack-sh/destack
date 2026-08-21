@@ -657,9 +657,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_resolved_value(expression, symbol)
             }
 
-            dir::Expression::Literal(literal) => {
-                self.lower_scalar_literal(expression, literal)
-            }
+            dir::Expression::Literal(literal) => self.lower_scalar_literal(expression, literal),
 
             dir::Expression::Declaration(declaration) => {
                 let node = declaration.into_global_any(self.source);

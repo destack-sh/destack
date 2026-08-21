@@ -1,6 +1,6 @@
 use crate::emit::js::{
-    Expression, LocalNodeId, Module, Node, NodeVisitor, Literal, Statement, Tree,
-    walk_expression, walk_root, walk_statement,
+    Expression, Literal, LocalNodeId, Module, Node, NodeVisitor, Statement, Tree, walk_expression,
+    walk_root, walk_statement,
 };
 use destack_source::ModuleId;
 

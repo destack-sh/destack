@@ -249,12 +249,10 @@ impl ModuleLowerer<'_> {
                 width: 8 * pointer_bytes as u16,
                 is_signed: true,
             },
-            (dir::Literal::Integer(value), mir::Type::Float(format)) => {
-                mir::Constant::Float {
-                    bits: destack_core::float_to_bits(format.format(), value as f64),
-                    format: *format,
-                }
-            }
+            (dir::Literal::Integer(value), mir::Type::Float(format)) => mir::Constant::Float {
+                bits: destack_core::float_to_bits(format.format(), value as f64),
+                format: *format,
+            },
             (dir::Literal::Float(value), mir::Type::Float(format)) => mir::Constant::Float {
                 bits: destack_core::float_to_bits(format.format(), value),
                 format: *format,

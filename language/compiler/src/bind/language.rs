@@ -180,8 +180,7 @@ impl Compiler {
         };
         let argument = tree.get(*argument);
         let expression = argument.value()?;
-        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(key)) = tree.get(expression)
-        else {
+        let dir::Expression::Literal(dir::Literal::String(key)) = tree.get(expression) else {
             return None;
         };
 

@@ -299,8 +299,7 @@ impl Rewriter<'_, '_> {
         module: &js::Module,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<bool> {
-        let js::Literal::Boolean(value) =
-            Self::scalar_literal_expression(module, expression_id)?
+        let js::Literal::Boolean(value) = Self::scalar_literal_expression(module, expression_id)?
         else {
             return None;
         };
@@ -431,8 +430,7 @@ impl Rewriter<'_, '_> {
                     _ => unreachable!("unexpected relation"),
                 }
             }
-            (js::Literal::Boolean(left), js::Literal::Boolean(right)) => match relation
-            {
+            (js::Literal::Boolean(left), js::Literal::Boolean(right)) => match relation {
                 0 => (*left as u8) < (*right as u8),
                 1 => (*left as u8) <= (*right as u8),
                 2 => (*left as u8) > (*right as u8),
