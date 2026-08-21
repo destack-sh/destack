@@ -4,6 +4,62 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return whether retained uses of one binding accept a readonly borrowed value.
+    pub(crate) fn binding_accepts_readonly_borrow(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        within: dir::LocalNodeIdAny,
+        excluded: dir::LocalNodeIdAny,
+    ) -> Result<bool, ProviderError> {
+        let view = self.view();
+
+        // reject mutation and capture of the replacement borrow
+        let has_incompatible_use = self.flows.binding_occurrences().any(|occurrence| {
+            occurrence.symbol == symbol
+                && view.is_inside(occurrence.node, within)
+                && (occurrence.uses.may_mutate()
+                    || occurrence.uses.contains(dir::BindingUse::EXCLUSIVE)
+                    || occurrence.uses.contains(dir::BindingUse::CAPTURE))
+        });
+        if has_incompatible_use {
+            return Ok(false);
+        }
+
+        // require every retained direct read to use readonly borrowing
+        let root = dir::AccessPath::symbol(symbol);
+        for occurrence in self.flows.access_occurrences() {
+            if occurrence.path != root
+                || !occurrence.uses.contains(dir::BindingUse::READ)
+                || !view.is_inside(occurrence.node, within)
+                || view.is_inside(occurrence.node, excluded)
+            {
+                continue;
+            }
+            let is_explicit_readonly = occurrence
+                .node
+                .try_into_typed::<dir::Expression>()
+                .ok()
+                .and_then(|node| view.get_parent_for(node))
+                .and_then(|parent| parent.try_into_typed::<dir::Expression>().ok())
+                .is_some_and(|parent| {
+                    matches!(
+                        view.get(parent),
+                        dir::Expression::BorrowOf { mutability, .. }
+                            if mutability.map(dir::Mutability::access)
+                                == Some(dir::Access::Readonly)
+                    )
+                });
+            let adjusted = self.adjusted_type_id(occurrence.node)?;
+            if !is_explicit_readonly
+                && self.dir.borrow_access(adjusted)? != Some(dir::Access::Readonly)
+            {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Return the strongest access granted through one checked place.
     pub(crate) fn place_access(
         &self,

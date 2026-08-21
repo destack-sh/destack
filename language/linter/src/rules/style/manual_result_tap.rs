@@ -20,7 +20,7 @@ declare function record(value: &readonly int32): void;
 
 function inspect(result: Result<int32, string>): Result<int32, string> {
     return result.map((value) => {
-        record(&readonly value);
+        record(value);
         value
     });
 }
@@ -30,7 +30,7 @@ declare function record(value: &readonly int32): void;
 
 function inspect(result: Result<int32, string>): Result<int32, string> {
     return result.tap((value) => {
-        record(&readonly value);
+        record(value);
     });
 }
 "#,
@@ -45,8 +45,6 @@ function inspect(result: Result<int32, string>): Result<int32, string> {
 /// Report Result maps that observe and return their payload unchanged.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
-    let binding_occurrences = module.flows.binding_occurrences().collect::<Vec<_>>();
-    let access_occurrences = module.flows.access_occurrences().collect::<Vec<_>>();
     let mut output = LintOutput::default();
 
     // inspect canonical Result mapping calls with one callback
@@ -115,48 +113,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // require an unchanged payload and readonly-compatible observations
         let parameter = module.declaration_symbol(*parameter)?;
-        let uses = module.binding_uses_within(parameter, body.into_any(), &binding_occurrences);
         if module.selected_symbol(returned)? != Some(parameter)
-            || uses.may_mutate()
-            || uses.contains(dir::BindingUse::CAPTURE)
+            || !module.binding_accepts_readonly_borrow(
+                parameter,
+                body.into_any(),
+                removed.into_any(),
+            )?
         {
-            continue;
-        }
-
-        // require every retained direct read to use a checked readonly borrow
-        let root = dir::AccessPath::symbol(parameter);
-        let mut accepts_readonly = true;
-        for occurrence in &access_occurrences {
-            if occurrence.path != root
-                || !occurrence.uses.contains(dir::BindingUse::READ)
-                || !view.is_inside(occurrence.node, body.into_any())
-                || view.is_inside(occurrence.node, removed.into_any())
-            {
-                continue;
-            }
-            let is_explicit_readonly = occurrence
-                .node
-                .try_into_typed::<dir::Expression>()
-                .ok()
-                .and_then(|node| view.get_parent_for(node))
-                .and_then(|parent| parent.try_into_typed::<dir::Expression>().ok())
-                .is_some_and(|parent| {
-                    matches!(
-                        view.get(parent),
-                        dir::Expression::BorrowOf { mutability, .. }
-                            if mutability.map(dir::Mutability::access)
-                                == Some(dir::Access::Readonly)
-                    )
-                });
-            let adjusted = module.adjusted_type_id(occurrence.node)?;
-            if !is_explicit_readonly
-                && module.dir.borrow_access(adjusted)? != Some(dir::Access::Readonly)
-            {
-                accepts_readonly = false;
-                break;
-            }
-        }
-        if !accepts_readonly {
             continue;
         }
 
@@ -218,7 +181,7 @@ declare function record(error: &readonly int32): void;
 
 function inspect(result: Result<string, int32>): Result<string, int32> {
     return result.mapErr((error) => {
-        record(&readonly error);
+        record(error);
         error
     });
 }
@@ -231,7 +194,7 @@ declare function record(error: &readonly int32): void;
 
 function inspect(result: Result<string, int32>): Result<string, int32> {
     return result.tapErr((error) => {
-        record(&readonly error);
+        record(error);
     });
 }
 "#,
@@ -248,7 +211,7 @@ declare function record(value: &readonly int32): void;
 
 function inspect(result: Result<int32, string>): Result<int32, string> {
     return result.map((value) => {
-        record(&readonly value);
+        record(value);
         return value;
     });
 }
@@ -261,7 +224,7 @@ declare function record(value: &readonly int32): void;
 
 function inspect(result: Result<int32, string>): Result<int32, string> {
     return result.tap((value) => {
-        record(&readonly value);
+        record(value);
     });
 }
 "#,
@@ -336,7 +299,7 @@ declare function record(value: &readonly int32): void;
 
 function inspect(result: Result<int32, string>): Result<int32, string> {
     return result.map((value: int32) => {
-        record(&readonly value);
+        record(value);
         value
     });
 }
