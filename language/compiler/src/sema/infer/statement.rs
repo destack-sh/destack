@@ -750,6 +750,15 @@ impl BodyState<'_, '_> {
                     false => Some(written),
                 }
             }
+            // reject ambient bindings without a written type
+            (None, None) if is_ambient => {
+                if self.is_declaration() {
+                    self.check
+                        .report_missing_type_annotation(module, pattern.into_any());
+                }
+
+                Some(self.intern_type(dir::Type::Error)?)
+            }
             // nothing written and nothing to infer
             (None, None) => None,
         };

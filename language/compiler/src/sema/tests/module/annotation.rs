@@ -1,4 +1,32 @@
-use crate::tests::TestSession;
+use crate::tests::{DirRows, TestSession};
+
+/// Type an incomplete ambient binding after reporting its missing annotation.
+#[test]
+fn test_type_incomplete_ambient_binding() {
+    let session = TestSession::single(
+        r#"
+declare const value;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const value;
+
+=== dir ===
+declare const value;
+/// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
+"#,
+        r#"
+/// @diagnostic.error id=missing-type-annotation message="missing type annotation"
+/// @diagnostic.label line=2 column=15 span="value" line_source="declare const value;"
+"#,
+    );
+}
 
 #[test]
 fn test_reject_written_hole_in_a_module_binding_annotation() {
