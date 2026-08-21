@@ -13,7 +13,8 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        // use bounds declared by generic types
+        // unfold aliases, then use bounds declared by generic types
+        let ty = self.normalize(origin, ty)?;
         if let Some(decision) =
             self.decide_generic_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)?
         {
@@ -21,7 +22,6 @@ impl CheckState<'_> {
         }
 
         // close recursive structural types coinductively
-        let ty = self.shallow_resolve(ty)?;
         if active.contains(&ty) {
             return Ok(Verdict::Holds);
         }

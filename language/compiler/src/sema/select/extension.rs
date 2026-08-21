@@ -409,9 +409,13 @@ impl BodyState<'_, '_> {
             }
         }
         let requirement = requirements.get(&key).copied();
-        self.check
-            .requirement_interfaces
-            .insert(extension, requirements);
+
+        // memoize complete definitions only, declaration-time members are still arriving
+        if !self.is_declaration() {
+            self.check
+                .requirement_interfaces
+                .insert(extension, requirements);
+        }
 
         Ok(requirement)
     }
