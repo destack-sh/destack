@@ -34,6 +34,17 @@ pub(crate) struct CountedIteration {
 }
 
 impl DirModule<'_> {
+    /// Return the coverage proved for one match expression.
+    pub(crate) fn match_coverage(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<&dir::CoverageDecision> {
+        match self.decisions.decision(expression.into_global_any(self.id)) {
+            Some(dir::Decision::Coverage(coverage)) => Some(coverage),
+            _ => None,
+        }
+    }
+
     /// Return one unguarded match arm that contains exactly one expression.
     pub(crate) fn match_arm_expression(
         &self,

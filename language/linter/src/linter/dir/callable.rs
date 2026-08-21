@@ -172,24 +172,33 @@ impl DirModule<'_> {
         }
     }
 
-    /// Return the nearest callable body containing one node.
-    pub(crate) fn enclosing_callable_body(
+    /// Return the nearest callable declaration containing one node.
+    pub(crate) fn enclosing_callable(
         &self,
         node: dir::LocalNodeIdAny,
-    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+    ) -> Option<dir::LocalNodeIdAny> {
         let view = self.view();
         let mut current = Some(node);
 
         // climb to the first callable owner
         while let Some(node) = current {
-            if let Some(body) = self.callable_body(node) {
-                return Some(body);
+            if self.callable_body(node).is_some() {
+                return Some(node);
             }
 
             current = view.get_parent_any(node);
         }
 
         None
+    }
+
+    /// Return the nearest callable body containing one node.
+    pub(crate) fn enclosing_callable_body(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        self.enclosing_callable(node)
+            .and_then(|callable| self.callable_body(callable))
     }
 
     /// Return every value returned by one callable body.
@@ -351,9 +360,8 @@ impl DirModule<'_> {
         let right = right.source.local_id;
         let is_parameter_left = self.selected_symbol(left)? == Some(parameter);
         let is_parameter_right = self.selected_symbol(right)? == Some(parameter);
-        let is_undefined_left = self.scalar_constant(left)? == Some(dir::ScalarLiteral::Undefined);
-        let is_undefined_right =
-            self.scalar_constant(right)? == Some(dir::ScalarLiteral::Undefined);
+        let is_undefined_left = self.scalar_constant(left)? == Some(dir::Literal::Undefined);
+        let is_undefined_right = self.scalar_constant(right)? == Some(dir::Literal::Undefined);
 
         Ok(is_parameter_left && is_undefined_right || is_undefined_left && is_parameter_right)
     }
@@ -397,6 +405,36 @@ impl DirModule<'_> {
         }
 
         false
+    }
+
+    /// Return whether one callback expression can produce undefined.
+    pub(crate) fn produces_undefined(
+        &self,
+        callback: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        // read an unannotated lambda from its body, since its signature carries the contextual result
+        if let Some(lambda) = self.lambda(callback)
+            && lambda.signature.return_type.is_none()
+        {
+            let Some(values) = lambda
+                .body
+                .and_then(|body| self.callable_return_values(body))
+            else {
+                return Ok(true);
+            };
+            for value in values {
+                let value = self.node_type_id(value.into_any())?;
+                if self.dir.type_includes_undefined(value)? {
+                    return Ok(true);
+                }
+            }
+
+            return Ok(false);
+        }
+
+        let result = self.callable_return_type_id(callback)?;
+
+        self.dir.type_includes_undefined(result)
     }
 
     /// Return the checked result type id of one callable expression.

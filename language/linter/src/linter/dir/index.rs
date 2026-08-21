@@ -433,6 +433,20 @@ impl<'a> Dir<'a> {
         self.type_includes(type_id, dir::Type::is_undefined)
     }
 
+    /// Return one checked type's intersection elements, or the type itself.
+    pub fn intersection_elements(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<Vec<dir::GlobalTypeId>, ProviderError> {
+        let dir::Type::Intersection(intersection) = self.get_type(type_id)? else {
+            return Ok(vec![type_id]);
+        };
+
+        self.read_types(type_id.module_id, |types| {
+            Ok(types.type_ids(intersection.elements).to_vec())
+        })
+    }
+
     /// Return one checked static value by global id.
     pub fn get_static(
         &self,

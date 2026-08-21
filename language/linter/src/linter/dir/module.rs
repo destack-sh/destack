@@ -147,6 +147,37 @@ impl<'a> DirModule<'a> {
         self.dir.get_type(type_id)
     }
 
+    /// Return whether the value one checked node carries copies by value.
+    pub(crate) fn satisfies_copy(
+        &self,
+        node: dir::LocalNodeIdAny,
+        ty: dir::GlobalTypeId,
+    ) -> Result<bool, ProviderError> {
+        let ty = self.dir.strip_form(ty)?;
+
+        Ok(self
+            .auto
+            .conforms(ty, self.template_at(node), dir::AutoInterface::Copy))
+    }
+
+    /// Return the generic template governing one node's scope.
+    pub(crate) fn template_at(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::GlobalGenericTemplateId> {
+        let scope = self.bindings.scope_for_node(node.into_global(self.id))?.id;
+
+        std::iter::once(scope)
+            .chain(self.bindings.scope_ancestors(scope).map(|scope| scope.id))
+            .find_map(|scope| self.generics.template_by_scope(scope))
+            .map(|template| template.into_global(self.id))
+    }
+
+    /// Return whether one checked node cannot complete normally.
+    pub(crate) fn is_diverging(&self, node: dir::LocalNodeIdAny) -> Result<bool, ProviderError> {
+        Ok(matches!(self.node_type(node)?, dir::Type::Never))
+    }
+
     /// Return the reduced checked type id of one local node.
     pub fn node_type_id(
         &self,
@@ -163,6 +194,19 @@ impl<'a> DirModule<'a> {
         let type_id = self.adjusted_type_id(node)?;
 
         self.dir.get_type(type_id)
+    }
+
+    /// Return whether one checked node passes its value on unchanged.
+    pub(crate) fn is_unadjusted(&self, node: dir::LocalNodeIdAny) -> bool {
+        let Some(coercion) = self.coercions.coercion(node.into_global(self.id)) else {
+            return true;
+        };
+
+        // widening settles a fresh numeric literal at its carrier and leaves the value alone
+        coercion
+            .adjustments
+            .iter()
+            .all(|adjustment| matches!(adjustment, dir::CoercionAdjustment::Widen { .. }))
     }
 
     /// Return one checked node's type id after its selected adjustments.
@@ -239,7 +283,7 @@ impl DirModuleStorage {
         let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
         let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
         let decorators = checked.decorator_table(&elaborated);
-        let auto = elaborated.auto_table();
+        let auto = checked.auto_table(&elaborated);
         let resolutions = checked.resolution_table(&declared, &elaborated);
         let decisions = checked.decision_table(&declared, &elaborated);
         let generics = checked.generic_table(&declared, &elaborated);
