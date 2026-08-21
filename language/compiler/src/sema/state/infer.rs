@@ -118,8 +118,10 @@ impl TrailMark {
 
 impl InferContext {
     /// Mark the trail before one speculative attempt.
-    pub(in crate::sema) fn mark(&mut self, fulfill: &Fulfillment) -> TrailMark {
+    pub(in crate::sema) fn mark(&mut self, fulfill: &mut Fulfillment) -> TrailMark {
         self.marks += 1;
+
+        fulfill.open_speculation();
 
         TrailMark {
             variables: self.variables.count(),
@@ -149,13 +151,15 @@ impl InferContext {
 
         // drop the speculative checks with their scheduling, then close the mark
         fulfill.truncate(mark.checks);
+        fulfill.abandon_speculation();
         self.marks -= 1;
 
         Ok(())
     }
 
     /// Close one trail mark, keeping the mutations it recorded.
-    pub(in crate::sema) fn commit(&mut self, _mark: TrailMark) {
+    pub(in crate::sema) fn commit(&mut self, _mark: TrailMark, fulfill: &mut Fulfillment) {
+        fulfill.commit_speculation();
         self.marks -= 1;
         if self.marks == 0 {
             self.trail.clear();

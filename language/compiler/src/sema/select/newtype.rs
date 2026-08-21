@@ -128,7 +128,7 @@ impl BodyState<'_, '_> {
         if let Some((asked, canonical)) = &question
             && let Some(Answer::Selection(response)) = self.check.answers.get(asked).cloned()
         {
-            let mark = self.check.infer.mark(&self.check.fulfill);
+            let mark = self.check.infer.mark(&mut self.check.fulfill);
             let replayed = match self
                 .check
                 .instantiate_response(origin, canonical, &response)?
@@ -140,7 +140,7 @@ impl BodyState<'_, '_> {
             };
             match replayed {
                 Some(signature) => {
-                    self.check.infer.commit(mark);
+                    self.check.infer.commit(mark, &mut self.check.fulfill);
 
                     return Ok(NewtypeMatch::Selected(signature));
                 }

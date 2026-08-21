@@ -1070,7 +1070,7 @@ impl BodyState<'_, '_> {
             }
         });
         if let Some((response, canonical)) = replayed {
-            let mark = self.check.infer.mark(&self.check.fulfill);
+            let mark = self.check.infer.mark(&mut self.check.fulfill);
             let replayed = match self
                 .check
                 .instantiate_response(origin, &canonical, &response)?
@@ -1117,7 +1117,7 @@ impl BodyState<'_, '_> {
             };
             match replayed {
                 Some((overload, signature)) => {
-                    self.check.infer.commit(mark);
+                    self.check.infer.commit(mark, &mut self.check.fulfill);
                     let source = self.commit_callable_signature(
                         node,
                         callee,
@@ -1158,17 +1158,19 @@ impl BodyState<'_, '_> {
 
         // confirm the selected declaration outside any probe
         if let Some((position, candidate)) = overload.candidates.first().copied() {
-            let mark = self.check.infer.mark(&self.check.fulfill);
+            let mark = self.check.infer.mark(&mut self.check.fulfill);
             let attempt =
                 self.attempt_call(origin, candidate, &arguments, &argument_types, expectation)?;
             match &attempt {
                 // keep the inference an accepted call bound
-                SignatureMatch::Selected(_) => self.check.infer.commit(mark),
+                SignatureMatch::Selected(_) => {
+                    self.check.infer.commit(mark, &mut self.check.fulfill)
+                }
                 // keep what a sole candidate bound, reporting in place
                 SignatureMatch::Invalid { .. } | SignatureMatch::Inapplicable(_)
                     if is_single_candidate =>
                 {
-                    self.check.infer.commit(mark)
+                    self.check.infer.commit(mark, &mut self.check.fulfill)
                 }
                 // roll back everything a refused overload opened
                 SignatureMatch::ReturnMismatch(_)

@@ -1305,7 +1305,7 @@ impl BodyState<'_, '_> {
         // admit the other implementation once it matches the witnessed instantiation
         self.check.counters.extension_probes += 1;
         let mut receiver_witness = None;
-        let verdict = self.probe_candidate_fulfilling(|state| {
+        let verdict = self.probe_candidate(|state| {
             // open this declaration's parameters and pin the witnessed ones
             let Some(substitution) = state.instantiate_parameters(
                 origin,

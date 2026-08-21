@@ -34,8 +34,8 @@ check.stats.probes.total=6624
 check.stats.probes.selections=0
 check.stats.probes.extensions=342
 check.stats.instantiations=173
-check.stats.interns=19957
-check.stats.reduces=29095
+check.stats.interns=19958
+check.stats.reduces=29096
 "#,
     );
 }

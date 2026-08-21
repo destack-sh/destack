@@ -23,6 +23,16 @@ pub(in crate::sema) enum Wake {
     Final,
 }
 
+/// One open speculative attempt: the checks registered before it, which the attempt cannot
+/// step, and the wakes held back from them until the attempt commits.
+#[derive(Debug, Default)]
+struct Fence {
+    /// The number of checks registered before the attempt.
+    checks: usize,
+    /// Wake events the attempt fired at fenced checks.
+    wakes: Vec<Wake>,
+}
+
 /// The fulfillment queue driving pending checks to verdicts.
 pub(in crate::sema) struct Fulfillment {
     /// Collected checks with their outcomes and scheduling state.
@@ -37,6 +47,8 @@ pub(in crate::sema) struct Fulfillment {
     pub(in crate::sema) producers: FxIndexMap<dir::TypeVariableId, SmallVec<[CheckId; 2]>>,
     /// The number of checks still queued or waiting.
     live: usize,
+    /// Open speculative attempts, outermost first.
+    fences: Vec<Fence>,
 }
 
 impl Fulfillment {
@@ -49,6 +61,57 @@ impl Fulfillment {
             waiting: FxIndexMap::default(),
             producers: FxIndexMap::default(),
             live: 0,
+            fences: Vec::new(),
+        }
+    }
+
+    /// Return the number of checks the innermost open speculation fences off.
+    fn fence(&self) -> usize {
+        self.fences.last().map_or(0, |fence| fence.checks)
+    }
+
+    /// Open one speculative attempt, fencing off every check registered so far.
+    pub(in crate::sema) fn open_speculation(&mut self) {
+        self.fences.push(Fence {
+            checks: self.checks.count(),
+            wakes: Vec::new(),
+        });
+    }
+
+    /// Commit one speculative attempt, firing the wakes it held back.
+    pub(in crate::sema) fn commit_speculation(&mut self) {
+        let fence = self.fences.pop().unwrap_or_default();
+        for event in fence.wakes {
+            self.wake(event);
+        }
+    }
+
+    /// Abandon one speculative attempt, dropping the wakes it held back.
+    pub(in crate::sema) fn abandon_speculation(&mut self) {
+        self.fences.pop();
+    }
+
+    /// Queue the waiters of one event, holding fenced waiters back for the commit.
+    fn queue_waiters(&mut self, event: Wake, waiters: SmallVec<[CheckId; 2]>) {
+        let fence = self.fence();
+        let mut held = SmallVec::<[CheckId; 2]>::new();
+        for id in waiters {
+            if id.index() < fence {
+                held.push(id);
+                continue;
+            }
+            if self.checks.entries[id.index()].state == WorkState::Waiting {
+                self.checks.entries[id.index()].state = WorkState::Ready;
+                self.ready.push(id);
+            }
+        }
+        if let Some(fence) = self.fences.last_mut()
+            && !held.is_empty()
+        {
+            self.waiting.insert(event, held);
+            if !fence.wakes.contains(&event) {
+                fence.wakes.push(event);
+            }
         }
     }
 
@@ -107,24 +170,13 @@ impl Fulfillment {
             return;
         };
 
-        // queue each waiter that is still waiting
-        for id in waiters {
-            if self.checks.entries[id.index()].state == WorkState::Waiting {
-                self.checks.entries[id.index()].state = WorkState::Ready;
-                self.ready.push(id);
-            }
-        }
+        self.queue_waiters(event, waiters);
     }
 
     /// Wake every waiting check for the final settle.
     pub(in crate::sema) fn wake_all(&mut self) {
-        for (_, waiters) in std::mem::take(&mut self.waiting) {
-            for id in waiters {
-                if self.checks.entries[id.index()].state == WorkState::Waiting {
-                    self.checks.entries[id.index()].state = WorkState::Ready;
-                    self.ready.push(id);
-                }
-            }
+        for (event, waiters) in std::mem::take(&mut self.waiting) {
+            self.queue_waiters(event, waiters);
         }
     }
 
@@ -280,16 +332,26 @@ impl CheckState<'_> {
     pub(in crate::sema) fn solve_where_possible(&mut self, settle: Settle) -> CompilerResult<bool> {
         // take the round's ready queue, leaving fresh registrations for the next
         let ready = std::mem::take(&mut self.fulfill.ready);
+        let fence = self.fulfill.fence();
+        let mut held = Vec::new();
         let mut round = false;
 
-        // step each check that is still ready
+        // step each unfenced check that is still ready
         for id in ready {
+            if id.index() < fence {
+                held.push(id);
+                continue;
+            }
             if self.fulfill.checks.state(id) != WorkState::Ready {
                 continue;
             }
 
             round |= self.step_check(id, settle)?;
         }
+
+        // keep the fenced checks queued ahead of the round's registrations
+        held.append(&mut self.fulfill.ready);
+        self.fulfill.ready = held;
 
         Ok(round)
     }
@@ -378,7 +440,7 @@ impl CheckState<'_> {
         self.settle_blockers(settle, &blockers)?;
 
         // roll an ambiguous conversion back and wait for its operands to close
-        let mark = self.infer.mark(&self.fulfill);
+        let mark = self.infer.mark(&mut self.fulfill);
         let mut verdict = self.body().constrain_conversion(
             site,
             expectation.cause,
@@ -406,7 +468,7 @@ impl CheckState<'_> {
             }
         } else {
             // keep whatever a decided attempt bound
-            self.infer.commit(mark);
+            self.infer.commit(mark, &mut self.fulfill);
         }
 
         // convert once both sides settle
@@ -620,7 +682,7 @@ impl CheckState<'_> {
         self.settle_blockers(settle, &blockers)?;
 
         // attempt the relation, keeping whatever it bound
-        let mark = self.infer.mark(&self.fulfill);
+        let mark = self.infer.mark(&mut self.fulfill);
         let verdict = self.constrain_type(
             relation.origin,
             relation.cause,
@@ -628,7 +690,7 @@ impl CheckState<'_> {
             relation.source,
             relation.target,
         )?;
-        self.infer.commit(mark);
+        self.infer.commit(mark, &mut self.fulfill);
 
         // keep the attempt's bounds and leave the check pending while it is ambiguous
         if verdict == Verdict::Ambiguous && settle != Settle::Final {

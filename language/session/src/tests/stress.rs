@@ -392,7 +392,7 @@ export const result = value;
     .unwrap();
 
     let (cold, cold_trace) = test.check("src/index.ds", "js");
-    assert_eq!(cold_trace.stats.built, 2648);
+    assert_eq!(cold_trace.stats.built, 1804);
     assert_eq!(cold_trace.stats.memory_cached, 0);
     assert_eq!(cold_trace.stats.store_cached, 0);
     assert_eq!(cold_trace.stats.failed, 0);
@@ -401,8 +401,7 @@ export const result = value;
     assert_eq!(warm, cold);
     assert_eq!(TraceCounts::from_trace(&warm_trace), TraceCounts::default());
 
-    // precise const types propagate: the importer's checked artifact
-    //  embeds the dependency value, so the value edit changes it
+    // precise const types propagate
     test.edit_text(
         "src/dep.ds",
         r#"export const value = 2;
