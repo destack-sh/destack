@@ -5,10 +5,11 @@ use destack_core::StringPool;
 use destack_dir::{Comment, Expression, LocalNodeId, Node, NodeParentIndex, Path, TokenSpan, Tree};
 use destack_fir::format;
 use destack_fir::format::{Allocator, Format};
-use destack_parser::{CommentRetention, Parser, ParserResult};
+use destack_parser::{CommentRetention, ParseOptions, Parser, ParserResult};
 use destack_repository::FormatterOptions;
 use destack_source::{
-    DiffOptions, File, FileId, FileType, LanguageType, MultiSpan, Uri, print_diff,
+    DiffOptions, File, FileId, FileType, LanguageType, ModuleId, MultiSpan, PackageId, Uri,
+    print_diff,
 };
 
 /// Parse and format one source string for tests.
@@ -102,11 +103,16 @@ impl TestFormatter {
         // parse
         let language = LanguageType::try_from(file_type).expect("file type has no parser language");
         let (side_span, tree, parents, tokens, comments, strings, n) = {
-            let mut parser = Parser::lex_file_with_comment_retention(
+            let strings = Arc::new(StringPool::new());
+            let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+            let mut parser = Parser::new(
                 file.clone(),
                 language,
-                CommentRetention::All,
-                Arc::new(StringPool::new()),
+                Tree::new(module_id),
+                ParseOptions {
+                    comment_retention: CommentRetention::All,
+                    ..ParseOptions::default()
+                },
             );
             let n = parse_fn(&mut parser)?;
 
@@ -114,7 +120,7 @@ impl TestFormatter {
             let comments = parser.take_comments();
             n.index_parents(&mut parser.tree);
             let parents = parser.tree.parents().clone();
-            let strings = parser.publish_strings().clone();
+            strings.extend(&parser.strings);
 
             (
                 parser.tree.decorator_span(),
@@ -168,7 +174,7 @@ impl TestFormatter {
 
 /// Parse the first expression from one formatter test source.
 pub(crate) fn parse_first_expression(parser: &mut Parser) -> ParserResult<LocalNodeId<Expression>> {
-    let expressions = parser.parse();
+    let expressions = parser.parse_roots();
     let expression = expressions
         .into_iter()
         .next()

@@ -2,12 +2,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_parser::{CommentRetention, Parser, source_colorizer};
+use destack_dir::Tree;
+use destack_parser::{CommentRetention, ParseOptions, Parser, source_colorizer};
 use destack_repository::FormatterOptions;
 use destack_source::{
-    DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
-    print_diff,
+    DiffOptions, File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions, Uri,
+    print_diagnostics, print_diff,
 };
 
 use crate::format_file_source;
@@ -171,15 +171,19 @@ fn print_parse_diagnostics(path: &Path, logical_path: &Path, source: &str) {
         }
     };
 
-    let mut parser = Parser::lex_file_with_comment_retention(
+    let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+    let parser = Parser::new(
         file.clone(),
         LanguageType::Destack,
-        CommentRetention::All,
-        Arc::new(StringPool::new()),
+        Tree::new(module_id),
+        ParseOptions {
+            comment_retention: CommentRetention::All,
+            ..ParseOptions::default()
+        },
     );
-    parser.parse();
+    let parse = parser.parse();
 
-    let diagnostics = parser.diagnostics();
+    let diagnostics = parse.diagnostics();
     let options = PrintOptions::new().with_colorizer(source_colorizer());
     let _ = print_diagnostics(&file_for_id, &diagnostics, options);
 }

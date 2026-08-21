@@ -6,9 +6,11 @@ use destack_core::StringPool;
 use destack_dir::{Comment, Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format as fir_format;
 use destack_fir::format::Allocator;
-use destack_parser::{CommentRetention, Parser};
+use destack_parser::{CommentRetention, Parse, ParseOptions, Parser};
 use destack_repository::FormatterOptions;
-use destack_source::{DiagnosticCollection, DiagnosticSeverity, File, LanguageType, Span};
+use destack_source::{
+    DiagnosticCollection, DiagnosticSeverity, File, LanguageType, ModuleId, PackageId, Span,
+};
 
 use crate::context::is_line_terminator;
 use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
@@ -56,18 +58,12 @@ pub struct FormattedRange {
     pub diagnostics: DiagnosticCollection,
 }
 
-/// The parser state and roots for one authored source file.
+/// One authored source file parsed for formatting.
 struct ParsedFile {
-    /// The source file owned by the parser.
-    file: Arc<File>,
     /// The language variant used to parse the file.
     language_type: LanguageType,
-    /// The parser after constructing the DIR roots.
-    parser: Parser,
-    /// The parsed program roots.
-    roots: Vec<LocalNodeId<Expression>>,
-    /// Diagnostics produced while parsing the roots.
-    diagnostics: DiagnosticCollection,
+    /// The completed source parse.
+    parse: Parse,
 }
 
 impl Display for FormatFileError {
@@ -121,22 +117,23 @@ pub fn format_source(
     source: &str,
     options: FormatterOptions,
 ) -> Result<FormattedFile, FormatFileError> {
+    // parse the source and preserve blocking diagnostics
     let parsed = parse_file(file, source)?;
-    if has_blocking_diagnostics(&parsed.diagnostics) {
+    let diagnostics = parsed.parse.diagnostics();
+    if has_blocking_diagnostics(&diagnostics) {
         return Ok(FormattedFile {
             text: source.to_owned(),
-            diagnostics: parsed.diagnostics,
+            diagnostics,
         });
     }
 
+    // render every parsed root
     let ParsedFile {
-        file,
         language_type,
-        mut parser,
-        roots,
-        diagnostics,
+        mut parse,
     } = parsed;
-    let text = render_parsed_roots(&file, language_type, &mut parser, &roots, &roots, options)?;
+    let roots = std::mem::take(&mut parse.roots);
+    let text = render_parsed_roots(language_type, &mut parse, &roots, &roots, options)?;
 
     Ok(FormattedFile { text, diagnostics })
 }
@@ -149,20 +146,23 @@ pub fn format_source_range(
     start: u32,
     end: u32,
 ) -> Result<FormattedRange, FormatFileError> {
+    // parse the source and preserve blocking diagnostics
     let parsed = parse_file(file, source)?;
-    if has_blocking_diagnostics(&parsed.diagnostics) {
+    let diagnostics = parsed.parse.diagnostics();
+    if has_blocking_diagnostics(&diagnostics) {
         return Ok(FormattedRange {
             edit: None,
-            diagnostics: parsed.diagnostics,
+            diagnostics,
         });
     }
 
     // find roots that overlap the selected byte range
     let overlapping = parsed
+        .parse
         .roots
         .iter()
         .filter(|expression| {
-            let span = parsed.parser.tree.get_span(**expression);
+            let span = parsed.parse.tree.get_span(**expression);
             span.start < end && span.end > start
         })
         .copied()
@@ -170,32 +170,24 @@ pub fn format_source_range(
     if overlapping.is_empty() {
         return Ok(FormattedRange {
             edit: None,
-            diagnostics: parsed.diagnostics,
+            diagnostics,
         });
     }
 
     // compute the exact replacement span
-    let first_span = parsed.parser.tree.get_span(overlapping[0]);
+    let first_span = parsed.parse.tree.get_span(overlapping[0]);
     let last_index = overlapping.len() - 1;
-    let last_span = parsed.parser.tree.get_span(overlapping[last_index]);
+    let last_span = parsed.parse.tree.get_span(overlapping[last_index]);
     let span = Span::new(file.id, first_span.start, last_span.end);
     let span = format_replacement_span(source, span);
 
+    // render the overlapping roots in complete source context
     let ParsedFile {
-        file,
         language_type,
-        mut parser,
-        roots,
-        diagnostics,
+        mut parse,
     } = parsed;
-    let mut text = render_parsed_roots(
-        &file,
-        language_type,
-        &mut parser,
-        &roots,
-        &overlapping,
-        options,
-    )?;
+    let roots = std::mem::take(&mut parse.roots);
+    let mut text = render_parsed_roots(language_type, &mut parse, &roots, &overlapping, options)?;
 
     // keep EOF range formatting newline terminated
     let is_at_end = last_span.end >= file.len.saturating_sub(1);
@@ -214,42 +206,54 @@ fn parse_file(file: &File, source: &str) -> Result<ParsedFile, FormatFileError> 
     let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
         message: format!("formatter received non-code file type: {:?}", file.ty),
     })?;
-    let file = parser_file(file, source)?;
-    let mut parser = source_parser(file.clone(), language_type);
-    let roots = parser.parse();
-    let diagnostics = parser.diagnostics();
 
-    Ok(ParsedFile {
+    // create a standalone parse that retains every authored comment
+    let file = parser_file(file, source)?;
+    let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+    let tree = Tree::new(module_id);
+    let parser = Parser::new(
         file,
         language_type,
-        parser,
-        roots,
-        diagnostics,
+        tree,
+        ParseOptions {
+            comment_retention: CommentRetention::All,
+            ..ParseOptions::default()
+        },
+    );
+    let parse = parser.parse();
+
+    Ok(ParsedFile {
+        language_type,
+        parse,
     })
 }
 
 /// Render selected roots from one parsed source file.
 fn render_parsed_roots(
-    file: &File,
     language_type: LanguageType,
-    parser: &mut Parser,
+    parse: &mut Parse,
     program_roots: &[LocalNodeId<Expression>],
     selected_roots: &[LocalNodeId<Expression>],
     options: FormatterOptions,
 ) -> Result<String, FormatFileError> {
-    let tokens = parser.take_token_spans();
-    let side_span = parser.tree.decorator_span();
-    parser.tree.index_parents(program_roots);
+    // materialize parser-owned formatting state
+    let tokens = parse.take_token_spans();
+    let side_span = parse.tree.decorator_span();
+    parse.tree.index_parents(program_roots);
+    let strings = StringPool::new();
+    strings.extend(&parse.strings);
+
+    // render the selected roots against the complete source context
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options,
-        file,
-        &parser.tree,
+        &parse.file,
+        &parse.tree,
         &tokens,
-        parser.comments(),
+        &parse.comments,
         &side_span,
-        parser.publish_strings(),
-        parser.tree.parents(),
+        &strings,
+        parse.tree.parents(),
     );
 
     render_program_roots(context, selected_roots)
@@ -270,16 +274,6 @@ fn parser_file(file: &File, source: &str) -> Result<Arc<File>, FormatFileError> 
     })?;
 
     Ok(Arc::new(file))
-}
-
-/// Build a parser configured for source formatting.
-fn source_parser(file: Arc<File>, language_type: LanguageType) -> Parser {
-    Parser::lex_file_with_comment_retention(
-        file,
-        language_type,
-        CommentRetention::All,
-        Arc::new(StringPool::new()),
-    )
 }
 
 /// Return whether parser diagnostics block formatting.

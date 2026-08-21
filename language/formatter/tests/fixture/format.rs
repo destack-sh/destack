@@ -2,13 +2,15 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_core::StringPool;
-use destack_dir::NodeParentIndex;
+use destack_dir::{NodeParentIndex, Tree};
 use destack_fir::format as fir_format;
 use destack_fir::format::Allocator;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{CommentRetention, Parser};
+use destack_parser::{CommentRetention, ParseOptions, Parser};
 use destack_repository::FormatterOptions;
-use destack_source::{DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri};
+use destack_source::{
+    DiagnosticSeverity, File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri,
+};
 
 /// Format one complete source file and reject diagnostics at the requested severity.
 pub(super) fn format_source(
@@ -49,14 +51,18 @@ pub(super) fn format_source(
     let file = Arc::new(file);
 
     // retain every comment because formatting owns their placement
-    let mut parser = Parser::lex_file_with_comment_retention(
+    let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+    let parser = Parser::new(
         file.clone(),
         language,
-        CommentRetention::All,
-        Arc::new(StringPool::new()),
+        Tree::new(module_id),
+        ParseOptions {
+            comment_retention: CommentRetention::All,
+            ..ParseOptions::default()
+        },
     );
-    let expressions = parser.parse();
-    let diagnostics = parser.diagnostics();
+    let mut parse = parser.parse();
+    let diagnostics = parse.diagnostics();
     let failures = diagnostics
         .iter()
         .filter(|diagnostic| diagnostic.severity >= minimum_severity)
@@ -74,25 +80,26 @@ pub(super) fn format_source(
     }
 
     // build the formatting context from the complete parsed file
-    let tokens = parser.take_token_spans();
-    let decorators = parser.tree.decorator_span();
-    let strings = parser.publish_strings();
-    let parents = NodeParentIndex::from_roots(&parser.tree, &expressions);
+    let tokens = parse.take_token_spans();
+    let decorators = parse.tree.decorator_span();
+    let strings = StringPool::new();
+    strings.extend(&parse.strings);
+    let parents = NodeParentIndex::from_roots(&parse.tree, &parse.roots);
     let options = DestackFormatOptions::from_formatter_options(options, language);
     let context = DestackFormatContext::new(
         options,
         &file,
-        &parser.tree,
+        &parse.tree,
         &tokens,
-        parser.comments(),
+        &parse.comments,
         &decorators,
-        strings,
+        &strings,
         &parents,
     );
 
     // print one canonical file with a final newline
     let allocator = Allocator::default();
-    let document = fir_format!(&allocator, context, [statement_list(&expressions)])
+    let document = fir_format!(&allocator, context, [statement_list(&parse.roots)])
         .map_err(|error| format!("failed to format '{}': {error}", logical_path.display()))?;
     let mut output = document
         .print()
