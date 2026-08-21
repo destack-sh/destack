@@ -25,9 +25,9 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::StringId;
 use destack_dir::{
-    BinaryOperator, Comment, Expression, FunctionSignature, Keyword, LocalNodeId, Member,
-    MethodAbstraction, Name, Node, Parameter, Property, Literal, Tree, TreeStore,
-    TypeExpression, Visibility, is_identifier_compat,
+    BinaryOperator, Comment, Expression, FunctionSignature, Keyword, Literal, LocalNodeId, Member,
+    MethodAbstraction, Name, Node, Parameter, Property, Tree, TreeStore, TypeExpression,
+    Visibility, is_identifier_compat,
 };
 use destack_fir::format::{
     FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, text,

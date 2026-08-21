@@ -2,7 +2,7 @@ use crate::expression::{
     should_preserve_source_parentheses, write_expression_without_derived_parentheses,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Expression, LocalNodeId, NodeType, OperatorPrecedence, Literal, Tree};
+use destack_dir::{Expression, Literal, LocalNodeId, NodeType, OperatorPrecedence, Tree};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, group, soft_block_indent, token};
 use destack_fir::{format_args, write};

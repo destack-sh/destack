@@ -1,8 +1,8 @@
 use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
 use destack_dir::{
-    Argument, Declaration, Expression, FunctionForm, IfForm, LocalNodeId, Pattern, Property,
-    Literal, Tree, TypeExpression, UnaryOperator,
+    Argument, Declaration, Expression, FunctionForm, IfForm, Literal, LocalNodeId, Pattern,
+    Property, Tree, TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -305,17 +305,13 @@ fn array_element_is_fill_candidate(tree: &Tree, element_id: LocalNodeId<Argument
     };
 
     match tree.get(value_id) {
-        Expression::Literal(
-            Literal::Integer(_) | Literal::Bigint(_) | Literal::Float(_),
-        ) => true,
+        Expression::Literal(Literal::Integer(_) | Literal::Bigint(_) | Literal::Float(_)) => true,
         Expression::Unary { operator, right } => {
             matches!(operator, UnaryOperator::Plus | UnaryOperator::Negate)
                 && matches!(
                     tree.get(*right),
                     Expression::Literal(
-                        Literal::Integer(_)
-                            | Literal::Bigint(_)
-                            | Literal::Float(_)
+                        Literal::Integer(_) | Literal::Bigint(_) | Literal::Float(_)
                     )
                 )
         }

@@ -14,8 +14,8 @@ use crate::tree::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, Comment, Declaration, Expression, FunctionForm, GenericArgument, IfForm, LocalNodeId,
-    NodeType, Literal, Tree, TreeAttribute, TreeChild,
+    Argument, Comment, Declaration, Expression, FunctionForm, GenericArgument, IfForm, Literal,
+    LocalNodeId, NodeType, Tree, TreeAttribute, TreeChild,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{

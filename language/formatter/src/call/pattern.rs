@@ -4,7 +4,7 @@ use crate::chain::{
 };
 use crate::expression::expression_is_multiline_template_starting_on_same_line;
 use destack_dir::{
-    Argument, Declaration, Expression, FunctionForm, LocalNodeId, Literal, TemplateLiteral,
+    Argument, Declaration, Expression, FunctionForm, Literal, LocalNodeId, TemplateLiteral,
 };
 use destack_source::Span;
 
@@ -475,8 +475,7 @@ fn argument_is_string_or_template_literal(
     argument_expression_id(context, argument_id).is_some_and(|expression_id| {
         matches!(
             context.tree.get(expression_id),
-            Expression::Literal(Literal::String(_))
-                | Expression::TemplateExpression { .. }
+            Expression::Literal(Literal::String(_)) | Expression::TemplateExpression { .. }
         )
     })
 }

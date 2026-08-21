@@ -10,8 +10,8 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::{StringId, StringPool};
 use destack_dir::{
     DecoratorPosition, DependencyBinding, DependencyItem, Expression, ImportAttribute,
-    ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Keyword, LocalNodeId,
-    Name, Literal, TokenSpan, TokenType, Tree,
+    ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Keyword, Literal,
+    LocalNodeId, Name, TokenSpan, TokenType, Tree,
 };
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;

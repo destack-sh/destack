@@ -16,7 +16,7 @@ use crate::file::write_source_span;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
-    Argument, Expression, IfForm, LocalNodeId, Node, NodeType, Literal, Tree, TreeAttribute,
+    Argument, Expression, IfForm, Literal, LocalNodeId, Node, NodeType, Tree, TreeAttribute,
     TreeAttributeValue, TreeChild, TreeStore,
 };
 use destack_fir::format::{FormatError, FormatResult};

@@ -1,5 +1,5 @@
 use crate::DestackFormatContext;
-use destack_dir::{Expression, LocalNodeId, Literal, TreeChild};
+use destack_dir::{Expression, Literal, LocalNodeId, TreeChild};
 
 /// Check whether a tree text child is whitespace-only.
 pub(crate) fn tree_text_is_whitespace_only(
@@ -88,8 +88,7 @@ pub(crate) fn tree_child_is_space_expression(
     let TreeChild::Expression { value } = context.tree.get(child_id) else {
         return false;
     };
-    let Expression::Literal(Literal::String(string_id)) = context.tree.get(*value)
-    else {
+    let Expression::Literal(Literal::String(string_id)) = context.tree.get(*value) else {
         return false;
     };
 

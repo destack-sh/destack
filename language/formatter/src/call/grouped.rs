@@ -12,8 +12,8 @@ use crate::declaration::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, Declaration, Expression, FunctionForm, FunctionSignature, GenericArgument,
-    LocalNodeId, Parameter, Literal, TypeExpression, UnaryOperator,
+    Argument, Declaration, Expression, FunctionForm, FunctionSignature, GenericArgument, Literal,
+    LocalNodeId, Parameter, TypeExpression, UnaryOperator,
 };
 use destack_fir::format::{
     FormatElement as FirElement, FormatError, FormatLayout, FormatResult, GroupId,

@@ -16,7 +16,7 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
     Declaration, Declarator, DecoratorPosition, Expression, FunctionDeclaration, FunctionForm,
-    GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, Literal, TemplateLiteral,
+    GenericArgument, Literal, LocalNodeId, NodeType, Pattern, PatternField, TemplateLiteral,
     TokenType, TypeExpression,
 };
 use destack_fir::format::{
@@ -1686,9 +1686,8 @@ fn assignment_rhs_is_compact(
 
     matches!(
         right_expression,
-        Expression::Literal(
-            Literal::Boolean(_) | Literal::Integer(_) | Literal::Float(_)
-        ) | Expression::TemplateExpression { .. }
+        Expression::Literal(Literal::Boolean(_) | Literal::Integer(_) | Literal::Float(_))
+            | Expression::TemplateExpression { .. }
             | Expression::TaggedTemplateExpression { .. }
     ) || expression_is_class_declaration(context, right)
 }

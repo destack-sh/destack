@@ -2,7 +2,7 @@ use super::transparent_inner_expression;
 use crate::DestackFormatContext;
 use crate::expression::static_value_expression;
 use destack_dir::{
-    Argument, Expression, GenericArgument, LocalNodeId, Property, Literal, TemplateLiteral,
+    Argument, Expression, GenericArgument, Literal, LocalNodeId, Property, TemplateLiteral,
     TypeExpression, UnaryOperator,
 };
 
