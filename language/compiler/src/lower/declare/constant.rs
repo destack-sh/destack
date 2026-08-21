@@ -135,7 +135,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<mir::GlobalInitializer> {
         match term {
             // initialize scalars at their lowered carrier
-            dir::StaticTerm::ScalarLiteral { value } => {
+            dir::StaticTerm::Literal { value } => {
                 let pointer_bytes = builder.pointer_bytes();
                 let carrier = self.constant_type(builder, ty)?;
                 let carrier = builder.tree_mut().get(carrier).clone();
@@ -213,14 +213,14 @@ impl ModuleLowerer<'_> {
     /// Build one scalar constant at its lowered carrier.
     fn scalar_constant(
         &self,
-        literal: dir::ScalarLiteral,
+        literal: dir::Literal,
         carrier: &mir::Type,
         pointer_bytes: u8,
     ) -> CompilerResult<mir::Constant> {
         Ok(match (literal, carrier) {
-            (dir::ScalarLiteral::Boolean(value), _) => mir::Constant::Boolean { value },
+            (dir::Literal::Boolean(value), _) => mir::Constant::Boolean { value },
             (
-                dir::ScalarLiteral::Integer(value),
+                dir::Literal::Integer(value),
                 mir::Type::Int {
                     width,
                     is_signed: true,
@@ -231,7 +231,7 @@ impl ModuleLowerer<'_> {
                 is_signed: true,
             },
             (
-                dir::ScalarLiteral::Integer(value),
+                dir::Literal::Integer(value),
                 mir::Type::Int {
                     width,
                     is_signed: false,
@@ -240,22 +240,22 @@ impl ModuleLowerer<'_> {
                 value: value as u128,
                 width: *width,
             },
-            (dir::ScalarLiteral::Integer(value), mir::Type::Usize) => mir::Constant::UInt {
+            (dir::Literal::Integer(value), mir::Type::Usize) => mir::Constant::UInt {
                 value: value as u128,
                 width: 8 * pointer_bytes as u16,
             },
-            (dir::ScalarLiteral::Integer(value), mir::Type::Isize) => mir::Constant::Int {
+            (dir::Literal::Integer(value), mir::Type::Isize) => mir::Constant::Int {
                 value: value as i128,
                 width: 8 * pointer_bytes as u16,
                 is_signed: true,
             },
-            (dir::ScalarLiteral::Integer(value), mir::Type::Float(format)) => {
+            (dir::Literal::Integer(value), mir::Type::Float(format)) => {
                 mir::Constant::Float {
                     bits: destack_core::float_to_bits(format.format(), value as f64),
                     format: *format,
                 }
             }
-            (dir::ScalarLiteral::Float(value), mir::Type::Float(format)) => mir::Constant::Float {
+            (dir::Literal::Float(value), mir::Type::Float(format)) => mir::Constant::Float {
                 bits: destack_core::float_to_bits(format.format(), value),
                 format: *format,
             },

@@ -237,7 +237,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "the lowered update operand has no type".to_string(),
             })?;
         let one_type = self.builder.tree().get(one_type).clone();
-        let one = self.lower_constant(dir::ScalarLiteral::Integer(1), one_type)?;
+        let one = self.lower_constant(dir::Literal::Integer(1), one_type)?;
         let operator = match operator {
             dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PreIncrement => {
                 dir::BinaryOperator::Add

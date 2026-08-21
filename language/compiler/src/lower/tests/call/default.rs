@@ -193,9 +193,10 @@ immortal constant string.3441301661858404811: destack.string.string.String = {{g
 
 function test.main.total(v0: ref<destack.collections.array.Array<int32>, managed, mutable>): int32 {
 entry(v0: ref<destack.collections.array.Array<int32>, managed, mutable>):
-    v1: isize = call destack.collections.array.length<int32>(v0): (ref<destack.collections.array.Array<int32>, managed, readonly>) => isize
-    v2: int32 = cast.truncate v1 -> int32
-    return v2
+    v1: ref<destack.collections.array.Array<int32>, borrowed, 'frame, readonly> = cast.bit v0 -> ref<destack.collections.array.Array<int32>, borrowed, 'frame, readonly>
+    v2: isize = call destack.collections.array.length<int32>(v1): <'a>(ref<destack.collections.array.Array<int32>, borrowed, 'a, readonly>) => isize
+    v3: int32 = cast.truncate v2 -> int32
+    return v3
 }
 
 function test.main.main(): int32 {
@@ -217,8 +218,8 @@ entry:
     return v10
 }
 
-function destack.collections.array.length<int32>(v0: ref<destack.collections.array.Array<int32>, managed, readonly>): isize {
-entry(v0: ref<destack.collections.array.Array<int32>, managed, readonly>):
+function destack.collections.array.length<int32, 'a>(v0: ref<destack.collections.array.Array<int32>, borrowed, 'a, readonly>): isize {
+entry(v0: ref<destack.collections.array.Array<int32>, borrowed, 'a, readonly>):
     v1: ref<isize, borrowed, readonly> = field.address v0, 1
     v2: isize = load v1
     return v2

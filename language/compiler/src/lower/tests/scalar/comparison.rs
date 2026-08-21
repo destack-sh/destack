@@ -81,8 +81,8 @@ function yes(): boolean {
         r#"
 function test.main.yes(): boolean {
 entry:
-    v0: float64 = 1
-    v1: float64 = 2
+    v0: int64 = 1
+    v1: int64 = 2
     v2: boolean = lt v0, v1
     return v2
 }

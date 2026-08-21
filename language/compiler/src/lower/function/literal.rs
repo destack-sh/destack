@@ -10,19 +10,19 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_scalar_literal(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        literal: dir::ScalarLiteral,
+        literal: dir::Literal,
     ) -> CompilerResult<mir::Value> {
         // a string or bigint at its singleton type is const: zero sized,
         //  its content lives in the type and widening materializes it
         let is_const = matches!(self.node_type(expression)?, dir::Type::Literal(_));
         match literal {
-            dir::ScalarLiteral::String(string) if !is_const => {
+            dir::Literal::String(string) if !is_const => {
                 return self.lower_string_literal(string);
             }
-            dir::ScalarLiteral::Bigint(bigint) if !is_const => {
+            dir::Literal::Bigint(bigint) if !is_const => {
                 return self.lower_bigint_literal(bigint);
             }
-            dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Bigint(_) => {
+            dir::Literal::String(_) | dir::Literal::Bigint(_) => {
                 let void = self.builder.tree_mut().intern_type(mir::Type::Void);
 
                 return Ok(self.builder.constant(mir::Constant::Undefined, void));
@@ -39,40 +39,40 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one literal to a constant of one concrete carrier type.
     pub(in crate::lower) fn lower_constant(
         &mut self,
-        literal: dir::ScalarLiteral,
+        literal: dir::Literal,
         carrier: mir::Type,
     ) -> CompilerResult<mir::Value> {
         match (literal, carrier) {
             // pick the single boolean carrier
-            (dir::ScalarLiteral::Boolean(value), _) => Ok(self.builder.bconst(value)),
+            (dir::Literal::Boolean(value), _) => Ok(self.builder.bconst(value)),
 
             // materialize integers at their selected width and sign
-            (dir::ScalarLiteral::Integer(value), mir::Type::Int { width, is_signed }) => {
+            (dir::Literal::Integer(value), mir::Type::Int { width, is_signed }) => {
                 Ok(self.builder.iconst(value as i128, width, is_signed))
             }
             // materialize integers directly in float contexts
-            (dir::ScalarLiteral::Integer(value), mir::Type::Float(float)) => {
+            (dir::Literal::Integer(value), mir::Type::Float(float)) => {
                 Ok(self.builder.fconst(value as f64, float))
             }
             // materialize integers at the pointer-sized carriers
-            (dir::ScalarLiteral::Integer(value), mir::Type::Usize) => {
+            (dir::Literal::Integer(value), mir::Type::Usize) => {
                 Ok(self.builder.usize_const(value as u128))
             }
-            (dir::ScalarLiteral::Integer(value), mir::Type::Isize) => {
+            (dir::Literal::Integer(value), mir::Type::Isize) => {
                 Ok(self.builder.isize_const(value as i128))
             }
 
             // materialize floats at their selected format
-            (dir::ScalarLiteral::Float(value), mir::Type::Float(float)) => {
+            (dir::Literal::Float(value), mir::Type::Float(float)) => {
                 Ok(self.builder.fconst(value, float))
             }
 
             // read string and bigint literals from their declared immortal objects
-            (dir::ScalarLiteral::String(string), _) => self.lower_string_literal(string),
-            (dir::ScalarLiteral::Bigint(bigint), _) => self.lower_bigint_literal(bigint),
+            (dir::Literal::String(string), _) => self.lower_string_literal(string),
+            (dir::Literal::Bigint(bigint), _) => self.lower_bigint_literal(bigint),
 
             // materialize undefined as the void unit in void positions
-            (dir::ScalarLiteral::Undefined, carrier @ mir::Type::Void) => {
+            (dir::Literal::Undefined, carrier @ mir::Type::Void) => {
                 let ty = self.builder.tree_mut().intern_type(carrier);
 
                 Ok(self.builder.constant(mir::Constant::Undefined, ty))
@@ -122,7 +122,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn literal_carrier(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        literal: dir::ScalarLiteral,
+        literal: dir::Literal,
     ) -> CompilerResult<mir::Type> {
         // use the node's own type when concretely typed
         let ty = self.node_type_id(expression)?;
@@ -134,10 +134,10 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match literal {
             // pick the single boolean carrier
-            dir::ScalarLiteral::Boolean(_) => Ok(mir::Type::Boolean),
+            dir::Literal::Boolean(_) => Ok(mir::Type::Boolean),
 
             // require numeric literals to enter through a concrete value target
-            dir::ScalarLiteral::Integer(_) | dir::ScalarLiteral::Float(_) => {
+            dir::Literal::Integer(_) | dir::Literal::Float(_) => {
                 Err(CompilerError::Internal {
                     message: format!(
                         "numeric literal expression {} reached lowering without a concrete target",

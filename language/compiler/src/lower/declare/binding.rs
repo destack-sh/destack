@@ -48,7 +48,7 @@ impl ModuleLowerer<'_> {
             let key = self.strings.get(key);
 
             // omitted optional properties evaluate to undefined
-            if matches!(value.as_scalar(), Some(dir::ScalarLiteral::Undefined)) {
+            if matches!(value.as_scalar(), Some(dir::Literal::Undefined)) {
                 continue;
             }
 
@@ -93,7 +93,7 @@ impl ModuleLowerer<'_> {
                     })?;
                 }
                 "park" => {
-                    let Some(dir::ScalarLiteral::Boolean(value)) = value.as_scalar() else {
+                    let Some(dir::Literal::Boolean(value)) = value.as_scalar() else {
                         return Err(CompilerError::Internal {
                             message: format!("checked binding '{key}' is not a boolean"),
                         });

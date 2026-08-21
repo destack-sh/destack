@@ -116,7 +116,7 @@ impl<'a> ImportState<'a> {
 
         match loader_attribute.map(|attribute| &attribute.value) {
             // accept known loader names
-            Some(dir::ImportAttributeValue::ScalarLiteral(dir::ScalarLiteral::String(value))) => {
+            Some(dir::ImportAttributeValue::Literal(dir::Literal::String(value))) => {
                 let value = self.strings().get(*value);
                 if let Some(loader) = Loader::from_type_attribute(value) {
                     Some(loader)

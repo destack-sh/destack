@@ -665,7 +665,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<bool> {
         let source = self.argument_expression(resolution, index)?;
         match self.node_type(source)? {
-            dir::Type::Literal(dir::ScalarLiteral::Boolean(value)) => Ok(value),
+            dir::Type::Literal(dir::Literal::Boolean(value)) => Ok(value),
             _ => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("{construct} without a const-evaluated value"),

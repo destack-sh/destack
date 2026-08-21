@@ -164,7 +164,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_discriminant_comparison(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        literal: dir::ScalarLiteral,
+        literal: dir::Literal,
         access: &dir::MemberAccess,
     ) -> CompilerResult<mir::Value> {
         let dir::MemberTarget::Projection {

@@ -194,9 +194,9 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_expression(expression);
         }
         let literal = match attribute.text {
-            Some(text) => dir::ScalarLiteral::String(text),
+            Some(text) => dir::Literal::String(text),
             // provide true for bare attributes
-            None => dir::ScalarLiteral::Boolean(true),
+            None => dir::Literal::Boolean(true),
         };
         let carrier = self.lower_type(attribute.ty)?;
         let carrier = self.builder.tree().get(carrier).clone();
@@ -217,7 +217,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 dir::TreeChildBinding::Text { value, ty } => {
                     let carrier = self.lower_type(*ty)?;
                     let carrier = self.builder.tree().get(carrier).clone();
-                    values.push(self.lower_constant(dir::ScalarLiteral::String(*value), carrier)?);
+                    values.push(self.lower_constant(dir::Literal::String(*value), carrier)?);
                 }
                 dir::TreeChildBinding::Expression { node, .. } => {
                     let Ok(expression) = node.local_id.try_into_typed::<dir::Expression>() else {

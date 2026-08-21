@@ -12,7 +12,7 @@ enum CoercionValue {
     /// One materialized value.
     Runtime(mir::Value),
     /// One compile-time scalar literal.
-    Literal(dir::ScalarLiteral),
+    Literal(dir::Literal),
     /// The unmaterialized null value.
     Null,
     /// The unmaterialized undefined value.
@@ -79,7 +79,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<bool> {
         match self.source().tree().get(expression) {
             // literal values compute nothing
-            dir::Expression::ScalarLiteral(_) => Ok(true),
+            dir::Expression::Literal(_) => Ok(true),
 
             // builtin operations fold when every operand folds
             dir::Expression::Binary { left, right, .. } => {
@@ -184,8 +184,14 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
+            dir::CoercionAdjustment::Manage { target } => {
+                let value = self.materialize_coercion_value(value, source)?;
+                let target = self.lower_type(*target)?;
+                let value = self.builder.cast(mir::CastOperator::Bitcast, value, target);
+
+                Ok(CoercionValue::Runtime(value))
+            }
             dir::CoercionAdjustment::Instantiate { target, arguments } => {
-                // materialize the reference at its selected concrete instance
                 let CoercionValue::Expression(expression) = value else {
                     return Err(CompilerError::Internal {
                         message: "an instantiate coercion of a lowered value".to_string(),
@@ -651,7 +657,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_resolved_value(expression, symbol)
             }
 
-            dir::Expression::ScalarLiteral(literal) => {
+            dir::Expression::Literal(literal) => {
                 self.lower_scalar_literal(expression, literal)
             }
 

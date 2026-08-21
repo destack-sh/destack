@@ -113,7 +113,7 @@ impl ModuleLowerer<'_> {
 
             // collect literals committed at their runtime types, skipping const singletons
             if let Ok(expression) = id.try_into_typed::<dir::Expression>()
-                && let dir::Expression::ScalarLiteral(literal) = state.tree().get(expression)
+                && let dir::Expression::Literal(literal) = state.tree().get(expression)
             {
                 let ty =
                     state
@@ -125,10 +125,10 @@ impl ModuleLowerer<'_> {
                 let is_runtime = !matches!(self.ty(ty)?, dir::Type::Literal(_));
                 match literal {
                     _ if !is_runtime => {}
-                    dir::ScalarLiteral::String(string) => {
+                    dir::Literal::String(string) => {
                         reachable.strings.insert(*string);
                     }
-                    dir::ScalarLiteral::Bigint(bigint) => {
+                    dir::Literal::Bigint(bigint) => {
                         reachable.bigints.insert(*bigint);
                     }
                     _ => {}
@@ -585,10 +585,10 @@ impl ModuleLowerer<'_> {
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         match self.ty(source)? {
-            dir::Type::Literal(dir::ScalarLiteral::String(string)) => {
+            dir::Type::Literal(dir::Literal::String(string)) => {
                 reachable.strings.insert(string);
             }
-            dir::Type::Literal(dir::ScalarLiteral::Bigint(bigint)) => {
+            dir::Type::Literal(dir::Literal::Bigint(bigint)) => {
                 reachable.bigints.insert(bigint);
             }
             dir::Type::Union(union) => {

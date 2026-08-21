@@ -50,7 +50,7 @@ impl ModuleLowerer<'_> {
         value: &dir::ImportAttributeValue,
     ) -> Result<js::LocalNodeId<js::Expression>, EmitError> {
         let expression = match value {
-            dir::ImportAttributeValue::ScalarLiteral(value) => js::Expression::ScalarLiteral {
+            dir::ImportAttributeValue::Literal(value) => js::Expression::Literal {
                 value: self.lower_scalar_literal(value),
             },
             dir::ImportAttributeValue::Array(values) => {
@@ -564,9 +564,9 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::ScalarLiteral(value) => {
+            dir::Expression::Literal(value) => {
                 let value = self.lower_scalar_literal(value);
-                let expression = js::Expression::ScalarLiteral { value };
+                let expression = js::Expression::Literal { value };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
@@ -623,7 +623,7 @@ impl ModuleLowerer<'_> {
 
             dir::Expression::Type { value } => {
                 let type_expression = self.dir_tree.get(*value);
-                let dir::TypeExpression::Literal { value } = type_expression else {
+                let dir::TypeExpression::Keyword { value } = type_expression else {
                     return Err(self.unhandled(
                         expression_id.into_global_any(self.module.id),
                         Some("runtime type values are not lowered to JS expressions".to_string()),
@@ -631,8 +631,8 @@ impl ModuleLowerer<'_> {
                 };
 
                 let value = match value {
-                    dir::TypeLiteral::Null => js::ScalarLiteral::Null,
-                    dir::TypeLiteral::Undefined => js::ScalarLiteral::Undefined,
+                    dir::TypeLiteral::Null => js::Literal::Null,
+                    dir::TypeLiteral::Undefined => js::Literal::Undefined,
                     _ => {
                         return Err(self.unhandled(
                             expression_id.into_global_any(self.module.id),
@@ -640,18 +640,18 @@ impl ModuleLowerer<'_> {
                         ));
                     }
                 };
-                let expression = js::Expression::ScalarLiteral { value };
+                let expression = js::Expression::Literal { value };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::TemplateExpression { value } => {
                 let value = match value {
-                    dir::TemplateLiteral::String { string } => {
-                        js::TemplateLiteral::String { template: *string }
-                    }
-                    dir::TemplateLiteral::InterpolatedString { strings, arguments } => {
-                        let template = strings.to_vec();
+                    dir::TemplateLiteral::String { chunk } => js::TemplateLiteral::String {
+                        template: chunk.raw,
+                    },
+                    dir::TemplateLiteral::InterpolatedString { chunks, arguments } => {
+                        let template = chunks.iter().map(|chunk| chunk.raw).collect::<Vec<_>>();
                         let expressions = arguments
                             .iter()
                             .map(|argument_id| {
@@ -904,8 +904,8 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::Loop { label, body } => {
                 let body = self.lower_block(*body)?;
-                let condition = js::Expression::ScalarLiteral {
-                    value: js::ScalarLiteral::Boolean(true),
+                let condition = js::Expression::Literal {
+                    value: js::Literal::Boolean(true),
                 };
                 let condition =
                     self.tree

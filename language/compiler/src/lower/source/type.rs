@@ -141,7 +141,7 @@ impl ModuleLowerer<'_> {
         &self,
         count: dir::GlobalTypeId,
     ) -> CompilerResult<u64> {
-        let dir::Type::Literal(dir::ScalarLiteral::Integer(length)) = self.ty(count)? else {
+        let dir::Type::Literal(dir::Literal::Integer(length)) = self.ty(count)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.module.into(),
                 construct: "a fixed array with an open length".to_string(),

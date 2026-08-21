@@ -193,8 +193,8 @@ impl Rewriter<'_, '_> {
             _ => return None,
         };
         let right = self.module.tree.insert_from(
-            js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::String(self.module.strings.intern("u")),
+            js::Expression::Literal {
+                value: js::Literal::String(self.module.strings.intern("u")),
             },
             right,
         );
@@ -528,8 +528,8 @@ impl Rewriter<'_, '_> {
         let right = Self::scalar_comparison_literal_expression(self.module, right)?;
         let value = Self::evaluate_literal_comparison(self.module, &left, operator, &right)?;
 
-        Some(js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::Boolean(value),
+        Some(js::Expression::Literal {
+            value: js::Literal::Boolean(value),
         })
     }
 
@@ -574,8 +574,8 @@ impl Rewriter<'_, '_> {
         let else_value = Self::boolean_literal_value(self.module, else_expression)?;
 
         if then_value == else_value {
-            return Some(js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::Boolean(then_value),
+            return Some(js::Expression::Literal {
+                value: js::Literal::Boolean(then_value),
             });
         }
 
@@ -618,8 +618,8 @@ impl Rewriter<'_, '_> {
                 let scalar = self.output_scalar_literal_expression(self.module, right)?;
 
                 match scalar {
-                    js::ScalarLiteral::Number(value) => Some(js::Expression::ScalarLiteral {
-                        value: js::ScalarLiteral::Number(value),
+                    js::Literal::Number(value) => Some(js::Expression::Literal {
+                        value: js::Literal::Number(value),
                     }),
                     _ => None,
                 }
@@ -628,8 +628,8 @@ impl Rewriter<'_, '_> {
                 let scalar = self.output_scalar_literal_expression(self.module, right)?;
 
                 match scalar {
-                    js::ScalarLiteral::Number(value) => Some(js::Expression::ScalarLiteral {
-                        value: js::ScalarLiteral::Number(-value),
+                    js::Literal::Number(value) => Some(js::Expression::Literal {
+                        value: js::Literal::Number(-value),
                     }),
                     _ => None,
                 }
@@ -638,8 +638,8 @@ impl Rewriter<'_, '_> {
                 let scalar = self.output_scalar_literal_expression(self.module, right)?;
 
                 match scalar {
-                    js::ScalarLiteral::Number(value) => Some(js::Expression::ScalarLiteral {
-                        value: js::ScalarLiteral::Number((!Self::js_to_int32(value)) as f64),
+                    js::Literal::Number(value) => Some(js::Expression::Literal {
+                        value: js::Literal::Number((!Self::js_to_int32(value)) as f64),
                     }),
                     _ => None,
                 }
@@ -660,16 +660,16 @@ impl Rewriter<'_, '_> {
                     return None;
                 }
 
-                Some(js::Expression::ScalarLiteral {
-                    value: js::ScalarLiteral::Undefined,
+                Some(js::Expression::Literal {
+                    value: js::Literal::Undefined,
                 })
             }
             js::UnaryOperator::Plus => {
                 let scalar = Self::scalar_literal_expression(self.module, right)?;
 
                 match scalar {
-                    js::ScalarLiteral::Number(value) => Some(js::Expression::ScalarLiteral {
-                        value: js::ScalarLiteral::Number(value),
+                    js::Literal::Number(value) => Some(js::Expression::Literal {
+                        value: js::Literal::Number(value),
                     }),
                     _ => None,
                 }
@@ -678,8 +678,8 @@ impl Rewriter<'_, '_> {
                 let scalar = Self::scalar_literal_expression(self.module, right)?;
 
                 match scalar {
-                    js::ScalarLiteral::Number(value) => Some(js::Expression::ScalarLiteral {
-                        value: js::ScalarLiteral::Number(-value),
+                    js::Literal::Number(value) => Some(js::Expression::Literal {
+                        value: js::Literal::Number(-value),
                     }),
                     _ => None,
                 }
@@ -687,8 +687,8 @@ impl Rewriter<'_, '_> {
             js::UnaryOperator::Not => {
                 let truthiness = Self::literal_truthiness_static(self.module, right)?;
 
-                Some(js::Expression::ScalarLiteral {
-                    value: js::ScalarLiteral::Boolean(!truthiness),
+                Some(js::Expression::Literal {
+                    value: js::Literal::Boolean(!truthiness),
                 })
             }
             js::UnaryOperator::PostIncrement
@@ -708,12 +708,12 @@ impl Rewriter<'_, '_> {
         operator: js::BinaryOperator,
         right: js::LocalNodeId<js::Expression>,
     ) -> Option<js::Expression> {
-        let js::ScalarLiteral::Number(left) =
+        let js::Literal::Number(left) =
             self.output_scalar_literal_expression(module, left)?
         else {
             return None;
         };
-        let js::ScalarLiteral::Number(right) =
+        let js::Literal::Number(right) =
             self.output_scalar_literal_expression(module, right)?
         else {
             return None;
@@ -747,8 +747,8 @@ impl Rewriter<'_, '_> {
             _ => return None,
         };
 
-        Some(js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::Number(value),
+        Some(js::Expression::Literal {
+            value: js::Literal::Number(value),
         })
     }
 
@@ -936,7 +936,7 @@ impl Rewriter<'_, '_> {
             return None;
         }
 
-        let Some(js::ScalarLiteral::Number(value)) =
+        let Some(js::Literal::Number(value)) =
             self.output_global_scalar_literal_expression(self.module, expression_id, &path)
         else {
             return None;
@@ -947,14 +947,14 @@ impl Rewriter<'_, '_> {
         }
 
         let one = self.module.tree.insert_from(
-            js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::Number(1.0),
+            js::Expression::Literal {
+                value: js::Literal::Number(1.0),
             },
             expression_id,
         );
         let zero = self.module.tree.insert_from(
-            js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::Number(0.0),
+            js::Expression::Literal {
+                value: js::Literal::Number(0.0),
             },
             expression_id,
         );
@@ -973,8 +973,8 @@ impl Rewriter<'_, '_> {
     ) -> Option<js::Expression> {
         let kind = Self::typeof_literal_kind(self.module, right)?;
 
-        Some(js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::String(self.module.strings.intern(kind)),
+        Some(js::Expression::Literal {
+            value: js::Literal::String(self.module.strings.intern(kind)),
         })
     }
 
@@ -1074,7 +1074,7 @@ impl Rewriter<'_, '_> {
     ) -> bool {
         matches!(
             Self::scalar_literal_expression(module, expression_id),
-            Some(js::ScalarLiteral::Null | js::ScalarLiteral::Undefined)
+            Some(js::Literal::Null | js::Literal::Undefined)
         )
     }
 
@@ -1086,11 +1086,11 @@ impl Rewriter<'_, '_> {
         if matches!(
             Self::scalar_literal_expression(module, expression_id),
             Some(
-                js::ScalarLiteral::Boolean(_)
-                    | js::ScalarLiteral::Number(_)
-                    | js::ScalarLiteral::Bigint(_)
-                    | js::ScalarLiteral::String(_)
-                    | js::ScalarLiteral::RegexString { .. }
+                js::Literal::Boolean(_)
+                    | js::Literal::Number(_)
+                    | js::Literal::Bigint(_)
+                    | js::Literal::String(_)
+                    | js::Literal::RegexString { .. }
             )
         ) {
             return true;

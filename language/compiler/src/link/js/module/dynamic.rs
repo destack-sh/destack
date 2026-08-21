@@ -98,8 +98,8 @@ impl JsLinker<'_> {
 
         let specifier = {
             let expression = module.tree.get(target_expression_id);
-            let js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::String(specifier),
+            let js::Expression::Literal {
+                value: js::Literal::String(specifier),
             } = expression
             else {
                 return Ok(());
@@ -133,8 +133,8 @@ impl JsLinker<'_> {
             self.package_id,
         )?;
         let expression = module.tree.get_mut(target_expression_id);
-        let js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::String(specifier),
+        let js::Expression::Literal {
+            value: js::Literal::String(specifier),
         } = expression
         else {
             return Ok(());

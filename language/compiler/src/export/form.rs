@@ -23,7 +23,7 @@ impl ExportState<'_> {
                 return ExportForm::Declared;
             }
             let is_literal = declarator.value.is_some_and(|value| {
-                matches!(self.view.get(value), dir::Expression::ScalarLiteral(_))
+                matches!(self.view.get(value), dir::Expression::Literal(_))
             });
 
             return match is_literal {
@@ -84,7 +84,7 @@ impl ExportState<'_> {
                 } => {
                     declared_type.is_some()
                         || default.is_some_and(|value| {
-                            matches!(self.view.get(value), dir::Expression::ScalarLiteral(_))
+                            matches!(self.view.get(value), dir::Expression::Literal(_))
                         })
                 }
                 dir::Member::Method { signature, .. } => {

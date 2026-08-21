@@ -63,22 +63,22 @@ impl TestModuleBuilder {
     fn string(&mut self, value: &str) -> js::LocalNodeId<js::Expression> {
         let value = self.strings.intern(value);
 
-        self.expression(js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::String(value),
+        self.expression(js::Expression::Literal {
+            value: js::Literal::String(value),
         })
     }
 
     /// Insert one undefined literal expression.
     fn undefined(&mut self) -> js::LocalNodeId<js::Expression> {
-        self.expression(js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::Undefined,
+        self.expression(js::Expression::Literal {
+            value: js::Literal::Undefined,
         })
     }
 
     /// Insert one null literal expression.
     fn null(&mut self) -> js::LocalNodeId<js::Expression> {
-        self.expression(js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::Null,
+        self.expression(js::Expression::Literal {
+            value: js::Literal::Null,
         })
     }
 
@@ -414,8 +414,8 @@ fn test_rewrites_strict_typeof_undefined_comparison_to_string_order() {
     assert_eq!(operator, js::BinaryOperator::GreaterThan);
     assert!(matches!(
         rewriter.module().tree.get(right),
-        js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::String(value),
+        js::Expression::Literal {
+            value: js::Literal::String(value),
         } if rewriter.module().strings.get(*value) == "u"
     ));
 }
@@ -446,8 +446,8 @@ fn test_rewrites_reversed_strict_typeof_undefined_comparison_to_string_order() {
     assert_eq!(operator, js::BinaryOperator::GreaterThan);
     assert!(matches!(
         rewriter.module().tree.get(right),
-        js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::String(value),
+        js::Expression::Literal {
+            value: js::Literal::String(value),
         } if rewriter.module().strings.get(*value) == "u"
     ));
 }
@@ -478,8 +478,8 @@ fn test_rewrites_loose_typeof_undefined_inequality_to_string_order() {
     assert_eq!(operator, js::BinaryOperator::LessThan);
     assert!(matches!(
         rewriter.module().tree.get(right),
-        js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::String(value),
+        js::Expression::Literal {
+            value: js::Literal::String(value),
         } if rewriter.module().strings.get(*value) == "u"
     ));
 }
@@ -510,8 +510,8 @@ fn test_rewrites_loose_typeof_undefined_equality_to_string_order() {
     assert_eq!(operator, js::BinaryOperator::GreaterThan);
     assert!(matches!(
         rewriter.module().tree.get(right),
-        js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::String(value),
+        js::Expression::Literal {
+            value: js::Literal::String(value),
         } if rewriter.module().strings.get(*value) == "u"
     ));
 }
@@ -641,8 +641,8 @@ fn test_rewrites_nullish_coalescing_with_null_left() {
 #[test]
 fn test_rewrites_nullish_coalescing_with_non_nullish_left() {
     let mut builder = TestModuleBuilder::new();
-    let left = builder.expression(js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Number(0.0),
+    let left = builder.expression(js::Expression::Literal {
+        value: js::Literal::Number(0.0),
     });
     let right = builder.path("fallback");
     let mut rewriter = TestRewriter::new(builder.finish());
@@ -651,8 +651,8 @@ fn test_rewrites_nullish_coalescing_with_non_nullish_left() {
         .fold_nullish_coalescing(left, right)
         .expect("expected nullish coalescing rewrite");
 
-    let js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Number(value),
+    let js::Expression::Literal {
+        value: js::Literal::Number(value),
     } = rewritten
     else {
         panic!("expected number literal");
@@ -673,8 +673,8 @@ fn test_rewrites_literal_string_comparison_to_boolean() {
         .fold_literal_comparison(left, js::BinaryOperator::LessThan, right)
         .expect("expected literal comparison rewrite");
 
-    let js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Boolean(value),
+    let js::Expression::Literal {
+        value: js::Literal::Boolean(value),
     } = rewritten
     else {
         panic!("expected boolean literal");
@@ -695,8 +695,8 @@ fn test_rewrites_global_infinity_comparison_to_boolean() {
         .fold_literal_comparison(left, js::BinaryOperator::EqualStrict, right)
         .expect("expected global infinity comparison rewrite");
 
-    let js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Boolean(value),
+    let js::Expression::Literal {
+        value: js::Literal::Boolean(value),
     } = rewritten
     else {
         panic!("expected boolean literal");
@@ -717,8 +717,8 @@ fn test_rewrites_global_nan_comparison_to_boolean() {
         .fold_literal_comparison(left, js::BinaryOperator::EqualStrict, right)
         .expect("expected global NaN comparison rewrite");
 
-    let js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Boolean(value),
+    let js::Expression::Literal {
+        value: js::Literal::Boolean(value),
     } = rewritten
     else {
         panic!("expected boolean literal");
@@ -750,8 +750,8 @@ fn test_rewrites_global_undefined_coalescing_to_fallback() {
 #[test]
 fn test_rewrites_sequence_expression_prefix() {
     let mut builder = TestModuleBuilder::new();
-    let zero = builder.expression(js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Number(0.0),
+    let zero = builder.expression(js::Expression::Literal {
+        value: js::Literal::Number(0.0),
     });
     let string = builder.string("prefix");
     let value = builder.path("value");
@@ -811,8 +811,8 @@ fn test_rewrites_null_typeof_comparison_to_boolean() {
         .fold_literal_comparison(typeof_null, js::BinaryOperator::EqualStrict, object)
         .expect("expected null typeof comparison rewrite");
 
-    let js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Boolean(value),
+    let js::Expression::Literal {
+        value: js::Literal::Boolean(value),
     } = rewritten
     else {
         panic!("expected boolean literal");
@@ -826,8 +826,8 @@ fn test_rewrites_null_typeof_comparison_to_boolean() {
 fn test_rewrites_loose_void_zero_comparison_to_null() {
     let mut builder = TestModuleBuilder::new();
     let value = builder.path("value");
-    let zero = builder.expression(js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Number(0.0),
+    let zero = builder.expression(js::Expression::Literal {
+        value: js::Literal::Number(0.0),
     });
     let undefined = builder.unary(js::UnaryOperator::Void, zero);
     let mut rewriter = TestRewriter::new(builder.finish());
@@ -857,11 +857,11 @@ fn test_rewrites_boolean_ternary_to_not() {
     let left = builder.path("left");
     let right = builder.path("right");
     let condition = builder.binary(left, js::BinaryOperator::EqualStrict, right);
-    let then_expression = builder.expression(js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Boolean(false),
+    let then_expression = builder.expression(js::Expression::Literal {
+        value: js::Literal::Boolean(false),
     });
-    let else_expression = builder.expression(js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Boolean(true),
+    let else_expression = builder.expression(js::Expression::Literal {
+        value: js::Literal::Boolean(true),
     });
     let mut rewriter = TestRewriter::new(builder.finish());
 
@@ -884,8 +884,8 @@ fn test_rewrites_boolean_ternary_to_not() {
 #[test]
 fn test_rewrites_void_literal_to_undefined() {
     let mut builder = TestModuleBuilder::new();
-    let right = builder.expression(js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Number(1.0),
+    let right = builder.expression(js::Expression::Literal {
+        value: js::Literal::Number(1.0),
     });
     let mut rewriter = TestRewriter::new(builder.finish());
 
@@ -893,8 +893,8 @@ fn test_rewrites_void_literal_to_undefined() {
         .fold_static_unary_expression(js::UnaryOperator::Void, right)
         .expect("expected void literal rewrite");
 
-    let js::Expression::ScalarLiteral {
-        value: js::ScalarLiteral::Undefined,
+    let js::Expression::Literal {
+        value: js::Literal::Undefined,
     } = rewritten
     else {
         panic!("expected undefined literal");

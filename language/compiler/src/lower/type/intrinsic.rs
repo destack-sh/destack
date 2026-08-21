@@ -143,12 +143,12 @@ impl TypeLowerer<'_, '_> {
 
                 // read the multiplicity off its literal name
                 let multiplicity = match self.lowerer.ty(*multiplicity)? {
-                    dir::Type::Literal(dir::ScalarLiteral::String(name))
+                    dir::Type::Literal(dir::Literal::String(name))
                         if self.lowerer.strings.get(name) == "once" =>
                     {
                         mir::Multiplicity::Once
                     }
-                    dir::Type::Literal(dir::ScalarLiteral::String(name))
+                    dir::Type::Literal(dir::Literal::String(name))
                         if self.lowerer.strings.get(name) == "repeatable" =>
                     {
                         mir::Multiplicity::Repeatable

@@ -285,9 +285,9 @@ impl ModuleLowerer<'_> {
         owner: dir::GlobalSymbolId,
         role: Option<dir::FunctionRole>,
     ) -> CompilerResult<String> {
-        // qualify anonymous extensions by their target root
+        // qualify anonymous extensions by their target declaration
         let extension_root = match self.definition(owner)? {
-            Some(dir::Definition::Extension(extension)) => extension.target.root(),
+            Some(dir::Definition::Extension(extension)) => extension.target.declaration(),
             _ => None,
         };
         let mut owner_name = self.symbol_name(owner)?;

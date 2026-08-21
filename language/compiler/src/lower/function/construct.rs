@@ -395,7 +395,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .is_some_and(|ty| matches!(self.builder.tree().get(ty), mir::Type::Void));
             let is_literal = matches!(
                 self.source().tree().get(*value),
-                dir::Expression::ScalarLiteral(_)
+                dir::Expression::Literal(_)
             );
             if is_void && is_literal {
                 continue;
@@ -506,7 +506,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         Ok(matches!(
             declaring.tree().get(expression),
-            dir::Expression::ScalarLiteral(_)
+            dir::Expression::Literal(_)
         ))
     }
 
@@ -640,7 +640,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     let is_void = matches!(self.builder.tree().get(carrier), mir::Type::Void);
                     let is_literal = matches!(
                         self.source().tree().get(*value),
-                        dir::Expression::ScalarLiteral(_)
+                        dir::Expression::Literal(_)
                     );
                     if is_void && is_literal {
                         values.push(self.builder.constant(mir::Constant::Undefined, carrier));

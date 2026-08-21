@@ -100,8 +100,8 @@ fn insert_string_expression(
     value: &str,
 ) -> js::LocalNodeId<js::Expression> {
     tree.insert_from_source_any(
-        js::Expression::ScalarLiteral {
-            value: js::ScalarLiteral::String(strings.intern(value)),
+        js::Expression::Literal {
+            value: js::Literal::String(strings.intern(value)),
         },
         module_id,
         anchor,
@@ -118,36 +118,36 @@ fn insert_json_expression(
 ) -> LinkResult<js::LocalNodeId<js::Expression>> {
     match value {
         Value::Null => Ok(tree.insert_from_source_any(
-            js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::Null,
+            js::Expression::Literal {
+                value: js::Literal::Null,
             },
             module_id,
             anchor,
         )),
         Value::Bool(value) => Ok(tree.insert_from_source_any(
-            js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::Boolean(*value),
+            js::Expression::Literal {
+                value: js::Literal::Boolean(*value),
             },
             module_id,
             anchor,
         )),
         Value::Signed(value) => Ok(tree.insert_from_source_any(
-            js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::Number(*value as f64),
+            js::Expression::Literal {
+                value: js::Literal::Number(*value as f64),
             },
             module_id,
             anchor,
         )),
         Value::Unsigned(value) => Ok(tree.insert_from_source_any(
-            js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::Number(*value as f64),
+            js::Expression::Literal {
+                value: js::Literal::Number(*value as f64),
             },
             module_id,
             anchor,
         )),
         Value::Float(value) => Ok(tree.insert_from_source_any(
-            js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::Number(*value),
+            js::Expression::Literal {
+                value: js::Literal::Number(*value),
             },
             module_id,
             anchor,
@@ -213,8 +213,8 @@ fn insert_binary_expression(
 
     for byte in bytes {
         let value = tree.insert_from_source_any(
-            js::Expression::ScalarLiteral {
-                value: js::ScalarLiteral::Number(f64::from(*byte)),
+            js::Expression::Literal {
+                value: js::Literal::Number(f64::from(*byte)),
             },
             module_id,
             anchor,

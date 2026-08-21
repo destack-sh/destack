@@ -1,5 +1,5 @@
 use crate::emit::js::{
-    Expression, LocalNodeId, Module, Node, NodeVisitor, ScalarLiteral, Statement, Tree,
+    Expression, LocalNodeId, Module, Node, NodeVisitor, Literal, Statement, Tree,
     walk_expression, walk_root, walk_statement,
 };
 use destack_source::ModuleId;
@@ -159,8 +159,8 @@ impl<'a> DynamicDependencyCollector<'a> {
         target_module: Option<ModuleId>,
     ) -> Option<JsDependencyTarget> {
         let expression = self.module.tree.get(target);
-        let Expression::ScalarLiteral {
-            value: ScalarLiteral::String(specifier),
+        let Expression::Literal {
+            value: Literal::String(specifier),
         } = expression
         else {
             return None;

@@ -229,8 +229,8 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     right,
                     is_optional,
                 } => {
-                    let js::Expression::ScalarLiteral {
-                        value: js::ScalarLiteral::String(name),
+                    let js::Expression::Literal {
+                        value: js::Literal::String(name),
                     } = self.module.tree.get(right)
                     else {
                         continue;
@@ -259,8 +259,8 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     }
 
                     let right = self.module.tree.insert_from(
-                        js::Expression::ScalarLiteral {
-                            value: js::ScalarLiteral::String(name),
+                        js::Expression::Literal {
+                            value: js::Literal::String(name),
                         },
                         expression_id,
                     );
@@ -303,12 +303,12 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     *expression = rewritten;
                 }
 
-                js::Expression::ScalarLiteral {
-                    value: js::ScalarLiteral::Undefined,
+                js::Expression::Literal {
+                    value: js::Literal::Undefined,
                 } => {
                     let zero = self.module.tree.insert_from(
-                        js::Expression::ScalarLiteral {
-                            value: js::ScalarLiteral::Number(0.0),
+                        js::Expression::Literal {
+                            value: js::Literal::Number(0.0),
                         },
                         expression_id,
                     );
@@ -320,13 +320,13 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     };
                 }
 
-                js::Expression::ScalarLiteral {
-                    value: js::ScalarLiteral::Boolean(value),
+                js::Expression::Literal {
+                    value: js::Literal::Boolean(value),
                 } => {
                     let number = if value { 0.0 } else { 1.0 };
                     let right = self.module.tree.insert_from(
-                        js::Expression::ScalarLiteral {
-                            value: js::ScalarLiteral::Number(number),
+                        js::Expression::Literal {
+                            value: js::Literal::Number(number),
                         },
                         expression_id,
                     );
